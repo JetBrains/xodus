@@ -52,8 +52,7 @@ public final class MutableBTree implements IBTreeMutable {
 
         var immutableRoot = immutableTree.root;
         if (immutableRoot == null) {
-            this.root = new MutableLeafPage(this, null, log, log.getCachePageSize(),
-                    expiredLoggables);
+            this.root = new MutableLeafPage(this, null, log, expiredLoggables);
         } else {
             this.root = immutableRoot.toMutable(this, expiredLoggables);
         }
@@ -373,7 +372,7 @@ public final class MutableBTree implements IBTreeMutable {
                 } else if (entriesCount == 0) {
                     //if tree is empty replace root page by leaf page
                     assert getSize() == 0;
-                    root = new MutableLeafPage(this, null, log, mutableRoot.pageSize, expiredLoggables);
+                    root = new MutableLeafPage(this, null, log, expiredLoggables);
                     break;
                 } else {
                     break;

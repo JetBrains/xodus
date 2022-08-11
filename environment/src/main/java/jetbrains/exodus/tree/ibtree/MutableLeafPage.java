@@ -43,19 +43,24 @@ final class MutableLeafPage implements MutablePage {
 
     boolean spilled;
 
+    int serializedSize;
+
     MutableLeafPage(@NotNull MutableBTree tree, @Nullable ImmutableLeafPage underlying,
-                    @NotNull Log log, int pageSize,
+                    @NotNull Log log,
                     @NotNull ExpiredLoggableCollection expiredLoggables) {
         this.tree = tree;
         this.underlying = underlying;
         if (underlying != null) {
             this.pageAddress = underlying.address;
+            this.serializedSize = underlying.page.limit() + ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET;
         } else {
             this.pageAddress = -1;
+            this.serializedSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
+                    ImmutableLeafPage.KEYS_OFFSET;
         }
 
         this.log = log;
-        this.pageSize = pageSize;
+        this.pageSize = log.getCachePageSize();
 
         this.expiredLoggables = expiredLoggables;
 
@@ -101,7 +106,8 @@ final class MutableLeafPage implements MutablePage {
         fetch();
 
         assert changedEntries != null;
-        changedEntries.set(index, new Entry(key, value));
+        var prevEntry = changedEntries.set(index, new Entry(key, value));
+        serializedSize += key.limit() + value.limit() - prevEntry.value.limit() - prevEntry.key.limit();
     }
 
     void insert(int index, ByteBuffer key, ByteBuffer value) {
@@ -109,6 +115,8 @@ final class MutableLeafPage implements MutablePage {
 
         assert changedEntries != null;
         changedEntries.add(index, new Entry(key, value));
+
+        serializedSize += 2 * Long.BYTES + key.limit() + value.limit();
     }
 
     void append(ByteBuffer key, ByteBuffer value) {
@@ -116,13 +124,15 @@ final class MutableLeafPage implements MutablePage {
 
         assert changedEntries != null;
         changedEntries.add(new Entry(key, value));
+        serializedSize += 2 * Long.BYTES + key.limit() + value.limit();
     }
 
     void delete(int index) {
         fetch();
 
         assert changedEntries != null;
-        changedEntries.remove(index);
+        var prevValue = changedEntries.remove(index);
+        serializedSize -= (prevValue.value.limit() + prevValue.key.limit() + 2 * Long.BYTES);
 
         unbalanced = true;
     }
@@ -141,14 +151,14 @@ final class MutableLeafPage implements MutablePage {
 
         assert parent == null || changedEntries.size() >= 1;
 
-        var serializedSize = serializedSize();
+        assert serializedSize() == serializedSize;
         assert serializedSize <= pageSize || changedEntries.size() < 2;
+
 
         var newBuffer = LogUtil.allocatePage(serializedSize);
         var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
                         newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
                 order(ByteOrder.nativeOrder());
-        serializedSize -= ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET;
 
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, 0);
@@ -160,7 +170,7 @@ final class MutableLeafPage implements MutablePage {
         int keysDataOffset = ImmutableBasePage.KEYS_OFFSET + changedEntries.size() * 2 * Long.BYTES;
 
         int valuesPositionsOffset = ImmutableBasePage.KEYS_OFFSET + Long.BYTES * changedEntries.size();
-        int valuesDataOffset = serializedSize;
+        int valuesDataOffset = serializedSize - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET;
 
         for (var entry : changedEntries) {
             var key = entry.key;
@@ -217,8 +227,9 @@ final class MutableLeafPage implements MutablePage {
         }
 
         assert changedEntries != null;
+        assert serializedSize == serializedSize();
 
-        unbalanced = changedEntries.isEmpty() || needsToBeMerged(pageSize / 4);
+        unbalanced = changedEntries.isEmpty() || serializedSize < pageSize / 4;
         return unbalanced;
     }
 
@@ -229,8 +240,19 @@ final class MutableLeafPage implements MutablePage {
         assert changedEntries != null;
 
         var leafPage = (MutableLeafPage) page;
+        assert leafPage.changedEntries != null;
 
-        changedEntries.addAll(leafPage.changedEntries);
+        var leafChangedEntries = leafPage.changedEntries;
+        serializedSize += 2 * Long.BYTES * leafChangedEntries.size();
+
+        for (var leafEntry : leafChangedEntries) {
+            serializedSize += leafEntry.key.limit() + leafEntry.value.limit();
+        }
+
+        changedEntries.addAll(leafChangedEntries);
+
+        assert serializedSize == serializedSize();
+
         unbalanced = true;
     }
 
@@ -292,11 +314,12 @@ final class MutableLeafPage implements MutablePage {
                 parent.addChild(changedEntries.get(0).key, this);
             }
 
-            page = new MutableLeafPage(tree, null, log, pageSize,
-                    expiredLoggables);
+            page = new MutableLeafPage(tree, null, log, expiredLoggables);
 
             page.changedEntries = nextSiblingEntries;
             page.spilled = true;
+            //will be calculated at next call to splitAtPageSize()
+            page.serializedSize = -1;
 
             parent.addChild(nextSiblingEntries.get(0).key, page);
             parent.sortBeforeInternalSpill = true;
@@ -304,7 +327,8 @@ final class MutableLeafPage implements MutablePage {
 
         spilled = true;
 
-        assert changedEntries.size() <= 1 || serializedSize() <= pageSize;
+        assert serializedSize == serializedSize();
+        assert changedEntries.size() <= 1 || serializedSize <= pageSize;
 
         //parent first spill children then itself
         //so we do not need sort children of parent or spill parent itself
@@ -316,6 +340,9 @@ final class MutableLeafPage implements MutablePage {
 
         //root can contain 0 pages, leaf page should keep at least one entry
         if (changedEntries.size() <= 1) {
+            if (serializedSize < 0) {
+                serializedSize = serializedSize();
+            }
             return null;
         }
 
@@ -327,15 +354,18 @@ final class MutableLeafPage implements MutablePage {
         int indexToSplit = 0;
 
 
+        int currentSize = size;
         for (int i = 1; i < changedEntries.size(); i++) {
             var entry = changedEntries.get(i);
 
             size += 2 * Long.BYTES + entry.key.limit() + entry.value.limit();
             if (size > pageSize) {
+                serializedSize = -1;
                 break;
             }
 
             indexToSplit = i;
+            currentSize = size;
         }
 
         ObjectArrayList<Entry> result = null;
@@ -345,7 +375,11 @@ final class MutableLeafPage implements MutablePage {
             result.addAll(0, changedEntries.subList(indexToSplit + 1, changedEntries.size()));
 
             changedEntries.removeElements(indexToSplit + 1, changedEntries.size());
-            changedEntries.trim();
+            changedEntries = new ObjectArrayList<>(changedEntries.subList(0, indexToSplit + 1));
+        }
+
+        if (serializedSize == -1) {
+            serializedSize = currentSize;
         }
 
         return result;

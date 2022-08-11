@@ -23,7 +23,7 @@ final class ImmutableLeafPage extends ImmutableBasePage {
 
     @Override
     public MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables) {
-        return new MutableLeafPage(tree, this, log, log.getCachePageSize(), expiredLoggables);
+        return new MutableLeafPage(tree, this, log, expiredLoggables);
     }
 
     @Override
