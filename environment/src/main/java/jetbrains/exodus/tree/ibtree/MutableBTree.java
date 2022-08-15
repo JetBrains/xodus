@@ -155,10 +155,7 @@ public final class MutableBTree implements IBTreeMutable {
                         while (!invalidFirstPages.isEmpty()) {
                             //going from last to first
                             var pageToUpdate = invalidFirstPages.dequeueLast();
-
-                            assert pageToUpdate.changedEntries != null;
-                            var entry = pageToUpdate.changedEntries.get(0);
-                            entry.key = entry.mutablePage.key(0);
+                            pageToUpdate.updateFirstKey();
                         }
                     }
 
