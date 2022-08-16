@@ -13,7 +13,7 @@ interface MutablePage extends TraversablePage {
 
     boolean rebalance(@Nullable MutableInternalPage parent);
 
-    void spill(@Nullable MutableInternalPage parent);
+    boolean spill(@Nullable MutableInternalPage parent);
 
     long treeSize();
 

@@ -46,8 +46,6 @@ final class MutableInternalPage implements MutablePage {
     @NotNull
     final MutableBTree tree;
 
-    boolean spilled;
-
     boolean unbalanced;
 
     int serializedSize;
@@ -320,9 +318,9 @@ final class MutableInternalPage implements MutablePage {
     }
 
     @Override
-    public void spill(@Nullable MutableInternalPage parent) {
-        if (spilled || changedEntries == null) {
-            return;
+    public boolean spill(@Nullable MutableInternalPage parent) {
+        if (changedEntries == null) {
+            return false;
         }
 
         //spill children first
@@ -335,6 +333,7 @@ final class MutableInternalPage implements MutablePage {
             changedEntries.sort(null);
         }
 
+        var spilled = false;
         var page = this;
         while (true) {
             var nextSiblingEntries = page.splitAtPageSize();
@@ -343,6 +342,7 @@ final class MutableInternalPage implements MutablePage {
                 break;
             }
 
+            spilled = true;
             if (parent == null) {
                 parent = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize);
                 assert tree.root == this;
@@ -353,7 +353,6 @@ final class MutableInternalPage implements MutablePage {
 
             page = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize);
             page.changedEntries = nextSiblingEntries;
-            page.spilled = true;
             //will be calculated at next call to splitAtPageSize()
             page.serializedSize = -1;
 
@@ -361,12 +360,12 @@ final class MutableInternalPage implements MutablePage {
             parent.sortBeforeInternalSpill = true;
         }
 
-        spilled = true;
         assert changedEntries.size() <= 2 || serializedSize() <= pageSize;
 
         assert serializedSize == serializedSize();
         //parent first spill children then itself
         //so we do not need sort children of parent or spill parent itself
+        return spilled;
     }
 
     private ObjectArrayList<Entry> splitAtPageSize() {

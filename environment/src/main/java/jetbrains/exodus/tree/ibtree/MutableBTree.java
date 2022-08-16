@@ -138,11 +138,12 @@ public final class MutableBTree implements IBTreeMutable {
     private boolean doPut(@NotNull ByteBuffer key, @NotNull ByteBuffer value,
                           final boolean override) {
         var page = root;
-        ObjectArrayFIFOQueue<MutableInternalPage> invalidFirstPages = null;
+        ObjectArrayFIFOQueue<MutableInternalPage> stack = new ObjectArrayFIFOQueue<>(8);
+        boolean smallestKey = false;
 
         while (true) {
             int index;
-            if (invalidFirstPages != null) {
+            if (smallestKey) {
                 index = -1;
             } else {
                 index = page.find(key);
@@ -151,21 +152,80 @@ public final class MutableBTree implements IBTreeMutable {
             if (page instanceof MutableLeafPage mutablePage) {
                 if (index < 0) {
                     mutablePage.insert(-index - 1, key, value);
-                    if (invalidFirstPages != null) {
-                        while (!invalidFirstPages.isEmpty()) {
-                            //going from last to first
-                            var pageToUpdate = invalidFirstPages.dequeueLast();
+
+                    MutableInternalPage parent;
+                    if (!stack.isEmpty()) {
+                        parent = stack.dequeueLast();
+                    } else {
+                        parent = null;
+                    }
+
+                    var spillParent = mutablePage.spill(parent);
+                    if (parent == null && spillParent) {
+                        assert mutablePage != root;
+                        parent = (MutableInternalPage) this.root;
+                    }
+
+                    while (parent != null && (spillParent || smallestKey)) {
+                        //going from last to first
+                        var pageToUpdate = parent;
+                        if (!stack.isEmpty()) {
+                            parent = stack.dequeueLast();
+                        } else {
+                            parent = null;
+                        }
+
+                        if (smallestKey) {
                             pageToUpdate.updateFirstKey();
+                        }
+                        if (spillParent) {
+                            spillParent = pageToUpdate.spill(parent);
+                        }
+
+                        if (parent == null && spillParent) {
+                            assert mutablePage != root;
+                            parent = (MutableInternalPage) this.root;
                         }
                     }
 
-                    TreeMutableCursor.notifyCursors(this);
+
                     size++;
+                    TreeMutableCursor.notifyCursors(this);
+
                     return true;
                 }
 
                 if (override) {
                     mutablePage.set(index, key, value);
+
+                    MutableInternalPage parent;
+                    if (!stack.isEmpty()) {
+                        parent = stack.dequeueLast();
+                    } else {
+                        parent = null;
+                    }
+
+                    var spillParent = mutablePage.spill(parent);
+                    if (parent == null && spillParent) {
+                        assert mutablePage != root;
+                        parent = (MutableInternalPage) this.root;
+                    }
+
+                    while (spillParent) {
+                        var pageToUpdate = parent;
+                        if (!stack.isEmpty()) {
+                            parent = stack.dequeueLast();
+                        } else {
+                            parent = null;
+                        }
+
+                        spillParent = pageToUpdate.spill(parent);
+
+                        if (parent == null && spillParent) {
+                            assert mutablePage != root;
+                            parent = (MutableInternalPage) this.root;
+                        }
+                    }
 
                     TreeMutableCursor.notifyCursors(this);
                     return true;
@@ -179,15 +239,13 @@ public final class MutableBTree implements IBTreeMutable {
                     if (index > 0) {
                         index--;
                     } else {
-                        if (invalidFirstPages == null) {
-                            invalidFirstPages = new ObjectArrayFIFOQueue<>();
-                        }
-
-                        invalidFirstPages.enqueue((MutableInternalPage) page);
+                        smallestKey = true;
                     }
                 }
 
                 var internalPage = (MutableInternalPage) page;
+                stack.enqueue(internalPage);
+
                 page = internalPage.mutableChild(index);
             }
         }

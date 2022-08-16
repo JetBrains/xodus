@@ -41,8 +41,6 @@ final class MutableLeafPage implements MutablePage {
     @NotNull
     final MutableBTree tree;
 
-    boolean spilled;
-
     int serializedSize;
 
     MutableLeafPage(@NotNull MutableBTree tree, @Nullable ImmutableLeafPage underlying,
@@ -270,34 +268,15 @@ final class MutableLeafPage implements MutablePage {
         return size;
     }
 
-    private boolean needsToBeMerged(int threshold) {
-        assert changedEntries != null;
-
-        int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
-                ImmutableLeafPage.KEYS_OFFSET + 2 * Long.BYTES * changedEntries.size();
-
-        for (Entry entry : changedEntries) {
-            size += entry.key.limit();
-            if (size >= threshold) {
-                return false;
-            }
-
-            size += entry.value.limit();
-            if (size >= threshold) {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     @Override
-    public void spill(@Nullable MutableInternalPage parent) {
-        if (spilled || changedEntries == null) {
-            return;
+    public boolean spill(@Nullable MutableInternalPage parent) {
+        if (changedEntries == null) {
+            return false;
         }
 
         var page = this;
+        boolean spilled = false;
 
         while (true) {
             var nextSiblingEntries = page.splitAtPageSize();
@@ -306,6 +285,7 @@ final class MutableLeafPage implements MutablePage {
                 break;
             }
 
+            spilled = true;
             if (parent == null) {
                 parent = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize);
                 assert tree.root == this;
@@ -317,7 +297,6 @@ final class MutableLeafPage implements MutablePage {
             page = new MutableLeafPage(tree, null, log, expiredLoggables);
 
             page.changedEntries = nextSiblingEntries;
-            page.spilled = true;
             //will be calculated at next call to splitAtPageSize()
             page.serializedSize = -1;
 
@@ -325,13 +304,13 @@ final class MutableLeafPage implements MutablePage {
             parent.sortBeforeInternalSpill = true;
         }
 
-        spilled = true;
 
         assert serializedSize == serializedSize();
         assert changedEntries.size() <= 1 || serializedSize <= pageSize;
 
         //parent first spill children then itself
         //so we do not need sort children of parent or spill parent itself
+        return spilled;
     }
 
 
