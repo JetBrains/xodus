@@ -271,12 +271,23 @@ final class MutableLeafPage implements MutablePage {
 
     @Override
     public boolean spill(@Nullable MutableInternalPage parent) {
-        if (changedEntries == null) {
+        if (serializedSize <= pageSize || changedEntries == null) {
             return false;
         }
 
         var page = this;
         boolean spilled = false;
+        int currentIndex;
+        if (parent == null) {
+            currentIndex = -1;
+        } else {
+            currentIndex = parent.find(changedEntries.get(0).key);
+
+            if (currentIndex < 0) {
+                currentIndex = -currentIndex - 2;
+                assert currentIndex >= 0;
+            }
+        }
 
         while (true) {
             var nextSiblingEntries = page.splitAtPageSize();
@@ -291,7 +302,8 @@ final class MutableLeafPage implements MutablePage {
                 assert tree.root == this;
 
                 tree.root = parent;
-                parent.addChild(changedEntries.get(0).key, this);
+                parent.addChild(0, changedEntries.get(0).key, this);
+                currentIndex = 0;
             }
 
             page = new MutableLeafPage(tree, null, log, expiredLoggables);
@@ -300,8 +312,8 @@ final class MutableLeafPage implements MutablePage {
             //will be calculated at next call to splitAtPageSize()
             page.serializedSize = -1;
 
-            parent.addChild(nextSiblingEntries.get(0).key, page);
-            parent.sortBeforeInternalSpill = true;
+            parent.addChild(currentIndex + 1, nextSiblingEntries.get(0).key, page);
+            currentIndex++;
         }
 
 
@@ -334,11 +346,12 @@ final class MutableLeafPage implements MutablePage {
 
 
         int currentSize = size;
+        final int threshold = pageSize / 2;
         for (int i = 1; i < changedEntries.size(); i++) {
             var entry = changedEntries.get(i);
 
             size += 2 * Long.BYTES + entry.key.limit() + entry.value.limit();
-            if (size > pageSize) {
+            if (size > threshold) {
                 serializedSize = -1;
                 break;
             }

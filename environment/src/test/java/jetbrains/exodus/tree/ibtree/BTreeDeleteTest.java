@@ -81,7 +81,7 @@ public class BTreeDeleteTest extends BTreeTestBase {
 
     @Test
     public void testAddRemove32KKeys() {
-        final long seed = System.nanoTime();
+        final long seed = 4503391327268L;//System.nanoTime();
         System.out.println("testAddRemove32KKeys seed : " + seed);
 
         t = new ImmutableBTree(log, 5, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);

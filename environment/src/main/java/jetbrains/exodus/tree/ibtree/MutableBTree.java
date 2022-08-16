@@ -150,6 +150,8 @@ public final class MutableBTree implements IBTreeMutable {
             }
 
             if (page instanceof MutableLeafPage mutablePage) {
+                assert this.root == page || this.root == stack.first();
+
                 if (index < 0) {
                     mutablePage.insert(-index - 1, key, value);
 
@@ -160,7 +162,11 @@ public final class MutableBTree implements IBTreeMutable {
                         parent = null;
                     }
 
+                    if (parent != null && smallestKey) {
+                        parent.updateFirstKey();
+                    }
                     var spillParent = mutablePage.spill(parent);
+
                     if (parent == null && spillParent) {
                         assert mutablePage != root;
                         parent = (MutableInternalPage) this.root;
@@ -175,8 +181,8 @@ public final class MutableBTree implements IBTreeMutable {
                             parent = null;
                         }
 
-                        if (smallestKey) {
-                            pageToUpdate.updateFirstKey();
+                        if (parent != null && smallestKey) {
+                            parent.updateFirstKey();
                         }
                         if (spillParent) {
                             spillParent = pageToUpdate.spill(parent);
@@ -433,15 +439,6 @@ public final class MutableBTree implements IBTreeMutable {
                     break;
                 }
             }
-        }
-
-        var prevRoot = root;
-        root.spill(null);
-
-        //re-spill the root if it was changed
-        while (root != prevRoot) {
-            prevRoot = root;
-            root.spill(null);
         }
 
         var address = root.save(immutableTree.getStructureId(), null);

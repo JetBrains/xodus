@@ -22,11 +22,6 @@ final class MutableInternalPage implements MutablePage {
     @Nullable
     ObjectArrayList<Entry> changedEntries;
 
-    /**
-     * Children inform parent that it should sort {@link #changedEntries} before performing their spill
-     */
-    boolean sortBeforeInternalSpill;
-
     @NotNull
     final KeyView keyView;
 
@@ -319,22 +314,24 @@ final class MutableInternalPage implements MutablePage {
 
     @Override
     public boolean spill(@Nullable MutableInternalPage parent) {
-        if (changedEntries == null) {
+        if (serializedSize <= pageSize || changedEntries == null) {
             return false;
-        }
-
-        //spill children first
-        for (var childEntry : changedEntries) {
-            childEntry.mutablePage.spill(this);
-        }
-
-        //new children were appended sort them
-        if (sortBeforeInternalSpill) {
-            changedEntries.sort(null);
         }
 
         var spilled = false;
         var page = this;
+        int currentIndex;
+        if (parent == null) {
+            currentIndex = -1;
+        } else {
+            currentIndex = parent.find(changedEntries.get(0).key);
+
+            if (currentIndex < 0) {
+                currentIndex = -currentIndex - 2;
+                assert currentIndex >= 0;
+            }
+        }
+
         while (true) {
             var nextSiblingEntries = page.splitAtPageSize();
 
@@ -348,7 +345,8 @@ final class MutableInternalPage implements MutablePage {
                 assert tree.root == this;
                 tree.root = parent;
 
-                parent.addChild(changedEntries.get(0).key, page);
+                parent.addChild(0, changedEntries.get(0).key, page);
+                currentIndex = 0;
             }
 
             page = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize);
@@ -356,8 +354,8 @@ final class MutableInternalPage implements MutablePage {
             //will be calculated at next call to splitAtPageSize()
             page.serializedSize = -1;
 
-            parent.addChild(nextSiblingEntries.get(0).key, page);
-            parent.sortBeforeInternalSpill = true;
+            parent.addChild(currentIndex + 1, nextSiblingEntries.get(0).key, page);
+            currentIndex++;
         }
 
         assert changedEntries.size() <= 2 || serializedSize() <= pageSize;
@@ -391,12 +389,13 @@ final class MutableInternalPage implements MutablePage {
 
         int indexSplitAt = 1;
         int currentSize = size;
+        final int threshold = pageSize / 2;
 
         for (int i = 2; i < changedEntries.size(); i++) {
             var entry = changedEntries.get(i);
             size += entrySize(entry.key);
 
-            if (size > pageSize) {
+            if (size > threshold) {
                 serializedSize = -1;
                 break;
             }
@@ -424,16 +423,15 @@ final class MutableInternalPage implements MutablePage {
             serializedSize = currentSize;
         }
 
-
         return result;
     }
 
-    void addChild(ByteBuffer key, MutablePage page) {
+    void addChild(int index, ByteBuffer key, MutablePage page) {
         fetch();
 
         assert changedEntries != null;
 
-        changedEntries.add(new Entry(key, page));
+        changedEntries.add(index, new Entry(key, page));
 
         serializedSize += entrySize(key);
     }
