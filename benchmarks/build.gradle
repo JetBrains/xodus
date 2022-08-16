@@ -49,7 +49,7 @@ dependencies {
 jmh {
     // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
     excludes = ['dataStructures|util|chronicle|h2|mapdb|lmdb|persistit|query|crypto|.*Prefixing.*']
-    includes = ['.*Batch.*']
+    includes = ['.*BatchInline.*']
     jmhVersion = project.jmhVersion
     jvmArgsPrepend = ['-Xmx1g', '-Xms1g']
     duplicateClassesStrategy = DuplicatesStrategy.WARN
