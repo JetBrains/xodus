@@ -1,11 +1,10 @@
 import org.apache.commons.lang3.SystemUtils
 
 buildscript {
-    ext.jmhVersion = '1.21'
-    ext.jmhPlugin= '0.5.0'
+    ext.jmhVersion = '1.35'
+    ext.jmhPlugin = '0.6.6'
     ext.jmhReportPlugin = '0.9.0'
     repositories {
-        jcenter()
         maven {
             url "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2"
         }
@@ -16,7 +15,7 @@ buildscript {
 }
 
 plugins {
-    id "me.champeau.gradle.jmh" version "$jmhPlugin"
+    id "me.champeau.jmh" version "$jmhPlugin"
     id "io.morethan.jmhreport" version "$jmhReportPlugin"
 }
 
@@ -49,10 +48,10 @@ dependencies {
 
 jmh {
     // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
-    // exclude = ['dataStructures|util|chronicle|h2|mapdb|lmdb|persistit|query|crypto']
+    excludes = ['dataStructures|util|chronicle|h2|mapdb|lmdb|persistit|query|crypto|.*Prefixing.*']
     jmhVersion = project.jmhVersion
     jvmArgsPrepend = ['-Xmx1g', '-Xms1g']
-    duplicateClassesStrategy = 'warn'
+    duplicateClassesStrategy = DuplicatesStrategy.WARN
     resultFormat = 'JSON'
 }
 
