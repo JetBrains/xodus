@@ -16,6 +16,10 @@
 package jetbrains.exodus.log
 
 
+import it.unimi.dsi.fastutil.longs.LongIntImmutablePair
+import it.unimi.dsi.fastutil.longs.LongIntPair
+import it.unimi.dsi.fastutil.longs.LongLongImmutablePair
+import it.unimi.dsi.fastutil.longs.LongLongPair
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteBufferIterable
 import jetbrains.exodus.ByteIterable
@@ -32,11 +36,13 @@ import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.tree.ibtree.ImmutableBTree
 import jetbrains.exodus.util.DeferredIO
 import jetbrains.exodus.util.IdGenerator
+import jetbrains.exodus.util.LongObjectObjectTriple
 import mu.KLogging
 import java.io.Closeable
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.BitSet
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
 import kotlin.experimental.xor
@@ -639,7 +645,7 @@ class Log(val config: LogConfig) : Closeable {
         return result
     }
 
-    fun allocatePage(type: Byte, structureId: Int, size: Int): Triple<Long, ByteBuffer, Pair<Long, Int>?>? {
+    fun allocatePage(type: Byte, structureId: Int, size: Int): LongObjectObjectTriple<ByteBuffer, LongIntPair?>? {
         assert(structureId >= 0)
 
         if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
@@ -659,17 +665,17 @@ class Log(val config: LogConfig) : Closeable {
         page.order(ByteOrder.BIG_ENDIAN).putLong(0, typeAndStructureIdDataLength).order(ByteOrder.nativeOrder())
 
         val reminder = pair.second()
-                ?: return Triple(address,
+                ?: return LongObjectObjectTriple(address,
                         page.slice(Long.SIZE_BYTES,
                                 page.limit() - Long.SIZE_BYTES).order(ByteOrder.nativeOrder()), null)
 
         writer.incHighAddress(reminder.limit().toLong())
         initFiller(reminder)
 
-        return Triple(address + reminder.limit(),
+        return LongObjectObjectTriple(address + reminder.limit(),
                 page.slice(Long.SIZE_BYTES,
                         page.limit() - Long.SIZE_BYTES).order(ByteOrder.nativeOrder()),
-                Pair(address, reminder.limit()))
+                LongIntImmutablePair(address, reminder.limit()))
     }
 
     fun finishPageWrite(size: Int) {

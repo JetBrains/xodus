@@ -144,16 +144,16 @@ final class MutableInternalPage implements MutablePage {
 
         var allocated = log.allocatePage(type, structureId, serializedSize);
         if (allocated != null) {
-            var address = allocated.component1();
-            var buffer = allocated.component2();
+            var address = allocated.first;
+            var buffer = allocated.second;
 
             serializePage(buffer);
 
             log.finishPageWrite(serializedSize);
 
-            var expired = allocated.component3();
+            var expired = allocated.third;
             if (expired != null) {
-                expiredLoggables.add(expired.component1(), expired.component2());
+                expiredLoggables.add(expired.firstLong(), expired.secondInt());
             }
 
             return address;
