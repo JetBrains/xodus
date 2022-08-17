@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -75,6 +75,26 @@ public class FindTests extends EntityStoreTestBase {
             count++;
         }
         Assert.assertEquals(10, count);
+    }
+
+    public void testFindByStringPropertyValueCaseSensitive() {
+        final StoreTransaction txn = getStoreTransactionSafe();
+        for (int i = 0; i < 100; ++i) {
+            final Entity entity = txn.newEntity("Issue");
+            entity.setProperty("description", "Test issue #" + i % 10);
+        }
+
+        final Entity upperCase = txn.newEntity("Issue");
+        upperCase.setProperty("description", "Test ISSUE #5");
+
+        txn.flush();
+        final EntityIterable issues = txn.findString("Issue", "description", "Test ISSUE #5");
+        int count = 0;
+        for (final Entity issue : issues) {
+            Assert.assertEquals("Test ISSUE #5", issue.getProperty("description"));
+            count++;
+        }
+        Assert.assertEquals(1, count);
     }
 
     @TestFor(issue = "XD-824")
