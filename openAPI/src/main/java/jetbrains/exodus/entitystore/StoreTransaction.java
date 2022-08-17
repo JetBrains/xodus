@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -135,7 +135,7 @@ public interface StoreTransaction {
     /**
      * Tries to flush all changes without finishing the {@code StoreTransaction}. If the method succeed, it returns
      * {@code true}. After successful flush, the {@code StoreTransaction} moves to the latest database snapshot.
-     *
+     * <p>
      * <p/> Typical pattern for flushing changes can look like this:
      * <pre>
      *     final StoreTransaction transaction = entityStore.beginTransaction();
@@ -250,6 +250,7 @@ public interface StoreTransaction {
 
     /**
      * Returns {@linkplain EntityIterable} with entities of specified type with specified property equal to specified value.
+     * This method is case <strong>insensitive</strong>, for case sensitive, see {@link #findString(String, String, String)}
      *
      * @param entityType   entity type
      * @param propertyName name of the property to search for
@@ -261,6 +262,39 @@ public interface StoreTransaction {
     EntityIterable find(@NotNull final String entityType,
                         @NotNull final String propertyName,
                         @NotNull final Comparable value);
+
+    /**
+     * Returns {@linkplain EntityIterable} with entities of specified type with specified property equal to specified value.
+     * Find excat string, case sensitive.
+     * For case insensitive, see {@link #find(String, String, Comparable)} or {@link #findString(String, String, String, boolean)}
+     *
+     * @param entityType   entity type
+     * @param propertyName name of the property to search for
+     * @param value        string value of the property to search for
+     * @return {@linkplain EntityIterable} instance
+     * @see EntityIterable
+     */
+    @NotNull
+    EntityIterable findString(@NotNull final String entityType,
+                              @NotNull final String propertyName,
+                              @NotNull final String value);
+
+    /**
+     * Returns {@linkplain EntityIterable} with entities of specified type with specified property equal to specified value.
+     * This method case sensitive
+     *
+     * @param entityType   entity type
+     * @param propertyName name of the property to search for
+     * @param value        string value of the property to search for
+     * @param ignoreCase   ignore case for string search
+     * @return {@linkplain EntityIterable} instance
+     * @see EntityIterable
+     */
+    @NotNull
+    EntityIterable findString(@NotNull final String entityType,
+                              @NotNull final String propertyName,
+                              @NotNull final String value,
+                              final boolean ignoreCase);
 
     /**
      * Returns {@linkplain EntityIterable} with entities of specified type with specified property equal to a value in

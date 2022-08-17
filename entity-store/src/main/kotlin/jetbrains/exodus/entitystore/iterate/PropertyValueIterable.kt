@@ -26,10 +26,11 @@ class PropertyValueIterable(
     txn: PersistentStoreTransaction,
     entityTypeId: Int,
     propertyId: Int,
-    value: Comparable<*>
+    value: Comparable<*>,
+    ignoreCase: Boolean = true
 ) : PropertyRangeOrValueIterableBase(txn, entityTypeId, propertyId) {
 
-    private val value = PropertyTypes.toLowerCase(value)
+    private val value = if (ignoreCase) PropertyTypes.toLowerCase(value) else value
     private val valueClass = value.javaClass
     private var forceCached = false
 
