@@ -177,7 +177,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>If the LogCache is shared ({@linkplain #LOG_CACHE_SHARED}) all {@linkplain Environment}s should be configured
      * to use single LogCache page size.
      *
-     * <p>Default value is {@code 4 * 1024}.
+     * <p>Default value is {@code 64 * 1024}.
      * <p>Mutable at runtime: no
      */
     public static final String LOG_CACHE_PAGE_SIZE = "exodus.log.cache.pageSize";

@@ -130,9 +130,53 @@ final class MutableInternalPage implements MutablePage {
         assert changedEntries.size() >= 2;
         assert newBuffer.limit() <= pageSize || changedEntries.size() < 4;
 
-        var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
-                        newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
-                order(ByteOrder.nativeOrder());
+        byte type;
+        if (parent == null) {
+            type = ImmutableBTree.INTERNAL_ROOT_PAGE;
+        } else {
+            type = ImmutableBTree.INTERNAL_PAGE;
+        }
+
+        for (var entry : changedEntries) {
+            var child = entry.mutablePage;
+            entry.savedAddress = child.save(structureId, this);
+        }
+
+        var allocated = log.allocatePage(type, structureId, serializedSize);
+        if (allocated != null) {
+            var address = allocated.component1();
+            var buffer = allocated.component2();
+
+            serializePage(buffer);
+
+            log.finishPageWrite(serializedSize);
+
+            var expired = allocated.component3();
+            if (expired != null) {
+                expiredLoggables.add(expired.component1(), expired.component2());
+            }
+
+            return address;
+        } else {
+            var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
+                    newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET);
+
+            serializePage(buffer);
+
+            var addressAndExpiredLoggable = log.writeInsideSinglePage(type, structureId, newBuffer, true);
+            if (addressAndExpiredLoggable[1] > 0) {
+                assert addressAndExpiredLoggable[2] > 0;
+                expiredLoggables.add(addressAndExpiredLoggable[1], (int) addressAndExpiredLoggable[2]);
+            }
+
+            return addressAndExpiredLoggable[0];
+        }
+    }
+
+    private void serializePage(ByteBuffer buffer) {
+        assert changedEntries != null;
+
+        buffer.order(ByteOrder.nativeOrder());
 
         //we add Long.BYTES to preserver (sub)tree size
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, Integer.BYTES) == 0;
@@ -146,18 +190,15 @@ final class MutableInternalPage implements MutablePage {
         int subTreeSizeOffset = childAddressesOffset + Long.BYTES * changedEntries.size();
         int keysDataOffset = subTreeSizeOffset + Integer.BYTES * changedEntries.size();
 
+
         int treeSize = 0;
         for (var entry : changedEntries) {
+            var key = entry.key;
+            var keySize = key.limit();
             var child = entry.mutablePage;
-            //we need to save mutableChild first to cache tree size, otherwise it could impact big performance
-            //overhead during save of the data
-            var childAddress = child.save(structureId, this);
 
             long subTreeSize = child.treeSize();
             treeSize += subTreeSize;
-
-            var key = entry.key;
-            var keySize = key.limit();
 
             assert buffer.alignmentOffset(keyPositionsOffset, Integer.BYTES) == 0;
             assert buffer.alignmentOffset(keyPositionsOffset + Integer.BYTES, Integer.BYTES) == 0;
@@ -166,7 +207,7 @@ final class MutableInternalPage implements MutablePage {
             buffer.putInt(keyPositionsOffset + Integer.BYTES, keySize);
 
             assert buffer.alignmentOffset(childAddressesOffset, Long.BYTES) == 0;
-            buffer.putLong(childAddressesOffset, childAddress);
+            buffer.putLong(childAddressesOffset, entry.savedAddress);
 
             assert buffer.alignmentOffset(subTreeSizeOffset, Integer.BYTES) == 0;
             buffer.putInt(subTreeSizeOffset, (int) subTreeSize);
@@ -183,21 +224,6 @@ final class MutableInternalPage implements MutablePage {
         buffer.putLong(0, treeSize);
 
         cachedTreeSize = treeSize;
-
-        byte type;
-        if (parent == null) {
-            type = ImmutableBTree.INTERNAL_ROOT_PAGE;
-        } else {
-            type = ImmutableBTree.INTERNAL_PAGE;
-        }
-
-        var addressAndExpiredLoggable = log.writeInsideSinglePage(type, structureId, newBuffer, true);
-        if (addressAndExpiredLoggable[1] > 0) {
-            assert addressAndExpiredLoggable[2] > 0;
-            expiredLoggables.add(addressAndExpiredLoggable[1], (int) addressAndExpiredLoggable[2]);
-        }
-
-        return addressAndExpiredLoggable[0];
     }
 
     @Override
@@ -489,6 +515,7 @@ final class MutableInternalPage implements MutablePage {
     static final class Entry implements Comparable<Entry> {
         ByteBuffer key;
         MutablePage mutablePage;
+        long savedAddress;
 
         public Entry(ByteBuffer key, MutablePage mutablePage) {
             assert key != null;

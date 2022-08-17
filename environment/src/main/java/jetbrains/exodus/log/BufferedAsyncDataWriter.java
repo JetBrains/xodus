@@ -18,6 +18,8 @@
 
 package jetbrains.exodus.log;
 
+import it.unimi.dsi.fastutil.Pair;
+import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.execution.locks.Semaphore;
@@ -100,6 +102,70 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
         return blockSetMutable;
     }
 
+    @Override
+    public Pair<ByteBuffer, ByteBuffer> allocatePage(int size) {
+        var written = currentPage.writtenCount;
+        var buffer = currentPage.bytes;
+        var alignmentOffset = buffer.alignmentOffset(written, Long.BYTES);
+
+        int padding;
+        if (alignmentOffset == 0) {
+            padding = 0;
+        } else {
+            padding = Long.BYTES - alignmentOffset;
+        }
+
+        if (written + padding + size <= pageSize) {
+            count += padding;
+            currentPage.writtenCount += padding;
+
+            if (padding == 0) {
+                return new ObjectObjectImmutablePair<>(
+                        buffer.slice(written, pageSize - written).order(ByteOrder.nativeOrder()), null);
+            } else {
+                var offset = written + padding;
+                return new ObjectObjectImmutablePair<>(buffer.slice(offset, pageSize - offset).
+                        order(ByteOrder.nativeOrder()),
+                        buffer.slice(written, padding));
+            }
+        }
+
+        var fileLengthBound = log.getFileLengthBound();
+        if ((highAddress % fileLengthBound) + pageSize >= fileLengthBound) {
+            return null;
+        }
+
+        var prevWritten = currentPage.writtenCount;
+        var prevBuffer = currentPage.bytes;
+
+        currentPage.writtenCount = pageSize;
+
+        currentPage = allocNewPage(null);
+        buffer = currentPage.bytes;
+
+        assert buffer.alignmentOffset(0, Long.BYTES) == 0;
+
+        count += pageSize - prevWritten;
+
+        if (prevWritten < pageSize) {
+            return new ObjectObjectImmutablePair<>(buffer,
+                    prevBuffer.slice(prevWritten, pageSize - prevWritten));
+        } else {
+            return new ObjectObjectImmutablePair<>(buffer,
+                    null);
+        }
+    }
+
+    @Override
+    public void finishPageWrite(int size) {
+        count += size;
+        currentPage.writtenCount += size;
+
+        if (count >= pageSize) {
+            commit();
+        }
+    }
+
     public void setHighAddress(long highAddress) {
         allocLastPage(highAddress - (((int) highAddress) & (log.getCachePageSize() - 1))); // don't alloc full page
         this.highAddress = highAddress;
@@ -124,9 +190,6 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
         MutablePage currentPage = this.currentPage;
 
         final int writtenCount = currentPage.writtenCount;
-        if (currentPage.pageAddress + writtenCount == 196608) {
-            System.out.println();
-        }
         if (writtenCount < pageSize) {
             currentPage.bytes.put(writtenCount, b);
             currentPage.writtenCount = writtenCount + 1;
@@ -187,10 +250,11 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
 
     private void commit() {
         var pagesCount = (count + pageSize - 1) / pageSize;
-        count = 0;
 
         final MutablePage currentPage = this.currentPage;
         currentPage.committedCount = currentPage.writtenCount;
+        count = currentPage.committedCount;
+
         MutablePage previousPage = currentPage.previousPage;
 
         if (previousPage != null) {

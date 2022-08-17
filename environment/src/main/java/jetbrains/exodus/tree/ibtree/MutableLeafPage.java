@@ -153,10 +153,47 @@ final class MutableLeafPage implements MutablePage {
         assert serializedSize <= pageSize || changedEntries.size() < 2;
 
 
-        var newBuffer = LogUtil.allocatePage(serializedSize);
-        var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
-                        newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
-                order(ByteOrder.nativeOrder());
+        byte type;
+        if (parent == null) {
+            type = ImmutableBTree.LEAF_ROOT_PAGE;
+        } else {
+            type = ImmutableBTree.LEAF_PAGE;
+        }
+        var allocated = log.allocatePage(type, structureId, serializedSize);
+        if (allocated != null) {
+            var address = allocated.component1();
+            var buffer = allocated.component2();
+
+            serializePage(buffer);
+
+            log.finishPageWrite(serializedSize);
+
+            var expired = allocated.component3();
+            if (expired != null) {
+                expiredLoggables.add(expired.component1(), expired.component2());
+            }
+
+            return address;
+        } else {
+            var newBuffer = LogUtil.allocatePage(serializedSize);
+            var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
+                            newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
+                    order(ByteOrder.nativeOrder());
+
+            serializePage(buffer);
+
+            var addressAndExpiredLoggable = log.writeInsideSinglePage(type, structureId, newBuffer, true);
+            if (addressAndExpiredLoggable[1] > 0) {
+                assert addressAndExpiredLoggable[2] > 0;
+                expiredLoggables.add(addressAndExpiredLoggable[1], (int) addressAndExpiredLoggable[2]);
+            }
+
+            return addressAndExpiredLoggable[0];
+        }
+    }
+
+    private void serializePage(ByteBuffer buffer) {
+        assert changedEntries != null;
 
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, 0);
@@ -201,21 +238,6 @@ final class MutableLeafPage implements MutablePage {
             valuesPositionsOffset += Long.BYTES;
             keysDataOffset += keySize;
         }
-
-        byte type;
-        if (parent == null) {
-            type = ImmutableBTree.LEAF_ROOT_PAGE;
-        } else {
-            type = ImmutableBTree.LEAF_PAGE;
-        }
-
-        var addressAndExpiredLoggable = log.writeInsideSinglePage(type, structureId, newBuffer, true);
-        if (addressAndExpiredLoggable[1] > 0) {
-            assert addressAndExpiredLoggable[2] > 0;
-            expiredLoggables.add(addressAndExpiredLoggable[1], (int) addressAndExpiredLoggable[2]);
-        }
-
-        return addressAndExpiredLoggable[0];
     }
 
     @Override

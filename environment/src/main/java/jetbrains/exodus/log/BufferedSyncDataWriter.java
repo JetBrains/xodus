@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log;
 
+import it.unimi.dsi.fastutil.Pair;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.crypto.EnvKryptKt;
@@ -87,6 +88,16 @@ public final class BufferedSyncDataWriter implements BufferedDataWriter {
         return blockSetMutable;
     }
 
+    @Override
+    public Pair<ByteBuffer, ByteBuffer> allocatePage(int size) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void finishPageWrite(int size) {
+        throw new UnsupportedOperationException();
+    }
+
     public void setHighAddress(long highAddress) {
         allocLastPage(highAddress - (((int) highAddress) & (log.getCachePageSize() - 1))); // don't alloc full page
         this.highAddress = highAddress;
@@ -111,9 +122,6 @@ public final class BufferedSyncDataWriter implements BufferedDataWriter {
         MutablePage currentPage = this.currentPage;
 
         final int writtenCount = currentPage.writtenCount;
-        if (currentPage.pageAddress + writtenCount == 196608) {
-            System.out.println();
-        }
         if (writtenCount < pageSize) {
             currentPage.bytes.put(writtenCount, b);
             currentPage.writtenCount = writtenCount + 1;

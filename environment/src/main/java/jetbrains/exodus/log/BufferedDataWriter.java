@@ -18,6 +18,7 @@
 
 package jetbrains.exodus.log;
 
+import it.unimi.dsi.fastutil.Pair;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.io.Block;
 
@@ -25,6 +26,10 @@ import java.nio.ByteBuffer;
 
 public interface BufferedDataWriter {
     BlockSet.Mutable getBlockSetMutable();
+
+    Pair<ByteBuffer, ByteBuffer> allocatePage(int size);
+
+    void finishPageWrite(int size);
 
     void setHighAddress(long highAddress);
 

@@ -42,7 +42,6 @@ import kotlin.collections.ArrayList
 import kotlin.experimental.xor
 
 class Log(val config: LogConfig) : Closeable {
-
     val created = System.currentTimeMillis()
 
     @JvmField
@@ -640,6 +639,48 @@ class Log(val config: LogConfig) : Closeable {
         return result
     }
 
+    fun allocatePage(type: Byte, structureId: Int, size: Int): Triple<Long, ByteBuffer, Pair<Long, Int>?>? {
+        assert(structureId >= 0)
+
+        if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
+            throw UnsupportedOperationException("This method can be used only to read loggables of BTree with" +
+                    " inlined keys")
+        }
+
+        val writer = ensureWriter()
+        val address = beforeWrite(writer)
+        val pair = writer.allocatePage(size) ?: return null
+
+        val page = pair.first()
+
+        //compact all loggable metadata into single long
+        val typeAndStructureIdDataLength = ((type.toLong() xor 0x80) shl (Long.SIZE_BITS - Byte.SIZE_BITS)) or
+                (structureId.toLong() shl Int.SIZE_BITS) or (size - Long.SIZE_BYTES).toLong()
+        page.order(ByteOrder.BIG_ENDIAN).putLong(0, typeAndStructureIdDataLength).order(ByteOrder.nativeOrder())
+
+        val reminder = pair.second()
+                ?: return Triple(address,
+                        page.slice(Long.SIZE_BYTES,
+                                page.limit() - Long.SIZE_BYTES).order(ByteOrder.nativeOrder()), null)
+
+        writer.incHighAddress(reminder.limit().toLong())
+        initFiller(reminder)
+
+        return Triple(address + reminder.limit(),
+                page.slice(Long.SIZE_BYTES,
+                        page.limit() - Long.SIZE_BYTES).order(ByteOrder.nativeOrder()),
+                Pair(address, reminder.limit()))
+    }
+
+    fun finishPageWrite(size: Int) {
+        val writer = ensureWriter()
+
+        writer.finishPageWrite(size)
+        writer.incHighAddress(size.toLong())
+
+        closeFullFileIfNecessary(writer)
+    }
+
     /**
      * Write loggable with data contained inside ByteBuffer. All loggable metadata will be serialized
      * inside provided ByteBuffer so it should be allocated space for them before saving.
@@ -672,7 +713,12 @@ class Log(val config: LogConfig) : Closeable {
         val pageOffset = (address and (cachePageSize - 1).toLong()).toInt()
         val alignmentOffset = page.alignmentOffset(pageOffset, Long.SIZE_BYTES)
 
-        val paddingOffset = Long.SIZE_BYTES - alignmentOffset
+        val paddingOffset = if (alignmentOffset == 0) {
+            0
+        } else {
+            Long.SIZE_BYTES - alignmentOffset
+        }
+
         if (pageOffset + paddingOffset + page.limit() <= cachePageSize) {
             var expiredLoggableAddress = (-1).toLong()
 
@@ -745,6 +791,23 @@ class Log(val config: LogConfig) : Closeable {
         buffer.putLong(typeAndStructureIdDataLength)
 
         return buffer
+    }
+
+    private fun initFiller(buffer: ByteBuffer) {
+        val size = buffer.limit()
+        if (size == 1) {
+            buffer.put(0, 0x80.toByte())
+            return
+        }
+        if (size < 8) {
+            buffer.put(0, ((ImmutableBTree.TWO_BYTES_STUB + (size - 2)) xor 0x80).toByte())
+            return
+        }
+
+        val type = ImmutableBTree.EIGHTS_BYTES_AND_MORE_STUB
+        val typeAndStructureIdDataLength = ((type.toLong() xor 0x80) shl (Long.SIZE_BITS - Byte.SIZE_BITS)) or
+                (size - Long.SIZE_BYTES).toLong()
+        buffer.order(ByteOrder.BIG_ENDIAN).putLong(typeAndStructureIdDataLength).order(ByteOrder.nativeOrder())
     }
 
     /**
