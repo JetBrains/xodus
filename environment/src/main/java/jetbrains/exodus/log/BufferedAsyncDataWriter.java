@@ -121,11 +121,10 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
 
             if (padding == 0) {
                 return new ObjectObjectImmutablePair<>(
-                        buffer.slice(written, pageSize - written).order(ByteOrder.nativeOrder()), null);
+                        buffer.slice(written, pageSize - written), null);
             } else {
                 var offset = written + padding;
-                return new ObjectObjectImmutablePair<>(buffer.slice(offset, pageSize - offset).
-                        order(ByteOrder.nativeOrder()),
+                return new ObjectObjectImmutablePair<>(buffer.slice(offset, pageSize - offset),
                         buffer.slice(written, padding));
             }
         }
@@ -473,7 +472,7 @@ public final class BufferedAsyncDataWriter implements BufferedDataWriter {
     private MutablePage allocNewPage(ByteBuffer buffer) {
         MutablePage currentPage = this.currentPage;
         if (buffer != null) {
-            this.currentPage = new MutablePage(currentPage, buffer.order(ByteOrder.nativeOrder()),
+            this.currentPage = new MutablePage(currentPage, buffer,
                     currentPage.pageAddress + pageSize, 0);
         } else {
             this.currentPage = new MutablePage(currentPage, logCache.allocPage(),

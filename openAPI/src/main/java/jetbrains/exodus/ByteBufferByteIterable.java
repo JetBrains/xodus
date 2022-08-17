@@ -36,7 +36,7 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
     }
 
     private ByteBufferByteIterable(@NotNull final ByteBuffer buffer, final int length) {
-        this.buffer = buffer.slice(0, length).order(buffer.order());
+        this.buffer = buffer.slice(0, length);
     }
 
     @Override
@@ -94,7 +94,7 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
     @NotNull
     @Override
     public ByteIterable subIterable(final int offset, final int length) {
-        final ByteBuffer copy = buffer.slice(offset, Math.min(buffer.limit(), offset + length)).order(buffer.order());
+        final ByteBuffer copy = buffer.slice(offset, Math.min(buffer.limit(), offset + length));
         return new ByteBufferByteIterable(copy, length);
     }
 
@@ -115,7 +115,7 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
 
     @Override
     public ByteBuffer getByteBuffer() {
-        return buffer.asReadOnlyBuffer().order(buffer.order());
+        return buffer.asReadOnlyBuffer();
     }
 
     public static abstract class ByteBufferIterableByteIterator extends ByteIterator {

@@ -100,7 +100,7 @@ internal class SeparateLogCache : LogCache {
         if (page != null) {
             return ByteBufferByteIterable(
                     page.slice(0,
-                            min(log.highAddress - pageAddress, pageSize.toLong()).toInt()).order(page.order()))
+                            min(log.highAddress - pageAddress, pageSize.toLong()).toInt()))
         }
         page = readFullPage(log, pageAddress)
         cachePage(pageAddress, page)

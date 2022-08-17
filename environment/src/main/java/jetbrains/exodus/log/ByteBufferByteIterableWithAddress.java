@@ -110,7 +110,7 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
     public final ByteIterable subIterable(final int offset, final int length) {
         final int adjustedLen = Math.min(length, Math.max(getLength() - offset, 0));
         return adjustedLen == 0 ? ArrayByteIterable.EMPTY : new SubIterable(
-                buffer.slice(start + offset, adjustedLen).order(buffer.order()));
+                buffer.slice(start + offset, adjustedLen));
     }
 
     @Override
@@ -134,7 +134,7 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
 
     @Override
     public final ByteBuffer getByteBuffer() {
-        return buffer.slice(start, end - start).asReadOnlyBuffer().order(buffer.order());
+        return buffer.slice(start, end - start).asReadOnlyBuffer();
     }
 
     private final class ByteBufferIteratorWithAddress extends ByteIteratorWithAddress {
@@ -276,12 +276,12 @@ public class ByteBufferByteIterableWithAddress extends ByteIterableWithAddress i
 
         @Override
         public @NotNull ByteIterable subIterable(int offset, int length) {
-            return new SubIterable(buffer.slice(offset, length).order(buffer.order()));
+            return new SubIterable(buffer.slice(offset, length));
         }
 
         @Override
         public ByteBuffer getByteBuffer() {
-            return buffer.asReadOnlyBuffer().order(buffer.order());
+            return buffer.asReadOnlyBuffer();
         }
 
         @Override

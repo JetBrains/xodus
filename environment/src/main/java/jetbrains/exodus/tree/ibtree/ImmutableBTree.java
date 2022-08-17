@@ -87,7 +87,7 @@ public final class ImmutableBTree implements BTree {
         var loggable = log.readLoggableAsPage(pageAddress);
         var page = loggable.getBuffer();
 
-        assert page.order() == ByteOrder.nativeOrder();
+        page.order(ByteOrder.nativeOrder());
 
         var type = loggable.getType();
         if (type == INTERNAL_PAGE || type == INTERNAL_ROOT_PAGE) {

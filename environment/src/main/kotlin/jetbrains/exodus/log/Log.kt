@@ -500,7 +500,6 @@ class Log(val config: LogConfig) : Closeable {
         val pageAddress = address - loggableOffset
 
         val page = cache.getPage(this, pageAddress)
-        assert(page.order() == ByteOrder.nativeOrder())
 
         val type = page.get(loggableOffset) xor 0x80.toByte()
         val structureId: Int
@@ -518,7 +517,6 @@ class Log(val config: LogConfig) : Closeable {
         }
 
         val dataLengthStructureIdType = page.order(ByteOrder.BIG_ENDIAN).getLong(loggableOffset)
-        page.order(ByteOrder.nativeOrder())
 
         dataLength = (dataLengthStructureIdType and 0xFF_FF_FF_FF).toInt()
         structureId = (dataLengthStructureIdType shr 32).toInt() and 0x00_FF_FF_FF
@@ -529,7 +527,7 @@ class Log(val config: LogConfig) : Closeable {
 
         //fast path, page size always should be kept the same to follow it
         if (loggableOffset + loggableLength <= cachePageSize) {
-            val data = page.slice(dataOffset, dataLength).order(ByteOrder.nativeOrder())
+            val data = page.slice(dataOffset, dataLength)
             assert(data.alignmentOffset(0, Long.SIZE_BYTES) == 0)
             return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId,
                     data)
@@ -662,19 +660,19 @@ class Log(val config: LogConfig) : Closeable {
         //compact all loggable metadata into single long
         val typeAndStructureIdDataLength = ((type.toLong() xor 0x80) shl (Long.SIZE_BITS - Byte.SIZE_BITS)) or
                 (structureId.toLong() shl Int.SIZE_BITS) or (size - Long.SIZE_BYTES).toLong()
-        page.order(ByteOrder.BIG_ENDIAN).putLong(0, typeAndStructureIdDataLength).order(ByteOrder.nativeOrder())
+        page.order(ByteOrder.BIG_ENDIAN).putLong(0, typeAndStructureIdDataLength)
 
         val reminder = pair.second()
                 ?: return LongObjectObjectTriple(address,
                         page.slice(Long.SIZE_BYTES,
-                                page.limit() - Long.SIZE_BYTES).order(ByteOrder.nativeOrder()), null)
+                                page.limit() - Long.SIZE_BYTES), null)
 
         writer.incHighAddress(reminder.limit().toLong())
         initFiller(reminder)
 
         return LongObjectObjectTriple(address + reminder.limit(),
                 page.slice(Long.SIZE_BYTES,
-                        page.limit() - Long.SIZE_BYTES).order(ByteOrder.nativeOrder()),
+                        page.limit() - Long.SIZE_BYTES),
                 LongIntImmutablePair(address, reminder.limit()))
     }
 
@@ -699,7 +697,6 @@ class Log(val config: LogConfig) : Closeable {
      */
     fun writeInsideSinglePage(type: Byte, structureId: Int, page: ByteBuffer,
                               canBeConsumed: Boolean): LongArray {
-        assert(page.order() == ByteOrder.nativeOrder())
         assert(structureId >= 0)
 
         if (type < ImmutableBTree.INTERNAL_PAGE || type > ImmutableBTree.LEAF_ROOT_PAGE) {
@@ -711,7 +708,7 @@ class Log(val config: LogConfig) : Closeable {
         val typeAndStructureIdDataLength = ((type.toLong() xor 0x80) shl (Long.SIZE_BITS - Byte.SIZE_BITS)) or
                 (structureId.toLong() shl Int.SIZE_BITS) or (page.limit() - Long.SIZE_BYTES).toLong()
 
-        page.order(ByteOrder.BIG_ENDIAN).putLong(0, typeAndStructureIdDataLength).order(ByteOrder.nativeOrder())
+        page.order(ByteOrder.BIG_ENDIAN).putLong(0, typeAndStructureIdDataLength)
 
         val writer = ensureWriter()
         var address = beforeWrite(writer)
@@ -813,7 +810,7 @@ class Log(val config: LogConfig) : Closeable {
         val type = ImmutableBTree.EIGHTS_BYTES_AND_MORE_STUB
         val typeAndStructureIdDataLength = ((type.toLong() xor 0x80) shl (Long.SIZE_BITS - Byte.SIZE_BITS)) or
                 (size - Long.SIZE_BYTES).toLong()
-        buffer.order(ByteOrder.BIG_ENDIAN).putLong(typeAndStructureIdDataLength).order(ByteOrder.nativeOrder())
+        buffer.order(ByteOrder.BIG_ENDIAN).putLong(typeAndStructureIdDataLength)
     }
 
     /**

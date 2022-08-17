@@ -177,8 +177,7 @@ final class MutableLeafPage implements MutablePage {
         } else {
             var newBuffer = LogUtil.allocatePage(serializedSize);
             var buffer = newBuffer.slice(ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET,
-                            newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET).
-                    order(ByteOrder.nativeOrder());
+                    newBuffer.limit() - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET);
 
             serializePage(buffer);
 
@@ -194,6 +193,8 @@ final class MutableLeafPage implements MutablePage {
 
     private void serializePage(ByteBuffer buffer) {
         assert changedEntries != null;
+
+        buffer.order(ByteOrder.nativeOrder());
 
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, 0);

@@ -102,10 +102,10 @@ internal abstract class LogCache {
             readBytes(log, pages, pageAddress)
             for (i in 1 until readAheadMultiple) {
                 cachePage(log, pageAddress + pageSize * i,
-                        pages.slice(i * pageSize, (i + 1) * pageSize).order(pages.order()))
+                        pages.slice(i * pageSize, (i + 1) * pageSize))
             }
 
-            pages.slice(0, pageSize).order(pages.order()).also { page ->
+            pages.slice(0, pageSize).also { page ->
                 cachePage(log, pageAddress, page)
             }
         }

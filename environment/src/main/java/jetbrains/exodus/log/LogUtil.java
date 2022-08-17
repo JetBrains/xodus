@@ -144,6 +144,6 @@ public final class LogUtil {
         }
 
 
-        return buffer.order(ByteOrder.nativeOrder());
+        return buffer;
     }
 }

@@ -139,7 +139,7 @@ internal class SharedLogCache : LogCache {
         var page = log.getHighPage(pageAddress)
         if (page != null) {
             return ByteBufferByteIterable(page.slice(0,
-                    min(log.highAddress - pageAddress, pageSize.toLong()).toInt()).order(page.order()))
+                    min(log.highAddress - pageAddress, pageSize.toLong()).toInt()))
         }
         page = readFullPage(log, pageAddress)
         cachePage(key, logIdentity, pageAddress, page)
