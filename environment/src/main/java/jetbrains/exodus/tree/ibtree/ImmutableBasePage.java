@@ -24,7 +24,6 @@ import java.util.RandomAccess;
  *     <li> Array each entry of which contains either (value position, value size) pair if that is
  *     {@link  ImmutableLeafPage} or address of the mutableChild page if that is
  *     {@link ImmutableInternalPage}</li>
- *     <li>Array of sizes of  child sub-tries pointed by pointers above. Only for {@link ImmutableInternalPage}</li>
  *     <li>Array of keys for {@link ImmutableLeafPage}</li>
  *     <li>Array of values (only for {@link ImmutableLeafPage})</li>
  * </ol>

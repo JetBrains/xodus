@@ -38,18 +38,6 @@ final class ImmutableInternalPage extends ImmutableBasePage {
         return new MutableInternalPage(tree, this, expiredLoggables, log, log.getCachePageSize());
     }
 
-    private int getSubTreeSizePosition(int index) {
-        return KEYS_OFFSET + 2 * getEntriesCount() * Long.BYTES + index * Integer.BYTES;
-    }
-
-    @SuppressWarnings("unused")
-    int getSubTreeSize(int index) {
-        int position = getSubTreeSizePosition(index);
-        assert page.alignmentOffset(position, Integer.BYTES) == 0;
-
-        return page.getInt(position);
-    }
-
     @Override
     public ImmutableBasePage child(int index) {
         final int childAddressIndex = getChildAddressPositionIndex(index);

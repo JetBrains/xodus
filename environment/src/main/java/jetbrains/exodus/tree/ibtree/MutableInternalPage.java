@@ -187,8 +187,7 @@ final class MutableInternalPage implements MutablePage {
 
         int keyPositionsOffset = ImmutableBasePage.KEYS_OFFSET + Long.BYTES;
         int childAddressesOffset = keyPositionsOffset + Long.BYTES * changedEntries.size();
-        int subTreeSizeOffset = childAddressesOffset + Long.BYTES * changedEntries.size();
-        int keysDataOffset = subTreeSizeOffset + Integer.BYTES * changedEntries.size();
+        int keysDataOffset = childAddressesOffset + Long.BYTES * changedEntries.size();
 
 
         int treeSize = 0;
@@ -209,13 +208,9 @@ final class MutableInternalPage implements MutablePage {
             assert buffer.alignmentOffset(childAddressesOffset, Long.BYTES) == 0;
             buffer.putLong(childAddressesOffset, entry.savedAddress);
 
-            assert buffer.alignmentOffset(subTreeSizeOffset, Integer.BYTES) == 0;
-            buffer.putInt(subTreeSizeOffset, (int) subTreeSize);
-
             buffer.put(keysDataOffset, key, 0, keySize);
 
             keyPositionsOffset += Long.BYTES;
-            subTreeSizeOffset += Integer.BYTES;
             keysDataOffset += keySize;
             childAddressesOffset += Long.BYTES;
         }
@@ -291,7 +286,7 @@ final class MutableInternalPage implements MutablePage {
         assert changedEntries != null;
 
         int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.KEYS_OFFSET +
-                (2 * Long.BYTES + Integer.BYTES) * changedEntries.size() + Long.BYTES;
+                2 * Long.BYTES * changedEntries.size() + Long.BYTES;
 
         for (Entry entry : changedEntries) {
             size += entry.key.limit();
@@ -301,7 +296,7 @@ final class MutableInternalPage implements MutablePage {
     }
 
     private int entrySize(ByteBuffer key) {
-        return 2 * Long.BYTES + Integer.BYTES + key.limit();
+        return 2 * Long.BYTES + key.limit();
     }
 
 
@@ -318,7 +313,7 @@ final class MutableInternalPage implements MutablePage {
 
         changedEntries.addAll(internalChangedEntries);
 
-        serializedSize += internalChangedEntries.size() * (2 * Long.BYTES + Integer.BYTES);
+        serializedSize += internalChangedEntries.size() * 2 * Long.BYTES;
         for (var entry : internalChangedEntries) {
             serializedSize += entry.key.limit();
         }
@@ -408,7 +403,7 @@ final class MutableInternalPage implements MutablePage {
 
 
         int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
-                ImmutableInternalPage.KEYS_OFFSET + 2 * (2 * Long.BYTES + Integer.BYTES) + Long.BYTES;
+                ImmutableInternalPage.KEYS_OFFSET + 2 * 2 * Long.BYTES + Long.BYTES;
 
         size += firstEntry.key.limit();
         size += secondEntry.key.limit();
