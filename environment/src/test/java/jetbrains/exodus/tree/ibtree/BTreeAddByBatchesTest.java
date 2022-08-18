@@ -241,12 +241,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuous1MEntriesByBatch1() {
+    public void testAddContinuous256KEntriesByBatch1() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuous1MEntriesByBatch1 seed : " + seed);
+        System.out.println("testAddContinuous256KEntriesByBatch1 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -262,12 +262,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuous1MEntriesByBatch4() {
+    public void testAddContinuous256KEntriesByBatch4() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuous1MEntriesByBatch4 seed : " + seed);
+        System.out.println("testAddContinuous256KEntriesByBatch4 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -283,12 +283,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuous1MEntriesByBatch8() {
+    public void testAddContinuous256KEntriesByBatch8() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuous1MEntriesByBatch8 seed : " + seed);
+        System.out.println("testAddContinuous256KEntriesByBatch8 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -304,12 +304,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuous1MEntriesByBatch64() {
+    public void testAddContinuous256KEntriesByBatch64() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuous1MEntriesByBatch64 seed : " + seed);
+        System.out.println("testAddContinuous256KEntriesByBatch64 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -325,12 +325,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuous1MEntriesByBatch256() {
+    public void testAddContinuous256KEntriesByBatch256() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuous1MEntriesByBatch256 seed : " + seed);
+        System.out.println("testAddContinuous256KEntriesByBatch256 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -346,12 +346,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuous1MEntriesByBatch4096() {
+    public void testAddContinuous256KEntriesByBatch4096() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuous1MEntriesByBatch4096 seed : " + seed);
+        System.out.println("testAddContinuous256KEntriesByBatch4096 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -367,12 +367,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuous1MEntriesByBatch1024() {
+    public void testAddContinuous256KEntriesByBatch1024() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuous1MEntriesByBatch1024 seed : " + seed);
+        System.out.println("testAddContinuous256KEntriesByBatch1024 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -388,12 +388,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuousShuffled1MEntriesByBatch1() {
+    public void testAddContinuousShuffled256KEntriesByBatch1() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuousShuffled1MEntriesByBatch1 seed : " + seed);
+        System.out.println("testAddContinuousShuffled256KEntriesByBatch1 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -410,12 +410,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuousShuffled1MEntriesByBatch4() {
+    public void testAddContinuousShuffled256KEntriesByBatch4() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuousShuffled1MEntriesByBatch4 seed : " + seed);
+        System.out.println("testAddContinuousShuffled256KEntriesByBatch4 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -432,12 +432,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuousShuffled1MEntriesByBatch8() {
+    public void testAddContinuousShuffled256KEntriesByBatch8() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuousShuffled1MEntriesByBatch8 seed : " + seed);
+        System.out.println("testAddContinuousShuffled256KEntriesByBatch8 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -454,12 +454,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuousShuffled1MEntriesByBatch64() {
+    public void testAddContinuousShuffled256KEntriesByBatch64() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuousShuffled1MEntriesByBatch64 seed : " + seed);
+        System.out.println("testAddContinuousShuffled256KEntriesByBatch64 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -476,12 +476,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuousShuffled1MEntriesByBatch256() {
+    public void testAddContinuousShuffled256KEntriesByBatch256() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuousShuffled1MEntriesByBatch256 seed : " + seed);
+        System.out.println("testAddContinuousShuffled256KEntriesByBatch256 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -498,12 +498,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuousShuffled1MEntriesByBatch1024() {
+    public void testAddContinuousShuffled256KEntriesByBatch1024() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuousShuffled1MEntriesByBatch1024 seed : " + seed);
+        System.out.println("testAddContinuousShuffled256KEntriesByBatch1024 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -520,12 +520,12 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
     }
 
     @Test
-    public void testAddContinuousShuffled1MEntriesByBatch4096() {
+    public void testAddContinuousShuffled256KEntriesByBatch4096() {
         final long seed = System.nanoTime();
-        System.out.println("testAddContinuousShuffled1MEntriesByBatch4096 seed : " + seed);
+        System.out.println("testAddContinuousShuffled256KEntriesByBatch4096 seed : " + seed);
         final Random rnd = new Random(seed);
 
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 

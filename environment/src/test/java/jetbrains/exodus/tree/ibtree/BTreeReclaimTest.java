@@ -186,16 +186,6 @@ public class BTreeReclaimTest extends BTreeTestBase {
         addContinuousKeysByBatchAndReclaimTree(256, 256, rnd);
     }
 
-    @Test
-    public void testAddContinuesKeyByBatchChange256By1024TimesAndReclaim() {
-        final long seed = System.nanoTime();
-        System.out.println("testAddContinuesKeyByBatchChange256By1024TimesAndReclaim : " + seed);
-
-        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
-        var rnd = new Random(seed);
-
-        addContinuousKeysByBatchAndReclaimTree(256, 1024, rnd);
-    }
 
     @Test
     public void testAddContinuesKeyByBatchChange1024AndReclaim() {
@@ -230,21 +220,9 @@ public class BTreeReclaimTest extends BTreeTestBase {
         addContinuousKeysByBatchAndReclaimTree(1024, 64, rnd);
     }
 
-    @Test
-    public void testAddContinuesKeyByBatchChange1024By256TimesAndReclaim() {
-        final long seed = System.nanoTime();
-        System.out.println("testAddContinuesKeyByBatchChange1024By256TimesAndReclaim : " + seed);
-
-        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
-        var rnd = new Random(seed);
-
-        addContinuousKeysByBatchAndReclaimTree(1024, 256, rnd);
-    }
-
-
     private void addContinuousKeysByBatchAndReclaimTree(final int entriesToChange, final int iterations,
                                                         final Random rnd) {
-        int keysCount = 1_000_000;
+        int keysCount = 256 * 1024;
         DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
         format.applyPattern("00000000");
 
@@ -404,6 +382,17 @@ public class BTreeReclaimTest extends BTreeTestBase {
     private int addEntries(Random random, TreeMap<ByteBuffer, ByteBuffer> expectedMap) {
         final int initialEntries = 64 * 1024;
         tm = t.getMutableCopy();
+
+        var structureId = t.getStructureId();
+        long address = saveTree();
+        reopen();
+
+        openTree(address, false, structureId);
+
+        long startAddress = log.getHighAddress();
+
+        tm = t.getMutableCopy();
+
         for (int i = 0; i < initialEntries; i++) {
             var keySize = random.nextInt(1, 16);
             var keyArray = new byte[keySize];
@@ -419,12 +408,12 @@ public class BTreeReclaimTest extends BTreeTestBase {
             tm.put(key, value);
         }
 
-        var structureId = t.getStructureId();
-        long address = saveTree();
+        structureId = t.getStructureId();
+        address = saveTree();
         reopen();
 
         openTree(address, false, structureId);
-        checkBTreeAddresses(0);
+        checkBTreeAddresses(startAddress);
         return structureId;
     }
 

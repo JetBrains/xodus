@@ -45,6 +45,7 @@ public final class MutableBTree implements IBTreeMutable {
     MutablePage root;
 
     long size;
+    long rootAddress;
 
     public MutableBTree(ImmutableBTree immutableTree) {
         this.immutableTree = immutableTree;
@@ -53,8 +54,10 @@ public final class MutableBTree implements IBTreeMutable {
         var immutableRoot = immutableTree.root;
         if (immutableRoot == null) {
             this.root = new MutableLeafPage(this, null, log, expiredLoggables);
+            this.rootAddress = -1;
         } else {
             this.root = immutableRoot.toMutable(this, expiredLoggables);
+            this.rootAddress = immutableRoot.address;
         }
 
         size = root.treeSize();
@@ -512,11 +515,21 @@ public final class MutableBTree implements IBTreeMutable {
 
     private boolean doReclaimPage(final Loggable pageLoggable, final ArrayList<ElemRef> stack) {
         var immutablePage = immutableTree.loadPage(pageLoggable.getAddress());
+        var entriesCount = immutablePage.getEntriesCount();
+
+        var pageAddress = pageLoggable.getAddress();
+        if (entriesCount == 0) {
+            if (pageLoggable.getType() != ImmutableBTree.LEAF_ROOT_PAGE) {
+                throw new IllegalStateException("B-Tree with structure id = " + getStructureId() +
+                        " is in inconsistent state because only root leaf page can not contain items.");
+            }
+            return rootAddress == pageAddress;
+        }
+
         var firstKey = immutablePage.key(0);
 
         moveToTheTopTillKeyInSearchRange(stack, firstKey);
 
-        var pageAddress = pageLoggable.getAddress();
         var elemRef = stack.get(stack.size() - 1);
 
         var page = elemRef.page;
