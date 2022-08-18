@@ -18,19 +18,19 @@
 
 package jetbrains.exodus.tree.ibtree;
 
-import jetbrains.exodus.log.NullLoggable;
-import jetbrains.exodus.tree.ITree;
-import jetbrains.exodus.tree.ITreeMutable;
-import jetbrains.exodus.tree.TreeDeleteTest;
+//import jetbrains.exodus.log.NullLoggable;
+//import jetbrains.exodus.tree.ITree;
+//import jetbrains.exodus.tree.ITreeMutable;
+//import jetbrains.exodus.tree.TreeDeleteTest;
 
-public class BTreeDeleteCommonTest extends TreeDeleteTest {
-    @Override
-    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
-        return new ImmutableBTree(log, structureId, log.getCachePageSize(), NullLoggable.NULL_ADDRESS).getMutableCopy();
-    }
-
-    @Override
-    protected ITree openTree(long address, boolean hasDuplicates) {
-        return new ImmutableBTree(log, 1, log.getCachePageSize(), address);
-    }
-}
+//public class BTreeDeleteCommonTest extends TreeDeleteTest {
+//    @Override
+//    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
+//        return new ImmutableBTree(log, structureId, log.getCachePageSize(), NullLoggable.NULL_ADDRESS).getMutableCopy();
+//    }
+//
+//    @Override
+//    protected ITree openTree(long address, boolean hasDuplicates) {
+//        return new ImmutableBTree(log, 1, log.getCachePageSize(), address);
+//    }
+//}

@@ -19,12 +19,14 @@
 package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ByteBufferComparator;
+import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.log.NullLoggable;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
-import java.util.Random;
-import java.util.TreeMap;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.util.*;
 
 public class BTreeAddByBatchesTest extends BTreeTestBase {
     @Test
@@ -236,6 +238,331 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
         var batchSize = 4096;
 
         addKeysByBatches(entriesCount, batchSize, entriesCount / 10, random);
+    }
+
+    @Test
+    public void testAddContinuous1MEntriesByBatch1() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuous1MEntriesByBatch1 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ByteBuffer[] data = new ByteBuffer[keysCount];
+        for (int i = 0; i < keysCount; i++) {
+            data[i] = StringBinding.stringToEntry(format.format(i)).getByteBuffer();
+        }
+
+        t = new ImmutableBTree(log, 15, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 1;
+
+        storeDataAndCheck(rnd, data, batchSize);
+    }
+
+    @Test
+    public void testAddContinuous1MEntriesByBatch4() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuous1MEntriesByBatch4 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ByteBuffer[] data = new ByteBuffer[keysCount];
+        for (int i = 0; i < keysCount; i++) {
+            data[i] = StringBinding.stringToEntry(format.format(i)).getByteBuffer();
+        }
+
+        t = new ImmutableBTree(log, 16, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 4;
+
+        storeDataAndCheck(rnd, data, batchSize);
+    }
+
+    @Test
+    public void testAddContinuous1MEntriesByBatch8() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuous1MEntriesByBatch8 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ByteBuffer[] data = new ByteBuffer[keysCount];
+        for (int i = 0; i < keysCount; i++) {
+            data[i] = StringBinding.stringToEntry(format.format(i)).getByteBuffer();
+        }
+
+        t = new ImmutableBTree(log, 17, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 8;
+
+        storeDataAndCheck(rnd, data, batchSize);
+    }
+
+    @Test
+    public void testAddContinuous1MEntriesByBatch64() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuous1MEntriesByBatch64 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ByteBuffer[] data = new ByteBuffer[keysCount];
+        for (int i = 0; i < keysCount; i++) {
+            data[i] = StringBinding.stringToEntry(format.format(i)).getByteBuffer();
+        }
+
+        t = new ImmutableBTree(log, 18, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 64;
+
+        storeDataAndCheck(rnd, data, batchSize);
+    }
+
+    @Test
+    public void testAddContinuous1MEntriesByBatch256() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuous1MEntriesByBatch256 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ByteBuffer[] data = new ByteBuffer[keysCount];
+        for (int i = 0; i < keysCount; i++) {
+            data[i] = StringBinding.stringToEntry(format.format(i)).getByteBuffer();
+        }
+
+        t = new ImmutableBTree(log, 19, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 256;
+
+        storeDataAndCheck(rnd, data, batchSize);
+    }
+
+    @Test
+    public void testAddContinuous1MEntriesByBatch4096() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuous1MEntriesByBatch4096 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ByteBuffer[] data = new ByteBuffer[keysCount];
+        for (int i = 0; i < keysCount; i++) {
+            data[i] = StringBinding.stringToEntry(format.format(i)).getByteBuffer();
+        }
+
+        t = new ImmutableBTree(log, 20, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 4096;
+
+        storeDataAndCheck(rnd, data, batchSize);
+    }
+
+    @Test
+    public void testAddContinuous1MEntriesByBatch1024() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuous1MEntriesByBatch1024 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ByteBuffer[] data = new ByteBuffer[keysCount];
+        for (int i = 0; i < keysCount; i++) {
+            data[i] = StringBinding.stringToEntry(format.format(i)).getByteBuffer();
+        }
+
+        t = new ImmutableBTree(log, 20, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 1024;
+
+        storeDataAndCheck(rnd, data, batchSize);
+    }
+
+    @Test
+    public void testAddContinuousShuffled1MEntriesByBatch1() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuousShuffled1MEntriesByBatch1 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final List<ByteBuffer> data = new ArrayList<>();
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+        Collections.shuffle(data, rnd);
+
+        t = new ImmutableBTree(log, 21, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 1;
+
+        storeDataAndCheck(rnd, data.toArray(new ByteBuffer[0]), batchSize);
+    }
+
+    @Test
+    public void testAddContinuousShuffled1MEntriesByBatch4() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuousShuffled1MEntriesByBatch4 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final List<ByteBuffer> data = new ArrayList<>();
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+        Collections.shuffle(data, rnd);
+
+        t = new ImmutableBTree(log, 22, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 4;
+
+        storeDataAndCheck(rnd, data.toArray(new ByteBuffer[0]), batchSize);
+    }
+
+    @Test
+    public void testAddContinuousShuffled1MEntriesByBatch8() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuousShuffled1MEntriesByBatch8 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final List<ByteBuffer> data = new ArrayList<>();
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+        Collections.shuffle(data, rnd);
+
+        t = new ImmutableBTree(log, 23, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 8;
+
+        storeDataAndCheck(rnd, data.toArray(new ByteBuffer[0]), batchSize);
+    }
+
+    @Test
+    public void testAddContinuousShuffled1MEntriesByBatch64() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuousShuffled1MEntriesByBatch64 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final List<ByteBuffer> data = new ArrayList<>();
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+        Collections.shuffle(data, rnd);
+
+        t = new ImmutableBTree(log, 23, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 64;
+
+        storeDataAndCheck(rnd, data.toArray(new ByteBuffer[0]), batchSize);
+    }
+
+    @Test
+    public void testAddContinuousShuffled1MEntriesByBatch256() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuousShuffled1MEntriesByBatch256 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final List<ByteBuffer> data = new ArrayList<>();
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+        Collections.shuffle(data, rnd);
+
+        t = new ImmutableBTree(log, 23, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 256;
+
+        storeDataAndCheck(rnd, data.toArray(new ByteBuffer[0]), batchSize);
+    }
+
+    @Test
+    public void testAddContinuousShuffled1MEntriesByBatch1024() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuousShuffled1MEntriesByBatch1024 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final List<ByteBuffer> data = new ArrayList<>();
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+        Collections.shuffle(data, rnd);
+
+        t = new ImmutableBTree(log, 24, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 1024;
+
+        storeDataAndCheck(rnd, data.toArray(new ByteBuffer[0]), batchSize);
+    }
+
+    @Test
+    public void testAddContinuousShuffled1MEntriesByBatch4096() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuousShuffled1MEntriesByBatch4096 seed : " + seed);
+        final Random rnd = new Random(seed);
+
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final List<ByteBuffer> data = new ArrayList<>();
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+        Collections.shuffle(data, rnd);
+
+        t = new ImmutableBTree(log, 24, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        final int batchSize = 4096;
+
+        storeDataAndCheck(rnd, data.toArray(new ByteBuffer[0]), batchSize);
+    }
+
+    private void storeDataAndCheck(Random rnd, ByteBuffer[] data, int batchSize) {
+        tm = t.getMutableCopy();
+        final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
+
+        int stored = 0;
+        int prevStored = 0;
+
+        for (ByteBuffer buffer : data) {
+            tm.put(buffer, buffer);
+            expectedMap.put(buffer, buffer);
+
+            stored++;
+            if (stored - prevStored == batchSize) {
+                var structureId = t.getStructureId();
+                long address = saveTree();
+                t = openTree(address, false, structureId);
+                tm = t.getMutableCopy();
+                prevStored = stored;
+            }
+        }
+
+        checkAndSaveTree(false, new ImmutableTreeChecker(expectedMap, rnd));
     }
 
 

@@ -20,10 +20,13 @@ package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
+import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.tree.ITreeMutable;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.*;
 
 public class BasicBTreeTest extends BTreeTestBase {
@@ -131,6 +134,58 @@ public class BasicBTreeTest extends BTreeTestBase {
         insertAndCheckEntries(tm, random, entriesCount);
     }
 
+    @Test
+    public void testAddContinuous1MEntries() {
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ByteBuffer[] data = new ByteBuffer[keysCount];
+        for (int i = 0; i < keysCount; i++) {
+            data[i] = StringBinding.stringToEntry(format.format(i)).getByteBuffer();
+        }
+
+        var tm = createMutableTree(false, 3);
+        final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
+
+        for (ByteBuffer buffer : data) {
+            tm.put(buffer, buffer);
+            expectedMap.put(buffer, buffer);
+        }
+
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuous1MEntries seed : " + seed);
+
+        checkAndSaveTree(false, new ImmutableTreeChecker(expectedMap, new Random(seed)));
+    }
+
+    @Test
+    public void testAddContinuousShuffled1MEntries() {
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final ArrayList<ByteBuffer> data = new ArrayList<>(keysCount);
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuousShuffled1MEntries seed : " + seed);
+        var rnd = new Random(seed);
+
+        Collections.shuffle(data, rnd);
+
+        var tm = createMutableTree(false, 3);
+        final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
+
+        for (ByteBuffer buffer : data) {
+            tm.put(buffer, buffer);
+            expectedMap.put(buffer, buffer);
+        }
+
+        checkAndSaveTree(false, new ImmutableTreeChecker(expectedMap, rnd));
+    }
 
     private void insertAndCheckEntries(ITreeMutable tm, Random random, int entriesCount) {
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);

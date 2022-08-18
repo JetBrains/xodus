@@ -19,12 +19,15 @@
 package jetbrains.exodus.tree.ibtree;
 
 import jetbrains.exodus.ByteBufferComparator;
+import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.log.LoggableIterator;
 import jetbrains.exodus.log.NullLoggable;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.*;
 
 public class BTreeReclaimTest extends BTreeTestBase {
@@ -138,6 +141,142 @@ public class BTreeReclaimTest extends BTreeTestBase {
         add64EntriesChange64NTimes(1024, rnd);
     }
 
+
+    @Test
+    public void testAddContinuesKeyByBatchChange256AndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange256AndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(256, 1, rnd);
+    }
+
+    @Test
+    public void testAddContinuesKeyByBatchChange256By4TimesAndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange256By4TimesAndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(256, 4, rnd);
+    }
+
+    @Test
+    public void testAddContinuesKeyByBatchChange256By64TimesAndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange256By64TimesAndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(256, 64, rnd);
+    }
+
+    @Test
+    public void testAddContinuesKeyByBatchChange256By256TimesAndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange256By256TimesAndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(256, 256, rnd);
+    }
+
+    @Test
+    public void testAddContinuesKeyByBatchChange256By1024TimesAndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange256By1024TimesAndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(256, 1024, rnd);
+    }
+
+    @Test
+    public void testAddContinuesKeyByBatchChange1024AndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange1024AndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(1024, 1, rnd);
+    }
+
+    @Test
+    public void testAddContinuesKeyByBatchChange1024By4TimesAndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange1024By4TimesAndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(1024, 4, rnd);
+    }
+
+    @Test
+    public void testAddContinuesKeyByBatchChange1024By64TimesAndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange1024By64TimesAndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(1024, 64, rnd);
+    }
+
+    @Test
+    public void testAddContinuesKeyByBatchChange1024By256TimesAndReclaim() {
+        final long seed = System.nanoTime();
+        System.out.println("testAddContinuesKeyByBatchChange1024By256TimesAndReclaim : " + seed);
+
+        t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
+        var rnd = new Random(seed);
+
+        addContinuousKeysByBatchAndReclaimTree(1024, 256, rnd);
+    }
+
+
+    private void addContinuousKeysByBatchAndReclaimTree(final int entriesToChange, final int iterations,
+                                                        final Random rnd) {
+        int keysCount = 1_000_000;
+        DecimalFormat format = (DecimalFormat) NumberFormat.getIntegerInstance();
+        format.applyPattern("00000000");
+
+        final List<ByteBuffer> data = new ArrayList<>();
+        for (int i = 0; i < keysCount; i++) {
+            data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
+        }
+
+        tm = t.getMutableCopy();
+        final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
+        for (var key : data) {
+            expectedMap.put(key, key);
+            tm.put(key, key);
+        }
+
+
+        var structureId = t.getStructureId();
+        long address = saveTree();
+        reopen();
+
+        openTree(address, false, structureId);
+        checkBTreeAddresses(0);
+
+        for (int i = 0; i < iterations; i++) {
+            address = changeEntries(entriesToChange, rnd, expectedMap);
+            openTree(address, false, structureId);
+        }
+
+
+        reclaimTree(rnd, expectedMap, structureId, address);
+    }
+
     private void add64EntriesChange64NTimes(final int iterations, final Random random) {
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
         int structureId = addEntries(random, expectedMap);
@@ -215,11 +354,11 @@ public class BTreeReclaimTest extends BTreeTestBase {
 
         var keysIterator = keys.iterator();
 
-        for (int i = 0; i < entriesToChange; i++) {
-            var key = keysIterator.next();
-            tm.delete(key);
-            expectedMap.remove(key);
-        }
+//        for (int i = 0; i < entriesToChange; i++) {
+//            var key = keysIterator.next();
+//            tm.delete(key);
+//            expectedMap.remove(key);
+//        }
 
         for (int i = 0; i < entriesToChange; i++) {
             var key = keysIterator.next();
