@@ -18,27 +18,10 @@
 
 package jetbrains.exodus.tree.ibtree;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.nio.ByteBuffer;
 
-interface MutablePage extends TraversablePage {
-    long save(int structureId, @Nullable MutableInternalPage parent);
+interface MutablePageEntry {
+    ByteBuffer getKey();
 
-    boolean rebalance(@Nullable MutableInternalPage parent);
-
-    boolean spill(@Nullable MutableInternalPage parent, @NotNull ByteBuffer keyPrefix, @Nullable ByteBuffer parentUpperbound);
-
-    long treeSize();
-
-    boolean fetch();
-
-    void merge(MutablePage page);
-
-    void unbalance();
-
-    void truncateKeys(int keyPrefixSizeDiff);
-
-    void addKeyPrefix(ByteBuffer prefix);
+    void setKey(ByteBuffer key);
 }

@@ -35,7 +35,7 @@ final class ImmutableInternalPage extends ImmutableBasePage {
 
     @Override
     MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables) {
-        return new MutableInternalPage(tree, this, expiredLoggables, log, log.getCachePageSize());
+        return new MutableInternalPage(tree, this, expiredLoggables, log);
     }
 
     @Override

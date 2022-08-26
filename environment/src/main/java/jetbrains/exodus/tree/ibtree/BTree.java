@@ -58,9 +58,13 @@ interface BTree extends ITree {
             return null;
         }
 
+        assert root.getKeyPrefixSize() == 0;
+
         var page = root;
+        var currentKey = key.duplicate();
+
         while (true) {
-            int index = page.find(key);
+            int index = page.find(currentKey);
 
             if (!page.isInternalPage()) {
                 if (index < 0) {
@@ -84,6 +88,12 @@ interface BTree extends ITree {
             }
 
             page = page.child(index);
+
+            var keyPrefixSize = page.getKeyPrefixSize();
+
+            if (keyPrefixSize > 0) {
+                currentKey.position(keyPrefixSize);
+            }
         }
     }
 
@@ -95,8 +105,6 @@ interface BTree extends ITree {
         }
 
         var pageValue = elemRef.page.value(elemRef.index);
-
-
         return pageValue.equals(value);
     }
 

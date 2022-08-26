@@ -34,4 +34,6 @@ public interface TraversablePage {
     ByteBuffer key(int index);
 
     long address();
+
+    int getKeyPrefixSize();
 }

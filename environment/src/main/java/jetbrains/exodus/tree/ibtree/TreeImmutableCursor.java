@@ -18,23 +18,27 @@
 
 package jetbrains.exodus.tree.ibtree;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
+import jetbrains.exodus.util.ByteBuffers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 
 public class TreeImmutableCursor implements ITreeCursor {
-    private ObjectArrayFIFOQueue<ElemRef> stack = new ObjectArrayFIFOQueue<>(8);
+    private ObjectArrayList<ElemRef> stack = new ObjectArrayList<>(8);
     private boolean initialized = false;
 
     private final ITree tree;
     protected TraversablePage root;
+
+    private ByteBuffer activePrefix;
+    private int activePrefixDepth;
 
     public TreeImmutableCursor(final ITree tree, final TraversablePage root) {
         assert root != null;
@@ -47,7 +51,7 @@ public class TreeImmutableCursor implements ITreeCursor {
         var page = root;
         if (page.getEntriesCount() > 0) {
             var pageRef = new ElemRef(page, 0);
-            stack.enqueue(pageRef);
+            stack.add(pageRef);
 
             downToTheFirstEntry(pageRef);
         }
@@ -59,11 +63,11 @@ public class TreeImmutableCursor implements ITreeCursor {
             var childIndex = elemRef.index;
 
             page = page.child(childIndex);
-            stack.enqueue(new ElemRef(page, 0));
+            stack.add(new ElemRef(page, 0));
 
             while (page.isInternalPage()) {
                 page = page.child(0);
-                stack.enqueue(new ElemRef(page, 0));
+                stack.add(new ElemRef(page, 0));
             }
         }
 
@@ -76,13 +80,13 @@ public class TreeImmutableCursor implements ITreeCursor {
 
             page = page.child(childIndex);
             var lastIndex = page.getEntriesCount() - 1;
-            stack.enqueue(new ElemRef(page, lastIndex));
+            stack.add(new ElemRef(page, lastIndex));
 
             while (page.isInternalPage()) {
                 page = page.child(lastIndex);
 
                 lastIndex = page.getEntriesCount() - 1;
-                stack.enqueue(new ElemRef(page, lastIndex));
+                stack.add(new ElemRef(page, lastIndex));
             }
         }
     }
@@ -96,7 +100,7 @@ public class TreeImmutableCursor implements ITreeCursor {
             initialized = true;
 
             if (!stack.isEmpty()) {
-                var last = stack.last();
+                var last = stack.get(stack.size() - 1);
 
                 //if we found empty leaf page, we need to move to the next one
                 if (last.page.getEntriesCount() > 0) {
@@ -111,11 +115,12 @@ public class TreeImmutableCursor implements ITreeCursor {
             return false;
         }
 
-        var currentRef = stack.last();
+        var currentRef = stack.get(stack.size() - 1);
         var index = currentRef.index + 1;
 
         if (index < currentRef.page.getEntriesCount()) {
             currentRef.index = index;
+            decreaseActivePrefixDepthIfNeeded();
             return true;
         }
 
@@ -126,11 +131,11 @@ public class TreeImmutableCursor implements ITreeCursor {
             }
 
             var elemRef = new ElemRef(page, 0);
-            stack.enqueue(elemRef);
+            stack.add(elemRef);
 
             downToTheFirstEntry(elemRef);
 
-            var last = stack.last();
+            var last = stack.get(stack.size() - 1);
             if (last.page.getEntriesCount() > 0) {
                 return true;
             }
@@ -152,6 +157,8 @@ public class TreeImmutableCursor implements ITreeCursor {
         initialized = true;
 
         stack.clear();
+        activePrefix = null;
+        activePrefixDepth = 0;
 
         var page = root;
         var rootSize = page.getEntriesCount();
@@ -161,12 +168,12 @@ public class TreeImmutableCursor implements ITreeCursor {
         }
 
         var elemRef = new ElemRef(page, rootSize - 1);
-        stack.enqueue(elemRef);
+        stack.add(elemRef);
 
         while (true) {
             downToTheLastEntry(elemRef);
 
-            var last = stack.last();
+            var last = stack.get(stack.size() - 1);
             if (last.page.getEntriesCount() > 0) {
                 return true;
             }
@@ -177,7 +184,7 @@ public class TreeImmutableCursor implements ITreeCursor {
             }
 
             elemRef = new ElemRef(page, page.getEntriesCount() - 1);
-            stack.enqueue(elemRef);
+            stack.add(elemRef);
         }
     }
 
@@ -191,11 +198,12 @@ public class TreeImmutableCursor implements ITreeCursor {
             return false;
         }
 
-        var currentRef = stack.last();
+        var currentRef = stack.get(stack.size() - 1);
         var index = currentRef.index - 1;
 
         if (index >= 0) {
             currentRef.index = index;
+            decreaseActivePrefixDepthIfNeeded();
             return true;
         }
 
@@ -206,11 +214,11 @@ public class TreeImmutableCursor implements ITreeCursor {
             }
 
             var elemRef = new ElemRef(page, page.getEntriesCount() - 1);
-            stack.enqueue(elemRef);
+            stack.add(elemRef);
 
             downToTheLastEntry(elemRef);
 
-            var last = stack.last();
+            var last = stack.get(stack.size() - 1);
             if (last.page.getEntriesCount() > 0) {
                 return true;
             }
@@ -248,12 +256,71 @@ public class TreeImmutableCursor implements ITreeCursor {
             return null;
         }
 
-        var last = stack.last();
+        var last = stack.get(stack.size() - 1);
         var page = last.page;
 
         assert !page.isInternalPage();
 
-        return page.key(last.index);
+        var pageKey = page.key(last.index);
+        var keyPrefixSize = page.getKeyPrefixSize();
+
+        if (keyPrefixSize == 0) {
+            return pageKey;
+        }
+
+        if (activePrefixDepth == stack.size()) {
+            assert activePrefix != null && activePrefix.limit() == keyPrefixSize;
+
+            return ByteBuffers.mergeBuffers(activePrefix, pageKey);
+        }
+
+        int firstMissedPagePrefixSize;
+        //root always have key prefix size equals to 0
+        if (activePrefixDepth > 1) {
+            var firstMissedPage = stack.get(activePrefixDepth - 1);
+            firstMissedPagePrefixSize = firstMissedPage.page.getKeyPrefixSize();
+        } else {
+            firstMissedPagePrefixSize = 0;
+        }
+
+
+        assert firstMissedPagePrefixSize <= keyPrefixSize;
+
+        if (firstMissedPagePrefixSize < keyPrefixSize) {
+            assert activePrefixDepth == 0 && activePrefix == null
+                    || firstMissedPagePrefixSize == activePrefix.limit();
+            var newActivePrefix = ByteBuffer.allocate(keyPrefixSize);
+
+            if (activePrefix != null) {
+                newActivePrefix.put(0, activePrefix, 0, activePrefix.limit());
+            }
+
+
+            var missedPrefixSize = keyPrefixSize - firstMissedPagePrefixSize;
+            var childPrefixSize = keyPrefixSize;
+            for (int i = stack.size() - 2; missedPrefixSize > 0; i--) {
+                assert i >= activePrefixDepth - 1;
+
+                var elemRef = stack.get(i);
+                var currentPagePrefixSize = elemRef.page.getKeyPrefixSize();
+
+                if (currentPagePrefixSize < childPrefixSize) {
+                    var diff = childPrefixSize - currentPagePrefixSize;
+                    missedPrefixSize -= diff;
+
+                    var key = elemRef.page.key(elemRef.index);
+                    newActivePrefix.put(firstMissedPagePrefixSize + missedPrefixSize, key, 0, diff);
+                }
+                childPrefixSize = currentPagePrefixSize;
+            }
+
+            activePrefix = newActivePrefix;
+        }
+
+
+        activePrefixDepth = stack.size();
+
+        return ByteBuffers.mergeBuffers(activePrefix, pageKey);
     }
 
 
@@ -274,7 +341,7 @@ public class TreeImmutableCursor implements ITreeCursor {
             return null;
         }
 
-        var last = stack.last();
+        var last = stack.get(stack.size() - 1);
         var page = last.page;
 
         assert !page.isInternalPage();
@@ -307,13 +374,16 @@ public class TreeImmutableCursor implements ITreeCursor {
         }
 
         var stackBackup = stack;
-        stack = new ObjectArrayFIFOQueue<>();
+        stack = new ObjectArrayList<>();
+
+        var currentKey = key;
 
         while (true) {
-            var index = page.find(key);
+            var index = page.find(currentKey);
+
             if (!page.isInternalPage()) {
                 if (index >= 0) {
-                    stack.enqueue(new ElemRef(page, index));
+                    stack.add(new ElemRef(page, index));
                     return page.value(index);
                 } else {
                     stack = stackBackup;
@@ -329,8 +399,13 @@ public class TreeImmutableCursor implements ITreeCursor {
                 }
 
 
-                stack.enqueue(new ElemRef(page, index));
+                stack.add(new ElemRef(page, index));
                 page = page.child(index);
+
+                var keyPrefixSize = page.getKeyPrefixSize();
+                if (keyPrefixSize > 0) {
+                    currentKey = key.slice(keyPrefixSize, key.limit() - keyPrefixSize);
+                }
             }
         }
     }
@@ -360,14 +435,29 @@ public class TreeImmutableCursor implements ITreeCursor {
         }
 
         var stackBackup = stack;
-        stack = new ObjectArrayFIFOQueue<>();
+        stack = new ObjectArrayList<>();
+
+        var useFirstEntry = false;
+        var currentKey = key;
 
         while (true) {
-            var index = page.find(key);
+            int index;
+
+            if (useFirstEntry) {
+                var entriesCount = page.getEntriesCount();
+                if (entriesCount > 0) {
+                    index = 0;
+                } else {
+                    assert !page.isInternalPage();
+                    index = -1;
+                }
+            } else {
+                index = page.find(currentKey);
+            }
 
             if (!page.isInternalPage()) {
                 if (index >= 0) {
-                    stack.enqueue(new ElemRef(page, index));
+                    stack.add(new ElemRef(page, index));
                     return page.value(index);
                 } else {
                     index = -index - 1;
@@ -378,8 +468,10 @@ public class TreeImmutableCursor implements ITreeCursor {
                             stack = stackBackup;
                             return null;
                         }
+
+                        useFirstEntry = true;
                     } else {
-                        stack.enqueue(new ElemRef(page, index));
+                        stack.add(new ElemRef(page, index));
 
                         return page.value(index);
                     }
@@ -390,11 +482,18 @@ public class TreeImmutableCursor implements ITreeCursor {
 
                     if (index > 0) {
                         index--;
+                    } else {
+                        useFirstEntry = true;
                     }
                 }
 
-                stack.enqueue(new ElemRef(page, index));
+                stack.add(new ElemRef(page, index));
                 page = page.child(index);
+
+                var keyPrefixSize = page.getKeyPrefixSize();
+                if (!useFirstEntry && keyPrefixSize > 0) {
+                    currentKey = key.slice(keyPrefixSize, key.limit() - keyPrefixSize);
+                }
             }
         }
     }
@@ -410,7 +509,7 @@ public class TreeImmutableCursor implements ITreeCursor {
             return null;
         }
 
-        var elemRef = stack.last();
+        var elemRef = stack.get(stack.size() - 1);
         var page = elemRef.page;
         var index = elemRef.index;
 
@@ -418,18 +517,56 @@ public class TreeImmutableCursor implements ITreeCursor {
             if (index < page.getEntriesCount() - 1) {
                 index++;
                 elemRef.index = index;
+                decreaseActivePrefixDepthIfNeeded();
+
                 return page.child(index);
             }
 
-            stack.dequeueLast();
+            removeLastElementFromStack();
 
             if (!stack.isEmpty()) {
-                elemRef = stack.last();
+                elemRef = stack.get(stack.size() - 1);
                 page = elemRef.page;
                 index = elemRef.index;
             } else {
                 return null;
             }
+        }
+    }
+
+    private void removeLastElementFromStack() {
+        var removed = stack.remove(stack.size() - 1);
+        assert activePrefixDepth <= stack.size() + 1;
+
+        if (activePrefixDepth == stack.size() + 1) {
+            decreaseActivePrefixDepth(removed);
+        }
+    }
+
+    private void decreaseActivePrefixDepthIfNeeded() {
+        assert activePrefixDepth <= stack.size();
+
+        if (activePrefixDepth > 0 && stack.size() == activePrefixDepth) {
+            decreaseActivePrefixDepth(stack.get(stack.size() - 1));
+        }
+    }
+
+    private void decreaseActivePrefixDepth(ElemRef lastRef) {
+        activePrefixDepth--;
+
+        if (activePrefixDepth > 0) {
+            var prevKeyPrefixSize = lastRef.page.getKeyPrefixSize();
+
+            var currentPrefixRef = stack.get(activePrefixDepth - 1);
+            var currentPrefixSize = currentPrefixRef.page.getKeyPrefixSize();
+
+            if (currentPrefixSize < prevKeyPrefixSize) {
+                assert activePrefix.limit() == prevKeyPrefixSize;
+
+                activePrefix = activePrefix.slice(0, currentPrefixSize);
+            }
+        } else {
+            activePrefix = null;
         }
     }
 
@@ -444,7 +581,7 @@ public class TreeImmutableCursor implements ITreeCursor {
             return null;
         }
 
-        var elemRef = stack.last();
+        var elemRef = stack.get(stack.size() - 1);
         var page = elemRef.page;
         var index = elemRef.index;
 
@@ -452,13 +589,15 @@ public class TreeImmutableCursor implements ITreeCursor {
             if (index > 0) {
                 index--;
                 elemRef.index = index;
+                decreaseActivePrefixDepthIfNeeded();
+
                 return page.child(index);
             }
 
-            stack.dequeueLast();
+            removeLastElementFromStack();
 
             if (!stack.isEmpty()) {
-                elemRef = stack.last();
+                elemRef = stack.get(stack.size() - 1);
                 page = elemRef.page;
                 index = elemRef.index;
             } else {
@@ -537,6 +676,8 @@ public class TreeImmutableCursor implements ITreeCursor {
     public final void reset() {
         initialized = false;
         stack.clear();
+        activePrefix = null;
+        activePrefixDepth = 0;
     }
 
     private static final class ElemRef {

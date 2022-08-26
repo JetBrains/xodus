@@ -66,6 +66,12 @@ abstract class ImmutableBasePage implements TraversablePage {
         keyView = new KeyView();
     }
 
+    @Override
+    public int getKeyPrefixSize() {
+        assert page.alignmentOffset(KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
+        return page.getInt(KEY_PREFIX_LEN_OFFSET);
+    }
+
     abstract long getTreeSize();
 
     public final int find(ByteBuffer key) {

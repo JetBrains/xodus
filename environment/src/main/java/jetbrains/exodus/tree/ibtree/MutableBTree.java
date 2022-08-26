@@ -18,8 +18,8 @@
 
 package jetbrains.exodus.tree.ibtree;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.*;
@@ -138,106 +138,92 @@ public final class MutableBTree implements IBTreeMutable {
         return doPut(key, value, true);
     }
 
-    private boolean doPut(@NotNull ByteBuffer key, @NotNull ByteBuffer value,
+    private boolean doPut(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value,
                           final boolean override) {
         var page = root;
-        ObjectArrayFIFOQueue<MutableInternalPage> stack = new ObjectArrayFIFOQueue<>(8);
+        ObjectArrayList<ObjectObjectImmutablePair<MutableInternalPage, ByteBuffer>> stack =
+                new ObjectArrayList<>(8);
         boolean smallestKey = false;
+
+        var truncatedKey = key.duplicate();
+        ByteBuffer keyBoundary = null;
+        int keyBoundaryPrefixSize = 0;
 
         while (true) {
             int index;
+
             if (smallestKey) {
                 index = -1;
             } else {
-                index = page.find(key);
+                index = page.find(truncatedKey);
+
             }
 
             if (page instanceof MutableLeafPage mutablePage) {
-                assert this.root == page || this.root == stack.first();
+                assert this.root == page || this.root == stack.get(0).first();
 
-                if (index < 0) {
-                    mutablePage.insert(-index - 1, key, value);
+                if (smallestKey) {
+                    var stackSize = stack.size();
 
-                    MutableInternalPage parent;
-                    if (!stack.isEmpty()) {
-                        parent = stack.dequeueLast();
-                    } else {
-                        parent = null;
-                    }
-
-                    if (parent != null && smallestKey) {
-                        parent.updateFirstKey();
-                    }
-                    var spillParent = mutablePage.spill(parent);
-
-                    if (parent == null && spillParent) {
-                        assert mutablePage != root;
-                        parent = (MutableInternalPage) this.root;
-                    }
-
-                    while (parent != null && (spillParent || smallestKey)) {
-                        //going from last to first
-                        var pageToUpdate = parent;
-                        if (!stack.isEmpty()) {
-                            parent = stack.dequeueLast();
-                        } else {
-                            parent = null;
+                    for (int i = 0; i < stackSize; i++) {
+                        var currentPage = stack.get(i).first();
+                        var keyPrefixSize = currentPage.keyPrefixSize;
+                        if (keyPrefixSize > 0) {
+                            truncatedKey.position(keyPrefixSize);
                         }
 
-                        if (parent != null && smallestKey) {
-                            parent.updateFirstKey();
-                        }
-                        if (spillParent) {
-                            spillParent = pageToUpdate.spill(parent);
-                        }
+                        currentPage.updateFirstKey(truncatedKey.slice());
+                        var partialKeyPrefixSize = commonPrefix(truncatedKey, currentPage.key(1));
 
-                        if (parent == null && spillParent) {
-                            assert mutablePage != root;
-                            parent = (MutableInternalPage) this.root;
+                        if (i < stackSize - 1) {
+                            var nextCalculatedPrefixSize = keyPrefixSize + partialKeyPrefixSize;
+                            var nextPage = stack.get(i + 1).first();
+
+                            var nextPageKeyPrefixSize = nextPage.getKeyPrefixSize();
+                            assert nextPageKeyPrefixSize >= nextCalculatedPrefixSize;
+
+                            if (nextPageKeyPrefixSize > nextCalculatedPrefixSize) {
+                                var diff = nextPageKeyPrefixSize - nextCalculatedPrefixSize;
+
+                                var suffix = key.slice(nextCalculatedPrefixSize, diff);
+                                nextPage.addKeyPrefix(suffix);
+                            }
                         }
                     }
 
+                    var keyPrefixSize = mutablePage.keyPrefixSize;
+                    if (keyPrefixSize > 0) {
+                        truncatedKey.position(keyPrefixSize);
+                    }
+                    mutablePage.insert(0, truncatedKey.slice(), value);
+
+                    spillAfterModification(stack, mutablePage, key);
 
                     size++;
                     TreeMutableCursor.notifyCursors(this);
 
                     return true;
-                }
+                } else {
+                    if (index < 0) {
+                        assert stack.isEmpty() || index < -1;
+                        mutablePage.insert(-index - 1, truncatedKey.slice(), value);
 
-                if (override) {
-                    mutablePage.set(index, key, value);
+                        spillAfterModification(stack, mutablePage, key);
 
-                    MutableInternalPage parent;
-                    if (!stack.isEmpty()) {
-                        parent = stack.dequeueLast();
-                    } else {
-                        parent = null;
+                        size++;
+                        TreeMutableCursor.notifyCursors(this);
+
+                        return true;
                     }
 
-                    var spillParent = mutablePage.spill(parent);
-                    if (parent == null && spillParent) {
-                        assert mutablePage != root;
-                        parent = (MutableInternalPage) this.root;
+                    if (override) {
+                        mutablePage.set(index, truncatedKey.slice(), value);
+
+                        spillAfterModification(stack, mutablePage, key);
+
+                        TreeMutableCursor.notifyCursors(this);
+                        return true;
                     }
-
-                    while (spillParent) {
-                        var pageToUpdate = parent;
-                        if (!stack.isEmpty()) {
-                            parent = stack.dequeueLast();
-                        } else {
-                            parent = null;
-                        }
-
-                        spillParent = pageToUpdate.spill(parent);
-
-                        if (parent == null && spillParent) {
-                            assert mutablePage != root;
-                            parent = (MutableInternalPage) this.root;
-                        }
-                    }
-
-                    TreeMutableCursor.notifyCursors(this);
-                    return true;
                 }
 
                 return false;
@@ -253,12 +239,115 @@ public final class MutableBTree implements IBTreeMutable {
                 }
 
                 var internalPage = (MutableInternalPage) page;
-                stack.enqueue(internalPage);
+                stack.add(new ObjectObjectImmutablePair<>(internalPage, keyBoundary));
 
                 page = internalPage.mutableChild(index);
+                if (index < internalPage.getEntriesCount() - 1) {
+                    keyBoundary = internalPage.key(index + 1);
+                    keyBoundaryPrefixSize = internalPage.getKeyPrefixSize();
+                }
+
+                var keyPrefixSize = page.getKeyPrefixSize();
+                assert keyPrefixSize >= keyBoundaryPrefixSize;
+
+                if (keyBoundary != null && keyBoundaryPrefixSize < keyPrefixSize) {
+                    var diff = keyPrefixSize - keyBoundaryPrefixSize;
+                    keyBoundary = keyBoundary.slice(diff, keyBoundary.limit() - diff);
+                    keyBoundaryPrefixSize = keyPrefixSize;
+                }
+
+                if (!smallestKey && keyPrefixSize > 0) {
+                    truncatedKey.position(keyPrefixSize);
+                }
             }
         }
     }
+
+    private void spillAfterModification(ObjectArrayList<ObjectObjectImmutablePair<MutableInternalPage, ByteBuffer>> stack,
+                                        MutableLeafPage mutablePage,
+                                        ByteBuffer key) {
+        boolean spillParent;
+
+        if (stack.isEmpty()) {
+            spillParent = mutablePage.spill(null, key, null);
+
+            if (spillParent) {
+                stack.add(new ObjectObjectImmutablePair<>((MutableInternalPage) this.root, null));
+            }
+        } else {
+            var parentAndBoundary = stack.get(stack.size() - 1);
+            spillParent = mutablePage.spill(parentAndBoundary.left(), key, parentAndBoundary.right());
+        }
+
+        if (spillParent) {
+            spillStack(stack, key);
+        }
+    }
+
+    private void spillStack(ObjectArrayList<ObjectObjectImmutablePair<MutableInternalPage, ByteBuffer>> stack,
+                            ByteBuffer key) {
+        var stackSize = stack.size();
+        if (stackSize == 0) {
+            return;
+        }
+
+        var parentIndex = stackSize - 1;
+        var parentBoundaryPair = stack.get(parentIndex);
+        var parent = parentBoundaryPair.first();
+
+        while (parent != null) {
+            var currentPage = parent;
+            parentIndex--;
+
+            ByteBuffer boundary;
+            if (parentIndex >= 0) {
+                parentBoundaryPair = stack.get(parentIndex);
+
+                parent = parentBoundaryPair.first();
+                boundary = parentBoundaryPair.second();
+            } else {
+                parentBoundaryPair = null;
+
+                parent = null;
+                boundary = null;
+            }
+
+            var spillParent = currentPage.spill(parent, key, boundary);
+
+            if (spillParent) {
+                if (parentBoundaryPair == null) {
+                    parent = (MutableInternalPage) this.root;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    static int commonPrefix(ByteBuffer first, ByteBuffer second) {
+        assert ByteBufferComparator.INSTANCE.compare(first, second) < 0;
+
+        var mismatch = first.mismatch(second);
+
+        //first key is a prefix of second one
+        if (mismatch == first.limit()) {
+            return mismatch;
+        }
+
+        //if second key is only one byte longer
+        if (second.limit() == mismatch + 1) {
+            var mismatchedByteFirst = first.get(mismatch);
+            var mismatchedByteSecond = second.get(mismatch);
+
+            if (Byte.toUnsignedInt(mismatchedByteSecond) - Byte.toUnsignedInt(mismatchedByteFirst) == 1) {
+                return mismatch + 1;
+            }
+        }
+
+
+        return mismatch;
+    }
+
 
     @Override
     public boolean put(@NotNull ByteIterable key, @NotNull ByteIterable value) {

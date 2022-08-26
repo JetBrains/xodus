@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
-import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -12,67 +11,36 @@ import org.jetbrains.annotations.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.AbstractList;
-import java.util.Collections;
 import java.util.RandomAccess;
 
-final class MutableLeafPage implements MutablePage {
-    @Nullable
-    ImmutableLeafPage underlying;
-    @Nullable
-    ObjectArrayList<Entry> changedEntries;
-
-    @NotNull
-    final KeyView keyView;
+final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLeafPage.Entry> {
     @NotNull
     final ValueView valueView;
-
-    @NotNull
-    final Log log;
-
-    final int pageSize;
-
-    @NotNull
-    final ExpiredLoggableCollection expiredLoggables;
-
     final long pageAddress;
 
     boolean unbalanced;
 
-    @NotNull
-    final MutableBTree tree;
-
-    int serializedSize;
-
     MutableLeafPage(@NotNull MutableBTree tree, @Nullable ImmutableLeafPage underlying,
                     @NotNull Log log,
                     @NotNull ExpiredLoggableCollection expiredLoggables) {
-        this.tree = tree;
-        this.underlying = underlying;
+        super(tree, underlying, expiredLoggables, log);
+
         if (underlying != null) {
             this.pageAddress = underlying.address;
             this.serializedSize = underlying.page.limit() + ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET;
+            this.keyPrefixSize = underlying.getKeyPrefixSize();
         } else {
             this.pageAddress = -1;
             this.serializedSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
                     ImmutableLeafPage.KEYS_OFFSET;
+            this.keyPrefixSize = 0;
         }
-
-        this.log = log;
-        this.pageSize = log.getCachePageSize();
-
-        this.expiredLoggables = expiredLoggables;
 
         if (underlying == null) {
             changedEntries = new ObjectArrayList<>();
         }
 
-        keyView = new KeyView();
         valueView = new ValueView();
-    }
-
-    @Override
-    public ByteBuffer key(int index) {
-        return keyView.get(index);
     }
 
     @Override
@@ -83,11 +51,6 @@ final class MutableLeafPage implements MutablePage {
     @Override
     public TraversablePage child(int index) {
         throw new UnsupportedOperationException("Leaf pages do not contain children");
-    }
-
-    @Override
-    public int find(ByteBuffer key) {
-        return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
     }
 
     @Override
@@ -197,7 +160,7 @@ final class MutableLeafPage implements MutablePage {
         buffer.order(ByteOrder.nativeOrder());
 
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
-        buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, 0);
+        buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, keyPrefixSize);
 
         assert buffer.alignmentOffset(ImmutableBasePage.ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.ENTRIES_COUNT_OFFSET, changedEntries.size());
@@ -293,63 +256,23 @@ final class MutableLeafPage implements MutablePage {
 
 
     @Override
-    public boolean spill(@Nullable MutableInternalPage parent) {
-        if (serializedSize <= pageSize || changedEntries == null) {
-            return false;
-        }
-
-        var page = this;
-        boolean spilled = false;
-        int currentIndex;
-        if (parent == null) {
-            currentIndex = -1;
-        } else {
-            currentIndex = parent.find(changedEntries.get(0).key);
-
-            if (currentIndex < 0) {
-                currentIndex = -currentIndex - 2;
-                assert currentIndex >= 0;
-            }
-        }
-
-        while (true) {
-            var nextSiblingEntries = page.splitAtPageSize();
-
-            if (nextSiblingEntries == null) {
-                break;
-            }
-
-            spilled = true;
-            if (parent == null) {
-                parent = new MutableInternalPage(tree, null, expiredLoggables, log, pageSize);
-                assert tree.root == this;
-
-                tree.root = parent;
-                parent.addChild(0, changedEntries.get(0).key, this);
-                currentIndex = 0;
-            }
-
-            page = new MutableLeafPage(tree, null, log, expiredLoggables);
-
-            page.changedEntries = nextSiblingEntries;
-            //will be calculated at next call to splitAtPageSize()
-            page.serializedSize = -1;
-
-            parent.addChild(currentIndex + 1, nextSiblingEntries.get(0).key, page);
-            currentIndex++;
-        }
-
+    public boolean spill(@Nullable MutableInternalPage parent, @NotNull ByteBuffer insertedKey,
+                         @Nullable ByteBuffer parentUpperbound) {
+        var spilled = doSpill(parent, insertedKey, parentUpperbound);
 
         assert serializedSize == serializedSize();
-        assert changedEntries.size() <= 1 || serializedSize <= pageSize;
+        assert changedEntries != null && changedEntries.size() <= 1 || serializedSize <= pageSize;
 
-        //parent first spill children then itself
-        //so we do not need sort children of parent or spill parent itself
         return spilled;
     }
 
+    @Override
+    MutableBasePage<ImmutableLeafPage, Entry> newPage() {
+        return new MutableLeafPage(tree, null, log, expiredLoggables);
+    }
 
-    private ObjectArrayList<Entry> splitAtPageSize() {
+    @Override
+    ObjectArrayList<Entry> splitAtPageSize() {
         assert changedEntries != null;
 
         //root can contain 0 pages, leaf page should keep at least one entry
@@ -429,16 +352,8 @@ final class MutableLeafPage implements MutablePage {
         return keyView.size();
     }
 
-    @Override
-    public long address() {
-        if (underlying != null) {
-            return underlying.address;
-        }
 
-        return Loggable.NULL_ADDRESS;
-    }
-
-    private static final class Entry implements Comparable<Entry> {
+    static final class Entry implements Comparable<Entry>, MutablePageEntry {
         ByteBuffer key;
         ByteBuffer value;
 
@@ -451,6 +366,16 @@ final class MutableLeafPage implements MutablePage {
         public int compareTo(@NotNull MutableLeafPage.Entry entry) {
             return ByteBufferComparator.INSTANCE.compare(key, entry.key);
         }
+
+        @Override
+        public ByteBuffer getKey() {
+            return key;
+        }
+
+        @Override
+        public void setKey(ByteBuffer key) {
+            this.key = key;
+        }
     }
 
     private final class ValueView extends AbstractList<ByteBuffer> implements RandomAccess {
@@ -462,28 +387,6 @@ final class MutableLeafPage implements MutablePage {
 
             assert underlying != null;
             return underlying.value(i);
-        }
-
-        @Override
-        public int size() {
-            if (changedEntries != null) {
-                return changedEntries.size();
-            }
-
-            assert underlying != null;
-            return underlying.getEntriesCount();
-        }
-    }
-
-    private final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
-        @Override
-        public ByteBuffer get(int i) {
-            if (changedEntries != null) {
-                return changedEntries.get(i).key;
-            }
-
-            assert underlying != null;
-            return underlying.key(i);
         }
 
         @Override
