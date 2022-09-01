@@ -28,8 +28,8 @@ import java.util.Random;
 public class TokyoCabinetBenchmark {
 
     public static final int KEYS_COUNT = 1000000;
-    public static final int WARMUP_ITERATIONS = 10;
-    public static final int MEASUREMENT_ITERATIONS = 10;
+    public static final int WARMUP_ITERATIONS = 20;
+    public static final int MEASUREMENT_ITERATIONS = 20;
     public static final int FORKS = 1;
 
     private static final String PATTERN;
