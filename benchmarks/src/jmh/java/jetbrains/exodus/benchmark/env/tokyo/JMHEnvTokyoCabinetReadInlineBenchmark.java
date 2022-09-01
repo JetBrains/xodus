@@ -7,6 +7,7 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
@@ -14,7 +15,7 @@ import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.FORKS;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMHEnvTokyoCabinetReadInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
+public class JMHEnvTokyoCabinetReadInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkByteBufferBase {
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
@@ -44,7 +45,7 @@ public class JMHEnvTokyoCabinetReadInlineBenchmark extends JMHEnvTokyoCabinetBen
         for (var key : randomKeys) {
             env.executeInReadonlyTransaction(txn -> {
                 var value = store.get(txn, key);
-                consumeBytes(bh, value);
+                bh.consume(value);
             });
         }
     }
@@ -54,10 +55,11 @@ public class JMHEnvTokyoCabinetReadInlineBenchmark extends JMHEnvTokyoCabinetBen
         return StoreConfig.WITHOUT_DUPLICATES_INLINE;
     }
 
-    private static void consumeBytes(final Blackhole bh, final ByteIterable it) {
-        final ByteIterator iterator = it.iterator();
-        while (iterator.hasNext()) {
-            bh.consume(iterator.next());
+    private static void consumeBytes(final Blackhole bh, final ByteBuffer it) {
+        var bufferSize = it.limit();
+
+        for (int i = 0; i < bufferSize; i++) {
+            bh.consume(it.get(i));
         }
     }
 }

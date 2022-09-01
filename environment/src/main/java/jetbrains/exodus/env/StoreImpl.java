@@ -16,6 +16,7 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
@@ -35,6 +36,7 @@ import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 public class StoreImpl implements Store {
@@ -98,6 +100,40 @@ public class StoreImpl implements Store {
     }
 
     @Override
+    @Nullable
+    public ByteBuffer get(@NotNull final Transaction txn, @NotNull final ByteBuffer key) {
+        final TransactionBase tx = (TransactionBase) txn;
+        final ITree tree = tx.getTree(this);
+        if (!tx.isDisableStoreGetCache()) {
+            final StoreGetCache storeGetCache = environment.getStoreGetCache();
+            if (storeGetCache != null) {
+                final long treeRootAddress = tree.getRootAddress();
+                final boolean useStoreGetCache = treeRootAddress != Loggable.NULL_ADDRESS && tree.getSize() >= storeGetCache.getMinTreeSize();
+                // if neither tree is empty nor mutable
+                if (useStoreGetCache) {
+                    var iterableKey = new ByteBufferByteIterable(key);
+                    var cachedValue = storeGetCache.tryKey(treeRootAddress, iterableKey);
+
+                    if (cachedValue != null) {
+                        return cachedValue == NULL_CACHED_VALUE ? null : cachedValue.getByteBuffer();
+                    }
+                    var result = tree.get(key);
+                    if (result == null) {
+                        cachedValue = NULL_CACHED_VALUE;
+                    } else {
+                        cachedValue = new ByteBufferByteIterable(result);
+                    }
+                    if (cachedValue.getLength() <= storeGetCache.getMaxValueSize()) {
+                        storeGetCache.cacheObject(treeRootAddress, iterableKey, cachedValue);
+                    }
+                    return result;
+                }
+            }
+        }
+        return tree.get(key);
+    }
+
+    @Override
     public boolean exists(@NotNull final Transaction txn,
                           @NotNull final ByteIterable key,
                           @NotNull final ByteIterable value) {
@@ -113,6 +149,17 @@ public class StoreImpl implements Store {
             TreeCursorMutable.notifyCursors(mutableTree);
             return true;
         }
+        return false;
+    }
+
+    @Override
+    public boolean put(@NotNull Transaction txn, @NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this);
+        if (mutableTree.put(key, value)) {
+            TreeCursorMutable.notifyCursors(mutableTree);
+            return true;
+        }
+
         return false;
     }
 
@@ -135,6 +182,16 @@ public class StoreImpl implements Store {
     public boolean add(@NotNull final Transaction txn,
                        @NotNull final ByteIterable key,
                        @NotNull final ByteIterable value) {
+        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't add in read-only transaction").getMutableTree(this);
+        if (mutableTree.add(key, value)) {
+            TreeCursorMutable.notifyCursors(mutableTree);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean add(@NotNull Transaction txn, @NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't add in read-only transaction").getMutableTree(this);
         if (mutableTree.add(key, value)) {
             TreeCursorMutable.notifyCursors(mutableTree);

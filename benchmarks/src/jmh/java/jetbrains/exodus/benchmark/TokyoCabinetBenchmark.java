@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,10 +18,12 @@ package jetbrains.exodus.benchmark;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.StringBinding;
 
+import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Random;
 
 public class TokyoCabinetBenchmark {
 
@@ -64,8 +66,22 @@ public class TokyoCabinetBenchmark {
         return result;
     }
 
+    public static ByteBuffer[] getSuccessiveEntriesByteBuffer(final int count) {
+        final ByteBuffer[] result = new ByteBuffer[count];
+        for (int i = 0; i < count; i++) {
+            result[i] = StringBinding.stringToEntry(FORMAT.format(i)).getByteBuffer();
+        }
+        return result;
+    }
+
     public static ByteIterable[] getRandomEntries(final int count) {
         final ByteIterable[] result = getSuccessiveEntries(count);
+        shuffleKeys(result);
+        return result;
+    }
+
+    public static ByteBuffer[] getRandomEntriesByteBuffer(final int count) {
+        final ByteBuffer[] result = getSuccessiveEntriesByteBuffer(count);
         shuffleKeys(result);
         return result;
     }
@@ -85,6 +101,6 @@ public class TokyoCabinetBenchmark {
     }
 
     public static <T> void shuffleKeys(final T[] keys) {
-        Collections.shuffle(Arrays.asList(keys));
+        Collections.shuffle(Arrays.asList(keys), new Random(77634963005211L));
     }
 }

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,6 +18,8 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.nio.ByteBuffer;
 
 /**
  * Store is a named collection of key/value pairs. {@code Store} can be opened using any of {@linkplain Environment
@@ -66,6 +68,8 @@ public interface Store {
     @Nullable
     ByteIterable get(@NotNull Transaction txn, @NotNull ByteIterable key);
 
+    ByteBuffer get(@NotNull Transaction txn, @NotNull ByteBuffer key);
+
     /**
      * Checks if specified key/value pair exists in the {@code Store}.
      *
@@ -92,6 +96,8 @@ public interface Store {
      * @return {@code true} if specified pair was added or value by the key was overwritten.
      */
     boolean put(@NotNull Transaction txn, @NotNull ByteIterable key, @NotNull ByteIterable value);
+
+    boolean put(@NotNull Transaction txn, @NotNull ByteBuffer key, @NotNull ByteBuffer value);
 
 
     /**
@@ -120,6 +126,8 @@ public interface Store {
      * @return {@code true} if key/value pair was added
      */
     boolean add(@NotNull Transaction txn, @NotNull ByteIterable key, @NotNull ByteIterable value);
+
+    boolean add(@NotNull Transaction txn, @NotNull ByteBuffer key, @NotNull ByteBuffer value);
 
     /**
      * For stores without key duplicates, deletes single key/value pair and returns {@code true} if a pair was deleted.

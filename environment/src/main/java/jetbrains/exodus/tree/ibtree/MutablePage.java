@@ -28,7 +28,7 @@ interface MutablePage extends TraversablePage {
 
     boolean rebalance(@Nullable MutableInternalPage parent);
 
-    boolean spill(@Nullable MutableInternalPage parent, @NotNull ByteBuffer keyPrefix, @Nullable ByteBuffer parentUpperbound);
+    boolean split(@Nullable MutableInternalPage parent, int parentIndex, @NotNull ByteBuffer keyPrefix, @Nullable ByteBuffer upperBound);
 
     long treeSize();
 

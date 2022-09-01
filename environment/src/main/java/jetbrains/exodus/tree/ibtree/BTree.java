@@ -61,7 +61,7 @@ interface BTree extends ITree {
         assert root.getKeyPrefixSize() == 0;
 
         var page = root;
-        var currentKey = key.duplicate();
+        var currentKey = key;
 
         while (true) {
             int index = page.find(currentKey);
@@ -92,6 +92,10 @@ interface BTree extends ITree {
             var keyPrefixSize = page.getKeyPrefixSize();
 
             if (keyPrefixSize > 0) {
+                if (currentKey == key) {
+                    currentKey = currentKey.duplicate();
+                }
+
                 currentKey.position(keyPrefixSize);
             }
         }

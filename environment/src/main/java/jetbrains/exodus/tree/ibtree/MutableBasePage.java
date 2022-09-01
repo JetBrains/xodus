@@ -1,6 +1,5 @@
 package jetbrains.exodus.tree.ibtree;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
@@ -10,23 +9,20 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
-import java.util.AbstractList;
-import java.util.Collections;
-import java.util.RandomAccess;
+import java.util.Arrays;
 
-abstract class MutableBasePage<U extends ImmutableBasePage, E extends MutablePageEntry> implements MutablePage {
+abstract class MutableBasePage<U extends ImmutableBasePage> implements MutablePage {
     @Nullable
     U underlying;
 
     @Nullable
-    ObjectArrayList<E> changedEntries;
+    ByteBuffer[] keys;
+
+    int entriesSize;
 
     int keyPrefixSize;
 
     int serializedSize;
-
-    @NotNull
-    final KeyView keyView;
 
     @NotNull
     final ExpiredLoggableCollection expiredLoggables;
@@ -43,10 +39,8 @@ abstract class MutableBasePage<U extends ImmutableBasePage, E extends MutablePag
 
     MutableBasePage(@NotNull final MutableBTree tree, @Nullable U underlying,
                     @NotNull ExpiredLoggableCollection expiredLoggables, @NotNull final Log log) {
-        keyView = new KeyView();
-
         this.log = log;
-        this.pageSize = log.getCachePageSize();
+        this.pageSize = Math.min(4 * 1024, log.getCachePageSize());
         this.maxKeySize = pageSize / 4;
 
         this.expiredLoggables = expiredLoggables;
@@ -62,50 +56,60 @@ abstract class MutableBasePage<U extends ImmutableBasePage, E extends MutablePag
 
     @Override
     public final ByteBuffer key(int index) {
-        return keyView.get(index);
+        if (underlying != null) {
+            return underlying.key(index);
+        }
+
+        assert index < entriesSize;
+        return keys[index];
     }
 
 
     @Override
     public final int find(ByteBuffer key) {
-        return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
+        if (underlying != null) {
+            return underlying.find(key);
+        }
+
+        return Arrays.binarySearch(keys, 0, entriesSize, key, ByteBufferComparator.INSTANCE);
     }
 
     @Override
     public final void addKeyPrefix(ByteBuffer prefix) {
         fetch();
 
-        assert changedEntries != null;
-        for (var entry : changedEntries) {
-            var key = entry.getKey();
-            entry.setKey(ByteBuffers.mergeBuffers(prefix, key));
+        assert keys != null;
+        final int size = entriesSize;
+
+        for (int i = 0; i < size; i++) {
+            assert keys[i] != null;
+            keys[i] = ByteBuffers.mergeBuffers(prefix, keys[i]);
         }
 
         var prefixSize = prefix.limit();
 
         keyPrefixSize -= prefixSize;
-        serializedSize += changedEntries.size() * prefixSize;
+        serializedSize += size * prefixSize;
     }
 
     @Override
     public final void truncateKeys(int keyPrefixSizeDiff) {
         fetch();
 
-        assert changedEntries != null;
-        for (var entry : changedEntries) {
-            var key = entry.getKey();
+        assert keys != null;
+        final int size = entriesSize;
+        for (int i = 0; i < size; i++) {
+            var key = keys[i];
+
+            assert key != null;
             var keySize = key.limit();
 
-            entry.setKey(key.slice(keyPrefixSizeDiff, keySize - keyPrefixSizeDiff));
+            keys[i] = key.slice(keyPrefixSizeDiff, keySize - keyPrefixSizeDiff);
         }
 
-        serializedSize -= changedEntries.size() * keyPrefixSizeDiff;
+        serializedSize -= size * keyPrefixSizeDiff;
         keyPrefixSize += keyPrefixSizeDiff;
     }
-
-    abstract MutableBasePage<U, E> newPage();
-
-    abstract ObjectArrayList<E> splitAtPageSize();
 
     @Override
     public final long address() {
@@ -116,107 +120,24 @@ abstract class MutableBasePage<U extends ImmutableBasePage, E extends MutablePag
         return Loggable.NULL_ADDRESS;
     }
 
-    final boolean doSpill(@Nullable MutableInternalPage parent, @NotNull ByteBuffer insertedKey,
-                          @Nullable ByteBuffer parentUpperBound) {
-        if (serializedSize <= pageSize || changedEntries == null) {
-            return false;
+    @Override
+    public final int getEntriesCount() {
+        if (underlying != null) {
+            return underlying.getEntriesCount();
         }
 
-        var spilled = false;
-        var page = this;
-
-        int currentIndex;
-        int addedChildren = 0;
-
-        ByteBuffer parentPrefix;
-
-        if (parent == null) {
-            currentIndex = -1;
-            parentPrefix = null;
-        } else {
-            var parentPrefixSize = parent.getKeyPrefixSize();
-            assert parentPrefixSize <= keyPrefixSize;
-
-            if (parentPrefixSize < keyPrefixSize) {
-                parentPrefix = insertedKey.slice(parentPrefixSize, keyPrefixSize - parentPrefixSize);
-            } else {
-                parentPrefix = null;
-            }
-
-            currentIndex = parent.find(generateParentKey(parentPrefix, changedEntries.get(0).getKey()));
-
-            if (currentIndex < 0) {
-                currentIndex = -currentIndex - 2;
-                assert currentIndex >= 0;
-            }
-        }
-
-
-        while (true) {
-            var nextSiblingEntries = page.splitAtPageSize();
-
-            if (nextSiblingEntries == null) {
-                break;
-            }
-
-            spilled = true;
-            if (parent == null) {
-                parent = new MutableInternalPage(tree, null, expiredLoggables, log);
-                assert tree.root == this;
-                tree.root = parent;
-
-
-                parent.addChild(0, changedEntries.get(0).getKey(), page);
-                currentIndex = 0;
-            }
-
-            page = newPage();
-            page.changedEntries = nextSiblingEntries;
-            //will be calculated at next call to splitAtPageSize()
-            page.serializedSize = -1;
-            page.keyPrefixSize = keyPrefixSize;
-
-            addedChildren++;
-            parent.addChild(currentIndex + addedChildren, generateParentKey(parentPrefix,
-                    nextSiblingEntries.get(0).getKey()), page);
-        }
-
-        if (spilled) {
-            parent.updatePrefixSize(currentIndex, currentIndex + addedChildren + 1, parentUpperBound);
-        }
-
-        return spilled;
+        return entriesSize;
     }
 
-    private ByteBuffer generateParentKey(@Nullable ByteBuffer parentPrefix, @NotNull ByteBuffer key) {
-        if (parentPrefix == null) {
+    static ByteBuffer generateParentKey(@NotNull MutableInternalPage parent, @NotNull ByteBuffer insertedKey,
+                                        int keyPrefixSize, @NotNull ByteBuffer key) {
+        var parentKeyPrefix = parent.keyPrefixSize;
+        var diff = keyPrefixSize - parentKeyPrefix;
+
+        if (diff == 0) {
             return key;
         }
 
-        return ByteBuffers.mergeBuffers(parentPrefix, key);
-    }
-
-    final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
-        @Override
-        public ByteBuffer get(int index) {
-            if (changedEntries != null) {
-                return changedEntries.get(index).getKey();
-            }
-
-            assert underlying != null;
-
-            return underlying.key(index);
-        }
-
-        @Override
-        public int size() {
-            if (changedEntries != null) {
-                return changedEntries.size();
-            }
-
-            assert underlying != null;
-
-            return underlying.getEntriesCount();
-        }
+        return ByteBuffers.mergeBuffers(insertedKey.slice(parentKeyPrefix, diff), key);
     }
 }

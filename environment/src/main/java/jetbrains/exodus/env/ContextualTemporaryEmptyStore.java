@@ -22,6 +22,7 @@ import jetbrains.exodus.tree.TreeMetaInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
@@ -52,6 +53,11 @@ class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
     }
 
     @Override
+    public boolean put(@NotNull Transaction txn, @NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+        return throwCantModify();
+    }
+
+    @Override
     public void putRight(@NotNull final Transaction txn,
                          @NotNull final ByteIterable key,
                          @NotNull final ByteIterable value) {
@@ -62,6 +68,11 @@ class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
     public boolean add(@NotNull final Transaction txn,
                        @NotNull final ByteIterable key,
                        @NotNull final ByteIterable value) {
+        return throwCantModify();
+    }
+
+    @Override
+    public boolean add(@NotNull Transaction txn, @NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         return throwCantModify();
     }
 

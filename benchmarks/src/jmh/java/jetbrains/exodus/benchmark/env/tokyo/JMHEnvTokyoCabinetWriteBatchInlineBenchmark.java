@@ -23,6 +23,7 @@ import jetbrains.exodus.env.StoreConfig;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.*;
@@ -30,7 +31,7 @@ import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.FORKS;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMHEnvTokyoCabinetWriteBatchInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
+public class JMHEnvTokyoCabinetWriteBatchInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkByteBufferBase {
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
@@ -52,7 +53,7 @@ public class JMHEnvTokyoCabinetWriteBatchInlineBenchmark extends JMHEnvTokyoCabi
     @Fork(FORKS)
     public void randomWrite() {
         env.executeInTransaction(txn -> {
-            for (final ByteIterable key : randomKeys) {
+            for (final ByteBuffer key : randomKeys) {
                 store.add(txn, key, key);
             }
         });

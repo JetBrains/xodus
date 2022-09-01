@@ -19,11 +19,11 @@
 package jetbrains.exodus.tree.ibtree;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
 import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
+import jetbrains.exodus.util.IntObjectObjectTriple;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -141,7 +141,7 @@ public final class MutableBTree implements IBTreeMutable {
     private boolean doPut(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value,
                           final boolean override) {
         var page = root;
-        ObjectArrayList<ObjectObjectImmutablePair<MutableInternalPage, ByteBuffer>> stack =
+        ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteBuffer>> stack =
                 new ObjectArrayList<>(8);
         boolean smallestKey = false;
 
@@ -156,17 +156,16 @@ public final class MutableBTree implements IBTreeMutable {
                 index = -1;
             } else {
                 index = page.find(truncatedKey);
-
             }
 
             if (page instanceof MutableLeafPage mutablePage) {
-                assert this.root == page || this.root == stack.get(0).first();
+                assert this.root == page || this.root == stack.get(0).second;
 
                 if (smallestKey) {
                     var stackSize = stack.size();
 
                     for (int i = 0; i < stackSize; i++) {
-                        var currentPage = stack.get(i).first();
+                        var currentPage = stack.get(i).second;
                         var keyPrefixSize = currentPage.keyPrefixSize;
                         if (keyPrefixSize > 0) {
                             truncatedKey.position(keyPrefixSize);
@@ -177,7 +176,7 @@ public final class MutableBTree implements IBTreeMutable {
 
                         if (i < stackSize - 1) {
                             var nextCalculatedPrefixSize = keyPrefixSize + partialKeyPrefixSize;
-                            var nextPage = stack.get(i + 1).first();
+                            var nextPage = stack.get(i + 1).second;
 
                             var nextPageKeyPrefixSize = nextPage.getKeyPrefixSize();
                             assert nextPageKeyPrefixSize >= nextCalculatedPrefixSize;
@@ -195,9 +194,11 @@ public final class MutableBTree implements IBTreeMutable {
                     if (keyPrefixSize > 0) {
                         truncatedKey.position(keyPrefixSize);
                     }
-                    mutablePage.insert(0, truncatedKey.slice(), value);
 
-                    spillAfterModification(stack, mutablePage, key);
+                    var split = mutablePage.insert(0, truncatedKey.slice(), value);
+                    if (split) {
+                        spillAfterModification(stack, mutablePage, key);
+                    }
 
                     size++;
                     TreeMutableCursor.notifyCursors(this);
@@ -206,9 +207,11 @@ public final class MutableBTree implements IBTreeMutable {
                 } else {
                     if (index < 0) {
                         assert stack.isEmpty() || index < -1;
-                        mutablePage.insert(-index - 1, truncatedKey.slice(), value);
+                        var split = mutablePage.insert(-index - 1, truncatedKey.slice(), value);
 
-                        spillAfterModification(stack, mutablePage, key);
+                        if (split) {
+                            spillAfterModification(stack, mutablePage, key);
+                        }
 
                         size++;
                         TreeMutableCursor.notifyCursors(this);
@@ -217,9 +220,11 @@ public final class MutableBTree implements IBTreeMutable {
                     }
 
                     if (override) {
-                        mutablePage.set(index, truncatedKey.slice(), value);
+                        var split = mutablePage.set(index, truncatedKey.slice(), value);
 
-                        spillAfterModification(stack, mutablePage, key);
+                        if (split) {
+                            spillAfterModification(stack, mutablePage, key);
+                        }
 
                         TreeMutableCursor.notifyCursors(this);
                         return true;
@@ -239,7 +244,7 @@ public final class MutableBTree implements IBTreeMutable {
                 }
 
                 var internalPage = (MutableInternalPage) page;
-                stack.add(new ObjectObjectImmutablePair<>(internalPage, keyBoundary));
+                stack.add(new IntObjectObjectTriple<>(index, internalPage, keyBoundary));
 
                 page = internalPage.mutableChild(index);
                 if (index < internalPage.getEntriesCount() - 1) {
@@ -263,20 +268,21 @@ public final class MutableBTree implements IBTreeMutable {
         }
     }
 
-    private void spillAfterModification(ObjectArrayList<ObjectObjectImmutablePair<MutableInternalPage, ByteBuffer>> stack,
+    private void spillAfterModification(ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteBuffer>> stack,
                                         MutableLeafPage mutablePage,
                                         ByteBuffer key) {
         boolean spillParent;
 
         if (stack.isEmpty()) {
-            spillParent = mutablePage.spill(null, key, null);
+            spillParent = mutablePage.split(null, -1, key, null);
 
             if (spillParent) {
-                stack.add(new ObjectObjectImmutablePair<>((MutableInternalPage) this.root, null));
+                stack.add(new IntObjectObjectTriple<>(-1, (MutableInternalPage) this.root, null));
             }
         } else {
             var parentAndBoundary = stack.get(stack.size() - 1);
-            spillParent = mutablePage.spill(parentAndBoundary.left(), key, parentAndBoundary.right());
+            spillParent = mutablePage.split(parentAndBoundary.second, parentAndBoundary.first, key,
+                    parentAndBoundary.third);
         }
 
         if (spillParent) {
@@ -284,7 +290,7 @@ public final class MutableBTree implements IBTreeMutable {
         }
     }
 
-    private void spillStack(ObjectArrayList<ObjectObjectImmutablePair<MutableInternalPage, ByteBuffer>> stack,
+    private void spillStack(ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteBuffer>> stack,
                             ByteBuffer key) {
         var stackSize = stack.size();
         if (stackSize == 0) {
@@ -293,7 +299,8 @@ public final class MutableBTree implements IBTreeMutable {
 
         var parentIndex = stackSize - 1;
         var parentBoundaryPair = stack.get(parentIndex);
-        var parent = parentBoundaryPair.first();
+        var parent = parentBoundaryPair.second;
+        var childIndex = parentBoundaryPair.first;
 
         while (parent != null) {
             var currentPage = parent;
@@ -303,16 +310,18 @@ public final class MutableBTree implements IBTreeMutable {
             if (parentIndex >= 0) {
                 parentBoundaryPair = stack.get(parentIndex);
 
-                parent = parentBoundaryPair.first();
-                boundary = parentBoundaryPair.second();
+                childIndex = parentBoundaryPair.first;
+                parent = parentBoundaryPair.second;
+                boundary = parentBoundaryPair.third;
             } else {
                 parentBoundaryPair = null;
 
+                childIndex = -1;
                 parent = null;
                 boundary = null;
             }
 
-            var spillParent = currentPage.spill(parent, key, boundary);
+            var spillParent = currentPage.split(parent, childIndex, key, boundary);
 
             if (spillParent) {
                 if (parentBoundaryPair == null) {

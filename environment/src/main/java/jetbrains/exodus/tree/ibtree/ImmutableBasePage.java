@@ -54,6 +54,8 @@ abstract class ImmutableBasePage implements TraversablePage {
     @NotNull
     final List<ByteBuffer> keyView;
 
+    final int entriesCount;
+
     protected ImmutableBasePage(@NotNull final Log log, @NotNull final ByteBuffer page, long address) {
         this.log = log;
         this.address = address;
@@ -64,6 +66,10 @@ abstract class ImmutableBasePage implements TraversablePage {
         assert page.order() == ByteOrder.nativeOrder();
 
         keyView = new KeyView();
+
+
+        assert page.alignmentOffset(ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
+        entriesCount = page.getInt(ENTRIES_COUNT_OFFSET);
     }
 
     @Override
@@ -102,9 +108,7 @@ abstract class ImmutableBasePage implements TraversablePage {
     }
 
     public final int getEntriesCount() {
-        assert page.alignmentOffset(ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
-
-        return page.getInt(ENTRIES_COUNT_OFFSET);
+        return entriesCount;
     }
 
     public final ByteBuffer key(int index) {

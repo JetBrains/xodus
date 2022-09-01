@@ -1,24 +1,23 @@
 package jetbrains.exodus.tree.ibtree;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
+import jetbrains.exodus.util.MathUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.AbstractList;
-import java.util.RandomAccess;
+import java.util.Arrays;
 
-final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLeafPage.Entry> {
-    @NotNull
-    final ValueView valueView;
+final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
     final long pageAddress;
 
     boolean unbalanced;
+
+    @Nullable
+    ByteBuffer[] values;
 
     MutableLeafPage(@NotNull MutableBTree tree, @Nullable ImmutableLeafPage underlying,
                     @NotNull Log log,
@@ -37,15 +36,24 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
         }
 
         if (underlying == null) {
-            changedEntries = new ObjectArrayList<>();
+            keys = new ByteBuffer[64];
+            values = new ByteBuffer[64];
+            entriesSize = 0;
         }
-
-        valueView = new ValueView();
     }
 
-    @Override
-    public int getEntriesCount() {
-        return keyView.size();
+    MutableLeafPage(@NotNull MutableBTree tree,
+                    @NotNull Log log,
+                    @NotNull ExpiredLoggableCollection expiredLoggables, int serializedSize, int keyPrefixSize,
+                    int entriesSize, ByteBuffer[] keys, ByteBuffer[] values) {
+        super(tree, null, expiredLoggables, log);
+
+        this.pageAddress = -1;
+        this.serializedSize = serializedSize;
+        this.keyPrefixSize = keyPrefixSize;
+        this.entriesSize = entriesSize;
+        this.keys = keys;
+        this.values = values;
     }
 
     @Override
@@ -60,40 +68,98 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
 
     @Override
     public ByteBuffer value(int index) {
-        return valueView.get(index);
+        if (underlying != null) {
+            return underlying.value(index);
+        }
+
+        assert index < entriesSize;
+        return values[index];
     }
 
-    void set(int index, ByteBuffer key, ByteBuffer value) {
+    boolean set(int index, ByteBuffer key, ByteBuffer value) {
         fetch();
 
-        assert changedEntries != null;
-        var prevEntry = changedEntries.set(index, new Entry(key, value));
-        serializedSize += key.limit() + value.limit() - prevEntry.value.limit() - prevEntry.key.limit();
+        assert keys != null;
+
+        assert index < entriesSize;
+
+        var prevValue = values[index];
+        var prevKey = keys[index];
+
+        keys[index] = key;
+        values[index] = value;
+
+        serializedSize += key.limit() + value.limit() - prevValue.limit() - prevKey.limit();
+
+        return entriesSize > 1 && serializedSize > pageSize;
     }
 
-    void insert(int index, ByteBuffer key, ByteBuffer value) {
+    boolean insert(int index, ByteBuffer key, ByteBuffer value) {
         fetch();
 
-        assert changedEntries != null;
-        changedEntries.add(index, new Entry(key, value));
+        assert keys != null;
 
-        serializedSize += 2 * Long.BYTES + key.limit() + value.limit();
+        final int size = entriesSize;
+
+        ensureCapacity(size + 1);
+
+        if (index < size) {
+            System.arraycopy(keys, index, keys, index + 1, size - index);
+            System.arraycopy(values, index, values, index + 1, size - index);
+        }
+
+        keys[index] = key;
+        values[index] = value;
+
+        serializedSize += entrySize(key, value);
+        entriesSize++;
+
+        return entriesSize > 1 && serializedSize > pageSize;
     }
 
-    void append(ByteBuffer key, ByteBuffer value) {
+    boolean append(ByteBuffer key, ByteBuffer value) {
         fetch();
 
-        assert changedEntries != null;
-        changedEntries.add(new Entry(key, value));
-        serializedSize += 2 * Long.BYTES + key.limit() + value.limit();
+        assert keys != null;
+        final int size = entriesSize;
+
+        ensureCapacity(size + 1);
+
+        keys[size] = key;
+        values[size] = value;
+
+        serializedSize += entrySize(key, value);
+        entriesSize++;
+
+        return entriesSize > 1 && serializedSize > pageSize;
+    }
+
+    private int entrySize(ByteBuffer key, ByteBuffer value) {
+        return 2 * Long.BYTES + key.limit() + value.limit();
+    }
+
+    private void ensureCapacity(int size) {
+        if (size > keys.length) {
+            keys = Arrays.copyOf(keys, keys.length << 1);
+            values = Arrays.copyOf(values, values.length << 1);
+        }
     }
 
     void delete(int index) {
         fetch();
 
-        assert changedEntries != null;
-        var prevValue = changedEntries.remove(index);
-        serializedSize -= (prevValue.value.limit() + prevValue.key.limit() + 2 * Long.BYTES);
+        assert keys != null;
+
+        final int size = entriesSize;
+
+        var prevKey = keys[index];
+        var prevValue = values[index];
+
+        System.arraycopy(keys, index + 1, keys, index, size - (index + 1));
+        System.arraycopy(values, index + 1, values, index, size - (index + 1));
+
+        entriesSize--;
+        serializedSize -= (prevValue.limit() + prevKey.limit() + 2 * Long.BYTES);
 
         unbalanced = true;
     }
@@ -105,15 +171,14 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
 
     @Override
     public long save(int structureId, @Nullable MutableInternalPage parent) {
-        if (changedEntries == null) {
-            assert underlying != null;
+        if (underlying != null) {
             return underlying.address;
         }
 
-        assert parent == null || changedEntries.size() >= 1;
+        assert parent == null || entriesSize >= 1;
 
         assert serializedSize() == serializedSize;
-        assert serializedSize <= pageSize || changedEntries.size() < 2;
+        assert serializedSize <= pageSize || entriesSize < 2;
 
 
         byte type;
@@ -155,25 +220,29 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
     }
 
     private void serializePage(ByteBuffer buffer) {
-        assert changedEntries != null;
+        assert keys != null;
 
+        final int size = entriesSize;
         buffer.order(ByteOrder.nativeOrder());
 
         assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, keyPrefixSize);
 
         assert buffer.alignmentOffset(ImmutableBasePage.ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
-        buffer.putInt(ImmutableBasePage.ENTRIES_COUNT_OFFSET, changedEntries.size());
+        buffer.putInt(ImmutableBasePage.ENTRIES_COUNT_OFFSET, size);
 
         int keysPositionsOffset = ImmutableBasePage.KEYS_OFFSET;
-        int keysDataOffset = ImmutableBasePage.KEYS_OFFSET + changedEntries.size() * 2 * Long.BYTES;
+        int keysDataOffset = ImmutableBasePage.KEYS_OFFSET + size * 2 * Long.BYTES;
 
-        int valuesPositionsOffset = ImmutableBasePage.KEYS_OFFSET + Long.BYTES * changedEntries.size();
+        int valuesPositionsOffset = ImmutableBasePage.KEYS_OFFSET + Long.BYTES * size;
         int valuesDataOffset = serializedSize - ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET;
 
-        for (var entry : changedEntries) {
-            var key = entry.key;
-            var value = entry.value;
+        for (int i = 0; i < size; i++) {
+            var key = keys[i];
+            var value = values[i];
+
+            assert key != null;
+            assert value != null;
 
             var keyPosition = keysDataOffset;
             var keySize = key.limit();
@@ -210,10 +279,10 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
             return false;
         }
 
-        assert changedEntries != null;
+        assert keys != null;
         assert serializedSize == serializedSize();
 
-        unbalanced = changedEntries.isEmpty() || serializedSize < pageSize / 4;
+        unbalanced = entriesSize == 0 || serializedSize < pageSize / 4;
         return unbalanced;
     }
 
@@ -221,19 +290,31 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
     public void merge(MutablePage page) {
         fetch();
 
-        assert changedEntries != null;
+        assert keys != null;
 
-        var leafPage = (MutableLeafPage) page;
-        assert leafPage.changedEntries != null;
+        var leafPageToMerge = (MutableLeafPage) page;
+        assert leafPageToMerge.keys != null;
 
-        var leafChangedEntries = leafPage.changedEntries;
-        serializedSize += 2 * Long.BYTES * leafChangedEntries.size();
+        var leafPageToMergeKeys = leafPageToMerge.keys;
+        var leafPageToMergeValues = leafPageToMerge.values;
 
-        for (var leafEntry : leafChangedEntries) {
-            serializedSize += leafEntry.key.limit() + leafEntry.value.limit();
+        var leafPageToMergeEntriesSize = leafPageToMerge.entriesSize;
+
+        serializedSize += 2 * Long.BYTES * leafPageToMergeEntriesSize;
+
+        for (int i = 0; i < leafPageToMergeEntriesSize; i++) {
+            serializedSize += leafPageToMergeKeys[i].limit() + leafPageToMergeValues[i].limit();
         }
 
-        changedEntries.addAll(leafChangedEntries);
+        var mergedSize = leafPageToMergeEntriesSize + entriesSize;
+        ensureCapacity(mergedSize);
+
+        var size = entriesSize;
+
+        System.arraycopy(leafPageToMergeKeys, 0, keys, size, leafPageToMergeEntriesSize);
+        System.arraycopy(leafPageToMergeValues, 0, values, size, leafPageToMergeEntriesSize);
+
+        entriesSize = mergedSize;
 
         assert serializedSize == serializedSize();
 
@@ -241,14 +322,21 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
     }
 
     private int serializedSize() {
-        assert changedEntries != null;
+        assert keys != null;
 
+        final int entries = entriesSize;
         int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
-                ImmutableLeafPage.KEYS_OFFSET + 2 * Long.BYTES * changedEntries.size();
+                ImmutableLeafPage.KEYS_OFFSET + 2 * Long.BYTES * entries;
 
-        for (Entry entry : changedEntries) {
-            size += entry.key.limit();
-            size += entry.value.limit();
+        for (int i = 0; i < entries; i++) {
+            var key = keys[i];
+            var value = values[i];
+
+            assert key != null;
+            assert value != null;
+
+            size += key.limit();
+            size += value.limit();
         }
 
         return size;
@@ -256,71 +344,75 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
 
 
     @Override
-    public boolean spill(@Nullable MutableInternalPage parent, @NotNull ByteBuffer insertedKey,
-                         @Nullable ByteBuffer parentUpperbound) {
-        var spilled = doSpill(parent, insertedKey, parentUpperbound);
+    public boolean split(@Nullable MutableInternalPage parent, int parentIndex, @NotNull ByteBuffer insertedKey,
+                         @Nullable ByteBuffer upperBound) {
+        assert entriesSize >= 2 && serializedSize > pageSize;
 
-        assert serializedSize == serializedSize();
-        assert changedEntries != null && changedEntries.size() <= 1 || serializedSize <= pageSize;
+        final int size = entriesSize;
 
-        return spilled;
-    }
+        final int end = size - 1;
+        int newSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
+                ImmutableLeafPage.KEYS_OFFSET + 2 * Long.BYTES;
 
-    @Override
-    MutableBasePage<ImmutableLeafPage, Entry> newPage() {
-        return new MutableLeafPage(tree, null, log, expiredLoggables);
-    }
+        assert keys[0] != null;
+        assert values[0] != null;
 
-    @Override
-    ObjectArrayList<Entry> splitAtPageSize() {
-        assert changedEntries != null;
+        newSize += keys[0].limit() + values[0].limit();
 
-        //root can contain 0 pages, leaf page should keep at least one entry
-        if (changedEntries.size() <= 1) {
-            if (serializedSize < 0) {
-                serializedSize = serializedSize();
-            }
-            return null;
-        }
+        int splitAt = 1;
 
-        var firstEntry = changedEntries.get(0);
-        int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
-                ImmutableLeafPage.KEYS_OFFSET + 2 * Long.BYTES + firstEntry.key.limit()
-                + firstEntry.value.limit();
+        var threshold = pageSize / 2;
+        for (int i = 1; i < end; i++) {
+            assert keys[i] != null;
+            assert values[i] != null;
 
-        int indexToSplit = 0;
+            var nextSize = newSize + entrySize(keys[i], values[i]);
 
-
-        int currentSize = size;
-        final int threshold = pageSize / 2;
-        for (int i = 1; i < changedEntries.size(); i++) {
-            var entry = changedEntries.get(i);
-
-            size += 2 * Long.BYTES + entry.key.limit() + entry.value.limit();
-            if (size > threshold) {
-                serializedSize = -1;
+            if (nextSize > threshold) {
                 break;
             }
 
-            indexToSplit = i;
-            currentSize = size;
+            splitAt = i + 1;
+            newSize = nextSize;
         }
 
-        ObjectArrayList<Entry> result = null;
+        final int childEntriesSize = size - splitAt;
+        final int childSerializedSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
+                ImmutableLeafPage.KEYS_OFFSET + (serializedSize - newSize);
 
-        if (indexToSplit < changedEntries.size() - 1) {
-            result = new ObjectArrayList<>();
-            result.addAll(0, changedEntries.subList(indexToSplit + 1, changedEntries.size()));
+        final int childEntriesCapacity = Math.max(MathUtil.closestPowerOfTwo(childEntriesSize), 64);
 
-            changedEntries.removeElements(indexToSplit + 1, changedEntries.size());
-            changedEntries = new ObjectArrayList<>(changedEntries.subList(0, indexToSplit + 1));
+        final ByteBuffer[] childKeys = new ByteBuffer[childEntriesCapacity];
+        final ByteBuffer[] childValues = new ByteBuffer[childEntriesCapacity];
+
+        System.arraycopy(keys, splitAt, childKeys, 0, childEntriesSize);
+        System.arraycopy(values, splitAt, childValues, 0, childEntriesSize);
+
+        Arrays.fill(keys, splitAt, size, null);
+        Arrays.fill(values, splitAt, size, null);
+
+        entriesSize = splitAt;
+        serializedSize = newSize;
+
+        if (parent == null) {
+            parent = new MutableInternalPage(tree, null, expiredLoggables, log);
+            parent.addChild(0, keys[0], this);
+            parentIndex = 0;
+
+            tree.root = parent;
         }
 
-        if (serializedSize == -1) {
-            serializedSize = currentSize;
-        }
+        var childPage = new MutableLeafPage(tree, log, expiredLoggables, childSerializedSize, keyPrefixSize,
+                childEntriesSize, childKeys, childValues);
 
-        return result;
+        var split = parent.addChild(parentIndex + 1,
+                generateParentKey(parent, insertedKey, keyPrefixSize, childKeys[0]), childPage);
+        parent.updatePrefixSize(parentIndex + 1, upperBound);
+
+        assert serializedSize == serializedSize();
+        assert childPage.serializedSize == childPage.serializedSize();
+
+        return split;
     }
 
     public boolean fetch() {
@@ -332,13 +424,20 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
         expiredLoggables.add(pageAddress, pageSize);
 
         final int size = underlying.getEntriesCount();
-        changedEntries = new ObjectArrayList<>(size);
+        final int capacity = Math.max(MathUtil.closestPowerOfTwo(size), 64);
+
+        keys = new ByteBuffer[capacity];
+        values = new ByteBuffer[capacity];
+        entriesSize = size;
 
         for (int i = 0; i < size; i++) {
             var key = underlying.key(i);
-            var value = underlying.value(i);
+            keys[i] = key;
+        }
 
-            changedEntries.add(new Entry(key, value));
+        for (int i = 0; i < size; i++) {
+            var value = underlying.value(i);
+            values[i] = value;
         }
 
         //do not keep copy of the data for a long time
@@ -349,55 +448,11 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage, MutableLe
 
     @Override
     public long treeSize() {
-        return keyView.size();
-    }
-
-
-    static final class Entry implements Comparable<Entry>, MutablePageEntry {
-        ByteBuffer key;
-        ByteBuffer value;
-
-        Entry(ByteBuffer key, ByteBuffer value) {
-            this.key = key;
-            this.value = value;
+        if (underlying != null) {
+            return underlying.getTreeSize();
         }
 
-        @Override
-        public int compareTo(@NotNull MutableLeafPage.Entry entry) {
-            return ByteBufferComparator.INSTANCE.compare(key, entry.key);
-        }
-
-        @Override
-        public ByteBuffer getKey() {
-            return key;
-        }
-
-        @Override
-        public void setKey(ByteBuffer key) {
-            this.key = key;
-        }
-    }
-
-    private final class ValueView extends AbstractList<ByteBuffer> implements RandomAccess {
-        @Override
-        public ByteBuffer get(int i) {
-            if (changedEntries != null) {
-                return changedEntries.get(i).value;
-            }
-
-            assert underlying != null;
-            return underlying.value(i);
-        }
-
-        @Override
-        public int size() {
-            if (changedEntries != null) {
-                return changedEntries.size();
-            }
-
-            assert underlying != null;
-            return underlying.getEntriesCount();
-        }
+        return entriesSize;
     }
 }
 

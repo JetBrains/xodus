@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -70,10 +70,10 @@ class StoreGetCache {
         final int keyHashCode = key.hashCode();
         final ValueEntry ve = cache.tryKey(treeRootAddress ^ keyHashCode);
         return ve == null || ve.treeRootAddress != treeRootAddress ||
-            ve.keyHashCode != keyHashCode || !ve.key.equals(key) ? null : ve.value;
+                ve.keyHashCode != keyHashCode || !ve.key.equals(key) ? null : ve.value;
     }
 
-    void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ArrayByteIterable value) {
+    void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ByteIterable value) {
         final ArrayByteIterable keyCopy = key instanceof ArrayByteIterable ? (ArrayByteIterable) key : new ArrayByteIterable(key);
         final int keyHashCode = keyCopy.hashCode();
         cache.cacheObject(treeRootAddress ^ keyHashCode, new ValueEntry(treeRootAddress, keyHashCode, keyCopy, value));
@@ -89,14 +89,14 @@ class StoreGetCache {
         private final long treeRootAddress;
         private final int keyHashCode;
         @NotNull
-        private final ArrayByteIterable key;
+        private final ByteIterable key;
         @NotNull
-        private final ArrayByteIterable value;
+        private final ByteIterable value;
 
         ValueEntry(final long treeRootAddress,
                    final int keyHashCode,
-                   @NotNull final ArrayByteIterable key,
-                   @NotNull final ArrayByteIterable value) {
+                   @NotNull final ByteIterable key,
+                   @NotNull final ByteIterable value) {
             this.treeRootAddress = treeRootAddress;
             this.keyHashCode = keyHashCode;
             this.key = key;
