@@ -52,7 +52,10 @@ abstract class ImmutableBasePage implements TraversablePage {
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     @NotNull
-    final List<ByteBuffer> keyView;
+    final KeyView keyView;
+
+    @NotNull
+    final NonCopyKeyView nonCopyKeyView;
 
     final int entriesCount;
 
@@ -66,7 +69,7 @@ abstract class ImmutableBasePage implements TraversablePage {
         assert page.order() == ByteOrder.nativeOrder();
 
         keyView = new KeyView();
-
+        nonCopyKeyView = new NonCopyKeyView();
 
         assert page.alignmentOffset(ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
         entriesCount = page.getInt(ENTRIES_COUNT_OFFSET);
@@ -81,7 +84,10 @@ abstract class ImmutableBasePage implements TraversablePage {
     abstract long getTreeSize();
 
     public final int find(ByteBuffer key) {
-        return Collections.binarySearch(keyView, key, ByteBufferComparator.INSTANCE);
+        final int position = Collections.binarySearch(nonCopyKeyView, key, ByteBufferComparator.INSTANCE);
+        page.clear();
+        return position;
+
     }
 
     private int getKeyPositionSizeIndex(final int index) {
@@ -93,6 +99,11 @@ abstract class ImmutableBasePage implements TraversablePage {
         return extractByteChunk(ketPositionSizeIndex);
     }
 
+    private ByteBuffer getKeyNoCopy(int index) {
+        final int ketPositionSizeIndex = getKeyPositionSizeIndex(index);
+        return extractByteChunkNoCopy(ketPositionSizeIndex);
+    }
+
     final ByteBuffer extractByteChunk(int valuePositionSizeIndex) {
         assert page.alignmentOffset(valuePositionSizeIndex, Integer.BYTES) == 0;
         final int valuePosition = page.getInt(valuePositionSizeIndex);
@@ -101,6 +112,16 @@ abstract class ImmutableBasePage implements TraversablePage {
         final int valueSize = page.getInt(valuePositionSizeIndex + Integer.BYTES);
 
         return page.slice(valuePosition, valueSize);
+    }
+
+    private ByteBuffer extractByteChunkNoCopy(int valuePositionSizeIndex) {
+        assert page.alignmentOffset(valuePositionSizeIndex, Integer.BYTES) == 0;
+        final int valuePosition = page.getInt(valuePositionSizeIndex);
+
+        assert page.alignmentOffset(valuePositionSizeIndex + Integer.BYTES, Integer.BYTES) == 0;
+        final int valueSize = page.getInt(valuePositionSizeIndex + Integer.BYTES);
+
+        return page.limit(valuePosition + valueSize).position(valuePosition);
     }
 
     final int getChildAddressPositionIndex(int index) {
@@ -125,7 +146,19 @@ abstract class ImmutableBasePage implements TraversablePage {
 
         @Override
         public int size() {
-            return getEntriesCount();
+            return entriesCount;
+        }
+    }
+
+    private final class NonCopyKeyView extends AbstractList<ByteBuffer> implements RandomAccess {
+        @Override
+        public ByteBuffer get(int index) {
+            return getKeyNoCopy(index);
+        }
+
+        @Override
+        public int size() {
+            return entriesCount;
         }
     }
 
