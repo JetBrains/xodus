@@ -7,9 +7,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.AbstractList;
-import java.util.Collections;
-import java.util.RandomAccess;
 
 /**
  * Representation of common layout of all pages both leaf and internal.
@@ -49,13 +46,6 @@ abstract class ImmutableBasePage implements TraversablePage {
     @NotNull
     final ByteBuffer page;
 
-    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
-    @NotNull
-    final KeyView keyView;
-
-    @NotNull
-    final NonCopyKeyView nonCopyKeyView;
-
     final int entriesCount;
     final int keyPrefixSize;
 
@@ -67,9 +57,6 @@ abstract class ImmutableBasePage implements TraversablePage {
         //ensure that allocated page aligned to ensure fastest memory access and stable offsets of the data
         assert page.alignmentOffset(0, Long.BYTES) == 0;
         assert page.order() == ByteOrder.nativeOrder();
-
-        keyView = new KeyView();
-        nonCopyKeyView = new NonCopyKeyView();
 
         assert page.alignmentOffset(ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
         entriesCount = page.getInt(ENTRIES_COUNT_OFFSET);
@@ -86,10 +73,39 @@ abstract class ImmutableBasePage implements TraversablePage {
     abstract long getTreeSize();
 
     public final int find(ByteBuffer key) {
-        final int position = Collections.binarySearch(nonCopyKeyView, key, ByteBufferComparator.INSTANCE);
+        final int position = binarySearch(key);
         page.clear();
+
         return position;
 
+    }
+
+    private int binarySearch(ByteBuffer key) {
+        int low = 0;
+        int high = entriesCount - 1;
+
+        while (low <= high) {
+            final int mid = (low + high) >>> 1;
+            final int position = KEYS_OFFSET + mid * Long.BYTES;
+
+            assert page.alignmentOffset(position, Integer.BYTES) == 0;
+            final int valuePosition = page.getInt(position);
+
+            assert page.alignmentOffset(position + Integer.BYTES, Integer.BYTES) == 0;
+            final int valueSize = page.getInt(position + Integer.BYTES);
+
+            page.limit(valuePosition + valueSize).position(valuePosition);
+            final int cmp = ByteBufferComparator.INSTANCE.compare(page, key);
+
+            if (cmp < 0)
+                low = mid + 1;
+            else if (cmp > 0)
+                high = mid - 1;
+            else
+                return mid; // key found
+        }
+
+        return -(low + 1);  // key not found
     }
 
     private int getKeyPositionSizeIndex(final int index) {
@@ -99,11 +115,6 @@ abstract class ImmutableBasePage implements TraversablePage {
     private ByteBuffer getKey(int index) {
         final int ketPositionSizeIndex = getKeyPositionSizeIndex(index);
         return extractByteChunk(ketPositionSizeIndex);
-    }
-
-    private ByteBuffer getKeyNoCopy(int index) {
-        final int ketPositionSizeIndex = getKeyPositionSizeIndex(index);
-        return extractByteChunkNoCopy(ketPositionSizeIndex);
     }
 
     final ByteBuffer extractByteChunk(int valuePositionSizeIndex) {
@@ -116,16 +127,6 @@ abstract class ImmutableBasePage implements TraversablePage {
         return page.slice(valuePosition, valueSize);
     }
 
-    private ByteBuffer extractByteChunkNoCopy(int valuePositionSizeIndex) {
-        assert page.alignmentOffset(valuePositionSizeIndex, Integer.BYTES) == 0;
-        final int valuePosition = page.getInt(valuePositionSizeIndex);
-
-        assert page.alignmentOffset(valuePositionSizeIndex + Integer.BYTES, Integer.BYTES) == 0;
-        final int valueSize = page.getInt(valuePositionSizeIndex + Integer.BYTES);
-
-        return page.limit(valuePosition + valueSize).position(valuePosition);
-    }
-
     final int getChildAddressPositionIndex(int index) {
         return KEYS_OFFSET + getEntriesCount() * Long.BYTES + index * Long.BYTES;
     }
@@ -135,34 +136,10 @@ abstract class ImmutableBasePage implements TraversablePage {
     }
 
     public final ByteBuffer key(int index) {
-        return keyView.get(index);
+        return getKey(index);
     }
 
     abstract MutablePage toMutable(MutableBTree tree, ExpiredLoggableCollection expiredLoggables);
-
-    private final class KeyView extends AbstractList<ByteBuffer> implements RandomAccess {
-        @Override
-        public ByteBuffer get(int i) {
-            return getKey(i);
-        }
-
-        @Override
-        public int size() {
-            return entriesCount;
-        }
-    }
-
-    private final class NonCopyKeyView extends AbstractList<ByteBuffer> implements RandomAccess {
-        @Override
-        public ByteBuffer get(int index) {
-            return getKeyNoCopy(index);
-        }
-
-        @Override
-        public int size() {
-            return entriesCount;
-        }
-    }
 
     @Override
     public final long address() {
