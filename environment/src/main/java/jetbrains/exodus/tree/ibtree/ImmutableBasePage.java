@@ -9,7 +9,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.AbstractList;
 import java.util.Collections;
-import java.util.List;
 import java.util.RandomAccess;
 
 /**
@@ -58,6 +57,7 @@ abstract class ImmutableBasePage implements TraversablePage {
     final NonCopyKeyView nonCopyKeyView;
 
     final int entriesCount;
+    final int keyPrefixSize;
 
     protected ImmutableBasePage(@NotNull final Log log, @NotNull final ByteBuffer page, long address) {
         this.log = log;
@@ -73,12 +73,14 @@ abstract class ImmutableBasePage implements TraversablePage {
 
         assert page.alignmentOffset(ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
         entriesCount = page.getInt(ENTRIES_COUNT_OFFSET);
+
+        assert page.alignmentOffset(KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
+        keyPrefixSize = page.getInt(KEY_PREFIX_LEN_OFFSET);
     }
 
     @Override
     public int getKeyPrefixSize() {
-        assert page.alignmentOffset(KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
-        return page.getInt(KEY_PREFIX_LEN_OFFSET);
+        return keyPrefixSize;
     }
 
     abstract long getTreeSize();

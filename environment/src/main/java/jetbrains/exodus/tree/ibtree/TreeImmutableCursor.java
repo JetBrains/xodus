@@ -377,6 +377,7 @@ public class TreeImmutableCursor implements ITreeCursor {
         stack = new ObjectArrayList<>();
 
         var currentKey = key;
+        var currentPrefixSize = 0;
 
         while (true) {
             var index = page.find(currentKey);
@@ -403,8 +404,13 @@ public class TreeImmutableCursor implements ITreeCursor {
                 page = page.child(index);
 
                 var keyPrefixSize = page.getKeyPrefixSize();
-                if (keyPrefixSize > 0) {
-                    currentKey = key.slice(keyPrefixSize, key.limit() - keyPrefixSize);
+                if (keyPrefixSize > currentPrefixSize) {
+                    if (currentKey == key) {
+                        currentKey = currentKey.duplicate();
+                    }
+
+                    currentKey.position(keyPrefixSize);
+                    currentPrefixSize = keyPrefixSize;
                 }
             }
         }
@@ -439,6 +445,7 @@ public class TreeImmutableCursor implements ITreeCursor {
 
         var useFirstEntry = false;
         var currentKey = key;
+        var currentPrefixSize = 0;
 
         while (true) {
             int index;
@@ -491,8 +498,13 @@ public class TreeImmutableCursor implements ITreeCursor {
                 page = page.child(index);
 
                 var keyPrefixSize = page.getKeyPrefixSize();
-                if (!useFirstEntry && keyPrefixSize > 0) {
-                    currentKey = key.slice(keyPrefixSize, key.limit() - keyPrefixSize);
+                if (!useFirstEntry && keyPrefixSize > currentPrefixSize) {
+                    if (currentKey == key) {
+                        currentKey = currentKey.duplicate();
+                    }
+
+                    currentKey.position(keyPrefixSize);
+                    currentPrefixSize = keyPrefixSize;
                 }
             }
         }
