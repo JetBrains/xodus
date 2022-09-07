@@ -25,12 +25,12 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         if (underlying != null) {
             pageAddress = underlying.address;
             serializedSize = underlying.currentPage.limit() + Long.BYTES;
-            this.keyPrefixSize = underlying.getKeyPrefixSize();
+            this.keyPrefix = underlying.keyPrefix();
         } else {
             pageAddress = -1;
-            serializedSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.KEYS_OFFSET +
+            serializedSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.ENTRY_POSITIONS_OFFSET +
                     Long.BYTES;
-            this.keyPrefixSize = 0;
+            this.keyPrefix = null;
         }
 
         if (underlying == null) {
@@ -44,13 +44,13 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
     MutableInternalPage(@NotNull MutableBTree tree,
                         @NotNull ExpiredLoggableCollection expiredLoggables, @NotNull Log log,
                         ByteBuffer[] keys, MutablePage[] children, int entriesSize,
-                        int serializedSize, int keyPrefixSize) {
+                        int serializedSize, ByteBuffer keyPrefix) {
         super(tree, null, expiredLoggables, log);
 
         pageAddress = -1;
 
         this.serializedSize = serializedSize;
-        this.keyPrefixSize = keyPrefixSize;
+        this.keyPrefix = keyPrefix;
         this.keys = keys;
         this.children = children;
         this.entriesSize = entriesSize;
@@ -153,17 +153,22 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         final int size = entriesSize;
         buffer.order(ByteOrder.nativeOrder());
 
-        //we add Long.BYTES to preserver (sub)tree size
-        assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, Integer.BYTES) == 0;
-        buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, keyPrefixSize);
-
         assert buffer.alignmentOffset(ImmutableBasePage.ENTRIES_COUNT_OFFSET + Long.BYTES, Integer.BYTES) == 0;
         buffer.putInt(ImmutableBasePage.ENTRIES_COUNT_OFFSET + Long.BYTES, size);
 
-        int keyPositionsOffset = ImmutableBasePage.KEYS_OFFSET + Long.BYTES;
-        int childAddressesOffset = keyPositionsOffset + Long.BYTES * size;
-        int keysDataOffset = childAddressesOffset + Long.BYTES * size;
+        var keyPrefixSize = getKeyPrefixSize();
+        assert buffer.alignmentOffset(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, Integer.BYTES) == 0;
+        buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, keyPrefixSize);
 
+        if (keyPrefixSize > 0) {
+            buffer.put(ImmutableBasePage.ENTRY_POSITIONS_OFFSET + 2 * Long.BYTES * size,
+                    keyPrefix, 0, keyPrefixSize);
+        }
+
+
+        int keyPositionsOffset = ImmutableBasePage.ENTRY_POSITIONS_OFFSET + Long.BYTES;
+        int childAddressesOffset = keyPositionsOffset + Long.BYTES * size;
+        int keysDataOffset = childAddressesOffset + keyPrefixSize + Long.BYTES * size;
 
         int treeSize = 0;
         for (int i = 0; i < size; i++) {
@@ -272,7 +277,8 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
     private int serializedSize() {
         assert keys != null;
 
-        int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.KEYS_OFFSET +
+        int size = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET + ImmutableLeafPage.ENTRY_POSITIONS_OFFSET +
+                getKeyPrefixSize() +
                 2 * Long.BYTES * entriesSize + Long.BYTES;
 
         for (int i = 0; i < entriesSize; i++) {
@@ -356,8 +362,9 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         assert keys[0] != null;
         assert keys[1] != null;
 
+        var keyPrefixSize = getKeyPrefixSize();
         int newSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
-                ImmutableLeafPage.KEYS_OFFSET +
+                ImmutableLeafPage.ENTRY_POSITIONS_OFFSET + keyPrefixSize +
                 2 * Long.BYTES * 2 + Long.BYTES + keys[0].limit() + keys[1].limit();
 
 
@@ -378,7 +385,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
 
         final int childEntriesSize = size - splitAt;
         final int childSerializedSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
-                ImmutableLeafPage.KEYS_OFFSET + Long.BYTES + (serializedSize - newSize);
+                ImmutableLeafPage.ENTRY_POSITIONS_OFFSET + keyPrefixSize + Long.BYTES + (serializedSize - newSize);
 
         final int childEntriesCapacity = Math.max(MathUtil.closestPowerOfTwo(childEntriesSize), 64);
         final ByteBuffer[] childKeys = new ByteBuffer[childEntriesCapacity];
@@ -394,7 +401,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         serializedSize = newSize;
 
         var childPage = new MutableInternalPage(tree, expiredLoggables, log, childKeys, childChildren,
-                childEntriesSize, childSerializedSize, keyPrefixSize);
+                childEntriesSize, childSerializedSize, keyPrefix);
 
         if (parent == null) {
             parent = new MutableInternalPage(tree, null, expiredLoggables, log);
@@ -406,6 +413,10 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
 
         var split = parent.addChild(parentIndex + 1,
                 generateParentKey(parent, insertedKey, keyPrefixSize, childKeys[0]), childPage);
+
+        assert serializedSize == serializedSize();
+        assert childPage.serializedSize == childPage.serializedSize();
+
         parent.updatePrefixSize(parentIndex + 1, upperBound);
 
         assert serializedSize == serializedSize();
@@ -462,12 +473,17 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
     private void updateCommonPrefix(int index, ByteBuffer nextKey) {
         var key = keys[index];
 
-        var commonPrefixSize = keyPrefixSize + MutableBTree.commonPrefix(key, nextKey);
+        var keyPrefixSize = getKeyPrefixSize();
+        var commonSize = MutableBTree.commonPrefix(key, nextKey);
+        var commonPrefixSize = keyPrefixSize + commonSize;
         var child = children[index];
+
         var childKeyPrefixSize = child.getKeyPrefixSize();
 
         if (childKeyPrefixSize < commonPrefixSize) {
-            child.truncateKeys(commonPrefixSize - childKeyPrefixSize);
+            final var prefix = key.slice(childKeyPrefixSize - keyPrefixSize,
+                    commonPrefixSize - childKeyPrefixSize);
+            child.truncateKeys(prefix);
         }
     }
 

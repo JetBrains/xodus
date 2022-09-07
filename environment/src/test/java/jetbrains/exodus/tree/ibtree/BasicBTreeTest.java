@@ -32,7 +32,7 @@ import java.util.*;
 public class BasicBTreeTest extends BTreeTestBase {
     @Test
     public void checkEmptyTree() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("checkEmptyTree seed : " + seed);
 
         var tm = createMutableTree(false, 2);
@@ -45,7 +45,7 @@ public class BasicBTreeTest extends BTreeTestBase {
 
     @Test
     public void singlePutGet() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("singlePutGet seed : " + seed);
 
         var tm = createMutableTree(false, 2);
@@ -58,7 +58,7 @@ public class BasicBTreeTest extends BTreeTestBase {
 
     @Test
     public void testInsert4Entries() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testInsert4Entries seed : " + seed);
 
         var tm = createMutableTree(false, 2);
@@ -71,7 +71,7 @@ public class BasicBTreeTest extends BTreeTestBase {
 
     @Test
     public void testInsert64Entries() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testInsert64Entries seed : " + seed);
 
         var tm = createMutableTree(false, 2);
@@ -84,7 +84,7 @@ public class BasicBTreeTest extends BTreeTestBase {
 
     @Test
     public void testInsert1KEntries() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testInsert1KEntries seed : " + seed);
 
         var tm = createMutableTree(false, 2);
@@ -97,7 +97,8 @@ public class BasicBTreeTest extends BTreeTestBase {
 
     @Test
     public void testInsert32KEntries() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
+
         System.out.println("testInsert32KEntries seed : " + seed);
 
         var tm = createMutableTree(false, 2);
@@ -110,7 +111,7 @@ public class BasicBTreeTest extends BTreeTestBase {
 
     @Test
     public void testInsert64KEntries() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testInsert64KEntries seed : " + seed);
 
         var tm = createMutableTree(false, 2);
@@ -123,7 +124,7 @@ public class BasicBTreeTest extends BTreeTestBase {
 
     @Test
     public void testInsert256KEntries() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testInsert256KEntries seed : " + seed);
 
         var tm = createMutableTree(false, 2);
@@ -131,6 +132,18 @@ public class BasicBTreeTest extends BTreeTestBase {
 
         var entriesCount = 256 * 1024;
 
+        insertAndCheckEntries(tm, random, entriesCount);
+    }
+
+    @Test
+    public void testInsert1MEntries() {
+        final long seed = generateSeed();
+        System.out.println("testInsert1MEntries seed : " + seed);
+
+        var tm = createMutableTree(false, 2);
+        var random = new Random(seed);
+
+        var entriesCount = 1024 * 1024;
         insertAndCheckEntries(tm, random, entriesCount);
     }
 
@@ -148,14 +161,13 @@ public class BasicBTreeTest extends BTreeTestBase {
         var tm = createMutableTree(false, 3);
         final TreeMap<ByteBuffer, ByteBuffer> expectedMap = new TreeMap<>(ByteBufferComparator.INSTANCE);
 
+        final long seed = generateSeed();
+        System.out.println("testAddContinuous1MEntries seed : " + seed);
+
         for (ByteBuffer buffer : data) {
             tm.put(buffer, buffer);
             expectedMap.put(buffer, buffer);
         }
-
-        final long seed = System.nanoTime();
-        System.out.println("testAddContinuous1MEntries seed : " + seed);
-
         checkAndSaveTree(false, new ImmutableTreeChecker(expectedMap, new Random(seed)));
     }
 
@@ -170,7 +182,7 @@ public class BasicBTreeTest extends BTreeTestBase {
             data.add(StringBinding.stringToEntry(format.format(i)).getByteBuffer());
         }
 
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuousShuffled1MEntries seed : " + seed);
         var rnd = new Random(seed);
 

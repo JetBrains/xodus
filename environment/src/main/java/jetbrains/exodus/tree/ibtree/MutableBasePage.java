@@ -20,7 +20,7 @@ abstract class MutableBasePage<U extends ImmutableBasePage> implements MutablePa
 
     int entriesSize;
 
-    int keyPrefixSize;
+    ByteBuffer keyPrefix;
 
     int serializedSize;
 
@@ -51,7 +51,16 @@ abstract class MutableBasePage<U extends ImmutableBasePage> implements MutablePa
 
     @Override
     public final int getKeyPrefixSize() {
-        return keyPrefixSize;
+        if (keyPrefix == null) {
+            return 0;
+        }
+
+        return keyPrefix.limit();
+    }
+
+    @Override
+    public ByteBuffer keyPrefix() {
+        return keyPrefix;
     }
 
     @Override
@@ -75,40 +84,63 @@ abstract class MutableBasePage<U extends ImmutableBasePage> implements MutablePa
     }
 
     @Override
-    public final void addKeyPrefix(ByteBuffer prefix) {
+    public final void addKeyPrefix(ByteBuffer keyPrefixDiff) {
         fetch();
 
         assert keys != null;
         final int size = entriesSize;
+
+        var keyPrefixDiffSize = keyPrefixDiff.remaining();
+        var keyPrefixDiffPosition = keyPrefixDiff.position();
 
         for (int i = 0; i < size; i++) {
             assert keys[i] != null;
-            keys[i] = ByteBuffers.mergeBuffers(prefix, keys[i]);
+
+            var key = keys[i];
+
+            var newKey = ByteBuffer.allocate(keyPrefixDiffSize + key.remaining());
+
+            newKey.put(0, keyPrefixDiff, keyPrefixDiffPosition, keyPrefixDiffSize);
+            newKey.put(keyPrefixDiffSize, key, key.position(), key.remaining());
+
+            keys[i] = newKey;
         }
 
-        var prefixSize = prefix.limit();
-
-        keyPrefixSize -= prefixSize;
-        serializedSize += size * prefixSize;
+        keyPrefix = keyPrefix.slice(0, keyPrefix.limit() - keyPrefixDiffSize);
+        serializedSize += (size - 1) * keyPrefixDiffSize;
     }
 
     @Override
-    public final void truncateKeys(int keyPrefixSizeDiff) {
+    public final void truncateKeys(ByteBuffer keyPrefixDiff) {
         fetch();
 
         assert keys != null;
         final int size = entriesSize;
+
+        final int keyPrefixDiffSize = keyPrefixDiff.remaining();
         for (int i = 0; i < size; i++) {
             var key = keys[i];
 
             assert key != null;
             var keySize = key.limit();
 
-            keys[i] = key.slice(keyPrefixSizeDiff, keySize - keyPrefixSizeDiff);
+            keys[i] = key.slice(keyPrefixDiffSize, keySize - keyPrefixDiffSize);
         }
 
-        serializedSize -= size * keyPrefixSizeDiff;
-        keyPrefixSize += keyPrefixSizeDiff;
+        serializedSize -= (size - 1) * keyPrefixDiffSize;
+
+        var keyPrefixSize = getKeyPrefixSize();
+
+        if (keyPrefixSize > 0) {
+            var oldKeyPrefix = keyPrefix;
+            keyPrefix = ByteBuffer.allocate(keyPrefixSize + keyPrefixDiffSize);
+
+            keyPrefix.put(0, oldKeyPrefix, 0, keyPrefixSize);
+            keyPrefix.put(keyPrefixSize, keyPrefixDiff, keyPrefixDiff.position(), keyPrefixDiff.limit());
+        } else {
+            keyPrefix = ByteBuffer.allocate(keyPrefixDiffSize);
+            keyPrefix.put(0, keyPrefixDiff, 0, keyPrefixDiffSize);
+        }
     }
 
     @Override
@@ -131,7 +163,7 @@ abstract class MutableBasePage<U extends ImmutableBasePage> implements MutablePa
 
     static ByteBuffer generateParentKey(@NotNull MutableInternalPage parent, @NotNull ByteBuffer insertedKey,
                                         int keyPrefixSize, @NotNull ByteBuffer key) {
-        var parentKeyPrefix = parent.keyPrefixSize;
+        var parentKeyPrefix = parent.getKeyPrefixSize();
         var diff = keyPrefixSize - parentKeyPrefix;
 
         if (diff == 0) {

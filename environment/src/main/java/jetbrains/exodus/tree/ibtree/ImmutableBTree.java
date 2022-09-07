@@ -171,7 +171,7 @@ public final class ImmutableBTree implements BTree {
                 var parentRef = stack.last();
 
                 var parentPage = parentRef.page;
-                var parentIndex = parentRef.index;
+                var parentIndex = parentRef.childIndex;
 
                 //if we do not reach end of the parent page
                 //iterate over all ancestors of this page
@@ -179,7 +179,7 @@ public final class ImmutableBTree implements BTree {
                 //to the next.
                 parentIndex++;
                 if (parentIndex < parentPage.getEntriesCount()) {
-                    parentRef.index = parentIndex;
+                    parentRef.childIndex = parentIndex;
                     fetchAncestors(parentRef);
                 }
             }
@@ -188,7 +188,7 @@ public final class ImmutableBTree implements BTree {
         }
 
         private void fetchAncestors(ElemRef elemRef) {
-            var child = elemRef.page.child(elemRef.index);
+            var child = elemRef.page.child(elemRef.childIndex);
 
             var childRef = new ElemRef(child, 0);
             stack.enqueue(childRef);

@@ -19,11 +19,11 @@
 package jetbrains.exodus.tree.ibtree;
 
 final class ElemRef {
-    int index;
+    int childIndex;
     TraversablePage page;
 
-    ElemRef(TraversablePage page, int index) {
-        this.index = index;
+    ElemRef(TraversablePage page, int childIndex) {
+        this.childIndex = childIndex;
         this.page = page;
     }
 }

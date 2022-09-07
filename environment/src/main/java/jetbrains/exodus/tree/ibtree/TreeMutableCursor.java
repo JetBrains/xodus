@@ -41,7 +41,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public boolean getNext() {
         var result = super.getNext();
         if (result) {
-            currentKey = doGetKey();
+            currentKey = getKeyBuffer();
             assert currentKey != null;
         }
 
@@ -52,7 +52,8 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public boolean getLast() {
         var result = super.getLast();
         if (result) {
-            currentKey = doGetKey();
+            currentKey = getKeyBuffer();
+
             assert currentKey != null;
         }
 
@@ -64,7 +65,8 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
         var result = super.getPrev();
 
         if (result) {
-            currentKey = doGetKey();
+            currentKey = getKeyBuffer();
+
             assert currentKey != null;
         }
 
@@ -75,7 +77,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public @Nullable ByteBuffer getSearchKey(@NotNull ByteBuffer key) {
         var result = super.getSearchKey(key);
         if (result != null) {
-            currentKey = doGetKey();
+            currentKey = getKeyBuffer();
         }
 
         return result;
@@ -85,7 +87,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public @Nullable ByteBuffer getSearchKeyRange(@NotNull ByteBuffer key) {
         var result = super.getSearchKeyRange(key);
         if (result != null) {
-            currentKey = doGetKey();
+            currentKey = getKeyBuffer();
         }
 
         return result;
@@ -95,7 +97,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public boolean getSearchBoth(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         var result = super.getSearchBoth(key, value);
         if (result) {
-            currentKey = doGetKey();
+            currentKey = getKeyBuffer();
         }
 
         return result;
@@ -105,7 +107,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public @Nullable ByteBuffer getSearchBothRange(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
         var result = super.getSearchBothRange(key, value);
         if (result != null) {
-            currentKey = doGetKey();
+            currentKey = getKeyBuffer();
         }
 
         return result;

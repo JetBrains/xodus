@@ -166,7 +166,7 @@ public final class MutableBTree implements IBTreeMutable {
 
                     for (int i = 0; i < stackSize; i++) {
                         var currentPage = stack.get(i).second;
-                        var keyPrefixSize = currentPage.keyPrefixSize;
+                        var keyPrefixSize = currentPage.getKeyPrefixSize();
                         if (keyPrefixSize > 0) {
                             truncatedKey.position(keyPrefixSize);
                         }
@@ -190,7 +190,7 @@ public final class MutableBTree implements IBTreeMutable {
                         }
                     }
 
-                    var keyPrefixSize = mutablePage.keyPrefixSize;
+                    var keyPrefixSize = mutablePage.getKeyPrefixSize();
                     if (keyPrefixSize > 0) {
                         truncatedKey.position(keyPrefixSize);
                     }
@@ -624,7 +624,7 @@ public final class MutableBTree implements IBTreeMutable {
             return rootAddress == pageAddress;
         }
 
-        var firstKey = immutablePage.key(0);
+        var firstKey = immutablePage.fullKey(0);
 
         moveToTheTopTillKeyInSearchRange(stack, firstKey);
 
@@ -650,7 +650,7 @@ public final class MutableBTree implements IBTreeMutable {
             }
             index--;
         }
-        elemRef.index = index;
+        elemRef.childIndex = index;
 
         while (true) {
             page = page.child(index);
@@ -703,11 +703,11 @@ public final class MutableBTree implements IBTreeMutable {
 
                 if (fetched && i < stack.size() - 1) {
                     //because top pages were converted into mutable page we need to replace all pages bellow
-                    stack.get(i + 1).page = mutablePage.mutableChild(elemRef.index);
+                    stack.get(i + 1).page = mutablePage.mutableChild(elemRef.childIndex);
                 }
             } else if (i < stack.size() - 1) {
                 //because top pages were converted into mutable page we need to replace all pages bellow
-                stack.get(i + 1).page = mutablePage.mutableChild(elemRef.index);
+                stack.get(i + 1).page = mutablePage.mutableChild(elemRef.childIndex);
             }
         }
 

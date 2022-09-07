@@ -12,32 +12,29 @@ import java.nio.ByteOrder;
  * Representation of common layout of all pages both leaf and internal.
  * Layout composed as following:
  * <ol>
- *     <li>Key prefix size. Size of the common prefix which was truncated for all keys in tree.
- *     Currently not used but added to implement key compression without breaking of binary compatibility</li>
  *     <li>Count of the entries contained inside of the given page</li>
+ *     <li>Key prefix size</li>
  *     <li>Array each entry of which contains pair (key position, key size) where 'key position' is position
  *     of the key stored inside of this page,  key size is accordingly size of this key.</li>
  *     <li> Array each entry of which contains either (value position, value size) pair if that is
  *     {@link  ImmutableLeafPage} or address of the mutableChild page if that is
  *     {@link ImmutableInternalPage}</li>
- *     <li>Array of keys for {@link ImmutableLeafPage}</li>
- *     <li>Array of values (only for {@link ImmutableLeafPage})</li>
+ *     <li>Key prefix, if size is not 0</li>
+ *     <li>Array of keys</li>
+ *     <li>Array of values. Only for {@link  ImmutableLeafPage}. Aligned from the end of the page.</li>
  * </ol>
  * <p>
  * <p>
  * Internal pages also keep size of the whole (sub)tree at the header of the page.
  */
 abstract class ImmutableBasePage implements TraversablePage {
-    static final int KEY_PREFIX_LEN_OFFSET = 0;
-
-    //we could use short here but in such case we risk to get unaligned memory access for subsequent reads
-    //so we use int
-    static final int KEY_PREFIX_LEN_SIZE = Integer.BYTES;
-
-    static final int ENTRIES_COUNT_OFFSET = KEY_PREFIX_LEN_OFFSET + KEY_PREFIX_LEN_SIZE;
+    static final int ENTRIES_COUNT_OFFSET = 0;
     static final int ENTRIES_COUNT_SIZE = Integer.BYTES;
 
-    static final int KEYS_OFFSET = ENTRIES_COUNT_OFFSET + ENTRIES_COUNT_SIZE;
+    static final int KEY_PREFIX_LEN_OFFSET = ENTRIES_COUNT_OFFSET + ENTRIES_COUNT_SIZE;
+    static final int KEY_PREFIX_LEN_SIZE = Integer.BYTES;
+
+    static final int ENTRY_POSITIONS_OFFSET = KEY_PREFIX_LEN_OFFSET + KEY_PREFIX_LEN_SIZE;
 
     @NotNull
     final Log log;
@@ -48,6 +45,7 @@ abstract class ImmutableBasePage implements TraversablePage {
 
     final int entriesCount;
     final int keyPrefixSize;
+    final ByteBuffer keyPrefix;
 
     protected ImmutableBasePage(@NotNull final Log log, @NotNull final ByteBuffer page, long address) {
         this.log = log;
@@ -63,6 +61,12 @@ abstract class ImmutableBasePage implements TraversablePage {
 
         assert page.alignmentOffset(KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
         keyPrefixSize = page.getInt(KEY_PREFIX_LEN_OFFSET);
+
+        if (keyPrefixSize > 0) {
+            keyPrefix = page.slice(ENTRY_POSITIONS_OFFSET + 2 * Long.BYTES * entriesCount, keyPrefixSize);
+        } else {
+            keyPrefix = null;
+        }
     }
 
     @Override
@@ -86,7 +90,7 @@ abstract class ImmutableBasePage implements TraversablePage {
 
         while (low <= high) {
             final int mid = (low + high) >>> 1;
-            final int position = KEYS_OFFSET + mid * Long.BYTES;
+            final int position = ENTRY_POSITIONS_OFFSET + mid * Long.BYTES;
 
             assert page.alignmentOffset(position, Integer.BYTES) == 0;
             final int valuePosition = page.getInt(position);
@@ -108,8 +112,13 @@ abstract class ImmutableBasePage implements TraversablePage {
         return -(low + 1);  // key not found
     }
 
+    @Override
+    public ByteBuffer keyPrefix() {
+        return keyPrefix;
+    }
+
     private int getKeyPositionSizeIndex(final int index) {
-        return KEYS_OFFSET + index * Long.BYTES;
+        return ENTRY_POSITIONS_OFFSET + index * Long.BYTES;
     }
 
     private ByteBuffer getKey(int index) {
@@ -128,7 +137,7 @@ abstract class ImmutableBasePage implements TraversablePage {
     }
 
     final int getChildAddressPositionIndex(int index) {
-        return KEYS_OFFSET + getEntriesCount() * Long.BYTES + index * Long.BYTES;
+        return ENTRY_POSITIONS_OFFSET + getEntriesCount() * Long.BYTES + index * Long.BYTES;
     }
 
     public final int getEntriesCount() {

@@ -39,7 +39,7 @@ interface BTree extends ITree {
             return null;
         }
 
-        return pageIndexPair.page.value(pageIndexPair.index).asReadOnlyBuffer();
+        return pageIndexPair.page.value(pageIndexPair.childIndex).asReadOnlyBuffer();
     }
 
     @Nullable
@@ -108,7 +108,7 @@ interface BTree extends ITree {
             return false;
         }
 
-        var pageValue = elemRef.page.value(elemRef.index);
+        var pageValue = elemRef.page.value(elemRef.childIndex);
         return pageValue.equals(value);
     }
 

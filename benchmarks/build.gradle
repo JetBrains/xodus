@@ -48,10 +48,11 @@ dependencies {
 
 jmh {
     // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
-    excludes = ['dataStructures|util|chronicle|h2|mapdb|lmdb|persistit|query|crypto|.*Prefixing.*']
-    includes = ["JMHEnvTokyoCabinetReadBatchInlineBenchmark"]
+    //excludes = ['dataStructures|util|chronicle|h2|mapdb|lmdb|persistit|query|crypto|.*Prefixing.*']
+    includes = ["BatchInline"]
+    //profilers = ['async:libPath=/home/andrey/async-profiler-2.7-linux-x64/build/libasyncProfiler.so;output=flamegraph']
     jmhVersion = project.jmhVersion
-    jvmArgsPrepend = ['-server', '-Xmx1g', '-Xms1g', '-XX:+HeapDumpOnOutOfMemoryError']
+    jvmArgsPrepend = ['-Xmx1g', '-Xms1g']
     duplicateClassesStrategy = DuplicatesStrategy.WARN
     resultFormat = 'JSON'
 }

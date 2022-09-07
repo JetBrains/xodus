@@ -93,6 +93,10 @@ public class ImmutableTreeChecker implements Consumer<ITree> {
             modifiedKeyArray[0]++;
             var modifiedKey = ByteBuffer.wrap(modifiedKeyArray);
 
+            if (i == 10167) {
+                System.out.println();
+            }
+
             checkKeyWhichMayNotExist(tree, modifiedKey);
         }
     }

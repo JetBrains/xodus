@@ -31,7 +31,7 @@ import java.util.*;
 public class BTreeAddByBatchesTest extends BTreeTestBase {
     @Test
     public void testAdd32KByBatchOf1() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd32KByBatchOf1 seed : " + seed);
 
         t = new ImmutableBTree(log, 1, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -46,7 +46,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd32KByBatchOf4() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd32KByBatchOf4 seed : " + seed);
 
         t = new ImmutableBTree(log, 2, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -61,7 +61,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd32KByBatchOf8() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd32KByBatchOf8 seed : " + seed);
 
         t = new ImmutableBTree(log, 3, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -76,7 +76,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd32KByBatchOf64() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd32KByBatchOf64 seed : " + seed);
 
         t = new ImmutableBTree(log, 4, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -91,7 +91,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd32KByBatchOf256() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd32KByBatchOf256 seed : " + seed);
 
         t = new ImmutableBTree(log, 5, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -106,7 +106,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd32KByBatchOf1024() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd32KByBatchOf1024 seed : " + seed);
 
         t = new ImmutableBTree(log, 6, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -121,7 +121,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd32KByBatchOf4096() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd32KByBatchOf4096 seed : " + seed);
 
         t = new ImmutableBTree(log, 7, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -136,7 +136,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd64KByBatchOf1() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd64KByBatchOf1 seed : " + seed);
 
         t = new ImmutableBTree(log, 8, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -152,7 +152,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd64KByBatchOf4() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd64KByBatchOf4 seed : " + seed);
 
         t = new ImmutableBTree(log, 9, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -167,7 +167,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd64KByBatchOf8() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd64KByBatchOf8 seed : " + seed);
 
         t = new ImmutableBTree(log, 10, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -182,7 +182,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd64KByBatchOf64() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd64KByBatchOf64 seed : " + seed);
 
         t = new ImmutableBTree(log, 11, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -197,7 +197,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd64KByBatchOf256() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd64KByBatchOf256 seed : " + seed);
 
         t = new ImmutableBTree(log, 12, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -212,7 +212,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd64KByBatchOf1024() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd64KByBatchOf1024 seed : " + seed);
 
         t = new ImmutableBTree(log, 13, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -227,7 +227,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAdd64KByBatchOf4096() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAdd64KByBatchOf4096 seed : " + seed);
 
         t = new ImmutableBTree(log, 14, log.getCachePageSize(), NullLoggable.NULL_ADDRESS);
@@ -242,7 +242,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuous256KEntriesByBatch1() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuous256KEntriesByBatch1 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -263,7 +263,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuous256KEntriesByBatch4() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuous256KEntriesByBatch4 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -284,7 +284,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuous256KEntriesByBatch8() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuous256KEntriesByBatch8 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -305,7 +305,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuous256KEntriesByBatch64() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuous256KEntriesByBatch64 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -326,7 +326,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuous256KEntriesByBatch256() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuous256KEntriesByBatch256 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -347,7 +347,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuous256KEntriesByBatch4096() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuous256KEntriesByBatch4096 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -368,7 +368,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuous256KEntriesByBatch1024() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuous256KEntriesByBatch1024 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -389,7 +389,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuousShuffled256KEntriesByBatch1() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuousShuffled256KEntriesByBatch1 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -411,7 +411,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuousShuffled256KEntriesByBatch4() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuousShuffled256KEntriesByBatch4 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -433,7 +433,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuousShuffled256KEntriesByBatch8() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuousShuffled256KEntriesByBatch8 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -455,7 +455,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuousShuffled256KEntriesByBatch64() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuousShuffled256KEntriesByBatch64 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -477,7 +477,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuousShuffled256KEntriesByBatch256() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuousShuffled256KEntriesByBatch256 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -499,7 +499,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuousShuffled256KEntriesByBatch1024() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuousShuffled256KEntriesByBatch1024 seed : " + seed);
         final Random rnd = new Random(seed);
 
@@ -521,7 +521,7 @@ public class BTreeAddByBatchesTest extends BTreeTestBase {
 
     @Test
     public void testAddContinuousShuffled256KEntriesByBatch4096() {
-        final long seed = System.nanoTime();
+        final long seed = generateSeed();
         System.out.println("testAddContinuousShuffled256KEntriesByBatch4096 seed : " + seed);
         final Random rnd = new Random(seed);
 

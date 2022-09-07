@@ -38,7 +38,7 @@ interface MutablePage extends TraversablePage {
 
     void unbalance();
 
-    void truncateKeys(int keyPrefixSizeDiff);
+    void truncateKeys(ByteBuffer keyPrefixDiff);
 
-    void addKeyPrefix(ByteBuffer prefix);
+    void addKeyPrefix(ByteBuffer keyPrefixDiff);
 }

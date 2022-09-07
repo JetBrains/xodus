@@ -23,6 +23,8 @@ import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeMutable;
 import jetbrains.exodus.tree.TreeBaseTest;
 
+import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.util.function.Consumer;
 
 public class BTreeTestBase extends TreeBaseTest {
@@ -62,5 +64,10 @@ public class BTreeTestBase extends TreeBaseTest {
         openTree(address, hasDuplicates, structureId);
 
         checker.accept(t);
+    }
+
+    static long generateSeed() {
+        var secureBytes = SecureRandom.getSeed(8);
+        return ByteBuffer.wrap(secureBytes).getLong();
     }
 }
