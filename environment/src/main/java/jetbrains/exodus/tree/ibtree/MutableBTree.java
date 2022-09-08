@@ -206,7 +206,6 @@ public final class MutableBTree implements IBTreeMutable {
                     return true;
                 } else {
                     if (index < 0) {
-                        assert stack.isEmpty() || index < -1;
                         var split = mutablePage.insert(-index - 1, truncatedKey.slice(), value);
 
                         if (split) {

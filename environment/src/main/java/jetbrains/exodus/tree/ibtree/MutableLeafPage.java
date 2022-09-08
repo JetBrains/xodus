@@ -383,6 +383,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
             newSize = nextSize;
         }
 
+        final int separationKeyMismatchSize = keys[splitAt - 1].mismatch(keys[splitAt]) + 1;
+
         final int childEntriesSize = size - splitAt;
         final int childSerializedSize = serializedSize - newSize;
 
@@ -411,8 +413,22 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         var childPage = new MutableLeafPage(tree, log, expiredLoggables, childSerializedSize, keyPrefix,
                 childEntriesSize, childKeys, childValues);
 
-        var split = parent.addChild(parentIndex + 1,
-                generateParentKey(parent, insertedKey, keyPrefixSize, childKeys[0]), childPage);
+        ByteBuffer parentKey;
+
+        var separationKey = childKeys[0];
+        var parentPrefixSize = parent.getKeyPrefixSize();
+
+        var parentPrefixSizeDiff = keyPrefixSize - parentPrefixSize;
+        if (parentPrefixSizeDiff > 0) {
+            parentKey = ByteBuffer.allocate(separationKeyMismatchSize + parentPrefixSizeDiff);
+
+            parentKey.put(0, insertedKey, parentPrefixSize, parentPrefixSizeDiff);
+            parentKey.put(parentPrefixSizeDiff, separationKey, 0, separationKeyMismatchSize);
+        } else {
+            parentKey = separationKey.slice(0, separationKeyMismatchSize);
+        }
+
+        var split = parent.addChild(parentIndex + 1, parentKey, childPage);
 
         assert serializedSize == serializedSize();
         assert childPage.serializedSize == childPage.serializedSize();

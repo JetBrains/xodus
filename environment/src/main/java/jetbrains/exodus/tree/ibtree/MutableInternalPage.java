@@ -411,8 +411,24 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
             tree.root = parent;
         }
 
+        var parentPrefixSize = parent.getKeyPrefixSize();
+        var parentPrefixSizeDiff = keyPrefixSize - parentPrefixSize;
+
+        ByteBuffer parentKey;
+
+        var separationKey = childKeys[0];
+        var separationKeySize = separationKey.limit();
+
+        if (parentPrefixSizeDiff > 0) {
+            parentKey = ByteBuffer.allocate(separationKeySize + parentPrefixSizeDiff);
+            parentKey.put(0, insertedKey, parentPrefixSize, parentPrefixSizeDiff);
+            parentKey.put(parentPrefixSizeDiff, separationKey, 0, separationKeySize);
+        } else {
+            parentKey = separationKey.slice(0, separationKeySize);
+        }
+
         var split = parent.addChild(parentIndex + 1,
-                generateParentKey(parent, insertedKey, keyPrefixSize, childKeys[0]), childPage);
+                parentKey, childPage);
 
         assert serializedSize == serializedSize();
         assert childPage.serializedSize == childPage.serializedSize();
