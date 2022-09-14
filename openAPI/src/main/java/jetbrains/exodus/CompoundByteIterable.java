@@ -19,6 +19,7 @@ import jetbrains.exodus.util.ArrayBackedByteIterable;
 import jetbrains.exodus.util.UTFUtil;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
@@ -165,6 +166,16 @@ public final class CompoundByteIterable extends ByteIterableBase {
         var rightLen = right.getLength();
 
         return compareWithArray(rightLen, 0, rightArray);
+    }
+
+    @Override
+    public void writeIntoBuffer(ByteBuffer buffer, int bufferPosition) {
+        for (var iterable : iterables) {
+            var len = iterable.getLength();
+            iterable.writeIntoBuffer(buffer, bufferPosition);
+
+            bufferPosition += len;
+        }
     }
 
     private void findFirstChunk(final int offset) {

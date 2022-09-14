@@ -15,7 +15,7 @@ import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.FORKS;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMHEnvTokyoCabinetReadInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkByteBufferBase {
+public class JMHEnvTokyoCabinetReadInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
@@ -55,11 +55,10 @@ public class JMHEnvTokyoCabinetReadInlineBenchmark extends JMHEnvTokyoCabinetBen
         return StoreConfig.WITHOUT_DUPLICATES_INLINE;
     }
 
-    private static void consumeBytes(final Blackhole bh, final ByteBuffer it) {
-        var bufferSize = it.limit();
-
-        for (int i = 0; i < bufferSize; i++) {
-            bh.consume(it.get(i));
+    private static void consumeBytes(final Blackhole bh, final ByteIterable it) {
+        final ByteIterator iterator = it.iterator();
+        while (iterator.hasNext()) {
+            bh.consume(iterator.next());
         }
     }
 }

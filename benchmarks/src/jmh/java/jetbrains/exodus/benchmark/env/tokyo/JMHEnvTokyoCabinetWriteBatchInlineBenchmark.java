@@ -31,7 +31,7 @@ import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.FORKS;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMHEnvTokyoCabinetWriteBatchInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkByteBufferBase {
+public class JMHEnvTokyoCabinetWriteBatchInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
@@ -53,7 +53,7 @@ public class JMHEnvTokyoCabinetWriteBatchInlineBenchmark extends JMHEnvTokyoCabi
     @Fork(FORKS)
     public void randomWrite() {
         env.executeInTransaction(txn -> {
-            for (final ByteBuffer key : randomKeys) {
+            for (final ByteIterable key : randomKeys) {
                 store.add(txn, key, key);
             }
         });

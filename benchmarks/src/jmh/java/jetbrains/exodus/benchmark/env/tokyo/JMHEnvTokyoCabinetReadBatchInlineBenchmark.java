@@ -34,7 +34,7 @@ import static jetbrains.exodus.benchmark.TokyoCabinetBenchmark.FORKS;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
-public class JMHEnvTokyoCabinetReadBatchInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkByteBufferBase {
+public class JMHEnvTokyoCabinetReadBatchInlineBenchmark extends JMHEnvTokyoCabinetBenchmarkBase {
     @Setup(Level.Invocation)
     public void beforeBenchmark() throws IOException {
         setup();
@@ -50,8 +50,8 @@ public class JMHEnvTokyoCabinetReadBatchInlineBenchmark extends JMHEnvTokyoCabin
         env.executeInReadonlyTransaction(txn -> {
             try (Cursor c = store.openCursor(txn)) {
                 while (c.getNext()) {
-                    consumeBytes(bh, c.getKeyBuffer());
-                    consumeBytes(bh, c.getValueBuffer());
+                    consumeBytes(bh, c.getKey());
+                    consumeBytes(bh, c.getValue());
                 }
             }
         });
@@ -65,9 +65,9 @@ public class JMHEnvTokyoCabinetReadBatchInlineBenchmark extends JMHEnvTokyoCabin
     public void randomRead(final Blackhole bh) {
         env.executeInReadonlyTransaction(txn -> {
             try (Cursor c = store.openCursor(txn)) {
-                for (final ByteBuffer key : randomKeys) {
+                for (final ByteIterable key : randomKeys) {
                     c.getSearchKey(key);
-                    consumeBytes(bh, c.getValueBuffer());
+                    consumeBytes(bh, c.getValue());
                 }
             }
         });
@@ -78,11 +78,10 @@ public class JMHEnvTokyoCabinetReadBatchInlineBenchmark extends JMHEnvTokyoCabin
         return StoreConfig.WITHOUT_DUPLICATES_INLINE;
     }
 
-    private static void consumeBytes(final Blackhole bh, final ByteBuffer it) {
-        var bufferSize = it.limit();
-
-        for (int i = 0; i < bufferSize; i++) {
-            bh.consume(it.get(i));
+    private static void consumeBytes(final Blackhole bh, final ByteIterable it) {
+        final ByteIterator iterator = it.iterator();
+        while (iterator.hasNext()) {
+            bh.consume(iterator.next());
         }
     }
 }

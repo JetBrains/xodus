@@ -33,14 +33,13 @@ public final class ArrayBackedByteIterable implements ByteIterable {
     public int offset;
     public int limit;
 
-    @NotNull
-    public byte[] bytes;
+    public byte @NotNull [] bytes;
 
-    public ArrayBackedByteIterable(@NotNull byte[] bytes) {
+    public ArrayBackedByteIterable(byte @NotNull [] bytes) {
         this(bytes, 0, bytes.length);
     }
 
-    public ArrayBackedByteIterable(@NotNull byte[] bytes, int offset, int length) {
+    public ArrayBackedByteIterable(byte @NotNull [] bytes, int offset, int length) {
         assert bytes.length >= length;
 
         this.offset = offset;
@@ -65,7 +64,7 @@ public final class ArrayBackedByteIterable implements ByteIterable {
             @Override
             public byte next() {
                 if (currentOffset < limit) {
-                    return bytes[currentOffset];
+                    return bytes[currentOffset++];
                 }
 
                 throw new NoSuchElementException();
@@ -138,6 +137,11 @@ public final class ArrayBackedByteIterable implements ByteIterable {
     }
 
     @Override
+    public void writeIntoBuffer(ByteBuffer buffer, int bufferPosition) {
+        buffer.put(bufferPosition, bytes, offset, limit - offset);
+    }
+
+    @Override
     public @NotNull ArrayBackedByteIterable subIterable(int offset, int length) {
         assert this.offset < this.limit;
 
@@ -197,9 +201,6 @@ public final class ArrayBackedByteIterable implements ByteIterable {
 
     @Override
     public String toString() {
-        if (bytes == null) {
-            return "null";
-        }
         if (offset == limit) {
             return "[]";
         }
