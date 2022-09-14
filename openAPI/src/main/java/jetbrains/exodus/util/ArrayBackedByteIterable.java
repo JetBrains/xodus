@@ -20,6 +20,7 @@ package jetbrains.exodus.util;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.bindings.BindingUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -148,6 +149,17 @@ public final class ArrayBackedByteIterable implements ByteIterable {
         return new ArrayBackedByteIterable(bytes, this.offset + offset, length);
     }
 
+    @Override
+    public int mismatch(ByteIterable other) {
+        if (other instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
+            return Arrays.mismatch(this.bytes, this.offset, this.limit, arrayBackedByteIterable.bytes,
+                    arrayBackedByteIterable.offset, arrayBackedByteIterable.limit);
+        } else if (other instanceof CompoundByteIterable compoundByteIterable) {
+            return compoundByteIterable.mismatch(this);
+        }
+
+        return ByteIterable.super.mismatch(other);
+    }
 
     @Override
     public int compareTo(@NotNull ByteIterable o) {
@@ -157,6 +169,8 @@ public final class ArrayBackedByteIterable implements ByteIterable {
 
             return Arrays.compareUnsigned(bytes, offset, limit,
                     other.bytes, otherOffset, otherLimit);
+        } else if (o instanceof CompoundByteIterable compoundByteIterable) {
+            return -compoundByteIterable.compareTo(this);
         }
 
         var otherArray = o.getBytesUnsafe();

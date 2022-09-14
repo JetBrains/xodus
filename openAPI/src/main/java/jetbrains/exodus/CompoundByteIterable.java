@@ -282,7 +282,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
             }
 
             if (compared + lenToCompare == rightIterableLen || i == count - 1) {
-                //lenght of current iterable is bigger than array
+                //length of current iterable is bigger than array
                 if(i < count - 1) {
                     return 1;
                 }
