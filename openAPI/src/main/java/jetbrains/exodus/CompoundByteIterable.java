@@ -94,6 +94,64 @@ public final class CompoundByteIterable extends ByteIterableBase {
     }
 
     @Override
+    public int mismatch(ByteIterable other) {
+        var compared = 0;
+
+        int otherOffset;
+        byte[] otherArray;
+
+        int otherLength = other.getLength();
+
+        if (other instanceof ArrayBackedByteIterable otherArrayBackedByteIterable) {
+            otherOffset = otherArrayBackedByteIterable.offset;
+            otherArray = otherArrayBackedByteIterable.bytes;
+        } else {
+            otherOffset = 0;
+            otherArray = other.getBytesUnsafe();
+        }
+
+        int mismatch = -1;
+        for (int i = 0; i < count; i++) {
+            var iterable = iterables[i];
+
+            byte[] iterableArray;
+            int iterableOffset;
+
+            int iterableLen = iterable.getLength();
+
+            if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
+                iterableOffset = arrayBackedByteIterable.offset;
+                iterableArray = arrayBackedByteIterable.bytes;
+            } else {
+                iterableArray = iterable.getBytesUnsafe();
+                iterableOffset = 0;
+            }
+
+
+            if (i < count - 1) {
+                var mismatchLen = Math.min(iterableLen, otherLength - compared);
+                var localMismatch = Arrays.mismatch(iterableArray, iterableOffset,
+                        iterableOffset + iterableLen, otherArray, otherOffset + compared,
+                        otherOffset + compared + mismatchLen);
+
+                if (localMismatch >= 0 || compared + mismatchLen == otherLength) {
+                    return localMismatch + compared;
+                }
+
+                compared += mismatchLen;
+            } else {
+                return Arrays.mismatch(iterableArray, 0, iterableArray.length, otherArray,
+                        otherOffset + compared, otherOffset + otherLength - compared)
+                        + compared;
+            }
+
+        }
+
+        return mismatch;
+    }
+
+
+    @Override
     public int compareTo(@NotNull ByteIterable right) {
         if (right instanceof ArrayBackedByteIterable rightArrayBackedByteIterable) {
             var rightIterableLen = rightArrayBackedByteIterable.getLength();
@@ -256,7 +314,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
     }
 
     private int compareWithArray(final int rightIterableLen, final int rightIterableOffset,
-                                 @NotNull byte[] rightIterableBytes) {
+                                 byte @NotNull [] rightIterableBytes) {
         var compared = 0;
 
         for (int i = 0; i < count; i++) {
@@ -283,7 +341,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
             if (compared + lenToCompare == rightIterableLen || i == count - 1) {
                 //length of current iterable is bigger than array
-                if(i < count - 1) {
+                if (i < count - 1) {
                     return 1;
                 }
 
