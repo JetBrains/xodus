@@ -19,7 +19,7 @@
 package jetbrains.exodus.tree.ibtree;
 
 
-import jetbrains.exodus.ByteBufferByteIterable;
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITreeCursorMutable;
 import jetbrains.exodus.tree.ITreeMutable;
 import org.jetbrains.annotations.NotNull;
@@ -28,7 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import java.nio.ByteBuffer;
 
 public final class TreeMutableCursor extends TreeImmutableCursor implements ITreeCursorMutable {
-    private ByteBuffer currentKey = null;
+    private ByteIterable currentKey = null;
     private final ITreeMutable tree;
 
     public TreeMutableCursor(ITreeMutable tree, TraversablePage root) {
@@ -41,8 +41,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public boolean getNext() {
         var result = super.getNext();
         if (result) {
-            currentKey = getKeyBuffer();
-            assert currentKey != null;
+            currentKey = getKey();
         }
 
         return result;
@@ -52,9 +51,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public boolean getLast() {
         var result = super.getLast();
         if (result) {
-            currentKey = getKeyBuffer();
-
-            assert currentKey != null;
+            currentKey = getKey();
         }
 
         return result;
@@ -65,9 +62,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
         var result = super.getPrev();
 
         if (result) {
-            currentKey = getKeyBuffer();
-
-            assert currentKey != null;
+            currentKey = getKey();
         }
 
         return result;
@@ -77,37 +72,37 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
     public @Nullable ByteBuffer getSearchKey(@NotNull ByteBuffer key) {
         var result = super.getSearchKey(key);
         if (result != null) {
-            currentKey = getKeyBuffer();
+            currentKey = getKey();
         }
 
         return result;
     }
 
     @Override
-    public @Nullable ByteBuffer getSearchKeyRange(@NotNull ByteBuffer key) {
+    public @Nullable ByteIterable getSearchKeyRange(@NotNull ByteIterable key) {
         var result = super.getSearchKeyRange(key);
         if (result != null) {
-            currentKey = getKeyBuffer();
+            currentKey = getKey();
         }
 
         return result;
     }
 
     @Override
-    public boolean getSearchBoth(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+    public boolean getSearchBoth(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         var result = super.getSearchBoth(key, value);
         if (result) {
-            currentKey = getKeyBuffer();
+            currentKey = getKey();
         }
 
         return result;
     }
 
     @Override
-    public @Nullable ByteBuffer getSearchBothRange(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+    public @Nullable ByteIterable getSearchBothRange(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         var result = super.getSearchBothRange(key, value);
         if (result != null) {
-            currentKey = getKeyBuffer();
+            currentKey = getKey();
         }
 
         return result;
@@ -140,7 +135,7 @@ public final class TreeMutableCursor extends TreeImmutableCursor implements ITre
 
     @Override
     public boolean deleteCurrent() {
-        return tree.delete(new ByteBufferByteIterable(currentKey), null, this);
+        return tree.delete(currentKey, null, this);
     }
 
     static void notifyCursors(ITreeMutable tree, ITreeCursorMutable cursorToSkip) {

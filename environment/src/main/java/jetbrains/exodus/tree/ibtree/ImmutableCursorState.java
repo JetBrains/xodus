@@ -18,9 +18,9 @@
 
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.util.MathUtil;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 final class ImmutableCursorState {
@@ -160,16 +160,16 @@ final class ImmutableCursorState {
         }
     }
 
-    public ByteBuffer value() {
+    public ByteIterable value() {
         if (stackSize == 0) {
             return null;
         }
 
         var ref = stack[stackSize - 1];
-        return ref.page.value(ref.childIndex).asReadOnlyBuffer();
+        return ref.page.value(ref.childIndex);
     }
 
-    public ByteBuffer key() {
+    public ByteIterable key() {
         if (stackSize == 0) {
             return null;
         }

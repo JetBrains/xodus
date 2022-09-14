@@ -18,8 +18,6 @@ package jetbrains.exodus.log
 
 import it.unimi.dsi.fastutil.longs.LongIntImmutablePair
 import it.unimi.dsi.fastutil.longs.LongIntPair
-import it.unimi.dsi.fastutil.longs.LongLongImmutablePair
-import it.unimi.dsi.fastutil.longs.LongLongPair
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteBufferIterable
 import jetbrains.exodus.ByteIterable
@@ -34,6 +32,7 @@ import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.tree.ibtree.ImmutableBTree
+import jetbrains.exodus.util.ArrayBackedByteIterable
 import jetbrains.exodus.util.DeferredIO
 import jetbrains.exodus.util.IdGenerator
 import jetbrains.exodus.util.LongObjectObjectTriple
@@ -42,7 +41,6 @@ import java.io.Closeable
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.BitSet
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
 import kotlin.experimental.xor
@@ -495,7 +493,7 @@ class Log(val config: LogConfig) : Closeable {
     /**
      * Reads content of loggable into single ByteBuffer
      */
-    fun readLoggableAsPage(address: Long): ByteBufferLoggable {
+    fun readLoggableAsPage(address: Long): ArrayLoggable {
         val loggableOffset = address.and((cachePageSize - 1).toLong()).toInt()
         val pageAddress = address - loggableOffset
 
@@ -512,8 +510,9 @@ class Log(val config: LogConfig) : Closeable {
         }
 
         if (type < ImmutableBTree.SEVEN_BYTES_STUB) {
-            return ByteBufferLoggable(address, type, type - ImmutableBTree.TWO_BYTES_STUB + 2,
-                    0, Loggable.NO_STRUCTURE_ID, ByteBuffer.allocate(0))
+            return ArrayLoggable(address, type,
+                    type - ImmutableBTree.TWO_BYTES_STUB + 2, 0,
+                    Loggable.NO_STRUCTURE_ID, ArrayBackedByteIterable.EMPTY)
         }
 
         val dataLengthStructureIdType = page.order(ByteOrder.BIG_ENDIAN).getLong(loggableOffset)
@@ -527,10 +526,11 @@ class Log(val config: LogConfig) : Closeable {
 
         //fast path, page size always should be kept the same to follow it
         if (loggableOffset + loggableLength <= cachePageSize) {
-            val data = page.slice(dataOffset, dataLength)
-            assert(data.alignmentOffset(0, Long.SIZE_BYTES) == 0)
-            return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId,
-                    data)
+            val dataSlice = page.slice(dataOffset, dataLength)
+
+            val data = ArrayBackedByteIterable(dataSlice.array(), dataSlice.arrayOffset(), dataSlice.limit())
+            return ArrayLoggable(address, type, loggableLength,
+                    dataLength, structureId, data)
         }
 
         var bytesToRead = dataLength
@@ -552,7 +552,8 @@ class Log(val config: LogConfig) : Closeable {
             buffer.put(dataLength - bytesToRead, currentPage, 0, chunkSize)
         }
 
-        return ByteBufferLoggable(address, type, loggableLength, dataLength, structureId, buffer)
+        return ArrayLoggable(address, type, loggableLength, dataLength, structureId,
+                ArrayBackedByteIterable(buffer.array(), buffer.arrayOffset(), buffer.limit()))
     }
 
     fun getWrittenLoggableType(address: Long, max: Byte): Byte {

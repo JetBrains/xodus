@@ -19,15 +19,14 @@
 package jetbrains.exodus.tree.ibtree;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 import jetbrains.exodus.util.IntObjectObjectTriple;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -134,20 +133,27 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     @Override
-    public boolean put(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+    public boolean put(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         return doPut(key, value, true);
     }
 
-    private boolean doPut(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value,
+    private boolean doPut(@NotNull final ByteIterable key, @NotNull final ByteIterable value,
                           final boolean override) {
         var page = root;
-        ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteBuffer>> stack =
+        ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteIterable>> stack =
                 new ObjectArrayList<>(8);
         boolean smallestKey = false;
 
-        var truncatedKey = key.duplicate();
-        ByteBuffer keyBoundary = null;
+        ArrayBackedByteIterable currentKey;
+        if (key instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
+            currentKey = arrayBackedByteIterable.duplicate();
+        } else {
+            currentKey = new ArrayBackedByteIterable(key.getBytesUnsafe(), 0, key.getLength());
+        }
+
+        ByteIterable keyBoundary = null;
         int keyBoundaryPrefixSize = 0;
+        var keyBasicOffset = currentKey.offset;
 
         while (true) {
             int index;
@@ -155,7 +161,7 @@ public final class MutableBTree implements IBTreeMutable {
             if (smallestKey) {
                 index = -1;
             } else {
-                index = page.find(truncatedKey);
+                index = page.find(currentKey);
             }
 
             if (page instanceof MutableLeafPage mutablePage) {
@@ -167,12 +173,14 @@ public final class MutableBTree implements IBTreeMutable {
                     for (int i = 0; i < stackSize; i++) {
                         var currentPage = stack.get(i).second;
                         var keyPrefixSize = currentPage.getKeyPrefixSize();
+
                         if (keyPrefixSize > 0) {
-                            truncatedKey.position(keyPrefixSize);
+                            currentKey.offset = keyBasicOffset + keyPrefixSize;
+                            assert currentKey.offset <= currentKey.limit;
                         }
 
-                        currentPage.updateFirstKey(truncatedKey.slice());
-                        var partialKeyPrefixSize = commonPrefix(truncatedKey, currentPage.key(1));
+                        currentPage.updateFirstKey(currentKey.duplicate());
+                        var partialKeyPrefixSize = currentKey.commonPrefix(currentPage.key(1));
 
                         if (i < stackSize - 1) {
                             var nextCalculatedPrefixSize = keyPrefixSize + partialKeyPrefixSize;
@@ -184,7 +192,7 @@ public final class MutableBTree implements IBTreeMutable {
                             if (nextPageKeyPrefixSize > nextCalculatedPrefixSize) {
                                 var diff = nextPageKeyPrefixSize - nextCalculatedPrefixSize;
 
-                                var suffix = key.slice(nextCalculatedPrefixSize, diff);
+                                var suffix = key.subIterable(nextCalculatedPrefixSize, diff);
                                 nextPage.addKeyPrefix(suffix);
                             }
                         }
@@ -192,10 +200,11 @@ public final class MutableBTree implements IBTreeMutable {
 
                     var keyPrefixSize = mutablePage.getKeyPrefixSize();
                     if (keyPrefixSize > 0) {
-                        truncatedKey.position(keyPrefixSize);
+                        currentKey.offset = keyBasicOffset + keyPrefixSize;
+                        assert currentKey.offset <= currentKey.limit;
                     }
 
-                    var split = mutablePage.insert(0, truncatedKey.slice(), value);
+                    var split = mutablePage.insert(0, currentKey.duplicate(), value);
                     if (split) {
                         spillAfterModification(stack, mutablePage, key);
                     }
@@ -206,7 +215,7 @@ public final class MutableBTree implements IBTreeMutable {
                     return true;
                 } else {
                     if (index < 0) {
-                        var split = mutablePage.insert(-index - 1, truncatedKey.slice(), value);
+                        var split = mutablePage.insert(-index - 1, currentKey.duplicate(), value);
 
                         if (split) {
                             spillAfterModification(stack, mutablePage, key);
@@ -219,7 +228,7 @@ public final class MutableBTree implements IBTreeMutable {
                     }
 
                     if (override) {
-                        var split = mutablePage.set(index, truncatedKey.slice(), value);
+                        var split = mutablePage.set(index, currentKey.duplicate(), value);
 
                         if (split) {
                             spillAfterModification(stack, mutablePage, key);
@@ -256,20 +265,21 @@ public final class MutableBTree implements IBTreeMutable {
 
                 if (keyBoundary != null && keyBoundaryPrefixSize < keyPrefixSize) {
                     var diff = keyPrefixSize - keyBoundaryPrefixSize;
-                    keyBoundary = keyBoundary.slice(diff, keyBoundary.limit() - diff);
+                    keyBoundary = keyBoundary.subIterable(diff, keyBoundary.getLength() - diff);
                     keyBoundaryPrefixSize = keyPrefixSize;
                 }
 
                 if (!smallestKey && keyPrefixSize > 0) {
-                    truncatedKey.position(keyPrefixSize);
+                    currentKey.offset = keyBasicOffset + keyPrefixSize;
+                    assert currentKey.offset <= currentKey.limit;
                 }
             }
         }
     }
 
-    private void spillAfterModification(ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteBuffer>> stack,
+    private void spillAfterModification(ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteIterable>> stack,
                                         MutableLeafPage mutablePage,
-                                        ByteBuffer key) {
+                                        ByteIterable key) {
         boolean spillParent;
 
         if (stack.isEmpty()) {
@@ -289,8 +299,8 @@ public final class MutableBTree implements IBTreeMutable {
         }
     }
 
-    private void spillStack(ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteBuffer>> stack,
-                            ByteBuffer key) {
+    private void spillStack(ObjectArrayList<IntObjectObjectTriple<MutableInternalPage, ByteIterable>> stack,
+                            ByteIterable key) {
         var stackSize = stack.size();
         if (stackSize == 0) {
             return;
@@ -305,7 +315,7 @@ public final class MutableBTree implements IBTreeMutable {
             var currentPage = parent;
             parentIndex--;
 
-            ByteBuffer boundary;
+            ByteIterable boundary;
             if (parentIndex >= 0) {
                 parentBoundaryPair = stack.get(parentIndex);
 
@@ -332,38 +342,8 @@ public final class MutableBTree implements IBTreeMutable {
         }
     }
 
-    static int commonPrefix(ByteBuffer first, ByteBuffer second) {
-        assert ByteBufferComparator.INSTANCE.compare(first, second) < 0;
-
-        var mismatch = first.mismatch(second);
-
-        //first key is a prefix of second one
-        if (mismatch == first.limit()) {
-            return mismatch;
-        }
-
-        //if second key is only one byte longer
-        if (second.limit() == mismatch + 1) {
-            var mismatchedByteFirst = first.get(mismatch);
-            var mismatchedByteSecond = second.get(mismatch);
-
-            if (Byte.toUnsignedInt(mismatchedByteSecond) - Byte.toUnsignedInt(mismatchedByteFirst) == 1) {
-                return mismatch + 1;
-            }
-        }
-
-
-        return mismatch;
-    }
-
-
     @Override
-    public boolean put(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        return put(key.getByteBuffer(), value.getByteBuffer());
-    }
-
-    @Override
-    public void putRight(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+    public void putRight(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         var page = root;
 
         while (true) {
@@ -382,19 +362,10 @@ public final class MutableBTree implements IBTreeMutable {
         }
     }
 
-    @Override
-    public void putRight(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        putRight(key.getByteBuffer(), value.getByteBuffer());
-    }
-
-    @Override
-    public boolean add(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
-        return doPut(key, value, false);
-    }
 
     @Override
     public boolean add(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        return add(key.getByteBuffer(), value.getByteBuffer());
+        return doPut(key, value, false);
     }
 
     @Override
@@ -427,7 +398,7 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     @Override
-    public boolean delete(@NotNull ByteBuffer key) {
+    public boolean delete(@NotNull ByteIterable key) {
         var result = doDelete(key, null);
 
         if (result) {
@@ -439,12 +410,8 @@ public final class MutableBTree implements IBTreeMutable {
     }
 
     @Override
-    public boolean delete(@NotNull ByteIterable key) {
-        return delete(key.getByteBuffer());
-    }
-
-    @Override
-    public boolean delete(@NotNull ByteBuffer key, @Nullable ByteBuffer value, @Nullable ITreeCursorMutable cursorToSkip) {
+    public boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value,
+                          @Nullable ITreeCursorMutable cursorToSkip) {
         if (doDelete(key, value)) {
             TreeMutableCursor.notifyCursors(this, cursorToSkip);
             size--;
@@ -454,17 +421,8 @@ public final class MutableBTree implements IBTreeMutable {
         return false;
     }
 
-    @Override
-    public boolean delete(@NotNull ByteIterable key, @Nullable ByteIterable value,
-                          @Nullable ITreeCursorMutable cursorToSkip) {
-        if (value == null) {
-            return delete(key.getByteBuffer(), null, cursorToSkip);
-        } else {
-            return delete(key.getByteBuffer(), value.getByteBuffer(), cursorToSkip);
-        }
-    }
 
-    private boolean doDelete(final ByteBuffer key, final ByteBuffer value) {
+    private boolean doDelete(final ByteIterable key, final ByteIterable value) {
         ObjectArrayList<MutablePage> stack = new ObjectArrayList<>(8);
 
         var page = root;
@@ -486,7 +444,7 @@ public final class MutableBTree implements IBTreeMutable {
                     }
 
                     var val = page.value(index);
-                    if (ByteBufferComparator.INSTANCE.compare(val, value) == 0) {
+                    if (val.compareTo(value) == 0) {
                         mutablePage.delete(index);
 
                         //mark pages needs to be balance after removal
@@ -712,7 +670,7 @@ public final class MutableBTree implements IBTreeMutable {
 
     }
 
-    private void moveToTheTopTillKeyInSearchRange(final ArrayList<ElemRef> stack, final ByteBuffer key) {
+    private void moveToTheTopTillKeyInSearchRange(final ArrayList<ElemRef> stack, final ByteIterable key) {
         while (stack.size() > 1) {
             var last = stack.get(stack.size() - 1);
             var page = last.page;
@@ -725,17 +683,17 @@ public final class MutableBTree implements IBTreeMutable {
         }
     }
 
-    private boolean insideSearchRange(final ByteBuffer key, final TraversablePage page) {
+    private boolean insideSearchRange(final ByteIterable key, final TraversablePage page) {
         assert page.isInternalPage();
 
         var firstKey = page.key(0);
 
-        if (ByteBufferComparator.INSTANCE.compare(firstKey, key) < 0) {
+        if (firstKey.compareTo(key) < 0) {
             return false;
         }
 
         var lastKey = page.key(page.getEntriesCount() - 1);
-        return ByteBufferComparator.INSTANCE.compare(key, lastKey) <= 0;
+        return key.compareTo(lastKey) <= 0;
     }
 
 

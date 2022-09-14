@@ -1,12 +1,10 @@
 package jetbrains.exodus.tree.ibtree;
 
-import jetbrains.exodus.ByteBufferComparator;
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
-
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /**
  * Representation of common layout of all pages both leaf and internal.
@@ -41,29 +39,23 @@ abstract class ImmutableBasePage implements TraversablePage {
     final long address;
 
     @NotNull
-    final ByteBuffer page;
+    final ArrayBackedByteIterable page;
 
     final int entriesCount;
     final int keyPrefixSize;
-    final ByteBuffer keyPrefix;
+    final ArrayBackedByteIterable keyPrefix;
 
-    protected ImmutableBasePage(@NotNull final Log log, @NotNull final ByteBuffer page, long address) {
+    protected ImmutableBasePage(@NotNull final Log log, @NotNull final ArrayBackedByteIterable page, long address) {
         this.log = log;
         this.address = address;
         this.page = page;
 
-        //ensure that allocated page aligned to ensure fastest memory access and stable offsets of the data
-        assert page.alignmentOffset(0, Long.BYTES) == 0;
-        assert page.order() == ByteOrder.nativeOrder();
-
-        assert page.alignmentOffset(ENTRIES_COUNT_OFFSET, Integer.BYTES) == 0;
-        entriesCount = page.getInt(ENTRIES_COUNT_OFFSET);
-
-        assert page.alignmentOffset(KEY_PREFIX_LEN_OFFSET, Integer.BYTES) == 0;
-        keyPrefixSize = page.getInt(KEY_PREFIX_LEN_OFFSET);
+        entriesCount = page.getNativeInt(ENTRIES_COUNT_OFFSET);
+        keyPrefixSize = page.getNativeInt(KEY_PREFIX_LEN_OFFSET);
 
         if (keyPrefixSize > 0) {
-            keyPrefix = page.slice(ENTRY_POSITIONS_OFFSET + 2 * Long.BYTES * entriesCount, keyPrefixSize);
+            keyPrefix = page.subIterable(ENTRY_POSITIONS_OFFSET + 2 * Long.BYTES * entriesCount,
+                    keyPrefixSize);
         } else {
             keyPrefix = null;
         }
@@ -76,15 +68,19 @@ abstract class ImmutableBasePage implements TraversablePage {
 
     abstract long getTreeSize();
 
-    public final int find(ByteBuffer key) {
-        final int position = binarySearch(key);
-        page.clear();
+    public final int find(ByteIterable key) {
+        var offset = page.offset;
+        var limit = page.limit;
+
+        final int position = binarySearch(key, offset, limit);
+
+        page.offset = offset;
+        page.limit = limit;
 
         return position;
-
     }
 
-    private int binarySearch(ByteBuffer key) {
+    private int binarySearch(ByteIterable key, int basicOffset, int basiLimit) {
         int low = 0;
         int high = entriesCount - 1;
 
@@ -92,14 +88,17 @@ abstract class ImmutableBasePage implements TraversablePage {
             final int mid = (low + high) >>> 1;
             final int position = ENTRY_POSITIONS_OFFSET + mid * Long.BYTES;
 
-            assert page.alignmentOffset(position, Integer.BYTES) == 0;
-            final int valuePosition = page.getInt(position);
+            var offset = page.getNativeInt(position);
 
-            assert page.alignmentOffset(position + Integer.BYTES, Integer.BYTES) == 0;
-            final int valueSize = page.getInt(position + Integer.BYTES);
+            page.limit = basicOffset + offset + page.getNativeInt(position + Integer.BYTES);
+            page.offset = basicOffset + offset;
 
-            page.limit(valuePosition + valueSize).position(valuePosition);
-            final int cmp = ByteBufferComparator.INSTANCE.compare(page, key);
+            assert page.offset <= page.limit;
+
+            final int cmp = page.compareTo(key);
+
+            page.limit = basiLimit;
+            page.offset = basicOffset;
 
             if (cmp < 0)
                 low = mid + 1;
@@ -113,7 +112,7 @@ abstract class ImmutableBasePage implements TraversablePage {
     }
 
     @Override
-    public ByteBuffer keyPrefix() {
+    public ArrayBackedByteIterable keyPrefix() {
         return keyPrefix;
     }
 
@@ -121,19 +120,16 @@ abstract class ImmutableBasePage implements TraversablePage {
         return ENTRY_POSITIONS_OFFSET + index * Long.BYTES;
     }
 
-    private ByteBuffer getKey(int index) {
+    private ArrayBackedByteIterable getKey(int index) {
         final int ketPositionSizeIndex = getKeyPositionSizeIndex(index);
         return extractByteChunk(ketPositionSizeIndex);
     }
 
-    final ByteBuffer extractByteChunk(int valuePositionSizeIndex) {
-        assert page.alignmentOffset(valuePositionSizeIndex, Integer.BYTES) == 0;
-        final int valuePosition = page.getInt(valuePositionSizeIndex);
+    final ArrayBackedByteIterable extractByteChunk(int valuePositionSizeIndex) {
+        final int valuePosition = page.getNativeInt(valuePositionSizeIndex);
+        final int valueSize = page.getNativeInt(valuePositionSizeIndex + Integer.BYTES);
 
-        assert page.alignmentOffset(valuePositionSizeIndex + Integer.BYTES, Integer.BYTES) == 0;
-        final int valueSize = page.getInt(valuePositionSizeIndex + Integer.BYTES);
-
-        return page.slice(valuePosition, valueSize);
+        return page.subIterable(valuePosition, valueSize);
     }
 
     final int getChildAddressPositionIndex(int index) {
@@ -144,7 +140,7 @@ abstract class ImmutableBasePage implements TraversablePage {
         return entriesCount;
     }
 
-    public final ByteBuffer key(int index) {
+    public final ArrayBackedByteIterable key(int index) {
         return getKey(index);
     }
 

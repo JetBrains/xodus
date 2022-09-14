@@ -1,11 +1,10 @@
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
-
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /**
  * Presentation of immutable internal page in BTree.
@@ -14,23 +13,22 @@ import java.nio.ByteOrder;
  */
 final class ImmutableInternalPage extends ImmutableBasePage {
     @NotNull
-    final ByteBuffer currentPage;
+    final ArrayBackedByteIterable currentPage;
 
     @NotNull
     final ImmutableBTree tree;
 
-    ImmutableInternalPage(@NotNull ImmutableBTree tree, @NotNull Log log, @NotNull ByteBuffer page, long pageAddress) {
-        super(log, page.slice(Long.BYTES, page.limit() - Long.BYTES).order(ByteOrder.nativeOrder()), pageAddress);
+    ImmutableInternalPage(@NotNull ImmutableBTree tree, @NotNull Log log, @NotNull ArrayBackedByteIterable page,
+                          long pageAddress) {
+        super(log, page.subIterable(Long.BYTES, page.getLength() - Long.BYTES), pageAddress);
         this.tree = tree;
 
         currentPage = page;
-        assert currentPage.alignmentOffset(0, Long.BYTES) == 0;
     }
 
     @Override
     long getTreeSize() {
-        assert currentPage.alignmentOffset(0, Long.BYTES) == 0;
-        return currentPage.getLong(0);
+        return currentPage.getNativeLong(0);
     }
 
     @Override
@@ -42,9 +40,7 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     public ImmutableBasePage child(int index) {
         final int childAddressIndex = getChildAddressPositionIndex(index);
 
-        assert page.alignmentOffset(childAddressIndex, Long.BYTES) == 0;
-        final long childAddress = page.getLong(childAddressIndex);
-
+        final long childAddress = page.getNativeLong(childAddressIndex);
         return tree.loadPage(childAddress);
     }
 
@@ -54,7 +50,7 @@ final class ImmutableInternalPage extends ImmutableBasePage {
     }
 
     @Override
-    public ByteBuffer value(int index) {
+    public ByteIterable value(int index) {
         throw new UnsupportedOperationException("Internal page does not contain values.");
     }
 }

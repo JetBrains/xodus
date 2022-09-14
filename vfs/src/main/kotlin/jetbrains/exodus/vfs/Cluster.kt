@@ -95,7 +95,7 @@ internal class Cluster(private val it: ByteIterable) : Iterator<Byte> {
                 throw ExodusException.toExodusException(e)
             }
 
-            return CompoundByteIterable(arrayOf(IntegerBinding.intToCompressedEntry(size), bi))
+            return CompoundByteIterable(IntegerBinding.intToCompressedEntry(size), bi)
         }
     }
 }

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -65,7 +65,7 @@ public class StringBinding extends ComparableBinding {
      * @return de-serialized value
      */
     public static String entryToString(@NotNull final ByteIterable entry) {
-        return (String) BINDING.entryToObject(entry);
+        return BINDING.iterableToString(entry);
     }
 
     /**
@@ -78,19 +78,33 @@ public class StringBinding extends ComparableBinding {
         return BINDING.objectToEntry(object);
     }
 
-    private static class StringBindingWithXodusInterner extends StringBinding {
+    protected String iterableToString(final ByteIterable entry) {
+        return entry.getString(0);
+    }
 
+
+    private static class StringBindingWithXodusInterner extends StringBinding {
         @Override
         public String readObject(@NotNull ByteArrayInputStream stream) {
             return StringInterner.intern(super.readObject(stream));
         }
+
+        @Override
+        protected String iterableToString(ByteIterable entry) {
+            return StringInterner.intern(super.iterableToString(entry));
+        }
     }
 
     private static class StringBindingWithJavaInterner extends StringBinding {
-
         @Override
         public String readObject(@NotNull ByteArrayInputStream stream) {
             return super.readObject(stream).intern();
         }
+
+        @Override
+        protected String iterableToString(ByteIterable entry) {
+            return super.iterableToString(entry).intern();
+        }
     }
 }
+

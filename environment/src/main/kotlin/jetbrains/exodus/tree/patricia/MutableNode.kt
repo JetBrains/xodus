@@ -194,7 +194,7 @@ internal open class MutableNode : NodeBase {
         val child = ref.getNode(tree)
         value = child.value
         keySequence = CompoundByteIterable(
-            arrayOf(keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence)
+           keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence
         )
         copyChildrenFrom(child)
     }

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,8 +20,17 @@ import jetbrains.exodus.util.UTFUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 
 public class BindingUtils {
+    private static final VarHandle LONG_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class,
+            ByteOrder.BIG_ENDIAN);
+    private static final VarHandle INT_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class,
+            ByteOrder.BIG_ENDIAN);
+    private static final VarHandle SHORT_HANDLE = MethodHandles.byteArrayViewVarHandle(short[].class,
+            ByteOrder.BIG_ENDIAN);
 
     private BindingUtils() {
     }
@@ -30,12 +39,24 @@ public class BindingUtils {
         return (short) (readUnsignedShort(stream) ^ 0x8000);
     }
 
+    public static short readShort(@NotNull final byte[] data, int offset) {
+        return (short) ((short) SHORT_HANDLE.get(data, offset) ^ 0x8000);
+    }
+
     public static int readInt(@NotNull final ByteArrayInputStream stream) {
         return (int) (readUnsignedInt(stream) ^ 0x80000000);
     }
 
+    public static int readInt(@NotNull final byte[] data, int offset) {
+        return (int) INT_HANDLE.get(data, offset) ^ 0x80000000;
+    }
+
     public static long readLong(@NotNull final ByteArrayInputStream stream) {
         return readUnsignedLong(stream) ^ 0x8000000000000000L;
+    }
+
+    public static long readLong(@NotNull final byte[] data, int offset) {
+        return (long) LONG_HANDLE.get(data, offset) ^ 0x8000000000000000L;
     }
 
     public static float readUnsignedFloat(@NotNull final ByteArrayInputStream stream) {
@@ -68,10 +89,11 @@ public class BindingUtils {
         if (next == 0) {
             return "";
         }
-        if (!(stream instanceof ByteArraySizedInputStream)) {
+
+        if (!(stream instanceof final ByteArraySizedInputStream sizedStream)) {
             throw new IllegalArgumentException("ByteArraySizedInputStream is expected");
         }
-        final ByteArraySizedInputStream sizedStream = (ByteArraySizedInputStream) stream;
+
         final byte[] bytes = sizedStream.toByteArray();
         final char[] chars = new char[sizedStream.size() - 1]; // minus trailing zero
         int i = sizedStream.pos();
@@ -105,6 +127,53 @@ public class BindingUtils {
         return new String(chars, 0, j);
     }
 
+    public static String readString(@NotNull final byte[] data, int offset, int len) {
+        int next = Byte.toUnsignedInt(data[offset]);
+        offset++;
+
+        if (next == UTFUtil.NULL_STRING_UTF_VALUE) {
+            next = data[offset];
+            if (next == 0) {
+                return null;
+            }
+            throw new IllegalArgumentException();
+        }
+
+        if (next == 0) {
+            return "";
+        }
+
+        final char[] chars = new char[len - 1]; // minus trailing zero
+        int j = 0;
+        do {
+            if (next < 128) {
+                chars[j++] = (char) next;
+            } else {
+                final int high = next >> 4;
+                if (high == 12 || high == 13) {
+                    final int char2 = data[offset++] & 0xff;
+                    if ((char2 & 0xC0) != 0x80) {
+                        throw new IllegalArgumentException();
+                    }
+                    chars[j++] = (char) (((next & 0x1F) << 6) | (char2 & 0x3F));
+                } else if (high == 14) {
+                    final int char2 = data[offset] & 0xff;
+                    final int char3 = data[offset + 1] & 0xff;
+                    offset += 2;
+                    if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
+                        throw new IllegalArgumentException();
+                    }
+                    chars[j++] = (char) (((next & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F)));
+                } else {
+                    throw new IllegalArgumentException();
+                }
+            }
+            next = data[offset++] & 0xff;
+        } while (next != 0);
+
+        return new String(chars, 0, j);
+    }
+
     private static int readUnsignedShort(@NotNull final ByteArrayInputStream stream) {
         final int c1 = stream.read();
         final int c2 = stream.read();
@@ -124,6 +193,7 @@ public class BindingUtils {
         }
         return ((c1 << 24) | (c2 << 16) | (c3 << 8) | c4);
     }
+
 
     private static long readUnsignedLong(@NotNull final ByteArrayInputStream stream) {
         final long c1 = stream.read();

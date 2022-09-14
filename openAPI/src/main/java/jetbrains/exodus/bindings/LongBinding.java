@@ -68,7 +68,7 @@ public class LongBinding extends ComparableBinding {
      * @see #signedLongToCompressedEntry(long)
      */
     public static long entryToLong(@NotNull final ByteIterable entry) {
-        return (Long) BINDING.entryToObject(entry);
+        return entry.getLong(0);
     }
 
     /**

@@ -18,41 +18,28 @@
 
 package jetbrains.exodus.tree.ibtree;
 
-import jetbrains.exodus.ByteBufferByteIterable;
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 import jetbrains.exodus.tree.ITree;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.nio.ByteBuffer;
 
 interface BTree extends ITree {
     @Nullable
     TraversablePage getRoot();
 
-    @Override
-    @Nullable
-    default ByteBuffer get(final @NotNull ByteBuffer key) {
-        var pageIndexPair = find(key);
-
-        if (pageIndexPair == null) {
-            return null;
-        }
-
-        return pageIndexPair.page.value(pageIndexPair.childIndex).asReadOnlyBuffer();
-    }
-
     @Nullable
     default ByteIterable get(@NotNull ByteIterable key) {
-        var result = get(key.getByteBuffer());
-        if (result == null) {
+        var elemRef = find(key);
+        
+        if (elemRef == null) {
             return null;
         }
 
-        return new ByteBufferByteIterable(result);
+        return elemRef.page.value(elemRef.childIndex);
     }
 
-    default ElemRef find(ByteBuffer key) {
+    default ElemRef find(ByteIterable key) {
         var root = getRoot();
         if (root == null) {
             return null;
@@ -61,8 +48,15 @@ interface BTree extends ITree {
         assert root.getKeyPrefixSize() == 0;
 
         var page = root;
-        var currentKey = key;
+        ArrayBackedByteIterable currentKey;
 
+        if (key instanceof ArrayBackedByteIterable) {
+            currentKey = (ArrayBackedByteIterable) key;
+        } else {
+            currentKey = new ArrayBackedByteIterable(key.getBytesUnsafe(), 0, key.getLength());
+        }
+
+        var basicOffset = currentKey.offset;
         while (true) {
             int index = page.find(currentKey);
 
@@ -91,34 +85,24 @@ interface BTree extends ITree {
 
             var keyPrefixSize = page.getKeyPrefixSize();
 
+
             if (keyPrefixSize > 0) {
                 if (currentKey == key) {
                     currentKey = currentKey.duplicate();
                 }
 
-                currentKey.position(keyPrefixSize);
+
+                if (currentKey.limit >= keyPrefixSize) {
+                    currentKey.offset = basicOffset + keyPrefixSize;
+                } else {
+                    return null;
+                }
             }
         }
     }
 
-    @Override
-    default boolean hasPair(final @NotNull ByteBuffer key, final @NotNull ByteBuffer value) {
-        var elemRef = find(key);
-        if (elemRef == null) {
-            return false;
-        }
-
-        var pageValue = elemRef.page.value(elemRef.childIndex);
-        return pageValue.equals(value);
-    }
-
     default boolean hasPair(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         return hasPair(key.getByteBuffer(), value.getByteBuffer());
-    }
-
-    @Override
-    default boolean hasKey(final @NotNull ByteBuffer key) {
-        return find(key) != null;
     }
 
     default boolean hasKey(@NotNull ByteIterable key) {

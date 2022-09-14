@@ -18,28 +18,30 @@
 
 package jetbrains.exodus.tree.ibtree;
 
-import java.nio.ByteBuffer;
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.CompoundByteIterable;
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 
 public interface TraversablePage {
     int getEntriesCount();
 
     TraversablePage child(int index);
 
-    int find(ByteBuffer key);
+    int find(ByteIterable key);
 
     boolean isInternalPage();
 
-    ByteBuffer value(int index);
+    ByteIterable value(int index);
 
-    ByteBuffer key(int index);
+    ByteIterable key(int index);
 
     long address();
 
     int getKeyPrefixSize();
 
-    ByteBuffer keyPrefix();
+    ByteIterable keyPrefix();
 
-    default ByteBuffer fullKey(int index) {
+    default ByteIterable fullKey(int index) {
         var key = key(index);
         var prefixSize = getKeyPrefixSize();
 
@@ -47,24 +49,18 @@ public interface TraversablePage {
             return key;
         }
 
-        var fullKey = ByteBuffer.allocate(key.limit() + prefixSize);
-        var keyPrefix = keyPrefix();
-
-        fullKey.put(0, keyPrefix, 0, prefixSize);
-        fullKey.put(prefixSize, key, 0, key.limit());
-
-        return fullKey;
+        return new CompoundByteIterable(keyPrefix(), key);
     }
 
-    default ByteBuffer find(ByteBuffer key, ImmutableCursorState state, int depth) {
+    default ByteIterable find(ArrayBackedByteIterable key, ImmutableCursorState state, int depth, int basicOffset) {
         var keyPrefixSize = getKeyPrefixSize();
-
-        if (key.limit() < keyPrefixSize) {
+        if (key.limit < keyPrefixSize) {
             return null;
         }
-        key.position(keyPrefixSize);
 
+        key.offset = basicOffset + keyPrefixSize;
         var index = find(key);
+
 
         if (!isInternalPage()) {
             if (index >= 0) {
@@ -88,7 +84,7 @@ public interface TraversablePage {
             child = child(index);
         }
 
-        var result = child.find(key, state, depth + 1);
+        var result = child.find(key, state, depth + 1, basicOffset);
 
         if (result != null) {
             state.set(depth, this, index);
@@ -98,12 +94,12 @@ public interface TraversablePage {
         return null;
     }
 
-    default ByteBuffer findByKeyRange(ByteBuffer key, ImmutableCursorState state, int depth, boolean useFirstEntry) {
+    default ByteIterable findByKeyRange(ArrayBackedByteIterable key, ImmutableCursorState state, int depth, boolean useFirstEntry) {
         var keyPrefixSize = getKeyPrefixSize();
-        if (key.limit() < keyPrefixSize) {
+        if (key.limit < keyPrefixSize) {
             useFirstEntry = true;
         } else {
-            key.position(keyPrefixSize);
+            key.offset = keyPrefixSize;
         }
 
         int index;

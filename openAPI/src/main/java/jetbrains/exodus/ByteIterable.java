@@ -15,9 +15,14 @@
  */
 package jetbrains.exodus;
 
+import jetbrains.exodus.bindings.BindingUtils;
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
 
 /**
  * If working with {@link jetbrains.exodus.env.Environment}, any key and value should be a ByteIterable.
@@ -32,10 +37,54 @@ import java.nio.ByteBuffer;
  * @see jetbrains.exodus.CompoundByteIterable
  */
 public interface ByteIterable extends Comparable<ByteIterable> {
+    VarHandle LONG_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class,
+            ByteOrder.nativeOrder());
+    VarHandle INT_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class,
+            ByteOrder.nativeOrder());
+    VarHandle SHORT_HANDLE = MethodHandles.byteArrayViewVarHandle(short[].class,
+            ByteOrder.nativeOrder());
+
 
     byte[] EMPTY_BYTES = {};
 
     ByteIterator iterator();
+
+    default long getNativeLong(int offset) {
+        var bytes = getBytesUnsafe();
+        return (long) LONG_HANDLE.get(bytes, offset);
+    }
+
+    default int getNativeInt(int offset) {
+        var bytes = getBytesUnsafe();
+        return (int) INT_HANDLE.get(bytes, offset);
+    }
+
+
+    @SuppressWarnings("unused")
+    default int getNativeShort(int offset) {
+        var bytes = getBytesUnsafe();
+        return (short) SHORT_HANDLE.get(bytes, offset);
+    }
+
+    default long getLong(int offset) {
+        var bytes = getBytesUnsafe();
+        return BindingUtils.readLong(bytes, offset);
+    }
+
+    default int getInt(int offset) {
+        var bytes = getBytesUnsafe();
+        return BindingUtils.readInt(bytes, offset);
+    }
+
+    default short getShort(int offset) {
+        var bytes = getBytesUnsafe();
+        return BindingUtils.readShort(bytes, offset);
+    }
+
+    default String getString(int offset) {
+        var bytes = getBytesUnsafe();
+        return BindingUtils.readString(bytes, 0, getLength());
+    }
 
     /**
      * @return raw content of the {@code ByteIterable}. May return array with length greater than {@link #getLength()}.
@@ -70,6 +119,53 @@ public interface ByteIterable extends Comparable<ByteIterable> {
         }
 
         return length;
+    }
+
+    default void writeIntoBuffer(ByteBuffer buffer, int bufferPosition) {
+        var array = getBytesUnsafe();
+        var arrayLength = getLength();
+
+        buffer.put(bufferPosition, array, 0, arrayLength);
+    }
+
+    default int commonPrefix(ByteIterable other) {
+        var array = getBytesUnsafe();
+        var arrayLength = getLength();
+
+        var otherArray = other.getBytesUnsafe();
+        var otherArrayLength = other.getLength();
+
+        assert Arrays.compareUnsigned(array, 0, arrayLength, otherArray, 0, otherArrayLength) < 0;
+
+        var mismatch = Arrays.mismatch(array, 0, arrayLength, otherArray, 0, otherArrayLength);
+
+        //first key is a prefix of second one
+        if (mismatch == arrayLength) {
+            return mismatch;
+        }
+
+        //if second key is only one byte longer
+        if (otherArrayLength == mismatch + 1) {
+            var mismatchedByteFirst = array[mismatch];
+            var mismatchedByteSecond = otherArray[mismatch];
+
+            if (Byte.toUnsignedInt(mismatchedByteSecond) - Byte.toUnsignedInt(mismatchedByteFirst) == 1) {
+                return mismatch + 1;
+            }
+        }
+
+
+        return mismatch;
+    }
+
+    default int mismatch(ByteIterable other) {
+        var array = getBytesUnsafe();
+        var arrayLength = getLength();
+
+        var otherArray = other.getBytesUnsafe();
+        var otherArrayLength = other.getLength();
+
+        return Arrays.mismatch(array, 0, arrayLength, otherArray, 0, otherArrayLength);
     }
 
     /**

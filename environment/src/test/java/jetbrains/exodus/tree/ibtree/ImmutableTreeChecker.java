@@ -59,8 +59,9 @@ public class ImmutableTreeChecker implements Consumer<ITree> {
         Collections.shuffle(keys, random);
 
         for (var key : keys) {
-            var value = tree.get(new ByteBufferByteIterable(key));
             var expectedValue = expectedMap.get(key);
+            var value = tree.get(new ByteBufferByteIterable(key));
+
 
             if (expectedValue != null) {
                 Assert.assertEquals(new ByteBufferByteIterable(expectedValue), value);

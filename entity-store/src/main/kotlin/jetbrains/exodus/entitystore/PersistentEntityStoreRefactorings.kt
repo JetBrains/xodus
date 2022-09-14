@@ -93,7 +93,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             txn as PersistentStoreTransaction
                             for (i in 0 until dFieldIds.size()) {
                                 props.delete(
-                                    txn, dLocalIds[i], cursorValueToDelete.notNull, dFieldIds[i], propTypeToDelete.notNull
+                                        txn, dLocalIds[i], cursorValueToDelete.notNull, dFieldIds[i], propTypeToDelete.notNull
                                 )
                             }
                         }
@@ -161,7 +161,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         val blobHandle = LongBinding.compressedEntryToLong(cursor.value)
                         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
                             store.setBlobFileLength(txn, blobHandle,
-                                diskVault.getBlobLocation(blobHandle).length())
+                                    diskVault.getBlobLocation(blobHandle).length())
                         }
                     }
                 }
@@ -175,40 +175,55 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
             for (entityType in store.getEntityTypes(txn)) {
                 logInfo("Refactoring creating null-value link indices for [$entityType]")
                 safeExecuteRefactoringForEntityType(entityType,
-                    object : StoreTransactionalExecutable {
-                        override fun execute(tx: StoreTransaction) {
-                            val txn = tx as PersistentStoreTransaction
-                            val entityTypeId = store.getEntityTypeId(txn, entityType, false)
-                            var links = store.getLinksTable(txn, entityTypeId)
-                            var allLinksIndex = links.allLinksIndex
-                            val envTxn = txn.environmentTransaction
-                            if (allLinksIndex.getStore().count(envTxn) > 0) {
-                                logger.warn("Refactoring creating null-value link indices looped for [$entityType]")
-                                envTxn.environment.truncateStore(allLinksIndex.getStore().name, envTxn)
-                                store.linksTables.remove(entityTypeId)
-                                links = store.getLinksTable(txn, entityTypeId)
-                                allLinksIndex = links.allLinksIndex
-                            }
-                            val readonlySnapshot = envTxn.readonlySnapshot
-                            try {
-                                val cursor = links.getSecondIndexCursor(readonlySnapshot)
-                                val total = links.getSecondaryCount(readonlySnapshot)
-                                var done: Long = 0
-                                var prevLinkId = -1
-                                val idSet = PersistentLong23TreeSet().beginWrite()
-                                val format = "done %4.1f%% for $entityType"
-                                while (cursor.next) {
-                                    val linkKey = PropertyKey.entryToPropertyKey(cursor.value)
-                                    val linkId = linkKey.propertyId
-                                    val entityLocalId = linkKey.entityLocalId
-                                    if (prevLinkId != linkId) {
-                                        if (prevLinkId == -1) {
-                                            prevLinkId = linkId
-                                        } else {
-                                            if (linkId < prevLinkId) {
-                                                throw IllegalStateException("Unsorted index")
+                        object : StoreTransactionalExecutable {
+                            override fun execute(tx: StoreTransaction) {
+                                val txn = tx as PersistentStoreTransaction
+                                val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                                var links = store.getLinksTable(txn, entityTypeId)
+                                var allLinksIndex = links.allLinksIndex
+                                val envTxn = txn.environmentTransaction
+                                if (allLinksIndex.getStore().count(envTxn) > 0) {
+                                    logger.warn("Refactoring creating null-value link indices looped for [$entityType]")
+                                    envTxn.environment.truncateStore(allLinksIndex.getStore().name, envTxn)
+                                    store.linksTables.remove(entityTypeId)
+                                    links = store.getLinksTable(txn, entityTypeId)
+                                    allLinksIndex = links.allLinksIndex
+                                }
+                                val readonlySnapshot = envTxn.readonlySnapshot
+                                try {
+                                    val cursor = links.getSecondIndexCursor(readonlySnapshot)
+                                    val total = links.getSecondaryCount(readonlySnapshot)
+                                    var done: Long = 0
+                                    var prevLinkId = -1
+                                    val idSet = PersistentLong23TreeSet().beginWrite()
+                                    val format = "done %4.1f%% for $entityType"
+                                    while (cursor.next) {
+                                        val linkKey = PropertyKey.entryToPropertyKey(cursor.value)
+                                        val linkId = linkKey.propertyId
+                                        val entityLocalId = linkKey.entityLocalId
+                                        if (prevLinkId != linkId) {
+                                            if (prevLinkId == -1) {
+                                                prevLinkId = linkId
+                                            } else {
+                                                if (linkId < prevLinkId) {
+                                                    throw IllegalStateException("Unsorted index")
+                                                }
+                                                done = dumpSetAndFlush(
+                                                        format,
+                                                        allLinksIndex,
+                                                        txn,
+                                                        total.toDouble(),
+                                                        done,
+                                                        prevLinkId,
+                                                        idSet
+                                                )
+                                                prevLinkId = linkId
                                             }
-                                            done = dumpSetAndFlush(
+                                        }
+                                        idSet.add(entityLocalId)
+                                    }
+                                    if (prevLinkId != -1) {
+                                        dumpSetAndFlush(
                                                 format,
                                                 allLinksIndex,
                                                 txn,
@@ -216,54 +231,39 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                                 done,
                                                 prevLinkId,
                                                 idSet
-                                            )
-                                            prevLinkId = linkId
-                                        }
+                                        )
                                     }
-                                    idSet.add(entityLocalId)
+                                    cursor.close()
+                                } finally {
+                                    readonlySnapshot.abort()
                                 }
-                                if (prevLinkId != -1) {
-                                    dumpSetAndFlush(
-                                        format,
-                                        allLinksIndex,
-                                        txn,
-                                        total.toDouble(),
-                                        done,
-                                        prevLinkId,
-                                        idSet
-                                    )
-                                }
-                                cursor.close()
-                            } finally {
-                                readonlySnapshot.abort()
                             }
-                        }
 
-                        private fun dumpSetAndFlush(
-                            format: String,
-                            allLinksIndex: FieldIndex,
-                            txn: PersistentStoreTransaction,
-                            total: Double,
-                            done: Long,
-                            prevLinkId: Int,
-                            idSet: PersistentLongSet.MutableSet
-                        ): Long {
-                            var done = done
-                            val itr = idSet.longIterator()
-                            while (itr.hasNext()) {
-                                allLinksIndex.put(txn.environmentTransaction, prevLinkId, itr.nextLong())
-                                done++
-                                if (done % 10000 == 0L) {
-                                    logInfo(String.format(format, done.toDouble() * 100 / total))
+                            private fun dumpSetAndFlush(
+                                    format: String,
+                                    allLinksIndex: FieldIndex,
+                                    txn: PersistentStoreTransaction,
+                                    total: Double,
+                                    done: Long,
+                                    prevLinkId: Int,
+                                    idSet: PersistentLongSet.MutableSet
+                            ): Long {
+                                var done = done
+                                val itr = idSet.longIterator()
+                                while (itr.hasNext()) {
+                                    allLinksIndex.put(txn.environmentTransaction, prevLinkId, itr.nextLong())
+                                    done++
+                                    if (done % 10000 == 0L) {
+                                        logInfo(String.format(format, done.toDouble() * 100 / total))
+                                    }
+                                    if (done % 100000 == 0L && !txn.flush()) {
+                                        throw IllegalStateException("cannot flush")
+                                    }
                                 }
-                                if (done % 100000 == 0L && !txn.flush()) {
-                                    throw IllegalStateException("cannot flush")
-                                }
+                                idSet.clear()
+                                return done
                             }
-                            idSet.clear()
-                            return done
                         }
-                    }
                 )
             }
         }
@@ -375,8 +375,8 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         store.environment.executeInExclusiveTransaction { txn ->
                             for (redundantLink in redundantLinks) {
                                 deletePair(linksTable.getSecondIndexCursor(txn),
-                                    redundantLink.first,
-                                    redundantLink.second)
+                                        redundantLink.first,
+                                        redundantLink.second)
                             }
                             for (deleteLink in deleteLinks) {
                                 deletePair(linksTable.getFirstIndexCursor(txn), deleteLink.first, deleteLink.second)
@@ -457,7 +457,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             txn as PersistentStoreTransaction
                             for (localId in entitiesToDelete) {
                                 store.deleteEntity(txn,
-                                    PersistentEntity(store, PersistentEntityId(entityTypeId, localId)))
+                                        PersistentEntity(store, PersistentEntityId(entityTypeId, localId)))
                             }
                         }
                     }
@@ -475,7 +475,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             for (localId in localIds) {
                                 val propValue = checkNotNull(entitiesToValues[localId])
                                 for (secondaryKey in PropertiesTable.createSecondaryKeys(
-                                    propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.type)) {
+                                        propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.type)) {
                                     val secondaryValue: ByteIterable = LongBinding.longToCompressedEntry(localId)
                                     if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
                                         missingPairs.add(propId to (secondaryKey to secondaryValue))
@@ -589,7 +589,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         store.executeInExclusiveTransaction { txn ->
                             val envTxn = (txn as PersistentStoreTransaction).environmentTransaction
                             phantomIds.forEach { phantom ->
-                                propTable.allPropsIndex.remove(envTxn,phantom.first, phantom.second)
+                                propTable.allPropsIndex.remove(envTxn, phantom.first, phantom.second)
                             }
                         }
                         logInfo("${phantomIds.size} phantom id pairs found and fixed for [$entityType]")
@@ -618,16 +618,18 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             try {
                                 ArrayByteIterable(cursor.value).let {
                                     val propertyType = propertyTypes.getPropertyType((it.iterator()
-                                        .next() xor (0x80).toByte()).toInt())
+                                            .next() xor (0x80).toByte()).toInt())
                                     when (propertyType.typeId) {
                                         ComparableValueType.FLOAT_VALUE_TYPE -> {
                                             props[PropertyKey.entryToPropertyKey(cursor.key)] =
-                                                propertyTypes.entryToPropertyValue(it, FloatBinding.BINDING) to it
+                                                    propertyTypes.entryToPropertyValue(it, FloatBinding.BINDING) to it
                                         }
+
                                         ComparableValueType.DOUBLE_VALUE_TYPE -> {
                                             props[PropertyKey.entryToPropertyKey(cursor.key)] =
-                                                propertyTypes.entryToPropertyValue(it, DoubleBinding.BINDING) to it
+                                                    propertyTypes.entryToPropertyValue(it, DoubleBinding.BINDING) to it
                                         }
+
                                         else -> {
                                         }
                                     }
@@ -640,8 +642,8 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         props.keys.sortedBy { it.entityLocalId }.forEach { key ->
                             props[key]?.let { (propValue, it) ->
                                 propTable.put(txn, key.entityLocalId,
-                                    PropertyTypes.propertyValueToEntry(propValue),
-                                    it, key.propertyId, propValue.type)
+                                        PropertyTypes.propertyValueToEntry(propValue),
+                                        it, key.propertyId, propValue.type)
                             }
                         }
                         logInfo("${props.size} negative float & double props fixed.")
@@ -660,9 +662,9 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                 val blobsTable = store.getBlobsTable(txn, entityTypeId)
                 inPlaceBlobs.forEach { (blobKey, it) ->
                     blobsTable.put(txn.environmentTransaction,
-                        blobKey.entityLocalId, blobKey.propertyId,
-                        CompoundByteIterable(arrayOf(
-                            store.blobHandleToEntry(IN_PLACE_BLOB_HANDLE), it))
+                            blobKey.entityLocalId, blobKey.propertyId,
+                            CompoundByteIterable(
+                                    store.blobHandleToEntry(IN_PLACE_BLOB_HANDLE), it)
                     )
                 }
             }
@@ -693,6 +695,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                         inPlaceBlobs.clear()
                                     }
                                 }
+
                                 else -> {
                                     blobHandles.add(blobKey to blobHandle)
                                 }
@@ -711,8 +714,8 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     val blobsTable = store.getBlobsTable(txn, entityTypeId)
                     blobHandles.forEach { (blobKey, handle) ->
                         blobsTable.put(
-                            txn.environmentTransaction,
-                            blobKey.entityLocalId, blobKey.propertyId, store.blobHandleToEntry(handle)
+                                txn.environmentTransaction,
+                                blobKey.entityLocalId, blobKey.propertyId, store.blobHandleToEntry(handle)
                         )
                     }
                     safeRemoveStore(oldBlobsTable.primaryIndex.name, txn.environmentTransaction)
@@ -731,9 +734,9 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
             store.executeInExclusiveTransaction { txn ->
                 txn as PersistentStoreTransaction
                 val entityOfTypeBitmap = store.environment.openBitmap(
-                    tableName,
-                    WITHOUT_DUPLICATES_WITH_PREFIXING,
-                    txn.environmentTransaction
+                        tableName,
+                        WITHOUT_DUPLICATES_WITH_PREFIXING,
+                        txn.environmentTransaction
                 )
                 val oldEntitiesTable = SingleColumnTable(txn, tableName, USE_EXISTING)
                 entityIds.toArray().forEach { id ->
@@ -812,7 +815,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                 val envTxn = txn.environmentTransaction
                 val lastApplied = Settings.get(envTxn, settings, settingName)
                 if ((lastApplied?.toLong() ?: 0L) +
-                    (config.refactoringDeduplicateBlobsEvery.toLong() * 24L * 3600L * 1000L) > System.currentTimeMillis()) continue
+                        (config.refactoringDeduplicateBlobsEvery.toLong() * 24L * 3600L * 1000L) > System.currentTimeMillis()) continue
                 logInfo("Deduplicate in-place blobs for [$entityType]")
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                 val inPlaceBlobs = IntHashMap<PropertyKey>()
@@ -838,24 +841,22 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                         LongBinding.readCompressed(testIt)
                                         // if duplicate
                                         if (size == CompressedUnsignedLongByteIterable.getLong(testIt).toInt() && stream ==
-                                            ByteArraySizedInputStream(ByteIterableBase.readIterator(testIt, size))
+                                                ByteArraySizedInputStream(ByteIterableBase.readIterator(testIt, size))
                                         ) {
                                             store.executeInExclusiveTransaction { txn ->
                                                 val blobHashes = store.getBlobHashesTable(
-                                                    txn as PersistentStoreTransaction, entityTypeId
+                                                        txn as PersistentStoreTransaction, entityTypeId
                                                 )
                                                 val hashEntry = IntegerBinding.intToEntry(streamHash)
                                                 val envTxn = txn.environmentTransaction
                                                 blobHashes.database.put(
-                                                    envTxn, hashEntry,
-                                                    ArrayByteIterable(stream.toByteArray(), size)
+                                                        envTxn, hashEntry,
+                                                        ArrayByteIterable(stream.toByteArray(), size)
                                                 )
                                                 val refValue = CompoundByteIterable(
-                                                    arrayOf(
                                                         store.blobHandleToEntry(IN_PLACE_BLOB_REFERENCE_HANDLE),
                                                         CompressedUnsignedLongByteIterable.getIterable(size.toLong()),
                                                         hashEntry
-                                                    )
                                                 )
                                                 blobs.put(envTxn, key.entityLocalId, key.propertyId, refValue)
                                                 blobs.put(envTxn, blobKey.entityLocalId, blobKey.propertyId, refValue)
@@ -870,8 +871,8 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             // it's okay, do nothing
                         } catch (t: Throwable) {
                             logger.error(
-                                "refactorDeduplicateInPlaceBlobs(): error reading blobs for [$entityType]",
-                                t
+                                    "refactorDeduplicateInPlaceBlobs(): error reading blobs for [$entityType]",
+                                    t
                             )
                             throwJVMError(t)
                         }
@@ -895,7 +896,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     txn as PersistentStoreTransaction
                     val envTxn = txn.environmentTransaction
                     val allPropsIndexBitmap =
-                        envTxn.environment.openBitmap(obsoleteName, WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn)
+                            envTxn.environment.openBitmap(obsoleteName, WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn)
                     envTxn.environment.openStore(obsoleteName, USE_EXISTING, envTxn).openCursor(envTxn).use { c ->
                         while (c.next) {
                             val propertyId = IntegerBinding.compressedEntryToInt(c.key)
@@ -935,7 +936,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
         try {
             with(txn.environment) {
                 if (storeExists(name, txn)) {
-                    removeStore(name, txn);
+                    removeStore(name, txn)
                 }
             }
         } catch (e: ExodusException) {

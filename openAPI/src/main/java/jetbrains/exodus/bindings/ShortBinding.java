@@ -51,7 +51,7 @@ public class ShortBinding extends ComparableBinding {
      * @return de-serialized value
      */
     public static short entryToShort(@NotNull final ByteIterable entry) {
-        return (Short) BINDING.entryToObject(entry);
+        return entry.getShort(0);
     }
 
     /**

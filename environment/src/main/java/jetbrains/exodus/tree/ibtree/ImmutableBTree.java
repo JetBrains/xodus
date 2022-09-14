@@ -7,8 +7,6 @@ import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
 
-import java.nio.ByteOrder;
-
 public final class ImmutableBTree implements BTree {
     static final int LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET = Long.BYTES;
 
@@ -85,11 +83,9 @@ public final class ImmutableBTree implements BTree {
 
     ImmutableBasePage loadPage(long pageAddress) {
         var loggable = log.readLoggableAsPage(pageAddress);
-        var page = loggable.getBuffer();
+        var page = loggable.array;
 
-        page.order(ByteOrder.nativeOrder());
-
-        var type = loggable.getType();
+        var type = loggable.type;
         if (type == INTERNAL_PAGE || type == INTERNAL_ROOT_PAGE) {
             return new ImmutableInternalPage(this, log, page, pageAddress);
         } else if (type == LEAF_PAGE || type == LEAF_ROOT_PAGE) {

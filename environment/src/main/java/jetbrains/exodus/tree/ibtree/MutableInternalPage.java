@@ -1,5 +1,7 @@
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
@@ -24,7 +26,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
 
         if (underlying != null) {
             pageAddress = underlying.address;
-            serializedSize = underlying.currentPage.limit() + Long.BYTES;
+            serializedSize = underlying.currentPage.getLength() + Long.BYTES;
             this.keyPrefix = underlying.keyPrefix();
         } else {
             pageAddress = -1;
@@ -34,7 +36,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         }
 
         if (underlying == null) {
-            keys = new ByteBuffer[64];
+            keys = new ByteIterable[64];
             children = new MutablePage[64];
 
             entriesSize = 0;
@@ -43,8 +45,8 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
 
     MutableInternalPage(@NotNull MutableBTree tree,
                         @NotNull ExpiredLoggableCollection expiredLoggables, @NotNull Log log,
-                        ByteBuffer[] keys, MutablePage[] children, int entriesSize,
-                        int serializedSize, ByteBuffer keyPrefix) {
+                        ByteIterable[] keys, MutablePage[] children, int entriesSize,
+                        int serializedSize, ByteIterable keyPrefix) {
         super(tree, null, expiredLoggables, log);
 
         pageAddress = -1;
@@ -54,7 +56,6 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         this.keys = keys;
         this.children = children;
         this.entriesSize = entriesSize;
-
     }
 
 
@@ -85,7 +86,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
     }
 
     @Override
-    public ByteBuffer value(int index) {
+    public ByteIterable value(int index) {
         throw new UnsupportedOperationException("Internal page can not contain values");
     }
 
@@ -161,10 +162,9 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET + Long.BYTES, keyPrefixSize);
 
         if (keyPrefixSize > 0) {
-            buffer.put(ImmutableBasePage.ENTRY_POSITIONS_OFFSET + 2 * Long.BYTES * size,
-                    keyPrefix, 0, keyPrefixSize);
+            keyPrefix.writeIntoBuffer(buffer,
+                    ImmutableBasePage.ENTRY_POSITIONS_OFFSET + 2 * Long.BYTES * size);
         }
-
 
         int keyPositionsOffset = ImmutableBasePage.ENTRY_POSITIONS_OFFSET + Long.BYTES;
         int childAddressesOffset = keyPositionsOffset + Long.BYTES * size;
@@ -175,7 +175,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
             var key = keys[i];
             assert key != null;
 
-            var keySize = key.limit();
+            var keySize = key.getLength();
             var child = children[i];
             assert child != null;
 
@@ -191,7 +191,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
             assert buffer.alignmentOffset(childAddressesOffset, Long.BYTES) == 0;
             buffer.putLong(childAddressesOffset, childAddresses[i]);
 
-            buffer.put(keysDataOffset, key, 0, keySize);
+            key.writeIntoBuffer(buffer, keysDataOffset);
 
             keyPositionsOffset += Long.BYTES;
             keysDataOffset += keySize;
@@ -285,14 +285,14 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
             var key = keys[i];
             assert key != null;
 
-            size += key.limit();
+            size += key.getLength();
         }
 
         return size;
     }
 
-    private int entrySize(ByteBuffer key) {
-        return 2 * Long.BYTES + key.limit();
+    private int entrySize(ByteIterable key) {
+        return 2 * Long.BYTES + key.getLength();
     }
 
 
@@ -328,7 +328,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
             var key = keysToMerge[i];
             assert key != null;
 
-            serializedSize += key.limit();
+            serializedSize += key.getLength();
         }
 
         entriesSize = resultSize;
@@ -336,7 +336,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         unbalanced = true;
     }
 
-    public void updateFirstKey(ByteBuffer key) {
+    public void updateFirstKey(ByteIterable key) {
         fetch();
 
         assert this.keys != null && entriesSize > 0;
@@ -345,14 +345,14 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
 
         assert currentKey != null;
 
-        serializedSize -= currentKey.limit();
+        serializedSize -= currentKey.getLength();
         keys[0] = key;
-        serializedSize += key.limit();
+        serializedSize += key.getLength();
     }
 
     @Override
-    public boolean split(@Nullable MutableInternalPage parent, int parentIndex, @NotNull ByteBuffer insertedKey,
-                         @Nullable ByteBuffer upperBound) {
+    public boolean split(@Nullable MutableInternalPage parent, int parentIndex, @NotNull ByteIterable insertedKey,
+                         @Nullable ByteIterable upperBound) {
         assert entriesSize >= 4 && serializedSize > pageSize;
 
         final int size = entriesSize;
@@ -365,7 +365,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         var keyPrefixSize = getKeyPrefixSize();
         int newSize = ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET +
                 ImmutableLeafPage.ENTRY_POSITIONS_OFFSET + keyPrefixSize +
-                2 * Long.BYTES * 2 + Long.BYTES + keys[0].limit() + keys[1].limit();
+                2 * Long.BYTES * 2 + Long.BYTES + keys[0].getLength() + keys[1].getLength();
 
 
         int splitAt = 2;
@@ -388,7 +388,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
                 ImmutableLeafPage.ENTRY_POSITIONS_OFFSET + keyPrefixSize + Long.BYTES + (serializedSize - newSize);
 
         final int childEntriesCapacity = Math.max(MathUtil.closestPowerOfTwo(childEntriesSize), 64);
-        final ByteBuffer[] childKeys = new ByteBuffer[childEntriesCapacity];
+        final ByteIterable[] childKeys = new ByteIterable[childEntriesCapacity];
         final MutablePage[] childChildren = new MutablePage[childEntriesCapacity];
 
         System.arraycopy(keys, splitAt, childKeys, 0, childEntriesSize);
@@ -414,21 +414,18 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         var parentPrefixSize = parent.getKeyPrefixSize();
         var parentPrefixSizeDiff = keyPrefixSize - parentPrefixSize;
 
-        ByteBuffer parentKey;
+        ByteIterable parentKey;
 
         var separationKey = childKeys[0];
-        var separationKeySize = separationKey.limit();
 
         if (parentPrefixSizeDiff > 0) {
-            parentKey = ByteBuffer.allocate(separationKeySize + parentPrefixSizeDiff);
-            parentKey.put(0, insertedKey, parentPrefixSize, parentPrefixSizeDiff);
-            parentKey.put(parentPrefixSizeDiff, separationKey, 0, separationKeySize);
+            parentKey = new CompoundByteIterable(
+                    insertedKey.subIterable(parentPrefixSize, parentPrefixSizeDiff), separationKey);
         } else {
-            parentKey = separationKey.slice(0, separationKeySize);
+            parentKey = separationKey;
         }
 
-        var split = parent.addChild(parentIndex + 1,
-                parentKey, childPage);
+        var split = parent.addChild(parentIndex + 1, parentKey, childPage);
 
         assert serializedSize == serializedSize();
         assert childPage.serializedSize == childPage.serializedSize();
@@ -442,7 +439,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
     }
 
 
-    boolean addChild(int index, ByteBuffer key, MutablePage page) {
+    boolean addChild(int index, ByteIterable key, MutablePage page) {
         fetch();
 
         assert key != null;
@@ -471,7 +468,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         return entriesSize > 4 && serializedSize > pageSize;
     }
 
-    void updatePrefixSize(int index, ByteBuffer upperBoundary) {
+    void updatePrefixSize(int index, ByteIterable upperBoundary) {
         assert index > 0;
 
         updateCommonPrefix(index - 1, keys[index]);
@@ -479,25 +476,26 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
             updateCommonPrefix(index, keys[index + 1]);
         } else {
             if (upperBoundary != null) {
-                if (upperBoundary.remaining() > 0) {
+                if (upperBoundary.getLength() > 0) {
                     updateCommonPrefix(index, upperBoundary);
                 }
             }
         }
     }
 
-    private void updateCommonPrefix(int index, ByteBuffer nextKey) {
+    private void updateCommonPrefix(int index, ByteIterable nextKey) {
         var key = keys[index];
 
         var keyPrefixSize = getKeyPrefixSize();
-        var commonSize = MutableBTree.commonPrefix(key, nextKey);
+        var commonSize = key.commonPrefix(nextKey);
+
         var commonPrefixSize = keyPrefixSize + commonSize;
         var child = children[index];
 
         var childKeyPrefixSize = child.getKeyPrefixSize();
 
         if (childKeyPrefixSize < commonPrefixSize) {
-            final var prefix = key.slice(childKeyPrefixSize - keyPrefixSize,
+            final var prefix = key.subIterable(childKeyPrefixSize - keyPrefixSize,
                     commonPrefixSize - childKeyPrefixSize);
             child.truncateKeys(prefix);
         }
@@ -513,7 +511,7 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
         final int size = underlying.getEntriesCount();
         final int capacity = Math.max(MathUtil.closestPowerOfTwo(size), 64);
 
-        keys = new ByteBuffer[capacity];
+        keys = new ByteIterable[capacity];
         children = new MutablePage[capacity];
         entriesSize = size;
 

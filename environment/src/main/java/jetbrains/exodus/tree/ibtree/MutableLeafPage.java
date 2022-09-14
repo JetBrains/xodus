@@ -1,5 +1,7 @@
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.CompoundByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
@@ -17,7 +19,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
     boolean unbalanced;
 
     @Nullable
-    ByteBuffer[] values;
+    ByteIterable[] values;
 
     MutableLeafPage(@NotNull MutableBTree tree, @Nullable ImmutableLeafPage underlying,
                     @NotNull Log log,
@@ -26,7 +28,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
 
         if (underlying != null) {
             this.pageAddress = underlying.address;
-            this.serializedSize = underlying.page.limit() + ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET;
+            this.serializedSize = underlying.page.getLength() + ImmutableBTree.LOGGABLE_TYPE_STRUCTURE_METADATA_OFFSET;
             this.keyPrefix = underlying.keyPrefix();
         } else {
             this.pageAddress = -1;
@@ -36,16 +38,16 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         }
 
         if (underlying == null) {
-            keys = new ByteBuffer[64];
-            values = new ByteBuffer[64];
+            keys = new ByteIterable[64];
+            values = new ByteIterable[64];
             entriesSize = 0;
         }
     }
 
     MutableLeafPage(@NotNull MutableBTree tree,
                     @NotNull Log log,
-                    @NotNull ExpiredLoggableCollection expiredLoggables, int serializedSize, ByteBuffer keyPrefix,
-                    int entriesSize, ByteBuffer[] keys, ByteBuffer[] values) {
+                    @NotNull ExpiredLoggableCollection expiredLoggables, int serializedSize, ByteIterable keyPrefix,
+                    int entriesSize, ByteIterable[] keys, ByteIterable[] values) {
         super(tree, null, expiredLoggables, log);
 
         this.pageAddress = -1;
@@ -67,7 +69,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
     }
 
     @Override
-    public ByteBuffer value(int index) {
+    public ByteIterable value(int index) {
         if (underlying != null) {
             return underlying.value(index);
         }
@@ -76,7 +78,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         return values[index];
     }
 
-    boolean set(int index, ByteBuffer key, ByteBuffer value) {
+    boolean set(int index, ByteIterable key, ByteIterable value) {
         fetch();
 
         assert keys != null;
@@ -89,12 +91,12 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         keys[index] = key;
         values[index] = value;
 
-        serializedSize += key.limit() + value.limit() - prevValue.limit() - prevKey.limit();
+        serializedSize += key.getLength() + value.getLength() - prevValue.getLength() - prevKey.getLength();
 
         return entriesSize > 1 && serializedSize > pageSize;
     }
 
-    boolean insert(int index, ByteBuffer key, ByteBuffer value) {
+    boolean insert(int index, ByteIterable key, ByteIterable value) {
         fetch();
 
         assert keys != null;
@@ -117,7 +119,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         return entriesSize > 1 && serializedSize > pageSize;
     }
 
-    boolean append(ByteBuffer key, ByteBuffer value) {
+    boolean append(ByteIterable key, ByteIterable value) {
         fetch();
 
         assert keys != null;
@@ -134,8 +136,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         return entriesSize > 1 && serializedSize > pageSize;
     }
 
-    private int entrySize(ByteBuffer key, ByteBuffer value) {
-        return 2 * Long.BYTES + key.limit() + value.limit();
+    private int entrySize(ByteIterable key, ByteIterable value) {
+        return 2 * Long.BYTES + key.getLength() + value.getLength();
     }
 
     private void ensureCapacity(int size) {
@@ -159,7 +161,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         System.arraycopy(values, index + 1, values, index, size - (index + 1));
 
         entriesSize--;
-        serializedSize -= (prevValue.limit() + prevKey.limit() + 2 * Long.BYTES);
+        serializedSize -= (prevValue.getLength() + prevKey.getLength() + 2 * Long.BYTES);
 
         unbalanced = true;
     }
@@ -233,8 +235,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         buffer.putInt(ImmutableBasePage.KEY_PREFIX_LEN_OFFSET, keyPrefixSize);
 
         if (keyPrefixSize > 0) {
-            buffer.put(ImmutableBasePage.ENTRY_POSITIONS_OFFSET + 2 * Long.BYTES * size,
-                    keyPrefix, 0, keyPrefixSize);
+            keyPrefix.writeIntoBuffer(buffer,
+                    ImmutableBasePage.ENTRY_POSITIONS_OFFSET + 2 * Long.BYTES * size);
         }
 
         int keysPositionsOffset = ImmutableBasePage.ENTRY_POSITIONS_OFFSET;
@@ -251,9 +253,9 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
             assert value != null;
 
             var keyPosition = keysDataOffset;
-            var keySize = key.limit();
+            var keySize = key.getLength();
 
-            var valueSize = value.limit();
+            var valueSize = value.getLength();
             var valuePosition = valuesDataOffset - valueSize;
 
             valuesDataOffset = valuePosition;
@@ -270,8 +272,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
             buffer.putInt(valuesPositionsOffset, valuePosition);
             buffer.putInt(valuesPositionsOffset + Integer.BYTES, valueSize);
 
-            buffer.put(keysDataOffset, key, 0, keySize);
-            buffer.put(valuesDataOffset, value, 0, valueSize);
+            key.writeIntoBuffer(buffer, keysDataOffset);
+            value.writeIntoBuffer(buffer, valuesDataOffset);
 
             keysPositionsOffset += Long.BYTES;
             valuesPositionsOffset += Long.BYTES;
@@ -309,7 +311,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         serializedSize += 2 * Long.BYTES * leafPageToMergeEntriesSize;
 
         for (int i = 0; i < leafPageToMergeEntriesSize; i++) {
-            serializedSize += leafPageToMergeKeys[i].limit() + leafPageToMergeValues[i].limit();
+            serializedSize += leafPageToMergeKeys[i].getLength() + leafPageToMergeValues[i].getLength();
         }
 
         var mergedSize = leafPageToMergeEntriesSize + entriesSize;
@@ -341,8 +343,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
             assert key != null;
             assert value != null;
 
-            size += key.limit();
-            size += value.limit();
+            size += key.getLength();
+            size += value.getLength();
         }
 
         return size;
@@ -350,8 +352,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
 
 
     @Override
-    public boolean split(@Nullable MutableInternalPage parent, int parentIndex, @NotNull ByteBuffer insertedKey,
-                         @Nullable ByteBuffer upperBound) {
+    public boolean split(@Nullable MutableInternalPage parent, int parentIndex, @NotNull ByteIterable insertedKey,
+                         @Nullable ByteIterable upperBound) {
         assert entriesSize >= 2 && serializedSize > pageSize;
 
         final int size = entriesSize;
@@ -365,7 +367,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         assert keys[0] != null;
         assert values[0] != null;
 
-        int newSize = keys[0].limit() + values[0].limit() + 2 * Long.BYTES;
+        int newSize = keys[0].getLength() + values[0].getLength() + 2 * Long.BYTES;
         int splitAt = 1;
 
         var threshold = (pageSize - prefixSize) / 2;
@@ -383,6 +385,7 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
             newSize = nextSize;
         }
 
+        assert keys[splitAt] != null;
         final int separationKeyMismatchSize = keys[splitAt - 1].mismatch(keys[splitAt]) + 1;
 
         final int childEntriesSize = size - splitAt;
@@ -390,8 +393,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
 
         final int childEntriesCapacity = Math.max(MathUtil.closestPowerOfTwo(childEntriesSize), 64);
 
-        final ByteBuffer[] childKeys = new ByteBuffer[childEntriesCapacity];
-        final ByteBuffer[] childValues = new ByteBuffer[childEntriesCapacity];
+        final ByteIterable[] childKeys = new ByteIterable[childEntriesCapacity];
+        final ByteIterable[] childValues = new ByteIterable[childEntriesCapacity];
 
         System.arraycopy(keys, splitAt, childKeys, 0, childEntriesSize);
         System.arraycopy(values, splitAt, childValues, 0, childEntriesSize);
@@ -413,19 +416,30 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         var childPage = new MutableLeafPage(tree, log, expiredLoggables, childSerializedSize, keyPrefix,
                 childEntriesSize, childKeys, childValues);
 
-        ByteBuffer parentKey;
+        ByteIterable parentKey;
 
         var separationKey = childKeys[0];
         var parentPrefixSize = parent.getKeyPrefixSize();
+        var separationKeySize = separationKey.getLength();
 
         var parentPrefixSizeDiff = keyPrefixSize - parentPrefixSize;
         if (parentPrefixSizeDiff > 0) {
-            parentKey = ByteBuffer.allocate(separationKeyMismatchSize + parentPrefixSizeDiff);
+            if (separationKeySize > separationKeyMismatchSize) {
+                parentKey = new CompoundByteIterable(
+                        insertedKey.subIterable(parentPrefixSize, parentPrefixSizeDiff),
+                        separationKey.subIterable(0, separationKeyMismatchSize));
+            } else {
+                parentKey = new CompoundByteIterable(
+                        insertedKey.subIterable(parentPrefixSize, parentPrefixSizeDiff),
+                        separationKey);
+            }
 
-            parentKey.put(0, insertedKey, parentPrefixSize, parentPrefixSizeDiff);
-            parentKey.put(parentPrefixSizeDiff, separationKey, 0, separationKeyMismatchSize);
         } else {
-            parentKey = separationKey.slice(0, separationKeyMismatchSize);
+            if (separationKeySize > separationKeyMismatchSize) {
+                parentKey = separationKey.subIterable(0, separationKeyMismatchSize);
+            } else {
+                parentKey = separationKey;
+            }
         }
 
         var split = parent.addChild(parentIndex + 1, parentKey, childPage);
@@ -452,8 +466,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         final int size = underlying.getEntriesCount();
         final int capacity = Math.max(MathUtil.closestPowerOfTwo(size), 64);
 
-        keys = new ByteBuffer[capacity];
-        values = new ByteBuffer[capacity];
+        keys = new ByteIterable[capacity];
+        values = new ByteIterable[capacity];
         entriesSize = size;
 
         for (int i = 0; i < size; i++) {

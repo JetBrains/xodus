@@ -94,7 +94,7 @@ public final class ByteBufferByteIterable implements ByteIterable, ByteBufferIte
     @NotNull
     @Override
     public ByteIterable subIterable(final int offset, final int length) {
-        final ByteBuffer copy = buffer.slice(offset, Math.min(buffer.limit(), offset + length));
+        final ByteBuffer copy = buffer.slice(offset, length);
         return new ByteBufferByteIterable(copy, length);
     }
 

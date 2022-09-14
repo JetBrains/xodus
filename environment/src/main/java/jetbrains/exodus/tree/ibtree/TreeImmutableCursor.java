@@ -18,15 +18,12 @@
 
 package jetbrains.exodus.tree.ibtree;
 
-import jetbrains.exodus.ByteBufferByteIterable;
-import jetbrains.exodus.ByteBufferComparator;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.nio.ByteBuffer;
 
 public class TreeImmutableCursor implements ITreeCursor {
     private ImmutableCursorState state;
@@ -89,63 +86,35 @@ public class TreeImmutableCursor implements ITreeCursor {
 
     @Override
     public final @NotNull ByteIterable getKey() {
-        var result = getKeyBuffer();
+        var result = state.key();
 
         if (result == null) {
             return ByteIterable.EMPTY;
         }
 
-        return new ByteBufferByteIterable(result);
-    }
-
-    @Override
-    public final ByteBuffer getKeyBuffer() {
-        if (state == null) {
-            return null;
-        }
-
-        return state.key();
+        return result;
     }
 
 
     @Override
     public final @NotNull ByteIterable getValue() {
-        var result = getValueBuffer();
+        var result = state.value();
         if (result == null) {
             return ByteIterable.EMPTY;
         }
 
-        return new ByteBufferByteIterable(result);
-    }
-
-
-    @Override
-    public final ByteBuffer getValueBuffer() {
-        if (state == null) {
-            return null;
-        }
-
-        return state.value();
+        return result;
     }
 
     @Override
     public final @Nullable ByteIterable getSearchKey(@NotNull ByteIterable key) {
-        var result = getSearchKey(key.getByteBuffer());
-        if (result == null) {
-            return null;
-        }
-
-        return new ByteBufferByteIterable(result);
-    }
-
-    @Override
-    public @Nullable ByteBuffer getSearchKey(@NotNull ByteBuffer key) {
         return findByKey(key);
     }
 
     @Nullable
-    private ByteBuffer findByKey(@NotNull ByteBuffer key) {
+    private ByteIterable findByKey(@NotNull ByteIterable key) {
         var page = root;
+
         if (page.getEntriesCount() == 0) {
             return null;
         }
@@ -154,26 +123,21 @@ public class TreeImmutableCursor implements ITreeCursor {
             state = new ImmutableCursorState(root, ImmutableCursorState.Traverse.NONE);
         }
 
-        return page.find(key.duplicate(), state, 0);
-    }
-
-    @Override
-    public final @Nullable ByteIterable getSearchKeyRange(@NotNull ByteIterable key) {
-        var result = getSearchKeyRange(key.getByteBuffer());
-        if (result == null) {
-            return null;
+        if (key instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
+            return page.find(arrayBackedByteIterable.duplicate(), state, 0, arrayBackedByteIterable.offset);
         }
 
-        return new ByteBufferByteIterable(result);
+        var currentKey = new ArrayBackedByteIterable(key.getBytesUnsafe(), 0, key.getLength());
+        return page.find(currentKey, state, 0, currentKey.offset);
     }
 
     @Override
-    public @Nullable ByteBuffer getSearchKeyRange(@NotNull ByteBuffer key) {
+    public @Nullable ByteIterable getSearchKeyRange(@NotNull ByteIterable key) {
         return findByKeyRange(key);
     }
 
     @Nullable
-    final ByteBuffer findByKeyRange(@NotNull ByteBuffer key) {
+    final ByteIterable findByKeyRange(@NotNull ByteIterable key) {
         var page = root;
         if (page.getEntriesCount() == 0) {
             return null;
@@ -183,43 +147,36 @@ public class TreeImmutableCursor implements ITreeCursor {
             state = new ImmutableCursorState(root, ImmutableCursorState.Traverse.NONE);
         }
 
-        return page.findByKeyRange(key.duplicate(), state, 0, false);
+        ArrayBackedByteIterable currentKey;
+
+        if (key instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
+            currentKey = arrayBackedByteIterable;
+        } else {
+            currentKey = new ArrayBackedByteIterable(key.getBytesUnsafe(), 0, key.getLength());
+        }
+
+        return page.findByKeyRange(currentKey, state, 0, false);
     }
 
 
     @Override
-    public final boolean getSearchBoth(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        return getSearchBoth(key.getByteBuffer(), value.getByteBuffer());
-    }
-
-    @Override
-    public boolean getSearchBoth(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+    public boolean getSearchBoth(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         var foundValue = findByKey(key);
         if (foundValue == null) {
             return false;
         }
 
-        return ByteBufferComparator.INSTANCE.compare(foundValue, value) == 0;
+        return foundValue.compareTo(value) == 0;
     }
 
     @Override
-    public final @Nullable ByteIterable getSearchBothRange(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        var result = getSearchBothRange(key.getByteBuffer(), value.getByteBuffer());
-        if (result != null) {
-            return new ByteBufferByteIterable(result);
-        }
-
-        return null;
-    }
-
-    @Override
-    public @Nullable ByteBuffer getSearchBothRange(@NotNull ByteBuffer key, @NotNull ByteBuffer value) {
+    public @Nullable ByteIterable getSearchBothRange(@NotNull ByteIterable key, @NotNull ByteIterable value) {
         var foundValue = findByKeyRange(key);
         if (foundValue == null) {
             return null;
         }
 
-        if (ByteBufferComparator.INSTANCE.compare(foundValue, value) >= 0) {
+        if (foundValue.compareTo(value) >= 0) {
             return foundValue;
         }
 

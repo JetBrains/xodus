@@ -1,10 +1,9 @@
 package jetbrains.exodus.tree.ibtree;
 
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import org.jetbrains.annotations.NotNull;
-
-import java.nio.ByteBuffer;
 
 /**
  * Presentation of immutable leaf page in BTree.
@@ -12,7 +11,7 @@ import java.nio.ByteBuffer;
  * @see ImmutableBasePage
  */
 final class ImmutableLeafPage extends ImmutableBasePage {
-    ImmutableLeafPage(@NotNull Log log, @NotNull ByteBuffer page, long pageAddress) {
+    ImmutableLeafPage(@NotNull Log log, @NotNull ArrayBackedByteIterable page, long pageAddress) {
         super(log, page, pageAddress);
     }
 
@@ -36,7 +35,7 @@ final class ImmutableLeafPage extends ImmutableBasePage {
         return false;
     }
 
-    public ByteBuffer value(final int index) {
+    public ArrayBackedByteIterable value(final int index) {
         final int valuePositionSizeIndex = getChildAddressPositionIndex(index);
 
         return extractByteChunk(valuePositionSizeIndex);
