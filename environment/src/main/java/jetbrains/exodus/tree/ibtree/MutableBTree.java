@@ -144,11 +144,9 @@ public final class MutableBTree implements IBTreeMutable {
                 new ObjectArrayList<>(8);
         boolean smallestKey = false;
 
-        ArrayBackedByteIterable currentKey;
-        if (key instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
-            currentKey = arrayBackedByteIterable.duplicate();
-        } else {
-            currentKey = new ArrayBackedByteIterable(key.getBytesUnsafe(), 0, key.getLength());
+        ArrayBackedByteIterable currentKey = key.toArrayBackedIterable();
+        if (currentKey == key) {
+            currentKey = currentKey.duplicate();
         }
 
         ByteIterable keyBoundary = null;

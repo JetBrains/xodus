@@ -465,6 +465,8 @@ final class MutableInternalPage extends MutableBasePage<ImmutableInternalPage> {
 
         entriesSize++;
 
+        assert assertSorted();
+
         return entriesSize > 4 && serializedSize > pageSize;
     }
 

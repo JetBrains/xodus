@@ -52,6 +52,11 @@ public final class ArrayBackedByteIterable implements ByteIterable {
     }
 
     @Override
+    public ArrayBackedByteIterable toArrayBackedIterable() {
+        return this;
+    }
+
+    @Override
     public ByteIterator iterator() {
         return new ByteIterator() {
             private int currentOffset = offset;
@@ -113,6 +118,15 @@ public final class ArrayBackedByteIterable implements ByteIterable {
     @Override
     public String getString(int offset) {
         return BindingUtils.readString(bytes, this.offset + offset, this.limit - offset);
+    }
+
+    @Override
+    public byte getByte(int offset) {
+        if (this.offset + offset < limit) {
+            return bytes[this.offset + offset];
+        }
+
+        throw new IndexOutOfBoundsException();
     }
 
     @Override
@@ -181,6 +195,50 @@ public final class ArrayBackedByteIterable implements ByteIterable {
         var otherLength = o.getLength();
 
         return Arrays.compareUnsigned(bytes, offset, limit, otherArray, 0, otherLength);
+    }
+
+    @Override
+    public int commonPrefix(ByteIterable other) {
+        assert compareTo(other) < 0;
+
+        if (other instanceof CompoundByteIterable compoundByteIterable) {
+            return compoundByteIterable.reversedCommonPrefix(bytes, offset, limit - offset);
+        }
+
+        int otherArrayLength = other.getLength();
+
+        byte[] otherArray;
+        int otherOffset;
+
+        if (other instanceof ArrayBackedByteIterable otherArrayBackedByteIterable) {
+            otherOffset = otherArrayBackedByteIterable.offset;
+            otherArray = otherArrayBackedByteIterable.bytes;
+        } else {
+            otherOffset = 0;
+            otherArray = other.getBytesUnsafe();
+        }
+
+        var arrayLength = limit - offset;
+        var mismatch = Arrays.mismatch(bytes, offset, limit, otherArray, otherOffset,
+                otherOffset + otherArrayLength);
+
+        //first key is a prefix of second one
+        if (mismatch == arrayLength) {
+            return mismatch;
+        }
+
+        //if second key is only one byte longer
+        if (otherArrayLength == mismatch + 1) {
+            var mismatchedByteFirst = bytes[offset + mismatch];
+            var mismatchedByteSecond = otherArray[otherOffset + mismatch];
+
+            if (Byte.toUnsignedInt(mismatchedByteSecond) - Byte.toUnsignedInt(mismatchedByteFirst) == 1) {
+                return mismatch + 1;
+            }
+        }
+
+
+        return mismatch;
     }
 
     @Override

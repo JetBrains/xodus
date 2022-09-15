@@ -95,9 +95,13 @@ public final class CompoundByteIterable extends ByteIterableBase {
     }
 
     @Override
-    public int mismatch(ByteIterable other) {
-        var compared = 0;
+    public byte getByte(int offset) {
+        var iterable = findFirstIterable(offset);
+        return iterable.getByte(currentChunkOffset);
+    }
 
+    @Override
+    public int mismatch(ByteIterable other) {
         int otherOffset;
         byte[] otherArray;
 
@@ -111,7 +115,12 @@ public final class CompoundByteIterable extends ByteIterableBase {
             otherArray = other.getBytesUnsafe();
         }
 
-        int mismatch = -1;
+        return mismatchWithArray(otherArray, otherOffset, otherLength);
+    }
+
+    private int mismatchWithArray(byte[] array, int offset, int length) {
+        var compared = 0;
+
         for (int i = 0; i < count; i++) {
             var iterable = iterables[i];
 
@@ -130,25 +139,40 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
 
             if (i < count - 1) {
-                var mismatchLen = Math.min(iterableLen, otherLength - compared);
+                var mismatchLen = Math.min(iterableLen, length - compared);
                 var localMismatch = Arrays.mismatch(iterableArray, iterableOffset,
-                        iterableOffset + iterableLen, otherArray, otherOffset + compared,
-                        otherOffset + compared + mismatchLen);
+                        iterableOffset + iterableLen, array, offset + compared,
+                        offset + compared + mismatchLen);
 
-                if (localMismatch >= 0 || compared + mismatchLen == otherLength) {
+                if (localMismatch >= 0) {
                     return localMismatch + compared;
+                }
+
+                if (compared + mismatchLen == length) {
+                    final int currentLength = getLength();
+
+                    if (currentLength == length) {
+                        return -1;
+                    } else {
+                        return length;
+                    }
                 }
 
                 compared += mismatchLen;
             } else {
-                return Arrays.mismatch(iterableArray, 0, iterableArray.length, otherArray,
-                        otherOffset + compared, otherOffset + otherLength - compared)
-                        + compared;
-            }
+                final int localMismatch = Arrays.mismatch(iterableArray, iterableOffset,
+                        iterableOffset + iterableLen, array,
+                        offset + compared, offset + length);
 
+                if (localMismatch == -1) {
+                    return -1;
+                }
+
+                return localMismatch + compared;
+            }
         }
 
-        return mismatch;
+        return -1;
     }
 
 
@@ -178,11 +202,90 @@ public final class CompoundByteIterable extends ByteIterableBase {
         }
     }
 
-    private void findFirstChunk(final int offset) {
-        ByteIterable iterable = null;
-        int chunkIndex;
-        int chunkLength = 0;
+    @Override
+    public boolean isEmpty() {
+        for (int i = 0; i < count; i++) {
+            var iterable = iterables[i];
+            if (!iterable.isEmpty()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public int reversedCommonPrefix(byte[] array, int offset, int len) {
+        final int mismatch = mismatchWithArray(array, offset, len);
+
+        if (mismatch == len) {
+            return mismatch;
+        }
+
+        if (mismatch + 1 == getLength()) {
+            int last = count - 1;
+
+
+            while (true) {
+                var iterable = iterables[last];
+
+                if (!iterable.isEmpty()) {
+                    var mismatchedByteFirst = array[offset + mismatch];
+                    var mismatchedByteSecond = iterable.getByte(iterable.getLength() - 1);
+
+                    if (Byte.toUnsignedInt(mismatchedByteSecond) - Byte.toUnsignedInt(mismatchedByteFirst) == 1) {
+                        return mismatch + 1;
+                    }
+
+                    return mismatch;
+                }
+
+                last--;
+            }
+        }
+
+        return mismatch;
+    }
+
+    @Override
+    public int commonPrefix(ByteIterable other) {
+        assert compareTo(other) < 0;
+
+        byte[] otherArray;
+        int otherOffset;
+
+        var otherLen = other.getLength();
+
+        if (other instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
+            otherArray = arrayBackedByteIterable.bytes;
+            otherOffset = arrayBackedByteIterable.offset;
+        } else {
+            otherArray = other.getBytesUnsafe();
+            otherOffset = 0;
+        }
+
+        int mismatch = mismatchWithArray(otherArray, otherOffset, otherLen);
+        if (mismatch == getLength()) {
+            return mismatch;
+        }
+
+        if (mismatch + 1 == otherLen) {
+            var mismatchedByteFirst = getByte(mismatch);
+            var mismatchedByteSecond = otherArray[otherOffset + mismatch];
+
+            if (Byte.toUnsignedInt(mismatchedByteSecond) - Byte.toUnsignedInt(mismatchedByteFirst) == 1) {
+                return mismatch + 1;
+            }
+        }
+
+        return mismatch;
+    }
+
+    private ByteIterable findFirstIterable(final int offset) {
         int len = 0;
+        int chunkIndex;
+        int chunkLength;
+
+        ByteIterable iterable = null;
 
         for (chunkIndex = 0; chunkIndex < count; chunkIndex++) {
             iterable = iterables[chunkIndex];
@@ -195,7 +298,36 @@ public final class CompoundByteIterable extends ByteIterableBase {
             len += chunkLength;
         }
 
-        if (len <= offset) {
+        if (chunkIndex == count) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        assert iterable != null;
+
+        this.currentChunkIndex = chunkIndex;
+        this.currentChunkOffset = offset - len;
+
+        return iterable;
+    }
+
+    private void findFirstChunk(final int offset) {
+        ByteIterable iterable = null;
+        int chunkIndex;
+        int chunkLength = 0;
+
+        int len = 0;
+        for (chunkIndex = 0; chunkIndex < count; chunkIndex++) {
+            iterable = iterables[chunkIndex];
+
+            chunkLength = iterable.getLength();
+            if (len + chunkLength > offset) {
+                break;
+            }
+
+            len += chunkLength;
+        }
+
+        if (chunkIndex == count) {
             throw new IndexOutOfBoundsException();
         }
 
@@ -206,9 +338,9 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
         if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
             chunk = arrayBackedByteIterable.bytes;
-            chunkOffset = arrayBackedByteIterable.offset + (len - offset);
+            chunkOffset = arrayBackedByteIterable.offset + (offset - len);
         } else {
-            chunkOffset = len - offset;
+            chunkOffset = offset - len;
             chunk = iterable.getBytesUnsafe();
         }
 

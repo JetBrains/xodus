@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -138,7 +138,7 @@ public abstract class ByteIterableBase implements ByteIterable {
         return toString(getBytesUnsafe(), 0, getLength());
     }
 
-    public static String toString(@Nullable final byte[] bytes, final int start, final int end) {
+    public static String toString(final byte @Nullable [] bytes, final int start, final int end) {
         if (bytes == null) {
             return "null";
         }
@@ -157,8 +157,7 @@ public abstract class ByteIterableBase implements ByteIterable {
     }
 
     public static void fillBytes(@NotNull final ByteIterable bi, @NotNull final LightOutputStream output) {
-        if (bi instanceof ArrayByteIterable) {
-            final ArrayByteIterable abi = (ArrayByteIterable) bi;
+        if (bi instanceof final ArrayByteIterable abi) {
             final int length = abi.getLength();
             if (length > 0) {
                 output.write(abi.bytes, 0, length);
@@ -203,8 +202,7 @@ public abstract class ByteIterableBase implements ByteIterable {
         return result;
     }
 
-    @NotNull
-    public static byte[] readIterable(@NotNull final ByteIterable it) {
+    public static byte @NotNull [] readIterable(@NotNull final ByteIterable it) {
         return readIterator(it.iterator(), it.getLength());
     }
 

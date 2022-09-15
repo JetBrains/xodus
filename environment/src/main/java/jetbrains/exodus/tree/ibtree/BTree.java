@@ -30,16 +30,10 @@ interface BTree extends ITree {
 
     @Nullable
     default ByteIterable get(@NotNull ByteIterable key) {
-        var elemRef = find(key);
-        
-        if (elemRef == null) {
-            return null;
-        }
-
-        return elemRef.page.value(elemRef.childIndex);
+        return find(key);
     }
 
-    default ElemRef find(ByteIterable key) {
+    default ByteIterable find(ByteIterable key) {
         var root = getRoot();
         if (root == null) {
             return null;
@@ -48,64 +42,62 @@ interface BTree extends ITree {
         assert root.getKeyPrefixSize() == 0;
 
         var page = root;
-        ArrayBackedByteIterable currentKey;
+        ArrayBackedByteIterable currentKey = key.toArrayBackedIterable();
+        final int basicOffset = currentKey.offset;
 
-        if (key instanceof ArrayBackedByteIterable) {
-            currentKey = (ArrayBackedByteIterable) key;
-        } else {
-            currentKey = new ArrayBackedByteIterable(key.getBytesUnsafe(), 0, key.getLength());
-        }
+        try {
+            while (true) {
+                int index = page.find(currentKey);
 
-        var basicOffset = currentKey.offset;
-        while (true) {
-            int index = page.find(currentKey);
+                if (!page.isInternalPage()) {
+                    if (index < 0) {
+                        return null;
+                    }
 
-            if (!page.isInternalPage()) {
+                    return page.value(index);
+                }
+
+                //there is no exact match of the key
                 if (index < 0) {
-                    return null;
+                    //index of the first page which contains all keys which are bigger than current one
+                    index = -index - 1;
+
+                    if (index > 0) {
+                        index--;
+                    } else {
+                        //all keys in the tree bigger than provided
+                        return null;
+                    }
                 }
 
-                return new ElemRef(page, index);
-            }
+                page = page.child(index);
 
-            //there is no exact match of the key
-            if (index < 0) {
-                //index of the first page which contains all keys which are bigger than current one
-                index = -index - 1;
-
-                if (index > 0) {
-                    index--;
-                } else {
-                    //all keys in the tree bigger than provided
-                    return null;
-                }
-            }
-
-            page = page.child(index);
-
-            var keyPrefixSize = page.getKeyPrefixSize();
+                var keyPrefixSize = page.getKeyPrefixSize();
 
 
-            if (keyPrefixSize > 0) {
-                if (currentKey == key) {
-                    currentKey = currentKey.duplicate();
-                }
-
-
-                if (currentKey.limit >= keyPrefixSize) {
-                    currentKey.offset = basicOffset + keyPrefixSize;
-                } else {
-                    return null;
+                if (keyPrefixSize > 0) {
+                    if (currentKey.limit >= keyPrefixSize) {
+                        currentKey.offset = basicOffset + keyPrefixSize;
+                    } else {
+                        return null;
+                    }
                 }
             }
+        } finally {
+            currentKey.offset = basicOffset;
         }
     }
 
     default boolean hasPair(@NotNull ByteIterable key, @NotNull ByteIterable value) {
-        return hasPair(key.getByteBuffer(), value.getByteBuffer());
+        var foundValue = find(key);
+        if (foundValue == null) {
+            return false;
+        }
+
+        return foundValue.equals(value);
     }
 
     default boolean hasKey(@NotNull ByteIterable key) {
-        return hasKey(key.getByteBuffer());
+        return find(key) != null;
     }
 }

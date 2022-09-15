@@ -129,6 +129,19 @@ abstract class MutableBasePage<U extends ImmutableBasePage> implements MutablePa
         } else {
             keyPrefix = keyPrefixDiff;
         }
+
+        assert assertSorted();
+    }
+
+    boolean assertSorted() {
+        for (int i = 0; i < entriesSize - 1; i++) {
+            assert keys[i] != null;
+            assert keys[i + 1] != null;
+
+            assert keys[i].compareTo(keys[i + 1]) < 0;
+        }
+
+        return true;
     }
 
     @Override

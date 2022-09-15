@@ -93,6 +93,8 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
 
         serializedSize += key.getLength() + value.getLength() - prevValue.getLength() - prevKey.getLength();
 
+        assert assertSorted();
+
         return entriesSize > 1 && serializedSize > pageSize;
     }
 
@@ -116,8 +118,12 @@ final class MutableLeafPage extends MutableBasePage<ImmutableLeafPage> {
         serializedSize += entrySize(key, value);
         entriesSize++;
 
+        assert assertSorted();
+
         return entriesSize > 1 && serializedSize > pageSize;
     }
+
+
 
     boolean append(ByteIterable key, ByteIterable value) {
         fetch();

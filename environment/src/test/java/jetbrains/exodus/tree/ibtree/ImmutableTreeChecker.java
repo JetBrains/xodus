@@ -62,7 +62,6 @@ public class ImmutableTreeChecker implements Consumer<ITree> {
             var expectedValue = expectedMap.get(key);
             var value = tree.get(new ByteBufferByteIterable(key));
 
-
             if (expectedValue != null) {
                 Assert.assertEquals(new ByteBufferByteIterable(expectedValue), value);
             } else {
@@ -93,10 +92,6 @@ public class ImmutableTreeChecker implements Consumer<ITree> {
             key.get(0, modifiedKeyArray);
             modifiedKeyArray[0]++;
             var modifiedKey = ByteBuffer.wrap(modifiedKeyArray);
-
-            if (i == 10167) {
-                System.out.println();
-            }
 
             checkKeyWhichMayNotExist(tree, modifiedKey);
         }

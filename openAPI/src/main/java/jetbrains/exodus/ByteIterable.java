@@ -16,6 +16,7 @@
 package jetbrains.exodus;
 
 import jetbrains.exodus.bindings.BindingUtils;
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.invoke.MethodHandles;
@@ -81,6 +82,17 @@ public interface ByteIterable extends Comparable<ByteIterable> {
         return BindingUtils.readShort(bytes, offset);
     }
 
+    default byte getByte(int offset) {
+        var bytes = getBytesUnsafe();
+        var len = getLength();
+
+        if (offset < len) {
+            return bytes[offset];
+        }
+
+        throw new IndexOutOfBoundsException();
+    }
+
     default String getString(int offset) {
         var bytes = getBytesUnsafe();
         return BindingUtils.readString(bytes, 0, getLength());
@@ -108,6 +120,13 @@ public interface ByteIterable extends Comparable<ByteIterable> {
         return ByteBuffer.wrap(data, 0, len);
     }
 
+    default ArrayBackedByteIterable toArrayBackedIterable() {
+        var data = getBytesUnsafe();
+        var len = getLength();
+
+        return new ArrayBackedByteIterable(data, 0, len);
+    }
+
     /**
      * @return length of the {@code ByteIterable}.
      */
@@ -119,6 +138,10 @@ public interface ByteIterable extends Comparable<ByteIterable> {
         }
 
         return length;
+    }
+
+    default boolean isEmpty() {
+        return getLength() == 0;
     }
 
     default void writeIntoBuffer(ByteBuffer buffer, int bufferPosition) {
