@@ -26,11 +26,12 @@ import java.util.NoSuchElementException;
 /**
  * A compound {@link ByteIterable} that can be composed of several sub-iterables.
  */
-public final class CompoundByteIterable extends ByteIterableBase {
+public final class CompoundByteIterable implements ByteIterable {
     final ByteIterable[] iterables;
     final boolean isArrayBacked;
 
     final int count;
+    int length = -1;
 
     /*
      * Auxiliary variables introduced to avoid duplication during processing of data
@@ -55,6 +56,8 @@ public final class CompoundByteIterable extends ByteIterableBase {
         boolean isArrayBacked = true;
         for (int i = 0; i < currentCount; i++) {
             var iterable = currentIterables[i];
+            assert iterable != null;
+
             isArrayBacked &= iterable instanceof ArrayBackedByteIterable;
 
             //unwrap recursive compound iterables if there are any
@@ -80,6 +83,12 @@ public final class CompoundByteIterable extends ByteIterableBase {
         this.isArrayBacked = isArrayBacked;
     }
 
+    private CompoundByteIterable(final ByteIterable[] iterables, final boolean isArrayBacked,
+                                 final int count) {
+        this.iterables = iterables;
+        this.isArrayBacked = isArrayBacked;
+        this.count = count;
+    }
 
     @Override
     public int getLength() {
@@ -150,6 +159,68 @@ public final class CompoundByteIterable extends ByteIterableBase {
         return mismatchWithArray(otherArray, otherOffset, otherLength);
     }
 
+    @Override
+    public @NotNull ByteIterable subIterable(int offset, int length) {
+        if (length == 0) {
+            return ArrayBackedByteIterable.EMPTY;
+        }
+
+        final int currentLength = getLength();
+
+        if (offset < 0 || currentLength < offset + length) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        if (offset == 0 && currentLength == length) {
+            return this;
+        }
+
+        final int firstIterableIndex;
+        ByteIterable firstIterable;
+
+        final int lastIterableIndex;
+        ByteIterable lastIterable;
+
+        firstIterable = findFirstIterable(offset);
+
+        final int firstIterableLength = firstIterable.getLength();
+        firstIterable = firstIterable.subIterable(currentChunkOffset,
+                Math.min(length, firstIterableLength - currentChunkOffset));
+
+        if (count == 1) {
+            return firstIterable;
+        } else {
+            firstIterableIndex = currentChunkIndex;
+
+            if (currentChunkIndex == count - 1) {
+                return firstIterable;
+            }
+
+            var iterable = findFirstIterable(this.currentChunkIndex,
+                    offset - this.currentChunkOffset,
+                    offset + length - 1);
+
+            if (currentChunkIndex > firstIterableIndex) {
+                lastIterable = iterable.subIterable(0, currentChunkOffset + 1);
+            } else {
+                return firstIterable;
+            }
+
+            lastIterableIndex = currentChunkIndex;
+        }
+
+        var subIterables = new ByteIterable[lastIterableIndex - firstIterableIndex + 1];
+        if (subIterables.length > 2) {
+            System.arraycopy(iterables, firstIterableIndex + 1, subIterables, 1, subIterables.length - 2);
+        }
+
+        subIterables[0] = firstIterable;
+        subIterables[subIterables.length - 1] = lastIterable;
+
+
+        return new CompoundByteIterable(subIterables, isArrayBacked, subIterables.length);
+    }
+
     private int mismatchWithArray(byte[] array, int offset, int length) {
         var compared = 0;
 
@@ -207,7 +278,6 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
         return -1;
     }
-
 
     @Override
     public int compareTo(@NotNull ByteIterable right) {
@@ -319,13 +389,17 @@ public final class CompoundByteIterable extends ByteIterableBase {
     }
 
     private ByteIterable findFirstIterable(final int offset) {
-        int len = 0;
+        return findFirstIterable(0, 0, offset);
+    }
+
+    private ByteIterable findFirstIterable(final int start, final int sinceLen, final int offset) {
+        int len = sinceLen;
         int chunkIndex;
         int chunkLength;
 
         ByteIterable iterable = null;
 
-        for (chunkIndex = 0; chunkIndex < count; chunkIndex++) {
+        for (chunkIndex = start; chunkIndex < count; chunkIndex++) {
             iterable = iterables[chunkIndex];
             assert !(iterable instanceof CompoundByteIterable);
 
@@ -390,6 +464,31 @@ public final class CompoundByteIterable extends ByteIterableBase {
         this.currentChunk = chunk;
         this.currentChunkOffset = chunkOffset;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return this == obj || obj instanceof ByteIterable && compareTo((ByteIterable) obj) == 0;
+    }
+
+    /**
+     * @return hash code computed using all bytes of the iterable.
+     */
+    @Override
+    public int hashCode() {
+        final byte[] a = getBytesUnsafe();
+        int result = 1;
+        final int length = getLength();
+        for (int i = 0; i < length; i++) {
+            result = 31 * result + a[i];
+        }
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return ByteIterableBase.toString(getBytesUnsafe(), 0, getLength());
+    }
+
 
     private void moveToNextChunk() {
         while (true) {
@@ -541,7 +640,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
     }
 
     @Override
-    protected ByteIterator getIterator() {
+    public ByteIterator iterator() {
         if (isArrayBacked) {
             return new ArrayBackedCompoundIterator();
         }

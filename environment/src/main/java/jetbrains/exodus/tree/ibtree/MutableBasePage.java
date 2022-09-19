@@ -118,6 +118,7 @@ abstract class MutableBasePage<U extends ImmutableBasePage> implements MutablePa
             var keySize = key.getLength();
 
             keys[i] = key.subIterable(keyPrefixDiffSize, keySize - keyPrefixDiffSize);
+            assert keys[i].getLength() == keySize - keyPrefixDiffSize;
         }
 
         serializedSize -= (size - 1) * keyPrefixDiffSize;
