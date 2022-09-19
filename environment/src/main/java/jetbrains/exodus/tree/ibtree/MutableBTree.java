@@ -144,10 +144,9 @@ public final class MutableBTree implements IBTreeMutable {
                 new ObjectArrayList<>(8);
         boolean smallestKey = false;
 
-        ArrayBackedByteIterable currentKey = key.toArrayBackedIterable();
-        if (currentKey == key) {
-            currentKey = currentKey.duplicate();
-        }
+        ArrayBackedByteIterable fullKey = key.toArrayBackedIterable();
+        ArrayBackedByteIterable currentKey = fullKey.duplicate();
+
 
         ByteIterable keyBoundary = null;
         int keyBoundaryPrefixSize = 0;
@@ -190,7 +189,7 @@ public final class MutableBTree implements IBTreeMutable {
                             if (nextPageKeyPrefixSize > nextCalculatedPrefixSize) {
                                 var diff = nextPageKeyPrefixSize - nextCalculatedPrefixSize;
 
-                                var suffix = key.subIterable(nextCalculatedPrefixSize, diff);
+                                var suffix = fullKey.subIterable(nextCalculatedPrefixSize, diff);
                                 nextPage.addKeyPrefix(suffix);
                             }
                         }
@@ -204,7 +203,7 @@ public final class MutableBTree implements IBTreeMutable {
 
                     var split = mutablePage.insert(0, currentKey.duplicate(), value);
                     if (split) {
-                        spillAfterModification(stack, mutablePage, key);
+                        spillAfterModification(stack, mutablePage, fullKey);
                     }
 
                     size++;
@@ -216,7 +215,7 @@ public final class MutableBTree implements IBTreeMutable {
                         var split = mutablePage.insert(-index - 1, currentKey.duplicate(), value);
 
                         if (split) {
-                            spillAfterModification(stack, mutablePage, key);
+                            spillAfterModification(stack, mutablePage, fullKey);
                         }
 
                         size++;
@@ -229,7 +228,7 @@ public final class MutableBTree implements IBTreeMutable {
                         var split = mutablePage.set(index, currentKey.duplicate(), value);
 
                         if (split) {
-                            spillAfterModification(stack, mutablePage, key);
+                            spillAfterModification(stack, mutablePage, fullKey);
                         }
 
                         TreeMutableCursor.notifyCursors(this);

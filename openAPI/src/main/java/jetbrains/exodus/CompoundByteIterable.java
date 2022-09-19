@@ -21,12 +21,15 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.NoSuchElementException;
 
 /**
  * A compound {@link ByteIterable} that can be composed of several sub-iterables.
  */
 public final class CompoundByteIterable extends ByteIterableBase {
     final ByteIterable[] iterables;
+    final boolean isArrayBacked;
+
     final int count;
 
     /*
@@ -46,8 +49,35 @@ public final class CompoundByteIterable extends ByteIterableBase {
             throw new ExodusException("Failed to initialize CompoundByteIterable");
         }
 
-        this.iterables = iterables;
-        this.count = count;
+        int currentCount = count;
+        ByteIterable[] currentIterables = iterables;
+
+        boolean isArrayBacked = true;
+        for (int i = 0; i < currentCount; i++) {
+            var iterable = currentIterables[i];
+            isArrayBacked &= iterable instanceof ArrayBackedByteIterable;
+
+            //unwrap recursive compound iterables if there are any
+            if (!isArrayBacked && iterable instanceof CompoundByteIterable compoundByteIterable) {
+                var iterableCount = compoundByteIterable.count;
+
+                var oldIterables = currentIterables;
+                currentIterables = new ByteIterable[currentCount + iterableCount - 1];
+
+                System.arraycopy(oldIterables, 0, currentIterables, 0, i);
+                System.arraycopy(compoundByteIterable.iterables, 0, currentIterables, i,
+                        iterableCount);
+                System.arraycopy(oldIterables, i + 1, currentIterables, i + iterableCount,
+                        (currentCount - i - 1));
+
+                currentCount += iterableCount - 1;
+                i += iterableCount - 1;
+            }
+        }
+
+        this.iterables = currentIterables;
+        this.count = currentCount;
+        this.isArrayBacked = isArrayBacked;
     }
 
 
@@ -58,6 +88,8 @@ public final class CompoundByteIterable extends ByteIterableBase {
         if (result == -1) {
             result = 0;
             for (int i = 0; i < count; ++i) {
+                assert !(iterables[i] instanceof CompoundByteIterable);
+
                 var length = iterables[i].getLength();
                 result += length;
             }
@@ -123,6 +155,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
         for (int i = 0; i < count; i++) {
             var iterable = iterables[i];
+            assert !(iterable instanceof CompoundByteIterable);
 
             byte[] iterableArray;
             int iterableOffset;
@@ -195,6 +228,8 @@ public final class CompoundByteIterable extends ByteIterableBase {
     @Override
     public void writeIntoBuffer(ByteBuffer buffer, int bufferPosition) {
         for (var iterable : iterables) {
+            assert !(iterable instanceof CompoundByteIterable);
+
             var len = iterable.getLength();
             iterable.writeIntoBuffer(buffer, bufferPosition);
 
@@ -206,6 +241,8 @@ public final class CompoundByteIterable extends ByteIterableBase {
     public boolean isEmpty() {
         for (int i = 0; i < count; i++) {
             var iterable = iterables[i];
+            assert !(iterable instanceof CompoundByteIterable);
+
             if (!iterable.isEmpty()) {
                 return false;
             }
@@ -227,6 +264,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
             while (true) {
                 var iterable = iterables[last];
+                assert !(iterable instanceof CompoundByteIterable);
 
                 if (!iterable.isEmpty()) {
                     var mismatchedByteFirst = array[offset + mismatch];
@@ -289,6 +327,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
         for (chunkIndex = 0; chunkIndex < count; chunkIndex++) {
             iterable = iterables[chunkIndex];
+            assert !(iterable instanceof CompoundByteIterable);
 
             chunkLength = iterable.getLength();
             if (len + chunkLength > offset) {
@@ -318,6 +357,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
         int len = 0;
         for (chunkIndex = 0; chunkIndex < count; chunkIndex++) {
             iterable = iterables[chunkIndex];
+            assert !(iterable instanceof CompoundByteIterable);
 
             chunkLength = iterable.getLength();
             if (len + chunkLength > offset) {
@@ -360,6 +400,8 @@ public final class CompoundByteIterable extends ByteIterableBase {
             }
 
             var iterable = iterables[currentChunkIndex];
+            assert !(iterable instanceof CompoundByteIterable);
+
             assert iterable != null;
 
             var chunkLength = iterable.getLength();
@@ -462,6 +504,7 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
         for (int i = 0; i < count; i++) {
             var iterable = iterables[i];
+            assert !(iterable instanceof CompoundByteIterable);
 
             var iterableLen = iterable.getLength();
             var lenToCompare = Math.min(iterableLen, rightIterableLen - compared);
@@ -499,14 +542,148 @@ public final class CompoundByteIterable extends ByteIterableBase {
 
     @Override
     protected ByteIterator getIterator() {
-        return new CompoundByteIteratorBase(iterables[0].iterator()) {
-            int off = 0;
+        if (isArrayBacked) {
+            return new ArrayBackedCompoundIterator();
+        }
 
-            @Override
-            public ByteIterator nextIterator() {
-                off++;
-                return off < count ? iterables[off].iterator() : null;
+        return new CompoundByteIterator();
+    }
+
+    private final class ArrayBackedCompoundIterator extends ByteIterator {
+        int currentIterable;
+        byte[] currentChunk;
+        int currentChunkOffset;
+        int currentChunkLimit;
+
+        public ArrayBackedCompoundIterator() {
+            var iterable = (ArrayBackedByteIterable) iterables[0];
+
+            currentChunk = iterable.bytes;
+            currentChunkOffset = iterable.offset;
+            currentChunkLimit = iterable.limit;
+        }
+
+        @Override
+        public boolean hasNext() {
+            while (true) {
+                if (currentChunkOffset < currentChunkLimit) {
+                    return true;
+                }
+
+                if (currentIterable == count - 1) {
+                    return false;
+                }
+                currentIterable++;
+
+                var iterable = (ArrayBackedByteIterable) iterables[currentIterable];
+                if (iterable.offset < iterable.limit) {
+                    currentChunk = iterable.bytes;
+                    currentChunkOffset = iterable.offset;
+                    currentChunkLimit = iterable.limit;
+
+                    return true;
+                }
             }
-        };
+        }
+
+        @Override
+        public byte next() {
+            if (hasNext()) {
+                currentChunkOffset++;
+                return currentChunk[currentChunkOffset];
+            }
+            throw new NoSuchElementException();
+        }
+
+        @Override
+        public long skip(long bytes) {
+            int skipped = 0;
+            while (skipped < bytes && hasNext()) {
+                skipped += currentChunkLimit - currentChunkOffset;
+                currentChunkOffset = currentChunkLimit;
+            }
+
+            return skipped;
+        }
+    }
+
+    private final class CompoundByteIterator extends ByteIterator {
+        int currentIterable;
+
+        ByteIterator currentIterator;
+
+        byte[] currentChunk;
+        int currentChunkOffset;
+        int currentChunkLimit;
+
+        public CompoundByteIterator() {
+            var iterable = iterables[0];
+
+            if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
+                currentChunk = arrayBackedByteIterable.bytes;
+                currentChunkOffset = arrayBackedByteIterable.offset;
+                currentChunkLimit = arrayBackedByteIterable.limit;
+            } else {
+                currentIterator = iterable.iterator();
+            }
+        }
+
+        @Override
+        public boolean hasNext() {
+            while (true) {
+                if (currentIterator == null) {
+                    if (currentChunkOffset < currentChunkLimit) {
+                        return true;
+                    }
+                } else if (currentIterator.hasNext()) {
+                    return true;
+                }
+
+                if (currentIterable == count - 1) {
+                    return false;
+                }
+                currentIterable++;
+
+                var iterable = iterables[currentIterable];
+
+                if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
+                    currentIterator = null;
+                    currentChunk = arrayBackedByteIterable.bytes;
+                    currentChunkOffset = arrayBackedByteIterable.offset;
+                    currentChunkLimit = arrayBackedByteIterable.limit;
+                } else {
+                    currentIterator = iterable.iterator();
+                }
+            }
+        }
+
+        @Override
+        public byte next() {
+            if (hasNext()) {
+                if (currentIterator != null) {
+                    return currentIterator.next();
+                } else {
+                    currentChunkOffset++;
+                    return currentChunk[currentChunkOffset];
+                }
+            }
+
+            throw new NoSuchElementException();
+        }
+
+        @Override
+        public long skip(long bytes) {
+            int skipped = 0;
+            while (skipped < bytes && hasNext()) {
+                if (currentIterator == null) {
+                    skipped += currentChunkLimit - currentChunkOffset;
+                    currentChunkOffset = currentChunkLimit;
+                } else {
+                    skipped += currentIterator.skip(bytes - skipped);
+                }
+            }
+
+            return skipped;
+        }
     }
 }
