@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus;
 
+import jetbrains.exodus.util.ArrayBackedByteIterable;
 import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -69,6 +70,14 @@ public class FileByteIterable implements ByteIterable {
     @NotNull
     @Override
     public ByteIterable subIterable(final int offset, final int length) {
+        if (length == 0) {
+            return ArrayBackedByteIterable.EMPTY;
+        }
+
+        if (offset == 0 && length == this.length) {
+            return this;
+        }
+
         return new FixedLengthByteIterable(this, offset, length);
     }
 

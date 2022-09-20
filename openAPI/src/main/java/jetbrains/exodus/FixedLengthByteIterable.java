@@ -40,8 +40,7 @@ public class FixedLengthByteIterable extends ByteIterableBase {
         if (bytes == null) {
             final int length = this.length;
             byte[] bytes = null;
-            if (source instanceof ByteIterableBase) {
-                final ByteIterableBase s = (ByteIterableBase) source;
+            if (source instanceof final ByteIterableBase s) {
                 final byte[] sourceBytes = s.getBytesUnsafe();
                 if (sourceBytes != null) {
                     bytes = new byte[length];
@@ -73,6 +72,10 @@ public class FixedLengthByteIterable extends ByteIterableBase {
     @NotNull
     @Override
     public ByteIterable subIterable(final int offset, final int length) {
+        if (offset == 0 && length == this.length) {
+            return this;
+        }
+
         final int safeLength = Math.min(length, this.length - offset);
         return safeLength == 0 ? EMPTY : new FixedLengthByteIterable(source, this.offset + offset, safeLength);
     }

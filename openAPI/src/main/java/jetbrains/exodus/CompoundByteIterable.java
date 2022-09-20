@@ -287,6 +287,9 @@ public final class CompoundByteIterable implements ByteIterable {
             var rightIterableOffset = rightArrayBackedByteIterable.offset;
 
             return compareWithArray(rightIterableLen, rightIterableOffset, rightIterableBytes);
+        } else if (right instanceof CompoundByteIterable compoundByteIterable) {
+            return compareCompoundIterables(iterables, count, compoundByteIterable.iterables,
+                    compoundByteIterable.count);
         }
 
         var rightArray = right.getBytesUnsafe();
@@ -637,6 +640,80 @@ public final class CompoundByteIterable implements ByteIterable {
         }
 
         return 0;
+    }
+
+    private int compareCompoundIterables(ByteIterable[] firstIterables, int firstCount,
+                                         ByteIterable[] secondIterables,
+                                         int secondCount) {
+        ByteIterable firstIterable = firstIterables[0];
+        int firstIterableIndex = 0;
+        int firstIterableOffset = 0;
+        int firstIterableLength = firstIterable.getLength();
+
+
+        ByteIterable secondIterable = secondIterables[0];
+        int secondIterableIndex = 0;
+        int secondIterableOffset = 0;
+        int secondIterableLength = secondIterable.getLength();
+
+
+        while (true) {
+            int cmp;
+
+            int iterableLength = Math.min(firstIterableLength - firstIterableOffset,
+                    secondIterableLength - secondIterableOffset);
+            if (firstIterable instanceof ArrayBackedByteIterable firstArrayBacked &&
+                    secondIterable instanceof ArrayBackedByteIterable secondArrayBacked) {
+                cmp = Arrays.compareUnsigned(firstArrayBacked.bytes,
+                        firstArrayBacked.offset + firstIterableOffset,
+                        firstArrayBacked.offset + firstIterableOffset + iterableLength,
+                        secondArrayBacked.bytes,
+                        secondArrayBacked.offset + secondIterableOffset,
+                        secondArrayBacked.offset + secondIterableOffset + iterableLength);
+            } else {
+                cmp = firstIterable.subIterable(firstIterableOffset, iterableLength).compareTo(
+                        secondIterable.subIterable(secondIterableOffset, iterableLength));
+            }
+
+            if (cmp != 0) {
+                return cmp;
+            }
+
+            firstIterableOffset += iterableLength;
+            secondIterableOffset += iterableLength;
+
+            if (firstIterableOffset == firstIterableLength) {
+                firstIterableIndex++;
+                firstIterableOffset = 0;
+
+                if (firstIterableIndex == firstCount) {
+                    if (secondIterableOffset < secondIterableLength || secondIterableIndex < secondCount) {
+                        return -1;
+                    }
+
+                    return 0;
+                }
+
+                firstIterable = firstIterables[firstIterableIndex];
+                firstIterableLength = firstIterable.getLength();
+            }
+
+            if (secondIterableOffset == secondIterableLength) {
+                secondIterableIndex++;
+                secondIterableOffset = 0;
+
+                if (secondIterableIndex == secondCount) {
+                    if (firstIterableOffset < secondIterableLength || firstIterableIndex < firstCount) {
+                        return 1;
+                    }
+
+                    return 0;
+                }
+
+                secondIterable = secondIterables[secondIterableIndex];
+                secondIterableLength = secondIterable.getLength();
+            }
+        }
     }
 
     @Override

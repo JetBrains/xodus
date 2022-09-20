@@ -98,6 +98,10 @@ public abstract class ByteIterableBase implements ByteIterable {
 
     @NotNull
     public ByteIterable subIterable(final int offset, final int length) {
+        if (offset == 0 && getLength() == length) {
+            return this;
+        }
+
         return length == 0 ? EMPTY : new FixedLengthByteIterable(this, offset, length);
     }
 

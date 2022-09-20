@@ -157,14 +157,22 @@ public final class ArrayBackedByteIterable implements ByteIterable {
 
     @Override
     public @NotNull ArrayBackedByteIterable subIterable(int offset, int length) {
+        if (offset == 0 && length == this.limit - this.offset) {
+            return this;
+        }
+
         assert this.offset < this.limit;
 
-        var len = limit - this.offset;
+        var len = this.limit - this.offset;
         if (offset > len || offset + length > len) {
             throw new IllegalStateException();
         }
 
-        return new ArrayBackedByteIterable(bytes, this.offset + offset, length);
+        if (length == 0) {
+            return EMPTY;
+        }
+
+        return new ArrayBackedByteIterable(this.bytes, this.offset + offset, length);
     }
 
     @Override
