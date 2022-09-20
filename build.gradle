@@ -93,6 +93,8 @@ subprojects {
 
     dependencies {
         implementation "org.apache.commons:commons-compress:$commonsCompressVersion"
+        implementation 'org.lz4:lz4-java:1.8.0'
+
         testImplementation group: 'junit', name: 'junit', version: "$junitVersion"
         testImplementation group: 'org.slf4j', name: 'slf4j-simple', version: "$slf4jVersion"
     }

@@ -23,13 +23,14 @@ import kotlin.math.min
 internal class SharedLogCache : LogCache {
 
     private val pagesCache: LongObjectCacheBase<CachedValue>
-    internal val useSoftReferences: Boolean;
+    internal val useSoftReferences: Boolean
 
     constructor(memoryUsage: Long,
                 pageSize: Int,
                 nonBlocking: Boolean,
                 useSoftReferences: Boolean,
-                cacheGenerationCount: Int) : super(memoryUsage, pageSize) {
+                cacheGenerationCount: Int,
+                checkHashCodeSince: Long) : super(memoryUsage, pageSize, checkHashCodeSince) {
         this.useSoftReferences = useSoftReferences
         val pagesCount = (memoryUsage / (pageSize +  /* each page consumes additionally 96 bytes in the cache */
                 96)).toInt()
@@ -52,7 +53,8 @@ internal class SharedLogCache : LogCache {
                 pageSize: Int,
                 nonBlocking: Boolean,
                 useSoftReferences: Boolean,
-                cacheGenerationCount: Int) : super(memoryUsagePercentage, pageSize) {
+                cacheGenerationCount: Int,
+                checkHashCodeSince: Long) : super(memoryUsagePercentage, pageSize, checkHashCodeSince) {
         this.useSoftReferences = useSoftReferences
         pagesCache = if (memoryUsage == Long.MAX_VALUE) {
             if (nonBlocking) {
@@ -124,16 +126,24 @@ internal class SharedLogCache : LogCache {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
+
+        val adjustedPageSize = if (pageAddress >= checkHashCodeSince) {
+            pageSize - Log.LOGGABLE_DATA
+        } else {
+            pageSize
+        }
+
         if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
-            return ArrayByteIterable(cachedValue.page)
+            return ArrayByteIterable(cachedValue.page, adjustedPageSize)
         }
         var page = log.getHighPage(pageAddress)
         if (page != null) {
-            return ArrayByteIterable(page, min(log.highAddress - pageAddress, pageSize.toLong()).toInt())
+            return ArrayByteIterable(page, min(log.highAddress - pageAddress,
+                    adjustedPageSize.toLong()).toInt())
         }
         page = readFullPage(log, pageAddress)
         cachePage(key, logIdentity, pageAddress, page)
-        return ArrayByteIterable(page)
+        return ArrayByteIterable(page, adjustedPageSize)
     }
 
     override fun removePage(log: Log, pageAddress: Long) {

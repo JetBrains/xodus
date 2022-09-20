@@ -67,6 +67,14 @@ class Log(val config: LogConfig) : Closeable {
     /** Size of single page in log cache. */
     val cachePageSize = config.cachePageSize
 
+    private val cachePageReminderMask = (cachePageSize - 1).toLong()
+
+    private val cachePageAddressMask = (cachePageReminderMask.inv())
+
+    private val adjustedPageSize = cachePageSize - LOGGABLE_DATA
+
+    var checkHashCodeSince = 0L
+
     /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
      */
@@ -113,6 +121,8 @@ class Log(val config: LogConfig) : Closeable {
         get() = cache.hitRate()
 
 
+    private val nullPage: ByteArray
+
     init {
         tryLock()
         val fileLength = config.fileSize * 1024L
@@ -136,15 +146,19 @@ class Log(val config: LogConfig) : Closeable {
 
         cache = if (memoryUsage != 0L) {
             if (config.isSharedCache)
-                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
+                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
+                        generationCount, checkHashCodeSince)
             else
-                SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
+                SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
+                        generationCount, checkHashCodeSince)
         } else {
             val memoryUsagePercentage = config.memoryUsagePercentage
             if (config.isSharedCache)
-                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
+                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
+                        useSoftReferences, generationCount, checkHashCodeSince)
             else
-                SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
+                SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
+                        useSoftReferences, generationCount, checkHashCodeSince)
         }
         DeferredIO.getJobProcessor()
         isClosing = false
@@ -199,6 +213,9 @@ class Log(val config: LogConfig) : Closeable {
 
             this.internalTip.set(proposedTip.withApprovedAddress(approvedHighAddress))
         }
+
+        nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
+
         sync()
 
         if (config.isWarmup) {
@@ -387,6 +404,20 @@ class Log(val config: LogConfig) : Closeable {
         return getFileAddress(address) == getFileAddress(writtenHighAddress)
     }
 
+    fun adjustedLoggableAddress(address: Long, offset: Long): Long {
+        if (address < checkHashCodeSince) {
+            return address
+        }
+
+        val writtenInPage = address and cachePageReminderMask
+        val pageAddress = address and cachePageAddressMask
+
+        val writtenSincePageStart = writtenInPage + offset
+        val fullPages = writtenSincePageStart / adjustedPageSize
+
+        return pageAddress + writtenSincePageStart + fullPages * LOGGABLE_DATA
+    }
+
     fun hasAddress(address: Long): Boolean {
         val fileAddress = getFileAddress(address)
         val logTip = tip
@@ -461,7 +492,7 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun getWrittenLoggableType(address: Long, max: Byte): Byte {
-        return ensureWriter().getByte(address, max)
+        return ensureWriter().getByte(address, max, checkHashCodeSince)
     }
 
     @JvmOverloads
@@ -640,12 +671,33 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     override fun close() {
-        val logTip = tip
         isClosing = true
+
+        beginWrite()
+        try {
+            val writer = ensureWriter()
+            beforeWrite(writer)
+
+            //we pad page with nulls to ensure that all pages could be checked on consistency
+            //by hash code which is stored at the end of the page.
+            val written = writer.padPageWithNulls()
+
+            if (written > 0) {
+                writer.commit()
+                closeFullFileIfNecessary(writer)
+            }
+        } finally {
+            endWrite()
+        }
+
+        val logTip = tip
+
         sync()
         reader.close()
         closeWriter()
+
         compareAndSetTip(logTip, LogTip(fileLengthBound, logTip.pageAddress, logTip.highAddress))
+
         release()
     }
 
@@ -719,43 +771,13 @@ class Log(val config: LogConfig) : Closeable {
         }
     }
 
-    /**
-     * Pad current file with null loggables. Null loggable takes only one byte in the log,
-     * so each file of the log with arbitrary alignment can be padded with nulls.
-     * Padding with nulls is automatically performed when a loggable to be written can't be
-     * placed within the appendable file without overcome of the value of fileLengthBound.
-     * This feature allows to guarantee that each file starts with a new loggable, no
-     * loggable can begin in one file and end in another. Also, this simplifies reading algorithm:
-     * if we started reading by address it definitely should finish within current file.
-     */
-    fun padWithNulls() {
-        beforeWrite(ensureWriter())
-        doPadWithNulls()
-    }
-
     fun doPadWithNulls() {
         val writer = ensureWriter()
-        var bytesToWrite = fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)
-        if (bytesToWrite == 0L) {
-            throw ExodusException("Nothing to pad")
-        }
-        if (bytesToWrite >= cachePageSize) {
-            val cachedTailPage = LogCache.getCachedTailPage(cachePageSize)
-            if (cachedTailPage != null) {
-                do {
-                    writer.write(cachedTailPage, cachePageSize)
-                    bytesToWrite -= cachePageSize.toLong()
-                    writer.incHighAddress(cachePageSize.toLong())
-                } while (bytesToWrite >= cachePageSize)
-            }
-        }
-        if (bytesToWrite == 0L) {
+
+        if (writer.padWithNulls(fileLengthBound, nullPage)) {
             writer.commit()
+
             closeFullFileIfNecessary(writer)
-        } else {
-            while (bytesToWrite-- > 0) {
-                writeContinuously(NullLoggable.create())
-            }
         }
     }
 
@@ -834,8 +856,9 @@ class Log(val config: LogConfig) : Closeable {
 
         val isNull = NullLoggable.isNullLoggable(type)
         var recordLength = 1
+
         if (isNull) {
-            writer.write(type xor 0x80.toByte())
+            writer.write(type xor 0x80.toByte(), result)
         } else {
             val structureIdIterable = CompressedUnsignedLongByteIterable.getIterable(structureId.toLong())
             val dataLength = data.length
@@ -843,10 +866,13 @@ class Log(val config: LogConfig) : Closeable {
             recordLength += structureIdIterable.length
             recordLength += dataLengthIterable.length
             recordLength += dataLength
-            if (recordLength > fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)) {
+
+            if (!writer.fitsIntoSingleFile(fileLengthBound, recordLength)) {
                 return -1L
             }
-            writer.write(type xor 0x80.toByte())
+
+            writer.write(type xor 0x80.toByte(), result)
+
             writeByteIterable(writer, structureIdIterable)
             writeByteIterable(writer, dataLengthIterable)
             if (dataLength > 0) {
@@ -855,25 +881,8 @@ class Log(val config: LogConfig) : Closeable {
 
         }
         writer.commit()
-        writer.incHighAddress(recordLength.toLong())
         closeFullFileIfNecessary(writer)
-        return result
-    }
 
-    fun writeContinuously(data: ByteArray, count: Int): Long {
-        val writer = ensureWriter()
-
-        val result = beforeWrite(writer)
-
-        if (count > fileLengthBound - writer.getLastWrittenFileLength(fileLengthBound)) {
-            return -1L // protect file overflow
-        }
-        with(writer) {
-            write(data, count)
-            commit()
-            incHighAddress(count.toLong())
-            closeFullFileIfNecessary(this)
-        }
         return result
     }
 
@@ -892,7 +901,7 @@ class Log(val config: LogConfig) : Closeable {
 
         if (!this.writer.isOpen) {
             val fileAddress = getFileAddress(result)
-            val block = writer.openOrCreateBlock(fileAddress, writer.getLastWrittenFileLength(fileLengthBound))
+            val block = writer.openOrCreateBlock(fileAddress, highAddress % fileLengthBound)
             val fileCreated = !writer.blockSetMutable.contains(fileAddress)
             if (fileCreated) {
                 writer.blockSetMutable.add(fileAddress, block)
@@ -903,11 +912,12 @@ class Log(val config: LogConfig) : Closeable {
                 notifyBlockModified(fileAddress)
             }
         }
+
         return result
     }
 
     private fun closeFullFileIfNecessary(writer: BufferedDataWriter) {
-        val shouldCreateNewFile = writer.getLastWrittenFileLength(fileLengthBound) == 0L
+        val shouldCreateNewFile = writer.isFileFull(fileLengthBound)
         if (shouldCreateNewFile) {
             // Don't forget to fsync the old file before closing it, otherwise will get a corrupted DB in the case of a
             // system failure:
@@ -924,7 +934,8 @@ class Log(val config: LogConfig) : Closeable {
                 }
                 val length = refreshed.length()
                 if (length < fileLengthBound) {
-                    throw IllegalStateException("File's too short (" + LogUtil.getLogFilename(lastFile) + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound)
+                    throw IllegalStateException("File's too short (" + LogUtil.getLogFilename(lastFile)
+                            + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound)
                 }
                 if (config.isFullFileReadonly && block is File) {
                     block.setReadOnly()
@@ -972,6 +983,11 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     companion object : KLogging() {
+        const val HASH_CODE_SIZE = Long.SIZE_BYTES
+        const val FIRST_ITERABLE_OFFSET_SIZE = Int.SIZE_BYTES
+        const val FIRST_ITERABLE_OFFSET = HASH_CODE_SIZE + FIRST_ITERABLE_OFFSET_SIZE
+
+        const val LOGGABLE_DATA = FIRST_ITERABLE_OFFSET
 
         private val identityGenerator = IdGenerator()
 
@@ -993,12 +1009,14 @@ class Log(val config: LogConfig) : Closeable {
                                    pageSize: Int,
                                    nonBlocking: Boolean,
                                    useSoftReferences: Boolean,
-                                   cacheGenerationCount: Int): LogCache {
+                                   cacheGenerationCount: Int,
+                                   checkHashCodeSince: Long): LogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
-                        sharedCache = SharedLogCache(memoryUsage, pageSize, nonBlocking, useSoftReferences, cacheGenerationCount)
+                        sharedCache = SharedLogCache(memoryUsage, pageSize, nonBlocking,
+                                useSoftReferences, cacheGenerationCount, checkHashCodeSince)
                     }
                     result = sharedCache
                 }
@@ -1013,12 +1031,14 @@ class Log(val config: LogConfig) : Closeable {
                                    pageSize: Int,
                                    nonBlocking: Boolean,
                                    useSoftReferences: Boolean,
-                                   cacheGenerationCount: Int): LogCache {
+                                   cacheGenerationCount: Int,
+                                   checkHashCodeSince: Long): LogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
-                        sharedCache = SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking, useSoftReferences, cacheGenerationCount)
+                        sharedCache = SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking,
+                                useSoftReferences, cacheGenerationCount, checkHashCodeSince)
                     }
                     result = sharedCache
                 }
@@ -1055,7 +1075,7 @@ class Log(val config: LogConfig) : Closeable {
             if (iterable is ArrayByteIterable) {
                 val bytes = iterable.getBytesUnsafe()
                 if (length == 1) {
-                    writer.write(bytes[0])
+                    writer.write(bytes[0], -1)
                 } else {
                     writer.write(bytes, length)
                 }
@@ -1063,9 +1083,9 @@ class Log(val config: LogConfig) : Closeable {
                 writer.write(iterable.bytesUnsafe, length)
             } else {
                 val iterator = iterable.iterator()
-                writer.write(iterator.next())
+                writer.write(iterator.next(), -1)
                 if (length == 2) {
-                    writer.write(iterator.next())
+                    writer.write(iterator.next(), -1)
                 }
             }
         }

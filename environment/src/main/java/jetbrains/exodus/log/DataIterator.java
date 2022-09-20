@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -59,7 +59,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
     public byte next() {
         if (!hasNext()) {
             DataCorruptionException.raise(
-                "DataIterator: no more bytes available", log, getAddress());
+                    "DataIterator: no more bytes available", log, getAddress());
         }
         return page[offset++];
     }
@@ -89,13 +89,23 @@ public final class DataIterator extends ByteIteratorWithAddress {
         return result;
     }
 
-    public void checkPage(final long address) {
-        final long pageAddress = address & pageAddressMask;
+    public void checkPage(long address) {
+        long pageAddress = address & pageAddressMask;
+        long reminder = address - pageAddress;
+
+        assert reminder <= cachePageSize - Log.LOGGABLE_DATA;
+
+        if (reminder == cachePageSize - Log.LOGGABLE_DATA) {
+            pageAddress += cachePageSize;
+            address += Log.LOGGABLE_DATA;
+        }
+
         if (this.pageAddress != pageAddress) {
             page = log.cache.getPage(log, pageAddress);
             this.pageAddress = pageAddress;
         }
-        length = cachePageSize;
+
+        length = cachePageSize - Log.LOGGABLE_DATA;
         offset = (int) (address - pageAddress);
     }
 
@@ -112,7 +122,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
         try {
             checkPage(address);
             final long pageAddress = address & pageAddressMask;
-            length = (int) Math.min(log.getHighAddress() - pageAddress, cachePageSize);
+            length = (int) Math.min(log.getHighAddress() - pageAddress, cachePageSize - Log.LOGGABLE_DATA);
             if (length > offset) {
                 return;
             }

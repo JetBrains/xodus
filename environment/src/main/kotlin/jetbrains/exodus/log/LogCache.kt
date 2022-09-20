@@ -26,13 +26,14 @@ internal abstract class LogCache {
     internal val memoryUsage: Long
     protected val memoryUsagePercentage: Int
     internal val pageSize: Int
+    internal val checkHashCodeSince: Long
 
     /**
      * @param memoryUsage amount of memory which the cache is allowed to occupy (in bytes).
      * @param pageSize    number of bytes in a page.
      * @throws InvalidSettingException if settings are invalid.
      */
-    protected constructor(memoryUsage: Long, pageSize: Int) {
+    protected constructor(memoryUsage: Long, pageSize: Int, checkHashCodeSince: Long) {
         checkPageSize(pageSize)
         this.pageSize = pageSize
         checkIntegerLogarithm(pageSize) {
@@ -44,6 +45,7 @@ internal abstract class LogCache {
         }
         this.memoryUsage = memoryUsage
         memoryUsagePercentage = 0
+        this.checkHashCodeSince = checkHashCodeSince
     }
 
     /**
@@ -51,7 +53,7 @@ internal abstract class LogCache {
      * @param pageSize              number of bytes in a page.
      * @throws InvalidSettingException if settings are invalid.
      */
-    protected constructor(memoryUsagePercentage: Int, pageSize: Int) {
+    protected constructor(memoryUsagePercentage: Int, pageSize: Int, checkHashCodeSince: Long) {
         checkPageSize(pageSize)
         if (memoryUsagePercentage < MINIMUM_MEM_USAGE_PERCENT) {
             throw InvalidSettingException("Memory usage percent cannot be less than $MINIMUM_MEM_USAGE_PERCENT")
@@ -66,6 +68,7 @@ internal abstract class LogCache {
         val maxMemory = Runtime.getRuntime().maxMemory()
         memoryUsage = if (maxMemory == Long.MAX_VALUE) Long.MAX_VALUE else maxMemory / 100L * memoryUsagePercentage.toLong()
         this.memoryUsagePercentage = memoryUsagePercentage
+        this.checkHashCodeSince = checkHashCodeSince
     }
 
     abstract fun clear()
@@ -113,11 +116,14 @@ internal abstract class LogCache {
 
     private fun readBytes(log: Log, bytes: ByteArray, pageAddress: Long) {
         val bytesRead = log.readBytes(bytes, pageAddress)
+
         if (bytesRead != bytes.size) {
             throw ExodusException("Can't read full page from log [" + log.location + "] with address "
                     + pageAddress + " (file " + LogUtil.getLogFilename(log.getFileAddress(pageAddress)) + "), offset: "
                     + pageAddress % log.fileLengthBound + ", read: " + bytesRead)
         }
+
+        BufferedDataWriter.checkPageConsistency(pageAddress, checkHashCodeSince, bytes, pageSize, log)
     }
 
     companion object {
@@ -129,6 +135,9 @@ internal abstract class LogCache {
         private val TAIL_PAGES_CACHE = ConcurrentIntObjectCache<ByteArray>(10)
 
         private fun checkPageSize(pageSize: Int) {
+            if (pageSize.countOneBits() != 1) {
+                throw InvalidSettingException("Page size should be power of two")
+            }
             if (pageSize < MINIMUM_PAGE_SIZE) {
                 throw InvalidSettingException("Page size cannot be less than $MINIMUM_PAGE_SIZE")
             }
