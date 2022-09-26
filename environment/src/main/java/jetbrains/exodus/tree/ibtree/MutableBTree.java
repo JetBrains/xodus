@@ -150,7 +150,7 @@ public final class MutableBTree implements IBTreeMutable {
 
         ByteIterable keyBoundary = null;
         int keyBoundaryPrefixSize = 0;
-        var keyBasicOffset = currentKey.offset;
+        var keyBasicOffset = currentKey.offset();
 
         while (true) {
             int index;
@@ -172,8 +172,8 @@ public final class MutableBTree implements IBTreeMutable {
                         var keyPrefixSize = currentPage.getKeyPrefixSize();
 
                         if (keyPrefixSize > 0) {
-                            currentKey.offset = keyBasicOffset + keyPrefixSize;
-                            assert currentKey.offset <= currentKey.limit;
+                            currentKey.offset(keyBasicOffset + keyPrefixSize);
+                            assert currentKey.offset() <= currentKey.limit();
                         }
 
                         currentPage.updateFirstKey(currentKey.duplicate());
@@ -197,8 +197,8 @@ public final class MutableBTree implements IBTreeMutable {
 
                     var keyPrefixSize = mutablePage.getKeyPrefixSize();
                     if (keyPrefixSize > 0) {
-                        currentKey.offset = keyBasicOffset + keyPrefixSize;
-                        assert currentKey.offset <= currentKey.limit;
+                        currentKey.offset(keyBasicOffset + keyPrefixSize);
+                        assert currentKey.offset() <= currentKey.limit();
                     }
 
                     var split = mutablePage.insert(0, currentKey.duplicate(), value);
@@ -267,8 +267,8 @@ public final class MutableBTree implements IBTreeMutable {
                 }
 
                 if (!smallestKey && keyPrefixSize > 0) {
-                    currentKey.offset = keyBasicOffset + keyPrefixSize;
-                    assert currentKey.offset <= currentKey.limit;
+                    currentKey.offset(keyBasicOffset + keyPrefixSize);
+                    assert currentKey.offset() <= currentKey.limit();
                 }
             }
         }

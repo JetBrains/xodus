@@ -51,11 +51,15 @@ public interface ByteIterable extends Comparable<ByteIterable> {
     ByteIterator iterator();
 
     default long getNativeLong(int offset) {
+        assert offset >= 0 && getLength() >= Long.BYTES;
+
         var bytes = getBytesUnsafe();
         return (long) LONG_HANDLE.get(bytes, offset);
     }
 
     default int getNativeInt(int offset) {
+        assert offset >= 0 && getLength() >= Integer.BYTES;
+
         var bytes = getBytesUnsafe();
         return (int) INT_HANDLE.get(bytes, offset);
     }
@@ -63,21 +67,35 @@ public interface ByteIterable extends Comparable<ByteIterable> {
 
     @SuppressWarnings("unused")
     default int getNativeShort(int offset) {
+        assert offset >= 0 && getLength() >= Short.BYTES;
+
         var bytes = getBytesUnsafe();
         return (short) SHORT_HANDLE.get(bytes, offset);
     }
 
     default long getLong(int offset) {
+        if (offset < 0 || getLength() < Long.BYTES) {
+            throw new IndexOutOfBoundsException();
+        }
+
         var bytes = getBytesUnsafe();
         return BindingUtils.readLong(bytes, offset);
     }
 
     default int getInt(int offset) {
+        if (offset < 0 || getLength() < Integer.BYTES) {
+            throw new IndexOutOfBoundsException();
+        }
+
         var bytes = getBytesUnsafe();
         return BindingUtils.readInt(bytes, offset);
     }
 
     default short getShort(int offset) {
+        if (offset < 0 || getLength() < Short.BYTES) {
+            throw new IndexOutOfBoundsException();
+        }
+
         var bytes = getBytesUnsafe();
         return BindingUtils.readShort(bytes, offset);
     }

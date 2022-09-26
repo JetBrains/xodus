@@ -30,8 +30,9 @@ import java.util.NoSuchElementException;
 
 public final class ArrayBackedByteIterable implements ByteIterable {
     public static final ArrayBackedByteIterable EMPTY = new ArrayBackedByteIterable(new byte[]{});
-    public int offset;
-    public int limit;
+
+    private int offset;
+    private int limit;
 
     public byte @NotNull [] bytes;
 
@@ -87,36 +88,55 @@ public final class ArrayBackedByteIterable implements ByteIterable {
 
     @Override
     public long getNativeLong(int offset) {
+        assert offset >= 0 && this.offset + offset <= limit - Long.BYTES;
         return (long) LONG_HANDLE.get(bytes, offset + this.offset);
     }
 
     @Override
     public int getNativeInt(int offset) {
+        assert offset >= 0 && this.offset + offset <= limit - Integer.BYTES;
         return (int) INT_HANDLE.get(bytes, offset + this.offset);
     }
 
     @Override
     public int getNativeShort(int offset) {
+        assert offset >= 0 && this.offset + offset <= limit - Short.BYTES;
         return (short) SHORT_HANDLE.get(bytes, offset + this.offset);
     }
 
     @Override
     public long getLong(int offset) {
+        if (offset < 0 || offset > limit - Long.BYTES) {
+            throw new IndexOutOfBoundsException();
+        }
+
         return BindingUtils.readLong(bytes, this.offset + offset);
     }
 
     @Override
     public int getInt(int offset) {
+        if (offset < 0 || offset > limit - Integer.BYTES) {
+            throw new IndexOutOfBoundsException();
+        }
+
         return BindingUtils.readInt(bytes, this.offset + offset);
     }
 
     @Override
     public short getShort(int offset) {
+        if (offset < 0 || offset > limit - Short.BYTES) {
+            throw new IndexOutOfBoundsException();
+        }
+
         return BindingUtils.readShort(bytes, this.offset + offset);
     }
 
     @Override
     public String getString(int offset) {
+        if (offset < 0 || offset > limit) {
+            throw new IndexOutOfBoundsException();
+        }
+
         return BindingUtils.readString(bytes, this.offset + offset, this.limit - offset);
     }
 
@@ -280,5 +300,25 @@ public final class ArrayBackedByteIterable implements ByteIterable {
             }
             b.append(", ");
         }
+    }
+
+    public int limit() {
+        return limit;
+    }
+
+    public void limit(int limit) {
+        assert limit >= offset && limit <= bytes.length;
+
+        this.limit = limit;
+    }
+
+    public int offset() {
+        return offset;
+    }
+
+    public void offset(int offset) {
+        assert limit >= offset;
+
+        this.offset = offset;
     }
 }

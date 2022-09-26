@@ -54,11 +54,11 @@ public interface TraversablePage {
 
     default ByteIterable find(ArrayBackedByteIterable key, ImmutableCursorState state, int depth, int basicOffset) {
         var keyPrefixSize = getKeyPrefixSize();
-        if (key.limit < keyPrefixSize) {
+        if (key.limit() < keyPrefixSize) {
             return null;
         }
 
-        key.offset = basicOffset + keyPrefixSize;
+        key.offset(basicOffset + keyPrefixSize);
         var index = find(key);
 
 
@@ -96,10 +96,10 @@ public interface TraversablePage {
 
     default ByteIterable findByKeyRange(ArrayBackedByteIterable key, ImmutableCursorState state, int depth, boolean useFirstEntry) {
         var keyPrefixSize = getKeyPrefixSize();
-        if (key.limit < keyPrefixSize) {
+        if (key.limit() < keyPrefixSize) {
             useFirstEntry = true;
         } else {
-            key.offset = keyPrefixSize;
+            key.offset(keyPrefixSize);
         }
 
         int index;

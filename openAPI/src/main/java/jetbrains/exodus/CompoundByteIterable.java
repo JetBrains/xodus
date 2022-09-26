@@ -118,7 +118,7 @@ public final class CompoundByteIterable implements ByteIterable {
 
             if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
                 var len = iterable.getLength();
-                System.arraycopy(arrayBackedByteIterable.bytes, arrayBackedByteIterable.offset, result,
+                System.arraycopy(arrayBackedByteIterable.bytes, arrayBackedByteIterable.offset(), result,
                         written, len);
 
                 written += len;
@@ -149,7 +149,7 @@ public final class CompoundByteIterable implements ByteIterable {
         int otherLength = other.getLength();
 
         if (other instanceof ArrayBackedByteIterable otherArrayBackedByteIterable) {
-            otherOffset = otherArrayBackedByteIterable.offset;
+            otherOffset = otherArrayBackedByteIterable.offset();
             otherArray = otherArrayBackedByteIterable.bytes;
         } else {
             otherOffset = 0;
@@ -234,7 +234,7 @@ public final class CompoundByteIterable implements ByteIterable {
             int iterableLen = iterable.getLength();
 
             if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
-                iterableOffset = arrayBackedByteIterable.offset;
+                iterableOffset = arrayBackedByteIterable.offset();
                 iterableArray = arrayBackedByteIterable.bytes;
             } else {
                 iterableArray = iterable.getBytesUnsafe();
@@ -284,7 +284,7 @@ public final class CompoundByteIterable implements ByteIterable {
         if (right instanceof ArrayBackedByteIterable rightArrayBackedByteIterable) {
             var rightIterableLen = rightArrayBackedByteIterable.getLength();
             var rightIterableBytes = rightArrayBackedByteIterable.bytes;
-            var rightIterableOffset = rightArrayBackedByteIterable.offset;
+            var rightIterableOffset = rightArrayBackedByteIterable.offset();
 
             return compareWithArray(rightIterableLen, rightIterableOffset, rightIterableBytes);
         } else if (right instanceof CompoundByteIterable compoundByteIterable) {
@@ -368,7 +368,7 @@ public final class CompoundByteIterable implements ByteIterable {
 
         if (other instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
             otherArray = arrayBackedByteIterable.bytes;
-            otherOffset = arrayBackedByteIterable.offset;
+            otherOffset = arrayBackedByteIterable.offset();
         } else {
             otherArray = other.getBytesUnsafe();
             otherOffset = 0;
@@ -455,7 +455,7 @@ public final class CompoundByteIterable implements ByteIterable {
 
         if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
             chunk = arrayBackedByteIterable.bytes;
-            chunkOffset = arrayBackedByteIterable.offset + (offset - len);
+            chunkOffset = arrayBackedByteIterable.offset() + (offset - len);
         } else {
             chunkOffset = offset - len;
             chunk = iterable.getBytesUnsafe();
@@ -514,7 +514,7 @@ public final class CompoundByteIterable implements ByteIterable {
             this.currentChunkLength = chunkLength;
             if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
                 this.currentChunk = arrayBackedByteIterable.bytes;
-                this.currentChunkOffset = arrayBackedByteIterable.offset;
+                this.currentChunkOffset = arrayBackedByteIterable.offset();
             } else {
                 this.currentChunkOffset = 0;
                 this.currentChunk = iterable.getBytesUnsafe();
@@ -614,8 +614,8 @@ public final class CompoundByteIterable implements ByteIterable {
             var rightOffset = rightIterableOffset + compared;
             int cmp;
             if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
-                cmp = Arrays.compareUnsigned(arrayBackedByteIterable.bytes, arrayBackedByteIterable.offset,
-                        arrayBackedByteIterable.offset + lenToCompare,
+                cmp = Arrays.compareUnsigned(arrayBackedByteIterable.bytes, arrayBackedByteIterable.offset(),
+                        arrayBackedByteIterable.offset() + lenToCompare,
                         rightIterableBytes, rightOffset, rightOffset + lenToCompare);
             } else {
                 var array = iterable.getBytesUnsafe();
@@ -665,11 +665,11 @@ public final class CompoundByteIterable implements ByteIterable {
             if (firstIterable instanceof ArrayBackedByteIterable firstArrayBacked &&
                     secondIterable instanceof ArrayBackedByteIterable secondArrayBacked) {
                 cmp = Arrays.compareUnsigned(firstArrayBacked.bytes,
-                        firstArrayBacked.offset + firstIterableOffset,
-                        firstArrayBacked.offset + firstIterableOffset + iterableLength,
+                        firstArrayBacked.offset() + firstIterableOffset,
+                        firstArrayBacked.offset() + firstIterableOffset + iterableLength,
                         secondArrayBacked.bytes,
-                        secondArrayBacked.offset + secondIterableOffset,
-                        secondArrayBacked.offset + secondIterableOffset + iterableLength);
+                        secondArrayBacked.offset() + secondIterableOffset,
+                        secondArrayBacked.offset() + secondIterableOffset + iterableLength);
             } else {
                 cmp = firstIterable.subIterable(firstIterableOffset, iterableLength).compareTo(
                         secondIterable.subIterable(secondIterableOffset, iterableLength));
@@ -735,8 +735,8 @@ public final class CompoundByteIterable implements ByteIterable {
             var iterable = (ArrayBackedByteIterable) iterables[0];
 
             currentChunk = iterable.bytes;
-            currentChunkOffset = iterable.offset;
-            currentChunkLimit = iterable.limit;
+            currentChunkOffset = iterable.offset();
+            currentChunkLimit = iterable.limit();
         }
 
         @Override
@@ -752,10 +752,10 @@ public final class CompoundByteIterable implements ByteIterable {
                 currentIterable++;
 
                 var iterable = (ArrayBackedByteIterable) iterables[currentIterable];
-                if (iterable.offset < iterable.limit) {
+                if (iterable.offset() < iterable.limit()) {
                     currentChunk = iterable.bytes;
-                    currentChunkOffset = iterable.offset;
-                    currentChunkLimit = iterable.limit;
+                    currentChunkOffset = iterable.offset();
+                    currentChunkLimit = iterable.limit();
 
                     return true;
                 }
@@ -797,8 +797,8 @@ public final class CompoundByteIterable implements ByteIterable {
 
             if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
                 currentChunk = arrayBackedByteIterable.bytes;
-                currentChunkOffset = arrayBackedByteIterable.offset;
-                currentChunkLimit = arrayBackedByteIterable.limit;
+                currentChunkOffset = arrayBackedByteIterable.offset();
+                currentChunkLimit = arrayBackedByteIterable.limit();
             } else {
                 currentIterator = iterable.iterator();
             }
@@ -825,8 +825,8 @@ public final class CompoundByteIterable implements ByteIterable {
                 if (iterable instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
                     currentIterator = null;
                     currentChunk = arrayBackedByteIterable.bytes;
-                    currentChunkOffset = arrayBackedByteIterable.offset;
-                    currentChunkLimit = arrayBackedByteIterable.limit;
+                    currentChunkOffset = arrayBackedByteIterable.offset();
+                    currentChunkLimit = arrayBackedByteIterable.limit();
                 } else {
                     currentIterator = iterable.iterator();
                 }

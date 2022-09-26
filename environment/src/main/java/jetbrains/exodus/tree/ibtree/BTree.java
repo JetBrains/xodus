@@ -43,7 +43,7 @@ interface BTree extends ITree {
 
         var page = root;
         ArrayBackedByteIterable currentKey = key.toArrayBackedIterable();
-        final int basicOffset = currentKey.offset;
+        final int basicOffset = currentKey.offset();
 
         try {
             while (true) {
@@ -76,15 +76,15 @@ interface BTree extends ITree {
 
 
                 if (keyPrefixSize > 0) {
-                    if (currentKey.limit >= keyPrefixSize) {
-                        currentKey.offset = basicOffset + keyPrefixSize;
+                    if (currentKey.limit() >= keyPrefixSize) {
+                        currentKey.offset(basicOffset + keyPrefixSize);
                     } else {
                         return null;
                     }
                 }
             }
         } finally {
-            currentKey.offset = basicOffset;
+            currentKey.offset(basicOffset);
         }
     }
 

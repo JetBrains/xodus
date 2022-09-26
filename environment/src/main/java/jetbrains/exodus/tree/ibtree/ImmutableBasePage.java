@@ -69,13 +69,13 @@ abstract class ImmutableBasePage implements TraversablePage {
     abstract long getTreeSize();
 
     public final int find(ByteIterable key) {
-        var offset = page.offset;
-        var limit = page.limit;
+        var offset = page.offset();
+        var limit = page.limit();
 
         final int position = binarySearch(key, offset, limit);
 
-        page.offset = offset;
-        page.limit = limit;
+        page.offset(offset);
+        page.limit(limit);
 
         return position;
     }
@@ -90,15 +90,15 @@ abstract class ImmutableBasePage implements TraversablePage {
 
             var offset = page.getNativeInt(position);
 
-            page.limit = basicOffset + offset + page.getNativeInt(position + Integer.BYTES);
-            page.offset = basicOffset + offset;
+            page.limit(basicOffset + offset + page.getNativeInt(position + Integer.BYTES));
+            page.offset(basicOffset + offset);
 
-            assert page.offset <= page.limit;
+            assert page.offset() <= page.limit();
 
             final int cmp = page.compareTo(key);
 
-            page.limit = basiLimit;
-            page.offset = basicOffset;
+            page.limit(basiLimit);
+            page.offset(basicOffset);
 
             if (cmp < 0)
                 low = mid + 1;

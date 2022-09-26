@@ -124,11 +124,11 @@ public class TreeImmutableCursor implements ITreeCursor {
         }
 
         if (key instanceof ArrayBackedByteIterable arrayBackedByteIterable) {
-            return page.find(arrayBackedByteIterable.duplicate(), state, 0, arrayBackedByteIterable.offset);
+            return page.find(arrayBackedByteIterable.duplicate(), state, 0, arrayBackedByteIterable.offset());
         }
 
         var currentKey = new ArrayBackedByteIterable(key.getBytesUnsafe(), 0, key.getLength());
-        return page.find(currentKey, state, 0, currentKey.offset);
+        return page.find(currentKey, state, 0, currentKey.offset());
     }
 
     @Override
