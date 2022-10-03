@@ -28,8 +28,7 @@ internal class SeparateLogCache : LogCache {
                 pageSize: Int,
                 nonBlocking: Boolean,
                 useSoftReferences: Boolean,
-                cacheGenerationCount: Int,
-                checkHashCodeSince: Long) : super(memoryUsage, pageSize, checkHashCodeSince) {
+                cacheGenerationCount: Int) : super(memoryUsage, pageSize) {
         val pagesCount = (memoryUsage / (pageSize +  /* each page consumes additionally some bytes in the cache */
                 if (useSoftReferences) 144 else 80)).toInt()
         pagesCache = if (nonBlocking) {
@@ -51,8 +50,7 @@ internal class SeparateLogCache : LogCache {
                 pageSize: Int,
                 nonBlocking: Boolean,
                 useSoftReferences: Boolean,
-                cacheGenerationCount: Int,
-                checkHashCodeSince: Long) : super(memoryUsagePercentage, pageSize, checkHashCodeSince) {
+                cacheGenerationCount: Int) : super(memoryUsagePercentage, pageSize) {
         pagesCache = if (memoryUsage == Long.MAX_VALUE) {
             if (nonBlocking) {
                 if (useSoftReferences) {
@@ -94,11 +92,7 @@ internal class SeparateLogCache : LogCache {
 
     override fun getPageIterable(log: Log, pageAddress: Long): ArrayByteIterable {
         var page = pagesCache.tryKeyLocked(pageAddress)
-        val adjustedPageSize = if (pageAddress >= checkHashCodeSince) {
-            pageSize - Log.LOGGABLE_DATA
-        } else {
-            pageSize
-        }
+        val adjustedPageSize = pageSize - Log.LOGGABLE_DATA
 
         if (page != null) {
             return ArrayByteIterable(page, adjustedPageSize)

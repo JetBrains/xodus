@@ -29,8 +29,7 @@ internal class SharedLogCache : LogCache {
                 pageSize: Int,
                 nonBlocking: Boolean,
                 useSoftReferences: Boolean,
-                cacheGenerationCount: Int,
-                checkHashCodeSince: Long) : super(memoryUsage, pageSize, checkHashCodeSince) {
+                cacheGenerationCount: Int) : super(memoryUsage, pageSize) {
         this.useSoftReferences = useSoftReferences
         val pagesCount = (memoryUsage / (pageSize +  /* each page consumes additionally 96 bytes in the cache */
                 96)).toInt()
@@ -53,8 +52,7 @@ internal class SharedLogCache : LogCache {
                 pageSize: Int,
                 nonBlocking: Boolean,
                 useSoftReferences: Boolean,
-                cacheGenerationCount: Int,
-                checkHashCodeSince: Long) : super(memoryUsagePercentage, pageSize, checkHashCodeSince) {
+                cacheGenerationCount: Int) : super(memoryUsagePercentage, pageSize) {
         this.useSoftReferences = useSoftReferences
         pagesCache = if (memoryUsage == Long.MAX_VALUE) {
             if (nonBlocking) {
@@ -127,11 +125,7 @@ internal class SharedLogCache : LogCache {
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
 
-        val adjustedPageSize = if (pageAddress >= checkHashCodeSince) {
-            pageSize - Log.LOGGABLE_DATA
-        } else {
-            pageSize
-        }
+        val adjustedPageSize = pageSize - Log.LOGGABLE_DATA
 
         if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
             return ArrayByteIterable(cachedValue.page, adjustedPageSize)

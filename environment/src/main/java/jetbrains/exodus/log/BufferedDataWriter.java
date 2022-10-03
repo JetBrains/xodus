@@ -93,18 +93,15 @@ public class BufferedDataWriter {
         adjustedPageSize = pageSize - Log.LOGGABLE_DATA;
     }
 
-    public static void checkPageConsistency(long pageAddress, long checkHashCodeSince,
-                                            byte @NotNull [] bytes, int pageSize, Log log) {
-        if (pageAddress >= checkHashCodeSince && bytes.length == pageSize) {
-            XXHash64 xxHash = BufferedDataWriter.xxHash;
+    public static void checkPageConsistency(long pageAddress, byte @NotNull [] bytes, Log log) {
+        final XXHash64 xxHash = BufferedDataWriter.xxHash;
 
-            long calculatedHash = xxHash.hash(bytes, 0,
-                    bytes.length - Log.HASH_CODE_SIZE, BufferedDataWriter.HASH_SEED);
-            long storedHash = BindingUtils.readLong(bytes, bytes.length - Log.HASH_CODE_SIZE);
+        final long calculatedHash = xxHash.hash(bytes, 0,
+                bytes.length - Log.HASH_CODE_SIZE, BufferedDataWriter.HASH_SEED);
+        final long storedHash = BindingUtils.readLong(bytes, bytes.length - Log.HASH_CODE_SIZE);
 
-            if (storedHash != calculatedHash) {
-                DataCorruptionException.raise("Page is broken", log, pageAddress);
-            }
+        if (storedHash != calculatedHash) {
+            DataCorruptionException.raise("Page is broken", log, pageAddress);
         }
     }
 
@@ -370,7 +367,7 @@ public class BufferedDataWriter {
                 currentPage.committedCount, highAddress, highAddress, blockSetImmutable);
     }
 
-    byte getByte(long address, byte max, long checkHashCodeSince) {
+    byte getByte(final long address, final byte max) {
         final int offset = ((int) address) & (pageSize - 1);
         final long pageAddress = address - offset;
         final MutablePage page = getWrittenPage(pageAddress);
@@ -399,10 +396,11 @@ public class BufferedDataWriter {
         }
 
         if (cipherProvider != null) {
-            EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey, cipherBasicIV, pageAddress, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
+            EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey, cipherBasicIV, pageAddress, output, 0,
+                    readBytes, LogUtil.LOG_BLOCK_ALIGNMENT);
         }
 
-        checkPageConsistency(pageAddress, checkHashCodeSince, output, pageSize, log);
+        checkPageConsistency(pageAddress, output, log);
 
         final byte result = (byte) (output[offset] ^ 0x80);
         if (result < 0 || result > max) {

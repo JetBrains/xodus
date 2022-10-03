@@ -69,8 +69,6 @@ class Log(val config: LogConfig) : Closeable {
 
     val adjustedPageSize = cachePageSize - LOGGABLE_DATA
 
-    var checkHashCodeSince = 0L
-
     /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
      */
@@ -144,18 +142,18 @@ class Log(val config: LogConfig) : Closeable {
             cache = if (memoryUsage != 0L) {
                 if (config.isSharedCache)
                     getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
-                            generationCount, checkHashCodeSince)
+                            generationCount)
                 else
                     SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
-                            generationCount, checkHashCodeSince)
+                            generationCount)
             } else {
                 val memoryUsagePercentage = config.memoryUsagePercentage
                 if (config.isSharedCache)
                     getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
-                            useSoftReferences, generationCount, checkHashCodeSince)
+                            useSoftReferences, generationCount)
                 else
                     SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
-                            useSoftReferences, generationCount, checkHashCodeSince)
+                            useSoftReferences, generationCount)
             }
             DeferredIO.getJobProcessor()
             isClosing = false
@@ -178,8 +176,7 @@ class Log(val config: LogConfig) : Closeable {
                                 highPageAddress)
                     }
                 } else if (highPageAddress > 0) {
-                    BufferedDataWriter.checkPageConsistency(highPageAddress, checkHashCodeSince,
-                            highPageContent, cachePageSize, this)
+                    BufferedDataWriter.checkPageConsistency(highPageAddress, highPageContent, this)
                 }
 
                 val proposedTip = LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
@@ -334,8 +331,9 @@ class Log(val config: LogConfig) : Closeable {
             val highPageAddress = getHighPageAddress(highAddress)
             val blockSetImmutable = blockSet.endWrite()
             val highPageSize = (highAddress - highPageAddress).toInt()
-            if (oldHighPageAddress == highPageAddress) {
-                updatedTip = logTip.withResize(highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
+
+            updatedTip = if (oldHighPageAddress == highPageAddress) {
+                logTip.withResize(highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
             } else {
                 updateLogIdentity()
                 val highPageContent = ByteArray(cachePageSize)
@@ -344,11 +342,10 @@ class Log(val config: LogConfig) : Closeable {
                 }
 
                 if (highPageSize == cachePageSize) {
-                    BufferedDataWriter.checkPageConsistency(highPageAddress, checkHashCodeSince,
-                            highPageContent, cachePageSize, this)
+                    BufferedDataWriter.checkPageConsistency(highPageAddress, highPageContent, this)
                 }
 
-                updatedTip = LogTip(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
+                LogTip(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
             }
         }
         compareAndSetTip(logTip, updatedTip)
@@ -423,10 +420,6 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun adjustedLoggableAddress(address: Long, offset: Long): Long {
-        if (address < checkHashCodeSince) {
-            return address
-        }
-
         val cachePageReminderMask = (cachePageSize - 1).toLong()
         val writtenInPage = address and cachePageReminderMask
         val pageAddress = address and (cachePageReminderMask.inv())
@@ -511,7 +504,7 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun getWrittenLoggableType(address: Long, max: Byte): Byte {
-        return ensureWriter().getByte(address, max, checkHashCodeSince)
+        return ensureWriter().getByte(address, max)
     }
 
     @JvmOverloads
@@ -1030,14 +1023,13 @@ class Log(val config: LogConfig) : Closeable {
                                    pageSize: Int,
                                    nonBlocking: Boolean,
                                    useSoftReferences: Boolean,
-                                   cacheGenerationCount: Int,
-                                   checkHashCodeSince: Long): LogCache {
+                                   cacheGenerationCount: Int): LogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
                         sharedCache = SharedLogCache(memoryUsage, pageSize, nonBlocking,
-                                useSoftReferences, cacheGenerationCount, checkHashCodeSince)
+                                useSoftReferences, cacheGenerationCount)
                     }
                     result = sharedCache
                 }
@@ -1052,14 +1044,13 @@ class Log(val config: LogConfig) : Closeable {
                                    pageSize: Int,
                                    nonBlocking: Boolean,
                                    useSoftReferences: Boolean,
-                                   cacheGenerationCount: Int,
-                                   checkHashCodeSince: Long): LogCache {
+                                   cacheGenerationCount: Int): LogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
                         sharedCache = SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking,
-                                useSoftReferences, cacheGenerationCount, checkHashCodeSince)
+                                useSoftReferences, cacheGenerationCount)
                     }
                     result = sharedCache
                 }

@@ -26,14 +26,13 @@ internal abstract class LogCache {
     internal val memoryUsage: Long
     protected val memoryUsagePercentage: Int
     internal val pageSize: Int
-    internal val checkHashCodeSince: Long
 
     /**
      * @param memoryUsage amount of memory which the cache is allowed to occupy (in bytes).
      * @param pageSize    number of bytes in a page.
      * @throws InvalidSettingException if settings are invalid.
      */
-    protected constructor(memoryUsage: Long, pageSize: Int, checkHashCodeSince: Long) {
+    protected constructor(memoryUsage: Long, pageSize: Int) {
         checkPageSize(pageSize)
         this.pageSize = pageSize
         checkIntegerLogarithm(pageSize) {
@@ -45,7 +44,6 @@ internal abstract class LogCache {
         }
         this.memoryUsage = memoryUsage
         memoryUsagePercentage = 0
-        this.checkHashCodeSince = checkHashCodeSince
     }
 
     /**
@@ -53,7 +51,7 @@ internal abstract class LogCache {
      * @param pageSize              number of bytes in a page.
      * @throws InvalidSettingException if settings are invalid.
      */
-    protected constructor(memoryUsagePercentage: Int, pageSize: Int, checkHashCodeSince: Long) {
+    protected constructor(memoryUsagePercentage: Int, pageSize: Int) {
         checkPageSize(pageSize)
         if (memoryUsagePercentage < MINIMUM_MEM_USAGE_PERCENT) {
             throw InvalidSettingException("Memory usage percent cannot be less than $MINIMUM_MEM_USAGE_PERCENT")
@@ -68,7 +66,6 @@ internal abstract class LogCache {
         val maxMemory = Runtime.getRuntime().maxMemory()
         memoryUsage = if (maxMemory == Long.MAX_VALUE) Long.MAX_VALUE else maxMemory / 100L * memoryUsagePercentage.toLong()
         this.memoryUsagePercentage = memoryUsagePercentage
-        this.checkHashCodeSince = checkHashCodeSince
     }
 
     abstract fun clear()
@@ -123,8 +120,7 @@ internal abstract class LogCache {
                     + pageAddress % log.fileLengthBound + ", read: " + bytesRead)
         }
 
-        BufferedDataWriter.checkPageConsistency(pageAddress, checkHashCodeSince,
-                bytes, pageSize, log)
+        BufferedDataWriter.checkPageConsistency(pageAddress, bytes, log)
     }
 
     companion object {
