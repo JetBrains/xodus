@@ -85,11 +85,12 @@ class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteI
             int alignment = ((int) currentAddress) & (pageSize - 1);
             long alignedAddress = currentAddress - alignment;
 
-            if (alignment >= pageSize - Log.LOGGABLE_DATA) {
+            int metadataDelta = alignment - (pageSize - Log.LOGGABLE_DATA);
+            if (metadataDelta >= 0) {
                 alignedAddress += pageSize;
-                alignment = 0;
+                alignment = metadataDelta;
 
-                currentAddress = alignedAddress * pageSize;
+                currentAddress = alignedAddress + metadataDelta;
             }
 
 

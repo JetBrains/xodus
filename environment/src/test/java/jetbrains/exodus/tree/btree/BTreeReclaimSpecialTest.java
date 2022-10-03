@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,6 +17,7 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.log.LogConfig;
+import jetbrains.exodus.log.LogTests;
 import jetbrains.exodus.log.NullLoggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.ITreeCursor;
@@ -38,8 +39,9 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
     @Test
     public void testStartAddress() {
         final long fileSize = log.getFileLengthBound();
+        final long adjustedFileSize = LogTests.adjustedLogFileSize(fileSize, log.getCachePageSize());
         log.beginWrite();
-        for (long l = 1; l < fileSize; ++l) { // fill all file except for one byte with nulls
+        for (long l = 1; l < adjustedFileSize; ++l) { // fill all file except for one byte with nulls
             log.write(NullLoggable.create());
         }
         log.flush();

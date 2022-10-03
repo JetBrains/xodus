@@ -123,7 +123,8 @@ internal abstract class LogCache {
                     + pageAddress % log.fileLengthBound + ", read: " + bytesRead)
         }
 
-        BufferedDataWriter.checkPageConsistency(pageAddress, checkHashCodeSince, bytes, pageSize, log)
+        BufferedDataWriter.checkPageConsistency(pageAddress, checkHashCodeSince,
+                bytes, pageSize, log)
     }
 
     companion object {

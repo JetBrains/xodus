@@ -60,6 +60,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < 1024; ++i) {
             getLog().write(emptyLoggable);
         }
+        getLog().flush();
         getLog().endWrite();
         closeLog();
 
@@ -131,6 +132,7 @@ public class LogTests extends LogTestsBase {
             getLog().doPadWithNulls();
             Assert.assertEquals(i + 1, getLog().ensureWriter().getBlockSetMutable().size());
         }
+        getLog().flush();
         getLog().endWrite();
     }
 
@@ -141,6 +143,7 @@ public class LogTests extends LogTestsBase {
         for (int j = 0; j < adjustedLogFileSize(1024, 1024) * 99; ++j) {
             getLog().write(NullLoggable.create());
         }
+        getLog().flush();
         log.endWrite();
         Assert.assertEquals(99, (int) getLog().getNumberOfFiles()); // null loggable should take only one byte
     }
@@ -154,6 +157,7 @@ public class LogTests extends LogTestsBase {
         }
         // here auto-alignment should happen
         final long dummyAddress = getLog().write(DUMMY_LOGGABLE);
+        getLog().flush();
         getLog().endWrite();
         Assert.assertEquals(2, (int) getLog().getNumberOfFiles());
         // despite the fact that DUMMY_LOGGABLE size + 1023 nulls should result in 1025 bytes,
@@ -169,6 +173,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < 100; ++i) {
             getLog().beginWrite();
             final long dummyAddress = getLog().write(DUMMY_LOGGABLE);
+            getLog().flush();
             getLog().endWrite();
             Assert.assertEquals(expectedAddress(i * 3L, 1024), dummyAddress);
             Assert.assertEquals(dummyAddress, getLog().read(dummyAddress).getAddress());
@@ -194,6 +199,7 @@ public class LogTests extends LogTestsBase {
     public void testReadUnknownLoggableType() {
         getLog().beginWrite();
         getLog().write(DUMMY_LOGGABLE);
+        getLog().flush();
         getLog().endWrite();
         getLog().read(0);
     }
@@ -232,6 +238,7 @@ public class LogTests extends LogTestsBase {
         Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
         getLog().beginWrite();
         getLog().write(NullLoggable.create());
+        getLog().flush();
         getLog().endWrite();
         final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         Assert.assertTrue(it.hasNext());
@@ -343,6 +350,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < count; ++i) {
             writeData(CompressedUnsignedLongByteIterable.getIterable(i));
         }
+        getLog().flush();
         getLog().endWrite();
         final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
         int i = 0;
@@ -364,6 +372,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < 2048; ++i) {
             getLog().write(DUMMY_LOGGABLE);
         }
+        getLog().flush();
         getLog().endWrite();
 
         closeLog();
@@ -411,6 +420,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < count; ++i) {
             addrs.add(writeData(CompressedUnsignedLongByteIterable.getIterable(i)));
         }
+        log.flush();
         log.endWrite();
         for (int i = 0; i < count; ++i) {
             Assert.assertEquals(i, (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addrs.get(i)).getData()));
@@ -426,6 +436,7 @@ public class LogTests extends LogTestsBase {
             final long addr = writeData(CompressedUnsignedLongByteIterable.getIterable(i));
             addrs.put(addr, valueOf(i));
         }
+        log.flush();
         log.endWrite();
 
         for (Long addr : addrs.keySet()) {
@@ -450,7 +461,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @SuppressWarnings("SameParameterValue")
-    static long adjustedLogFileSize(long fileSize, int pageSize) {
+    public static long adjustedLogFileSize(long fileSize, int pageSize) {
         long pages = fileSize / pageSize;
         return (pageSize - Log.LOGGABLE_DATA) * pages;
     }

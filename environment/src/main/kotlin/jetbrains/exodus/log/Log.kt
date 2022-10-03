@@ -67,11 +67,7 @@ class Log(val config: LogConfig) : Closeable {
     /** Size of single page in log cache. */
     val cachePageSize = config.cachePageSize
 
-    private val cachePageReminderMask = (cachePageSize - 1).toLong()
-
-    private val cachePageAddressMask = (cachePageReminderMask.inv())
-
-    private val adjustedPageSize = cachePageSize - LOGGABLE_DATA
+    val adjustedPageSize = cachePageSize - LOGGABLE_DATA
 
     var checkHashCodeSince = 0L
 
@@ -125,101 +121,117 @@ class Log(val config: LogConfig) : Closeable {
 
     init {
         tryLock()
-        val fileLength = config.fileSize * 1024L
-        if (fileLength % cachePageSize != 0L) {
-            throw InvalidSettingException("File size should be a multiple of cache page size.")
-        }
-        fileLengthBound = fileLength
-        val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
-        if (reader is FileDataReader) {
-            reader.setLog(this)
-        }
-
-        checkLogConsistency(blockSetMutable)
-
-        val blockSetImmutable = blockSetMutable.endWrite()
-
-        val memoryUsage = config.memoryUsage
-        val nonBlockingCache = config.isNonBlockingCache
-        val useSoftReferences = config.cacheUseSoftReferences
-        val generationCount = config.cacheGenerationCount
-
-        cache = if (memoryUsage != 0L) {
-            if (config.isSharedCache)
-                getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
-                        generationCount, checkHashCodeSince)
-            else
-                SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
-                        generationCount, checkHashCodeSince)
-        } else {
-            val memoryUsagePercentage = config.memoryUsagePercentage
-            if (config.isSharedCache)
-                getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
-                        useSoftReferences, generationCount, checkHashCodeSince)
-            else
-                SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
-                        useSoftReferences, generationCount, checkHashCodeSince)
-        }
-        DeferredIO.getJobProcessor()
-        isClosing = false
-
-        val lastFileAddress = blockSetMutable.maximum
-        updateLogIdentity()
-        if (lastFileAddress == null) {
-            internalTip = AtomicReference(LogTip(fileLengthBound))
-        } else {
-            val currentHighAddress = lastFileAddress + blockSetMutable.getBlock(lastFileAddress).length()
-            val highPageAddress = getHighPageAddress(currentHighAddress)
-            val highPageContent = ByteArray(cachePageSize)
-            val tmpTip = LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
-            this.internalTip = AtomicReference(tmpTip) // TODO: this is a hack to provide readBytes below with high address (for determining last file length)
-            val highPageSize = if (currentHighAddress == 0L) 0 else readBytes(highPageContent, highPageAddress)
-            val proposedTip = LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
-            this.internalTip.set(proposedTip)
-            // here we should check whether last loggable is written correctly
-            val lastFileLoggables = LoggableIterator(this, lastFileAddress)
-            var approvedHighAddress: Long = lastFileAddress
-            try {
-                while (lastFileLoggables.hasNext()) {
-                    val loggable = lastFileLoggables.next()
-                    val dataLength = if (NullLoggable.isNullLoggable(loggable)) 0 else loggable.dataLength
-                    if (dataLength > 0) {
-                        // if not null loggable read all data to the end
-                        val data = loggable.data.iterator()
-                        for (i in 0 until dataLength) {
-                            if (!data.hasNext()) {
-                                throw ExodusException("Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(data.address, fileLengthBound))
-                            }
-                            data.next()
-                        }
-                    } else if (dataLength < 0) {
-                        // XD-728:
-                        // this is either data corruption or encrypted database
-                        // anyway recovery should stop at this point
-                        break
-                    }
-                    val approvedHighAddressCandidate = loggable.address + loggable.length()
-                    if (approvedHighAddressCandidate > currentHighAddress) {
-                        // XD-728:
-                        // this is either data corruption or encrypted database
-                        // anyway recovery should stop at this point
-                        break
-                    }
-                    approvedHighAddress = approvedHighAddressCandidate
-                }
-            } catch (e: ExodusException) { // if an exception is thrown then last loggable wasn't read correctly
-                logger.info(e) { "Exception on Log recovery. Approved high address = $approvedHighAddress" }
+        try {
+            val fileLength = config.fileSize * 1024L
+            if (fileLength % cachePageSize != 0L) {
+                throw InvalidSettingException("File size should be a multiple of cache page size.")
+            }
+            fileLengthBound = fileLength
+            val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
+            if (reader is FileDataReader) {
+                reader.setLog(this)
             }
 
-            this.internalTip.set(proposedTip.withApprovedAddress(approvedHighAddress))
-        }
+            checkLogConsistency(blockSetMutable)
 
-        nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
+            val blockSetImmutable = blockSetMutable.endWrite()
 
-        sync()
+            val memoryUsage = config.memoryUsage
+            val nonBlockingCache = config.isNonBlockingCache
+            val useSoftReferences = config.cacheUseSoftReferences
+            val generationCount = config.cacheGenerationCount
 
-        if (config.isWarmup) {
-            warmup()
+            cache = if (memoryUsage != 0L) {
+                if (config.isSharedCache)
+                    getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
+                            generationCount, checkHashCodeSince)
+                else
+                    SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
+                            generationCount, checkHashCodeSince)
+            } else {
+                val memoryUsagePercentage = config.memoryUsagePercentage
+                if (config.isSharedCache)
+                    getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
+                            useSoftReferences, generationCount, checkHashCodeSince)
+                else
+                    SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
+                            useSoftReferences, generationCount, checkHashCodeSince)
+            }
+            DeferredIO.getJobProcessor()
+            isClosing = false
+
+            val lastFileAddress = blockSetMutable.maximum
+            updateLogIdentity()
+            if (lastFileAddress == null) {
+                internalTip = AtomicReference(LogTip(fileLengthBound))
+            } else {
+                val currentHighAddress = lastFileAddress + blockSetMutable.getBlock(lastFileAddress).length()
+                val highPageAddress = getHighPageAddress(currentHighAddress)
+                val highPageContent = ByteArray(cachePageSize)
+                val tmpTip = LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
+                this.internalTip = AtomicReference(tmpTip) // TODO: this is a hack to provide readBytes below with high address (for determining last file length)
+                val highPageSize = if (currentHighAddress == 0L) 0 else readBytes(highPageContent, highPageAddress)
+
+                if (highPageSize < cachePageSize) {
+                    if (highPageSize != 0 && highPageAddress != 0L) {
+                        DataCorruptionException.raise("High page size is less than expected", this,
+                                highPageAddress)
+                    }
+                } else if (highPageAddress > 0) {
+                    BufferedDataWriter.checkPageConsistency(highPageAddress, checkHashCodeSince,
+                            highPageContent, cachePageSize, this)
+                }
+
+                val proposedTip = LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
+                this.internalTip.set(proposedTip)
+                // here we should check whether last loggable is written correctly
+                val lastFileLoggables = LoggableIterator(this, lastFileAddress)
+                var approvedHighAddress: Long = lastFileAddress
+                try {
+                    while (lastFileLoggables.hasNext()) {
+                        val loggable = lastFileLoggables.next()
+                        val dataLength = if (NullLoggable.isNullLoggable(loggable)) 0 else loggable.dataLength
+                        if (dataLength > 0) {
+                            // if not null loggable read all data to the end
+                            val data = loggable.data.iterator()
+                            for (i in 0 until dataLength) {
+                                if (!data.hasNext()) {
+                                    throw ExodusException("Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(data.address, fileLengthBound))
+                                }
+                                data.next()
+                            }
+                        } else if (dataLength < 0) {
+                            // XD-728:
+                            // this is either data corruption or encrypted database
+                            // anyway recovery should stop at this point
+                            break
+                        }
+                        val approvedHighAddressCandidate = loggable.address + loggable.length()
+                        if (approvedHighAddressCandidate > currentHighAddress) {
+                            // XD-728:
+                            // this is either data corruption or encrypted database
+                            // anyway recovery should stop at this point
+                            break
+                        }
+                        approvedHighAddress = approvedHighAddressCandidate
+                    }
+                } catch (e: ExodusException) { // if an exception is thrown then last loggable wasn't read correctly
+                    logger.info(e) { "Exception on Log recovery. Approved high address = $approvedHighAddress" }
+                }
+
+                this.internalTip.set(proposedTip.withApprovedAddress(approvedHighAddress))
+            }
+
+            nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
+
+            sync()
+
+            if (config.isWarmup) {
+                warmup()
+            }
+        } catch (ex: RuntimeException) {
+            release()
+            throw ex
         }
     }
 
@@ -330,6 +342,12 @@ class Log(val config: LogConfig) : Closeable {
                 if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
                     throw ExodusException("Can't read expected high page bytes")
                 }
+
+                if (highPageSize == cachePageSize) {
+                    BufferedDataWriter.checkPageConsistency(highPageAddress, checkHashCodeSince,
+                            highPageContent, cachePageSize, this)
+                }
+
                 updatedTip = LogTip(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
             }
         }
@@ -409,8 +427,9 @@ class Log(val config: LogConfig) : Closeable {
             return address
         }
 
+        val cachePageReminderMask = (cachePageSize - 1).toLong()
         val writtenInPage = address and cachePageReminderMask
-        val pageAddress = address and cachePageAddressMask
+        val pageAddress = address and (cachePageReminderMask.inv())
 
         val writtenSincePageStart = writtenInPage + offset
         val fullPages = writtenSincePageStart / adjustedPageSize
@@ -684,6 +703,7 @@ class Log(val config: LogConfig) : Closeable {
 
             if (written > 0) {
                 writer.commit()
+                writer.flush()
                 closeFullFileIfNecessary(writer)
             }
         } finally {
@@ -724,6 +744,11 @@ class Log(val config: LogConfig) : Closeable {
         beginWrite()
         forgetFiles(longArrayOf(address))
         endWrite()
+    }
+
+    @Deprecated("for tests only")
+    fun clearCache() {
+        cache.clear()
     }
 
     fun forgetFiles(files: LongArray) {
@@ -838,17 +863,6 @@ class Log(val config: LogConfig) : Closeable {
         return highAddress - alignment // aligned address
     }
 
-    /**
-     * Writes specified loggable continuously in a single file.
-     *
-     * @param loggable the loggable to write.
-     * @return address where the loggable was placed or less than zero value if the loggable can't be
-     * written continuously in current appendable file.
-     */
-    fun writeContinuously(loggable: Loggable): Long {
-        return writeContinuously(loggable.type, loggable.structureId, loggable.data)
-    }
-
     fun writeContinuously(type: Byte, structureId: Int, data: ByteIterable): Long {
         val writer = ensureWriter()
 
@@ -901,7 +915,14 @@ class Log(val config: LogConfig) : Closeable {
 
         if (!this.writer.isOpen) {
             val fileAddress = getFileAddress(result)
-            val block = writer.openOrCreateBlock(fileAddress, highAddress % fileLengthBound)
+
+            val block = if (writer.highAddress <= highAddress) {
+                writer.openOrCreateBlock(fileAddress, highAddress % fileLengthBound)
+            } else {
+                assert(writer.highAddress % fileLengthBound == 0L)
+                writer.openOrCreateBlock(fileAddress, 0)
+            }
+
             val fileCreated = !writer.blockSetMutable.contains(fileAddress)
             if (fileCreated) {
                 writer.blockSetMutable.add(fileAddress, block)

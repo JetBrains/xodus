@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -215,8 +215,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         final ByteIterable savedData = root.getData();
 
         final ByteIterable[] iterables = {
-            CompressedUnsignedLongByteIterable.getIterable(size),
-            savedData
+                CompressedUnsignedLongByteIterable.getIterable(size),
+                savedData
         };
 
         return log.write(type, structureId, new CompoundByteIterable(iterables));
@@ -263,8 +263,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             extraBelongings.openCursors = cursors;
         }
         final TreeCursorMutable result = allowsDuplicates ?
-            new BTreeCursorDupMutable(this, new BTreeTraverserDup(root)) :
-            new TreeCursorMutable(this, new BTreeTraverser(root));
+                new BTreeCursorDupMutable(this, new BTreeTraverserDup(root)) :
+                new TreeCursorMutable(this, new BTreeTraverser(root));
         cursors.add(result);
         return result;
     }
@@ -350,8 +350,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             // reaching the tree's root, in order to avoid possible OOME (XD-513)
             final ExpiredLoggableCollection expiredLoggables = extraBelongings.expiredLoggables;
             if (type == NullLoggable.TYPE &&
-                expiredLoggables != null && // this check fixes XD-532 & XD-538
-                expiredLoggables.getSize() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
+                    expiredLoggables != null && // this check fixes XD-532 & XD-538
+                    expiredLoggables.getSize() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
                 break;
             }
             loggable = loggables.next();
@@ -393,8 +393,12 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     @Nullable
     private LeafNode loadMinKey(ByteIterableWithAddress data, int offset) {
-        final int addressLen = data.byteAt(offset);
-        final long keyAddress = data.nextLong(offset + 1, addressLen);
+        final long dataAddress = data.getDataAddress();
+
+        final int addressLen = data.byteAtAddress(log.adjustedLoggableAddress(dataAddress, offset));
+        final long keyAddress = data.nextLongByAddress(log.adjustedLoggableAddress(dataAddress, offset + 1),
+                addressLen);
+
         return log.hasAddress(keyAddress) ? loadLeaf(keyAddress) : null;
     }
 

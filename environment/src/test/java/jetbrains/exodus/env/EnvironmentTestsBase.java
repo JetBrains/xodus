@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -276,13 +276,38 @@ public class EnvironmentTestsBase {
     }
 
     protected void setLogFileSize(int kilobytes) {
-        final EnvironmentConfig envConfig = env.getEnvironmentConfig();
-        if (envConfig.getLogCachePageSize() > kilobytes * 1024) {
-            envConfig.setLogCachePageSize(kilobytes * 1024);
+        EnvironmentConfig environmentConfig = new EnvironmentConfig().setLogCacheShared(false);
+
+        if (environmentConfig.getLogFileSize() != kilobytes) {
+            final EnvironmentConfig envConfig = env.getEnvironmentConfig();
+            if (envConfig.getLogCachePageSize() > kilobytes * 1024) {
+                envConfig.setLogCachePageSize(kilobytes * 1024);
+            }
+            envConfig.setLogFileSize(kilobytes);
+
+            recreateEnvinronment(envConfig);
         }
-        envConfig.setLogFileSize(kilobytes);
-        Log.invalidateSharedCache();
-        reopenEnvironment();
+    }
+
+    protected void recreateEnvinronment(EnvironmentConfig envConfig) {
+        env.close();
+
+        invalidateSharedCaches();
+        deleteRW();
+
+        final Pair<DataReader, DataWriter> readerWriterPair;
+        try {
+            readerWriterPair = createRW();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        reader = readerWriterPair.getFirst();
+        writer = readerWriterPair.getSecond();
+
+        LogConfig logConfig = LogConfig.create(reader, writer);
+
+        env = newEnvironmentInstance(logConfig, envConfig);
     }
 
     protected void set1KbFileWithoutGC() {

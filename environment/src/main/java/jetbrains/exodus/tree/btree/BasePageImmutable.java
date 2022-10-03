@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -101,7 +101,7 @@ abstract class BasePageImmutable extends BasePage {
 
     ByteIterator getDataIterator() {
         return dataAddress == Loggable.NULL_ADDRESS ?
-            ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress()));
+                ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress()));
     }
 
     protected void loadAddressLengths(final int length, final ByteIterator it) {
@@ -116,8 +116,12 @@ abstract class BasePageImmutable extends BasePage {
 
     @Override
     protected long getKeyAddress(final int index) {
-        return dataAddress == Loggable.NULL_ADDRESS ? Loggable.NULL_ADDRESS :
-            data.nextLong((int) (dataAddress - data.getDataAddress() + index * keyAddressLen), keyAddressLen);
+        if (dataAddress == Loggable.NULL_ADDRESS) {
+            return Loggable.NULL_ADDRESS;
+        }
+
+        final long address = tree.log.adjustedLoggableAddress(dataAddress, (long) index * keyAddressLen);
+        return data.nextLongByAddress(address, keyAddressLen);
     }
 
     @Override
@@ -160,11 +164,13 @@ abstract class BasePageImmutable extends BasePage {
         byte[] leftPage = null;
         long rightAddress = -1L;
         byte[] rightPage = null;
-        final BinarySearchIterator it = new BinarySearchIterator();
+
+        final int adjustedPageSize = log.getAdjustedPageSize();
+        final BinarySearchIterator it = new BinarySearchIterator(adjustedPageSize);
 
         while (low <= high) {
             final int mid = (low + high) >>> 1;
-            final long midAddress = dataAddress + (mid * bytesPerAddress);
+            final long midAddress = log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
             final int offset;
             it.offset = offset = ((int) midAddress) & (cachePageSize - 1); // cache page size is always a power of 2
             final long pageAddress = midAddress - offset;
@@ -178,7 +184,7 @@ abstract class BasePageImmutable extends BasePage {
             }
 
             final long leafAddress;
-            if (cachePageSize - offset < bytesPerAddress) {
+            if (adjustedPageSize - offset < bytesPerAddress) {
                 final long nextPageAddress = pageAddress + cachePageSize;
                 if (rightAddress == nextPageAddress) {
                     it.nextPage = rightPage;
@@ -210,6 +216,11 @@ abstract class BasePageImmutable extends BasePage {
         private byte[] page;
         private byte[] nextPage;
         private int offset;
+        private final int adjustedPageSize;
+
+        private BinarySearchIterator(final int adjustedPageSize) {
+            this.adjustedPageSize = adjustedPageSize;
+        }
 
         private CompoundByteIteratorBase asCompound() {
             return new CompoundByteIteratorBase(this) {
@@ -224,7 +235,7 @@ abstract class BasePageImmutable extends BasePage {
 
         @Override
         public boolean hasNext() {
-            return offset < page.length;
+            return offset < adjustedPageSize;
         }
 
         @Override

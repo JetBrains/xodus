@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,12 +32,22 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         return address;
     }
 
-    public byte byteAt(final int offset) {
+    protected byte byteAt(final int offset) {
         return iterator(offset).next();
     }
 
-    public long nextLong(final int offset, final int length) {
+    public final byte byteAtAddress(final long address) {
+        final int offset = (int) (address - this.address);
+        return byteAt(offset);
+    }
+
+    protected long nextLong(final int offset, final int length) {
         return iterator(offset).nextLong(length);
+    }
+
+    public final long nextLongByAddress(final long address, final int length) {
+        final int offset = (int) (address - this.address);
+        return nextLong(offset, length);
     }
 
     public int getCompressedUnsignedInt() {

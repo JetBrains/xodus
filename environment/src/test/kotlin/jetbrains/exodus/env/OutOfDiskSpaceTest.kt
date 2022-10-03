@@ -85,10 +85,8 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
     }
 
     private fun prepareStores(): Pair<Store, Store> {
-        env.environmentConfig.logCachePageSize = 1024
-        env.environmentConfig.logFileSize = 1
-        invalidateSharedCaches()
-        reopenEnvironment()
+        setLogFileSize(1)
+
         val store0 = env.computeInTransaction { txn ->
             env.openStore("store0", StoreConfig.WITHOUT_DUPLICATES, txn)
         }

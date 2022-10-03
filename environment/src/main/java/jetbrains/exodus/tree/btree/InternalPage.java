@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,6 +19,7 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -52,7 +53,10 @@ class InternalPage extends BasePageImmutable {
     @Override
     public long getChildAddress(final int index) {
         final int offset = size * keyAddressLen + index * childAddressLen + 1;
-        return data.nextLong((int) (dataAddress - data.getDataAddress() + offset), childAddressLen);
+        final Log log = tree.log;
+
+        final long childPointerAddress = log.adjustedLoggableAddress(dataAddress, offset);
+        return data.nextLongByAddress(childPointerAddress, childAddressLen);
     }
 
     @Override

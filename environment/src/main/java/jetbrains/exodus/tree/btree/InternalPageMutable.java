@@ -63,6 +63,9 @@ public class InternalPageMutable extends BasePageMutable {
     protected void load(@NotNull final ByteIterator it, final int keyAddressLen) {
         super.load(it, keyAddressLen);
         CompressedUnsignedLongArrayByteIterable.loadLongs(childrenAddresses, it, size);
+        if (childrenAddresses[0] == 0 && childrenAddresses[1] == 0) {
+            System.out.println();
+        }
     }
 
     @Override
@@ -114,6 +117,9 @@ public class InternalPageMutable extends BasePageMutable {
         if (children[index] == null) {
             final long childAddress = childrenAddresses[index];
             tree.addExpiredLoggable(childAddress);
+            if (index == 1 && childAddress == 58353) {
+                System.out.println();
+            }
             children[index] = tree.loadPage(childAddress).getMutableCopy(tree);
             // loaded mutable page will be changed and must be saved
             childrenAddresses[index] = Loggable.NULL_ADDRESS;

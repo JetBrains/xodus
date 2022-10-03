@@ -95,7 +95,7 @@ public class BufferedDataWriter {
 
     public static void checkPageConsistency(long pageAddress, long checkHashCodeSince,
                                             byte @NotNull [] bytes, int pageSize, Log log) {
-        if (pageAddress <= checkHashCodeSince && bytes.length == pageSize) {
+        if (pageAddress >= checkHashCodeSince && bytes.length == pageSize) {
             XXHash64 xxHash = BufferedDataWriter.xxHash;
 
             long calculatedHash = xxHash.hash(bytes, 0,
@@ -175,7 +175,7 @@ public class BufferedDataWriter {
         int count = this.count + len;
 
         MutablePage currentPage = this.currentPage;
-        assert (int) (highAddress & pageSizeMask) == currentPage.writtenCount;
+        assert (int) (highAddress & pageSizeMask) == (currentPage.writtenCount & pageSizeMask);
 
         while (len > 0) {
             int bytesToWrite = adjustedPageSize - currentPage.writtenCount;
@@ -291,7 +291,7 @@ public class BufferedDataWriter {
 
     boolean fitsIntoSingleFile(long fileLengthBound, int loggableSize) {
         final long fileAddress = highAddress / fileLengthBound;
-        final long nextFileAddress = (log.adjustedLoggableAddress(highAddress, loggableSize)  - 1) / fileLengthBound;
+        final long nextFileAddress = (log.adjustedLoggableAddress(highAddress, loggableSize) - 1) / fileLengthBound;
 
         return fileAddress == nextFileAddress;
     }
@@ -302,9 +302,18 @@ public class BufferedDataWriter {
 
     boolean padWithNulls(long fileLengthBound, byte[] nullPage) {
         assert nullPage.length == pageSize;
-        int written = padPageWithNulls();
+        int written = doPadPageWithNulls();
 
-        final long reminder = fileLengthBound - (highAddress + written);
+        final long spaceWritten = ((highAddress + written) % fileLengthBound);
+
+        if (spaceWritten == 0) {
+            highAddress += written;
+
+            assert (int) (highAddress & pageSizeMask) == (this.currentPage.writtenCount & pageSizeMask);
+            return written > 0;
+        }
+
+        final long reminder = fileLengthBound - spaceWritten;
         final long pages = reminder / pageSize;
 
         assert reminder % pageSize == 0;
@@ -315,10 +324,20 @@ public class BufferedDataWriter {
         }
 
         highAddress += written;
+        assert (int) (highAddress & pageSizeMask) == (this.currentPage.writtenCount & pageSizeMask);
         return written > 0;
     }
 
-    int padPageWithNulls() {
+    public int padPageWithNulls() {
+        final int written = doPadPageWithNulls();
+        this.highAddress += written;
+
+        assert (int) (highAddress & pageSizeMask) == (this.currentPage.writtenCount & pageSizeMask);
+
+        return written;
+    }
+
+    private int doPadPageWithNulls() {
         final int writtenInPage = currentPage.writtenCount;
         if (writtenInPage > 0) {
             final int pageDelta = adjustedPageSize - writtenInPage;
@@ -463,10 +482,6 @@ public class BufferedDataWriter {
 
         public int getCount() {
             return writtenCount;
-        }
-
-        void setCounts(final int count) {
-            flushedCount = committedCount = writtenCount = count;
         }
     }
 }
