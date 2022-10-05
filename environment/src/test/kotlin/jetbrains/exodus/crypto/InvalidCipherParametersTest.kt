@@ -25,7 +25,6 @@ import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.StoreConfig
-import jetbrains.exodus.log.DataCorruptionException
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import org.junit.After
@@ -35,7 +34,7 @@ import org.junit.Test
 import java.io.File
 
 private const val ENTRIES = 1000
-private val expectedException = DataCorruptionException::class.java
+private val expectedException = InvalidCipherParametersException::class.java
 
 class InvalidCipherParametersTest {
 
@@ -65,9 +64,9 @@ class InvalidCipherParametersTest {
     @Test
     fun testCreatePlainOpenCiphered() {
         val highAddress = createEnvironment(dir, null, null, null)
-        openEnvironment(dir, CHACHA_CIPHER_ID,
-                "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
-                0, expectedException)
+        Assert.assertEquals(highAddress,
+                openEnvironment(dir, CHACHA_CIPHER_ID,
+                        "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0, expectedException))
         Assert.assertEquals(highAddress, openEnvironment(dir, null, null, null))
     }
 
@@ -76,7 +75,7 @@ class InvalidCipherParametersTest {
     fun testCreateCipheredOpenPlain() {
         val highAddress = createEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0)
-        openEnvironment(dir, null, null, null, expectedException)
+        Assert.assertEquals(highAddress, openEnvironment(dir, null, null, null, expectedException))
         Assert.assertEquals(highAddress, openEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0))
     }
@@ -86,8 +85,8 @@ class InvalidCipherParametersTest {
     fun testCreateCipheredOpenCipheredBadId() {
         val highAddress = createEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0)
-        openEnvironment(dir, SALSA20_CIPHER_ID,
-                "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0, expectedException)
+        Assert.assertEquals(highAddress, openEnvironment(dir, SALSA20_CIPHER_ID,
+                "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0, expectedException))
         Assert.assertEquals(highAddress, openEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0))
     }
@@ -97,8 +96,8 @@ class InvalidCipherParametersTest {
     fun testCreateCipheredOpenCipheredBadKey() {
         val highAddress = createEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0)
-        openEnvironment(dir, CHACHA_CIPHER_ID,
-                "010102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0, expectedException)
+        Assert.assertEquals(highAddress, openEnvironment(dir, CHACHA_CIPHER_ID,
+                "010102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0, expectedException))
         Assert.assertEquals(highAddress, openEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0))
     }
@@ -108,8 +107,8 @@ class InvalidCipherParametersTest {
     fun testCreateCipheredOpenCipheredBadBasicIV() {
         val highAddress = createEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0)
-        openEnvironment(dir, CHACHA_CIPHER_ID,
-                "010102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 1, expectedException)
+        Assert.assertEquals(highAddress, openEnvironment(dir, CHACHA_CIPHER_ID,
+                "010102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 1, expectedException))
         Assert.assertEquals(highAddress, openEnvironment(dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0))
     }
@@ -120,7 +119,7 @@ private fun createEnvironment(dir: File, cipherId: String?, cipherKey: String?, 
     val ec = newEnvironmentConfig(cipherId, cipherKey, basicIV)
     ec.gcStartIn = 10
     ec.gcFilesDeletionDelay = 0
-    Environments.newInstance(dir, ec).use { env ->
+    val log = Environments.newInstance(dir, ec).use { env ->
         val store = env.computeInTransaction { txn ->
             env.openStore("NaturalInteger", StoreConfig.WITHOUT_DUPLICATES, txn)
         }
@@ -130,8 +129,10 @@ private fun createEnvironment(dir: File, cipherId: String?, cipherKey: String?, 
             }
         }
         ec.envIsReadonly = true
-        return (env as EnvironmentImpl).log.highAddress
+        (env as EnvironmentImpl).log
     }
+
+    return log.highAddress
 }
 
 // open environment with specified cipher parameters
@@ -139,7 +140,7 @@ private fun openEnvironment(dir: File, cipherId: String?, cipherKey: String?, ba
                             exceptionClass: Class<out Throwable>? = null): Long {
     val ec = newEnvironmentConfig(cipherId, cipherKey, basicIV)
     if (exceptionClass == null) {
-        Environments.newInstance(dir, ec).use { env ->
+        val log = Environments.newInstance(dir, ec).use { env ->
             val store = env.computeInTransaction { txn ->
                 env.openStore(
                         "NaturalInteger", StoreConfig.USE_EXISTING, txn)
@@ -151,8 +152,9 @@ private fun openEnvironment(dir: File, cipherId: String?, cipherKey: String?, ba
                 }
                 Assert.assertNull(store.get(txn, IntegerBinding.intToCompressedEntry(ENTRIES)))
             }
-            return (env as EnvironmentImpl).log.highAddress
+            (env as EnvironmentImpl).log
         }
+        return log.highAddress
     } else {
         TestUtil.runWithExpectedException({
             Environments.newInstance(dir, ec)

@@ -381,6 +381,7 @@ public abstract class TreePutTest extends TreeBaseTest {
                 final int key = Math.abs(RANDOM.nextInt());
                 final String value = Integer.toString(i);
                 assertEquals(!map.containsKey(key), tm.add(key(Integer.toString(key)), value(value)));
+
                 if (!map.containsKey(key)) {
                     map.put(key, value);
                 }

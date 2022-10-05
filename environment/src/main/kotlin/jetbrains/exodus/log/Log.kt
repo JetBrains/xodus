@@ -166,21 +166,21 @@ class Log(val config: LogConfig) : Closeable {
                 val currentHighAddress = lastFileAddress + blockSetMutable.getBlock(lastFileAddress).length()
                 val highPageAddress = getHighPageAddress(currentHighAddress)
                 val highPageContent = ByteArray(cachePageSize)
-                val tmpTip = LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
+                val tmpTip = LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress,
+                        currentHighAddress, blockSetImmutable)
                 this.internalTip = AtomicReference(tmpTip) // TODO: this is a hack to provide readBytes below with high address (for determining last file length)
-                val highPageSize = if (currentHighAddress == 0L) 0 else readBytes(highPageContent, highPageAddress)
 
-                if (highPageSize < cachePageSize) {
-                    if (highPageSize != 0 && highPageAddress != 0L) {
-                        DataCorruptionException.raise("High page size is less than expected", this,
-                                highPageAddress)
-                    }
-                } else if (highPageAddress > 0) {
-                    BufferedDataWriter.checkPageConsistency(highPageAddress, highPageContent, this)
+                val highPageSize = if (currentHighAddress == 0L) {
+                    0
+                } else {
+                    readBytes(highPageContent, highPageAddress, highPageAddress > 0)
                 }
 
-                val proposedTip = LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress, currentHighAddress, blockSetImmutable)
+                val proposedTip = LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress,
+                        currentHighAddress, blockSetImmutable)
                 this.internalTip.set(proposedTip)
+                tmpTip.xxHash64.close()
+
                 // here we should check whether last loggable is written correctly
                 val lastFileLoggables = LoggableIterator(this, lastFileAddress)
                 var approvedHighAddress: Long = lastFileAddress
@@ -336,16 +336,15 @@ class Log(val config: LogConfig) : Closeable {
                 logTip.withResize(highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
             } else {
                 updateLogIdentity()
+
                 val highPageContent = ByteArray(cachePageSize)
-                if (highPageSize > 0 && readBytes(highPageContent, highPageAddress) < highPageSize) {
+                if (highPageSize > 0 && readBytes(highPageContent, highPageAddress,
+                                highPageSize == cachePageSize) < highPageSize) {
                     throw ExodusException("Can't read expected high page bytes")
                 }
 
-                if (highPageSize == cachePageSize) {
-                    BufferedDataWriter.checkPageConsistency(highPageAddress, highPageContent, this)
-                }
-
-                LogTip(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
+                LogTip(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress,
+                        blockSetImmutable)
             }
         }
         compareAndSetTip(logTip, updatedTip)
@@ -390,6 +389,12 @@ class Log(val config: LogConfig) : Closeable {
         if (!internalTip.compareAndSet(logTip, updatedTip)) {
             throw ExodusException("write start/finish mismatch")
         }
+
+        if (logTip.xxHash64 != updatedTip.xxHash64) {
+            logTip.xxHash64.close()
+        }
+
+
         return updatedTip
     }
 
@@ -799,32 +804,49 @@ class Log(val config: LogConfig) : Closeable {
         }
     }
 
-    fun readBytes(output: ByteArray, address: Long): Int {
-        val fileAddress = getFileAddress(address)
+    fun readBytes(output: ByteArray, pageAddress: Long, checkConsistency: Boolean): Int {
+        val fileAddress = getFileAddress(pageAddress)
         val logTip = tip
         val files = logTip.blockSet.getFilesFrom(fileAddress)
+
         if (files.hasNext()) {
             val leftBound = files.nextLong()
             val fileSize = getFileSize(leftBound, logTip)
-            if (leftBound == fileAddress && fileAddress + fileSize > address) {
+            if (leftBound == fileAddress && fileAddress + fileSize > pageAddress) {
                 val block = logTip.blockSet.getBlock(fileAddress)
-                val readBytes = block.read(output, address - fileAddress, 0, output.size)
+                val readBytes = block.read(output, pageAddress - fileAddress, 0, output.size)
+
+                if (checkConsistency) {
+                    if (readBytes < cachePageSize) {
+                        DataCorruptionException.raise("Page size less than expected.", this, pageAddress)
+                    }
+
+                    BufferedDataWriter.checkPageConsistency(pageAddress, output, this)
+                }
+
                 val cipherProvider = config.cipherProvider
                 if (cipherProvider != null) {
+                    val encryptedBytes = if (readBytes < cachePageSize) {
+                        readBytes
+                    } else {
+                        cachePageSize - HASH_CODE_SIZE
+                    }
+
                     cryptBlocksMutable(cipherProvider, config.cipherKey, config.cipherBasicIV,
-                            address, output, 0, readBytes, LogUtil.LOG_BLOCK_ALIGNMENT)
+                            pageAddress, output, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT)
                 }
                 notifyReadBytes(output, readBytes)
+
                 return readBytes
             }
             if (fileAddress < (logTip.blockSet.minimum ?: -1L)) {
-                BlockNotFoundException.raise("Address is out of log space, underflow", this, address)
+                BlockNotFoundException.raise("Address is out of log space, underflow", this, pageAddress)
             }
             if (fileAddress >= (logTip.blockSet.maximum ?: -1L)) {
-                BlockNotFoundException.raise("Address is out of log space, overflow", this, address)
+                BlockNotFoundException.raise("Address is out of log space, overflow", this, pageAddress)
             }
         }
-        BlockNotFoundException.raise(this, address)
+        BlockNotFoundException.raise(this, pageAddress)
         return 0
     }
 
