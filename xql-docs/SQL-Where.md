@@ -14,7 +14,7 @@ And `item` can be:
 |**What**|**Description**|**Example**|**Available since**|
 |--------|---------------|-----------|-------------------|
 |field|Entity field|where *price* > 1000000||
-|field&lt;indexes&gt;|Entity property part. |where messages[title like '%Hi%'] or tags[0-3] IN 'Hello' and employees IS NOT NULL||
+|field&lt;indexes&gt;|Entity property part. |where messages[title like '%Hi%'].size() > 0 or tags[0-3] IN 'Hello' and employees IS NOT NULL||
 |entity attribute|Entity attribute name with @ as prefix|where *@type* = 'Profile'||
 |any()|Represents any property of the entity. The condition is true if ANY of the properties match the condition|where *any()* like 'L%'||
 |all()|Represents all the properties of the entity. The condition is true if ALL the propertes match the condition|where *all()* is null||
