@@ -33,7 +33,6 @@ SELECT FROM MyClass WHERE ID = 1
  - [Operators](SQL-Where.md#operators)
  - [Functions](SQL-Where.md#functions)
 - [Pagination](Pagination.md)
-- [Pivoting-With-Query](Pivoting-With-Query.md)
 - [SQL batch](SQL-batch.md)
 - [SQL-Match](SQL-Match.md) for traversing graphs
 
