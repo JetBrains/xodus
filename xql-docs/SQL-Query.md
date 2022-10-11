@@ -224,7 +224,7 @@ For instance, the query below displays the city name from the previous example:
 Xodus allows unwinding of collection properties and obtaining multiple records as a result, one for each element in the collection:
 
 <pre>
-<code class="lang-sql userinput">SELECT name, OUT("Friend").name AS friendName FROM Person</code>
+<code class="lang-sql userinput">SELECT name, OUT("friend").name AS friendName FROM Person</code>
 
 --------+-------------------
  name   | friendName
@@ -236,7 +236,7 @@ Xodus allows unwinding of collection properties and obtaining multiple records a
 If you want one record for each element in `friendName`, you can rewrite the query using `UNWIND`:
 
 <pre>
- <code class="lang-sql userinput">SELECT name, OUT("Friend").name AS friendName FROM Person UNWIND friendName</code>
+ <code class="lang-sql userinput">SELECT name, OUT("friend").name AS friendName FROM Person UNWIND friendName</code>
 
 --------+-------------
  name   | friendName
