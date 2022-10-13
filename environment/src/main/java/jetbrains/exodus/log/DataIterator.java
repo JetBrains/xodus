@@ -93,11 +93,11 @@ public final class DataIterator extends ByteIteratorWithAddress {
         long pageAddress = address & pageAddressMask;
         long reminder = address - pageAddress;
 
-        assert reminder <= cachePageSize - Log.LOGGABLE_DATA;
+        assert reminder <= cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
 
-        if (reminder == cachePageSize - Log.LOGGABLE_DATA) {
+        if (reminder == cachePageSize - BufferedDataWriter.LOGGABLE_DATA) {
             pageAddress += cachePageSize;
-            address += Log.LOGGABLE_DATA;
+            address += BufferedDataWriter.LOGGABLE_DATA;
         }
 
         if (this.pageAddress != pageAddress) {
@@ -105,7 +105,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
             this.pageAddress = pageAddress;
         }
 
-        length = cachePageSize - Log.LOGGABLE_DATA;
+        length = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
         offset = (int) (address - pageAddress);
     }
 
@@ -122,7 +122,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
         try {
             checkPage(address);
             final long pageAddress = address & pageAddressMask;
-            length = (int) Math.min(log.getHighAddress() - pageAddress, cachePageSize - Log.LOGGABLE_DATA);
+            length = (int) Math.min(log.getHighAddress() - pageAddress, cachePageSize - BufferedDataWriter.LOGGABLE_DATA);
             if (length > offset) {
                 return;
             }
@@ -134,10 +134,6 @@ public final class DataIterator extends ByteIteratorWithAddress {
 
     byte[] getCurrentPage() {
         return page;
-    }
-
-    int getLength() {
-        return length;
     }
 
     boolean availableInCurrentPage(final int bytes) {

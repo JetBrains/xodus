@@ -117,7 +117,9 @@ object IOUtil {
             var totalRead: Long = 0
             while (totalRead < sourceLen) {
                 val read = source.read(buffer)
-                if (read < 0) break
+                if (read < 0) {
+                    break
+                }
                 if (read > 0) {
                     target.write(buffer, 0, min(sourceLen - totalRead, read.toLong()).toInt())
                     totalRead += read.toLong()

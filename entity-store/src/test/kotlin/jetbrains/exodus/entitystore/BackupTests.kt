@@ -28,94 +28,92 @@ import jetbrains.exodus.util.IOUtil
 import jetbrains.exodus.util.Random
 import junit.framework.TestCase
 import org.apache.commons.compress.archivers.zip.ZipFile
-import org.junit.Ignore
 import java.io.File
 import java.io.FileOutputStream
 
 class BackupTests : EntityStoreTestBase() {
-
     override fun needsImplicitTxn(): Boolean {
         return false
     }
 
     @Throws(Exception::class)
     fun testSingular() {
-//        val store = entityStore
-//        store.config.maxInPlaceBlobSize = 0 // no in-place blobs
-//        val randomDescription = arrayOfNulls<String>(1)
-//        store.executeInTransaction { txn ->
-//            val issue = txn.newEntity("Issue")
-//            randomDescription[0] = Math.random().toString()
-//            issue.setBlobString("description", randomDescription[0].notNull)
-//        }
-//        val backupDir = TestUtil.createTempDir()
-//        try {
-//            val backup = CompressBackupUtil.backup(store, backupDir, null, true)
-//            val restoreDir = TestUtil.createTempDir()
-//            try {
-//                extractEntireZip(backup, restoreDir)
-//                val newStore = PersistentEntityStores.newInstance(restoreDir)
-//                newStore.use {
-//                    newStore.executeInReadonlyTransaction { txn ->
-//                        assertEquals(1, txn.getAll("Issue").size())
-//                        val issue = txn.getAll("Issue").first
-//                        assertNotNull(issue)
-//                        assertEquals(randomDescription[0], issue?.getBlobString("description"))
-//                    }
-//                }
-//            } finally {
-//                IOUtil.deleteRecursively(restoreDir)
-//            }
-//        } finally {
-//            IOUtil.deleteRecursively(backupDir)
-//        }
+        val store = entityStore
+        store.config.maxInPlaceBlobSize = 0 // no in-place blobs
+        val randomDescription = arrayOfNulls<String>(1)
+        store.executeInTransaction { txn ->
+            val issue = txn.newEntity("Issue")
+            randomDescription[0] = Math.random().toString()
+            issue.setBlobString("description", randomDescription[0].notNull)
+        }
+        val backupDir = TestUtil.createTempDir()
+        try {
+            val backup = CompressBackupUtil.backup(store, backupDir, null, true)
+            val restoreDir = TestUtil.createTempDir()
+            try {
+                extractEntireZip(backup, restoreDir)
+                val newStore = PersistentEntityStores.newInstance(restoreDir)
+                newStore.use {
+                    newStore.executeInReadonlyTransaction { txn ->
+                        assertEquals(1, txn.getAll("Issue").size())
+                        val issue = txn.getAll("Issue").first
+                        assertNotNull(issue)
+                        assertEquals(randomDescription[0], issue?.getBlobString("description"))
+                    }
+                }
+            } finally {
+                IOUtil.deleteRecursively(restoreDir)
+            }
+        } finally {
+            IOUtil.deleteRecursively(backupDir)
+        }
     }
 
     @Throws(Exception::class)
     fun testStress() {
-//        doStressTest(false)
+        doStressTest(false)
     }
 
     @Throws(Exception::class)
     fun testStressWithBackupBean() {
-//        doStressTest(true)
+        doStressTest(true)
     }
 
     @Throws(Exception::class)
     fun testInterruptedIsDeleted() {
-//        testSingular()
-//        val backupDir = TestUtil.createTempDir()
-//        try {
-//            val storeBackupStrategy = entityStore.backupStrategy
-//            val backup = CompressBackupUtil.backup({
-//                object : BackupStrategy() {
-//                    @Throws(Exception::class)
-//                    override fun beforeBackup() {
-//                        storeBackupStrategy.beforeBackup()
-//                    }
-//
-//                    override fun getContents(): Iterable<VirtualFileDescriptor> {
-//                        return storeBackupStrategy.contents
-//                    }
-//
-//                    @Throws(Exception::class)
-//                    override fun afterBackup() {
-//                        storeBackupStrategy.afterBackup()
-//                    }
-//
-//                    override fun isInterrupted(): Boolean {
-//                        return true
-//                    }
-//
-//                    override fun acceptFile(file: VirtualFileDescriptor): Long {
-//                        return storeBackupStrategy.acceptFile(file)
-//                    }
-//                }
-//            }, backupDir, null, true)
-//            assertFalse(backup.exists())
-//        } finally {
-//            IOUtil.deleteRecursively(backupDir)
-//        }
+        testSingular()
+        val backupDir = TestUtil.createTempDir()
+        try {
+            val storeBackupStrategy = entityStore.backupStrategy
+            val backup = CompressBackupUtil.backup({
+                object : BackupStrategy() {
+                    @Throws(Exception::class)
+                    override fun beforeBackup() {
+                        storeBackupStrategy.beforeBackup()
+                    }
+
+                    override fun getContents(): Iterable<VirtualFileDescriptor> {
+                        return storeBackupStrategy.contents
+                    }
+
+                    @Throws(Exception::class)
+                    override fun afterBackup() {
+                        storeBackupStrategy.afterBackup()
+                    }
+
+                    override fun isInterrupted(): Boolean {
+                        return true
+                    }
+
+                    override fun acceptFile(file: VirtualFileDescriptor): Long {
+                        return storeBackupStrategy.acceptFile(file)
+                    }
+                }
+            }, backupDir, null, true)
+            assertFalse(backup.exists())
+        } finally {
+            IOUtil.deleteRecursively(backupDir)
+        }
     }
 
     @Throws(Exception::class)
@@ -156,7 +154,8 @@ class BackupTests : EntityStoreTestBase() {
         Thread.sleep(1000)
         val backupDir = TestUtil.createTempDir()
         try {
-            val backup = CompressBackupUtil.backup(if (useBackupBean) BackupBean(store) else store, backupDir, null, true)
+            val backup = CompressBackupUtil.backup(if (useBackupBean) BackupBean(store) else store,
+                    backupDir, null, true)
             finish[0] = true
             val restoreDir = TestUtil.createTempDir()
             try {
@@ -167,7 +166,8 @@ class BackupTests : EntityStoreTestBase() {
                     newStore.executeInReadonlyTransaction { t ->
                         val txn = t as PersistentStoreTransaction
                         TestCase.assertEquals(issueCount.toLong(), txn.getAll("Issue").size())
-                        lastUsedBlobHandle[0] = newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
+                        lastUsedBlobHandle[0] =
+                                newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
                         for (issue in txn.getAll("Issue")) {
                             val description = issue.getBlobString("description")
                             TestCase.assertNotNull(description)

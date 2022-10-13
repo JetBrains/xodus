@@ -36,6 +36,11 @@ public class BufferedDataWriter {
     public static final XXHashFactory XX_HASH_FACTORY = XXHashFactory.fastestJavaInstance();
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
 
+    public static final int HASH_CODE_SIZE = Long.BYTES;
+    public static final int FIRST_ITERABLE_OFFSET_SIZE = Integer.BYTES;
+    public static final int FIRST_ITERABLE_OFFSET = HASH_CODE_SIZE + FIRST_ITERABLE_OFFSET_SIZE;
+    public static final int LOGGABLE_DATA = FIRST_ITERABLE_OFFSET;
+
     // immutable state
     @NotNull
     private final Log log;
@@ -82,10 +87,10 @@ public class BufferedDataWriter {
 
             currentPage = new MutablePage(null, page.bytes, page.pageAddress, page.count);
             currentPage.xxHash64 = page.xxHash64;
-            currentPage.firstLoggable = BindingUtils.readInt(page.bytes, pageSize - Log.LOGGABLE_DATA);
+            currentPage.firstLoggable = BindingUtils.readInt(page.bytes, pageSize - LOGGABLE_DATA);
         } else {
             byte[] newPage = logCache.allocPage();
-            BindingUtils.writeInt(-1, newPage, pageSize - Log.LOGGABLE_DATA);
+            BindingUtils.writeInt(-1, newPage, pageSize - LOGGABLE_DATA);
             currentPage = new MutablePage(null, newPage, page.pageAddress, 0);
             currentPage.xxHash64 = XX_HASH_FACTORY.newStreamingHash64(XX_HASH_SEED);
         }
@@ -95,18 +100,31 @@ public class BufferedDataWriter {
         cipherBasicIV = log.getConfig().getCipherBasicIV();
 
         pageSizeMask = (pageSize - 1);
-        adjustedPageSize = pageSize - Log.LOGGABLE_DATA;
+        adjustedPageSize = pageSize - LOGGABLE_DATA;
     }
 
     public static void checkPageConsistency(long pageAddress, byte @NotNull [] bytes, Log log) {
         final XXHash64 xxHash = BufferedDataWriter.xxHash;
         final long calculatedHash = xxHash.hash(bytes, 0,
-                bytes.length - Log.HASH_CODE_SIZE, BufferedDataWriter.XX_HASH_SEED);
-        final long storedHash = BindingUtils.readLong(bytes, bytes.length - Log.HASH_CODE_SIZE);
+                bytes.length - HASH_CODE_SIZE, BufferedDataWriter.XX_HASH_SEED);
+        final long storedHash = BindingUtils.readLong(bytes, bytes.length - HASH_CODE_SIZE);
 
         if (storedHash != calculatedHash) {
             DataCorruptionException.raise("Page is broken", log, pageAddress);
         }
+    }
+
+    public static void updateHashCode(final byte @NotNull [] bytes) {
+        final int hashCodeOffset = bytes.length - BufferedDataWriter.HASH_CODE_SIZE;
+        final long hash =
+                BufferedDataWriter.xxHash.hash(bytes, 0, hashCodeOffset,
+                        BufferedDataWriter.XX_HASH_SEED);
+
+        BindingUtils.writeLong(hash, bytes, hashCodeOffset);
+    }
+
+    public static void writeFirstLoggableOffset(final byte @NotNull [] bytes, int offset) {
+        BindingUtils.writeInt(offset, bytes, bytes.length - BufferedDataWriter.LOGGABLE_DATA);
     }
 
     @NotNull
@@ -146,7 +164,7 @@ public class BufferedDataWriter {
             count++;
             if (writtenCount == adjustedPageSize) {
                 currentPage.writtenCount = pageSize;
-                count += Log.LOGGABLE_DATA;
+                count += LOGGABLE_DATA;
             }
         } else {
             currentPage = allocNewPage();
@@ -165,7 +183,7 @@ public class BufferedDataWriter {
             int loggableOffset = (int) (firstLoggable & pageSizeMask);
 
             currentPage.firstLoggable = loggableOffset;
-            BindingUtils.writeInt(loggableOffset, currentPage.bytes, pageSize - Log.FIRST_ITERABLE_OFFSET);
+            writeFirstLoggableOffset(currentPage.bytes, loggableOffset);
         }
 
         assert (int) (highAddress & pageSizeMask) == (currentPage.writtenCount & pageSizeMask);
@@ -198,7 +216,7 @@ public class BufferedDataWriter {
 
             if (currentPage.writtenCount == adjustedPageSize) {
                 currentPage.writtenCount = pageSize;
-                count += Log.LOGGABLE_DATA;
+                count += LOGGABLE_DATA;
             }
 
             len -= bytesToWrite;
@@ -236,12 +254,12 @@ public class BufferedDataWriter {
 
                 final int len = pageSize - off;
                 if (len > 0) {
-                    int contentLen = adjustedPageSize - off + Log.FIRST_ITERABLE_OFFSET_SIZE;
+                    int contentLen = adjustedPageSize - off + FIRST_ITERABLE_OFFSET_SIZE;
 
                     if (cipherProvider == null) {
                         xxHash64.update(bytes, off, contentLen);
                         BindingUtils.writeLong(xxHash64.getValue(), bytes,
-                                adjustedPageSize + Log.FIRST_ITERABLE_OFFSET_SIZE);
+                                adjustedPageSize + FIRST_ITERABLE_OFFSET_SIZE);
                         writePage(bytes, off, len);
                     } else {
                         final byte[] encryptedBytes = EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey,
@@ -282,7 +300,7 @@ public class BufferedDataWriter {
             if (committedCount < pageSize) {
                 contentLen = len;
             } else {
-                contentLen = len - Log.HASH_CODE_SIZE;
+                contentLen = len - HASH_CODE_SIZE;
             }
 
             if (cipherProvider == null) {
@@ -290,7 +308,7 @@ public class BufferedDataWriter {
 
                 if (committedCount == pageSize) {
                     BindingUtils.writeLong(xxHash64.getValue(), bytes,
-                            adjustedPageSize + Log.FIRST_ITERABLE_OFFSET_SIZE);
+                            adjustedPageSize + FIRST_ITERABLE_OFFSET_SIZE);
                 }
 
                 writePage(bytes, flushedCount, len);
@@ -383,8 +401,8 @@ public class BufferedDataWriter {
                 Arrays.fill(currentPage.bytes, writtenInPage, adjustedPageSize, (byte) 0x80);
                 currentPage.writtenCount = pageSize;
 
-                count += pageDelta + Log.LOGGABLE_DATA;
-                written = pageDelta + Log.LOGGABLE_DATA;
+                count += pageDelta + LOGGABLE_DATA;
+                written = pageDelta + LOGGABLE_DATA;
             }
 
             return written;
@@ -439,7 +457,7 @@ public class BufferedDataWriter {
 
         if (cipherProvider != null) {
             EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey, cipherBasicIV, pageAddress, output, 0,
-                    pageSize - Log.HASH_CODE_SIZE, LogUtil.LOG_BLOCK_ALIGNMENT);
+                    pageSize - HASH_CODE_SIZE, LogUtil.LOG_BLOCK_ALIGNMENT);
         }
 
         final byte result = (byte) (output[offset] ^ 0x80);
@@ -492,10 +510,10 @@ public class BufferedDataWriter {
 
     public static byte[] generateNullPage(int pageSize) {
         final byte[] data = new byte[pageSize];
-        Arrays.fill(data, 0, pageSize - Log.LOGGABLE_DATA, (byte) 0x80);
+        Arrays.fill(data, 0, pageSize - LOGGABLE_DATA, (byte) 0x80);
 
-        final long hash = xxHash.hash(data, 0, pageSize - Log.HASH_CODE_SIZE, XX_HASH_SEED);
-        BindingUtils.writeLong(hash, data, pageSize - Log.HASH_CODE_SIZE);
+        final long hash = xxHash.hash(data, 0, pageSize - HASH_CODE_SIZE, XX_HASH_SEED);
+        BindingUtils.writeLong(hash, data, pageSize - HASH_CODE_SIZE);
 
         return data;
     }

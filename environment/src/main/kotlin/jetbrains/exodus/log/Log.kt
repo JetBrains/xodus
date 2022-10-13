@@ -67,7 +67,7 @@ class Log(val config: LogConfig) : Closeable {
     /** Size of single page in log cache. */
     val cachePageSize = config.cachePageSize
 
-    val adjustedPageSize = cachePageSize - LOGGABLE_DATA
+    val adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
 
     /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
@@ -432,7 +432,7 @@ class Log(val config: LogConfig) : Closeable {
         val writtenSincePageStart = writtenInPage + offset
         val fullPages = writtenSincePageStart / adjustedPageSize
 
-        return pageAddress + writtenSincePageStart + fullPages * LOGGABLE_DATA
+        return pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
     }
 
     fun hasAddress(address: Long): Boolean {
@@ -818,7 +818,8 @@ class Log(val config: LogConfig) : Closeable {
 
                 if (checkConsistency) {
                     if (readBytes < cachePageSize) {
-                        DataCorruptionException.raise("Page size less than expected.", this, pageAddress)
+                        DataCorruptionException.raise("Page size less than expected. " +
+                                "{actual : ${readBytes}, expected ${cachePageSize} }.", this, pageAddress)
                     }
 
                     BufferedDataWriter.checkPageConsistency(pageAddress, output, this)
@@ -829,7 +830,7 @@ class Log(val config: LogConfig) : Closeable {
                     val encryptedBytes = if (readBytes < cachePageSize) {
                         readBytes
                     } else {
-                        cachePageSize - HASH_CODE_SIZE
+                        cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
                     }
 
                     cryptBlocksMutable(cipherProvider, config.cipherKey, config.cipherBasicIV,
@@ -1019,12 +1020,6 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     companion object : KLogging() {
-        const val HASH_CODE_SIZE = Long.SIZE_BYTES
-        const val FIRST_ITERABLE_OFFSET_SIZE = Int.SIZE_BYTES
-        const val FIRST_ITERABLE_OFFSET = HASH_CODE_SIZE + FIRST_ITERABLE_OFFSET_SIZE
-
-        const val LOGGABLE_DATA = FIRST_ITERABLE_OFFSET
-
         private val identityGenerator = IdGenerator()
 
         @Volatile

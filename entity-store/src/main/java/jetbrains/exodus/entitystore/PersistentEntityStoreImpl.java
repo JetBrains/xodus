@@ -537,7 +537,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     @Override
-    public StoreTransaction beginExclusiveTransaction() {
+    public PersistentStoreTransaction beginExclusiveTransaction() {
         final PersistentStoreTransaction txn = new PersistentStoreTransaction(this, TransactionType.Exclusive);
         registerTransaction(txn);
         return txn;
