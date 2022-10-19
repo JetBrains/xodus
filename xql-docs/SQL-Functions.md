@@ -5,8 +5,8 @@
 
 ### Functions by category
 
-| Graph | Math  | Collections | Misc  |
-|-------|-------|-------------|-------|
+|  Links  | Math  | Collections | Misc  |
+|---------|-------|-------------|-------|
 | [out()](SQL-Functions.md#out)    | [min()](SQL-Functions.md#min) | [set()](SQL-Functions.md#set)             | [date()](SQL-Functions.md#date)
 | [in()](SQL-Functions.md#in)      | [max()](SQL-Functions.md#max) | [map()](SQL-Functions.md#map)               | [sysdate()](SQL-Functions.md#sysdate)
 | [both()](SQL-Functions.md#both)  | [stddev()](SQL-Functions.md#stddev) | [list()](SQL-Functions.md#list)             | [format()](SQL-Functions.md#format)
