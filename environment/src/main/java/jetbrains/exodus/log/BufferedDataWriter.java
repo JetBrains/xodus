@@ -101,6 +101,10 @@ public class BufferedDataWriter {
 
         pageSizeMask = (pageSize - 1);
         adjustedPageSize = pageSize - LOGGABLE_DATA;
+
+        assert blockSetMutable.getMaximum() == null ||
+                blockSetMutable.getBlock(blockSetMutable.getMaximum()).length() % log.getFileLengthBound() ==
+                        highAddress % log.getFileLengthBound();
     }
 
     public static void checkPageConsistency(long pageAddress, byte @NotNull [] bytes, Log log) {
@@ -277,11 +281,15 @@ public class BufferedDataWriter {
 
             currentPage.previousPage = null;
         }
+
+        //noinspection ConstantConditions
+        assert blockSetMutable.getBlock(blockSetMutable.getMaximum()).length() % log.getFileLengthBound() ==
+                (highAddress - (currentPage.writtenCount - currentPage.flushedCount)) % log.getFileLengthBound();
     }
 
     void flush() {
         if (count > 0) {
-            throw new IllegalStateException("Can't flush uncommitted writer: " + count);
+            commit();
         }
 
         final MutablePage currentPage = this.currentPage;
@@ -332,6 +340,10 @@ public class BufferedDataWriter {
 
             currentPage.flushedCount = committedCount;
         }
+
+        //noinspection ConstantConditions
+        assert blockSetMutable.getBlock(blockSetMutable.getMaximum()).length() % log.getFileLengthBound() ==
+                highAddress % log.getFileLengthBound();
     }
 
 

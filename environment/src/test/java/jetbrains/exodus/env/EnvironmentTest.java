@@ -31,7 +31,6 @@ import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.IOUtil;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -254,7 +253,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
 
     @Test
-    @Ignore
     public void testBreakSavingMetaTree() {
         final EnvironmentConfig ec = env.getEnvironmentConfig();
         if (ec.getLogCachePageSize() > 1024) {
@@ -278,8 +276,9 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         });
         reopenEnvironment();
         final LogTestConfig testConfig = new LogTestConfig();
-        testConfig.setMaxHighAddress(1024 * 10 + 3);
+        testConfig.setMaxHighAddress(10401);
         testConfig.setSettingHighAddressDenied(true);
+        //noinspection deprecation
         env.getLog().setLogTestConfig(testConfig);
         try {
             for (int i = 0; i < 23; ++i) {
@@ -304,6 +303,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     store3.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
                 }
             }), ExodusException.class);
+            //noinspection deprecation
             env.getLog().setLogTestConfig(null);
             AbstractConfig.suppressConfigChangeListenersForThread();
             try {
@@ -314,6 +314,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             }
             env.executeInTransaction(txn -> env.getAllStoreNames(txn));
         } finally {
+            //noinspection deprecation
             env.getLog().setLogTestConfig(null);
         }
     }
@@ -366,17 +367,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     }
 
     @Test
-    public void testSetHighAddress() {
-        final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
-        env.executeInTransaction(txn -> store.put(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value1")));
-        final long highAddress = env.getLog().getHighAddress();
-        env.executeInTransaction(txn -> store.put(txn, StringBinding.stringToEntry("key"), StringBinding.stringToEntry("value2")));
-        env.executeInTransaction(txn -> Assert.assertEquals(StringBinding.stringToEntry("value2"), store.get(txn, StringBinding.stringToEntry("key"))));
-        env.setHighAddress(highAddress);
-        env.executeInTransaction(txn -> Assert.assertEquals(StringBinding.stringToEntry("value1"), store.get(txn, StringBinding.stringToEntry("key"))));
-    }
-
-    @Test
     @TestFor(issue = "XD-590")
     public void issueXD_590_reported() {
         // 1) open store
@@ -422,11 +412,14 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     store.put(txn, StringBinding.stringToEntry("k" + i), StringBinding.stringToEntry("v" + i));
                 }
             });
-            Assert.assertEquals("v", env.computeInTransaction(txn -> StringBinding.entryToString(store.get(txn, StringBinding.stringToEntry("k")))));
+            Assert.assertEquals("v", env.computeInTransaction(txn ->
+                    StringBinding.entryToString(
+                            Objects.requireNonNull(store.get(txn, StringBinding.stringToEntry("k"))))));
             env.close();
             final Environment reopenedEnv = Environments.newInstance(tempDir, env.getEnvironmentConfig());
             final Store reopenedStore = reopenedEnv.computeInTransaction(txn -> reopenedEnv.openStore("0", StoreConfig.USE_EXISTING, txn));
-            Assert.assertEquals("v", reopenedEnv.computeInTransaction(txn -> StringBinding.entryToString(reopenedStore.get(txn, StringBinding.stringToEntry("k")))));
+            Assert.assertEquals("v", reopenedEnv.computeInTransaction(txn -> StringBinding.entryToString(
+                    Objects.requireNonNull(reopenedStore.get(txn, StringBinding.stringToEntry("k"))))));
             reopenedEnv.close();
             assertTrue(new File(tempDir, LogUtil.getLogFilename(0)).renameTo(new File(tempDir, LogUtil.getLogFilename(0x1000000))));
         } finally {
@@ -434,6 +427,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test(expected = IllegalStateException.class)
     @TestFor(issue = "XD-628")
     public void readCloseRace() {
@@ -456,7 +450,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     new Thread(() -> {
                         env.close();
                         latch.release();
-                    }).run();
+                    }).start();
                     latch.acquire();
                 } catch (InterruptedException ignore) {
                 }
@@ -722,9 +716,9 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         return env;
     }
 
-    private void waitForPendingFinalizers(final long timeoutMillis) {
+    private void waitForPendingFinalizers(@SuppressWarnings("SameParameterValue") final long timeoutMillis) {
         final long started = System.currentTimeMillis();
-        final WeakReference ref = new WeakReference<>(new Object());
+        final WeakReference<Object> ref = new WeakReference<>(new Object());
         while (ref.get() != null && System.currentTimeMillis() - started < timeoutMillis) {
             System.gc();
             Thread.yield();

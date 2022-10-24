@@ -17,7 +17,6 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.TestFor;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
@@ -25,7 +24,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Iterator;
-import java.util.Objects;
 
 import static java.lang.Integer.valueOf;
 
@@ -202,57 +200,6 @@ public class LogTests extends LogTestsBase {
         getLog().flush();
         getLog().endWrite();
         getLog().read(0);
-    }
-
-    @Test
-    public void testSetHighAddress() {
-        final int loggablesCount = 350000; // enough number to make sure two files will be created
-        getLog().beginWrite();
-        for (int i = 0; i < loggablesCount; ++i) {
-            getLog().write(DUMMY_LOGGABLE);
-        }
-        getLog().flush();
-        getLog().setHighAddress(getLog().endWrite(), 3);
-        final Iterator<RandomAccessLoggable> loggablesIterator = getLog().getLoggableIterator(0);
-        loggablesIterator.next();
-        Assert.assertFalse(loggablesIterator.hasNext());
-    }
-
-    @Test
-    public void testSetHighAddress2() {
-        final int loggablesCount = 350000; // enough number to make sure two files will be created
-        getLog().beginWrite();
-        for (int i = 0; i < loggablesCount; ++i) {
-            getLog().write(DUMMY_LOGGABLE);
-        }
-        getLog().setHighAddress(getLog().endWrite(), 0);
-        Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
-    }
-
-    @Test
-    @TestFor(issue = "XD-317")
-    public void testSetHighAddress_XD_317() {
-        getLog().beginWrite();
-        getLog().write(DUMMY_LOGGABLE);
-        getLog().setHighAddress(getLog().endWrite(), 0);
-        Assert.assertFalse(getLog().getLoggableIterator(0).hasNext());
-        getLog().beginWrite();
-        getLog().write(NullLoggable.create());
-        getLog().flush();
-        getLog().endWrite();
-        final Iterator<RandomAccessLoggable> it = getLog().getLoggableIterator(0);
-        Assert.assertTrue(it.hasNext());
-        Assert.assertTrue(NullLoggable.isNullLoggable(Objects.requireNonNull(it.next())));
-        Assert.assertFalse(it.hasNext());
-        Assert.assertNull(it.next());
-    }
-
-    @Test
-    @TestFor(issue = "XD-484")
-    public void testSetHighAddress_XD_484() {
-        testSetHighAddress2();
-        closeLog();
-        Assert.assertEquals(0L, getLog().getHighAddress());
     }
 
     @Test

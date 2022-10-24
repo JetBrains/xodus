@@ -66,7 +66,8 @@ class InvalidCipherParametersTest {
         val highAddress = createEnvironment(dir, null, null, null)
         Assert.assertEquals(highAddress,
                 openEnvironment(dir, CHACHA_CIPHER_ID,
-                        "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0, expectedException))
+                        "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+                        0, expectedException))
         Assert.assertEquals(highAddress, openEnvironment(dir, null, null, null))
     }
 
@@ -176,5 +177,7 @@ private fun newEnvironmentConfig(cipherId: String?, cipherKey: String?, basicIV:
 
     ec.logCachePageSize = 4096
     ec.logFileSize = 4L
+    ec.isGcEnabled = false
+
     return ec
 }

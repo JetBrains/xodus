@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -149,7 +149,7 @@ public class EnvironmentImpl implements Environment {
         statistics = new EnvironmentStatistics(this);
         txnProfiler = ec.getProfilerEnabled() ? new TxnProfiler() : null;
         final jetbrains.exodus.env.management.EnvironmentConfig configMBean =
-            ec.isManagementEnabled() ? createConfigMBean(this) : null;
+                ec.isManagementEnabled() ? createConfigMBean(this) : null;
         if (configMBean != null) {
             this.configMBean = configMBean;
             // if we don't gather statistics then we should not expose corresponding managed bean
@@ -612,8 +612,8 @@ public class EnvironmentImpl implements Environment {
     protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
         return ec.getEnvIsReadonly() && ec.getEnvFailFastInReadonly() ?
-            new ReadonlyTransaction(this, exclusive, beginHook) :
-            new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
+                new ReadonlyTransaction(this, exclusive, beginHook) :
+                new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
     }
 
     @Nullable
@@ -628,24 +628,24 @@ public class EnvironmentImpl implements Environment {
     void acquireTransaction(@NotNull final TransactionBase txn) {
         checkIfTransactionCreatedAgainstThis(txn);
         txnDispatcher.acquireTransaction(throwIfReadonly(
-            txn, "TxnDispatcher can't acquire permits for read-only transaction"), this);
+                txn, "TxnDispatcher can't acquire permits for read-only transaction"), this);
     }
 
     void releaseTransaction(@NotNull final TransactionBase txn) {
         checkIfTransactionCreatedAgainstThis(txn);
         txnDispatcher.releaseTransaction(throwIfReadonly(
-            txn, "TxnDispatcher can't release permits for read-only transaction"));
+                txn, "TxnDispatcher can't release permits for read-only transaction"));
     }
 
     void downgradeTransaction(@NotNull final TransactionBase txn) {
         txnDispatcher.downgradeTransaction(throwIfReadonly(
-            txn, "TxnDispatcher can't downgrade read-only transaction"));
+                txn, "TxnDispatcher can't downgrade read-only transaction"));
     }
 
     boolean shouldTransactionBeExclusive(@NotNull final ReadWriteTransaction txn) {
         final int replayCount = txn.getReplayCount();
         return replayCount >= ec.getEnvTxnReplayMaxCount() ||
-            System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
+                System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
     }
 
     /**
@@ -724,15 +724,17 @@ public class EnvironmentImpl implements Environment {
             boolean writeConfirmed = false;
             try {
                 final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
-                expiredLoggables = txn.doCommit(tree);
-                // there is a temptation to postpone I/O in order to reduce number of writes to storage device,
-                // but it's quite difficult to resolve all possible inconsistencies afterwards,
-                // so think twice before removing the following line
-                log.flush();
+                final LogTip updatedTip;
+                try {
+                    expiredLoggables = txn.doCommit(tree);
+                } finally {
+                    log.flush();
+                    updatedTip = log.endWrite();
+                }
+
                 final MetaTreeImpl.Proto proto = tree[0];
                 metaWriteLock.lock();
                 try {
-                    final LogTip updatedTip = log.endWrite();
                     writeConfirmed = true;
                     resultingHighAddress = updatedTip.approvedHighAddress;
                     txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedTip, proto));
@@ -747,13 +749,6 @@ public class EnvironmentImpl implements Environment {
                 if (writeConfirmed) {
                     throwableOnCommit = t; // inoperative on failing to read meta tree
                     throw ExodusException.toExodusException(t, "Failed to read meta tree");
-                }
-                try {
-                    log.revertWrite(logTip);
-                } catch (Throwable th) {
-                    throwableOnCommit = t; // inoperative on failing to update high address
-                    loggerError("Failed to rollback high address", th);
-                    throw ExodusException.toExodusException(th, "Failed to rollback high address");
                 }
                 throw ExodusException.toExodusException(t, "Failed to flush transaction");
             }
@@ -847,12 +842,12 @@ public class EnvironmentImpl implements Environment {
             final boolean hasDuplicates = metaInfo.hasDuplicates();
             if (hasDuplicates != config.duplicates) {
                 throw new ExodusException("Attempt to open store '" + name + "' with duplicates = " +
-                    config.duplicates + " while it was created with duplicates =" + hasDuplicates);
+                        config.duplicates + " while it was created with duplicates =" + hasDuplicates);
             }
             if (metaInfo.isKeyPrefixing() != config.prefixing) {
                 if (!config.prefixing) {
                     throw new ExodusException("Attempt to open store '" + name +
-                        "' with prefixing = false while it was created with prefixing = true");
+                            "' with prefixing = false while it was created with prefixing = true");
                 }
                 // if we're trying to open existing store with prefixing which actually wasn't created as store
                 // with prefixing due to lack of the PatriciaTree feature, then open store with existing config
@@ -917,19 +912,6 @@ public class EnvironmentImpl implements Environment {
 
     void forEachActiveTransaction(@NotNull final TransactionalExecutable executable) {
         txns.forEach(executable);
-    }
-
-    void setHighAddress(final long highAddress) {
-        synchronized (commitLock) {
-            log.setHighAddress(log.getTip(), highAddress);
-            final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this);
-            metaWriteLock.lock();
-            try {
-                metaTree = meta.getFirst();
-            } finally {
-                metaWriteLock.unlock();
-            }
-        }
     }
 
     // for tests only
@@ -1042,7 +1024,7 @@ public class EnvironmentImpl implements Environment {
     private void reportAliveTransactions(final boolean debug) {
         if (transactionTimeout() == 0) {
             String stacksUnavailable = "Transactions stack traces are not available, " +
-                "set '" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0'";
+                    "set '" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0'";
             if (debug) {
                 loggerDebug(stacksUnavailable);
             } else {
@@ -1089,7 +1071,7 @@ public class EnvironmentImpl implements Environment {
     private void invalidateStoreGetCache() {
         final int storeGetCacheSize = ec.getEnvStoreGetCacheSize();
         storeGetCache = storeGetCacheSize == 0 ? null :
-            new StoreGetCache(storeGetCacheSize, ec.getEnvStoreGetCacheMinTreeSize(), ec.getEnvStoreGetCacheMaxValueSize());
+                new StoreGetCache(storeGetCacheSize, ec.getEnvStoreGetCacheMinTreeSize(), ec.getEnvStoreGetCacheMaxValueSize());
     }
 
     private void updateTxnProfiler(TransactionBase txn, long initialHighAddress, long resultingHighAddress) {
@@ -1143,8 +1125,8 @@ public class EnvironmentImpl implements Environment {
     private static jetbrains.exodus.env.management.EnvironmentConfig createConfigMBean(@NotNull final EnvironmentImpl e) {
         try {
             return e.ec.getManagementOperationsRestricted() ?
-                new jetbrains.exodus.env.management.EnvironmentConfig(e) :
-                new EnvironmentConfigWithOperations(e);
+                    new jetbrains.exodus.env.management.EnvironmentConfig(e) :
+                    new EnvironmentConfigWithOperations(e);
         } catch (RuntimeException ex) {
             if (ex.getCause() instanceof InstanceAlreadyExistsException) {
                 return null;
@@ -1159,8 +1141,8 @@ public class EnvironmentImpl implements Environment {
             while (true) {
                 executable.execute(txn);
                 if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                    txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
-                    txn.flush()) {
+                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
+                        txn.flush()) {
                     break;
                 }
                 txn.revert();
@@ -1176,8 +1158,8 @@ public class EnvironmentImpl implements Environment {
             while (true) {
                 final T result = computable.compute(txn);
                 if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                    txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
-                    txn.flush()) {
+                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
+                        txn.flush()) {
                     return result;
                 }
                 txn.revert();
@@ -1224,8 +1206,8 @@ public class EnvironmentImpl implements Environment {
         @Override
         public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
             if (key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE) ||
-                key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_MIN_TREE_SIZE) ||
-                key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_MAX_VALUE_SIZE)) {
+                    key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_MIN_TREE_SIZE) ||
+                    key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_MAX_VALUE_SIZE)) {
                 invalidateStoreGetCache();
             } else if (key.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
                 log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());

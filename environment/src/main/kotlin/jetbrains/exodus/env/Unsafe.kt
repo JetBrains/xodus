@@ -32,24 +32,6 @@ fun <T> EnvironmentImpl.executeInMetaWriteLock(action: () -> T): T {
     }
 }
 
-fun EnvironmentImpl.reopenMetaTree(proto: MetaTreePrototype, rollbackTo: LogTip, confirm: () -> LogTip) {
-    var logTip: LogTip? = null
-    try {
-        executeInMetaWriteLock {
-            // confirm log inside of meta tree lock
-            logTip = confirm().also {
-                metaTreeInternal = MetaTreeImpl.create(this, it, proto)
-            }
-        }
-    } catch (t: Throwable) {
-        logTip?.let {
-            // if log is confirmed, but metaTree can't be reopened, rollback log
-            log.setHighAddress(it, rollbackTo.highAddress)
-        }
-        throw ExodusException.toExodusException(t, "Failed to reopen MetaTree")
-    }
-}
-
 internal fun EnvironmentImpl.tryUpdate(): Boolean {
     return executeInCommitLock {
         tryUpdateUnsafe()

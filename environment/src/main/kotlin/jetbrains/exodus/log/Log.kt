@@ -20,7 +20,6 @@ import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
-import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.crypto.cryptBlocksMutable
 import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataWriter
@@ -117,6 +116,8 @@ class Log(val config: LogConfig) : Closeable {
 
     private val nullPage: ByteArray
 
+    private val rwIsReadonly = config.readerWriterProvider?.isReadonly ?: false
+
     init {
         tryLock()
         try {
@@ -163,7 +164,8 @@ class Log(val config: LogConfig) : Closeable {
             if (lastFileAddress == null) {
                 internalTip = AtomicReference(LogTip(fileLengthBound))
             } else {
-                val currentHighAddress = lastFileAddress + blockSetMutable.getBlock(lastFileAddress).length()
+                val lastFileLength = blockSetMutable.getBlock(lastFileAddress).length()
+                val currentHighAddress = lastFileAddress + lastFileLength
                 val highPageAddress = getHighPageAddress(currentHighAddress)
                 val highPageContent = ByteArray(cachePageSize)
                 val tmpTip = LogTip(highPageContent, highPageAddress, cachePageSize, currentHighAddress,
@@ -173,7 +175,7 @@ class Log(val config: LogConfig) : Closeable {
                 val highPageSize = if (currentHighAddress == 0L) {
                     0
                 } else {
-                    readBytes(highPageContent, highPageAddress, highPageAddress > 0)
+                    readBytes(highPageContent, highPageAddress)
                 }
 
                 val proposedTip = LogTip(highPageContent, highPageAddress, highPageSize, currentHighAddress,
@@ -240,7 +242,7 @@ class Log(val config: LogConfig) : Closeable {
         if (config.isCleanDirectoryExpected) {
             throw ExodusException("Clean log is expected")
         }
-        val rwIsReadonly = config.readerWriterProvider?.isReadonly ?: false
+
         val clearInvalidLog = config.isClearInvalidLog
         var hasNext: Boolean
         do {
@@ -276,82 +278,6 @@ class Log(val config: LogConfig) : Closeable {
     }
 
 
-    fun setHighAddress(logTip: LogTip, highAddress: Long): LogTip {
-        return setHighAddress(logTip, highAddress, logTip.blockSet.beginWrite())
-    }
-
-    fun setHighAddress(logTip: LogTip, highAddress: Long, blockSet: BlockSet.Mutable): LogTip {
-        if (highAddress > logTip.highAddress) {
-            throw ExodusException("Only can decrease high address")
-        }
-        if (highAddress == logTip.highAddress) {
-            if (bufferedWriter != null) {
-                throw IllegalStateException("Unexpected write in progress")
-            }
-            return logTip
-        }
-
-        // begin of test-only code
-        val testConfig = this.testConfig
-        if (testConfig != null && testConfig.isSettingHighAddressDenied) {
-            throw ExodusException("Setting high address is denied")
-        }
-        // end of test-only code
-
-        // at first, remove all files which are higher than highAddress
-        closeWriter()
-        val blocksToDelete = LongArrayList()
-        var blockToTruncate = -1L
-        for (blockAddress in blockSet.array) {
-            if (blockAddress <= highAddress) {
-                blockToTruncate = blockAddress
-                break
-            }
-            blocksToDelete.add(blockAddress)
-        }
-
-        // truncate log
-        for (i in 0 until blocksToDelete.size()) {
-            removeFile(blocksToDelete.get(i), RemoveBlockType.Delete, blockSet)
-        }
-        if (blockToTruncate >= 0) {
-            truncateFile(blockToTruncate, highAddress - blockToTruncate)
-        }
-
-        val updatedTip: LogTip
-        if (blockSet.isEmpty) {
-            updateLogIdentity()
-            updatedTip = LogTip(fileLengthBound)
-        } else {
-            val oldHighPageAddress = logTip.pageAddress
-            var approvedHighAddress = logTip.approvedHighAddress
-            if (highAddress < approvedHighAddress) {
-                approvedHighAddress = highAddress
-            }
-            val highPageAddress = getHighPageAddress(highAddress)
-            val blockSetImmutable = blockSet.endWrite()
-            val highPageSize = (highAddress - highPageAddress).toInt()
-
-            updatedTip = if (oldHighPageAddress == highPageAddress) {
-                logTip.withResize(highPageSize, highAddress, approvedHighAddress, blockSetImmutable)
-            } else {
-                updateLogIdentity()
-
-                val highPageContent = ByteArray(cachePageSize)
-                if (highPageSize > 0 && readBytes(highPageContent, highPageAddress,
-                                highPageSize == cachePageSize) < highPageSize) {
-                    throw ExodusException("Can't read expected high page bytes")
-                }
-
-                LogTip(highPageContent, highPageAddress, highPageSize, highAddress, approvedHighAddress,
-                        blockSetImmutable)
-            }
-        }
-        compareAndSetTip(logTip, updatedTip)
-        this.bufferedWriter = null
-        return updatedTip
-    }
-
     private fun closeWriter() {
         if (bufferedWriter != null) {
             throw IllegalStateException("Unexpected write in progress")
@@ -365,15 +291,8 @@ class Log(val config: LogConfig) : Closeable {
         return writer.startingTip
     }
 
-    fun abortWrite() { // any log rollbacks must be done via setHighAddress only
+    fun abortWrite() {
         this.bufferedWriter = null
-    }
-
-    fun revertWrite(logTip: LogTip) {
-        val writer = ensureWriter()
-        val blockSet = writer.blockSetMutable
-        abortWrite()
-        setHighAddress(compareAndSetTip(logTip, writer.updatedTip), logTip.highAddress, blockSet)
     }
 
     fun endWrite(): LogTip {
@@ -690,30 +609,35 @@ class Log(val config: LogConfig) : Closeable {
     override fun close() {
         isClosing = true
 
-        beginWrite()
-        try {
-            val writer = ensureWriter()
-            beforeWrite(writer)
+        if (!rwIsReadonly) {
+            beginWrite()
+            try {
+                val writer = ensureWriter()
+                beforeWrite(writer)
 
-            //we pad page with nulls to ensure that all pages could be checked on consistency
-            //by hash code which is stored at the end of the page.
-            val written = writer.padPageWithNulls()
+                //we pad page with nulls to ensure that all pages could be checked on consistency
+                //by hash code which is stored at the end of the page.
+                val written = writer.padPageWithNulls()
 
-            if (written > 0) {
-                writer.commit()
-                writer.flush()
-                closeFullFileIfNecessary(writer)
+                if (written > 0) {
+                    writer.commit()
+                    writer.flush()
+                    closeFullFileIfNecessary(writer)
+                }
+            } finally {
+                endWrite()
             }
-        } finally {
-            endWrite()
+
+            sync()
         }
 
-        val logTip = tip
-
-        sync()
         reader.close()
         closeWriter()
 
+        val logTip = tip
+
+        //remove all files from log, so access to them become impossible if read of data
+        //will be concurrently happen
         compareAndSetTip(logTip, LogTip(fileLengthBound, logTip.pageAddress, logTip.highAddress))
 
         release()
@@ -761,7 +685,7 @@ class Log(val config: LogConfig) : Closeable {
         val block = tip.blockSet.getBlock(address)
         val listeners = blockListeners.notifyListeners { it.beforeBlockDeleted(block, reader, writer) }
         try {
-            if (config.readerWriterProvider?.isReadonly != true) {
+            if (!rwIsReadonly) {
                 writer.removeBlock(address, rbt)
             }
             // remove address of file of the list
@@ -775,15 +699,6 @@ class Log(val config: LogConfig) : Closeable {
 
     fun ensureWriter(): BufferedDataWriter {
         return bufferedWriter ?: throw ExodusException("write not in progress")
-    }
-
-    private fun truncateFile(address: Long, length: Long) {
-        if (config.readerWriterProvider?.isReadonly != true) {
-            writer.truncateBlock(address, length)
-        }
-        writer.openOrCreateBlock(address, length)
-        // clear cache
-        clearFileFromLogCache(address, length - length % cachePageSize)
     }
 
     fun clearFileFromLogCache(address: Long, offset: Long = 0L) {
@@ -804,7 +719,7 @@ class Log(val config: LogConfig) : Closeable {
         }
     }
 
-    fun readBytes(output: ByteArray, pageAddress: Long, checkConsistency: Boolean): Int {
+    fun readBytes(output: ByteArray, pageAddress: Long): Int {
         val fileAddress = getFileAddress(pageAddress)
         val logTip = tip
         val files = logTip.blockSet.getFilesFrom(fileAddress)
@@ -812,9 +727,13 @@ class Log(val config: LogConfig) : Closeable {
         if (files.hasNext()) {
             val leftBound = files.nextLong()
             val fileSize = getFileSize(leftBound, logTip)
+
             if (leftBound == fileAddress && fileAddress + fileSize > pageAddress) {
                 val block = logTip.blockSet.getBlock(fileAddress)
                 val readBytes = block.read(output, pageAddress - fileAddress, 0, output.size)
+
+                val checkConsistency = !rwIsReadonly || pageAddress < (highAddress and
+                        ((cachePageSize - 1).inv()).toLong())
 
                 if (checkConsistency) {
                     if (readBytes < cachePageSize) {
@@ -920,7 +839,7 @@ class Log(val config: LogConfig) : Closeable {
         val result = writer.highAddress
 
         // begin of test-only code
-        val testConfig = this.testConfig
+        @Suppress("DEPRECATION") val testConfig = this.testConfig
         if (testConfig != null) {
             val maxHighAddress = testConfig.maxHighAddress
             if (maxHighAddress in 0..result) {
@@ -990,6 +909,7 @@ class Log(val config: LogConfig) : Closeable {
      */
     @Deprecated("for tests only")
     fun setLogTestConfig(testConfig: LogTestConfig?) {
+        @Suppress("DEPRECATION")
         this.testConfig = testConfig
     }
 

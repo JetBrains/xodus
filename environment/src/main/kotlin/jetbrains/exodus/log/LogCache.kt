@@ -112,7 +112,7 @@ internal abstract class LogCache {
     fun allocPage() = ByteArray(pageSize)
 
     private fun readBytes(log: Log, bytes: ByteArray, pageAddress: Long) {
-        val bytesRead = log.readBytes(bytes, pageAddress, true)
+        val bytesRead = log.readBytes(bytes, pageAddress)
 
         if (bytesRead != bytes.size) {
             throw ExodusException("Can't read full page from log [" + log.location + "] with address "
