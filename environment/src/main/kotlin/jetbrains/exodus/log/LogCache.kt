@@ -18,7 +18,6 @@ package jetbrains.exodus.log
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
-import jetbrains.exodus.core.dataStructures.ConcurrentIntObjectCache
 import jetbrains.exodus.util.MathUtil
 
 internal abstract class LogCache {
@@ -127,7 +126,6 @@ internal abstract class LogCache {
         protected const val DEFAULT_OPEN_FILES_COUNT = 16
         protected const val MINIMUM_MEM_USAGE_PERCENT = 5
         protected const val MAXIMUM_MEM_USAGE_PERCENT = 95
-        private val TAIL_PAGES_CACHE = ConcurrentIntObjectCache<ByteArray>(10)
 
         private fun checkPageSize(pageSize: Int) {
             if (pageSize.countOneBits() != 1) {
@@ -145,32 +143,6 @@ internal abstract class LogCache {
             if (1 shl MathUtil.integerLogarithm(i) != i) {
                 throw InvalidSettingException(exceptionMessage())
             }
-        }
-
-        @JvmStatic
-        protected fun postProcessTailPage(page: ByteArray): ByteArray {
-            if (isTailPage(page)) {
-                val length = page.size
-                val cachedTailPage = getCachedTailPage(length)
-                if (cachedTailPage != null) {
-                    return cachedTailPage
-                }
-                TAIL_PAGES_CACHE.cacheObject(length, page)
-            }
-            return page
-        }
-
-        fun getCachedTailPage(cachePageSize: Int): ByteArray? {
-            return TAIL_PAGES_CACHE.tryKey(cachePageSize)
-        }
-
-        private fun isTailPage(page: ByteArray): Boolean {
-            for (b in page) {
-                if (b != 0x80.toByte()) {
-                    return false
-                }
-            }
-            return true
         }
     }
 }

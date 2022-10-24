@@ -146,7 +146,7 @@ internal class SharedLogCache : LogCache {
     }
 
     private fun cachePage(key: Long, logIdentity: Int, address: Long, page: ByteArray) {
-        pagesCache.cacheObjectLocked(key, CachedValue(logIdentity, address, postProcessTailPage(page)))
+        pagesCache.cacheObjectLocked(key, CachedValue(logIdentity, address, page))
     }
 
     private class CachedValue(val logIdentity: Int, val address: Long, val page: ByteArray)

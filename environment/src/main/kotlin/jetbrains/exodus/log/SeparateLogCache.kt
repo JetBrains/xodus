@@ -139,6 +139,6 @@ internal class SeparateLogCache : LogCache {
     }
 
     private fun cachePage(cacheKey: Long, pageArray: ByteArray) {
-        pagesCache.cacheObjectLocked(cacheKey, postProcessTailPage(pageArray))
+        pagesCache.cacheObjectLocked(cacheKey, pageArray)
     }
 }
