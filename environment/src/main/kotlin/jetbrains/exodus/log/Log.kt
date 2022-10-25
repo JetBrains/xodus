@@ -63,10 +63,15 @@ class Log(val config: LogConfig) : Closeable {
     private val blockListeners = ArrayList<BlockListener>(2)
     private val readBytesListeners = ArrayList<ReadBytesListener>(2)
 
-    /** Size of single page in log cache. */
-    val cachePageSize = config.cachePageSize
+    var startupMetadata: StartupMetadata
 
-    val adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
+    val isClassedCorrectly: Boolean
+        get() = startupMetadata.isCorrectlyClosed
+
+    /** Size of single page in log cache. */
+    var cachePageSize: Int
+
+    var adjustedPageSize: Int
 
     /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
@@ -122,16 +127,45 @@ class Log(val config: LogConfig) : Closeable {
         tryLock()
         try {
             val fileLength = config.fileSize * 1024L
-            if (fileLength % cachePageSize != 0L) {
+            if (fileLength % config.cachePageSize != 0L) {
                 throw InvalidSettingException("File size should be a multiple of cache page size.")
             }
+
             fileLengthBound = fileLength
-            val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
+
             if (reader is FileDataReader) {
                 reader.setLog(this)
             }
 
-            checkLogConsistency(blockSetMutable)
+            if (reader is FileDataReader) {
+                startupMetadata = StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize)
+            } else {
+                startupMetadata = StartupMetadata.createStub(config.cachePageSize)
+            }
+
+            if (config.cachePageSize != startupMetadata.pageSize) {
+                logger().warn("Environment was created with cache page size equals to " +
+                        "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
+                        "page size will be updated to ${startupMetadata.pageSize}")
+
+                config.cachePageSize = startupMetadata.pageSize
+            }
+
+            cachePageSize = startupMetadata.pageSize
+            adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
+
+
+            val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
+            if (!startupMetadata.isCorrectlyClosed) {
+                checkLogConsistency(blockSetMutable)
+            } else {
+                val blockIterator = reader.blocks.iterator()
+
+                while (blockIterator.hasNext()) {
+                    val block = blockIterator.next()
+                    blockSetMutable.add(block.address, block)
+                }
+            }
 
             val blockSetImmutable = blockSetMutable.endWrite()
 
@@ -183,42 +217,44 @@ class Log(val config: LogConfig) : Closeable {
                 this.internalTip.set(proposedTip)
                 tmpTip.xxHash64.close()
 
-                // here we should check whether last loggable is written correctly
-                val lastFileLoggables = LoggableIterator(this, lastFileAddress)
-                var approvedHighAddress: Long = lastFileAddress
-                try {
-                    while (lastFileLoggables.hasNext()) {
-                        val loggable = lastFileLoggables.next()
-                        val dataLength = if (NullLoggable.isNullLoggable(loggable)) 0 else loggable.dataLength
-                        if (dataLength > 0) {
-                            // if not null loggable read all data to the end
-                            val data = loggable.data.iterator()
-                            for (i in 0 until dataLength) {
-                                if (!data.hasNext()) {
-                                    throw ExodusException("Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(data.address, fileLengthBound))
+                if (!startupMetadata.isCorrectlyClosed) {
+                    // here we should check whether last loggable is written correctly
+                    val lastFileLoggables = LoggableIterator(this, lastFileAddress)
+                    var approvedHighAddress: Long = lastFileAddress
+                    try {
+                        while (lastFileLoggables.hasNext()) {
+                            val loggable = lastFileLoggables.next()
+                            val dataLength = if (NullLoggable.isNullLoggable(loggable)) 0 else loggable.dataLength
+                            if (dataLength > 0) {
+                                // if not null loggable read all data to the end
+                                val data = loggable.data.iterator()
+                                for (i in 0 until dataLength) {
+                                    if (!data.hasNext()) {
+                                        throw ExodusException("Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(data.address, fileLengthBound))
+                                    }
+                                    data.next()
                                 }
-                                data.next()
+                            } else if (dataLength < 0) {
+                                // XD-728:
+                                // this is either data corruption or encrypted database
+                                // anyway recovery should stop at this point
+                                break
                             }
-                        } else if (dataLength < 0) {
-                            // XD-728:
-                            // this is either data corruption or encrypted database
-                            // anyway recovery should stop at this point
-                            break
+                            val approvedHighAddressCandidate = loggable.address + loggable.length()
+                            if (approvedHighAddressCandidate > currentHighAddress) {
+                                // XD-728:
+                                // this is either data corruption or encrypted database
+                                // anyway recovery should stop at this point
+                                break
+                            }
+                            approvedHighAddress = approvedHighAddressCandidate
                         }
-                        val approvedHighAddressCandidate = loggable.address + loggable.length()
-                        if (approvedHighAddressCandidate > currentHighAddress) {
-                            // XD-728:
-                            // this is either data corruption or encrypted database
-                            // anyway recovery should stop at this point
-                            break
-                        }
-                        approvedHighAddress = approvedHighAddressCandidate
+                    } catch (e: ExodusException) { // if an exception is thrown then last loggable wasn't read correctly
+                        logger.info(e) { "Exception on Log recovery. Approved high address = $approvedHighAddress" }
                     }
-                } catch (e: ExodusException) { // if an exception is thrown then last loggable wasn't read correctly
-                    logger.info(e) { "Exception on Log recovery. Approved high address = $approvedHighAddress" }
-                }
 
-                this.internalTip.set(proposedTip.withApprovedAddress(approvedHighAddress))
+                    this.internalTip.set(proposedTip.withApprovedAddress(approvedHighAddress))
+                }
             }
 
             nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
@@ -232,6 +268,14 @@ class Log(val config: LogConfig) : Closeable {
             release()
             throw ex
         }
+    }
+
+    fun updateStartUpDbRoot(rootAddress: Long) {
+        startupMetadata.rootAddress = rootAddress
+    }
+
+    fun getStartUpDbRoot(): Long {
+        return startupMetadata.rootAddress
     }
 
     private fun checkLogConsistency(blockSetMutable: BlockSet.Mutable) {
@@ -629,6 +673,11 @@ class Log(val config: LogConfig) : Closeable {
             }
 
             sync()
+
+            if (reader is FileDataReader) {
+                startupMetadata.closeAndUpdate(reader)
+            }
+
         }
 
         reader.close()

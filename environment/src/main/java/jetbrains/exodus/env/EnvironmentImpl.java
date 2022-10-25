@@ -445,6 +445,11 @@ public class EnvironmentImpl implements Environment {
                 }
                 ec.removeChangedSettingsListener(envSettingsListener);
                 logCacheHitRate = log.getCacheHitRate();
+
+                if(!ec.getEnvIsReadonly()) {
+                    log.updateStartUpDbRoot(metaTree.rootAddress());
+                }
+
                 log.close();
             } finally {
                 log.release();

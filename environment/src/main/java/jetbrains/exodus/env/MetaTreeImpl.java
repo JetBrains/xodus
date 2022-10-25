@@ -51,7 +51,15 @@ final class MetaTreeImpl implements MetaTree {
         final Log log = env.getLog();
         final LogTip logTip = log.getTip();
         if (logTip.highAddress > EMPTY_LOG_BOUND) {
-            Loggable rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
+
+            Loggable rootLoggable;
+            final long rootAddress = log.getStartUpDbRoot();
+            if (log.isClassedCorrectly() && rootAddress >= 0) {
+                rootLoggable = log.read(rootAddress);
+            } else {
+                rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
+            }
+
             while (rootLoggable != null) {
                 final long root = rootLoggable.getAddress();
                 // work around XD-692: load database root in try-catch block
