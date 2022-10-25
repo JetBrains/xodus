@@ -255,11 +255,11 @@ class Log(val config: LogConfig) : Closeable {
 
                     this.internalTip.set(proposedTip.withApprovedAddress(approvedHighAddress))
                 }
+
+                sync()
             }
 
             nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
-
-            sync()
 
             if (config.isWarmup) {
                 warmup()
