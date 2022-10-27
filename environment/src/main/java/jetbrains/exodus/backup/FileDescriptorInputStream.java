@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,6 +18,7 @@ package jetbrains.exodus.backup;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.log.BufferedDataWriter;
+import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -38,6 +39,8 @@ public class FileDescriptorInputStream extends InputStream {
     private final long storedDataFilesSize;
 
     private final byte @NotNull [] page;
+    private final Log log;
+
     private int pagePosition;
 
     private int position;
@@ -51,7 +54,7 @@ public class FileDescriptorInputStream extends InputStream {
 
     public FileDescriptorInputStream(final @NotNull FileInputStream fileInputStream, long fileAddress, int pageSize,
                                      long backupFileSize, long storedDataFilesSize,
-                                     @Nullable StreamCipherProvider cipherProvider,
+                                     Log log, @Nullable StreamCipherProvider cipherProvider,
                                      byte @Nullable [] cipherKey, long cipherBasicIV) {
         this.fileInputStream = fileInputStream;
         this.fileAddress = fileAddress;
@@ -61,6 +64,7 @@ public class FileDescriptorInputStream extends InputStream {
         //backup always contains only full pages
         this.backupFileSize = backupFileSize;
         this.storedDataFilesSize = storedDataFilesSize;
+        this.log = log;
         this.cipherProvider = cipherProvider;
         this.cipherKey = cipherKey;
         this.cipherBasicIV = cipherBasicIV;
@@ -161,13 +165,13 @@ public class FileDescriptorInputStream extends InputStream {
             read += r;
         }
 
+        final long pageAddress = fileAddress + position;
         if (read < pageSize) {
             Arrays.fill(page, read, pageSize - BufferedDataWriter.LOGGABLE_DATA, (byte) 0x80);
 
             if (cipherProvider != null) {
                 assert cipherKey != null;
 
-                final long pageAddress = fileAddress + position;
                 EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey,
                         cipherBasicIV, pageAddress, page, read, pageSize - BufferedDataWriter.LOGGABLE_DATA - read,
                         LogUtil.LOG_BLOCK_ALIGNMENT);
@@ -175,6 +179,8 @@ public class FileDescriptorInputStream extends InputStream {
 
             BufferedDataWriter.updateHashCode(page);
         }
+
+        BufferedDataWriter.checkPageConsistency(pageAddress, page, pageSize, log);
 
         pagePosition = 0;
         return true;

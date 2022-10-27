@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -107,14 +107,20 @@ public class BufferedDataWriter {
                         highAddress % log.getFileLengthBound();
     }
 
-    public static void checkPageConsistency(long pageAddress, byte @NotNull [] bytes, Log log) {
+    public static void checkPageConsistency(long pageAddress, byte @NotNull [] bytes, int pageSize, Log log) {
+        if (pageSize != bytes.length) {
+            DataCorruptionException.raise("Unexpected page size (bytes). {expected " + pageSize
+                    + ": , actual : " + bytes.length + "}", log, pageAddress);
+        }
+
         final XXHash64 xxHash = BufferedDataWriter.xxHash;
         final long calculatedHash = xxHash.hash(bytes, 0,
                 bytes.length - HASH_CODE_SIZE, BufferedDataWriter.XX_HASH_SEED);
-        final long storedHash = BindingUtils.readLong(bytes, bytes.length - HASH_CODE_SIZE);
+        final long storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE);
 
         if (storedHash != calculatedHash) {
-            DataCorruptionException.raise("Page is broken", log, pageAddress);
+            DataCorruptionException.raise("Page is broken. Expected and calculated hash codes are different.",
+                    log, pageAddress);
         }
     }
 
@@ -462,10 +468,11 @@ public class BufferedDataWriter {
 
         final int readBytes = block.read(output, pageAddress - fileAddress, 0, output.length);
         if (readBytes < pageSize) {
-            throw new ExodusException("Can't read expected page bytes");
+            DataCorruptionException.raise("Unexpected page size (bytes). {expected " + pageSize
+                    + ": , actual : " + readBytes + "}", log, pageAddress);
         }
 
-        checkPageConsistency(pageAddress, output, log);
+        checkPageConsistency(pageAddress, output, pageSize, log);
 
         if (cipherProvider != null) {
             EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey, cipherBasicIV, pageAddress, output, 0,

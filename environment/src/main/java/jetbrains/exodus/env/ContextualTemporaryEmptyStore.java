@@ -88,7 +88,7 @@ class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
     }
 
     private boolean throwCantModify() {
-        if (getEnvironment().getEnvironmentConfig().getEnvIsReadonly()) {
+        if (getEnvironment().isReadOnly()) {
             throw new ReadonlyTransactionException();
         }
         throw new UnsupportedOperationException("Can't modify temporary empty store");

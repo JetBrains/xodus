@@ -102,8 +102,9 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                                         @Override
                                         public @NotNull InputStream getInputStream() throws IOException {
                                             return new FileDescriptorInputStream(new FileInputStream(file),
-                                                    fileAddress, pageSize, getFileSize(), rootEndAddress - fileAddress,
-                                                    environment.getCipherProvider(),
+                                                    fileAddress, pageSize, getFileSize(),
+                                                    rootEndAddress - fileAddress,
+                                                    environment.getLog(), environment.getCipherProvider(),
                                                     environment.getCipherKey(), environment.getCipherBasicIV());
                                         }
                                     };

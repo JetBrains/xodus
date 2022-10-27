@@ -118,14 +118,19 @@ class Log(val config: LogConfig) : Closeable {
     val cacheHitRate: Float
         get() = cache.hitRate()
 
+    val isReadOnly: Boolean
+        get() = rwIsReadonly
 
     private val nullPage: ByteArray
 
-    private val rwIsReadonly = config.readerWriterProvider?.isReadonly ?: false
+    @Volatile
+    private var rwIsReadonly: Boolean
 
     init {
         tryLock()
         try {
+            rwIsReadonly = config.readerWriterProvider?.isReadonly ?: false
+
             val fileLength = config.fileSize * 1024L
             if (fileLength % config.cachePageSize != 0L) {
                 throw InvalidSettingException("File size should be a multiple of cache page size.")
@@ -144,7 +149,7 @@ class Log(val config: LogConfig) : Closeable {
             }
 
             if (config.cachePageSize != startupMetadata.pageSize) {
-                logger().warn("Environment was created with cache page size equals to " +
+                logger.warn("Environment was created with cache page size equals to " +
                         "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
                         "page size will be updated to ${startupMetadata.pageSize}")
 
@@ -157,7 +162,10 @@ class Log(val config: LogConfig) : Closeable {
 
             val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
             if (!startupMetadata.isCorrectlyClosed) {
+                logger.error("Environment located at ${reader.location} has been closed incorrectly. " +
+                        "Data check routine is started to assess data consistency ...")
                 checkLogConsistency(blockSetMutable)
+                logger.error("Data check is completed for environment ${reader.location}.")
             } else {
                 val blockIterator = reader.blocks.iterator()
 
@@ -270,6 +278,10 @@ class Log(val config: LogConfig) : Closeable {
         }
     }
 
+    fun switchToReadOnlyMode() {
+        rwIsReadonly = true
+    }
+
     fun updateStartUpDbRoot(rootAddress: Long) {
         startupMetadata.rootAddress = rootAddress
     }
@@ -308,6 +320,7 @@ class Log(val config: LogConfig) : Closeable {
                 clearLogReason = "Unexpected file address " +
                         LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound)
             }
+
             if (clearLogReason != null) {
                 if (rwIsReadonly || !clearInvalidLog) {
                     throw ExodusException(clearLogReason)
@@ -317,6 +330,20 @@ class Log(val config: LogConfig) : Closeable {
                 writer.clear()
                 break
             }
+
+            val page = ByteArray(cachePageSize)
+            for (pageAddress in 0 until blockLength step cachePageSize.toLong()) {
+                val read = block.read(page, block.address + pageAddress, 0, cachePageSize)
+                if (hasNext || !rwIsReadonly) {
+                    if (read != cachePageSize) {
+                        DataCorruptionException.raise("Page is broken. Expected and actual" +
+                                " page sizes are different. {expected: $cachePageSize , actual: $read}", this, pageAddress)
+                    }
+
+                    BufferedDataWriter.checkPageConsistency(pageAddress, page, cachePageSize, this)
+                }
+            }
+
             blockSetMutable.add(address, block)
         } while (hasNext)
     }
@@ -787,10 +814,10 @@ class Log(val config: LogConfig) : Closeable {
                 if (checkConsistency) {
                     if (readBytes < cachePageSize) {
                         DataCorruptionException.raise("Page size less than expected. " +
-                                "{actual : ${readBytes}, expected ${cachePageSize} }.", this, pageAddress)
+                                "{actual : $readBytes, expected $cachePageSize }.", this, pageAddress)
                     }
 
-                    BufferedDataWriter.checkPageConsistency(pageAddress, output, this)
+                    BufferedDataWriter.checkPageConsistency(pageAddress, output, cachePageSize, this)
                 }
 
                 val cipherProvider = config.cipherProvider
@@ -848,6 +875,10 @@ class Log(val config: LogConfig) : Closeable {
     }
 
     fun writeContinuously(type: Byte, structureId: Int, data: ByteIterable): Long {
+        if (rwIsReadonly) {
+            throw ExodusException("Environment is working in read-only mode. No writes are allowed")
+        }
+
         val writer = ensureWriter()
 
         val result = beforeWrite(writer)

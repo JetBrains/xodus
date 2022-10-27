@@ -1586,6 +1586,9 @@ public class EnvironmentConfig extends AbstractConfig {
      * Returns {@code true} if the {@linkplain Environment} instance is read-only. Default value is {@code false}.
      * <p>Mutable at runtime: yes
      *
+     * *WARNING* do not use this method to check if {@linkplain Environment} is working in read-only mode at runtime.
+     * Please use {@linkplain  Environment#isReadOnly()} instead.
+     *
      * @return {@code true} if the {@linkplain Environment} instance is read-only
      */
     public boolean getEnvIsReadonly() {

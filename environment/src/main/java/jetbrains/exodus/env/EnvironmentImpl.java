@@ -279,9 +279,10 @@ public class EnvironmentImpl implements Environment {
 
     @NotNull
     public ReadWriteTransaction beginGCTransaction() {
-        if (ec.getEnvIsReadonly()) {
+        if (isReadOnly()) {
             throw new ReadonlyTransactionException("Can't start GC transaction on read-only Environment");
         }
+
         return new ReadWriteTransaction(this, null, ec.getGcUseExclusiveTransaction(), true) {
 
             @Override
@@ -405,6 +406,10 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
+    public boolean isReadOnly() {
+        return ec.getEnvIsReadonly() || log.isReadOnly();
+    }
+
     @Override
     public void close() {
         // if this is already closed do nothing
@@ -440,13 +445,13 @@ public class EnvironmentImpl implements Environment {
             final boolean closeForcedly = ec.getEnvCloseForcedly();
             checkInactive(closeForcedly);
             try {
-                if (!closeForcedly && !ec.getEnvIsReadonly() && ec.isGcEnabled()) {
+                if (!closeForcedly && !isReadOnly() && ec.isGcEnabled()) {
                     executeInTransaction(txn -> gc.getUtilizationProfile().forceSave(txn));
                 }
                 ec.removeChangedSettingsListener(envSettingsListener);
                 logCacheHitRate = log.getCacheHitRate();
 
-                if(!ec.getEnvIsReadonly()) {
+                if(!isReadOnly()) {
                     log.updateStartUpDbRoot(metaTree.rootAddress());
                 }
 
@@ -616,7 +621,7 @@ public class EnvironmentImpl implements Environment {
     @NotNull
     protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
         checkIsOperative();
-        return ec.getEnvIsReadonly() && ec.getEnvFailFastInReadonly() ?
+        return isReadOnly() && ec.getEnvFailFastInReadonly() ?
                 new ReadonlyTransaction(this, exclusive, beginHook) :
                 new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
     }
@@ -713,7 +718,7 @@ public class EnvironmentImpl implements Environment {
         }
 
         synchronized (commitLock) {
-            if (ec.getEnvIsReadonly()) {
+            if (isReadOnly()) {
                 throw new ReadonlyTransactionException();
             }
             checkIsOperative();
@@ -1218,7 +1223,7 @@ public class EnvironmentImpl implements Environment {
                 log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
             } else if (key.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
                 log.getConfig().setDurableWrite(ec.getLogDurableWrite());
-            } else if (key.equals(EnvironmentConfig.ENV_IS_READONLY) && !ec.getEnvIsReadonly()) {
+            } else if (key.equals(EnvironmentConfig.ENV_IS_READONLY) && !isReadOnly()) {
                 resumeGC();
             } else if (key.equals(EnvironmentConfig.GC_UTILIZATION_FROM_SCRATCH) && ec.getGcUtilizationFromScratch()) {
                 gc.getUtilizationProfile().computeUtilizationFromScratch();
