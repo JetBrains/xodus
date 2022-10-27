@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,7 +16,6 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.io.DataReader;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.util.IOUtil;
 
@@ -49,8 +48,8 @@ public final class StartupMetadata {
 
     private static final int FILE_SIZE = CORRECTLY_CLOSED_FLAG_OFFSET + CLOSED_FLAG_BYTES;
 
-    static final String FIRST_FILE_NAME = "startup-metadata-0";
-    static final String SECOND_FILE_NAME = "startup-metadata-1";
+    public static final String FIRST_FILE_NAME = "startup-metadata-0";
+    public static final String SECOND_FILE_NAME = "startup-metadata-1";
 
 
     static final int FORMAT_VERSION = 1;
@@ -238,8 +237,8 @@ public final class StartupMetadata {
         return new StartupMetadata(useFirstFile, dbRootAddress, closedFlag, pageSize, version);
     }
 
-    private static ByteBuffer serialize(final long version, final long rootAddress, final int pageSize,
-                                        final boolean correctlyClosedFlag) {
+    public static ByteBuffer serialize(final long version, final long rootAddress, final int pageSize,
+                                       final boolean correctlyClosedFlag) {
         final ByteBuffer content = ByteBuffer.allocate(FILE_SIZE);
 
         content.putLong(FILE_VERSION_OFFSET, version);
@@ -253,5 +252,9 @@ public final class StartupMetadata {
         content.putLong(HASHCODE_OFFSET, hash);
 
         return content;
+    }
+
+    public static boolean isStartupFileName(String name) {
+        return FIRST_FILE_NAME.equals(name) || SECOND_FILE_NAME.equals(name);
     }
 }

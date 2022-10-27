@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,22 +20,23 @@ import jetbrains.exodus.backup.FileDescriptorInputStream;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.StartupMetadata;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 class EnvironmentBackupStrategyImpl extends BackupStrategy {
-
     @NotNull
     private final EnvironmentImpl environment;
+
     private long rootEndAddress;
+    private long rootAddress;
     private final int pageSize;
+    private boolean startupMetadataWasSent;
 
     public EnvironmentBackupStrategyImpl(@NotNull EnvironmentImpl environment) {
         this.environment = environment;
@@ -47,12 +48,15 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     public void beforeBackup() {
         environment.suspendGC();
 
-        rootEndAddress = environment.computeInReadonlyTransaction(txn -> {
+        final long[] roots = environment.computeInReadonlyTransaction(txn -> {
             final long address = ((TransactionBase) txn).getRoot();
             final Loggable loggable = environment.getLog().read(address);
 
-            return address + loggable.length();
+            return new long[]{address, address + loggable.length()};
         });
+
+        rootAddress = roots[0];
+        rootEndAddress = roots[1];
     }
 
     @Override
@@ -107,6 +111,43 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                                     return true;
                                 }
                             }
+                        }
+
+                        if (!startupMetadataWasSent) {
+                            startupMetadataWasSent = true;
+                            final ByteBuffer metadataContent =
+                                    StartupMetadata.serialize(0, rootAddress,
+                                            environment.getLog().getCachePageSize(), true);
+
+                            next = new FileDescriptor(new File(StartupMetadata.FIRST_FILE_NAME),
+                                    "", metadataContent.remaining()) {
+                                @Override
+                                public @NotNull InputStream getInputStream() {
+                                    return new ByteArrayInputStream(metadataContent.array(),
+                                            metadataContent.arrayOffset(), metadataContent.remaining());
+                                }
+
+                                @Override
+                                public boolean shouldCloseStream() {
+                                    return false;
+                                }
+
+                                @Override
+                                public boolean hasContent() {
+                                    return true;
+                                }
+
+                                @Override
+                                public long getTimeStamp() {
+                                    return System.currentTimeMillis();
+                                }
+
+                                @Override
+                                public boolean canBeEncrypted() {
+                                    return false;
+                                }
+                            };
+                            return true;
                         }
                         return false;
                     }

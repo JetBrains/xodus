@@ -137,10 +137,10 @@ class Log(val config: LogConfig) : Closeable {
                 reader.setLog(this)
             }
 
-            if (reader is FileDataReader) {
-                startupMetadata = StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize)
+            startupMetadata = if (reader is FileDataReader) {
+                StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize)
             } else {
-                startupMetadata = StartupMetadata.createStub(config.cachePageSize)
+                StartupMetadata.createStub(config.cachePageSize)
             }
 
             if (config.cachePageSize != startupMetadata.pageSize) {

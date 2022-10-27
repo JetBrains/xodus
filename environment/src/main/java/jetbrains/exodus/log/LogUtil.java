@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,7 +33,7 @@ public final class LogUtil {
     public static final int LOG_FILE_NAME_WITH_EXT_LENGTH = LOG_FILE_NAME_LENGTH + LOG_FILE_EXTENSION_LENGTH;
     public static final String LOG_FILE_EXTENSION = ".xd";
     public static final FilenameFilter LOG_FILE_NAME_FILTER = (dir, name) -> name.length() == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH &&
-        name.endsWith(LogUtil.LOG_FILE_EXTENSION);
+            name.endsWith(LogUtil.LOG_FILE_EXTENSION);
 
     private static final char[] LOG_FILE_EXTENSION_CHARS = LOG_FILE_EXTENSION.toCharArray();
     private static final char[] LOG_FILE_NAME_ALPHABET = "0123456789abcdefghijklmnopqrstuv".toCharArray();
