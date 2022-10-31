@@ -20,7 +20,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
@@ -77,14 +76,17 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     public int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
         if (right instanceof SubIterable) {
             final SubIterable r = (SubIterable) right;
-            return ByteIterableUtil.compare(bytes, len, start + offset, r.getRawBytes(), r.getLength(), r.offset);
+            return Arrays.compareUnsigned(bytes, start + offset,
+                    start + offset + len, r.getRawBytes(), r.offset, r.offset + r.getLength());
         }
-        return ByteIterableUtil.compare(bytes, len, start + offset, right.getBytesUnsafe(), right.getLength());
+        return Arrays.compareUnsigned(bytes, start + offset,
+                start + offset + len, right.getBytesUnsafe(), 0, right.getLength());
     }
 
     @Override
     public ByteIterableWithAddress clone(final int offset) {
-        return new ArrayByteIterableWithAddress(getDataAddress() + offset, bytes, start + offset, end - start - offset);
+        return new ArrayByteIterableWithAddress(getDataAddress() + offset, bytes,
+                start + offset, end - start - offset);
     }
 
     @Override
@@ -161,9 +163,11 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         public int compareTo(@NotNull final ByteIterable right) {
             if (right instanceof SubIterable) {
                 final SubIterable r = (SubIterable) right;
-                return ByteIterableUtil.compare(bytes, length, offset, r.bytes, r.length, r.offset);
+                return Arrays.compareUnsigned(bytes, offset, offset + length,
+                        r.bytes, r.offset, r.offset + r.length);
             }
-            return ByteIterableUtil.compare(bytes, length, offset, right.getBytesUnsafe(), right.getLength());
+            return Arrays.compareUnsigned(bytes, offset, offset + length,
+                    right.getBytesUnsafe(), 0, right.getLength());
         }
 
         @Override

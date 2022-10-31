@@ -25,7 +25,6 @@ import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
 import jetbrains.exodus.tree.ITreeMutable;
 import jetbrains.exodus.tree.LongIterator;
-import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,7 +57,8 @@ public class PatriciaTreeWithDuplicates extends PatriciaTreeDecorator {
                 if (key.getLength() == keyLength) {
                     final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
                     final byte[] noDupKeyBytes = noDupKey.getBytesUnsafe();
-                    if (ByteIterableUtil.compare(key.getBytesUnsafe(), keyLength, noDupKeyBytes, keyLength) == 0) {
+                    if (Arrays.compareUnsigned(key.getBytesUnsafe(), 0, keyLength,
+                            noDupKeyBytes, 0, keyLength) == 0) {
                         return new ArrayByteIterable(Arrays.copyOfRange(noDupKeyBytes,
                                 keyLength + 1, // skip separator
                                 noDupKey.getLength()));

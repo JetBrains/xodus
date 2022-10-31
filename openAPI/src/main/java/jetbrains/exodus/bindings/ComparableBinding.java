@@ -18,7 +18,6 @@ package jetbrains.exodus.bindings;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
-import jetbrains.exodus.util.ByteIterableUtil;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
@@ -33,7 +32,7 @@ import java.io.ByteArrayInputStream;
  *
  * <p>Bindings save natural order of values. This means that the greater the value, the greater the {@code ByteIterable}
  * entry. The order of the {@code ByteIterable} entries is defined by
- * {@linkplain ByteIterableUtil#compare(ByteIterable, ByteIterable)}. The only exceptions are {@linkplain DoubleBinding}
+ * {@linkplain java.util.Arrays#compareUnsigned(byte[], byte[])}. The only exceptions are {@linkplain DoubleBinding}
  * and {@linkplain FloatBinding}, they save order only for unsigned non-negative values.
  *
  * @see BooleanBinding

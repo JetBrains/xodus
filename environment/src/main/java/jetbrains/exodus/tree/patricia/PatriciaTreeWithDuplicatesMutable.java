@@ -19,10 +19,10 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.*;
-import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Iterator;
 
 final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates implements ITreeMutable {
@@ -104,7 +104,7 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
                     break;
                 }
                 final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
-                if (ByteIterableUtil.compare(keyBytes, keyLength, noDupKey.getBytesUnsafe(), keyLength) != 0) {
+                if (Arrays.compareUnsigned(keyBytes, 0, keyLength, noDupKey.getBytesUnsafe(), 0, keyLength) != 0) {
                     break;
                 }
                 cursor.deleteCurrent();

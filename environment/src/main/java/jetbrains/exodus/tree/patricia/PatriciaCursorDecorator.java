@@ -20,7 +20,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeCursor;
-import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -73,7 +72,8 @@ public class PatriciaCursorDecorator implements ITreeCursor {
         if (keyBytes == null) {
             throw new IllegalStateException("Cursor is not yet initialized");
         }
-        if (getNextLazy() && ByteIterableUtil.compare(keyBytes, keyLength, nextKeyBytes, nextKeyLength) == 0) {
+        if (getNextLazy() && Arrays.compareUnsigned(keyBytes, 0, keyLength,
+                nextKeyBytes, 0, nextKeyLength) == 0) {
             advance();
             return true;
         }
@@ -85,7 +85,8 @@ public class PatriciaCursorDecorator implements ITreeCursor {
         if (keyBytes == null) {
             return getNext(); // init
         }
-        if (getNextLazy() && ByteIterableUtil.compare(keyBytes, keyLength, nextKeyBytes, nextKeyLength) != 0) {
+        if (getNextLazy() && Arrays.compareUnsigned(keyBytes, 0, keyLength,
+                nextKeyBytes, 0, nextKeyLength) != 0) {
             advance();
             return true;
         }
@@ -99,7 +100,8 @@ public class PatriciaCursorDecorator implements ITreeCursor {
                     final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
                     final int keyLength = CompressedUnsignedLongByteIterable.getInt(keyLengthIterable);
                     final byte[] noDupKeyBytes = noDupKey.getBytesUnsafe();
-                    if (ByteIterableUtil.compare(keyBytes, this.keyLength, noDupKeyBytes, keyLength) != 0) {
+                    if (Arrays.compareUnsigned(keyBytes, 0, this.keyLength,
+                            noDupKeyBytes, 0, keyLength) != 0) {
                         keyBytes = noDupKey.getBytesUnsafe();
                         this.keyLength = keyLength;
                         valueLength = noDupKey.getLength() - keyLength - 1;
@@ -131,7 +133,8 @@ public class PatriciaCursorDecorator implements ITreeCursor {
         if (keyBytes == null) {
             throw new IllegalStateException("Cursor is not yet initialized");
         }
-        if (getPrevLazy() && ByteIterableUtil.compare(keyBytes, keyLength, prevKeyBytes, prevKeyLength) == 0) {
+        if (getPrevLazy() && Arrays.compareUnsigned(keyBytes, 0, keyLength,
+                prevKeyBytes, 0, prevKeyLength) == 0) {
             retreat();
             return true;
         }
@@ -143,7 +146,8 @@ public class PatriciaCursorDecorator implements ITreeCursor {
         if (keyBytes == null) {
             return getPrev(); // init
         }
-        if (getPrevLazy() && ByteIterableUtil.compare(keyBytes, keyLength, prevKeyBytes, prevKeyLength) != 0) {
+        if (getPrevLazy() && Arrays.compareUnsigned(keyBytes, 0, keyLength,
+                prevKeyBytes, 0, prevKeyLength) != 0) {
             advance();
             return true;
         }
@@ -157,7 +161,8 @@ public class PatriciaCursorDecorator implements ITreeCursor {
                     final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
                     final int keyLength = CompressedUnsignedLongByteIterable.getInt(keyLengthIterable);
                     final byte[] noDupKeyBytes = noDupKey.getBytesUnsafe();
-                    if (ByteIterableUtil.compare(keyBytes, this.keyLength, noDupKeyBytes, keyLength) != 0) {
+                    if (Arrays.compareUnsigned(keyBytes, 0, this.keyLength,
+                            noDupKeyBytes, 0, keyLength) != 0) {
                         keyBytes = noDupKey.getBytesUnsafe();
                         this.keyLength = keyLength;
                         valueLength = noDupKey.getLength() - keyLength - 1;
@@ -219,7 +224,8 @@ public class PatriciaCursorDecorator implements ITreeCursor {
                     final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
                     final byte[] keyBytes = key.getBytesUnsafe();
                     final byte[] noDupKeyBytes = noDupKey.getBytesUnsafe();
-                    if (ByteIterableUtil.compare(keyBytes, keyLength, noDupKeyBytes, keyLength) == 0) {
+                    if (Arrays.compareUnsigned(keyBytes, 0, keyLength,
+                            noDupKeyBytes, 0, keyLength) == 0) {
                         this.keyBytes = noDupKeyBytes;
                         this.keyLength = keyLength;
                         valueLength = noDupKey.getLength() - keyLength - 1;
@@ -295,10 +301,13 @@ public class PatriciaCursorDecorator implements ITreeCursor {
                         final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
                         final byte[] srcKeyBytes = key.getBytesUnsafe();
                         final byte[] noDupKeyBytes = noDupKey.getBytesUnsafe();
-                        if (ByteIterableUtil.compare(srcKeyBytes, keyLength, noDupKeyBytes, keyLength) == 0) {
+                        if (Arrays.compareUnsigned(srcKeyBytes, 0, keyLength,
+                                noDupKeyBytes, 0, keyLength) == 0) {
                             // skip separator
                             final int noDupKeyLength = noDupKey.getLength() - keyLength - 1;
-                            final int cmp = ByteIterableUtil.compare(noDupKeyBytes, noDupKeyLength, keyLength + 1, value.getBytesUnsafe(), valueLength);
+                            final int cmp = Arrays.compareUnsigned(noDupKeyBytes, keyLength + 1,
+                                    keyLength + 1 + noDupKeyLength, value.getBytesUnsafe(),
+                                    0, valueLength);
                             if (cmp >= 0) {
                                 keyBytes = noDupKeyBytes;
                                 this.keyLength = keyLength;
@@ -335,7 +344,7 @@ public class PatriciaCursorDecorator implements ITreeCursor {
                     break;
                 }
                 final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
-                if (ByteIterableUtil.compare(keyBytes, keyLength, noDupKey.getBytesUnsafe(), keyLength) != 0) {
+                if (Arrays.compareUnsigned(keyBytes, 0, keyLength, noDupKey.getBytesUnsafe(), 0, keyLength) != 0) {
                     break;
                 }
                 ++result;

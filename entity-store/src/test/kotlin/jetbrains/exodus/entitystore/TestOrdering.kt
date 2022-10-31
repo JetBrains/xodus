@@ -16,8 +16,8 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.entitystore.tables.PropertyKey
-import jetbrains.exodus.util.ByteIterableUtil
 import org.junit.Assert
+import java.util.*
 
 class TestOrdering : EntityStoreTestBase() {
 
@@ -41,16 +41,25 @@ class TestOrdering : EntityStoreTestBase() {
         val entry2 = PropertyKey.propertyKeyToEntry(PropertyKey(128, 24))
         val entry3 = PropertyKey.propertyKeyToEntry(PropertyKey(245, 71))
 
-        Assert.assertTrue(ByteIterableUtil.compare(entry0, entry1) < 0)
-        Assert.assertTrue(ByteIterableUtil.compare(entry0, entry2) < 0)
-        Assert.assertTrue(ByteIterableUtil.compare(entry0, entry3) < 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry0.bytesUnsafe, 0, entry0.length,
+                entry1.bytesUnsafe, 0, entry1.length) < 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry0.bytesUnsafe, 0, entry0.length,
+                entry2.bytesUnsafe, 0, entry2.length) < 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry0.bytesUnsafe, 0, entry0.length,
+                entry3.bytesUnsafe, 0, entry3.length) < 0)
 
-        Assert.assertTrue(ByteIterableUtil.compare(entry1, entry2) < 0)
-        Assert.assertTrue(ByteIterableUtil.compare(entry1, entry3) < 0)
-        Assert.assertTrue(ByteIterableUtil.compare(entry1, entry0) > 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry1.bytesUnsafe, 0, entry1.length,
+                entry2.bytesUnsafe, 0, entry2.length) < 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry1.bytesUnsafe, 0, entry1.length,
+                entry3.bytesUnsafe, 0, entry3.length) < 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry1.bytesUnsafe, 0, entry1.length,
+                entry0.bytesUnsafe, 0, entry0.length) > 0)
 
-        Assert.assertTrue(ByteIterableUtil.compare(entry2, entry3) < 0)
-        Assert.assertTrue(ByteIterableUtil.compare(entry2, entry1) > 0)
-        Assert.assertTrue(ByteIterableUtil.compare(entry2, entry0) > 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry2.bytesUnsafe, 0, entry2.length,
+                entry3.bytesUnsafe, 0, entry3.length) < 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry2.bytesUnsafe, 0, entry2.length,
+                entry1.bytesUnsafe, 0, entry1.length) > 0)
+        Assert.assertTrue(Arrays.compareUnsigned(entry2.bytesUnsafe, 0, entry2.length,
+                entry0.bytesUnsafe, 0, entry0.length) > 0)
     }
 }

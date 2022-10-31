@@ -19,11 +19,11 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
 import jetbrains.exodus.tree.INode;
-import jetbrains.exodus.util.ByteIterableUtil;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Iterator;
 
 @SuppressWarnings({"CastToConcreteClass"})
@@ -488,11 +488,14 @@ public class BTreeReclaimTest extends BTreeTestBase {
     }
 
     private static boolean isBetween(@NotNull final ByteIterable min, @NotNull final ByteIterable current, @NotNull final ByteIterable max) {
-        return ByteIterableUtil.compare(min, current) <= 0 && ByteIterableUtil.compare(current, max) <= 0;
+        return Arrays.compareUnsigned(min.getBytesUnsafe(), 0, min.getLength(),
+                current.getBytesUnsafe(), 0, current.getLength()) <= 0 && Arrays.compareUnsigned(current.getBytesUnsafe(), 0, current.getLength(),
+                max.getBytesUnsafe(), 0, max.getLength()) <= 0;
     }
 
     private static boolean isEqual(@NotNull final ByteIterable found, @NotNull final ByteIterable current) {
-        return ByteIterableUtil.compare(found, current) == 0;
+        return Arrays.compareUnsigned(found.getBytesUnsafe(), 0, found.getLength(),
+                current.getBytesUnsafe(), 0, current.getLength()) == 0;
     }
 
     @NotNull
