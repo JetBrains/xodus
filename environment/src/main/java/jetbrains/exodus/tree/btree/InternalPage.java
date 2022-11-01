@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,19 +28,35 @@ import java.io.PrintStream;
 class InternalPage extends BasePageImmutable {
 
     private byte childAddressLen;
+    private final boolean allChildrenAddressesInsideSinglePage;
+    private final long baseChildrenAddress;
 
     protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         super(tree, data);
+
+        baseChildrenAddress = Log.adjustedLoggableAddress(dataAddress, ((long) size) * keyAddressLen + 1,
+                log.getCachePageSize());
+        allChildrenAddressesInsideSinglePage = isAllChildrenAddressesInsideSinglePage();
+    }
+
+    private boolean isAllChildrenAddressesInsideSinglePage() {
+        final long lastPointerAddress = baseChildrenAddress + ((long) childAddressLen) * (size - 1);
+
+        return log.insideSinglePage(baseChildrenAddress, lastPointerAddress);
     }
 
     protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
         super(tree, data, size);
+
+        baseChildrenAddress = Log.adjustedLoggableAddress(dataAddress, ((long) size) * keyAddressLen + 1,
+                log.getCachePageSize());
+        allChildrenAddressesInsideSinglePage = isAllChildrenAddressesInsideSinglePage();
     }
 
     @Override
     protected void loadAddressLengths(final int length, final ByteIterator it) {
         super.loadAddressLengths(length, it);
-        it.skip(size * keyAddressLen);
+        it.skip(((long) size) * keyAddressLen);
         checkAddressLength(childAddressLen = it.next());
     }
 
@@ -52,10 +68,15 @@ class InternalPage extends BasePageImmutable {
 
     @Override
     public long getChildAddress(final int index) {
-        final int offset = size * keyAddressLen + index * childAddressLen + 1;
-        final Log log = tree.log;
+        final long childPointerAddress;
 
-        final long childPointerAddress = log.adjustedLoggableAddress(dataAddress, offset);
+        if (allChildrenAddressesInsideSinglePage) {
+            childPointerAddress = baseChildrenAddress + ((long) index) * childAddressLen;
+        } else {
+            childPointerAddress = Log.adjustedLoggableAddress(baseChildrenAddress,
+                    ((long) index) * childAddressLen, log.getCachePageSize());
+        }
+
         return data.nextLongByAddress(childPointerAddress, childAddressLen);
     }
 
@@ -142,7 +163,8 @@ class InternalPage extends BasePageImmutable {
 
     @Override
     public String toString() {
-        return "Internal [" + size + "] @ " + (getDataAddress() - CompressedUnsignedLongByteIterable.getIterable(size << 1).getLength() - 2);
+        return "Internal [" + size + "] @ " + (getDataAddress() -
+                CompressedUnsignedLongByteIterable.getIterable(size << 1).getLength() - 2);
     }
 
     @Override

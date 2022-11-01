@@ -33,6 +33,7 @@ import java.io.Closeable
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.experimental.xor
+import kotlin.math.sign
 
 class Log(val config: LogConfig) : Closeable {
 
@@ -414,16 +415,15 @@ class Log(val config: LogConfig) : Closeable {
         return getFileAddress(address) == getFileAddress(writtenHighAddress)
     }
 
-    fun adjustedLoggableAddress(address: Long, offset: Long): Long {
+    fun insideSinglePage(lowerOffset: Long, higherOffset: Long): Boolean {
+        assert(lowerOffset <= higherOffset)
+
         val cachePageReminderMask = (cachePageSize - 1).toLong()
-        val writtenInPage = address and cachePageReminderMask
-        val pageAddress = address and (cachePageReminderMask.inv())
+        val writtenInPage = lowerOffset and cachePageReminderMask
 
-        val writtenSincePageStart = writtenInPage + offset
-        val fullPages = writtenSincePageStart / adjustedPageSize
-
-        return pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
+        return (higherOffset - lowerOffset) + writtenInPage < adjustedPageSize
     }
+
 
     fun hasAddress(address: Long): Boolean {
         val fileAddress = getFileAddress(address)
@@ -1034,6 +1034,20 @@ class Log(val config: LogConfig) : Closeable {
             synchronized(Log::class.java) {
                 sharedCache = null
             }
+        }
+
+        @JvmStatic
+        fun adjustedLoggableAddress(address: Long, offset: Long, cachePageSize: Int): Long {
+            val cachePageReminderMask = (cachePageSize - 1).toLong()
+            val writtenInPage = address and cachePageReminderMask
+
+            val adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
+            val pageAddress = address and (cachePageReminderMask.inv())
+
+            val writtenSincePageStart = writtenInPage + offset
+            val fullPages = writtenSincePageStart / adjustedPageSize
+
+            return pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
         }
 
         private fun getSharedCache(memoryUsage: Long,

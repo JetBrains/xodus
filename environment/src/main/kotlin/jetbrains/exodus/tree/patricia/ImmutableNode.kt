@@ -202,8 +202,9 @@ internal class ImmutableNode : NodeBase {
 
                 else -> {
                     val bitsetIdx = ub / Long.SIZE_BITS
-                    val bitSetAddress = log.adjustedLoggableAddress(dataAddress,
-                            bitsetIdx * Long.SIZE_BYTES.toLong())
+                    val cachePageSize = log.cachePageSize
+                    val bitSetAddress = Log.adjustedLoggableAddress(dataAddress,
+                            bitsetIdx * Long.SIZE_BYTES.toLong(), cachePageSize)
                     val bitset = data.nextLongByAddress(bitSetAddress, Long.SIZE_BYTES)
 
                     val bit = ub % Long.SIZE_BITS
@@ -211,8 +212,8 @@ internal class ImmutableNode : NodeBase {
                     var index = (bitset and (bitmask - 1L)).countOneBits()
 
                     for (i in 0 until bitsetIdx) {
-                        val offsetAddress = log.adjustedLoggableAddress(dataAddress,
-                                i * Long.SIZE_BYTES.toLong())
+                        val offsetAddress = Log.adjustedLoggableAddress(dataAddress,
+                                i * Long.SIZE_BYTES.toLong(), cachePageSize)
                         index += data.nextLongByAddress(offsetAddress, Long.SIZE_BYTES).countOneBits()
                     }
 
@@ -302,8 +303,9 @@ internal class ImmutableNode : NodeBase {
 
             else -> {
                 val bitsetIdx = ub / Long.SIZE_BITS
-                val bitsetAddress = log.adjustedLoggableAddress(dataAddress,
-                        bitsetIdx * Long.SIZE_BYTES.toLong())
+                val cachePageSize = log.cachePageSize
+                val bitsetAddress = Log.adjustedLoggableAddress(dataAddress,
+                        bitsetIdx * Long.SIZE_BYTES.toLong(), cachePageSize)
                 val bitset = data.nextLongByAddress(bitsetAddress, Long.SIZE_BYTES)
 
                 val bit = ub % Long.SIZE_BITS
@@ -312,7 +314,8 @@ internal class ImmutableNode : NodeBase {
                 var index = (bitset and (bitmask - 1L)).countOneBits()
 
                 for (i in 0 until bitsetIdx) {
-                    val addr = log.adjustedLoggableAddress(dataAddress, i * Long.SIZE_BYTES.toLong())
+                    val addr = Log.adjustedLoggableAddress(dataAddress, i * Long.SIZE_BYTES.toLong(),
+                            cachePageSize)
                     index += data.nextLongByAddress(addr, Long.SIZE_BYTES).countOneBits()
                 }
                 return SearchResult(
@@ -326,12 +329,12 @@ internal class ImmutableNode : NodeBase {
     }
 
     private fun byteAt(offset: Int): Byte {
-        val addr = log.adjustedLoggableAddress(dataAddress, offset.toLong())
+        val addr = Log.adjustedLoggableAddress(dataAddress, offset.toLong(), log.cachePageSize)
         return data.byteAtAddress(addr)
     }
 
     private fun nextLong(offset: Int): Long {
-        val addr = log.adjustedLoggableAddress(dataAddress, offset.toLong())
+        val addr = Log.adjustedLoggableAddress(dataAddress, offset.toLong(), log.cachePageSize)
         return data.nextLongByAddress(addr, childAddressLength.toInt())
     }
 
@@ -435,8 +438,9 @@ internal class ImmutableNode : NodeBase {
             NodeChildrenIteratorBase(index, node) {
 
         private val bitset = LongArray(CHILDREN_BITSET_SIZE_LONGS).let { array ->
+            val cachePageSize = log.cachePageSize
             array.indices.forEach { i ->
-                val addr = log.adjustedLoggableAddress(dataAddress, i * Long.SIZE_BYTES.toLong())
+                val addr = Log.adjustedLoggableAddress(dataAddress, i * Long.SIZE_BYTES.toLong(), cachePageSize)
                 array[i] = data.nextLongByAddress(addr, Long.SIZE_BYTES)
             }
             BitSet.valueOf(array)

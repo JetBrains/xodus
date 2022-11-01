@@ -39,6 +39,7 @@ public class BufferedDataWriter {
     public static final int HASH_CODE_SIZE = Long.BYTES;
     public static final int FIRST_ITERABLE_OFFSET_SIZE = Integer.BYTES;
     public static final int FIRST_ITERABLE_OFFSET = HASH_CODE_SIZE + FIRST_ITERABLE_OFFSET_SIZE;
+
     public static final int LOGGABLE_DATA = FIRST_ITERABLE_OFFSET;
 
     // immutable state
@@ -363,7 +364,8 @@ public class BufferedDataWriter {
 
     boolean fitsIntoSingleFile(long fileLengthBound, int loggableSize) {
         final long fileAddress = highAddress / fileLengthBound;
-        final long nextFileAddress = (log.adjustedLoggableAddress(highAddress, loggableSize) - 1) / fileLengthBound;
+        final long nextFileAddress =
+                (Log.adjustedLoggableAddress(highAddress, loggableSize, pageSize) - 1) / fileLengthBound;
 
         return fileAddress == nextFileAddress;
     }

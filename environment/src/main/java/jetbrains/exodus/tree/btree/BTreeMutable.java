@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -395,8 +395,10 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     private LeafNode loadMinKey(ByteIterableWithAddress data, int offset) {
         final long dataAddress = data.getDataAddress();
 
-        final int addressLen = data.byteAtAddress(log.adjustedLoggableAddress(dataAddress, offset));
-        final long keyAddress = data.nextLongByAddress(log.adjustedLoggableAddress(dataAddress, offset + 1),
+        final int pageSize = log.getCachePageSize();
+        final int addressLen = data.byteAtAddress(Log.adjustedLoggableAddress(dataAddress, offset, pageSize));
+        final long keyAddress = data.nextLongByAddress(Log.adjustedLoggableAddress(dataAddress, offset + 1,
+                        pageSize),
                 addressLen);
 
         return log.hasAddress(keyAddress) ? loadLeaf(keyAddress) : null;

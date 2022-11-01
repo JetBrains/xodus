@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,6 +31,10 @@ abstract class BasePageImmutable extends BasePage {
     byte keyAddressLen;
     private ILeafNode minKey = null;
     private ILeafNode maxKey = null;
+    protected final Log log;
+
+    private final boolean allKeyAddressesInsideSinglePage;
+
 
     /**
      * Create empty page
@@ -42,6 +46,8 @@ abstract class BasePageImmutable extends BasePage {
         data = ByteIterableWithAddress.EMPTY;
         size = 0;
         dataAddress = Loggable.NULL_ADDRESS;
+        allKeyAddressesInsideSinglePage = true;
+        log = tree.log;
     }
 
     /**
@@ -52,10 +58,19 @@ abstract class BasePageImmutable extends BasePage {
      */
     BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         super(tree);
+        log = tree.log;
         this.data = data;
+
         final ByteIteratorWithAddress it = data.iterator();
         size = CompressedUnsignedLongByteIterable.getInt(it) >> 1;
         init(it);
+
+        allKeyAddressesInsideSinglePage = isAllKeyAddressesInsideSinglePage();
+    }
+
+    private boolean isAllKeyAddressesInsideSinglePage() {
+        return log.insideSinglePage(dataAddress,
+                dataAddress + ((long) (size - 1)) * keyAddressLen);
     }
 
     /**
@@ -67,9 +82,13 @@ abstract class BasePageImmutable extends BasePage {
      */
     BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
         super(tree);
+        log = tree.log;
+
         this.data = data;
         this.size = size;
         init(data.iterator());
+
+        allKeyAddressesInsideSinglePage = isAllKeyAddressesInsideSinglePage();
     }
 
     private void init(@NotNull final ByteIteratorWithAddress itr) {
@@ -120,7 +139,14 @@ abstract class BasePageImmutable extends BasePage {
             return Loggable.NULL_ADDRESS;
         }
 
-        final long address = tree.log.adjustedLoggableAddress(dataAddress, (long) index * keyAddressLen);
+        final long address;
+        if (allKeyAddressesInsideSinglePage) {
+            address = dataAddress + (long) index * keyAddressLen;
+        } else {
+            address = Log.adjustedLoggableAddress(dataAddress, (long) index * keyAddressLen,
+                    log.getCachePageSize());
+        }
+
         return data.nextLongByAddress(address, keyAddressLen);
     }
 
@@ -156,9 +182,10 @@ abstract class BasePageImmutable extends BasePage {
             return -1;
         }
 
-        final Log log = tree.log;
         final int cachePageSize = log.getCachePageSize();
         final int bytesPerAddress = keyAddressLen;
+
+        final long dataAddress = this.dataAddress;
         int high = size - 1;
         long leftAddress = -1L;
         byte[] leftPage = null;
@@ -170,7 +197,14 @@ abstract class BasePageImmutable extends BasePage {
 
         while (low <= high) {
             final int mid = (low + high) >>> 1;
-            final long midAddress = log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
+
+            final long midAddress;
+            if (allKeyAddressesInsideSinglePage) {
+                midAddress = dataAddress + ((long) mid) * bytesPerAddress;
+            } else {
+                midAddress = Log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress), cachePageSize);
+            }
+
             final int offset;
             it.offset = offset = ((int) midAddress) & (cachePageSize - 1); // cache page size is always a power of 2
             final long pageAddress = midAddress - offset;
