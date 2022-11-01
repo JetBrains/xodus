@@ -18,6 +18,7 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.FileDescriptorInputStream;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
+import jetbrains.exodus.log.DataCorruptionException;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.StartupMetadata;
@@ -34,6 +35,8 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     private final EnvironmentImpl environment;
 
     private long rootEndAddress;
+    private long fileLastAddress;
+    private long fileLengthBound;
     private long rootAddress;
     private final int pageSize;
     private boolean startupMetadataWasSent;
@@ -57,14 +60,16 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
 
         rootAddress = roots[0];
         rootEndAddress = roots[1];
+
+        fileLengthBound = environment.getLog().getFileLengthBound();
+        fileLastAddress = (rootEndAddress / fileLengthBound) * fileLengthBound;
     }
 
     @Override
     public Iterable<VirtualFileDescriptor> getContents() {
         environment.flushAndSync();
 
-        return new Iterable<VirtualFileDescriptor>() {
-
+        return new Iterable<>() {
             private final File[] files = IOUtil.listFiles(new File(environment.getLocation()));
             private int i = 0;
             private VirtualFileDescriptor next;
@@ -72,8 +77,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
             @NotNull
             @Override
             public Iterator<VirtualFileDescriptor> iterator() {
-                return new Iterator<VirtualFileDescriptor>() {
-
+                return new Iterator<>() {
                     @Override
                     public boolean hasNext() {
                         if (next != null) {
@@ -90,10 +94,15 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                                 if (fileSize != 0 && logFileName.endsWith(LogUtil.LOG_FILE_EXTENSION)) {
                                     final long fileAddress = LogUtil.getAddress(file.getName());
 
-                                    if (rootEndAddress <= fileAddress) {
-                                        return false;
+                                    if (fileLastAddress < fileAddress) {
+                                        break;
                                     }
 
+                                    if (fileLastAddress > fileAddress && fileSize < fileLengthBound) {
+                                        DataCorruptionException.raise("Size of the file is less than expected. {expected : " +
+                                                        fileLengthBound + ", actual : " + fileSize + " }",
+                                                environment.getLog(), fileAddress);
+                                    }
 
                                     long updatedFileSize = Math.min(fileSize, rootEndAddress - fileAddress);
                                     updatedFileSize = ((updatedFileSize + pageSize - 1) / pageSize) * pageSize;
@@ -116,6 +125,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
 
                         if (!startupMetadataWasSent) {
                             startupMetadataWasSent = true;
+
                             final ByteBuffer metadataContent =
                                     StartupMetadata.serialize(0, rootAddress,
                                             environment.getLog().getCachePageSize(), true);
@@ -150,6 +160,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                             };
                             return true;
                         }
+
                         return false;
                     }
 
