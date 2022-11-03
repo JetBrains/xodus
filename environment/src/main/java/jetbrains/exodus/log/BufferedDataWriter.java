@@ -242,7 +242,7 @@ public class BufferedDataWriter {
         assert (int) (highAddress & pageSizeMask) == (currentPage.writtenCount & pageSizeMask);
     }
 
-    void commit() {
+    void commit(final boolean calculateHashCode) {
         count = 0;
         final MutablePage currentPage = this.currentPage;
         currentPage.committedCount = currentPage.writtenCount;
@@ -268,16 +268,22 @@ public class BufferedDataWriter {
                     int contentLen = adjustedPageSize - off + FIRST_ITERABLE_OFFSET_SIZE;
 
                     if (cipherProvider == null) {
-                        xxHash64.update(bytes, off, contentLen);
-                        BindingUtils.writeLong(xxHash64.getValue(), bytes,
-                                adjustedPageSize + FIRST_ITERABLE_OFFSET_SIZE);
+                        if (calculateHashCode) {
+                            xxHash64.update(bytes, off, contentLen);
+                            BindingUtils.writeLong(xxHash64.getValue(), bytes,
+                                    adjustedPageSize + FIRST_ITERABLE_OFFSET_SIZE);
+                        }
+
                         writePage(bytes, off, len);
                     } else {
                         final byte[] encryptedBytes = EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey,
                                 cipherBasicIV, pageAddress, bytes, off, len, LogUtil.LOG_BLOCK_ALIGNMENT);
-                        xxHash64.update(encryptedBytes, 0, contentLen);
 
-                        BindingUtils.writeLong(xxHash64.getValue(), encryptedBytes, contentLen);
+                        if (calculateHashCode) {
+                            xxHash64.update(encryptedBytes, 0, contentLen);
+                            BindingUtils.writeLong(xxHash64.getValue(), encryptedBytes, contentLen);
+                        }
+
                         writePage(encryptedBytes, 0, len);
                     }
                 }
@@ -294,9 +300,9 @@ public class BufferedDataWriter {
                 (highAddress - (currentPage.writtenCount - currentPage.flushedCount)) % log.getFileLengthBound();
     }
 
-    void flush() {
+    void flush(final boolean calculateHashCode) {
         if (count > 0) {
-            commit();
+            commit(calculateHashCode);
         }
 
         final MutablePage currentPage = this.currentPage;
@@ -319,11 +325,14 @@ public class BufferedDataWriter {
             }
 
             if (cipherProvider == null) {
-                xxHash64.update(bytes, flushedCount, contentLen);
+                if (calculateHashCode) {
+                    xxHash64.update(bytes, flushedCount, contentLen);
 
-                if (committedCount == pageSize) {
-                    BindingUtils.writeLong(xxHash64.getValue(), bytes,
-                            adjustedPageSize + FIRST_ITERABLE_OFFSET_SIZE);
+                    if (committedCount == pageSize) {
+
+                        BindingUtils.writeLong(xxHash64.getValue(), bytes,
+                                adjustedPageSize + FIRST_ITERABLE_OFFSET_SIZE);
+                    }
                 }
 
                 writePage(bytes, flushedCount, len);
@@ -331,11 +340,13 @@ public class BufferedDataWriter {
                 final byte[] encryptedBytes = EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey, cipherBasicIV,
                         pageAddress, bytes, flushedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT);
 
-                xxHash64.update(encryptedBytes, 0, contentLen);
+                if (calculateHashCode) {
+                    xxHash64.update(encryptedBytes, 0, contentLen);
 
-                if (committedCount == pageSize) {
-                    BindingUtils.writeLong(xxHash64.getValue(), encryptedBytes,
-                            contentLen);
+                    if (committedCount == pageSize) {
+                        BindingUtils.writeLong(xxHash64.getValue(), encryptedBytes,
+                                contentLen);
+                    }
                 }
 
                 writePage(encryptedBytes, 0, len);
@@ -365,7 +376,7 @@ public class BufferedDataWriter {
     boolean fitsIntoSingleFile(long fileLengthBound, int loggableSize) {
         final long fileAddress = highAddress / fileLengthBound;
         final long nextFileAddress =
-                (Log.adjustedLoggableAddress(highAddress, loggableSize, pageSize) - 1) / fileLengthBound;
+                (log.adjustedLoggableAddress(highAddress, loggableSize) - 1) / fileLengthBound;
 
         return fileAddress == nextFileAddress;
     }
@@ -410,6 +421,22 @@ public class BufferedDataWriter {
 
         return written;
     }
+
+    public void padWholePageWithNulls() {
+        final int writtenInPage = currentPage.writtenCount;
+
+        if (writtenInPage > 0) {
+            final int written = pageSize - writtenInPage;
+
+            Arrays.fill(currentPage.bytes, writtenInPage, pageSize, (byte) 0x80);
+
+            currentPage.writtenCount = pageSize;
+            highAddress += written;
+
+            count += written;
+        }
+    }
+
 
     private int doPadPageWithNulls() {
         final int writtenInPage = currentPage.writtenCount;

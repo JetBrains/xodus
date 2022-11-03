@@ -34,6 +34,7 @@ abstract class BasePageImmutable extends BasePage {
     protected final Log log;
 
     private final boolean allKeyAddressesInsideSinglePage;
+    private final long hashStoredSincePage;
 
 
     /**
@@ -48,6 +49,7 @@ abstract class BasePageImmutable extends BasePage {
         dataAddress = Loggable.NULL_ADDRESS;
         allKeyAddressesInsideSinglePage = true;
         log = tree.log;
+        hashStoredSincePage = log.getHashStoredSincePage();
     }
 
     /**
@@ -66,6 +68,7 @@ abstract class BasePageImmutable extends BasePage {
         init(it);
 
         allKeyAddressesInsideSinglePage = isAllKeyAddressesInsideSinglePage();
+        hashStoredSincePage = log.getHashStoredSincePage();
     }
 
     private boolean isAllKeyAddressesInsideSinglePage() {
@@ -89,6 +92,7 @@ abstract class BasePageImmutable extends BasePage {
         init(data.iterator());
 
         allKeyAddressesInsideSinglePage = isAllKeyAddressesInsideSinglePage();
+        hashStoredSincePage = log.getHashStoredSincePage();
     }
 
     private void init(@NotNull final ByteIteratorWithAddress itr) {
@@ -143,8 +147,7 @@ abstract class BasePageImmutable extends BasePage {
         if (allKeyAddressesInsideSinglePage) {
             address = dataAddress + (long) index * keyAddressLen;
         } else {
-            address = Log.adjustedLoggableAddress(dataAddress, (long) index * keyAddressLen,
-                    log.getCachePageSize());
+            address = log.adjustedLoggableAddress(dataAddress, (long) index * keyAddressLen);
         }
 
         return data.nextLongByAddress(address, keyAddressLen);
@@ -182,6 +185,14 @@ abstract class BasePageImmutable extends BasePage {
             return -1;
         }
 
+        if (dataAddress >= hashStoredSincePage) {
+            return nonCompatibleBinarySearch(key, low);
+        } else {
+            return compatibleBinarySearch(key, low);
+        }
+    }
+
+    private int nonCompatibleBinarySearch(final ByteIterable key, int low) {
         final int cachePageSize = log.getCachePageSize();
         final int bytesPerAddress = keyAddressLen;
 
@@ -192,7 +203,7 @@ abstract class BasePageImmutable extends BasePage {
         long rightAddress = -1L;
         byte[] rightPage = null;
 
-        final int adjustedPageSize = log.getAdjustedPageSize();
+        final int adjustedPageSize = log.getCachePageSize() - BufferedDataWriter.LOGGABLE_DATA;
         final BinarySearchIterator it = new BinarySearchIterator(adjustedPageSize);
 
         while (low <= high) {
@@ -202,7 +213,7 @@ abstract class BasePageImmutable extends BasePage {
             if (allKeyAddressesInsideSinglePage) {
                 midAddress = dataAddress + ((long) mid) * bytesPerAddress;
             } else {
-                midAddress = Log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress), cachePageSize);
+                midAddress = log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
             }
 
             final int offset;
@@ -241,6 +252,77 @@ abstract class BasePageImmutable extends BasePage {
                 return mid;
             }
         }
+        // key not found
+        return -(low + 1);
+    }
+
+    private int compatibleBinarySearch(final ByteIterable key, int low) {
+        final int cachePageSize = log.getCachePageSize();
+        final int bytesPerAddress = keyAddressLen;
+
+        final long dataAddress = this.dataAddress;
+        int high = size - 1;
+        long leftAddress = -1L;
+        byte[] leftPage = null;
+        long rightAddress = -1L;
+        byte[] rightPage = null;
+
+        while (low <= high) {
+            final int mid = (low + high) >>> 1;
+
+            final long midAddress;
+            if (allKeyAddressesInsideSinglePage) {
+                midAddress = dataAddress + ((long) mid) * bytesPerAddress;
+            } else {
+                midAddress = log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
+            }
+
+            final int offset;
+
+            final int adjustedPageSize;
+            if (midAddress >= hashStoredSincePage) {
+                adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
+            } else {
+                adjustedPageSize = cachePageSize;
+            }
+
+            final BinarySearchIterator it = new BinarySearchIterator(adjustedPageSize);
+            it.offset = offset = ((int) midAddress) & (cachePageSize - 1); // cache page size is always a power of 2
+            final long pageAddress = midAddress - offset;
+            if (pageAddress == leftAddress) {
+                it.page = leftPage;
+            } else if (pageAddress == rightAddress) {
+                it.page = rightPage;
+            } else {
+                it.page = leftPage = log.getCachedPage(pageAddress);
+                leftAddress = pageAddress;
+            }
+
+            final long leafAddress;
+            if (adjustedPageSize - offset < bytesPerAddress) {
+                final long nextPageAddress = pageAddress + cachePageSize;
+                if (rightAddress == nextPageAddress) {
+                    it.nextPage = rightPage;
+                } else {
+                    it.nextPage = rightPage = log.getCachedPage(nextPageAddress);
+                    rightAddress = nextPageAddress;
+                }
+                leafAddress = it.asCompound().nextLong(bytesPerAddress);
+            } else {
+                leafAddress = it.nextLong(bytesPerAddress);
+            }
+
+            final int cmp = tree.compareLeafToKey(leafAddress, key);
+            if (cmp < 0) {
+                low = mid + 1;
+            } else if (cmp > 0) {
+                high = mid - 1;
+            } else {
+                // key found
+                return mid;
+            }
+        }
+
         // key not found
         return -(low + 1);
     }

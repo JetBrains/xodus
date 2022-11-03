@@ -395,10 +395,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     private LeafNode loadMinKey(ByteIterableWithAddress data, int offset) {
         final long dataAddress = data.getDataAddress();
 
-        final int pageSize = log.getCachePageSize();
-        final int addressLen = data.byteAtAddress(Log.adjustedLoggableAddress(dataAddress, offset, pageSize));
-        final long keyAddress = data.nextLongByAddress(Log.adjustedLoggableAddress(dataAddress, offset + 1,
-                        pageSize),
+        final int addressLen = data.byteAtAddress(log.adjustedLoggableAddress(dataAddress, offset));
+        final long keyAddress = data.nextLongByAddress(log.adjustedLoggableAddress(dataAddress, offset + 1),
                 addressLen);
 
         return log.hasAddress(keyAddress) ? loadLeaf(keyAddress) : null;

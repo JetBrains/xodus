@@ -50,17 +50,18 @@ class RandomAccessByteIterable extends ByteIterableWithAddress {
     private static int compare(final int offset, final int len, final ByteIterable right, Log log, final long address) {
         final LogCache cache = log.cache;
         final int pageSize = log.getCachePageSize();
+        final long hashStoredSincePage = log.getHashStoredSincePage();
         final int mask = pageSize - 1;
 
-        long alignedAddress = Log.adjustedLoggableAddress(address, offset, pageSize);
-        long endAddress = Log.adjustedLoggableAddress(alignedAddress, len, pageSize);
+        long alignedAddress = log.adjustedLoggableAddress(address, offset);
+        long endAddress = log.adjustedLoggableAddress(alignedAddress, len);
 
         endAddress -= ((int) endAddress) & mask;
 
         int leftStep = ((int) alignedAddress) & mask;
 
         alignedAddress -= leftStep;
-        ArrayByteIterable left = cache.getPageIterable(log, alignedAddress);
+        ArrayByteIterable left = cache.getPageIterable(log, alignedAddress, hashStoredSincePage);
 
         final int leftLen = left.getLength();
         if (leftLen <= leftStep) { // alignment is >= 0 for sure
@@ -84,7 +85,7 @@ class RandomAccessByteIterable extends ByteIterableWithAddress {
                 return len - rightLen;
             }
             // move left array to next cache page
-            left = cache.getPageIterable(log, alignedAddress += pageSize);
+            left = cache.getPageIterable(log, alignedAddress += pageSize, hashStoredSincePage);
             leftArray = left.getBytesUnsafe();
             leftStep = 0;
             limit = Math.min(len, Math.min(left.getLength() + rightStep, rightLen));

@@ -28,6 +28,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
     private byte[] page;
     private int offset;
     private int length;
+    private final long hashStoredSincePage;
 
     public DataIterator(@NotNull final Log log) {
         this(log, -1L);
@@ -38,6 +39,8 @@ public final class DataIterator extends ByteIteratorWithAddress {
         cachePageSize = log.getCachePageSize();
         pageAddressMask = ~((long) (cachePageSize - 1));
         pageAddress = -1L;
+        hashStoredSincePage = log.getHashStoredSincePage();
+
         if (startAddress >= 0) {
             checkPageSafe(startAddress);
         }
@@ -93,9 +96,11 @@ public final class DataIterator extends ByteIteratorWithAddress {
         long pageAddress = address & pageAddressMask;
         long reminder = address - pageAddress;
 
-        assert reminder <= cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
 
-        if (reminder == cachePageSize - BufferedDataWriter.LOGGABLE_DATA) {
+        if (pageAddress >= hashStoredSincePage &&
+                reminder == cachePageSize - BufferedDataWriter.LOGGABLE_DATA) {
+            assert reminder <= cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
+
             pageAddress += cachePageSize;
             address += BufferedDataWriter.LOGGABLE_DATA;
         }
@@ -105,7 +110,12 @@ public final class DataIterator extends ByteIteratorWithAddress {
             this.pageAddress = pageAddress;
         }
 
-        length = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
+        if (pageAddress >= hashStoredSincePage) {
+            length = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
+        } else {
+            length = cachePageSize;
+        }
+
         offset = (int) (address - pageAddress);
     }
 
@@ -122,7 +132,15 @@ public final class DataIterator extends ByteIteratorWithAddress {
         try {
             checkPage(address);
             final long pageAddress = address & pageAddressMask;
-            length = (int) Math.min(log.getHighAddress() - pageAddress, cachePageSize - BufferedDataWriter.LOGGABLE_DATA);
+
+            if (pageAddress >= hashStoredSincePage) {
+                length = (int) Math.min(log.getHighAddress() - pageAddress,
+                        cachePageSize - BufferedDataWriter.LOGGABLE_DATA);
+            } else {
+                length = (int) Math.min(log.getHighAddress() - pageAddress,
+                        cachePageSize);
+            }
+
             if (length > offset) {
                 return;
             }

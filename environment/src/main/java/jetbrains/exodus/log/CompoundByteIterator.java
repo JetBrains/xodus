@@ -28,6 +28,7 @@ class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteI
     private int read;
     private int offset;
     private final Log log;
+    private final long hashStoredSincePage;
 
     CompoundByteIterator(final long address, final Log log) {
         current = ArrayByteIterable.EMPTY.ITERATOR;
@@ -35,6 +36,7 @@ class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteI
         read = 0;
         offset = 0;
         this.log = log;
+        hashStoredSincePage = log.getHashStoredSincePage();
     }
 
     @Override
@@ -85,16 +87,18 @@ class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteI
             int alignment = ((int) currentAddress) & (pageSize - 1);
             long alignedAddress = currentAddress - alignment;
 
-            int metadataDelta = alignment - (pageSize - BufferedDataWriter.LOGGABLE_DATA);
-            if (metadataDelta >= 0) {
-                alignedAddress += pageSize;
-                alignment = metadataDelta;
+            if (currentAddress >= hashStoredSincePage) {
+                int metadataDelta = alignment - (pageSize - BufferedDataWriter.LOGGABLE_DATA);
 
-                currentAddress = alignedAddress + metadataDelta;
+                if (metadataDelta >= 0) {
+                    alignedAddress += pageSize;
+                    alignment = metadataDelta;
+
+                    currentAddress = alignedAddress + metadataDelta;
+                }
             }
 
-
-            final ArrayByteIterable page = log.cache.getPageIterable(log, alignedAddress);
+            final ArrayByteIterable page = log.cache.getPageIterable(log, alignedAddress, hashStoredSincePage);
 
             int readBytes = page.getLength();
             if (readBytes <= alignment) { // alignment is >= 0 for sure

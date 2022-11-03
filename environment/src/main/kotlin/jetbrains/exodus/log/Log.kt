@@ -33,7 +33,6 @@ import java.io.Closeable
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.experimental.xor
-import kotlin.math.sign
 
 class Log(val config: LogConfig) : Closeable {
 
@@ -72,7 +71,19 @@ class Log(val config: LogConfig) : Closeable {
     /** Size of single page in log cache. */
     var cachePageSize: Int
 
-    var adjustedPageSize: Int
+    /**
+     * Address of the first page which contains hash code
+     * This parameter is used to achieve binary compatibility between old and new formats.
+     * But those formats co-exist only during migration of data, after that only new
+     * format is used.
+     */
+    var hashStoredSincePage: Long
+
+    /**
+     * Indicate whether it is needed to perform migration to the format which contains
+     * hash codes of content inside of the pages.
+     */
+    val isNeedToPerformMigrationToHashBasedStorage: Boolean
 
     /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
@@ -143,30 +154,47 @@ class Log(val config: LogConfig) : Closeable {
                 reader.setLog(this)
             }
 
-            startupMetadata = if (reader is FileDataReader) {
-                StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize)
+            val metadata = if (reader is FileDataReader) {
+                StartupMetadata.open(reader, rwIsReadonly)
             } else {
                 StartupMetadata.createStub(config.cachePageSize)
             }
 
-            if (config.cachePageSize != startupMetadata.pageSize) {
-                logger.warn("Environment was created with cache page size equals to " +
-                        "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
-                        "page size will be updated to ${startupMetadata.pageSize}")
+            hashStoredSincePage = 0
+            var needToPerformMigration = false
 
-                config.cachePageSize = startupMetadata.pageSize
+            if (metadata != null) {
+                startupMetadata = metadata
+                if (config.cachePageSize != startupMetadata.pageSize) {
+                    logger.warn("Environment was created with cache page size equals to " +
+                            "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
+                            "page size will be updated to ${startupMetadata.pageSize}")
+
+                    config.cachePageSize = startupMetadata.pageSize
+                }
+            } else {
+                startupMetadata = StartupMetadata.createStub(config.cachePageSize)
+                needToPerformMigration = reader.blocks.iterator().hasNext()
+
+                if (needToPerformMigration) {
+                    hashStoredSincePage = Long.MAX_VALUE
+                }
             }
 
             cachePageSize = startupMetadata.pageSize
-            adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
-
 
             val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
-            if (!startupMetadata.isCorrectlyClosed) {
-                logger.error("Environment located at ${reader.location} has been closed incorrectly. " +
-                        "Data check routine is started to assess data consistency ...")
+            if (!startupMetadata.isCorrectlyClosed || needToPerformMigration) {
+                if (!startupMetadata.isCorrectlyClosed) {
+                    logger.error("Environment located at ${reader.location} has been closed incorrectly. " +
+                            "Data check routine is started to assess data consistency ...")
+                }
+
                 checkLogConsistency(blockSetMutable)
-                logger.error("Data check is completed for environment ${reader.location}.")
+
+                if (!startupMetadata.isCorrectlyClosed) {
+                    logger.error("Data check is completed for environment ${reader.location}.")
+                }
             } else {
                 val blockIterator = reader.blocks.iterator()
 
@@ -185,19 +213,17 @@ class Log(val config: LogConfig) : Closeable {
 
             cache = if (memoryUsage != 0L) {
                 if (config.isSharedCache)
-                    getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
-                            generationCount)
+                    getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
                 else
-                    SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences,
-                            generationCount)
+                    SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
             } else {
                 val memoryUsagePercentage = config.memoryUsagePercentage
                 if (config.isSharedCache)
-                    getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
-                            useSoftReferences, generationCount)
+                    getSharedCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
+                            generationCount)
                 else
-                    SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache,
-                            useSoftReferences, generationCount)
+                    SeparateLogCache(memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
+                            generationCount)
             }
             DeferredIO.getJobProcessor()
             isClosing = false
@@ -226,7 +252,7 @@ class Log(val config: LogConfig) : Closeable {
                 this.internalTip.set(proposedTip)
                 tmpTip.xxHash64.close()
 
-                if (!startupMetadata.isCorrectlyClosed) {
+                if (!startupMetadata.isCorrectlyClosed || needToPerformMigration) {
                     // here we should check whether last loggable is written correctly
                     val lastFileLoggables = LoggableIterator(this, lastFileAddress)
                     var approvedHighAddress: Long = lastFileAddress
@@ -268,6 +294,21 @@ class Log(val config: LogConfig) : Closeable {
                 sync()
             }
 
+
+            if (needToPerformMigration) {
+                val highAddress = highAddress
+                val writtenInPage = highAddress and (cachePageSize - 1).toLong()
+
+                if (writtenInPage > 0) {
+                    padWholePageWithNulls()
+                }
+
+                hashStoredSincePage = highAddress
+            }
+
+
+            isNeedToPerformMigrationToHashBasedStorage = needToPerformMigration
+
             nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
 
             if (config.isWarmup) {
@@ -276,6 +317,20 @@ class Log(val config: LogConfig) : Closeable {
         } catch (ex: RuntimeException) {
             release()
             throw ex
+        }
+    }
+
+    private fun padWholePageWithNulls() {
+        beginWrite()
+        val writer = ensureWriter()
+        beforeWrite(writer)
+        try {
+            writer.padWholePageWithNulls()
+
+            writer.commit(false)
+            writer.flush(false)
+        } finally {
+            endWrite()
         }
     }
 
@@ -334,14 +389,16 @@ class Log(val config: LogConfig) : Closeable {
 
             val page = ByteArray(cachePageSize)
             for (pageAddress in 0 until blockLength step cachePageSize.toLong()) {
-                val read = block.read(page, block.address + pageAddress, 0, cachePageSize)
-                if (hasNext || !rwIsReadonly) {
-                    if (read != cachePageSize) {
-                        DataCorruptionException.raise("Page is broken. Expected and actual" +
-                                " page sizes are different. {expected: $cachePageSize , actual: $read}", this, pageAddress)
-                    }
+                if (pageAddress >= hashStoredSincePage) {
+                    val read = block.read(page, block.address + pageAddress, 0, cachePageSize)
+                    if (hasNext || !rwIsReadonly) {
+                        if (read != cachePageSize) {
+                            DataCorruptionException.raise("Page is broken. Expected and actual" +
+                                    " page sizes are different. {expected: $cachePageSize , actual: $read}", this, pageAddress)
+                        }
 
-                    BufferedDataWriter.checkPageConsistency(pageAddress, page, cachePageSize, this)
+                        BufferedDataWriter.checkPageConsistency(pageAddress, page, cachePageSize, this)
+                    }
                 }
             }
 
@@ -421,7 +478,36 @@ class Log(val config: LogConfig) : Closeable {
         val cachePageReminderMask = (cachePageSize - 1).toLong()
         val writtenInPage = lowerOffset and cachePageReminderMask
 
-        return (higherOffset - lowerOffset) + writtenInPage < adjustedPageSize
+        return if (lowerOffset >= hashStoredSincePage) {
+            (higherOffset - lowerOffset) + writtenInPage < cachePageSize - BufferedDataWriter.LOGGABLE_DATA
+        } else {
+            if (higherOffset < hashStoredSincePage) {
+                (higherOffset - lowerOffset) + writtenInPage < cachePageSize
+            } else {
+                //if offsets belongs to the data which use two different formats they use two different pages
+                false
+            }
+        }
+    }
+
+    fun adjustedLoggableAddress(address: Long, offset: Long): Long {
+        val cachePageReminderMask = (cachePageSize - 1).toLong()
+        val writtenInPage = address and cachePageReminderMask
+        val pageAddress = address and (cachePageReminderMask.inv())
+
+        val adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
+        val writtenSincePageStart = writtenInPage + offset
+        val fullPages = writtenSincePageStart / adjustedPageSize
+
+        return if (address >= hashStoredSincePage) {
+            pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
+        } else {
+            if (address + offset < hashStoredSincePage) {
+                address + offset
+            } else {
+                adjustedLoggableAddress(hashStoredSincePage, address - hashStoredSincePage + offset)
+            }
+        }
     }
 
 
@@ -666,7 +752,7 @@ class Log(val config: LogConfig) : Closeable {
 
     @JvmOverloads
     fun flush(forceSync: Boolean = false) {
-        ensureWriter().flush()
+        ensureWriter().flush(true)
         if (forceSync || config.isDurableWrite) {
             sync()
         }
@@ -691,8 +777,8 @@ class Log(val config: LogConfig) : Closeable {
                 val written = writer.padPageWithNulls()
 
                 if (written > 0) {
-                    writer.commit()
-                    writer.flush()
+                    writer.commit(true)
+                    writer.flush(true)
                     closeFullFileIfNecessary(writer)
                 }
             } finally {
@@ -789,7 +875,7 @@ class Log(val config: LogConfig) : Closeable {
         val writer = ensureWriter()
 
         if (writer.padWithNulls(fileLengthBound, nullPage)) {
-            writer.commit()
+            writer.commit(true)
 
             closeFullFileIfNecessary(writer)
         }
@@ -808,8 +894,9 @@ class Log(val config: LogConfig) : Closeable {
                 val block = logTip.blockSet.getBlock(fileAddress)
                 val readBytes = block.read(output, pageAddress - fileAddress, 0, output.size)
 
-                val checkConsistency = !rwIsReadonly || pageAddress < (highAddress and
-                        ((cachePageSize - 1).inv()).toLong())
+                val checkConsistency = hashStoredSincePage <= pageAddress &&
+                        (!rwIsReadonly || pageAddress < (highAddress and
+                                ((cachePageSize - 1).inv()).toLong()))
 
                 if (checkConsistency) {
                     if (readBytes < cachePageSize) {
@@ -825,7 +912,11 @@ class Log(val config: LogConfig) : Closeable {
                     val encryptedBytes = if (readBytes < cachePageSize) {
                         readBytes
                     } else {
-                        cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
+                        if (pageAddress >= hashStoredSincePage) {
+                            cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
+                        } else {
+                            cachePageSize
+                        }
                     }
 
                     cryptBlocksMutable(cipherProvider, config.cipherKey, config.cipherBasicIV,
@@ -909,7 +1000,7 @@ class Log(val config: LogConfig) : Closeable {
             }
 
         }
-        writer.commit()
+        writer.commit(true)
         closeFullFileIfNecessary(writer)
 
         return result
@@ -1036,20 +1127,6 @@ class Log(val config: LogConfig) : Closeable {
             }
         }
 
-        @JvmStatic
-        fun adjustedLoggableAddress(address: Long, offset: Long, cachePageSize: Int): Long {
-            val cachePageReminderMask = (cachePageSize - 1).toLong()
-            val writtenInPage = address and cachePageReminderMask
-
-            val adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
-            val pageAddress = address and (cachePageReminderMask.inv())
-
-            val writtenSincePageStart = writtenInPage + offset
-            val fullPages = writtenSincePageStart / adjustedPageSize
-
-            return pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
-        }
-
         private fun getSharedCache(memoryUsage: Long,
                                    pageSize: Int,
                                    nonBlocking: Boolean,
@@ -1059,8 +1136,8 @@ class Log(val config: LogConfig) : Closeable {
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
-                        sharedCache = SharedLogCache(memoryUsage, pageSize, nonBlocking,
-                                useSoftReferences, cacheGenerationCount)
+                        sharedCache = SharedLogCache(memoryUsage, pageSize, nonBlocking, useSoftReferences,
+                                cacheGenerationCount)
                     }
                     result = sharedCache
                 }
@@ -1080,8 +1157,8 @@ class Log(val config: LogConfig) : Closeable {
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
-                        sharedCache = SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking,
-                                useSoftReferences, cacheGenerationCount)
+                        sharedCache = SharedLogCache(memoryUsagePercentage, pageSize, nonBlocking, useSoftReferences,
+                                cacheGenerationCount)
                     }
                     result = sharedCache
                 }

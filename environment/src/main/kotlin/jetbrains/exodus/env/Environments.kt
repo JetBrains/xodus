@@ -23,7 +23,10 @@ import jetbrains.exodus.io.SharedOpenFilesCache
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
+import jetbrains.exodus.log.StartupMetadata
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
 
 object Environments {
 
@@ -119,8 +122,15 @@ object Environments {
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
         var env = envCreator()
         val ec = env.environmentConfig
+        val needsToBeMigrated = env.log.isNeedToPerformMigrationToHashBasedStorage
+
         if (ec.logDataReaderWriterProvider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER &&
-                ec.envCompactOnOpen && env.log.numberOfFiles > 1) {
+                ec.envCompactOnOpen && env.log.numberOfFiles > 1 || needsToBeMigrated) {
+            if (needsToBeMigrated) {
+                EnvironmentImpl.loggerInfo("Outdated binary format is used in environment ${env.log.location} " +
+                        "migration of binary format will be performed.")
+            }
+
             val location = env.location
             File(location, "compactTemp${System.currentTimeMillis()}").let { tempDir ->
                 if (!tempDir.mkdir()) {
@@ -137,19 +147,53 @@ object Environments {
                 }
                 val files = env.log.allFileAddresses
                 env.close()
+
                 files.forEach { fileAddress ->
                     val file = File(location, LogUtil.getLogFilename(fileAddress))
+
                     if (!FileDataWriter.renameFile(file)) {
                         EnvironmentImpl.loggerError("Failed to rename file: $file")
                         return@let
                     }
                 }
+
+                val locationPath = Paths.get(location)
+
+                val firstMetadataPath = locationPath.resolve(StartupMetadata.FIRST_FILE_NAME)
+
+                if (Files.exists(firstMetadataPath)) {
+                    val delFirstMetadataPath = locationPath.resolve(StartupMetadata.FIRST_FILE_NAME +
+                            FileDataWriter.DELETED_FILE_EXTENSION);
+                    Files.move(firstMetadataPath, delFirstMetadataPath)
+                }
+
+                val secondMetadataPath = locationPath.resolve(StartupMetadata.SECOND_FILE_NAME)
+
+                if (Files.exists(secondMetadataPath)) {
+                    val delSecondMetadataPath = locationPath.resolve(StartupMetadata.SECOND_FILE_NAME +
+                            FileDataWriter.DELETED_FILE_EXTENSION);
+                    Files.move(firstMetadataPath, delSecondMetadataPath)
+                }
+
                 LogUtil.listFiles(tempDir).forEach { file ->
                     if (!file.renameTo(File(location, file.name))) {
                         throw ExodusException("Failed to rename file: $file")
                     }
                 }
+
+                LogUtil.listMetadataFiles(tempDir).forEach { file ->
+                    if (!file.renameTo(File(location, file.name))) {
+                        throw ExodusException("Failed to rename file: $file")
+                    }
+                }
+
                 env = envCreator()
+
+                if (needsToBeMigrated) {
+                    EnvironmentImpl.loggerInfo("Migration of binary format in environment ${env.log.location}" +
+                            " has been completed.")
+
+                }
             }
         }
         env.gc.utilizationProfile.load()

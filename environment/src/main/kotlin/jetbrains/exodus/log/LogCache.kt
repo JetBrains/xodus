@@ -77,7 +77,7 @@ internal abstract class LogCache {
 
     abstract fun getCachedPage(log: Log, pageAddress: Long): ByteArray?
 
-    protected abstract fun getPageIterable(log: Log, pageAddress: Long): ArrayByteIterable
+    protected abstract fun getPageIterable(log: Log, pageAddress: Long, hashStoredSincePage: Long): ArrayByteIterable
 
     internal abstract fun removePage(log: Log, pageAddress: Long)
 

@@ -18,6 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.io.FileDataReader;
 import jetbrains.exodus.util.IOUtil;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -92,8 +93,7 @@ public final class StartupMetadata {
         store(content, dbPath, useFirstFile);
     }
 
-    public static StartupMetadata open(final FileDataReader reader, final boolean isReadOnly,
-                                       final int pageSize) throws IOException {
+    public static @Nullable StartupMetadata open(final FileDataReader reader, final boolean isReadOnly) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
         final Path firstFilePath = dbPath.resolve(FIRST_FILE_NAME);
         final Path secondFilePath = dbPath.resolve(SECOND_FILE_NAME);
@@ -164,9 +164,7 @@ public final class StartupMetadata {
         }
 
         if (content == null) {
-            final boolean correctlyClosed = !reader.getBlocks().iterator().hasNext();
-            return new StartupMetadata(true, -1, correctlyClosed,
-                    pageSize, 0);
+            return null;
         }
 
         final StartupMetadata result = deserialize(content, nextVersion + 1, !useFirstFile);

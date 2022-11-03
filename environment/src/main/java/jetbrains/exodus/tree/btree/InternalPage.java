@@ -34,8 +34,7 @@ class InternalPage extends BasePageImmutable {
     protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
         super(tree, data);
 
-        baseChildrenAddress = Log.adjustedLoggableAddress(dataAddress, ((long) size) * keyAddressLen + 1,
-                log.getCachePageSize());
+        baseChildrenAddress = log.adjustedLoggableAddress(dataAddress, ((long) size) * keyAddressLen + 1);
         allChildrenAddressesInsideSinglePage = isAllChildrenAddressesInsideSinglePage();
     }
 
@@ -48,8 +47,7 @@ class InternalPage extends BasePageImmutable {
     protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
         super(tree, data, size);
 
-        baseChildrenAddress = Log.adjustedLoggableAddress(dataAddress, ((long) size) * keyAddressLen + 1,
-                log.getCachePageSize());
+        baseChildrenAddress = log.adjustedLoggableAddress(dataAddress, ((long) size) * keyAddressLen + 1);
         allChildrenAddressesInsideSinglePage = isAllChildrenAddressesInsideSinglePage();
     }
 
@@ -73,8 +71,8 @@ class InternalPage extends BasePageImmutable {
         if (allChildrenAddressesInsideSinglePage) {
             childPointerAddress = baseChildrenAddress + ((long) index) * childAddressLen;
         } else {
-            childPointerAddress = Log.adjustedLoggableAddress(baseChildrenAddress,
-                    ((long) index) * childAddressLen, log.getCachePageSize());
+            childPointerAddress = log.adjustedLoggableAddress(baseChildrenAddress,
+                    ((long) index) * childAddressLen);
         }
 
         return data.nextLongByAddress(childPointerAddress, childAddressLen);
