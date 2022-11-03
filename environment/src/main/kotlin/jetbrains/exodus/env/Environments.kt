@@ -117,7 +117,8 @@ object Environments {
     }
 
     @JvmStatic
-    fun newLogInstance(config: LogConfig): Log = Log(config.also { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) })
+    fun newLogInstance(config: LogConfig): Log = Log(config.also
+    { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) }, EnvironmentImpl.CURRENT_FORMAT_VERSION)
 
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
         var env = envCreator()

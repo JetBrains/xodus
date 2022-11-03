@@ -38,13 +38,19 @@ public final class StartupMetadata {
     private static final int FORMAT_VERSION_OFFSET = FILE_VERSION_OFFSET + FILE_VERSION_BYTES;
     private static final int FORMAT_VERSION_BYTES = Integer.BYTES;
 
-    private static final int DB_ROOT_ADDRESS_OFFSET = FORMAT_VERSION_OFFSET + FORMAT_VERSION_BYTES;
+    private static final int ENVIRONMENT_FORMAT_VERSION_OFFSET = FORMAT_VERSION_OFFSET + FORMAT_VERSION_BYTES;
+    private static final int ENVIRONMENT_FORMAT_VERSION_BYTES = Integer.BYTES;
+
+    private static final int DB_ROOT_ADDRESS_OFFSET = ENVIRONMENT_FORMAT_VERSION_OFFSET + ENVIRONMENT_FORMAT_VERSION_BYTES;
     private static final int DB_ROOT_BYTES = Long.BYTES;
 
     private static final int PAGE_SIZE_OFFSET = DB_ROOT_ADDRESS_OFFSET + DB_ROOT_BYTES;
     private static final int PAGE_SIZE_BYTES = Integer.BYTES;
 
-    private static final int CORRECTLY_CLOSED_FLAG_OFFSET = PAGE_SIZE_OFFSET + PAGE_SIZE_BYTES;
+    private static final int FILE_LENGTH_BOUNDARY_OFFSET = PAGE_SIZE_OFFSET + PAGE_SIZE_BYTES;
+    private static final int FILE_LENGTH_BOUNDARY_BYTES = Long.BYTES;
+
+    private static final int CORRECTLY_CLOSED_FLAG_OFFSET = FILE_LENGTH_BOUNDARY_OFFSET + FILE_LENGTH_BOUNDARY_BYTES;
     public static final int CLOSED_FLAG_BYTES = Byte.BYTES;
 
     private static final int FILE_SIZE = CORRECTLY_CLOSED_FLAG_OFFSET + CLOSED_FLAG_BYTES;
@@ -62,13 +68,28 @@ public final class StartupMetadata {
     private final int pageSize;
     private final long currentVersion;
 
+    private final int environmentFormatVersion;
+    private final long fileLengthBoundary;
+
     private StartupMetadata(final boolean useFirstFile, final long rootAddress,
-                            final boolean isCorrectlyClosed, int pageSize, long currentVersion) {
+                            final boolean isCorrectlyClosed, int pageSize, long currentVersion,
+                            int environmentFormatVersion,
+                            long fileLengthBoundary) {
         this.useFirstFile = useFirstFile;
         this.rootAddress = rootAddress;
         this.isCorrectlyClosed = isCorrectlyClosed;
         this.pageSize = pageSize;
         this.currentVersion = currentVersion;
+        this.environmentFormatVersion = environmentFormatVersion;
+        this.fileLengthBoundary = fileLengthBoundary;
+    }
+
+    public int getEnvironmentFormatVersion() {
+        return environmentFormatVersion;
+    }
+
+    public long getFileLengthBoundary() {
+        return fileLengthBoundary;
     }
 
     public long getRootAddress() {
@@ -89,11 +110,13 @@ public final class StartupMetadata {
 
     public void closeAndUpdate(final FileDataReader reader) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
-        final ByteBuffer content = serialize(currentVersion, rootAddress, pageSize, true);
+        final ByteBuffer content = serialize(currentVersion, environmentFormatVersion, rootAddress,
+                pageSize, fileLengthBoundary, true);
         store(content, dbPath, useFirstFile);
     }
 
-    public static @Nullable StartupMetadata open(final FileDataReader reader, final boolean isReadOnly) throws IOException {
+    public static @Nullable StartupMetadata open(final FileDataReader reader,
+                                                 final boolean isReadOnly) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
         final Path firstFilePath = dbPath.resolve(FIRST_FILE_NAME);
         final Path secondFilePath = dbPath.resolve(SECOND_FILE_NAME);
@@ -170,16 +193,17 @@ public final class StartupMetadata {
         final StartupMetadata result = deserialize(content, nextVersion + 1, !useFirstFile);
 
         if (!isReadOnly) {
-            final ByteBuffer updatedMetadata = serialize(nextVersion, -1,
-                    result.getPageSize(), false);
+            final ByteBuffer updatedMetadata = serialize(nextVersion, result.environmentFormatVersion, -1,
+                    result.pageSize, result.fileLengthBoundary, false);
             store(updatedMetadata, dbPath, useFirstFile);
         }
 
         return result;
     }
 
-    public static StartupMetadata createStub(int pageSize) {
-        return new StartupMetadata(true, -1, true, pageSize, 1);
+    public static StartupMetadata createStub(int pageSize, final int environmentFormatVersion, final long fileLengthBoundary) {
+        return new StartupMetadata(true, -1, true, pageSize, 1,
+                environmentFormatVersion, fileLengthBoundary);
     }
 
 
@@ -228,21 +252,29 @@ public final class StartupMetadata {
                     ", actual: " + formatVersion + "}");
         }
 
+        final int environmentFormatVersion = content.getInt(ENVIRONMENT_FORMAT_VERSION_OFFSET);
         final long dbRootAddress = content.getLong(DB_ROOT_ADDRESS_OFFSET);
         final int pageSize = content.getInt(PAGE_SIZE_OFFSET);
+        final long fileLengthBoundary = content.getLong(FILE_LENGTH_BOUNDARY_OFFSET);
         final boolean closedFlag = content.get(CORRECTLY_CLOSED_FLAG_OFFSET) > 0;
 
-        return new StartupMetadata(useFirstFile, dbRootAddress, closedFlag, pageSize, version);
+        return new StartupMetadata(useFirstFile, dbRootAddress, closedFlag, pageSize, version,
+                environmentFormatVersion,
+                fileLengthBoundary);
     }
 
-    public static ByteBuffer serialize(final long version, final long rootAddress, final int pageSize,
+    public static ByteBuffer serialize(final long version, final int environmentFormatVersion,
+                                       final long rootAddress, final int pageSize,
+                                       final long fileLengthBoundary,
                                        final boolean correctlyClosedFlag) {
         final ByteBuffer content = ByteBuffer.allocate(FILE_SIZE);
 
         content.putLong(FILE_VERSION_OFFSET, version);
         content.putInt(FORMAT_VERSION_OFFSET, FORMAT_VERSION);
+        content.putInt(ENVIRONMENT_FORMAT_VERSION_OFFSET, environmentFormatVersion);
         content.putLong(DB_ROOT_ADDRESS_OFFSET, rootAddress);
         content.putInt(PAGE_SIZE_OFFSET, pageSize);
+        content.putLong(FILE_LENGTH_BOUNDARY_OFFSET, fileLengthBoundary);
         content.put(CORRECTLY_CLOSED_FLAG_OFFSET, correctlyClosedFlag ? (byte) 1 : 0);
 
         final long hash = BufferedDataWriter.xxHash.hash(content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,

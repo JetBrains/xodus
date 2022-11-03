@@ -65,6 +65,8 @@ public class EnvironmentImpl implements Environment {
 
     private static final Logger logger = LoggerFactory.getLogger(EnvironmentImpl.class);
 
+    public static final int CURRENT_FORMAT_VERSION = 2;
+
     private static final String ENVIRONMENT_PROPERTIES_FILE = "exodus.properties";
 
     @NotNull
@@ -218,6 +220,10 @@ public class EnvironmentImpl implements Environment {
 
     public GarbageCollector getGC() {
         return gc;
+    }
+
+    public int getCurrentFormatVersion() {
+        return CURRENT_FORMAT_VERSION;
     }
 
     @Nullable

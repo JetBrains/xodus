@@ -127,8 +127,10 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                             startupMetadataWasSent = true;
 
                             final ByteBuffer metadataContent =
-                                    StartupMetadata.serialize(0, rootAddress,
-                                            environment.getLog().getCachePageSize(), true);
+                                    StartupMetadata.serialize(0, environment.getCurrentFormatVersion(), rootAddress,
+                                            environment.getLog().getCachePageSize(),
+                                            environment.getLog().getFileLengthBound(),
+                                            true);
 
                             next = new FileDescriptor(new File(StartupMetadata.FIRST_FILE_NAME),
                                     "", metadataContent.remaining()) {

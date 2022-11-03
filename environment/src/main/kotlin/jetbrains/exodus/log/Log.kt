@@ -34,7 +34,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.experimental.xor
 
-class Log(val config: LogConfig) : Closeable {
+class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     val created = System.currentTimeMillis()
 
@@ -144,12 +144,6 @@ class Log(val config: LogConfig) : Closeable {
             rwIsReadonly = config.readerWriterProvider?.isReadonly ?: false
 
             val fileLength = config.fileSize * 1024L
-            if (fileLength % config.cachePageSize != 0L) {
-                throw InvalidSettingException("File size should be a multiple of cache page size.")
-            }
-
-            fileLengthBound = fileLength
-
             if (reader is FileDataReader) {
                 reader.setLog(this)
             }
@@ -157,7 +151,7 @@ class Log(val config: LogConfig) : Closeable {
             val metadata = if (reader is FileDataReader) {
                 StartupMetadata.open(reader, rwIsReadonly)
             } else {
-                StartupMetadata.createStub(config.cachePageSize)
+                StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion, fileLength)
             }
 
             hashStoredSincePage = 0
@@ -165,15 +159,9 @@ class Log(val config: LogConfig) : Closeable {
 
             if (metadata != null) {
                 startupMetadata = metadata
-                if (config.cachePageSize != startupMetadata.pageSize) {
-                    logger.warn("Environment was created with cache page size equals to " +
-                            "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
-                            "page size will be updated to ${startupMetadata.pageSize}")
-
-                    config.cachePageSize = startupMetadata.pageSize
-                }
             } else {
-                startupMetadata = StartupMetadata.createStub(config.cachePageSize)
+                startupMetadata = StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion,
+                        fileLength)
                 needToPerformMigration = reader.blocks.iterator().hasNext()
 
                 if (needToPerformMigration) {
@@ -181,7 +169,33 @@ class Log(val config: LogConfig) : Closeable {
                 }
             }
 
+            if (config.cachePageSize != startupMetadata.pageSize) {
+                logger.warn("Environment $location was created with cache page size equals to " +
+                        "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
+                        "page size will be updated to ${startupMetadata.pageSize}")
+
+                config.cachePageSize = startupMetadata.pageSize
+            }
+
+            if (fileLength != startupMetadata.fileLengthBoundary) {
+                logger.warn("Environment $location was created with maximum files size equals to " +
+                        "${startupMetadata.fileLengthBoundary} but provided file size is $fileLength " +
+                        "file size will be updated to ${startupMetadata.fileLengthBoundary}")
+                config.fileSize = startupMetadata.fileLengthBoundary / 1024
+            }
+
+            fileLengthBound = startupMetadata.fileLengthBoundary
+
+            if (fileLengthBound % config.cachePageSize != 0L) {
+                throw InvalidSettingException("File size should be a multiple of cache page size.")
+            }
+
             cachePageSize = startupMetadata.pageSize
+
+            if (expectedEnvironmentVersion != startupMetadata.environmentFormatVersion) {
+                throw ExodusException("For environment $location expected format version is $expectedEnvironmentVersion " +
+                        "but  data are stored using version ${startupMetadata.environmentFormatVersion}")
+            }
 
             val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
             if (!startupMetadata.isCorrectlyClosed || needToPerformMigration) {
