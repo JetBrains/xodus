@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,27 +20,33 @@ import org.jetbrains.annotations.NotNull;
 public class RandomAccessLoggableImpl implements RandomAccessLoggable {
 
     private final byte type;
-    private final byte headerLength;
-    private final int length;
     @NotNull
     private final ByteIterableWithAddress data;
     private final int structureId;
+    private final int dataLength;
+    private final int length;
+    private final long address;
+    private final long end;
 
     public RandomAccessLoggableImpl(final long address,
+                                    final long end,
+                                    final int length,
                                     final byte type,
                                     @NotNull final ByteIterableWithAddress data,
                                     final int dataLength,
                                     final int structureId) {
+        this.address = address;
+        this.end = end;
         this.type = type;
-        this.headerLength = (byte) (data.getDataAddress() - address);
-        this.length = dataLength + headerLength;
+        this.length = length;
         this.data = data;
         this.structureId = structureId;
+        this.dataLength = dataLength;
     }
 
     @Override
     public long getAddress() {
-        return data.getDataAddress() - headerLength;
+        return address;
     }
 
     @Override
@@ -53,6 +59,11 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
         return length;
     }
 
+    @Override
+    public long end() {
+        return end;
+    }
+
     @NotNull
     @Override
     public ByteIterableWithAddress getData() {
@@ -60,7 +71,7 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
     }
 
     public int getDataLength() {
-        return length - headerLength;
+        return dataLength;
     }
 
     @Override

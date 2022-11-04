@@ -46,8 +46,7 @@ internal class ImmutableNode : NodeBase {
     private val childrenCount: Short
     private val childAddressLength: Byte
     private val baseAddress: Long // if it is not equal to NULL_ADDRESS then the node is saved in the v2 format
-    private val nextPageDataAddress: Long
-    private val pageSize: Int
+    private val insideSinglePage: Boolean
 
     constructor(log: Log, loggable: RandomAccessLoggable, data: ByteIterableWithAddress) :
             this(log, loggable.type, loggable, data, data.iterator())
@@ -80,9 +79,7 @@ internal class ImmutableNode : NodeBase {
         this.baseAddress = baseAddress
         dataAddress = it.address
 
-        pageSize = log.cachePageSize
-        nextPageDataAddress = (dataAddress and (pageSize - 1).toLong().inv()) +
-                pageSize - BufferedDataWriter.LOGGABLE_DATA
+        insideSinglePage = log.insideSinglePage(loggable.address, loggable.end())
     }
 
     /**
@@ -96,8 +93,7 @@ internal class ImmutableNode : NodeBase {
         childrenCount = 0.toShort()
         childAddressLength = 0.toByte()
         baseAddress = NULL_ADDRESS
-        nextPageDataAddress = NULL_ADDRESS
-        pageSize = log.cachePageSize
+        insideSinglePage = true
     }
 
     public override fun getAddress() = loggable.address
@@ -210,10 +206,10 @@ internal class ImmutableNode : NodeBase {
 
                 else -> {
                     val bitsetIdx = ub / Long.SIZE_BITS
-                    var bitSetAddress = dataAddress + bitsetIdx * Long.SIZE_BYTES
-
-                    if (bitSetAddress >= nextPageDataAddress) {
-                        bitSetAddress = log.adjustedLoggableAddress(dataAddress,
+                    val bitSetAddress = if (insideSinglePage) {
+                        dataAddress + bitsetIdx * Long.SIZE_BYTES
+                    } else {
+                        log.adjustedLoggableAddress(dataAddress,
                                 bitsetIdx * Long.SIZE_BYTES.toLong())
                     }
 
@@ -224,8 +220,6 @@ internal class ImmutableNode : NodeBase {
                     var index = (bitset and (bitmask - 1L)).countOneBits()
 
                     if (bitsetIdx > 0) {
-                        val insideSinglePage = dataAddress + ((bitsetIdx - 1) * Long.SIZE_BYTES) < nextPageDataAddress
-
                         for (i in 0 until bitsetIdx) {
                             val offsetAddress = if (insideSinglePage) {
                                 dataAddress + i * Long.SIZE_BYTES
@@ -324,12 +318,12 @@ internal class ImmutableNode : NodeBase {
 
             else -> {
                 val bitsetIdx = ub / Long.SIZE_BITS
-                var bitsetAddress = dataAddress + bitsetIdx * Long.SIZE_BYTES
-
-//                if (bitsetAddress >= nextPageDataAddress) {
-                bitsetAddress = log.adjustedLoggableAddress(dataAddress,
-                        bitsetIdx * Long.SIZE_BYTES.toLong())
-//                }
+                val bitsetAddress = if (insideSinglePage) {
+                    dataAddress + bitsetIdx * Long.SIZE_BYTES
+                } else {
+                    log.adjustedLoggableAddress(dataAddress,
+                            bitsetIdx * Long.SIZE_BYTES.toLong())
+                }
 
                 val bitset = data.nextLongByAddress(bitsetAddress, Long.SIZE_BYTES)
 
@@ -339,10 +333,8 @@ internal class ImmutableNode : NodeBase {
                 var index = (bitset and (bitmask - 1L)).countOneBits()
 
                 if (bitsetIdx > 0) {
-                    val allInsideSinglePage = false//dataAddress + (bitsetIdx - 1) * Long.SIZE_BYTES < nextPageDataAddress
-
                     for (i in 0 until bitsetIdx) {
-                        val addr = if (allInsideSinglePage) {
+                        val addr = if (insideSinglePage) {
                             dataAddress + i * Long.SIZE_BYTES
                         } else {
                             log.adjustedLoggableAddress(dataAddress, i * Long.SIZE_BYTES.toLong())
@@ -363,21 +355,21 @@ internal class ImmutableNode : NodeBase {
     }
 
     private fun byteAt(offset: Int): Byte {
-        var addr = dataAddress + offset
-
-//        if (addr >= nextPageDataAddress) {
-        addr = log.adjustedLoggableAddress(dataAddress, offset.toLong())
-//        }
+        val addr = if (insideSinglePage) {
+            dataAddress + offset
+        } else {
+            log.adjustedLoggableAddress(dataAddress, offset.toLong())
+        }
 
         return data.byteAtAddress(addr)
     }
 
     private fun nextLong(offset: Int): Long {
-        var addr = dataAddress + offset
-
-//        if (addr >= nextPageDataAddress) {
-        addr = log.adjustedLoggableAddress(dataAddress, offset.toLong())
-//        }
+        val addr = if (insideSinglePage) {
+            dataAddress + offset
+        } else {
+            log.adjustedLoggableAddress(dataAddress, offset.toLong())
+        }
 
         return data.nextLongByAddress(addr, childAddressLength.toInt())
     }
@@ -482,11 +474,9 @@ internal class ImmutableNode : NodeBase {
             NodeChildrenIteratorBase(index, node) {
 
         private val bitset = LongArray(CHILDREN_BITSET_SIZE_LONGS).let { array ->
-            val allInSinglePage = false//dataAddress +
-            //(CHILDREN_BITSET_SIZE_LONGS - 1) * Long.SIZE_BYTES < nextPageDataAddress
 
             array.indices.forEach { i ->
-                val addr = if (allInSinglePage) {
+                val addr = if (insideSinglePage) {
                     dataAddress + i * Long.SIZE_BYTES
                 } else {
                     log.adjustedLoggableAddress(dataAddress, i * Long.SIZE_BYTES.toLong())

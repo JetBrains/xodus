@@ -120,12 +120,12 @@ internal class SharedLogCache : LogCache {
         } else log.getHighPage(pageAddress)
     }
 
-    override fun getPageIterable(log: Log, pageAddress: Long, hashStoredSincePage: Long): ArrayByteIterable {
+    override fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
 
-        val adjustedPageSize = if (pageAddress >= hashStoredSincePage) {
+        val adjustedPageSize = if (formatWithHashCodeIsUsed) {
             pageSize - BufferedDataWriter.LOGGABLE_DATA
         } else {
             pageSize

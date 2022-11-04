@@ -314,7 +314,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
                     new LeafNodeDup(this, loggable).reclaim(context);
                     break;
                 case LEAF:
-                    new LeafNode(loggable).reclaim(context);
+                    new LeafNode(log, loggable).reclaim(context);
                     break;
                 case BOTTOM_ROOT:
                 case INTERNAL_ROOT:
@@ -372,7 +372,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
-                final InternalPage page = new InternalPage(this, data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1);
+                final InternalPage page = new InternalPage(this, data.clone(it.getAddress()), i >> 1);
                 page.reclaim(minKey.getKey(), context);
             }
         }
@@ -385,7 +385,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
-                final BottomPage page = new BottomPage(this, data.clone((int) (it.getAddress() - data.getDataAddress())), i >> 1);
+                final BottomPage page = new BottomPage(this, data.clone(it.getAddress()), i >> 1);
                 page.reclaim(minKey.getKey(), context);
             }
         }

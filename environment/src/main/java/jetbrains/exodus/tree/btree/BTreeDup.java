@@ -81,7 +81,7 @@ final class BTreeDup extends BTreeBase {
     protected LeafNode loadLeaf(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
         if (loggable.getType() == DUP_LEAF) {
-            return new LeafNode(loggable) {
+            return new LeafNode(log, loggable) {
                 @NotNull
                 @Override
                 public ByteIterable getValue() {

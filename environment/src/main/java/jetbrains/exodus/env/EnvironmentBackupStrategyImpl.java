@@ -55,7 +55,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
             final long address = ((TransactionBase) txn).getRoot();
             final Loggable loggable = environment.getLog().read(address);
 
-            return new long[]{address, address + loggable.length()};
+            return new long[]{address, loggable.end()};
         });
 
         rootAddress = roots[0];

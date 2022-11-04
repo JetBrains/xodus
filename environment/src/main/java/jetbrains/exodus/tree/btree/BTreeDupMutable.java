@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -102,7 +102,7 @@ final class BTreeDupMutable extends BTreeMutable {
         }
         sizeIterable = CompressedUnsignedLongByteIterable.getIterable((size << 1) + 1);
         final ByteIterable offsetIterable =
-            CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
+                CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
         iterables = new ByteIterable[]{keyIterable, key, sizeIterable, offsetIterable, rootDataIterable};
         final ByteIterable data = new CompoundByteIterable(iterables);
         result = canRetry ? log.tryWrite(type, structureId, data) : log.writeContinuously(type, structureId, data);
@@ -174,7 +174,7 @@ final class BTreeDupMutable extends BTreeMutable {
     protected LeafNode loadLeaf(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
         if (loggable.getType() == DUP_LEAF) {
-            return new LeafNode(loggable) {
+            return new LeafNode(log, loggable) {
                 @NotNull
                 @Override
                 public ByteIterable getValue() {

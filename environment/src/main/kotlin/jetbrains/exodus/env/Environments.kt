@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.crypto.newCipherProvider
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.FileDataWriter
+import jetbrains.exodus.io.LockingManager
 import jetbrains.exodus.io.SharedOpenFilesCache
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig
@@ -123,7 +124,7 @@ object Environments {
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
         var env = envCreator()
         val ec = env.environmentConfig
-        val needsToBeMigrated = env.log.isNeedToPerformMigrationToHashBasedStorage
+        val needsToBeMigrated = !env.log.formatWithHashCodeIsUsed
 
         if (ec.logDataReaderWriterProvider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER &&
                 ec.envCompactOnOpen && env.log.numberOfFiles > 1 || needsToBeMigrated) {
@@ -188,13 +189,18 @@ object Environments {
                     }
                 }
 
+                Files.deleteIfExists(Paths.get(tempDir.toURI()).resolve(LockingManager.LOCK_FILE_NAME))
+
                 env = envCreator()
 
                 if (needsToBeMigrated) {
                     EnvironmentImpl.loggerInfo("Migration of binary format in environment ${env.log.location}" +
-                            " has been completed.")
+                            " has been completed. Please delete all files with extension " +
+                            "*.del once you ensure database consistency.")
 
                 }
+
+                tempDir.delete()
             }
         }
         env.gc.utilizationProfile.load()

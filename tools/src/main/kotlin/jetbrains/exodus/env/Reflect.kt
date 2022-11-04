@@ -245,7 +245,7 @@ class Reflect(directory: File) {
                         println("Invalid root at address: ${loggable.address}")
                     }
                 }
-                if (loggable.address + loggable.length() >= endAddress) return@forEach
+                if (loggable.end() >= endAddress) return@forEach
             }
         }
         println("Roots found: $totalRoots")
@@ -349,7 +349,7 @@ class Reflect(directory: File) {
             try {
                 val loggable = log.read(it)
                 val fileAddress = log.getFileAddress(it)
-                val dataLength = loggable.length().toLong()
+                val dataLength = loggable.end() - loggable.address
                 usedSpace[fileAddress] = (usedSpace[fileAddress] ?: 0L) + dataLength
                 usedSpacePerStore[name] = (usedSpacePerStore[name] ?: 0L) + dataLength
                 val type = loggable.type.toInt()

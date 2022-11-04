@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,7 +34,7 @@ class LeafNodeDup extends LeafNode {
     protected final BTreeDup tree;
 
     LeafNodeDup(@NotNull BTreeBase mainTree, @NotNull RandomAccessLoggable loggable) {
-        super(loggable);
+        super(mainTree.log, loggable);
         tree = new BTreeDup(mainTree, this);
     }
 
@@ -141,7 +141,7 @@ class LeafNodeDup extends LeafNode {
         for (final RandomAccessLoggable loggable : context.dupLeafsLo) {
             switch (loggable.getType()) {
                 case BTreeBase.DUP_LEAF:
-                    new LeafNode(loggable).reclaim(dupStack);
+                    new LeafNode(log, loggable).reclaim(dupStack);
                     break;
                 case BTreeBase.DUP_BOTTOM:
                     tree.reclaimBottom(loggable, dupStack);
@@ -157,7 +157,7 @@ class LeafNodeDup extends LeafNode {
         for (final RandomAccessLoggable loggable : context.dupLeafsHi) {
             switch (loggable.getType()) {
                 case BTreeBase.DUP_LEAF:
-                    new LeafNode(loggable).reclaim(dupStack);
+                    new LeafNode(log, loggable).reclaim(dupStack);
                     break;
                 case BTreeBase.DUP_BOTTOM:
                     tree.reclaimBottom(loggable, dupStack);

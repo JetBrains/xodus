@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,26 +19,32 @@ import org.jetbrains.annotations.NotNull;
 
 class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddress implements RandomAccessLoggable {
 
+    private final long address;
+    private final long end;
     private final int structureId;
     private final byte type;
-    private final byte headerLength;
+    private final int length;
 
     RandomAccessLoggableAndArrayByteIterable(final long address,
+                                             final long end,
                                              final byte type,
                                              final int structureId,
+                                             final int length,
                                              final long dataAddress,
-                                             @NotNull final byte[] bytes,
+                                             final byte @NotNull [] bytes,
                                              final int start,
                                              final int dataLength) {
         super(dataAddress, bytes, start, dataLength);
         this.structureId = structureId;
         this.type = type;
-        headerLength = (byte) (dataAddress - address);
+        this.address = address;
+        this.end = end;
+        this.length = length;
     }
 
     @Override
     public long getAddress() {
-        return getDataAddress() - headerLength;
+        return address;
     }
 
     @Override
@@ -48,7 +54,12 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
 
     @Override
     public int length() {
-        return headerLength + getDataLength();
+        return length;
+    }
+
+    @Override
+    public long end() {
+        return end;
     }
 
     @NotNull

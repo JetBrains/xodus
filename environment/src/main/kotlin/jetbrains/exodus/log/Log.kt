@@ -71,19 +71,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     /** Size of single page in log cache. */
     var cachePageSize: Int
 
-    /**
-     * Address of the first page which contains hash code
-     * This parameter is used to achieve binary compatibility between old and new formats.
-     * But those formats co-exist only during migration of data, after that only new
-     * format is used.
-     */
-    var hashStoredSincePage: Long
 
     /**
      * Indicate whether it is needed to perform migration to the format which contains
      * hash codes of content inside of the pages.
      */
-    val isNeedToPerformMigrationToHashBasedStorage: Boolean
+    val formatWithHashCodeIsUsed: Boolean
 
     /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
@@ -154,7 +147,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion, fileLength)
             }
 
-            hashStoredSincePage = 0
             var needToPerformMigration = false
 
             if (metadata != null) {
@@ -163,10 +155,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 startupMetadata = StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion,
                         fileLength)
                 needToPerformMigration = reader.blocks.iterator().hasNext()
-
-                if (needToPerformMigration) {
-                    hashStoredSincePage = Long.MAX_VALUE
-                }
             }
 
             if (config.cachePageSize != startupMetadata.pageSize) {
@@ -289,7 +277,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                                 // anyway recovery should stop at this point
                                 break
                             }
-                            val approvedHighAddressCandidate = loggable.address + loggable.length()
+                            val approvedHighAddressCandidate = loggable.end()
                             if (approvedHighAddressCandidate > currentHighAddress) {
                                 // XD-728:
                                 // this is either data corruption or encrypted database
@@ -316,12 +304,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 if (writtenInPage > 0) {
                     padWholePageWithNulls()
                 }
-
-                hashStoredSincePage = highAddress
             }
 
 
-            isNeedToPerformMigrationToHashBasedStorage = needToPerformMigration
+            formatWithHashCodeIsUsed = !needToPerformMigration
 
             nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
 
@@ -403,7 +389,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
             val page = ByteArray(cachePageSize)
             for (pageAddress in 0 until blockLength step cachePageSize.toLong()) {
-                if (pageAddress >= hashStoredSincePage) {
+                if (formatWithHashCodeIsUsed) {
                     val read = block.read(page, block.address + pageAddress, 0, cachePageSize)
                     if (hasNext || !rwIsReadonly) {
                         if (read != cachePageSize) {
@@ -486,21 +472,16 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         return getFileAddress(address) == getFileAddress(writtenHighAddress)
     }
 
-    fun insideSinglePage(lowerOffset: Long, higherOffset: Long): Boolean {
-        assert(lowerOffset <= higherOffset)
+    fun insideSinglePage(lowAddress: Long, highAddress: Long): Boolean {
+        assert(lowAddress <= highAddress)
 
         val cachePageReminderMask = (cachePageSize - 1).toLong()
-        val writtenInPage = lowerOffset and cachePageReminderMask
+        val writtenInPage = lowAddress and cachePageReminderMask
 
-        return if (lowerOffset >= hashStoredSincePage) {
-            (higherOffset - lowerOffset) + writtenInPage < cachePageSize - BufferedDataWriter.LOGGABLE_DATA
+        return if (formatWithHashCodeIsUsed) {
+            (highAddress - lowAddress) + writtenInPage < cachePageSize - BufferedDataWriter.LOGGABLE_DATA
         } else {
-            if (higherOffset < hashStoredSincePage) {
-                (higherOffset - lowerOffset) + writtenInPage < cachePageSize
-            } else {
-                //if offsets belongs to the data which use two different formats they use two different pages
-                false
-            }
+            (highAddress - lowAddress) + writtenInPage < cachePageSize
         }
     }
 
@@ -513,15 +494,22 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         val writtenSincePageStart = writtenInPage + offset
         val fullPages = writtenSincePageStart / adjustedPageSize
 
-        return if (address >= hashStoredSincePage) {
+        return if (formatWithHashCodeIsUsed) {
             pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
         } else {
-            if (address + offset < hashStoredSincePage) {
-                address + offset
-            } else {
-                adjustedLoggableAddress(hashStoredSincePage, address - hashStoredSincePage + offset)
-            }
+            address + offset
         }
+    }
+
+    private fun loggableLength(lowAddress: Long, highAddress: Long): Int {
+        val pageReminderMask = (cachePageSize - 1).toLong()
+        val pageAddressMask = pageReminderMask.inv()
+
+        val firstPageAddress = lowAddress and pageAddressMask
+        val secondPageAddress = highAddress and pageAddressMask
+
+        val pages = (secondPageAddress - firstPageAddress) / cachePageSize
+        return ((highAddress - lowAddress) - BufferedDataWriter.LOGGABLE_DATA * pages).toInt()
     }
 
 
@@ -606,7 +594,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     fun read(it: ByteIteratorWithAddress, address: Long = it.address): RandomAccessLoggable {
         val type = it.next() xor 0x80.toByte()
         return if (NullLoggable.isNullLoggable(type)) {
-            NullLoggable(address)
+            NullLoggable(address, adjustedLoggableAddress(address, 1))
         } else read(type, it, address)
     }
 
@@ -623,12 +611,22 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         val structureId = CompressedUnsignedLongByteIterable.getInt(it)
         val dataLength = CompressedUnsignedLongByteIterable.getInt(it)
         val dataAddress = it.address
+
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
+            val end = dataAddress + dataLength
+            val length = loggableLength(address, end)
+
             return RandomAccessLoggableAndArrayByteIterable(
-                    address, type, structureId, dataAddress, it.currentPage, it.offset, dataLength)
+                    address, end,
+                    type, structureId, length, dataAddress, it.currentPage, it.offset, dataLength)
         }
+
         val data = RandomAccessByteIterable(dataAddress, this)
-        return RandomAccessLoggableImpl(address, type, data, dataLength, structureId)
+        val end = adjustedLoggableAddress(dataAddress, dataLength.toLong())
+        val length = loggableLength(address, end)
+
+        return RandomAccessLoggableImpl(address, end, length,
+                type, data, dataLength, structureId)
     }
 
     fun getLoggableIterator(startAddress: Long): LoggableIterator {
@@ -691,7 +689,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 if (loggable.type.toInt() == type) {
                     return loggable
                 }
-                if (loggable.address + loggable.length() == approvedHighAddress) {
+                if (loggable.end() == approvedHighAddress) {
                     break
                 }
             }
@@ -722,7 +720,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 if (loggable.type.toInt() == type) {
                     result = loggable
                 }
-                if (loggable.address + loggable.length() == approvedHighAddress) {
+                if (loggable.end() == approvedHighAddress) {
                     break
                 }
             }
@@ -908,7 +906,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 val block = logTip.blockSet.getBlock(fileAddress)
                 val readBytes = block.read(output, pageAddress - fileAddress, 0, output.size)
 
-                val checkConsistency = hashStoredSincePage <= pageAddress &&
+                val checkConsistency = formatWithHashCodeIsUsed &&
                         (!rwIsReadonly || pageAddress < (highAddress and
                                 ((cachePageSize - 1).inv()).toLong()))
 
@@ -926,7 +924,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                     val encryptedBytes = if (readBytes < cachePageSize) {
                         readBytes
                     } else {
-                        if (pageAddress >= hashStoredSincePage) {
+                        if (formatWithHashCodeIsUsed) {
                             cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
                         } else {
                             cachePageSize

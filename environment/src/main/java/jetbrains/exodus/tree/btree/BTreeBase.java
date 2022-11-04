@@ -158,7 +158,7 @@ public abstract class BTreeBase implements ITree {
         switch (type) {
             case LEAF:
             case DUP_LEAF:
-                return new LeafNode(loggable);
+                return new LeafNode(log, loggable);
             case LEAF_DUP_BOTTOM_ROOT:
             case LEAF_DUP_INTERNAL_ROOT:
                 if (allowsDuplicates) {

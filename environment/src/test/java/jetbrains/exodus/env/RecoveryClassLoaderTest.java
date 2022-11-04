@@ -110,7 +110,7 @@ public class RecoveryClassLoaderTest {
 
         Assert.assertNotNull(last);
 
-        Assert.assertEquals(log.getHighAddress(), last.getAddress() + last.length());
+        Assert.assertEquals(log.getHighAddress(), last.end());
     };
 
     private static void runIsolated(@NotNull final Runnable runnable) {

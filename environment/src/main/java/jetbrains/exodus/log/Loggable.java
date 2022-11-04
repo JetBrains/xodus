@@ -44,11 +44,14 @@ public interface Loggable {
     byte getType();
 
     /**
-     * Length of the loggable with header and data.
-     *
-     * @return length of the loggable with header and data.
+     * @return Length of loggable with header and data
      */
     int length();
+
+    /**
+     * @return address next to end address of loggable
+     */
+    long end();
 
     /**
      * Loggable data.

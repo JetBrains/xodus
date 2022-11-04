@@ -102,7 +102,7 @@ private fun tryUpdate(log: Log, lastBlock: Block, tip: LogTip, blockSet: BlockSe
     try {
         while (loggables.hasNext()) {
             val loggable = loggables.next()
-            val loggableEnd = loggable.address + loggable.length()
+            val loggableEnd = loggable.end()
             if (loggableEnd > highAddress) {
                 break
             }

@@ -175,7 +175,7 @@ public class EnvironmentImpl implements Environment {
 
         loggerInfo("Exodus environment created: " + logLocation);
 
-        if (log.isNeedToPerformMigrationToHashBasedStorage()) {
+        if (!log.getFormatWithHashCodeIsUsed()) {
             if (isReadOnly()) {
                 throw new ExodusException("Environment " + logLocation +
                         " uses out of dated binary format but can not be migrated because " +

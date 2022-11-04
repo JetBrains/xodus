@@ -90,10 +90,10 @@ internal class SeparateLogCache : LogCache {
 
     override fun cachePage(log: Log, pageAddress: Long, page: ByteArray) = cachePage(pageAddress, page)
 
-    override fun getPageIterable(log: Log, pageAddress: Long, hashStoredSincePage: Long): ArrayByteIterable {
+    override fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable {
         var page = pagesCache.tryKeyLocked(pageAddress)
 
-        val adjustedPageSize = if (pageAddress >= hashStoredSincePage) {
+        val adjustedPageSize = if (formatWithHashCodeIsUsed) {
             pageSize - BufferedDataWriter.LOGGABLE_DATA
         } else {
             pageSize

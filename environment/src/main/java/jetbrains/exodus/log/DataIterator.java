@@ -28,7 +28,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
     private byte[] page;
     private int offset;
     private int length;
-    private final long hashStoredSincePage;
+    private final boolean formatWithHashCodeIsUsed;
 
     public DataIterator(@NotNull final Log log) {
         this(log, -1L);
@@ -39,7 +39,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
         cachePageSize = log.getCachePageSize();
         pageAddressMask = ~((long) (cachePageSize - 1));
         pageAddress = -1L;
-        hashStoredSincePage = log.getHashStoredSincePage();
+        formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
 
         if (startAddress >= 0) {
             checkPageSafe(startAddress);
@@ -97,7 +97,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
         long reminder = address - pageAddress;
 
 
-        if (pageAddress >= hashStoredSincePage &&
+        if (formatWithHashCodeIsUsed &&
                 reminder == cachePageSize - BufferedDataWriter.LOGGABLE_DATA) {
             assert reminder <= cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
 
@@ -110,7 +110,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
             this.pageAddress = pageAddress;
         }
 
-        if (pageAddress >= hashStoredSincePage) {
+        if (formatWithHashCodeIsUsed) {
             length = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
         } else {
             length = cachePageSize;
@@ -133,7 +133,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
             checkPage(address);
             final long pageAddress = address & pageAddressMask;
 
-            if (pageAddress >= hashStoredSincePage) {
+            if (formatWithHashCodeIsUsed) {
                 length = (int) Math.min(log.getHighAddress() - pageAddress,
                         cachePageSize - BufferedDataWriter.LOGGABLE_DATA);
             } else {

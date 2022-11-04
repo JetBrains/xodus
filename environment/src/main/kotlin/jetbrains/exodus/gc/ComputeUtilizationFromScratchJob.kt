@@ -49,7 +49,7 @@ internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc
                                     val loggable = log.read(address)
                                     val fileAddress = log.getFileAddress(address)
                                     usedSpace[fileAddress] = (usedSpace[fileAddress]
-                                            ?: 0L) + loggable.length().toLong()
+                                            ?: 0L) + loggable.length()
                                 }
                             }
                         }

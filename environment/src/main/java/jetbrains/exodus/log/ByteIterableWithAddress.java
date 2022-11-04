@@ -61,7 +61,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
 
     public abstract int compareTo(final int offset, final int len, @NotNull final ByteIterable right);
 
-    public abstract ByteIterableWithAddress clone(final int offset);
+    public abstract ByteIterableWithAddress clone(final long address);
 
     @Override
     public byte[] getBytesUnsafe() {

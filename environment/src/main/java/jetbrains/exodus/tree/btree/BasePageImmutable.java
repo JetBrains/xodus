@@ -34,7 +34,7 @@ abstract class BasePageImmutable extends BasePage {
     protected final Log log;
 
     private final boolean allKeyAddressesInsideSinglePage;
-    private final long hashStoredSincePage;
+    private final boolean formatWithHashCodeIsUsed;
 
 
     /**
@@ -49,7 +49,7 @@ abstract class BasePageImmutable extends BasePage {
         dataAddress = Loggable.NULL_ADDRESS;
         allKeyAddressesInsideSinglePage = true;
         log = tree.log;
-        hashStoredSincePage = log.getHashStoredSincePage();
+        formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
     }
 
     /**
@@ -68,7 +68,7 @@ abstract class BasePageImmutable extends BasePage {
         init(it);
 
         allKeyAddressesInsideSinglePage = isAllKeyAddressesInsideSinglePage();
-        hashStoredSincePage = log.getHashStoredSincePage();
+        formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
     }
 
     private boolean isAllKeyAddressesInsideSinglePage() {
@@ -92,7 +92,7 @@ abstract class BasePageImmutable extends BasePage {
         init(data.iterator());
 
         allKeyAddressesInsideSinglePage = isAllKeyAddressesInsideSinglePage();
-        hashStoredSincePage = log.getHashStoredSincePage();
+        formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
     }
 
     private void init(@NotNull final ByteIteratorWithAddress itr) {
@@ -185,7 +185,7 @@ abstract class BasePageImmutable extends BasePage {
             return -1;
         }
 
-        if (dataAddress >= hashStoredSincePage) {
+        if (formatWithHashCodeIsUsed) {
             return nonCompatibleBinarySearch(key, low);
         } else {
             return compatibleBinarySearch(key, low);
@@ -280,7 +280,7 @@ abstract class BasePageImmutable extends BasePage {
             final int offset;
 
             final int adjustedPageSize;
-            if (midAddress >= hashStoredSincePage) {
+            if (formatWithHashCodeIsUsed) {
                 adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
             } else {
                 adjustedPageSize = cachePageSize;
