@@ -554,7 +554,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             }
         }
     }
-
+//
 //    @Test
 //    public void testMigration() throws Exception {
 //        final String envHome = "/home/andrey/old-db";

@@ -29,6 +29,7 @@ class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteI
     private int offset;
     private final Log log;
     private final boolean formatWithHashCodeIsUsed;
+    private final int cachePageSize;
 
     CompoundByteIterator(final long address, final Log log) {
         current = ArrayByteIterable.EMPTY.ITERATOR;
@@ -37,6 +38,10 @@ class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteI
         offset = 0;
         this.log = log;
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
+        cachePageSize = log.getCachePageSize();
+
+        assert !formatWithHashCodeIsUsed ||
+                getAddress() % cachePageSize < cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
     }
 
     @Override
@@ -111,12 +116,22 @@ class CompoundByteIterator extends ByteIteratorWithAddress implements BlockByteI
             current = page.iterator(alignment);
             offset = current.getOffset();
         }
+
+        assert !formatWithHashCodeIsUsed || getAddress() % cachePageSize <
+                log.getCachePageSize() - BufferedDataWriter.LOGGABLE_DATA;
+
         return true;
     }
 
     @Override
     public long getAddress() {
-        return currentAddress + current.getOffset() - offset;
+        if (current.hasNext()) {
+            return currentAddress + current.getOffset() - offset;
+        }
+
+        //current page is exhausted and we point to the next page
+        return (currentAddress & (~(long) (cachePageSize - 1))) + cachePageSize;
+
     }
 
     @Override

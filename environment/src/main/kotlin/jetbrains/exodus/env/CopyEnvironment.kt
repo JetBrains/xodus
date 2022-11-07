@@ -63,6 +63,8 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                             storeSize = sourceStore.count(sourceTxn)
                             sourceStore.openCursor(sourceTxn).forEachIndexed {
                                 counter++
+                                if (counter == 67106) {
+                                }
                                 targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
 //                                if ((it + 1) % 100_000 == 0 || guard.isItCloseToOOM()) {
                                 targetTxn.flush()

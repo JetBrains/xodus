@@ -64,7 +64,12 @@ public final class DataIterator extends ByteIteratorWithAddress {
             DataCorruptionException.raise(
                     "DataIterator: no more bytes available", log, getAddress());
         }
-        return page[offset++];
+
+        var current = offset;
+        offset++;
+        assert offset <= length;
+
+        return page[current];
     }
 
     @Override
@@ -93,17 +98,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
     }
 
     public void checkPage(long address) {
-        long pageAddress = address & pageAddressMask;
-        long reminder = address - pageAddress;
-
-
-        if (formatWithHashCodeIsUsed &&
-                reminder == cachePageSize - BufferedDataWriter.LOGGABLE_DATA) {
-            assert reminder <= cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
-
-            pageAddress += cachePageSize;
-            address += BufferedDataWriter.LOGGABLE_DATA;
-        }
+        final long pageAddress = address & pageAddressMask;
 
         if (this.pageAddress != pageAddress) {
             page = log.cache.getPage(log, pageAddress);
@@ -121,7 +116,14 @@ public final class DataIterator extends ByteIteratorWithAddress {
 
     @Override
     public long getAddress() {
-        return pageAddress + offset;
+        assert offset <= length;
+
+        if (offset < length) {
+            return pageAddress + offset;
+        }
+
+        //current page is exhausted and we point to the next page
+        return pageAddress + cachePageSize;
     }
 
     public int getOffset() {
