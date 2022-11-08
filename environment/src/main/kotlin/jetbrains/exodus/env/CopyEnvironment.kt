@@ -34,7 +34,6 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
         val names = computeInReadonlyTransaction { txn -> getAllStoreNames(txn) }
         val storesCount = names.size
         progress?.invoke("Stores found: $storesCount")
-        var counter = 0
 
         names.forEachIndexed { i, name ->
             val started = Date()
@@ -42,7 +41,6 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
             var storeSize = 0L
             var storeIsBroken: Throwable? = null
             try {
-                newEnv.suspendGC()
                 newEnv.executeInExclusiveTransaction { targetTxn ->
                     try {
                         executeInReadonlyTransaction { sourceTxn ->
@@ -54,13 +52,12 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                             val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
                             storeSize = sourceStore.count(sourceTxn)
                             sourceStore.openCursor(sourceTxn).forEachIndexed {
-                                counter++
                                 targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
-//                                if ((it + 1) % 100_000 == 0 || guard.isItCloseToOOM()) {
-                                targetTxn.flush()
-                                guard.reset()
-//                                    print(copyStoreMessage(started, name, i + 1, storesCount, (it.toLong() * 100L / storeSize)))
-//                                }
+                                if ((it + 1) % 100_000 == 0 || guard.isItCloseToOOM()) {
+                                    targetTxn.flush()
+                                    guard.reset()
+                                    print(copyStoreMessage(started, name, i + 1, storesCount, (it.toLong() * 100L / storeSize)))
+                                }
 
                             }
                         }
