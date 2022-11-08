@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,9 +18,7 @@ package jetbrains.exodus.tree.patricia;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.log.ByteIterableWithAddress;
-import jetbrains.exodus.log.ByteIteratorWithAddress;
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.INode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,14 +26,18 @@ import org.jetbrains.annotations.Nullable;
 import java.io.PrintStream;
 
 @SuppressWarnings({"ProtectedField"})
-abstract class NodeBase implements INode {
+abstract class
+NodeBase implements INode {
 
     private static final int LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH = 16;
 
     @NotNull
     protected ByteIterable keySequence;
+
     @Nullable
     protected ByteIterable value;
+
+    protected boolean insideSinglePage;
 
     NodeBase(@NotNull final ByteIterable keySequence, @Nullable final ByteIterable value) {
         this.keySequence = keySequence;
@@ -44,9 +46,13 @@ abstract class NodeBase implements INode {
 
     NodeBase(final byte type,
              @NotNull final ByteIterableWithAddress data,
-             @NotNull final ByteIteratorWithAddress it) {
-        this.keySequence = extractKey(type, data, it);
-        this.value = extractValue(type, data, it);
+             @NotNull final ByteIteratorWithAddress it,
+             @NotNull final RandomAccessLoggable loggable,
+             @NotNull Log log) {
+        this.insideSinglePage = log.insideSinglePage(loggable.getAddress(), loggable.end());
+
+        this.keySequence = extractKey(type, data, it, log, insideSinglePage);
+        this.value = extractValue(type, data, it, log, insideSinglePage);
     }
 
     long matchesKeySequence(@NotNull final ByteIterator it) {
@@ -118,8 +124,8 @@ abstract class NodeBase implements INode {
     @Override
     public String toString() {
         return String.format("%s} %s %s",
-            keySequence.iterator().hasNext() ? "{key:" + keySequence.toString() : '{',
-            value == null ? "@" : value.toString() + " @", getAddress()
+                keySequence.iterator().hasNext() ? "{key:" + keySequence.toString() : '{',
+                value == null ? "@" : value.toString() + " @", getAddress()
         );
     }
 
@@ -232,25 +238,31 @@ abstract class NodeBase implements INode {
     @NotNull
     private static ByteIterable extractKey(final byte type,
                                            @NotNull final ByteIterableWithAddress data,
-                                           @NotNull final ByteIteratorWithAddress it) {
+                                           @NotNull final ByteIteratorWithAddress it,
+                                           @NotNull final Log log,
+                                           boolean insideSinglePage) {
         if (!PatriciaTreeBase.nodeHasKey(type)) {
             return ByteIterable.EMPTY;
         }
-        return extractLazyIterable(data, it);
+        return extractLazyIterable(data, it, log, insideSinglePage);
     }
 
     @Nullable
     private static ByteIterable extractValue(final byte type,
                                              @NotNull final ByteIterableWithAddress data,
-                                             @NotNull final ByteIteratorWithAddress it) {
+                                             @NotNull final ByteIteratorWithAddress it,
+                                             @NotNull final Log log,
+                                             boolean insideSinglePage) {
         if (!PatriciaTreeBase.nodeHasValue(type)) {
             return null;
         }
-        return extractLazyIterable(data, it);
+        return extractLazyIterable(data, it, log, insideSinglePage);
     }
 
     private static ByteIterable extractLazyIterable(@NotNull final ByteIterableWithAddress data,
-                                                    @NotNull final ByteIteratorWithAddress it) {
+                                                    @NotNull final ByteIteratorWithAddress it,
+                                                    @NotNull final Log log,
+                                                    boolean insideSinglePage) {
         final int length = CompressedUnsignedLongByteIterable.getInt(it);
         if (length == 1) {
             return ArrayByteIterable.fromByte(it.next());
@@ -258,7 +270,13 @@ abstract class NodeBase implements INode {
         if (length < LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH) {
             return new ArrayByteIterable(it, length);
         }
-        final ByteIterable result = data.subIterable((int) (it.getAddress() - data.getDataAddress()), length);
+        final ByteIterable result;
+        if (insideSinglePage) {
+            result = data.subIterable((int) (it.getAddress() - data.getDataAddress()), length);
+        } else {
+            result = data.subIterable(log.loggableLength(data.getDataAddress(), it.getAddress()), length);
+        }
+
         it.skip(length);
         return result;
     }

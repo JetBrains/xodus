@@ -501,15 +501,20 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         }
     }
 
-    private fun loggableLength(lowAddress: Long, highAddress: Long): Int {
-        val pageReminderMask = (cachePageSize - 1).toLong()
-        val pageAddressMask = pageReminderMask.inv()
+    fun loggableLength(lowAddress: Long, highAddress: Long): Int {
+        return if (formatWithHashCodeIsUsed) {
+            val pageReminderMask = (cachePageSize - 1).toLong()
+            val pageAddressMask = pageReminderMask.inv()
 
-        val firstPageAddress = lowAddress and pageAddressMask
-        val secondPageAddress = highAddress and pageAddressMask
+            val firstPageAddress = lowAddress and pageAddressMask
+            val secondPageAddress = highAddress and pageAddressMask
 
-        val pages = (secondPageAddress - firstPageAddress) / cachePageSize
-        return ((highAddress - lowAddress) - BufferedDataWriter.LOGGABLE_DATA * pages).toInt()
+            val pages = (secondPageAddress - firstPageAddress) / cachePageSize
+            val len = ((highAddress - lowAddress) - BufferedDataWriter.LOGGABLE_DATA * pages).toInt()
+            len
+        } else {
+            (highAddress - lowAddress).toInt()
+        }
     }
 
 

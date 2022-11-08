@@ -46,7 +46,7 @@ internal class ImmutableNode : NodeBase {
     private val childrenCount: Short
     private val childAddressLength: Byte
     private val baseAddress: Long // if it is not equal to NULL_ADDRESS then the node is saved in the v2 format
-    private val insideSinglePage: Boolean
+
 
     constructor(log: Log, loggable: RandomAccessLoggable, data: ByteIterableWithAddress) :
             this(log, loggable.type, loggable, data, data.iterator())
@@ -57,7 +57,7 @@ internal class ImmutableNode : NodeBase {
             loggable: RandomAccessLoggable,
             data: ByteIterableWithAddress,
             it: ByteIteratorWithAddress
-    ) : super(type, data, it) {
+    ) : super(type, data, it, loggable, log) {
         this.log = log
         this.loggable = loggable
         this.data = data
@@ -78,8 +78,6 @@ internal class ImmutableNode : NodeBase {
         }
         this.baseAddress = baseAddress
         dataAddress = it.address
-
-        insideSinglePage = log.insideSinglePage(loggable.address, loggable.end())
     }
 
     /**

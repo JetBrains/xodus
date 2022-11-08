@@ -34,16 +34,8 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
         val names = computeInReadonlyTransaction { txn -> getAllStoreNames(txn) }
         val storesCount = names.size
         progress?.invoke("Stores found: $storesCount")
-        val trackedKey = ArrayByteIterable(byteArrayOf(120, 90, 126, -85, 70, -124, 117, -32, -72, 103,
-                48, 108, 33, 115, -118, 74, -75, -81, -63, -30, -102, -6, -60, 125))
-        val trackedValue = ArrayByteIterable(byteArrayOf(54, -61, -79, 49, -79, -23, -3, -119, 118, -64, 25, -12, -11,
-                78, 4, 5, 4, -56, -123, -91, 89, 114, -10, 41, -113, -67, -46, 49, 54, 119, 110, -25, 65, 69, 38,
-                101, 16, 14, -15, 126, -111, 66, 103, -9, -31, -4))
-
         var counter = 0
-        var insertionCounter = 0
-        var keyPresent = false
-        var keyStore: Store? = null
+
         names.forEachIndexed { i, name ->
             val started = Date()
             print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
@@ -63,8 +55,6 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                             storeSize = sourceStore.count(sourceTxn)
                             sourceStore.openCursor(sourceTxn).forEachIndexed {
                                 counter++
-                                if (counter == 67106) {
-                                }
                                 targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
 //                                if ((it + 1) % 100_000 == 0 || guard.isItCloseToOOM()) {
                                 targetTxn.flush()
@@ -72,16 +62,6 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
 //                                    print(copyStoreMessage(started, name, i + 1, storesCount, (it.toLong() * 100L / storeSize)))
 //                                }
 
-                                if (!keyPresent && key == trackedKey) {
-                                    keyPresent = true
-                                    keyStore = targetStore
-                                    insertionCounter = counter
-                                }
-                                if (keyPresent) {
-                                    if (trackedValue != keyStore!!.get(targetTxn, trackedKey)) {
-                                        keyStore!!.get(targetTxn, trackedKey)
-                                    }
-                                }
                             }
                         }
                     } catch (t: Throwable) {
