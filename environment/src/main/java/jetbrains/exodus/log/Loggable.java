@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -75,4 +75,13 @@ public interface Loggable {
      * @return unique structure id.
      */
     int getStructureId();
+
+    /**
+     * Indicates if all loggable completely stored inside single page.
+     * This flag is used for optimization of calculation of relative addresses of part of loggable inside
+     * implementations of data structures.
+     *
+     * @return {@code true} if all loggable data are stored inside single page.
+     */
+    boolean isDataInsideSinglePage();
 }

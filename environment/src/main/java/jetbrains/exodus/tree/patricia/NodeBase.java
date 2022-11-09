@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -49,7 +49,7 @@ NodeBase implements INode {
              @NotNull final ByteIteratorWithAddress it,
              @NotNull final RandomAccessLoggable loggable,
              @NotNull Log log) {
-        this.insideSinglePage = log.insideSinglePage(loggable.getAddress(), loggable.end());
+        this.insideSinglePage = loggable.isDataInsideSinglePage();
 
         this.keySequence = extractKey(type, data, it, log, insideSinglePage);
         this.value = extractValue(type, data, it, log, insideSinglePage);
@@ -124,8 +124,8 @@ NodeBase implements INode {
     @Override
     public String toString() {
         return String.format("%s} %s %s",
-                keySequence.iterator().hasNext() ? "{key:" + keySequence.toString() : '{',
-                value == null ? "@" : value.toString() + " @", getAddress()
+                keySequence.iterator().hasNext() ? "{key:" + keySequence : '{',
+                value == null ? "@" : value + " @", getAddress()
         );
     }
 

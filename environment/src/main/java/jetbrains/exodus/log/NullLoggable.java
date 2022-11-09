@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,7 +25,7 @@ public final class NullLoggable extends RandomAccessLoggableImpl {
 
     NullLoggable(final long address, final long end) {
         super(address, end, 1, TYPE, ByteIterableWithAddress.getEmpty(address + 1),
-                0, NO_STRUCTURE_ID);
+                0, NO_STRUCTURE_ID, true);
     }
 
     public static NullLoggable create() {
@@ -35,6 +35,11 @@ public final class NullLoggable extends RandomAccessLoggableImpl {
     @Override
     public long getAddress() {
         return Loggable.NULL_ADDRESS;
+    }
+
+    @Override
+    public boolean isDataInsideSinglePage() {
+        return true;
     }
 
     public static boolean isNullLoggable(final byte type) {

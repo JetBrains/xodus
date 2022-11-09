@@ -471,25 +471,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         return Loggable.NULL_ADDRESS
     }
 
-    fun isLastFileAddress(address: Long, logTip: LogTip): Boolean {
+    private fun isLastFileAddress(address: Long, logTip: LogTip): Boolean {
         return getFileAddress(address) == getFileAddress(logTip.highAddress)
     }
 
     fun isLastWrittenFileAddress(address: Long): Boolean {
         return getFileAddress(address) == getFileAddress(writtenHighAddress)
-    }
-
-    fun insideSinglePage(lowAddress: Long, highAddress: Long): Boolean {
-        assert(lowAddress <= highAddress)
-
-        val cachePageReminderMask = (cachePageSize - 1).toLong()
-        val writtenInPage = lowAddress and cachePageReminderMask
-
-        return if (formatWithHashCodeIsUsed) {
-            (highAddress - lowAddress) + writtenInPage < cachePageSize - BufferedDataWriter.LOGGABLE_DATA
-        } else {
-            (highAddress - lowAddress) + writtenInPage < cachePageSize
-        }
     }
 
     fun adjustedLoggableAddress(address: Long, offset: Long): Long {
@@ -630,7 +617,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
             return RandomAccessLoggableAndArrayByteIterable(
                     address, end,
-                    type, structureId, length, dataAddress, it.currentPage, it.offset, dataLength)
+                    type, structureId, length, dataAddress, it.currentPage,
+                    it.offset, dataLength, true)
         }
 
         val data = RandomAccessByteIterable(dataAddress, this)
@@ -638,7 +626,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         val length = loggableLength(address, end)
 
         return RandomAccessLoggableImpl(address, end, length,
-                type, data, dataLength, structureId)
+                type, data, dataLength, structureId, false)
     }
 
     fun getLoggableIterator(startAddress: Long): LoggableIterator {

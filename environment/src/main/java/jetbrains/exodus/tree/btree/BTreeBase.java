@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -115,8 +115,8 @@ public abstract class BTreeBase implements ITree {
     @Override
     public ITreeCursor openCursor() {
         return allowsDuplicates ?
-            new BTreeCursorDup(new BTreeTraverserDup(getRoot())) :
-            new TreeCursor(new BTreeTraverser(getRoot()));
+                new BTreeCursorDup(new BTreeTraverserDup(getRoot())) :
+                new TreeCursor(new BTreeTraverser(getRoot()));
     }
 
     protected final RandomAccessLoggable getLoggable(long address) {
@@ -126,24 +126,25 @@ public abstract class BTreeBase implements ITree {
     @NotNull
     protected final BasePageImmutable loadPage(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
-        return loadPage(loggable.getType(), loggable.getData());
+        return loadPage(loggable.getType(), loggable.getData(), loggable.isDataInsideSinglePage());
     }
 
     @NotNull
-    protected final BasePageImmutable loadPage(final int type, @NotNull final ByteIterableWithAddress data) {
+    protected final BasePageImmutable loadPage(final int type, @NotNull final ByteIterableWithAddress data,
+                                               final boolean loggableInsideSinglePage) {
         final BasePageImmutable result;
         switch (type) {
             case LEAF_DUP_BOTTOM_ROOT: // TODO: convert to enum
             case BOTTOM_ROOT:
             case BOTTOM:
             case DUP_BOTTOM:
-                result = new BottomPage(this, data);
+                result = new BottomPage(this, data, loggableInsideSinglePage);
                 break;
             case LEAF_DUP_INTERNAL_ROOT:
             case INTERNAL_ROOT:
             case INTERNAL:
             case DUP_INTERNAL:
-                result = new InternalPage(this, data);
+                result = new InternalPage(this, data, loggableInsideSinglePage);
                 break;
             default:
                 throw new IllegalArgumentException("Unknown loggable type [" + type + ']');
@@ -164,7 +165,8 @@ public abstract class BTreeBase implements ITree {
                 if (allowsDuplicates) {
                     return new LeafNodeDup(this, loggable);
                 } else {
-                    throw new ExodusException("Try to load leaf with duplicates, but tree is not configured to support duplicates.");
+                    throw new ExodusException("Try to load leaf with duplicates, but tree is not configured " +
+                            "to support duplicates.");
                 }
             default:
                 DataCorruptionException.raise("Unexpected loggable type: " + type, log, address);

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,7 +19,6 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,27 +27,15 @@ import java.io.PrintStream;
 class InternalPage extends BasePageImmutable {
 
     private byte childAddressLen;
-    private final boolean allChildrenAddressesInsideSinglePage;
-    private final long baseChildrenAddress;
 
-    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
-        super(tree, data);
-
-        baseChildrenAddress = log.adjustedLoggableAddress(dataAddress, ((long) size) * keyAddressLen + 1);
-        allChildrenAddressesInsideSinglePage = isAllChildrenAddressesInsideSinglePage();
+    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data,
+                           final boolean loggableInsideSinglePage) {
+        super(tree, data, loggableInsideSinglePage);
     }
 
-    private boolean isAllChildrenAddressesInsideSinglePage() {
-        final long lastPointerAddress = baseChildrenAddress + ((long) childAddressLen) * (size - 1);
-
-        return log.insideSinglePage(baseChildrenAddress, lastPointerAddress);
-    }
-
-    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
-        super(tree, data, size);
-
-        baseChildrenAddress = log.adjustedLoggableAddress(dataAddress, ((long) size) * keyAddressLen + 1);
-        allChildrenAddressesInsideSinglePage = isAllChildrenAddressesInsideSinglePage();
+    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size,
+                           final boolean loggableInsideSinglePage) {
+        super(tree, data, size, loggableInsideSinglePage);
     }
 
     @Override
@@ -67,12 +54,12 @@ class InternalPage extends BasePageImmutable {
     @Override
     public long getChildAddress(final int index) {
         final long childPointerAddress;
+        final long offset = ((long) size) * keyAddressLen + 1 + ((long) index) * childAddressLen;
 
-        if (allChildrenAddressesInsideSinglePage) {
-            childPointerAddress = baseChildrenAddress + ((long) index) * childAddressLen;
+        if (loggableInsideSinglePage) {
+            childPointerAddress = dataAddress + offset;
         } else {
-            childPointerAddress = log.adjustedLoggableAddress(baseChildrenAddress,
-                    ((long) index) * childAddressLen);
+            childPointerAddress = log.adjustedLoggableAddress(dataAddress, offset);
         }
 
         return data.nextLongByAddress(childPointerAddress, childAddressLen);

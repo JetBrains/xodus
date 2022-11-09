@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,6 +24,7 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
     private final int structureId;
     private final byte type;
     private final int length;
+    private final boolean dataInsideSinglePage;
 
     RandomAccessLoggableAndArrayByteIterable(final long address,
                                              final long end,
@@ -33,13 +34,15 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
                                              final long dataAddress,
                                              final byte @NotNull [] bytes,
                                              final int start,
-                                             final int dataLength) {
+                                             final int dataLength,
+                                             final boolean dataInsideSinglePage) {
         super(dataAddress, bytes, start, dataLength);
         this.structureId = structureId;
         this.type = type;
         this.address = address;
         this.end = end;
         this.length = length;
+        this.dataInsideSinglePage = dataInsideSinglePage;
     }
 
     @Override
@@ -76,5 +79,10 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
     @Override
     public int getStructureId() {
         return structureId;
+    }
+
+    @Override
+    public boolean isDataInsideSinglePage() {
+        return dataInsideSinglePage;
     }
 }

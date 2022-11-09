@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,7 +33,7 @@ abstract class BasePageImmutable extends BasePage {
     private ILeafNode maxKey = null;
     protected final Log log;
 
-    private final boolean allKeyAddressesInsideSinglePage;
+    protected final boolean loggableInsideSinglePage;
     private final boolean formatWithHashCodeIsUsed;
 
 
@@ -47,7 +47,7 @@ abstract class BasePageImmutable extends BasePage {
         data = ByteIterableWithAddress.EMPTY;
         size = 0;
         dataAddress = Loggable.NULL_ADDRESS;
-        allKeyAddressesInsideSinglePage = true;
+        loggableInsideSinglePage = true;
         log = tree.log;
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
     }
@@ -58,7 +58,8 @@ abstract class BasePageImmutable extends BasePage {
      * @param tree tree which the page belongs to
      * @param data binary data to load the page from.
      */
-    BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
+    BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data,
+                      final boolean loggableInsideSinglePage) {
         super(tree);
         log = tree.log;
         this.data = data;
@@ -67,13 +68,8 @@ abstract class BasePageImmutable extends BasePage {
         size = CompressedUnsignedLongByteIterable.getInt(it) >> 1;
         init(it);
 
-        allKeyAddressesInsideSinglePage = isAllKeyAddressesInsideSinglePage();
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
-    }
-
-    private boolean isAllKeyAddressesInsideSinglePage() {
-        return log.insideSinglePage(dataAddress,
-                dataAddress + ((long) (size - 1)) * keyAddressLen);
+        this.loggableInsideSinglePage = loggableInsideSinglePage;
     }
 
     /**
@@ -83,7 +79,9 @@ abstract class BasePageImmutable extends BasePage {
      * @param data source iterator
      * @param size computed size
      */
-    BasePageImmutable(@NotNull BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
+    BasePageImmutable(@NotNull BTreeBase tree,
+                      @NotNull final ByteIterableWithAddress data, int size,
+                      final boolean loggableInsideSinglePage) {
         super(tree);
         log = tree.log;
 
@@ -91,7 +89,7 @@ abstract class BasePageImmutable extends BasePage {
         this.size = size;
         init(data.iterator());
 
-        allKeyAddressesInsideSinglePage = isAllKeyAddressesInsideSinglePage();
+        this.loggableInsideSinglePage = loggableInsideSinglePage;
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
     }
 
@@ -144,7 +142,7 @@ abstract class BasePageImmutable extends BasePage {
         }
 
         final long address;
-        if (allKeyAddressesInsideSinglePage) {
+        if (loggableInsideSinglePage) {
             address = dataAddress + (long) index * keyAddressLen;
         } else {
             address = log.adjustedLoggableAddress(dataAddress, (long) index * keyAddressLen);
@@ -210,7 +208,7 @@ abstract class BasePageImmutable extends BasePage {
             final int mid = (low + high) >>> 1;
 
             final long midAddress;
-            if (allKeyAddressesInsideSinglePage) {
+            if (loggableInsideSinglePage) {
                 midAddress = dataAddress + ((long) mid) * bytesPerAddress;
             } else {
                 midAddress = log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
@@ -271,7 +269,7 @@ abstract class BasePageImmutable extends BasePage {
             final int mid = (low + high) >>> 1;
 
             final long midAddress;
-            if (allKeyAddressesInsideSinglePage) {
+            if (loggableInsideSinglePage) {
                 midAddress = dataAddress + ((long) mid) * bytesPerAddress;
             } else {
                 midAddress = log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
