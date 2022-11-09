@@ -65,12 +65,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     var startupMetadata: StartupMetadata
 
-    val isClassedCorrectly: Boolean
+    val isClossedCorrectly: Boolean
         get() = startupMetadata.isCorrectlyClosed
 
     /** Size of single page in log cache. */
     var cachePageSize: Int
-
 
     /**
      * Indicate whether it is needed to perform migration to the format which contains
@@ -332,6 +331,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         } finally {
             endWrite()
         }
+    }
+
+    fun dataSpaceLeftInPage(address: Long): Int {
+        val pageAddress = (cachePageSize - 1).toLong().inv() and address
+        val writtenSpace = address - pageAddress
+
+        assert(writtenSpace >= 0 && writtenSpace < cachePageSize - BufferedDataWriter.LOGGABLE_DATA)
+        return cachePageSize - BufferedDataWriter.LOGGABLE_DATA - writtenSpace.toInt()
     }
 
     fun switchToReadOnlyMode() {

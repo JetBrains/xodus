@@ -16,6 +16,7 @@
 package jetbrains.exodus.env
 
 import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.crypto.newCipherProvider
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.FileDataWriter
@@ -25,6 +26,7 @@ import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.StartupMetadata
+import jetbrains.exodus.tree.ExpiredLoggableCollection
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -203,7 +205,27 @@ object Environments {
                 tempDir.delete()
             }
         }
-        env.gc.utilizationProfile.load()
+
+        if (env.log.isClossedCorrectly) {
+            env.gc.utilizationProfile.load()
+            val rootAddress = env.metaTree.rootAddress()
+            val rootLoggable = env.log.read(rootAddress)
+
+            //once we close the log, the rest of the page is padded with null loggables
+            //this free space should be taken into account during next open
+            val paddedSpace = env.log.dataSpaceLeftInPage(rootAddress)
+            val expiredLoggableCollection = ExpiredLoggableCollection()
+
+            expiredLoggableCollection.add(rootLoggable.end(), paddedSpace)
+            env.gc.utilizationProfile.fetchExpiredLoggables(expiredLoggableCollection)
+        } else {
+            EnvironmentImpl.loggerInfo(
+                    "Because environment ${env.log.location} was closed incorrectly space utilization " +
+                            "will be computed from scratch")
+            env.gc.utilizationProfile.computeUtilizationFromScratch()
+            EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.location} is completed")
+        }
+
         val metaServer = ec.metaServer
         metaServer?.start(env)
         return env

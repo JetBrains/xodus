@@ -54,7 +54,7 @@ final class MetaTreeImpl implements MetaTree {
 
             Loggable rootLoggable;
             final long rootAddress = log.getStartUpDbRoot();
-            if (log.isClassedCorrectly() && rootAddress >= 0) {
+            if (log.isClossedCorrectly() && rootAddress >= 0) {
                 rootLoggable = log.read(rootAddress);
             } else {
                 rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);

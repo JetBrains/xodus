@@ -28,6 +28,7 @@ import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.kotlin.synchronized
 import jetbrains.exodus.log.AbstractBlockListener
+import jetbrains.exodus.log.BufferedDataWriter
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.tree.ExpiredLoggableCollection
@@ -39,7 +40,8 @@ import kotlin.math.min
 class UtilizationProfile(private val env: EnvironmentImpl, private val gc: GarbageCollector) {
 
     private val log: Log = env.log
-    private val fileSize = log.fileLengthBound // in bytes
+    private val usefulFileSize = (log.fileLengthBound / log.cachePageSize) *
+            (log.cachePageSize - BufferedDataWriter.LOGGABLE_DATA) // file size which could be used by loggables
     private val filesUtilization = LongHashMap<MutableLong>() // file address -> number of free bytes
     private var totalBytes: Long = 0
     private var totalFreeBytes: Long = 0
@@ -204,17 +206,17 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         val minFileAge = gc.minFileAge
         val totalFreeBytes: Long = filesUtilization.synchronized {
             (minFileAge until filesCount).fold(0L) { sum, i ->
-                sum + (this[fileAddresses[i]]?.value ?: fileSize)
+                sum + (this[fileAddresses[i]]?.value ?: usefulFileSize)
             }
         }
-        val totalBytes = if (filesCount > minFileAge) (filesCount - minFileAge) * fileSize else 0
+        val totalBytes = if (filesCount > minFileAge) (filesCount - minFileAge) * usefulFileSize else 0
         this.totalBytes = totalBytes
         this.totalFreeBytes = min(totalFreeBytes, totalBytes)
     }
 
     internal fun getFilesSortedByUtilization(highFile: Long): Iterator<Long> {
         val fileAddresses = log.allFileAddresses
-        val maxFreeBytes = fileSize * gc.maximumFreeSpacePercent.toLong() / 100L
+        val maxFreeBytes = usefulFileSize * gc.maximumFreeSpacePercent.toLong() / 100L
         val fragmentedFiles = PriorityQueue(10, Comparator<Pair<Long, Long>> { leftPair, rightPair ->
             val leftFreeBytes = leftPair.second
             val rightFreeBytes = rightPair.second
@@ -229,11 +231,11 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             (gc.minFileAge until fileAddresses.size).forEach { i ->
                 val file = fileAddresses[i]
                 if (file < highFile && !gc.isFileCleaned(file)) {
-                    totalCleanableBytes += fileSize
+                    totalCleanableBytes += usefulFileSize
                     val freeBytes = this[file]
                     totalFreeBytes += if (freeBytes == null) {
-                        fragmentedFiles.add(Pair(file, fileSize))
-                        fileSize
+                        fragmentedFiles.add(Pair(file, usefulFileSize))
+                        usefulFileSize
                     } else {
                         val freeBytesValue = freeBytes.value
                         if (freeBytesValue > maxFreeBytes) {
@@ -306,7 +308,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     internal fun setUtilization(usedSpace: LongHashMap<Long>) = filesUtilization.synchronized {
         for ((fileAddress, usedBytes) in usedSpace) {
-            (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += max((fileSize - usedBytes), 0L)
+            (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += max((usefulFileSize - usedBytes), 0L)
         }
     }
 
