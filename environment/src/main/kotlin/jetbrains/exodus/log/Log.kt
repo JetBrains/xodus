@@ -613,20 +613,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
             val end = dataAddress + dataLength
-            val length = loggableLength(address, end)
 
             return RandomAccessLoggableAndArrayByteIterable(
                     address, end,
-                    type, structureId, length, dataAddress, it.currentPage,
-                    it.offset, dataLength, true)
+                    type, structureId,  dataAddress, it.currentPage,
+                    it.offset, dataLength, true, this)
         }
 
         val data = RandomAccessByteIterable(dataAddress, this)
-        val end = adjustedLoggableAddress(dataAddress, dataLength.toLong())
-        val length = loggableLength(address, end)
 
-        return RandomAccessLoggableImpl(address, end, length,
-                type, data, dataLength, structureId, false)
+        return RandomAccessLoggableImpl(address,
+                type, data, dataLength, structureId, false, this)
     }
 
     fun getLoggableIterator(startAddress: Long): LoggableIterator {

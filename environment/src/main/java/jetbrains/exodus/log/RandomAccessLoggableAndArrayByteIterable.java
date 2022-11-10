@@ -23,26 +23,26 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
     private final long end;
     private final int structureId;
     private final byte type;
-    private final int length;
     private final boolean dataInsideSinglePage;
+    private final Log log;
 
     RandomAccessLoggableAndArrayByteIterable(final long address,
                                              final long end,
                                              final byte type,
                                              final int structureId,
-                                             final int length,
                                              final long dataAddress,
                                              final byte @NotNull [] bytes,
                                              final int start,
                                              final int dataLength,
-                                             final boolean dataInsideSinglePage) {
+                                             final boolean dataInsideSinglePage,
+                                             final Log log) {
         super(dataAddress, bytes, start, dataLength);
         this.structureId = structureId;
         this.type = type;
         this.address = address;
         this.end = end;
-        this.length = length;
         this.dataInsideSinglePage = dataInsideSinglePage;
+        this.log = log;
     }
 
     @Override
@@ -57,7 +57,7 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
 
     @Override
     public int length() {
-        return length;
+        return log.loggableLength(address, end);
     }
 
     @Override

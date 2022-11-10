@@ -24,10 +24,11 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
     private final ByteIterableWithAddress data;
     private final int structureId;
     private final int dataLength;
-    private final int length;
     private final long address;
-    private final long end;
     private final boolean dataInsideSinglePage;
+    private final Log log;
+    private int length = -1;
+    private long end = -1;
 
     public RandomAccessLoggableImpl(final long address,
                                     final long end,
@@ -45,6 +46,23 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
         this.structureId = structureId;
         this.dataLength = dataLength;
         this.dataInsideSinglePage = dataInsideSinglePage;
+        this.log = null;
+    }
+
+    public RandomAccessLoggableImpl(final long address,
+                                    final byte type,
+                                    @NotNull final ByteIterableWithAddress data,
+                                    final int dataLength,
+                                    final int structureId,
+                                    final boolean dataInsideSinglePage,
+                                    final Log log) {
+        this.address = address;
+        this.type = type;
+        this.data = data;
+        this.structureId = structureId;
+        this.dataLength = dataLength;
+        this.dataInsideSinglePage = dataInsideSinglePage;
+        this.log = log;
     }
 
     @Override
@@ -59,11 +77,23 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
 
     @Override
     public int length() {
+        if (length >= 0) {
+            return length;
+        }
+
+        assert log != null;
+        length = log.loggableLength(address, end());
         return length;
     }
 
     @Override
     public long end() {
+        if (end >= 0) {
+            return end;
+        }
+
+        assert log != null;
+        end = log.adjustedLoggableAddress(data.getDataAddress(), dataLength);
         return end;
     }
 
