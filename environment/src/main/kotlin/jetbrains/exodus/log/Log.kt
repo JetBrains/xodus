@@ -638,7 +638,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             return RandomAccessLoggableAndArrayByteIterable(
                 address, end,
                 type, structureId, dataAddress, it.currentPage,
-                it.offset, dataLength, true
+                it.offset, dataLength
             )
         }
 
@@ -646,7 +646,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
         return RandomAccessLoggableImpl(
             address,
-            type, data, dataLength, structureId, false, this
+            type, data, dataLength, structureId, this
         )
     }
 
@@ -800,22 +800,24 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         isClosing = true
 
         if (!rwIsReadonly) {
-            beginWrite()
-            try {
-                val writer = ensureWriter()
-                beforeWrite(writer)
+            if (formatWithHashCodeIsUsed) {
+                beginWrite()
+                try {
+                    val writer = ensureWriter()
+                    beforeWrite(writer)
 
-                //we pad page with nulls to ensure that all pages could be checked on consistency
-                //by hash code which is stored at the end of the page.
-                val written = writer.padPageWithNulls()
+                    //we pad page with nulls to ensure that all pages could be checked on consistency
+                    //by hash code which is stored at the end of the page.
+                    val written = writer.padPageWithNulls()
 
-                if (written > 0) {
-                    writer.commit(true)
-                    writer.flush(true)
-                    closeFullFileIfNecessary(writer)
+                    if (written > 0) {
+                        writer.commit(true)
+                        writer.flush(true)
+                        closeFullFileIfNecessary(writer)
+                    }
+                } finally {
+                    endWrite()
                 }
-            } finally {
-                endWrite()
             }
 
             sync()
@@ -823,7 +825,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             if (reader is FileDataReader) {
                 startupMetadata.closeAndUpdate(reader)
             }
-
         }
 
         reader.close()

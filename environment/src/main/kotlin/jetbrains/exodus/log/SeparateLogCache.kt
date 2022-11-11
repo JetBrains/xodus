@@ -24,11 +24,13 @@ internal class SeparateLogCache : LogCache {
 
     private val pagesCache: LongObjectCacheBase<ByteArray>
 
-    constructor(memoryUsage: Long,
-                pageSize: Int,
-                nonBlocking: Boolean,
-                useSoftReferences: Boolean,
-                cacheGenerationCount: Int) : super(memoryUsage, pageSize) {
+    constructor(
+        memoryUsage: Long,
+        pageSize: Int,
+        nonBlocking: Boolean,
+        useSoftReferences: Boolean,
+        cacheGenerationCount: Int
+    ) : super(memoryUsage, pageSize) {
         val pagesCount = (memoryUsage / (pageSize +  /* each page consumes additionally some bytes in the cache */
                 if (useSoftReferences) 144 else 80)).toInt()
         pagesCache = if (nonBlocking) {
@@ -46,11 +48,13 @@ internal class SeparateLogCache : LogCache {
         }
     }
 
-    constructor(memoryUsagePercentage: Int,
-                pageSize: Int,
-                nonBlocking: Boolean,
-                useSoftReferences: Boolean,
-                cacheGenerationCount: Int) : super(memoryUsagePercentage, pageSize) {
+    constructor(
+        memoryUsagePercentage: Int,
+        pageSize: Int,
+        nonBlocking: Boolean,
+        useSoftReferences: Boolean,
+        cacheGenerationCount: Int
+    ) : super(memoryUsagePercentage, pageSize) {
         pagesCache = if (memoryUsage == Long.MAX_VALUE) {
             if (nonBlocking) {
                 if (useSoftReferences) {
@@ -66,8 +70,9 @@ internal class SeparateLogCache : LogCache {
                 }
             }
         } else {
-            val pagesCount = (memoryUsage / (pageSize +  /* each page consumes additionally nearly 80 bytes in the cache */
-                    if (useSoftReferences) 144 else 80)).toInt()
+            val pagesCount =
+                (memoryUsage / (pageSize +  /* each page consumes additionally nearly 80 bytes in the cache */
+                        if (useSoftReferences) 144 else 80)).toInt()
             if (nonBlocking) {
                 if (useSoftReferences) {
                     SoftConcurrentLongObjectCache(pagesCount, cacheGenerationCount)
@@ -93,10 +98,9 @@ internal class SeparateLogCache : LogCache {
     override fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable {
         var page = pagesCache.tryKeyLocked(pageAddress)
 
-        val adjustedPageSize = if (formatWithHashCodeIsUsed) {
-            pageSize - BufferedDataWriter.LOGGABLE_DATA
-        } else {
-            pageSize
+        var adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA
+        if (!formatWithHashCodeIsUsed) {
+            adjustedPageSize = pageSize
         }
 
         if (page != null) {
@@ -106,8 +110,12 @@ internal class SeparateLogCache : LogCache {
         page = log.getHighPage(pageAddress)
 
         if (page != null) {
-            return ArrayByteIterable(page, min(log.highAddress - pageAddress,
-                    adjustedPageSize.toLong()).toInt())
+            return ArrayByteIterable(
+                page, min(
+                    log.highAddress - pageAddress,
+                    adjustedPageSize.toLong()
+                ).toInt()
+            )
         }
 
         page = readFullPage(log, pageAddress)

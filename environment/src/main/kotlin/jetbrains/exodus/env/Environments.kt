@@ -34,7 +34,8 @@ import java.nio.file.Paths
 object Environments {
 
     @JvmStatic
-    fun newInstance(dir: String, subDir: String, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
+    fun newInstance(dir: String, subDir: String, ec: EnvironmentConfig): Environment =
+        prepare { EnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
 
     @JvmStatic
     fun newInstance(dir: String): Environment = newInstance(dir, EnvironmentConfig())
@@ -43,41 +44,47 @@ object Environments {
     fun newInstance(log: Log, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(log, ec) }
 
     @JvmStatic
-    fun newInstance(dir: String, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(File(dir), ec), ec) }
+    fun newInstance(dir: String, ec: EnvironmentConfig): Environment =
+        prepare { EnvironmentImpl(newLogInstance(File(dir), ec), ec) }
 
     @JvmStatic
     fun newInstance(dir: File): Environment = newInstance(dir, EnvironmentConfig())
 
     @JvmStatic
-    fun newInstance(dir: File, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(dir, ec), ec) }
+    fun newInstance(dir: File, ec: EnvironmentConfig): Environment =
+        prepare { EnvironmentImpl(newLogInstance(dir, ec), ec) }
 
     @JvmStatic
     fun newInstance(config: LogConfig): Environment = newInstance(config, EnvironmentConfig())
 
     @JvmStatic
-    fun newInstance(config: LogConfig, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(newLogInstance(config, ec), ec) }
+    fun newInstance(config: LogConfig, ec: EnvironmentConfig): Environment =
+        prepare { EnvironmentImpl(newLogInstance(config, ec), ec) }
 
     @JvmStatic
     fun <T : EnvironmentImpl> newInstance(envCreator: () -> T): T = prepare(envCreator)
 
     @JvmStatic
     fun newContextualInstance(dir: String, subDir: String, ec: EnvironmentConfig): ContextualEnvironment =
-            prepare { ContextualEnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
+        prepare { ContextualEnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
 
     @JvmStatic
     fun newContextualInstance(dir: String): ContextualEnvironment = newContextualInstance(dir, EnvironmentConfig())
 
     @JvmStatic
-    fun newContextualInstance(dir: String, ec: EnvironmentConfig): ContextualEnvironment = prepare { ContextualEnvironmentImpl(newLogInstance(File(dir), ec), ec) }
+    fun newContextualInstance(dir: String, ec: EnvironmentConfig): ContextualEnvironment =
+        prepare { ContextualEnvironmentImpl(newLogInstance(File(dir), ec), ec) }
 
     @JvmStatic
     fun newContextualInstance(dir: File): ContextualEnvironment = newContextualInstance(dir, EnvironmentConfig())
 
     @JvmStatic
-    fun newContextualInstance(dir: File, ec: EnvironmentConfig): ContextualEnvironment = prepare { ContextualEnvironmentImpl(newLogInstance(dir, ec), ec) }
+    fun newContextualInstance(dir: File, ec: EnvironmentConfig): ContextualEnvironment =
+        prepare { ContextualEnvironmentImpl(newLogInstance(dir, ec), ec) }
 
     @JvmStatic
-    fun newContextualInstance(config: LogConfig, ec: EnvironmentConfig): ContextualEnvironment = prepare { ContextualEnvironmentImpl(newLogInstance(config, ec), ec) }
+    fun newContextualInstance(config: LogConfig, ec: EnvironmentConfig): ContextualEnvironment =
+        prepare { ContextualEnvironmentImpl(newLogInstance(config, ec), ec) }
 
     @JvmStatic
     fun newLogInstance(dir: File, ec: EnvironmentConfig): Log = newLogInstance(LogConfig().setLocation(dir.path), ec)
@@ -121,7 +128,8 @@ object Environments {
 
     @JvmStatic
     fun newLogInstance(config: LogConfig): Log = Log(config.also
-    { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) }, EnvironmentImpl.CURRENT_FORMAT_VERSION)
+    { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) }, EnvironmentImpl.CURRENT_FORMAT_VERSION
+    )
 
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
         var env = envCreator()
@@ -129,10 +137,13 @@ object Environments {
         val needsToBeMigrated = !env.log.formatWithHashCodeIsUsed
 
         if (ec.logDataReaderWriterProvider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER &&
-                ec.envCompactOnOpen && env.log.numberOfFiles > 1 || needsToBeMigrated) {
+            ec.envCompactOnOpen && env.log.numberOfFiles > 1 || needsToBeMigrated
+        ) {
             if (needsToBeMigrated) {
-                EnvironmentImpl.loggerInfo("Outdated binary format is used in environment ${env.log.location} " +
-                        "migration of binary format will be performed.")
+                EnvironmentImpl.loggerInfo(
+                    "Outdated binary format is used in environment ${env.log.location} " +
+                            "migration of binary format will be performed."
+                )
             }
 
             val location = env.location
@@ -166,16 +177,20 @@ object Environments {
                 val firstMetadataPath = locationPath.resolve(StartupMetadata.FIRST_FILE_NAME)
 
                 if (Files.exists(firstMetadataPath)) {
-                    val delFirstMetadataPath = locationPath.resolve(StartupMetadata.FIRST_FILE_NAME +
-                            FileDataWriter.DELETED_FILE_EXTENSION);
+                    val delFirstMetadataPath = locationPath.resolve(
+                        StartupMetadata.FIRST_FILE_NAME +
+                                FileDataWriter.DELETED_FILE_EXTENSION
+                    )
                     Files.move(firstMetadataPath, delFirstMetadataPath)
                 }
 
                 val secondMetadataPath = locationPath.resolve(StartupMetadata.SECOND_FILE_NAME)
 
                 if (Files.exists(secondMetadataPath)) {
-                    val delSecondMetadataPath = locationPath.resolve(StartupMetadata.SECOND_FILE_NAME +
-                            FileDataWriter.DELETED_FILE_EXTENSION);
+                    val delSecondMetadataPath = locationPath.resolve(
+                        StartupMetadata.SECOND_FILE_NAME +
+                                FileDataWriter.DELETED_FILE_EXTENSION
+                    )
                     Files.move(firstMetadataPath, delSecondMetadataPath)
                 }
 
@@ -196,9 +211,11 @@ object Environments {
                 env = envCreator()
 
                 if (needsToBeMigrated) {
-                    EnvironmentImpl.loggerInfo("Migration of binary format in environment ${env.log.location}" +
-                            " has been completed. Please delete all files with extension " +
-                            "*.del once you ensure database consistency.")
+                    EnvironmentImpl.loggerInfo(
+                        "Migration of binary format in environment ${env.log.location}" +
+                                " has been completed. Please delete all files with extension " +
+                                "*.del once you ensure database consistency."
+                    )
 
                 }
 
@@ -207,21 +224,24 @@ object Environments {
         }
 
         if (env.log.isClossedCorrectly) {
-            env.gc.utilizationProfile.load()
-            val rootAddress = env.metaTree.rootAddress()
-            val rootLoggable = env.log.read(rootAddress)
+            if (env.log.formatWithHashCodeIsUsed) {
+                env.gc.utilizationProfile.load()
+                val rootAddress = env.metaTree.rootAddress()
+                val rootLoggable = env.log.read(rootAddress)
 
-            //once we close the log, the rest of the page is padded with null loggables
-            //this free space should be taken into account during next open
-            val paddedSpace = env.log.dataSpaceLeftInPage(rootAddress)
-            val expiredLoggableCollection = ExpiredLoggableCollection()
+                //once we close the log, the rest of the page is padded with null loggables
+                //this free space should be taken into account during next open
+                val paddedSpace = env.log.dataSpaceLeftInPage(rootAddress)
+                val expiredLoggableCollection = ExpiredLoggableCollection()
 
-            expiredLoggableCollection.add(rootLoggable.end(), paddedSpace)
-            env.gc.utilizationProfile.fetchExpiredLoggables(expiredLoggableCollection)
+                expiredLoggableCollection.add(rootLoggable.end(), paddedSpace)
+                env.gc.utilizationProfile.fetchExpiredLoggables(expiredLoggableCollection)
+            }
         } else {
             EnvironmentImpl.loggerInfo(
-                    "Because environment ${env.log.location} was closed incorrectly space utilization " +
-                            "will be computed from scratch")
+                "Because environment ${env.log.location} was closed incorrectly space utilization " +
+                        "will be computed from scratch"
+            )
             env.gc.utilizationProfile.computeUtilizationFromScratch()
             EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.location} is completed")
         }

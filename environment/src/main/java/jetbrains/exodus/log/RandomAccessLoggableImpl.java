@@ -17,7 +17,7 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-public class RandomAccessLoggableImpl implements RandomAccessLoggable {
+public final class RandomAccessLoggableImpl implements RandomAccessLoggable {
 
     private final byte type;
     @NotNull
@@ -25,43 +25,21 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
     private final int structureId;
     private final int dataLength;
     private final long address;
-    private final boolean dataInsideSinglePage;
     private final Log log;
     private int length = -1;
     private long end = -1;
 
     public RandomAccessLoggableImpl(final long address,
-                                    final long end,
-                                    final int length,
                                     final byte type,
                                     @NotNull final ByteIterableWithAddress data,
                                     final int dataLength,
                                     final int structureId,
-                                    final boolean dataInsideSinglePage) {
-        this.address = address;
-        this.end = end;
-        this.type = type;
-        this.length = length;
-        this.data = data;
-        this.structureId = structureId;
-        this.dataLength = dataLength;
-        this.dataInsideSinglePage = dataInsideSinglePage;
-        this.log = null;
-    }
-
-    public RandomAccessLoggableImpl(final long address,
-                                    final byte type,
-                                    @NotNull final ByteIterableWithAddress data,
-                                    final int dataLength,
-                                    final int structureId,
-                                    final boolean dataInsideSinglePage,
                                     final Log log) {
         this.address = address;
         this.type = type;
         this.data = data;
         this.structureId = structureId;
         this.dataLength = dataLength;
-        this.dataInsideSinglePage = dataInsideSinglePage;
         this.log = log;
     }
 
@@ -115,6 +93,6 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
 
     @Override
     public boolean isDataInsideSinglePage() {
-        return dataInsideSinglePage;
+        return false;
     }
 }

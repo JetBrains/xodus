@@ -17,15 +17,17 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-public final class NullLoggable extends RandomAccessLoggableImpl {
+public final class NullLoggable implements RandomAccessLoggable {
 
     public static final byte TYPE = 0;
+    private final long address;
+    private final long end;
 
     private static final NullLoggable PROTOTYPE = new NullLoggable(Loggable.NULL_ADDRESS, Loggable.NULL_ADDRESS);
 
     NullLoggable(final long address, final long end) {
-        super(address, end, 1, TYPE, ByteIterableWithAddress.getEmpty(address + 1),
-                0, NO_STRUCTURE_ID, true);
+        this.address = address;
+        this.end = end;
     }
 
     public static NullLoggable create() {
@@ -34,7 +36,32 @@ public final class NullLoggable extends RandomAccessLoggableImpl {
 
     @Override
     public long getAddress() {
-        return Loggable.NULL_ADDRESS;
+        return address;
+    }
+
+    @Override
+    public byte getType() {
+        return TYPE;
+    }
+
+    @Override
+    public int length() {
+        return 1;
+    }
+
+    @Override
+    public long end() {
+        return end;
+    }
+
+    @Override
+    public int getDataLength() {
+        return 0;
+    }
+
+    @Override
+    public int getStructureId() {
+        return NO_STRUCTURE_ID;
     }
 
     @Override
@@ -48,5 +75,10 @@ public final class NullLoggable extends RandomAccessLoggableImpl {
 
     public static boolean isNullLoggable(@NotNull final Loggable loggable) {
         return isNullLoggable(loggable.getType());
+    }
+
+    @Override
+    public @NotNull ByteIterableWithAddress getData() {
+        return ArrayByteIterableWithAddress.EMPTY;
     }
 }

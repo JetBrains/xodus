@@ -133,9 +133,8 @@ public final class DataIterator extends ByteIteratorWithAddress {
             this.pageAddress = pageAddress;
         }
 
-        if (formatWithHashCodeIsUsed) {
-            chunkLength = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
-        } else {
+        chunkLength = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
+        if (!formatWithHashCodeIsUsed) {
             chunkLength = cachePageSize;
         }
 
@@ -172,10 +171,9 @@ public final class DataIterator extends ByteIteratorWithAddress {
             checkPage(address);
             final long pageAddress = address & pageAddressMask;
 
-            if (formatWithHashCodeIsUsed) {
-                chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
-                        cachePageSize - BufferedDataWriter.LOGGABLE_DATA);
-            } else {
+            chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
+                    cachePageSize - BufferedDataWriter.LOGGABLE_DATA);
+            if (!formatWithHashCodeIsUsed) {
                 chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
                         cachePageSize);
             }

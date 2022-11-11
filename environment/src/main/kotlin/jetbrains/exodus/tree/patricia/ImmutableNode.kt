@@ -56,7 +56,7 @@ internal class ImmutableNode : NodeBase {
         loggable: RandomAccessLoggable,
         data: ByteIterableWithAddress,
         it: ByteIteratorWithAddress
-    ) : super(type, data, it, loggable) {
+    ) : super(type, data, it) {
         this.log = log
         this.loggable = loggable
 
@@ -90,7 +90,6 @@ internal class ImmutableNode : NodeBase {
         childrenCount = 0.toShort()
         childAddressLength = 0.toByte()
         baseAddress = NULL_ADDRESS
-        insideSinglePage = true
     }
 
     public override fun getAddress() = loggable.address

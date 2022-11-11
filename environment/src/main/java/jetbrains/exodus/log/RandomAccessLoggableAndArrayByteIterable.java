@@ -17,13 +17,13 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddress implements RandomAccessLoggable {
+final class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddress implements RandomAccessLoggable {
 
     private final long address;
     private final long end;
     private final int structureId;
     private final byte type;
-    private final boolean dataInsideSinglePage;
+
     private int length = -1;
 
     RandomAccessLoggableAndArrayByteIterable(final long address,
@@ -33,14 +33,12 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
                                              final long dataAddress,
                                              final byte @NotNull [] bytes,
                                              final int start,
-                                             final int dataLength,
-                                             final boolean dataInsideSinglePage) {
+                                             final int dataLength) {
         super(dataAddress, bytes, start, dataLength);
         this.structureId = structureId;
         this.type = type;
         this.address = address;
         this.end = end;
-        this.dataInsideSinglePage = dataInsideSinglePage;
     }
 
     @Override
@@ -89,6 +87,6 @@ class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddr
 
     @Override
     public boolean isDataInsideSinglePage() {
-        return dataInsideSinglePage;
+        return true;
     }
 }

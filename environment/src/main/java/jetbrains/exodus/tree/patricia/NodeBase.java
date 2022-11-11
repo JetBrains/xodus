@@ -37,8 +37,6 @@ NodeBase implements INode {
     @Nullable
     protected ByteIterable value;
 
-    protected boolean insideSinglePage;
-
     NodeBase(@NotNull final ByteIterable keySequence, @Nullable final ByteIterable value) {
         this.keySequence = keySequence;
         this.value = value;
@@ -46,9 +44,7 @@ NodeBase implements INode {
 
     NodeBase(final byte type,
              @NotNull final ByteIterableWithAddress data,
-             @NotNull final ByteIteratorWithAddress it,
-             @NotNull final RandomAccessLoggable loggable) {
-        this.insideSinglePage = loggable.isDataInsideSinglePage();
+             @NotNull final ByteIteratorWithAddress it) {
 
         this.keySequence = extractKey(type, data, it);
         this.value = extractValue(type, data, it);
