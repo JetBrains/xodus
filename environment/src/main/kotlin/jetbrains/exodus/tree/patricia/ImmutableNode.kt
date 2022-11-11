@@ -42,7 +42,6 @@ internal class ImmutableNode : NodeBase {
     val loggable: RandomAccessLoggable
     private val log: Log
     private val data: ByteIterableWithAddress
-    private val dataAddress: Long
     private val childrenCount: Short
     private val childAddressLength: Byte
     private val baseAddress: Long // if it is not equal to NULL_ADDRESS then the node is saved in the v2 format
@@ -52,15 +51,15 @@ internal class ImmutableNode : NodeBase {
             this(log, loggable.type, loggable, data, data.iterator())
 
     private constructor(
-            log: Log,
-            type: Byte,
-            loggable: RandomAccessLoggable,
-            data: ByteIterableWithAddress,
-            it: ByteIteratorWithAddress
-    ) : super(type, data, it, loggable, log) {
+        log: Log,
+        type: Byte,
+        loggable: RandomAccessLoggable,
+        data: ByteIterableWithAddress,
+        it: ByteIteratorWithAddress
+    ) : super(type, data, it, loggable) {
         this.log = log
         this.loggable = loggable
-        this.data = data
+
         var baseAddress = NULL_ADDRESS
         if (PatriciaTreeBase.nodeHasChildren(type)) {
             val i = CompressedUnsignedLongByteIterable.getInt(it)
@@ -77,7 +76,8 @@ internal class ImmutableNode : NodeBase {
             childAddressLength = 0.toByte()
         }
         this.baseAddress = baseAddress
-        dataAddress = it.address
+
+        this.data = data.cloneWithAddressAndLength(it.address, it.available())
     }
 
     /**
@@ -87,7 +87,6 @@ internal class ImmutableNode : NodeBase {
         this.log = log
         loggable = NullLoggable.create()
         data = ByteIterableWithAddress.EMPTY
-        dataAddress = 0
         childrenCount = 0.toShort()
         childAddressLength = 0.toByte()
         baseAddress = NULL_ADDRESS
@@ -186,7 +185,7 @@ internal class ImmutableNode : NodeBase {
             when (val childrenCount = getChildrenCount()) {
                 0 -> return EmptyNodeChildrenIterator()
                 256 -> return ImmutableNodeCompleteChildrenV2Iterator(
-                        ub, ChildReference(b, addressByOffsetV2(ub * childAddressLength))
+                    ub, ChildReference(b, addressByOffsetV2(ub * childAddressLength))
                 )
 
                 in 1..32 -> {
@@ -195,8 +194,8 @@ internal class ImmutableNode : NodeBase {
                         val next = nextByte.unsigned
                         if (ub <= next) {
                             return ImmutableNodeSparseChildrenV2Iterator(
-                                    i,
-                                    ChildReference(nextByte, addressByOffsetV2(childrenCount + i * childAddressLength))
+                                i,
+                                ChildReference(nextByte, addressByOffsetV2(childrenCount + i * childAddressLength))
                             )
                         }
                     }
@@ -204,14 +203,7 @@ internal class ImmutableNode : NodeBase {
 
                 else -> {
                     val bitsetIdx = ub / Long.SIZE_BITS
-                    val bitSetAddress = if (insideSinglePage) {
-                        dataAddress + bitsetIdx * Long.SIZE_BYTES
-                    } else {
-                        log.adjustedLoggableAddress(dataAddress,
-                                bitsetIdx * Long.SIZE_BYTES.toLong())
-                    }
-
-                    val bitset = data.nextLongByAddress(bitSetAddress, Long.SIZE_BYTES)
+                    val bitset = data.nextLong(bitsetIdx * Long.SIZE_BYTES, Long.SIZE_BYTES)
 
                     val bit = ub % Long.SIZE_BITS
                     val bitmask = 1L shl bit
@@ -219,13 +211,7 @@ internal class ImmutableNode : NodeBase {
 
                     if (bitsetIdx > 0) {
                         for (i in 0 until bitsetIdx) {
-                            val offsetAddress = if (insideSinglePage) {
-                                dataAddress + i * Long.SIZE_BYTES
-                            } else {
-                                log.adjustedLoggableAddress(dataAddress,
-                                        i * Long.SIZE_BYTES.toLong())
-                            }
-                            index += data.nextLongByAddress(offsetAddress, Long.SIZE_BYTES).countOneBits()
+                            index += data.nextLong(i * Long.SIZE_BYTES, Long.SIZE_BYTES).countOneBits()
                         }
                     }
 
@@ -233,12 +219,12 @@ internal class ImmutableNode : NodeBase {
                     val offset = CHILDREN_BITSET_SIZE_BYTES + index * childAddressLength
                     if ((bitset and bitmask) != 0L) {
                         return ImmutableNodeBitsetChildrenV2Iterator(
-                                index, ChildReference(b, addressByOffsetV2(offset))
+                            index, ChildReference(b, addressByOffsetV2(offset))
                         )
                     }
                     if (index < childrenCount) {
                         return ImmutableNodeBitsetChildrenV2Iterator(
-                                index - 1, ChildReference(b, addressByOffsetV2(offset))
+                            index - 1, ChildReference(b, addressByOffsetV2(offset))
                         ).apply { next() }
                     }
                 }
@@ -295,9 +281,9 @@ internal class ImmutableNode : NodeBase {
         when (val childrenCount = getChildrenCount()) {
             0 -> return null
             256 -> return SearchResult(
-                    index = ub,
-                    offset = ub * childAddressLength,
-                    childrenFormat = V2ChildrenFormat.Complete
+                index = ub,
+                offset = ub * childAddressLength,
+                childrenFormat = V2ChildrenFormat.Complete
             )
 
             in 1..32 -> {
@@ -306,9 +292,9 @@ internal class ImmutableNode : NodeBase {
                     if (ub < next) break
                     if (ub == next) {
                         return SearchResult(
-                                index = i,
-                                offset = childrenCount + i * childAddressLength,
-                                childrenFormat = V2ChildrenFormat.Sparse
+                            index = i,
+                            offset = childrenCount + i * childAddressLength,
+                            childrenFormat = V2ChildrenFormat.Sparse
                         )
                     }
                 }
@@ -316,14 +302,7 @@ internal class ImmutableNode : NodeBase {
 
             else -> {
                 val bitsetIdx = ub / Long.SIZE_BITS
-                val bitsetAddress = if (insideSinglePage) {
-                    dataAddress + bitsetIdx * Long.SIZE_BYTES
-                } else {
-                    log.adjustedLoggableAddress(dataAddress,
-                            bitsetIdx * Long.SIZE_BYTES.toLong())
-                }
-
-                val bitset = data.nextLongByAddress(bitsetAddress, Long.SIZE_BYTES)
+                val bitset = data.nextLong(bitsetIdx * Long.SIZE_BYTES, Long.SIZE_BYTES)
 
                 val bit = ub % Long.SIZE_BITS
                 val bitmask = 1L shl bit
@@ -332,20 +311,14 @@ internal class ImmutableNode : NodeBase {
 
                 if (bitsetIdx > 0) {
                     for (i in 0 until bitsetIdx) {
-                        val addr = if (insideSinglePage) {
-                            dataAddress + i * Long.SIZE_BYTES
-                        } else {
-                            log.adjustedLoggableAddress(dataAddress, i * Long.SIZE_BYTES.toLong())
-                        }
-
-                        index += data.nextLongByAddress(addr, Long.SIZE_BYTES).countOneBits()
+                        index += data.nextLong(i * Long.SIZE_BYTES, Long.SIZE_BYTES).countOneBits()
                     }
                 }
 
                 return SearchResult(
-                        index = index,
-                        offset = CHILDREN_BITSET_SIZE_BYTES + index * childAddressLength,
-                        childrenFormat = V2ChildrenFormat.Bitset
+                    index = index,
+                    offset = CHILDREN_BITSET_SIZE_BYTES + index * childAddressLength,
+                    childrenFormat = V2ChildrenFormat.Bitset
                 )
             }
         }
@@ -353,23 +326,11 @@ internal class ImmutableNode : NodeBase {
     }
 
     private fun byteAt(offset: Int): Byte {
-        val addr = if (insideSinglePage) {
-            dataAddress + offset
-        } else {
-            log.adjustedLoggableAddress(dataAddress, offset.toLong())
-        }
-
-        return data.byteAtAddress(addr)
+        return data.byteAt(offset)
     }
 
     private fun nextLong(offset: Int): Long {
-        val addr = if (insideSinglePage) {
-            dataAddress + offset
-        } else {
-            log.adjustedLoggableAddress(dataAddress, offset.toLong())
-        }
-
-        return data.nextLongByAddress(addr, childAddressLength.toInt())
+        return data.nextLong(offset, childAddressLength.toInt())
     }
 
     private fun addressByOffsetV2(offset: Int) = nextLong(offset) + baseAddress
@@ -380,22 +341,22 @@ internal class ImmutableNode : NodeBase {
 
     // get child reference in case of v2 format with complete children (the node has all 256 children)
     private fun childReferenceCompleteV2(index: Int) =
-            ChildReference(index.toByte(), addressByOffsetV2(index * childAddressLength))
+        ChildReference(index.toByte(), addressByOffsetV2(index * childAddressLength))
 
     // get child reference in case of v2 format with sparse children (the number of children is in the range 1..32)
     private fun childReferenceSparseV2(index: Int) =
-            ChildReference(byteAt(index), addressByOffsetV2(getChildrenCount() + index * childAddressLength))
+        ChildReference(byteAt(index), addressByOffsetV2(getChildrenCount() + index * childAddressLength))
 
     // get child reference in case of v2 format with bitset children representation
     // (the number of children is in the range 33..255)
     private fun childReferenceBitsetV2(index: Int, bit: Int) =
-            ChildReference(bit.toByte(), addressByOffsetV2(CHILDREN_BITSET_SIZE_BYTES + index * childAddressLength))
+        ChildReference(bit.toByte(), addressByOffsetV2(CHILDREN_BITSET_SIZE_BYTES + index * childAddressLength))
 
     private fun fillChildReferenceV1(index: Int, node: ChildReference) =
-            (index * (childAddressLength + 1)).let { offset ->
-                node.firstByte = byteAt(offset)
-                node.suffixAddress = nextLong(offset + 1)
-            }
+        (index * (childAddressLength + 1)).let { offset ->
+            node.firstByte = byteAt(offset)
+            node.suffixAddress = nextLong(offset + 1)
+        }
 
     private fun fillChildReferenceCompleteV2(index: Int, node: ChildReference) {
         node.firstByte = index.toByte()
@@ -413,7 +374,7 @@ internal class ImmutableNode : NodeBase {
     }
 
     private abstract inner class NodeChildrenIteratorBase(override var index: Int, override var node: ChildReference?) :
-            NodeChildrenIterator {
+        NodeChildrenIterator {
 
         override val isMutable: Boolean get() = false
 
@@ -422,7 +383,7 @@ internal class ImmutableNode : NodeBase {
         override fun hasPrev() = index > 0
 
         override fun remove() =
-                throw ExodusException("Can't remove manually Patricia node child, use Store.delete() instead")
+            throw ExodusException("Can't remove manually Patricia node child, use Store.delete() instead")
 
         override val parentNode: NodeBase get() = this@ImmutableNode
 
@@ -430,7 +391,7 @@ internal class ImmutableNode : NodeBase {
     }
 
     private inner class ImmutableNodeChildrenIterator(index: Int, node: ChildReference?) :
-            NodeChildrenIteratorBase(index, node) {
+        NodeChildrenIteratorBase(index, node) {
 
         override fun next(): ChildReference = childReferenceV1(++index).also { node = it }
 
@@ -443,7 +404,7 @@ internal class ImmutableNode : NodeBase {
 
     // v2 format complete children (the node has all 256 children)
     private inner class ImmutableNodeCompleteChildrenV2Iterator(index: Int, node: ChildReference?) :
-            NodeChildrenIteratorBase(index, node) {
+        NodeChildrenIteratorBase(index, node) {
 
         override fun next() = childReferenceCompleteV2(++index).also { node = it }
 
@@ -456,7 +417,7 @@ internal class ImmutableNode : NodeBase {
 
     // v2 format sparse children (the number of children is in the range 1..32)
     private inner class ImmutableNodeSparseChildrenV2Iterator(index: Int, node: ChildReference?) :
-            NodeChildrenIteratorBase(index, node) {
+        NodeChildrenIteratorBase(index, node) {
 
         override fun next() = childReferenceSparseV2(++index).also { node = it }
 
@@ -469,17 +430,12 @@ internal class ImmutableNode : NodeBase {
 
     // v2 format bitset children (the number of children is in the range 33..255)
     private inner class ImmutableNodeBitsetChildrenV2Iterator(index: Int, node: ChildReference?) :
-            NodeChildrenIteratorBase(index, node) {
+        NodeChildrenIteratorBase(index, node) {
 
         private val bitset = LongArray(CHILDREN_BITSET_SIZE_LONGS).let { array ->
 
             array.indices.forEach { i ->
-                val addr = if (insideSinglePage) {
-                    dataAddress + i * Long.SIZE_BYTES
-                } else {
-                    log.adjustedLoggableAddress(dataAddress, i * Long.SIZE_BYTES.toLong())
-                }
-                array[i] = data.nextLongByAddress(addr, Long.SIZE_BYTES)
+                array[i] = data.nextLong(i * Long.SIZE_BYTES, Long.SIZE_BYTES)
             }
             BitSet.valueOf(array)
         }

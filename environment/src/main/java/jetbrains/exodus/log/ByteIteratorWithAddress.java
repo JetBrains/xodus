@@ -23,6 +23,8 @@ public abstract class ByteIteratorWithAddress extends ByteIterator {
 
     public abstract int getOffset();
 
+    public abstract int available();
+
     boolean availableInCurrentPage(final int bytes) {
         return false;
     }

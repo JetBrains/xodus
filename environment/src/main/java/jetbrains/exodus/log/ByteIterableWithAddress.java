@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,7 +22,7 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
 
     public static final ByteIterableWithAddress EMPTY = getEmpty(Loggable.NULL_ADDRESS);
 
-    private final long address;
+    protected final long address;
 
     protected ByteIterableWithAddress(final long address) {
         this.address = address;
@@ -32,27 +32,11 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
         return address;
     }
 
-    protected byte byteAt(final int offset) {
-        return iterator(offset).next();
-    }
+    public abstract byte byteAt(final int offset);
 
-    public final byte byteAtAddress(final long address) {
-        final int offset = (int) (address - this.address);
-        return byteAt(offset);
-    }
+    public abstract long nextLong(final int offset, final int length);
 
-    protected long nextLong(final int offset, final int length) {
-        return iterator(offset).nextLong(length);
-    }
-
-    public final long nextLongByAddress(final long address, final int length) {
-        final int offset = (int) (address - this.address);
-        return nextLong(offset, length);
-    }
-
-    public int getCompressedUnsignedInt() {
-        return CompressedUnsignedLongByteIterable.getInt(this);
-    }
+    public abstract int getCompressedUnsignedInt();
 
     @Override
     public abstract ByteIteratorWithAddress iterator();
@@ -61,29 +45,13 @@ public abstract class ByteIterableWithAddress implements ByteIterable {
 
     public abstract int compareTo(final int offset, final int len, @NotNull final ByteIterable right);
 
-    public abstract ByteIterableWithAddress clone(final long address);
+    public abstract ByteIterableWithAddress cloneWithOffset(final int offset);
 
-    @Override
-    public byte[] getBytesUnsafe() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int getLength() {
-        throw new UnsupportedOperationException();
-    }
+    public abstract ByteIterableWithAddress cloneWithAddressAndLength(final long address, final int length);
 
     @NotNull
     @Override
-    public ByteIterable subIterable(final int offset, final int length) {
-        return new LogAwareFixedLengthByteIterable(this, offset, length);
-    }
-
-    @Override
-    public int compareTo(@NotNull final ByteIterable right) {
-        // can't compare
-        throw new UnsupportedOperationException();
-    }
+    public abstract ByteIterable subIterable(final int offset, final int length);
 
     static ByteIterableWithAddress getEmpty(final long address) {
         return new ArrayByteIterableWithAddress(address, ByteIterable.EMPTY_BYTES, 0, 0);

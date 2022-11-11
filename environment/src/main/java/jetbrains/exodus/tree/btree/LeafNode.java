@@ -88,13 +88,7 @@ class LeafNode extends BaseLeafNode {
     @NotNull
     ByteIterableWithAddress getRawValue(final int offset) {
         final var data = loggable.getData();
-        if (insideSinglePage) {
-            return data.clone(data.getDataAddress() + getKeyRecordSize() + getKeyLength() + offset);
-        } else {
-            return data.clone(log.adjustedLoggableAddress(data.getDataAddress(),
-                    getKeyRecordSize() + getKeyLength() + offset));
-        }
-
+        return data.cloneWithOffset(getKeyRecordSize() + getKeyLength() + offset);
     }
 
     private int getKeyLength() {

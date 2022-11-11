@@ -516,7 +516,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         return getFileAddress(address) == getFileAddress(writtenHighAddress)
     }
 
-    fun adjustedLoggableAddress(address: Long, offset: Long): Long {
+    fun adjustLoggableAddress(address: Long, offset: Long): Long {
         if (!formatWithHashCodeIsUsed) {
             return address + offset
         }
@@ -530,21 +530,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         val fullPages = writtenSincePageStart / adjustedPageSize
 
         return pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
-    }
-
-    fun loggableLength(lowAddress: Long, highAddress: Long): Int {
-        if (!formatWithHashCodeIsUsed) {
-            return (highAddress - lowAddress).toInt()
-        }
-
-        val pageReminderMask = (cachePageSize - 1).toLong()
-        val pageAddressMask = pageReminderMask.inv()
-
-        val firstPageAddress = lowAddress and pageAddressMask
-        val secondPageAddress = highAddress and pageAddressMask
-
-        val pages = (secondPageAddress - firstPageAddress) / cachePageSize
-        return ((highAddress - lowAddress) - BufferedDataWriter.LOGGABLE_DATA * pages).toInt()
     }
 
 
@@ -629,7 +614,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     fun read(it: ByteIteratorWithAddress, address: Long = it.address): RandomAccessLoggable {
         val type = it.next() xor 0x80.toByte()
         return if (NullLoggable.isNullLoggable(type)) {
-            NullLoggable(address, adjustedLoggableAddress(address, 1))
+            NullLoggable(address, adjustLoggableAddress(address, 1))
         } else read(type, it, address)
     }
 
@@ -653,11 +638,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             return RandomAccessLoggableAndArrayByteIterable(
                 address, end,
                 type, structureId, dataAddress, it.currentPage,
-                it.offset, dataLength, true, this
+                it.offset, dataLength, true
             )
         }
 
-        val data = RandomAccessByteIterable(dataAddress, this)
+        val data = RandomAccessByteIterable(dataAddress, dataLength, this)
 
         return RandomAccessLoggableImpl(
             address,

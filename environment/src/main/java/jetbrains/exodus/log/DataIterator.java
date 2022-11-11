@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,8 +26,9 @@ public final class DataIterator extends ByteIteratorWithAddress {
     private final long pageAddressMask;
     private long pageAddress;
     private byte[] page;
-    private int offset;
-    private int length;
+    private int pageOffset;
+    private int chunkLength;
+    private long length;
     private final boolean formatWithHashCodeIsUsed;
 
     public DataIterator(@NotNull final Log log) {
@@ -35,7 +36,13 @@ public final class DataIterator extends ByteIteratorWithAddress {
     }
 
     public DataIterator(@NotNull final Log log, final long startAddress) {
+        this(log, startAddress, Long.MAX_VALUE);
+    }
+
+    public DataIterator(@NotNull final Log log, final long startAddress, final long length) {
         this.log = log;
+        this.length = length;
+
         cachePageSize = log.getCachePageSize();
         pageAddressMask = ~((long) (cachePageSize - 1));
         pageAddress = -1L;
@@ -48,13 +55,17 @@ public final class DataIterator extends ByteIteratorWithAddress {
 
     @Override
     public boolean hasNext() {
-        if (page == null) {
+        assert length >= 0;
+
+        if (page == null || length == 0) {
             return false;
         }
-        if (offset >= length) {
+
+        if (pageOffset >= chunkLength) {
             checkPageSafe(getAddress());
             return hasNext();
         }
+
         return true;
     }
 
@@ -65,9 +76,12 @@ public final class DataIterator extends ByteIteratorWithAddress {
                     "DataIterator: no more bytes available", log, getAddress());
         }
 
-        var current = offset;
-        offset++;
-        assert offset <= length;
+        assert length > 0;
+        var current = pageOffset;
+        pageOffset++;
+        length--;
+
+        assert pageOffset <= chunkLength;
 
         return page[current];
     }
@@ -75,13 +89,19 @@ public final class DataIterator extends ByteIteratorWithAddress {
     @Override
     public long skip(final long bytes) {
         long skipped = 0;
-        while (page != null && skipped < bytes) {
-            final long pageBytesToSkip = Math.min(bytes - skipped, length - offset);
+        final long bytesToSkip = Math.min(bytes, length);
+
+        while (page != null && skipped < bytesToSkip) {
+            final long pageBytesToSkip = Math.min(bytesToSkip - skipped, chunkLength - pageOffset);
             skipped += pageBytesToSkip;
-            offset += pageBytesToSkip;
-            if (offset < length) {
+
+            pageOffset += pageBytesToSkip;
+            length -= pageBytesToSkip;
+
+            if (pageOffset < chunkLength) {
                 break;
             }
+
             checkPageSafe(getAddress());
         }
         return skipped;
@@ -89,11 +109,19 @@ public final class DataIterator extends ByteIteratorWithAddress {
 
     @Override
     public long nextLong(final int length) {
-        if (page == null || this.length - offset < length) {
+        if (this.length < length) {
+            DataCorruptionException.raise(
+                    "DataIterator: no more bytes available", log, getAddress());
+        }
+
+        if (page == null || this.chunkLength - pageOffset < length) {
             return LongBinding.entryToUnsignedLong(this, length);
         }
-        final long result = LongBinding.entryToUnsignedLong(page, offset, length);
-        offset += length;
+        final long result = LongBinding.entryToUnsignedLong(page, pageOffset, length);
+
+        pageOffset += length;
+        this.length -= length;
+
         return result;
     }
 
@@ -106,20 +134,29 @@ public final class DataIterator extends ByteIteratorWithAddress {
         }
 
         if (formatWithHashCodeIsUsed) {
-            length = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
+            chunkLength = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
         } else {
-            length = cachePageSize;
+            chunkLength = cachePageSize;
         }
 
-        offset = (int) (address - pageAddress);
+        pageOffset = (int) (address - pageAddress);
+    }
+
+    @Override
+    public int available() {
+        if (length > Integer.MAX_VALUE) {
+            throw new UnsupportedOperationException();
+        }
+
+        return (int) length;
     }
 
     @Override
     public long getAddress() {
-        assert offset <= length;
+        assert pageOffset <= chunkLength;
 
-        if (offset < length) {
-            return pageAddress + offset;
+        if (pageOffset < chunkLength) {
+            return pageAddress + pageOffset;
         }
 
         //current page is exhausted and we point to the next page
@@ -127,7 +164,7 @@ public final class DataIterator extends ByteIteratorWithAddress {
     }
 
     public int getOffset() {
-        return offset;
+        return pageOffset;
     }
 
     private void checkPageSafe(final long address) {
@@ -136,14 +173,14 @@ public final class DataIterator extends ByteIteratorWithAddress {
             final long pageAddress = address & pageAddressMask;
 
             if (formatWithHashCodeIsUsed) {
-                length = (int) Math.min(log.getHighAddress() - pageAddress,
+                chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
                         cachePageSize - BufferedDataWriter.LOGGABLE_DATA);
             } else {
-                length = (int) Math.min(log.getHighAddress() - pageAddress,
+                chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
                         cachePageSize);
             }
 
-            if (length > offset) {
+            if (chunkLength > pageOffset) {
                 return;
             }
         } catch (BlockNotFoundException ignore) {
@@ -157,6 +194,6 @@ public final class DataIterator extends ByteIteratorWithAddress {
     }
 
     boolean availableInCurrentPage(final int bytes) {
-        return length - offset >= bytes;
+        return chunkLength - pageOffset >= bytes;
     }
 }

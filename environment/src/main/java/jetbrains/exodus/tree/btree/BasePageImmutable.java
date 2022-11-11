@@ -27,7 +27,6 @@ abstract class BasePageImmutable extends BasePage {
 
     @NotNull
     protected final ByteIterableWithAddress data;
-    long dataAddress;
     byte keyAddressLen;
     private ILeafNode minKey = null;
     private ILeafNode maxKey = null;
@@ -46,7 +45,6 @@ abstract class BasePageImmutable extends BasePage {
         super(tree);
         data = ByteIterableWithAddress.EMPTY;
         size = 0;
-        dataAddress = Loggable.NULL_ADDRESS;
         loggableInsideSinglePage = true;
         log = tree.log;
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
@@ -62,11 +60,10 @@ abstract class BasePageImmutable extends BasePage {
                       final boolean loggableInsideSinglePage) {
         super(tree);
         log = tree.log;
-        this.data = data;
 
         final ByteIteratorWithAddress it = data.iterator();
         size = CompressedUnsignedLongByteIterable.getInt(it) >> 1;
-        init(it);
+        this.data = init(data, it);
 
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
         this.loggableInsideSinglePage = loggableInsideSinglePage;
@@ -85,22 +82,26 @@ abstract class BasePageImmutable extends BasePage {
         super(tree);
         log = tree.log;
 
-        this.data = data;
         this.size = size;
-        init(data.iterator());
+        var it = data.iterator();
+
+        this.data = init(data, it);
 
         this.loggableInsideSinglePage = loggableInsideSinglePage;
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
     }
 
-    private void init(@NotNull final ByteIteratorWithAddress itr) {
+    private ByteIterableWithAddress init(final ByteIterableWithAddress data, @NotNull final ByteIteratorWithAddress itr) {
+        ByteIterableWithAddress result;
         if (size > 0) {
             final int next = itr.next();
-            dataAddress = itr.getAddress();
+            result = data.cloneWithAddressAndLength(itr.getAddress(), itr.available());
             loadAddressLengths(next, itr);
         } else {
-            dataAddress = itr.getAddress();
+            result = data.cloneWithAddressAndLength(itr.getAddress(), itr.available());
         }
+
+        return result;
     }
 
     @Override
@@ -117,12 +118,12 @@ abstract class BasePageImmutable extends BasePage {
 
     @Override
     protected long getDataAddress() {
-        return dataAddress;
+        return data.getDataAddress();
     }
 
     ByteIterator getDataIterator() {
-        return dataAddress == Loggable.NULL_ADDRESS ?
-                ByteIterable.EMPTY_ITERATOR : data.iterator((int) (dataAddress - data.getDataAddress()));
+        return data.getDataAddress() == Loggable.NULL_ADDRESS ?
+                ByteIterable.EMPTY_ITERATOR : data.iterator();
     }
 
     protected void loadAddressLengths(final int length, final ByteIterator it) {
@@ -137,18 +138,11 @@ abstract class BasePageImmutable extends BasePage {
 
     @Override
     protected long getKeyAddress(final int index) {
-        if (dataAddress == Loggable.NULL_ADDRESS) {
+        if (getDataAddress() == Loggable.NULL_ADDRESS) {
             return Loggable.NULL_ADDRESS;
         }
 
-        final long address;
-        if (loggableInsideSinglePage) {
-            address = dataAddress + (long) index * keyAddressLen;
-        } else {
-            address = log.adjustedLoggableAddress(dataAddress, (long) index * keyAddressLen);
-        }
-
-        return data.nextLongByAddress(address, keyAddressLen);
+        return data.nextLong(index * keyAddressLen, keyAddressLen);
     }
 
     @Override
@@ -179,7 +173,7 @@ abstract class BasePageImmutable extends BasePage {
 
     @Override
     protected int binarySearch(final ByteIterable key, int low) {
-        if (dataAddress == Loggable.NULL_ADDRESS) {
+        if (getDataAddress() == Loggable.NULL_ADDRESS) {
             return -1;
         }
 
@@ -194,7 +188,7 @@ abstract class BasePageImmutable extends BasePage {
         final int cachePageSize = log.getCachePageSize();
         final int bytesPerAddress = keyAddressLen;
 
-        final long dataAddress = this.dataAddress;
+        final long dataAddress = getDataAddress();
         int high = size - 1;
         long leftAddress = -1L;
         byte[] leftPage = null;
@@ -211,7 +205,7 @@ abstract class BasePageImmutable extends BasePage {
             if (loggableInsideSinglePage) {
                 midAddress = dataAddress + ((long) mid) * bytesPerAddress;
             } else {
-                midAddress = log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
+                midAddress = log.adjustLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
             }
 
             final int offset;
@@ -258,7 +252,7 @@ abstract class BasePageImmutable extends BasePage {
         final int cachePageSize = log.getCachePageSize();
         final int bytesPerAddress = keyAddressLen;
 
-        final long dataAddress = this.dataAddress;
+        final long dataAddress = this.getDataAddress();
         int high = size - 1;
         long leftAddress = -1L;
         byte[] leftPage = null;
@@ -272,7 +266,7 @@ abstract class BasePageImmutable extends BasePage {
             if (loggableInsideSinglePage) {
                 midAddress = dataAddress + ((long) mid) * bytesPerAddress;
             } else {
-                midAddress = log.adjustedLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
+                midAddress = log.adjustLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
             }
 
             final int offset;

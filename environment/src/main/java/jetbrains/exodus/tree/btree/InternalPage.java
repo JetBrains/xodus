@@ -53,16 +53,8 @@ class InternalPage extends BasePageImmutable {
 
     @Override
     public long getChildAddress(final int index) {
-        final long childPointerAddress;
-        final long offset = ((long) size) * keyAddressLen + 1 + ((long) index) * childAddressLen;
-
-        if (loggableInsideSinglePage) {
-            childPointerAddress = dataAddress + offset;
-        } else {
-            childPointerAddress = log.adjustedLoggableAddress(dataAddress, offset);
-        }
-
-        return data.nextLongByAddress(childPointerAddress, childAddressLen);
+        final int offset = size * keyAddressLen + 1 + index * childAddressLen;
+        return data.nextLong(offset, childAddressLen);
     }
 
     @Override

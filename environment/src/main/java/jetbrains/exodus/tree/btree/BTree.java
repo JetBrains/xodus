@@ -47,7 +47,8 @@ public class BTree extends BTreeBase {
         final ByteIteratorWithAddress it = data.iterator();
 
         size = CompressedUnsignedLongByteIterable.getLong(it);
-        root = loadRootPage(data.clone(it.getAddress()), rootLoggable.isDataInsideSinglePage());
+        root = loadRootPage(data.cloneWithAddressAndLength(it.getAddress(), it.available()),
+                rootLoggable.isDataInsideSinglePage());
     }
 
     @Override

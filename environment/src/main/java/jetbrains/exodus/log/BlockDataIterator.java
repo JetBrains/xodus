@@ -103,6 +103,11 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         return (int) (position - block.getAddress());
     }
 
+    @Override
+    public int available() {
+        throw new UnsupportedOperationException();
+    }
+
     public byte[] getLastPage() {
         return lastPage;
     }

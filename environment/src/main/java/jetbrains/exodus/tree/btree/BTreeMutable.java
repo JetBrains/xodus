@@ -372,7 +372,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
-                final InternalPage page = new InternalPage(this, data.clone(it.getAddress()),
+                final InternalPage page = new InternalPage(this, data.cloneWithAddressAndLength(it.getAddress(),
+                        it.available()),
                         i >> 1, loggable.isDataInsideSinglePage());
                 page.reclaim(minKey.getKey(), context);
             }
@@ -386,7 +387,9 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
-                final BottomPage page = new BottomPage(this, data.clone(it.getAddress()), i >> 1,
+                final BottomPage page = new BottomPage(this, data.cloneWithAddressAndLength(it.getAddress(),
+                        it.available()),
+                        i >> 1,
                         loggable.isDataInsideSinglePage());
                 page.reclaim(minKey.getKey(), context);
             }
@@ -395,11 +398,8 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
 
     @Nullable
     private LeafNode loadMinKey(ByteIterableWithAddress data, int offset) {
-        final long dataAddress = data.getDataAddress();
-
-        final int addressLen = data.byteAtAddress(log.adjustedLoggableAddress(dataAddress, offset));
-        final long keyAddress = data.nextLongByAddress(log.adjustedLoggableAddress(dataAddress, offset + 1),
-                addressLen);
+        final int addressLen = data.byteAt(offset);
+        final long keyAddress = data.nextLong(offset + 1, addressLen);
 
         return log.hasAddress(keyAddress) ? loadLeaf(keyAddress) : null;
     }

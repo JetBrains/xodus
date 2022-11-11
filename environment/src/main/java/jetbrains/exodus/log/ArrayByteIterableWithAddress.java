@@ -38,17 +38,17 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     }
 
     @Override
-    public byte byteAt(final int offset) {
+    public final byte byteAt(final int offset) {
         return bytes[start + offset];
     }
 
     @Override
-    public long nextLong(final int offset, final int length) {
+    public final long nextLong(final int offset, final int length) {
         return LongBinding.entryToUnsignedLong(bytes, start + offset, length);
     }
 
     @Override
-    public int getCompressedUnsignedInt() {
+    public final int getCompressedUnsignedInt() {
         int result = 0;
         int shift = 0;
         for (int i = start; ; ++i) {
@@ -62,17 +62,22 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     }
 
     @Override
-    public ByteIteratorWithAddress iterator() {
+    public final int compareTo(@NotNull ByteIterable right) {
+        return compareTo(0, getLength(), right);
+    }
+
+    @Override
+    public final ByteIteratorWithAddress iterator() {
         return iterator(0);
     }
 
     @Override
-    public ByteIteratorWithAddress iterator(final int offset) {
+    public final ByteIteratorWithAddress iterator(final int offset) {
         return new ArrayByteIteratorWithAddress(offset);
     }
 
     @Override
-    public int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
+    public final int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
         if (right instanceof SubIterable) {
             final SubIterable r = (SubIterable) right;
             return Arrays.compareUnsigned(bytes, start + offset,
@@ -83,35 +88,70 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     }
 
     @Override
-    public ByteIterableWithAddress clone(final long address) {
-        final int offset = (int) (address - getDataAddress());
-        return new ArrayByteIterableWithAddress(address, bytes,
+    public final ByteIterableWithAddress cloneWithOffset(int offset) {
+        if (end - start < offset) {
+            throw new IllegalArgumentException("Illegal offset was provided. Provided : " + offset +
+                    " maximum offset is : " + (end - start));
+        }
+
+        return new ArrayByteIterableWithAddress(address + offset, bytes,
                 start + offset, end - start - offset);
     }
 
     @Override
-    public int getLength() {
+    public final ByteIterableWithAddress cloneWithAddressAndLength(long address, int length) {
+        final int offset = (int) (address - getDataAddress());
+
+        if (end - start - offset < length) {
+            throw new IllegalArgumentException("Illegal length was provided. Provided : " + length +
+                    " maximum length is : " + (end - start - offset));
+        }
+
+        return new ArrayByteIterableWithAddress(address, bytes,
+                start + offset, length);
+    }
+
+    @Override
+    public final int getLength() {
         return end - start;
+    }
+
+    @Override
+    public final byte[] getBytesUnsafe() {
+        if (start == 0) {
+            return bytes;
+        }
+
+        var len = getLength();
+        var result = new byte[len];
+
+        System.arraycopy(bytes, start, result, 0, len);
+        return result;
     }
 
     @NotNull
     @Override
-    public ByteIterable subIterable(final int offset, final int length) {
+    public final ByteIterable subIterable(final int offset, final int length) {
         final int adjustedLen = Math.min(length, Math.max(getLength() - offset, 0));
         return adjustedLen == 0 ? ArrayByteIterable.EMPTY : new SubIterable(bytes, start + offset, adjustedLen);
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
         return ByteIterableBase.toString(bytes, start, end);
     }
 
-    private class ArrayByteIteratorWithAddress extends ByteIteratorWithAddress {
+    private final class ArrayByteIteratorWithAddress extends ByteIteratorWithAddress {
 
         private int i;
 
         ArrayByteIteratorWithAddress(final int offset) {
             i = start + offset;
+        }
+
+        @Override
+        public int available() {
+            return end - i;
         }
 
         @Override
@@ -149,7 +189,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         }
     }
 
-    private static class SubIterable extends ByteIterableBase {
+    private static final class SubIterable extends ByteIterableBase {
 
         private int offset;
 
@@ -193,8 +233,7 @@ class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
             return bytes;
         }
 
-        private class SubIterableByteIterator extends ByteIterator implements BlockByteIterator {
-
+        private final class SubIterableByteIterator extends ByteIterator implements BlockByteIterator {
             int i = offset;
 
             @Override

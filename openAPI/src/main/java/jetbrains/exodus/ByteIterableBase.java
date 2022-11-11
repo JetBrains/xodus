@@ -25,8 +25,7 @@ import java.util.Arrays;
  * Base class for most of {@link ByteIterable} implementations.
  */
 public abstract class ByteIterableBase implements ByteIterable {
-
-    protected static final byte[][] SINGLE_BYTES;
+    public static final byte[][] SINGLE_BYTES;
 
     static {
         SINGLE_BYTES = new byte[256][];

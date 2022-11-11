@@ -82,7 +82,8 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
         }
 
         assert log != null;
-        length = log.loggableLength(address, end());
+        length = dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId) +
+                CompressedUnsignedLongByteIterable.getCompressedSize(dataLength) + 1;
         return length;
     }
 
@@ -93,7 +94,7 @@ public class RandomAccessLoggableImpl implements RandomAccessLoggable {
         }
 
         assert log != null;
-        end = log.adjustedLoggableAddress(data.getDataAddress(), dataLength);
+        end = log.adjustLoggableAddress(data.getDataAddress(), dataLength);
         return end;
     }
 

@@ -376,7 +376,7 @@ public class BufferedDataWriter {
     boolean fitsIntoSingleFile(long fileLengthBound, int loggableSize) {
         final long fileAddress = highAddress / fileLengthBound;
         final long nextFileAddress =
-                (log.adjustedLoggableAddress(highAddress, loggableSize) - 1) / fileLengthBound;
+                (log.adjustLoggableAddress(highAddress, loggableSize) - 1) / fileLengthBound;
 
         return fileAddress == nextFileAddress;
     }
