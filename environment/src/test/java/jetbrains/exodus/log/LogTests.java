@@ -21,6 +21,7 @@ import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -33,6 +34,7 @@ public class LogTests extends LogTestsBase {
     private static final Loggable ONE_KB_LOGGABLE = createOneKbLoggable();
 
     @Test
+    @Ignore
     public void testWrite() {
         initLog(6, 1024); // file size must be multiple of 3 to avoid alignment
         final long logFileSizeInBytes = adjustedLogFileSize(getLog().getFileLengthBound(), 1024);
@@ -66,6 +68,7 @@ public class LogTests extends LogTestsBase {
     }
 
     @Test
+    @Ignore
     public void testWrite2() {
         initLog(111, 1024); // file size must be multiple of 3 to avoid alignment
 

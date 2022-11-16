@@ -20,7 +20,7 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
 import org.jetbrains.annotations.NotNull;
 
-final class RandomAccessByteIterable extends ByteIterableWithAddress {
+final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
 
     @NotNull
     private final Log log;
@@ -28,7 +28,7 @@ final class RandomAccessByteIterable extends ByteIterableWithAddress {
     private byte[] bytes = null;
 
 
-    public RandomAccessByteIterable(final long address, final int length, @NotNull final Log log) {
+    public MultiPageByteIterableWithAddress(final long address, final int length, @NotNull final Log log) {
         super(address);
 
         this.log = log;
@@ -110,12 +110,12 @@ final class RandomAccessByteIterable extends ByteIterableWithAddress {
         }
 
         var newAddress = log.adjustLoggableAddress(this.address, offset);
-        return new RandomAccessByteIterable(newAddress, length - offset, log);
+        return new MultiPageByteIterableWithAddress(newAddress, length - offset, log);
     }
 
     @Override
     public ByteIterableWithAddress cloneWithAddressAndLength(long address, int length) {
-        return new RandomAccessByteIterable(address, length, log);
+        return new MultiPageByteIterableWithAddress(address, length, log);
     }
 
     @Override

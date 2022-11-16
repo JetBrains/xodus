@@ -17,7 +17,7 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-final class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWithAddress implements RandomAccessLoggable {
+final class SinglePageLoggable implements RandomAccessLoggable {
 
     private final long address;
     private final long end;
@@ -26,15 +26,17 @@ final class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWi
 
     private int length = -1;
 
-    RandomAccessLoggableAndArrayByteIterable(final long address,
-                                             final long end,
-                                             final byte type,
-                                             final int structureId,
-                                             final long dataAddress,
-                                             final byte @NotNull [] bytes,
-                                             final int start,
-                                             final int dataLength) {
-        super(dataAddress, bytes, start, dataLength);
+    private final ArrayByteIterableWithAddress data;
+
+    SinglePageLoggable(final long address,
+                       final long end,
+                       final byte type,
+                       final int structureId,
+                       final long dataAddress,
+                       final byte @NotNull [] bytes,
+                       final int start,
+                       final int dataLength) {
+        this.data = new ArrayByteIterableWithAddress(dataAddress, bytes, start, dataLength);
         this.structureId = structureId;
         this.type = type;
         this.address = address;
@@ -71,13 +73,13 @@ final class RandomAccessLoggableAndArrayByteIterable extends ArrayByteIterableWi
 
     @NotNull
     @Override
-    public ByteIterableWithAddress getData() {
-        return this;
+    public ArrayByteIterableWithAddress getData() {
+        return data;
     }
 
     @Override
     public int getDataLength() {
-        return getLength();
+        return data.getLength();
     }
 
     @Override

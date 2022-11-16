@@ -15,58 +15,22 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 
-public final class NullLoggable implements RandomAccessLoggable {
-
+public final class NullLoggable {
     public static final byte TYPE = 0;
-    private final long address;
-    private final long end;
+    private static final SinglePageLoggable PROTOTYPE = new SinglePageLoggable(Loggable.NULL_ADDRESS,
+            Loggable.NULL_ADDRESS, TYPE, Loggable.NO_STRUCTURE_ID, Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES,
+            0, 0);
 
-    private static final NullLoggable PROTOTYPE = new NullLoggable(Loggable.NULL_ADDRESS, Loggable.NULL_ADDRESS);
-
-    NullLoggable(final long address, final long end) {
-        this.address = address;
-        this.end = end;
+    public static SinglePageLoggable create(final long startAddress, final long endAddress) {
+        return new SinglePageLoggable(startAddress, endAddress, TYPE, Loggable.NO_STRUCTURE_ID,
+                Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES, 0, 0);
     }
 
-    public static NullLoggable create() {
+    public static SinglePageLoggable create() {
         return PROTOTYPE;
-    }
-
-    @Override
-    public long getAddress() {
-        return address;
-    }
-
-    @Override
-    public byte getType() {
-        return TYPE;
-    }
-
-    @Override
-    public int length() {
-        return 1;
-    }
-
-    @Override
-    public long end() {
-        return end;
-    }
-
-    @Override
-    public int getDataLength() {
-        return 0;
-    }
-
-    @Override
-    public int getStructureId() {
-        return NO_STRUCTURE_ID;
-    }
-
-    @Override
-    public boolean isDataInsideSinglePage() {
-        return true;
     }
 
     public static boolean isNullLoggable(final byte type) {
@@ -75,10 +39,5 @@ public final class NullLoggable implements RandomAccessLoggable {
 
     public static boolean isNullLoggable(@NotNull final Loggable loggable) {
         return isNullLoggable(loggable.getType());
-    }
-
-    @Override
-    public @NotNull ByteIterableWithAddress getData() {
-        return ArrayByteIterableWithAddress.EMPTY;
     }
 }

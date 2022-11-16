@@ -33,9 +33,7 @@ import jetbrains.exodus.util.IOUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.*;
@@ -278,7 +276,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         });
         reopenEnvironment();
         final LogTestConfig testConfig = new LogTestConfig();
-        testConfig.setMaxHighAddress(10401);
+        testConfig.setMaxHighAddress(10470);
         testConfig.setSettingHighAddressDenied(true);
         //noinspection deprecation
         env.getLog().setLogTestConfig(testConfig);

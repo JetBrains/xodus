@@ -262,10 +262,8 @@ abstract class BasePageImmutable extends BasePage {
         while (low <= high) {
             final int mid = (low + high) >>> 1;
 
-            final long midAddress;
-            if (loggableInsideSinglePage) {
-                midAddress = dataAddress + ((long) mid) * bytesPerAddress;
-            } else {
+            long midAddress = dataAddress + ((long) mid) * bytesPerAddress;
+            if (!loggableInsideSinglePage) {
                 midAddress = log.adjustLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
             }
 

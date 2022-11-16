@@ -223,7 +223,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     }
 
     protected void addExpiredLoggable(@NotNull Loggable loggable) {
-        if (loggable.getAddress() != NullLoggable.NULL_ADDRESS) {
+        if (loggable.getAddress() != Loggable.NULL_ADDRESS) {
             getExpiredLoggables().add(loggable);
         }
     }

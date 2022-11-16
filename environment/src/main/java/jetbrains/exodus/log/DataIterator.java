@@ -88,23 +88,36 @@ public final class DataIterator extends ByteIteratorWithAddress {
 
     @Override
     public long skip(final long bytes) {
-        long skipped = 0;
+        if (bytes <= 0) {
+            return 0;
+        }
+
         final long bytesToSkip = Math.min(bytes, length);
+        final long pageBytesToSkip = Math.min(bytesToSkip, chunkLength - pageOffset);
+        pageOffset += pageBytesToSkip;
 
-        while (page != null && skipped < bytesToSkip) {
-            final long pageBytesToSkip = Math.min(bytesToSkip - skipped, chunkLength - pageOffset);
-            skipped += pageBytesToSkip;
+        if (bytesToSkip > pageBytesToSkip) {
+            long chunkSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
 
-            pageOffset += pageBytesToSkip;
-            length -= pageBytesToSkip;
-
-            if (pageOffset < chunkLength) {
-                break;
+            if (!formatWithHashCodeIsUsed) {
+                chunkSize = cachePageSize;
             }
 
-            checkPageSafe(getAddress());
+            final long rest = bytesToSkip - pageBytesToSkip;
+
+            final long pagesToSkip = rest / chunkSize;
+            final long pageSkip = pagesToSkip * cachePageSize;
+            final long offsetSkip = pagesToSkip * chunkSize;
+
+
+            final int pageOffset = (int) (rest - offsetSkip);
+            final long addressDiff = pageSkip + pageOffset;
+
+            checkPageSafe(getAddress() + addressDiff);
         }
-        return skipped;
+
+        length -= bytesToSkip;
+        return bytesToSkip;
     }
 
     @Override

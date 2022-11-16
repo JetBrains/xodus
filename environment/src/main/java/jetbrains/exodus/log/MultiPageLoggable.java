@@ -17,24 +17,22 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-public final class RandomAccessLoggableImpl implements RandomAccessLoggable {
+public final class MultiPageLoggable implements RandomAccessLoggable {
 
     private final byte type;
     @NotNull
-    private final ByteIterableWithAddress data;
+    private final MultiPageByteIterableWithAddress data;
     private final int structureId;
     private final int dataLength;
     private final long address;
     private final Log log;
-    private int length = -1;
-    private long end = -1;
 
-    public RandomAccessLoggableImpl(final long address,
-                                    final byte type,
-                                    @NotNull final ByteIterableWithAddress data,
-                                    final int dataLength,
-                                    final int structureId,
-                                    final Log log) {
+    public MultiPageLoggable(final long address,
+                             final byte type,
+                             @NotNull final MultiPageByteIterableWithAddress data,
+                             final int dataLength,
+                             final int structureId,
+                             final Log log) {
         this.address = address;
         this.type = type;
         this.data = data;
@@ -55,30 +53,20 @@ public final class RandomAccessLoggableImpl implements RandomAccessLoggable {
 
     @Override
     public int length() {
-        if (length >= 0) {
-            return length;
-        }
-
         assert log != null;
-        length = dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId) +
+        return dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId) +
                 CompressedUnsignedLongByteIterable.getCompressedSize(dataLength) + 1;
-        return length;
     }
 
     @Override
     public long end() {
-        if (end >= 0) {
-            return end;
-        }
-
         assert log != null;
-        end = log.adjustLoggableAddress(data.getDataAddress(), dataLength);
-        return end;
+        return log.adjustLoggableAddress(data.getDataAddress(), dataLength);
     }
 
     @NotNull
     @Override
-    public ByteIterableWithAddress getData() {
+    public MultiPageByteIterableWithAddress getData() {
         return data;
     }
 
