@@ -3,7 +3,6 @@ import org.apache.commons.lang3.SystemUtils
 buildscript {
     ext.jmhVersion = '1.35'
     ext.jmhPlugin = '0.6.6'
-    ext.jmhReportPlugin = '0.9.0'
     repositories {
         maven {
             url "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2"
@@ -16,7 +15,6 @@ buildscript {
 
 plugins {
     id "me.champeau.jmh" version "$jmhPlugin"
-    id "io.morethan.jmhreport" version "$jmhReportPlugin"
 }
 
 dependencies {
@@ -47,9 +45,7 @@ dependencies {
 }
 
 jmh {
-    // uncomment the following line to exclude all benchmarks except Xodus Tokyo Cabinet
-
-    excludes = ['dataStructures|util|chronicle|h2|mapdb|lmdb|persistit|query|crypto|.*Prefixing.*']
+    excludes = ['dataStructures|util|chronicle|h2|mapdb|lmdb|persistit|query|crypto']
     includes = ["env"]
     jmhVersion = project.jmhVersion
     jvmArgsPrepend = ['-server', '-Xmx1g', '-Xms1g', '-XX:+HeapDumpOnOutOfMemoryError']
@@ -60,10 +56,5 @@ jmh {
 task deleteEmptyBenchmarkList(type: Delete) {
     delete "$buildDir/jmh-generated-classes/META-INF/BenchmarkList"
 }
-jmhCompileGeneratedClasses.finalizedBy deleteEmptyBenchmarkList
 
-jmhReport {
-    jmhResultPath = project.file('build/reports/jmh/results.json')
-    jmhReportOutput = project.file('build/reports/jmh')
-}
-tasks.jmh.finalizedBy tasks.jmhReport
+jmhCompileGeneratedClasses.finalizedBy deleteEmptyBenchmarkList
