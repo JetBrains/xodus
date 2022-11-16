@@ -88,25 +88,14 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     }
 
     @Override
-    public ByteIterableWithAddress cloneWithOffset(int offset) {
-        if (end - start < offset) {
-            throw new IllegalArgumentException("Illegal offset was provided. Provided : " + offset +
-                    " maximum offset is : " + (end - start));
-        }
-
+    public ArrayByteIterableWithAddress cloneWithOffset(int offset) {
         return new ArrayByteIterableWithAddress(address + offset, bytes,
                 start + offset, end - start - offset);
     }
 
     @Override
-    public ByteIterableWithAddress cloneWithAddressAndLength(long address, int length) {
-        final int offset = (int) (address - getDataAddress());
-
-        if (end - start - offset < length) {
-            throw new IllegalArgumentException("Illegal length was provided. Provided : " + length +
-                    " maximum length is : " + (end - start - offset));
-        }
-
+    public ArrayByteIterableWithAddress cloneWithAddressAndLength(long address, int length) {
+        final int offset = (int) (address - this.address);
         return new ArrayByteIterableWithAddress(address, bytes,
                 start + offset, length);
     }

@@ -178,13 +178,17 @@ abstract class BasePageImmutable extends BasePage {
         }
 
         if (formatWithHashCodeIsUsed) {
-            return nonCompatibleBinarySearch(key, low);
+            if (loggableInsideSinglePage) {
+                return singePageBinarySearch(key, low);
+            }
+
+            return multiPageBinarySearch(key, low);
         } else {
             return compatibleBinarySearch(key, low);
         }
     }
 
-    private int nonCompatibleBinarySearch(final ByteIterable key, int low) {
+    private int multiPageBinarySearch(final ByteIterable key, int low) {
         final int cachePageSize = log.getCachePageSize();
         final int bytesPerAddress = keyAddressLen;
 
@@ -200,13 +204,7 @@ abstract class BasePageImmutable extends BasePage {
 
         while (low <= high) {
             final int mid = (low + high) >>> 1;
-
-            final long midAddress;
-            if (loggableInsideSinglePage) {
-                midAddress = dataAddress + ((long) mid) * bytesPerAddress;
-            } else {
-                midAddress = log.adjustLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
-            }
+            final long midAddress = log.adjustLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
 
             final int offset;
             it.offset = offset = ((int) midAddress) & (cachePageSize - 1); // cache page size is always a power of 2
@@ -233,6 +231,37 @@ abstract class BasePageImmutable extends BasePage {
             } else {
                 leafAddress = it.nextLong(bytesPerAddress);
             }
+
+            final int cmp = tree.compareLeafToKey(leafAddress, key);
+            if (cmp < 0) {
+                low = mid + 1;
+            } else if (cmp > 0) {
+                high = mid - 1;
+            } else {
+                // key found
+                return mid;
+            }
+        }
+        // key not found
+        return -(low + 1);
+    }
+
+    private int singePageBinarySearch(final ByteIterable key, int low) {
+        final int cachePageSize = log.getCachePageSize();
+        final int bytesPerAddress = keyAddressLen;
+        final int cachePageMask = cachePageSize - 1;
+        final long dataAddress = getDataAddress();
+        final int pageOffset = (int) dataAddress & cachePageMask;
+        final long pageAddress = dataAddress - pageOffset;
+        final byte[] page = log.getCachedPage(pageAddress);
+
+        int high = size - 1;
+
+        while (low <= high) {
+            final int mid = (low + high) >>> 1;
+
+            final int offset = mid * bytesPerAddress + pageOffset;
+            final long leafAddress = LongBinding.entryToUnsignedLong(page, offset, bytesPerAddress);
 
             final int cmp = tree.compareLeafToKey(leafAddress, key);
             if (cmp < 0) {
