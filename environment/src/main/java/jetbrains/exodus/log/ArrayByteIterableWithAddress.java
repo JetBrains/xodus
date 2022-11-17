@@ -82,8 +82,13 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
                     start + offset + len,
                     r.bytes, r.start, r.end);
         }
+
+        var rightStart = right.baseOffset();
+        var rightLen = right.getLength();
+
         return Arrays.compareUnsigned(bytes, start + offset,
-                start + offset + len, right.getBytesUnsafe(), 0, right.getLength());
+                start + offset + len, right.getBaseBytes(), rightStart,
+                rightStart + rightLen);
     }
 
     @Override
@@ -139,7 +144,7 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     @Override
     public ByteIterableWithAddress subIterable(final int offset, final int length) {
         final int adjustedLen = Math.min(length, Math.max(getLength() - offset, 0));
-        return adjustedLen == 0 ? ArrayByteIterableWithAddress.EMPTY :
+        return adjustedLen == 0 ? ByteIterableWithAddress.EMPTY :
                 new ArrayByteIterableWithAddress(address + offset, bytes,
                         start + offset, adjustedLen);
     }
@@ -148,6 +153,16 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     public String toString() {
         return ByteIterableBase.toString(bytes, start, end);
     }
+
+//    @Override
+//    public int baseOffset() {
+//        return start;
+//    }
+//
+//    @Override
+//    public byte[] getBaseBytes() {
+//        return bytes;
+//    }
 
     private final class ArrayByteIteratorWithAddress extends ByteIteratorWithAddress {
 

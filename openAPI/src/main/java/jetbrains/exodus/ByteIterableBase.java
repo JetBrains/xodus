@@ -41,8 +41,15 @@ public abstract class ByteIterableBase implements ByteIterable {
 
     @Override
     public int compareTo(@NotNull final ByteIterable right) {
-        return Arrays.compareUnsigned(this.getBytesUnsafe(), 0, this.getLength(),
-                right.getBytesUnsafe(), 0, right.getLength());
+        var thisStart = baseOffset();
+        var thisLen = getLength();
+
+        var rightStart = right.baseOffset();
+        var rightLen = right.getLength();
+
+        return Arrays.compareUnsigned(this.getBaseBytes(), thisStart,
+                thisStart + thisLen, right.getBaseBytes(), rightStart,
+                rightStart + rightLen);
     }
 
     @Override
@@ -137,7 +144,7 @@ public abstract class ByteIterableBase implements ByteIterable {
         return toString(getBytesUnsafe(), 0, getLength());
     }
 
-    public static String toString(@Nullable final byte[] bytes, final int start, final int end) {
+    public static String toString(final byte @Nullable [] bytes, final int start, final int end) {
         if (bytes == null) {
             return "null";
         }
@@ -202,8 +209,7 @@ public abstract class ByteIterableBase implements ByteIterable {
         return result;
     }
 
-    @NotNull
-    public static byte[] readIterable(@NotNull final ByteIterable it) {
+    public static byte @NotNull [] readIterable(@NotNull final ByteIterable it) {
         return readIterator(it.iterator(), it.getLength());
     }
 
