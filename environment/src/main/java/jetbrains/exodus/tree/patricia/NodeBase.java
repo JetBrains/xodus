@@ -28,9 +28,6 @@ import java.io.PrintStream;
 @SuppressWarnings({"ProtectedField"})
 abstract class
 NodeBase implements INode {
-
-    private static final int LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH = 16;
-
     @NotNull
     protected ByteIterable keySequence;
 
@@ -257,11 +254,8 @@ NodeBase implements INode {
         if (length == 1) {
             return ArrayByteIterable.fromByte(it.next());
         }
-        if (length < LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH) {
-            return new ArrayByteIterable(it, length);
-        }
 
-        final ByteIterable result = data.cloneWithAddressAndLength(it.getAddress(), length);
+        final ByteIterableWithAddress result = data.cloneWithAddressAndLength(it.getAddress(), length);
         it.skip(length);
 
         return result;

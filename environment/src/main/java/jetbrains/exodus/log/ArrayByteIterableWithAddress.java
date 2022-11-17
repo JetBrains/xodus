@@ -15,10 +15,8 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
-import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
@@ -67,24 +65,43 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
     }
 
     @Override
-    public ByteIteratorWithAddress iterator() {
+    public ArrayByteIteratorWithAddress iterator() {
         return iterator(0);
     }
 
     @Override
-    public ByteIteratorWithAddress iterator(final int offset) {
+    public ArrayByteIteratorWithAddress iterator(final int offset) {
         return new ArrayByteIteratorWithAddress(offset);
     }
 
     @Override
     public int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
-        if (right instanceof SubIterable) {
-            final SubIterable r = (SubIterable) right;
+        if (right instanceof ArrayByteIterableWithAddress) {
+            final ArrayByteIterableWithAddress r = (ArrayByteIterableWithAddress) right;
             return Arrays.compareUnsigned(bytes, start + offset,
-                    start + offset + len, r.getRawBytes(), r.offset, r.offset + r.getLength());
+                    start + offset + len,
+                    r.bytes, r.start, r.end);
         }
         return Arrays.compareUnsigned(bytes, start + offset,
                 start + offset + len, right.getBytesUnsafe(), 0, right.getLength());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return this == obj || obj instanceof ByteIterable &&
+                compareTo(0, getLength(), (ByteIterable) obj) == 0;
+    }
+
+    /**
+     * @return hash code computed using all bytes of the iterable.
+     */
+    @Override
+    public int hashCode() {
+        int result = 1;
+        for (int i = start; i < end; i++) {
+            result = 31 * result + bytes[i];
+        }
+        return result;
     }
 
     @Override
@@ -120,9 +137,11 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
 
     @NotNull
     @Override
-    public ByteIterable subIterable(final int offset, final int length) {
+    public ByteIterableWithAddress subIterable(final int offset, final int length) {
         final int adjustedLen = Math.min(length, Math.max(getLength() - offset, 0));
-        return adjustedLen == 0 ? ArrayByteIterable.EMPTY : new SubIterable(bytes, start + offset, adjustedLen);
+        return adjustedLen == 0 ? ArrayByteIterableWithAddress.EMPTY :
+                new ArrayByteIterableWithAddress(address + offset, bytes,
+                        start + offset, adjustedLen);
     }
 
     @Override
@@ -175,80 +194,6 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
             final long result = LongBinding.entryToUnsignedLong(bytes, i, length);
             i += length;
             return result;
-        }
-    }
-
-    private static final class SubIterable extends ByteIterableBase {
-
-        private int offset;
-
-        SubIterable(final byte @NotNull [] bytes, final int offset, final int length) {
-            this.bytes = bytes;
-            this.offset = offset;
-            this.length = length;
-        }
-
-        @Override
-        public int compareTo(@NotNull final ByteIterable right) {
-            if (right instanceof SubIterable) {
-                final SubIterable r = (SubIterable) right;
-                return Arrays.compareUnsigned(bytes, offset, offset + length,
-                        r.bytes, r.offset, r.offset + r.length);
-            }
-            return Arrays.compareUnsigned(bytes, offset, offset + length,
-                    right.getBytesUnsafe(), 0, right.getLength());
-        }
-
-        @Override
-        public ByteIterator iterator() {
-            return getIterator();
-        }
-
-        @Override
-        protected ByteIterator getIterator() {
-            return new SubIterableByteIterator();
-        }
-
-        @Override
-        public byte[] getBytesUnsafe() {
-            if (offset > 0) {
-                bytes = Arrays.copyOfRange(bytes, offset, offset + length);
-                offset = 0;
-            }
-            return bytes;
-        }
-
-        private byte[] getRawBytes() {
-            return bytes;
-        }
-
-        private final class SubIterableByteIterator extends ByteIterator implements BlockByteIterator {
-            int i = offset;
-
-            @Override
-            public boolean hasNext() {
-                return length > i - offset;
-            }
-
-            @Override
-            public byte next() {
-                return bytes[i++];
-            }
-
-            @Override
-            public long skip(long bytes) {
-                final int result = Math.min(length - i + offset, (int) bytes);
-                i += result;
-                return result;
-            }
-
-            @Override
-            public int nextBytes(byte[] array, int off, int len) {
-                final int result = Math.min(length - i + offset, len);
-                System.arraycopy(bytes, i, array, off, result);
-                i += result;
-                return result;
-            }
         }
     }
 }
