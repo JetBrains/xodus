@@ -146,7 +146,15 @@ public abstract class ByteIterableBase implements ByteIterable {
 
     @NotNull
     public ByteIterable subIterable(final int offset, final int length) {
-        return length == 0 ? EMPTY : new FixedLengthByteIterable(this, offset, length);
+        if (length == 0) {
+            return EMPTY;
+        }
+
+        if (bytes != null) {
+            return new ArrayByteIterable(bytes, baseOffset() + offset, length);
+        }
+
+        return new FixedLengthByteIterable(this, offset, length);
     }
 
     public ByteIterable getSource() {

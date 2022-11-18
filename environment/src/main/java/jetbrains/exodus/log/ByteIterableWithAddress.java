@@ -23,8 +23,6 @@ public interface ByteIterableWithAddress extends ByteIterable {
 
     long getDataAddress();
 
-    byte byteAt(final int offset);
-
     long nextLong(final int offset, final int length);
 
     int getCompressedUnsignedInt();
