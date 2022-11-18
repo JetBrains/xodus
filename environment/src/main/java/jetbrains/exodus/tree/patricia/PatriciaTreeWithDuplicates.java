@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,8 +27,6 @@ import jetbrains.exodus.tree.ITreeMutable;
 import jetbrains.exodus.tree.LongIterator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Arrays;
 
 public class PatriciaTreeWithDuplicates extends PatriciaTreeDecorator {
 
@@ -55,13 +53,10 @@ public class PatriciaTreeWithDuplicates extends PatriciaTreeDecorator {
             if (value != null && value != ByteIterable.EMPTY) {
                 int keyLength = CompressedUnsignedLongByteIterable.getInt(value);
                 if (key.getLength() == keyLength) {
-                    final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
-                    final byte[] noDupKeyBytes = noDupKey.getBytesUnsafe();
-                    if (Arrays.compareUnsigned(key.getBytesUnsafe(), 0, keyLength,
-                            noDupKeyBytes, 0, keyLength) == 0) {
-                        return new ArrayByteIterable(Arrays.copyOfRange(noDupKeyBytes,
-                                keyLength + 1, // skip separator
-                                noDupKey.getLength()));
+                    final ByteIterable noDupKey = new ArrayByteIterable(new UnEscapingByteIterable(cursor.getKey()));
+                    if (key.compareTo(keyLength, noDupKey, keyLength) == 0) {
+                        var offset = keyLength + 1;
+                        return noDupKey.subIterable(offset, noDupKey.getLength() - offset);
                     }
                 }
             }

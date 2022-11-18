@@ -16,7 +16,7 @@
 package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
@@ -36,11 +36,11 @@ final class BTreeDup extends BTreeBase {
         dataIterator = mainTree.getDataIterator(Loggable.NULL_ADDRESS);
         this.leafNodeDup = leafNodeDup;
         leafNodeDupKey = leafNodeDup.getKey();
-        final ByteIterator iterator = leafNodeDup.getRawValue(0).iterator();
-        final long l = CompressedUnsignedLongByteIterable.getLong(iterator);
+        final ByteIteratorWithAddress iterator = leafNodeDup.getRawValue(0).iterator();
+        final long l = iterator.getCompressedUnsignedLong();
         size = l >> 1;
         if ((l & 1) == 1) {
-            long offset = CompressedUnsignedLongByteIterable.getLong(iterator);
+            long offset = iterator.getCompressedUnsignedLong();
             startAddress = leafNodeDup.getAddress() - offset;
             dataOffset = (byte) (CompressedUnsignedLongByteIterable.getCompressedSize(l)
                     + CompressedUnsignedLongByteIterable.getCompressedSize(offset));
@@ -96,7 +96,7 @@ final class BTreeDup extends BTreeBase {
 
                 @Override
                 public String toString() {
-                    return "DLN {key:" + getKey().toString() + "} @ " + getAddress();
+                    return "DLN {key:" + getKey() + "} @ " + getAddress();
                 }
             };
         } else {

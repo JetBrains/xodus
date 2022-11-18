@@ -368,7 +368,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     void reclaimInternal(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
-        final int i = CompressedUnsignedLongByteIterable.getInt(it);
+        final int i = it.getCompressedUnsignedInt();
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {
@@ -383,7 +383,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     void reclaimBottom(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {
         final ByteIterableWithAddress data = loggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
-        final int i = CompressedUnsignedLongByteIterable.getInt(it);
+        final int i = it.getCompressedUnsignedInt();
         if ((i & 1) == 1 && i > 1) {
             final LeafNode minKey = loadMinKey(data, CompressedUnsignedLongByteIterable.getCompressedSize(i));
             if (minKey != null) {

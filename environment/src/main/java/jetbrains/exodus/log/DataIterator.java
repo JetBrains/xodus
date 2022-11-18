@@ -18,7 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
-public final class DataIterator extends ByteIteratorWithAddress {
+public final class DataIterator implements ByteIteratorWithAddress {
 
     @NotNull
     private final Log log;
@@ -200,11 +200,11 @@ public final class DataIterator extends ByteIteratorWithAddress {
         page = null;
     }
 
-    byte[] getCurrentPage() {
+    public byte[] getCurrentPage() {
         return page;
     }
 
-    boolean availableInCurrentPage(final int bytes) {
+    public boolean availableInCurrentPage(final int bytes) {
         return chunkLength - pageOffset >= bytes;
     }
 }
