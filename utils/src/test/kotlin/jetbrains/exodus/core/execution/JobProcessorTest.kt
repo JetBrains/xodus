@@ -18,6 +18,7 @@ package jetbrains.exodus.core.execution
 import jetbrains.exodus.core.dataStructures.Priority
 import org.junit.Assert
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Test
 
 open class JobProcessorTest {
@@ -44,8 +45,10 @@ open class JobProcessorTest {
         processor.queueFinish()
         processor.waitUntilFinished()
         val current = System.currentTimeMillis()
-        Assert.assertTrue("Current time = $current, ticks = $ticks",
-                current - sleepTicks >= ticks)
+        Assert.assertTrue(
+            "Current time = $current, ticks = $ticks",
+            current - sleepTicks >= ticks
+        )
     }
 
     @Test
@@ -207,6 +210,7 @@ open class JobProcessorTest {
     }
 
     @Test
+    @Ignore
     fun queueAtFuture() {
         val processor = processor as? ThreadJobProcessor ?: return
         count = 0
@@ -252,7 +256,7 @@ open class JobProcessorTest {
         Assert.assertEquals(1, count)
     }
 
-    private class AcquiringLatchJob internal constructor(processor: JobProcessor) : LatchJob() {
+    private class AcquiringLatchJob(processor: JobProcessor) : LatchJob() {
 
         init {
             try {
@@ -269,9 +273,11 @@ open class JobProcessorTest {
 
     }
 
-    internal class SleepJob(processor: JobProcessor,
-                            private var ticks: Long,
-                            priority: Priority = Priority.normal) : Job(processor, priority) {
+    internal class SleepJob(
+        processor: JobProcessor,
+        private var ticks: Long,
+        priority: Priority = Priority.normal
+    ) : Job(processor, priority) {
 
         init {
             Assert.assertTrue(wasQueued())
@@ -285,7 +291,9 @@ open class JobProcessorTest {
 
     internal class IncrementJob(private val increment: Int = 1) : Job() {
 
-        internal constructor(processor: JobProcessor, increment: Int, priority: Priority = Priority.normal) : this(increment) {
+        internal constructor(processor: JobProcessor, increment: Int, priority: Priority = Priority.normal) : this(
+            increment
+        ) {
             Assert.assertTrue(processor.queue(this, priority))
         }
 

@@ -52,12 +52,14 @@ class LeafNode extends BaseLeafNode {
 
     @Override
     public int compareKeyTo(@NotNull final ByteIterable iterable) {
-        return loggable.getData().compareTo(getKeyRecordSize(), getKeyLength(), iterable);
+        return loggable.getData().compareTo(getKeyRecordSize(), getKeyLength(), iterable,
+                0, iterable.getLength());
     }
 
     @Override
     public int compareValueTo(@NotNull final ByteIterable iterable) {
-        return loggable.getData().compareTo(getKeyRecordSize() + getKeyLength(), getValueLength(), iterable);
+        return loggable.getData().compareTo(getKeyRecordSize() + getKeyLength(),
+                getValueLength(), iterable, 0, iterable.getLength());
     }
 
     @Override

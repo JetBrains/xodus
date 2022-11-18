@@ -185,7 +185,7 @@ public abstract class BTreeBase implements ITree {
         final ByteIterableWithAddress data = loggable.getData();
         final int keyLength = data.getCompressedUnsignedInt();
         final int keyRecordSize = CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
-        return data.compareTo(keyRecordSize, keyLength, key);
+        return data.compareTo(keyRecordSize, keyLength, key, 0, key.getLength());
     }
 
     @Override

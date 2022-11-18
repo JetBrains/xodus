@@ -16,42 +16,27 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.ByteIterable;
-import org.jetbrains.annotations.NotNull;
 
-public abstract class ByteIterableWithAddress implements ByteIterable {
+public interface ByteIterableWithAddress extends ByteIterable {
 
-    public static final ByteIterableWithAddress EMPTY = getEmpty(Loggable.NULL_ADDRESS);
+    ByteIterableWithAddress EMPTY = getEmpty(Loggable.NULL_ADDRESS);
 
-    protected final long address;
+    long getDataAddress();
 
-    protected ByteIterableWithAddress(final long address) {
-        this.address = address;
-    }
+    byte byteAt(final int offset);
 
-    public final long getDataAddress() {
-        return address;
-    }
+    long nextLong(final int offset, final int length);
 
-    public abstract byte byteAt(final int offset);
-
-    public abstract long nextLong(final int offset, final int length);
-
-    public abstract int getCompressedUnsignedInt();
+    int getCompressedUnsignedInt();
 
     @Override
-    public abstract ByteIteratorWithAddress iterator();
+    ByteIteratorWithAddress iterator();
 
-    public abstract ByteIteratorWithAddress iterator(final int offset);
+    ByteIteratorWithAddress iterator(final int offset);
 
-    public abstract int compareTo(final int offset, final int len, @NotNull final ByteIterable right);
+    ByteIterableWithAddress cloneWithOffset(final int offset);
 
-    public abstract ByteIterableWithAddress cloneWithOffset(final int offset);
-
-    public abstract ByteIterableWithAddress cloneWithAddressAndLength(final long address, final int length);
-
-    @NotNull
-    @Override
-    public abstract ByteIterable subIterable(final int offset, final int length);
+    ByteIterableWithAddress cloneWithAddressAndLength(final long address, final int length);
 
     static ByteIterableWithAddress getEmpty(final long address) {
         return new ArrayByteIterableWithAddress(address, ByteIterable.EMPTY_BYTES, 0, 0);

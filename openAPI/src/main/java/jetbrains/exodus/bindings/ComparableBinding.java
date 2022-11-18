@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -52,17 +52,20 @@ import java.io.ByteArrayInputStream;
 public abstract class ComparableBinding {
 
     public final Comparable entryToObject(@NotNull final ByteIterable entry) {
-        return readObject(new ByteArraySizedInputStream(entry.getBytesUnsafe(), 0, entry.getLength()));
+        final byte[] bytes = entry.getBaseBytes();
+        final int offset = entry.baseOffset();
+
+        return readObject(new ByteArraySizedInputStream(bytes, offset, entry.getLength()));
     }
 
-    public final ArrayByteIterable objectToEntry(@NotNull final Comparable object) {
+    public final ArrayByteIterable objectToEntry(@NotNull final Comparable<?> object) {
         final LightOutputStream output = new LightOutputStream();
         writeObject(output, object);
         return output.asArrayByteIterable();
     }
 
-    public abstract Comparable readObject(@NotNull final ByteArrayInputStream stream);
+    public abstract Comparable<?> readObject(@NotNull final ByteArrayInputStream stream);
 
-    public abstract void writeObject(@NotNull final LightOutputStream output, @NotNull final Comparable object);
+    public abstract void writeObject(@NotNull final LightOutputStream output, @NotNull final Comparable<?> object);
 
 }

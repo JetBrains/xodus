@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -37,25 +37,39 @@ public class FixedLengthByteIterable extends ByteIterableBase {
 
     @Override
     public byte[] getBytesUnsafe() {
+        return doGetBytes();
+    }
+
+    @Override
+    public byte[] getBaseBytes() {
+        return doGetBytes();
+    }
+
+    private byte[] doGetBytes() {
         if (bytes == null) {
             final int length = this.length;
             byte[] bytes = null;
             if (source instanceof ByteIterableBase) {
                 final ByteIterableBase s = (ByteIterableBase) source;
-                final byte[] sourceBytes = s.getBytesUnsafe();
-                if (sourceBytes != null) {
+                final byte[] baseBytes = s.getBaseBytes();
+                final int baseOffset = s.baseOffset();
+
+                if (baseBytes != null) {
                     bytes = new byte[length];
-                    System.arraycopy(sourceBytes, offset, bytes, 0, length);
+                    System.arraycopy(baseBytes, offset + baseOffset, bytes, 0, length);
                 }
             }
+
             if (bytes == null) {
                 bytes = new byte[length];
                 final ByteIterator it = source.iterator();
                 it.skip(offset);
+
                 for (int i = 0; it.hasNext() && i < length; ++i) {
                     bytes[i] = it.next();
                 }
             }
+
             this.bytes = bytes;
         }
         return bytes;

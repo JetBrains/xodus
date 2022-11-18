@@ -15,41 +15,37 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterableBase;
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.bindings.LongBinding;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
+import java.util.NoSuchElementException;
 
-final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
+final class ArrayByteIterableWithAddress extends ArrayByteIterable implements ByteIterableWithAddress {
 
-    private final byte @NotNull [] bytes;
-    private final int start;
-    private final int end;
+    private final long address;
 
-    ArrayByteIterableWithAddress(final long address, final byte @NotNull [] bytes, final int start, final int length) {
-        super(address);
-        this.bytes = bytes;
-        this.start = start;
-        this.end = Math.min(start + length, bytes.length);
+    ArrayByteIterableWithAddress(final long address, final byte @NotNull [] bytes,
+                                 final int start, final int length) {
+        super(bytes, start, length);
+        this.address = address;
     }
 
     @Override
-    public byte byteAt(final int offset) {
-        return bytes[start + offset];
+    public long getDataAddress() {
+        return address;
     }
 
     @Override
     public long nextLong(final int offset, final int length) {
-        return LongBinding.entryToUnsignedLong(bytes, start + offset, length);
+        return LongBinding.entryToUnsignedLong(bytes, this.offset + offset, length);
     }
 
     @Override
     public int getCompressedUnsignedInt() {
         int result = 0;
         int shift = 0;
-        for (int i = start; ; ++i) {
+        for (int i = offset; ; ++i) {
             final byte b = bytes[i];
             result += (b & 0x7f) << shift;
             if ((b & 0x80) != 0) {
@@ -57,11 +53,6 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
             }
             shift += 7;
         }
-    }
-
-    @Override
-    public int compareTo(@NotNull ByteIterable right) {
-        return compareTo(0, getLength(), right);
     }
 
     @Override
@@ -74,141 +65,96 @@ final class ArrayByteIterableWithAddress extends ByteIterableWithAddress {
         return new ArrayByteIteratorWithAddress(offset);
     }
 
-    @Override
-    public int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
-        if (right instanceof ArrayByteIterableWithAddress) {
-            final ArrayByteIterableWithAddress r = (ArrayByteIterableWithAddress) right;
-            return Arrays.compareUnsigned(bytes, start + offset,
-                    start + offset + len,
-                    r.bytes, r.start, r.end);
-        }
-
-        var rightStart = right.baseOffset();
-        var rightLen = right.getLength();
-
-        return Arrays.compareUnsigned(bytes, start + offset,
-                start + offset + len, right.getBaseBytes(), rightStart,
-                rightStart + rightLen);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        return this == obj || obj instanceof ByteIterable &&
-                compareTo(0, getLength(), (ByteIterable) obj) == 0;
-    }
-
-    /**
-     * @return hash code computed using all bytes of the iterable.
-     */
-    @Override
-    public int hashCode() {
-        int result = 1;
-        for (int i = start; i < end; i++) {
-            result = 31 * result + bytes[i];
-        }
-        return result;
-    }
 
     @Override
     public ArrayByteIterableWithAddress cloneWithOffset(int offset) {
         return new ArrayByteIterableWithAddress(address + offset, bytes,
-                start + offset, end - start - offset);
+                this.offset + offset, length - offset);
     }
 
     @Override
     public ArrayByteIterableWithAddress cloneWithAddressAndLength(long address, int length) {
         final int offset = (int) (address - this.address);
         return new ArrayByteIterableWithAddress(address, bytes,
-                start + offset, length);
+                this.offset + offset, length);
     }
 
-    @Override
-    public int getLength() {
-        return end - start;
-    }
-
-    @Override
-    public byte[] getBytesUnsafe() {
-        if (start == 0) {
-            return bytes;
-        }
-
-        var len = getLength();
-        var result = new byte[len];
-
-        System.arraycopy(bytes, start, result, 0, len);
-        return result;
-    }
-
-    @NotNull
-    @Override
-    public ByteIterableWithAddress subIterable(final int offset, final int length) {
-        final int adjustedLen = Math.min(length, Math.max(getLength() - offset, 0));
-        return adjustedLen == 0 ? ByteIterableWithAddress.EMPTY :
-                new ArrayByteIterableWithAddress(address + offset, bytes,
-                        start + offset, adjustedLen);
-    }
-
-    @Override
-    public String toString() {
-        return ByteIterableBase.toString(bytes, start, end);
-    }
-
-//    @Override
-//    public int baseOffset() {
-//        return start;
-//    }
-//
-//    @Override
-//    public byte[] getBaseBytes() {
-//        return bytes;
-//    }
-
-    private final class ArrayByteIteratorWithAddress extends ByteIteratorWithAddress {
-
-        private int i;
-
+    private final class ArrayByteIteratorWithAddress extends Iterator implements ByteIteratorWithAddress {
         ArrayByteIteratorWithAddress(final int offset) {
-            i = start + offset;
+            super(offset);
         }
 
         @Override
         public int available() {
-            return end - i;
+            return length - offset;
         }
 
         @Override
         public long getAddress() {
-            return ArrayByteIterableWithAddress.this.getDataAddress() + i - start;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return i < end;
-        }
-
-        @Override
-        public byte next() {
-            return bytes[i++];
-        }
-
-        @Override
-        public long skip(final long bytes) {
-            final int skipped = Math.min(end - i, (int) bytes);
-            i += skipped;
-            return skipped;
+            return ArrayByteIterableWithAddress.this.address + offset;
         }
 
         @Override
         public int getOffset() {
-            return i;
+            return offset;
         }
 
         @Override
         public long nextLong(final int length) {
-            final long result = LongBinding.entryToUnsignedLong(bytes, i, length);
-            i += length;
+            final long result = LongBinding.entryToUnsignedLong(bytes,
+                    ArrayByteIterableWithAddress.this.offset +
+                            offset, length);
+            offset += length;
             return result;
         }
+
+        @Override
+        public int getCompressedUnsignedInt() {
+            if (offset == length) {
+                throw new NoSuchElementException();
+            }
+
+            int baseOffset = ArrayByteIterableWithAddress.this.offset;
+            int result = 0;
+            int shift = 0;
+            do {
+                final byte b = bytes[baseOffset + offset];
+                offset++;
+
+                result += (b & 0x7f) << shift;
+                if ((b & 0x80) != 0) {
+                    return result;
+                }
+                shift += 7;
+            } while (offset < length);
+
+            throw new NoSuchElementException();
+        }
+
+        @Override
+        public long getCompressedUnsignedLong() {
+            if (offset == length) {
+                throw new NoSuchElementException();
+            }
+
+            int baseOffset = ArrayByteIterableWithAddress.this.offset;
+            long result = 0;
+            int shift = 0;
+            do {
+                final byte b = bytes[offset + baseOffset];
+                offset++;
+
+                result += (long) (b & 0x7f) << shift;
+                if ((b & 0x80) != 0) {
+                    return result;
+                }
+
+                shift += 7;
+            } while (offset < length);
+
+            throw new NoSuchElementException();
+        }
     }
+
+
 }

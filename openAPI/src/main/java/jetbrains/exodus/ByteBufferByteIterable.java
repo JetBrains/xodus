@@ -21,8 +21,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
- * An adapter of {@link ByteBuffer} to {@link ByteIterable}. Doesn't support {@link #getBytesUnsafe()} as
- * it unconditionally throws {@link UnsupportedOperationException}.
+ * An adapter of {@link ByteBuffer} to {@link ByteIterable}.
  */
 
 public class ByteBufferByteIterable implements ByteIterable {
@@ -66,18 +65,93 @@ public class ByteBufferByteIterable implements ByteIterable {
         };
     }
 
-    /**
-     * @return nothing since unconditionally throws {@link UnsupportedOperationException}.
-     * @throws UnsupportedOperationException always since this operation is unsupported
-     */
     @Override
     public byte[] getBytesUnsafe() {
-        throw new UnsupportedOperationException();
+        final byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes, buffer.position(), bytes.length);
+
+        return bytes;
+    }
+
+    @Override
+    public int baseOffset() {
+        if (buffer.hasArray()) {
+            return buffer.position();
+        }
+
+        return 0;
+    }
+
+    @Override
+    public byte[] getBaseBytes() {
+        if (buffer.hasArray()) {
+            return buffer.array();
+        }
+
+        final byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes, buffer.position(), bytes.length);
+
+        return bytes;
+    }
+
+    @Override
+    public byte byteAt(int offset) {
+        return buffer.get(buffer.position() + offset);
     }
 
     @Override
     public int getLength() {
         return length;
+    }
+
+    @Override
+    public int compareTo(int length, ByteIterable right, int rightLength) {
+        if (right instanceof ByteBufferByteIterable) {
+            var copy = buffer.slice();
+            var rightCopy = ((ByteBufferByteIterable) right).buffer.slice();
+
+            copy.limit(length);
+            rightCopy.limit(rightLength);
+
+            return copy.compareTo(rightCopy);
+        }
+
+
+        final byte[] rightBase = right.getBaseBytes();
+        final int rightOffset = right.baseOffset();
+
+        final byte[] base = getBaseBytes();
+        final int offset = baseOffset();
+
+        return Arrays.compareUnsigned(base, offset, offset + length,
+                rightBase, rightOffset, rightOffset + rightLength);
+    }
+
+    @Override
+    public int compareTo(int from, int length, ByteIterable right, int rightFrom, int rightLength) {
+        if (right instanceof ByteBufferByteIterable) {
+            var copy = buffer.slice();
+            var rightCopy = ((ByteBufferByteIterable) right).buffer.slice();
+
+            copy.position(from);
+            copy.limit(from + length);
+
+            rightCopy.position(rightFrom);
+            rightCopy.limit(rightFrom + rightLength);
+
+            return copy.compareTo(rightCopy);
+        }
+
+
+        final byte[] rightBase = right.getBaseBytes();
+        final int rightOffset = rightFrom + right.baseOffset();
+
+        final byte[] base = getBaseBytes();
+        final int offset = baseOffset();
+
+        return Arrays.compareUnsigned(base, from + offset, from + offset + length,
+                rightBase, rightFrom + rightOffset,
+                rightFrom + rightOffset + rightLength);
     }
 
     @NotNull
@@ -93,7 +167,15 @@ public class ByteBufferByteIterable implements ByteIterable {
         if (right instanceof ByteBufferByteIterable) {
             return buffer.compareTo(((ByteBufferByteIterable) right).buffer);
         }
-        return Arrays.compareUnsigned(this.getBytesUnsafe(), 0, this.getLength(),
-                right.getBytesUnsafe(), 0, right.getLength());
+
+
+        final byte[] rightBase = right.getBaseBytes();
+        final int rightOffset = right.baseOffset();
+
+        final byte[] base = getBaseBytes();
+        final int offset = buffer.position();
+
+        return Arrays.compareUnsigned(base, offset, offset + length,
+                rightBase, rightOffset, rightOffset + right.getLength());
     }
 }

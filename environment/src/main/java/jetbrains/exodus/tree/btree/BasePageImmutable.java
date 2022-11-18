@@ -62,7 +62,7 @@ abstract class BasePageImmutable extends BasePage {
         log = tree.log;
 
         final ByteIteratorWithAddress it = data.iterator();
-        size = CompressedUnsignedLongByteIterable.getInt(it) >> 1;
+        size = it.getCompressedUnsignedInt() >> 1;
         this.data = init(data, it);
 
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
@@ -346,7 +346,7 @@ abstract class BasePageImmutable extends BasePage {
         return -(low + 1);
     }
 
-    private static class BinarySearchIterator extends ByteIterator {
+    private static class BinarySearchIterator implements ByteIterator {
 
         private byte[] page;
         private byte[] nextPage;

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.tree.patricia;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.RandomAccessLoggable;
@@ -22,7 +23,6 @@ import jetbrains.exodus.tree.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
 import java.util.Iterator;
 
 final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates implements ITreeMutable {
@@ -95,7 +95,6 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
     public boolean delete(@NotNull final ByteIterable key) {
         boolean wasDeleted = false;
         try (ITreeCursor cursor = treeNoDuplicates.openCursor()) {
-            final byte[] keyBytes = key.getBytesUnsafe();
             final int keyLength = key.getLength();
             @Nullable
             ByteIterable value = cursor.getSearchKeyRange(getEscapedKeyWithSeparator(key));
@@ -103,8 +102,8 @@ final class PatriciaTreeWithDuplicatesMutable extends PatriciaTreeWithDuplicates
                 if (keyLength != CompressedUnsignedLongByteIterable.getInt(value)) {
                     break;
                 }
-                final ByteIterable noDupKey = new UnEscapingByteIterable(cursor.getKey());
-                if (Arrays.compareUnsigned(keyBytes, 0, keyLength, noDupKey.getBytesUnsafe(), 0, keyLength) != 0) {
+                final ByteIterable noDupKey = new ArrayByteIterable(new UnEscapingByteIterable(cursor.getKey()));
+                if (key.compareTo(keyLength, noDupKey, keyLength) != 0) {
                     break;
                 }
                 cursor.deleteCurrent();

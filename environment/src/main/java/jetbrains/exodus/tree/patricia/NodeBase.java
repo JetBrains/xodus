@@ -250,7 +250,7 @@ NodeBase implements INode {
 
     private static ByteIterable extractLazyIterable(@NotNull final ByteIterableWithAddress data,
                                                     @NotNull final ByteIteratorWithAddress it) {
-        final int length = CompressedUnsignedLongByteIterable.getInt(it);
+        final int length = it.getCompressedUnsignedInt();
         if (length == 1) {
             return ArrayByteIterable.fromByte(it.next());
         }

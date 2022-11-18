@@ -20,8 +20,9 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterableBase;
 import org.jetbrains.annotations.NotNull;
 
-final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
+final class MultiPageByteIterableWithAddress implements ByteIterableWithAddress {
 
+    private final long address;
     @NotNull
     private final Log log;
     private final int length;
@@ -29,7 +30,7 @@ final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
 
 
     public MultiPageByteIterableWithAddress(final long address, final int length, @NotNull final Log log) {
-        super(address);
+        this.address = address;
 
         this.log = log;
         this.length = length;
@@ -42,6 +43,10 @@ final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
 
     @Override
     public byte[] getBytesUnsafe() {
+        return doBytesUnsafe();
+    }
+
+    private byte[] doBytesUnsafe() {
         if (bytes != null) {
             return bytes;
         }
@@ -63,6 +68,15 @@ final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
         return bytes;
     }
 
+    @Override
+    public int baseOffset() {
+        return 0;
+    }
+
+    @Override
+    public byte[] getBaseBytes() {
+        return doBytesUnsafe();
+    }
 
     @Override
     public ByteIteratorWithAddress iterator() {
@@ -79,6 +93,11 @@ final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
 
 
     @Override
+    public long getDataAddress() {
+        return address;
+    }
+
+    @Override
     public byte byteAt(int offset) {
         return iterator(offset).next();
     }
@@ -93,13 +112,20 @@ final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
         return CompressedUnsignedLongByteIterable.getInt(this);
     }
 
-    public int compareTo(final int offset, final int len, @NotNull final ByteIterable right) {
-        return compare(offset, len, right, log, getDataAddress());
-    }
 
     @Override
     public int compareTo(@NotNull ByteIterable right) {
-        return compare(0, length, right, log, getDataAddress());
+        return compare(0, address, length, right, 0, right.getLength(), log);
+    }
+
+    @Override
+    public int compareTo(int length, ByteIterable right, int rightLength) {
+        return compare(0, address, length, right, 0, rightLength, log);
+    }
+
+    @Override
+    public int compareTo(int from, int length, ByteIterable right, int rightFrom, int rightLength) {
+        return compare(from, address, length, right, rightFrom, rightLength, log);
     }
 
     @Override
@@ -123,13 +149,15 @@ final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
         return new LogAwareFixedLengthByteIterable(this, offset, length);
     }
 
-    private static int compare(final int offset, final int len, final ByteIterable right, Log log, final long address) {
+    private static int compare(final int leftOffset, final long leftAddress, final int len,
+                               final ByteIterable right, int rightOffset, final int rightLen,
+                               final Log log) {
         final LogCache cache = log.cache;
         final int pageSize = log.getCachePageSize();
         final boolean formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
         final int mask = pageSize - 1;
 
-        long alignedAddress = log.adjustLoggableAddress(address, offset);
+        long alignedAddress = log.adjustLoggableAddress(leftAddress, leftOffset);
         long endAddress = log.adjustLoggableAddress(alignedAddress, len);
 
         endAddress -= ((int) endAddress) & mask;
@@ -137,34 +165,41 @@ final class MultiPageByteIterableWithAddress extends ByteIterableWithAddress {
         int leftStep = ((int) alignedAddress) & mask;
 
         alignedAddress -= leftStep;
-        ArrayByteIterable left = cache.getPageIterable(log, alignedAddress, formatWithHashCodeIsUsed);
+        ArrayByteIterable leftPage = cache.getPageIterable(log, alignedAddress, formatWithHashCodeIsUsed);
 
-        final int leftLen = left.getLength();
-        if (leftLen <= leftStep) { // alignment is >= 0 for sure
+        final int leftPageLen = leftPage.getLength();
+        if (leftPageLen <= leftStep) { // alignment is >= 0 for sure
             BlockNotFoundException.raise(log, alignedAddress);
         }
-        byte[] leftArray = left.getBytesUnsafe();
-        final byte[] rightArray = right.getBytesUnsafe();
-        final int rightLen = right.getLength();
+
+        byte[] leftBaseArray = leftPage.getBaseBytes();
+        int leftBaseOffset = leftPage.baseOffset();
+
+        final byte[] rightBaseArray = right.getBaseBytes();
+        final int rightBaseLen = Math.min(right.getLength(), rightLen);
+        final int rightBaseOffset = rightOffset + right.baseOffset();
+
         int rightStep = 0;
-        int limit = Math.min(len, Math.min(leftLen - leftStep, rightLen));
+        int limit = Math.min(len, Math.min(leftPageLen - leftStep, rightBaseLen));
 
         while (true) {
             while (rightStep < limit) {
-                byte b1 = leftArray[leftStep++];
-                byte b2 = rightArray[rightStep++];
+                byte b1 = leftBaseArray[leftBaseOffset + leftStep++];
+                byte b2 = rightBaseArray[rightBaseOffset + rightStep++];
                 if (b1 != b2) {
                     return (b1 & 0xff) - (b2 & 0xff);
                 }
             }
-            if (rightStep == rightLen || alignedAddress >= endAddress) {
-                return len - rightLen;
+            if (rightStep == rightBaseLen || alignedAddress >= endAddress) {
+                return len - rightBaseLen;
             }
             // move left array to next cache page
-            left = cache.getPageIterable(log, alignedAddress += pageSize, formatWithHashCodeIsUsed);
-            leftArray = left.getBytesUnsafe();
+            leftPage = cache.getPageIterable(log, alignedAddress += pageSize, formatWithHashCodeIsUsed);
+            leftBaseArray = leftPage.getBaseBytes();
+            leftBaseOffset = leftPage.baseOffset();
+
             leftStep = 0;
-            limit = Math.min(len, Math.min(left.getLength() + rightStep, rightLen));
+            limit = Math.min(len, Math.min(leftPage.getLength() + rightStep, rightBaseLen));
         }
     }
 }

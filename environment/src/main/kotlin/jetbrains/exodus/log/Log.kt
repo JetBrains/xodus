@@ -1263,15 +1263,21 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
          */
         private fun writeByteIterable(writer: BufferedDataWriter, iterable: ByteIterable) {
             val length = iterable.length
+
             if (iterable is ArrayByteIterable) {
-                val bytes = iterable.getBytesUnsafe()
+                val bytes = iterable.baseBytes
+                val offset = iterable.baseOffset()
+
                 if (length == 1) {
                     writer.write(bytes[0], -1)
                 } else {
-                    writer.write(bytes, length)
+                    writer.write(bytes, offset, length)
                 }
             } else if (length >= 3) {
-                writer.write(iterable.bytesUnsafe, length)
+                val bytes = iterable.baseBytes
+                val offset = iterable.baseOffset()
+
+                writer.write(bytes, offset, length)
             } else {
                 val iterator = iterable.iterator()
                 writer.write(iterator.next(), -1)
