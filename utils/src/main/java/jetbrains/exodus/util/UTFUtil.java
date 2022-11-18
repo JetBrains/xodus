@@ -118,7 +118,7 @@ public class UTFUtil {
         }
     }
 
-    public static String fromAsciiByteArray(@NotNull final byte[] bytes, final int off, final int len) {
+    public static String fromAsciiByteArray(final byte @NotNull [] bytes, final int off, final int len) {
         return new String(bytes, 0, off, len);
     }
 
