@@ -247,23 +247,17 @@ abstract class BasePageImmutable extends BasePage {
     }
 
     private int singePageBinarySearch(final ByteIterable key, int low) {
-        final int cachePageSize = log.getCachePageSize();
-        final int bytesPerAddress = keyAddressLen;
-        final int cachePageMask = cachePageSize - 1;
-        final long dataAddress = getDataAddress();
-        final int pageOffset = (int) dataAddress & cachePageMask;
-        final long pageAddress = dataAddress - pageOffset;
-        final byte[] page = log.getCachedPage(pageAddress);
-
         int high = size - 1;
+        final int bytesPerAddress = keyAddressLen;
 
         while (low <= high) {
             final int mid = (low + high) >>> 1;
 
-            final int offset = mid * bytesPerAddress + pageOffset;
-            final long leafAddress = LongBinding.entryToUnsignedLong(page, offset, bytesPerAddress);
+            final int offset = mid * bytesPerAddress;
+            final long leafAddress = data.nextLong(offset, bytesPerAddress);
 
             final int cmp = tree.compareLeafToKey(leafAddress, key);
+
             if (cmp < 0) {
                 low = mid + 1;
             } else if (cmp > 0) {
