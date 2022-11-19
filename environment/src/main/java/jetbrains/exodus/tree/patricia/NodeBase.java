@@ -50,6 +50,26 @@ NodeBase implements INode {
     long matchesKeySequence(@NotNull final ByteIterator it) {
         int matchingLength = 0;
         final ByteIterator keyIt = keySequence.iterator();
+
+        if (keyIt instanceof ArrayByteIterable.Iterator && it instanceof ArrayByteIterable.Iterator) {
+            var keySequenceArray = (ArrayByteIterable.Iterator) keyIt;
+            var itArray = (ArrayByteIterable.Iterator) it;
+
+            matchingLength = keySequenceArray.match(itArray);
+            if (!keySequenceArray.hasNext()) {
+                return MatchResult.getMatchResult(matchingLength);
+            }
+
+            final byte keyByte = keySequenceArray.next();
+            if (!itArray.hasNext()) {
+                return MatchResult.getMatchResult(-matchingLength - 1, keyByte, false, (byte) 0);
+            }
+
+            final byte nextByte = itArray.next();
+            return MatchResult.getMatchResult(-matchingLength - 1, keyByte, true, nextByte);
+        }
+
+
         while (keyIt.hasNext()) {
             final byte keyByte = keyIt.next();
             if (!it.hasNext()) {

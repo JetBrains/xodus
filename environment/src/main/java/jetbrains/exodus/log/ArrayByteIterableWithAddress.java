@@ -65,12 +65,13 @@ final class ArrayByteIterableWithAddress extends ArrayByteIterable implements By
 
     @Override
     public ArrayByteIteratorWithAddress iterator() {
-        return new ArrayByteIteratorWithAddress(this.offset, length);
+        return new ArrayByteIteratorWithAddress(bytes, this.offset, length);
     }
 
     @Override
     public ArrayByteIteratorWithAddress iterator(final int offset) {
-        return new ArrayByteIteratorWithAddress(this.offset + offset, length - offset);
+        return new ArrayByteIteratorWithAddress(bytes,
+                this.offset + offset, length - offset);
     }
 
 
@@ -88,8 +89,8 @@ final class ArrayByteIterableWithAddress extends ArrayByteIterable implements By
     }
 
     private final class ArrayByteIteratorWithAddress extends Iterator implements ByteIteratorWithAddress {
-        ArrayByteIteratorWithAddress(final int offset, final int length) {
-            super(offset, length);
+        ArrayByteIteratorWithAddress(final byte[] bytes, final int offset, final int length) {
+            super(bytes, offset, length);
         }
 
         @Override

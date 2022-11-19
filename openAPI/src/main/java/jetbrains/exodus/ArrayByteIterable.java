@@ -166,7 +166,7 @@ public class ArrayByteIterable extends ByteIterableBase {
     }
 
     public Iterator iterator(final int offset) {
-        return new Iterator(this.offset + offset, length - offset);
+        return new Iterator(bytes, this.offset + offset, length - offset);
     }
 
     public void setBytes(byte @NotNull [] bytes) {
@@ -195,7 +195,7 @@ public class ArrayByteIterable extends ByteIterableBase {
 
     @Override
     protected Iterator getIterator() {
-        return new Iterator(this.offset, length);
+        return new Iterator(bytes, this.offset, length);
     }
 
     @Override
@@ -222,13 +222,15 @@ public class ArrayByteIterable extends ByteIterableBase {
         return SINGLE_BYTE_ITERABLES[b & 0xff];
     }
 
-    public class Iterator implements ByteIterator {
+    public static class Iterator implements ByteIterator {
+        protected final byte[] bytes;
         protected final int end;
         protected int offset;
 
-        public Iterator(int offset, int length) {
+        public Iterator(final byte[] bytes, int offset, int length) {
             this.offset = offset;
             this.end = offset + length;
+            this.bytes = bytes;
         }
 
         @Override
@@ -247,12 +249,32 @@ public class ArrayByteIterable extends ByteIterableBase {
             offset += result;
             return result;
         }
+
+        public int match(Iterator iterator) {
+            var mismatch = Arrays.mismatch(bytes, offset, end, iterator.bytes,
+                    iterator.offset, iterator.end);
+
+            if (mismatch == -1) {
+                var result = end - offset;
+                offset = end;
+                iterator.offset = iterator.end;
+
+                return result;
+            }
+
+            offset += mismatch;
+            iterator.offset += mismatch;
+
+            return mismatch;
+        }
+
+
     }
 
     @SuppressWarnings({"NonConstantFieldWithUpperCaseName"})
     private static final class EmptyIterable extends ArrayByteIterable {
 
-        public final Iterator ITERATOR = new Iterator(0, 0);
+        public final Iterator ITERATOR = new Iterator(null, 0, 0);
 
         EmptyIterable() {
             super(EMPTY_BYTES, 0);
