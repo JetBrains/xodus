@@ -38,7 +38,15 @@ final class ArrayByteIterableWithAddress extends ArrayByteIterable implements By
 
     @Override
     public long nextLong(final int offset, final int length) {
-        return LongBinding.entryToUnsignedLong(bytes, this.offset + offset, length);
+        final int start = this.offset + offset;
+        final int end = start + length;
+
+        long result = 0;
+        for (int i = start; i < end; ++i) {
+            result = (result << 8) + ((int) bytes[i] & 0xff);
+        }
+
+        return result;
     }
 
     @Override
@@ -57,12 +65,12 @@ final class ArrayByteIterableWithAddress extends ArrayByteIterable implements By
 
     @Override
     public ArrayByteIteratorWithAddress iterator() {
-        return iterator(0);
+        return new ArrayByteIteratorWithAddress(this.offset, length);
     }
 
     @Override
     public ArrayByteIteratorWithAddress iterator(final int offset) {
-        return new ArrayByteIteratorWithAddress(offset);
+        return new ArrayByteIteratorWithAddress(this.offset + offset, length - offset);
     }
 
 
@@ -80,18 +88,18 @@ final class ArrayByteIterableWithAddress extends ArrayByteIterable implements By
     }
 
     private final class ArrayByteIteratorWithAddress extends Iterator implements ByteIteratorWithAddress {
-        ArrayByteIteratorWithAddress(final int offset) {
-            super(offset);
+        ArrayByteIteratorWithAddress(final int offset, final int length) {
+            super(offset, length);
         }
 
         @Override
         public int available() {
-            return length - offset;
+            return end - offset;
         }
 
         @Override
         public long getAddress() {
-            return ArrayByteIterableWithAddress.this.address + offset;
+            return ArrayByteIterableWithAddress.this.address + offset - ArrayByteIterableWithAddress.this.offset;
         }
 
         @Override
@@ -101,48 +109,41 @@ final class ArrayByteIterableWithAddress extends ArrayByteIterable implements By
 
         @Override
         public long nextLong(final int length) {
-            final long result = LongBinding.entryToUnsignedLong(bytes,
-                    ArrayByteIterableWithAddress.this.offset +
-                            offset, length);
+            final long result = LongBinding.entryToUnsignedLong(bytes, offset, length);
             offset += length;
             return result;
         }
 
         @Override
         public int getCompressedUnsignedInt() {
-            if (offset == length) {
+            if (offset == end) {
                 throw new NoSuchElementException();
             }
 
-            int baseOffset = ArrayByteIterableWithAddress.this.offset;
             int result = 0;
             int shift = 0;
             do {
-                final byte b = bytes[baseOffset + offset];
-                offset++;
-
+                final byte b = bytes[offset++];
                 result += (b & 0x7f) << shift;
                 if ((b & 0x80) != 0) {
                     return result;
                 }
                 shift += 7;
-            } while (offset < length);
+            } while (offset < end);
 
             throw new NoSuchElementException();
         }
 
         @Override
         public long getCompressedUnsignedLong() {
-            if (offset == length) {
+            if (offset == end) {
                 throw new NoSuchElementException();
             }
 
-            int baseOffset = ArrayByteIterableWithAddress.this.offset;
             long result = 0;
             int shift = 0;
             do {
-                final byte b = bytes[offset + baseOffset];
-                offset++;
+                final byte b = bytes[offset++];
 
                 result += (long) (b & 0x7f) << shift;
                 if ((b & 0x80) != 0) {
@@ -150,7 +151,7 @@ final class ArrayByteIterableWithAddress extends ArrayByteIterable implements By
                 }
 
                 shift += 7;
-            } while (offset < length);
+            } while (offset < end);
 
             throw new NoSuchElementException();
         }

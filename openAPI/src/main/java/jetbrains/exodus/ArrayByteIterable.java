@@ -166,7 +166,7 @@ public class ArrayByteIterable extends ByteIterableBase {
     }
 
     public Iterator iterator(final int offset) {
-        return new Iterator(offset);
+        return new Iterator(this.offset + offset, length - offset);
     }
 
     public void setBytes(byte @NotNull [] bytes) {
@@ -195,7 +195,7 @@ public class ArrayByteIterable extends ByteIterableBase {
 
     @Override
     protected Iterator getIterator() {
-        return new Iterator(0);
+        return new Iterator(this.offset, length);
     }
 
     @Override
@@ -223,32 +223,28 @@ public class ArrayByteIterable extends ByteIterableBase {
     }
 
     public class Iterator implements ByteIterator {
-
+        protected final int end;
         protected int offset;
 
-        public Iterator(int offset) {
+        public Iterator(int offset, int length) {
             this.offset = offset;
+            this.end = offset + length;
         }
 
         @Override
         public boolean hasNext() {
-            return offset < length;
+            return offset < end;
         }
 
         @Override
         public byte next() {
-            final int offset = this.offset;
-            final byte result = bytes[ArrayByteIterable.this.offset + offset];
-
-            // such logic prevents from advancing of empty iterator
-            this.offset = offset + 1;
-            return result;
+            return bytes[offset++];
         }
 
         @Override
         public long skip(long bytes) {
-            final long result = Math.min(bytes, length - offset);
-            offset += (int) result;
+            final int result = (int) Math.min(bytes, end - offset);
+            offset += result;
             return result;
         }
     }
@@ -256,7 +252,7 @@ public class ArrayByteIterable extends ByteIterableBase {
     @SuppressWarnings({"NonConstantFieldWithUpperCaseName"})
     private static final class EmptyIterable extends ArrayByteIterable {
 
-        public final Iterator ITERATOR = new Iterator(0);
+        public final Iterator ITERATOR = new Iterator(0, 0);
 
         EmptyIterable() {
             super(EMPTY_BYTES, 0);
