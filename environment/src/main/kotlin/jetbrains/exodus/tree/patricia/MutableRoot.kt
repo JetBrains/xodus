@@ -21,7 +21,7 @@ internal open class MutableRoot : MutableNode, MutableTreeRoot {
 
     val sourceAddress: Long
 
-    constructor(origin: ImmutableNode) : super(origin) {
+    constructor(origin: ImmutableNode) : super(origin.asNodeBase()) {
         sourceAddress = origin.address
     }
 

@@ -35,7 +35,7 @@ internal open class MutableNode : NodeBase {
 
     internal val children: ChildReferenceSet
 
-    constructor(origin: ImmutableNode) : super(origin.keySequence, origin.value) {
+    constructor(origin: NodeBase) : super(origin.keySequence, origin.value) {
         children = ChildReferenceSet()
         copyChildrenFrom(origin)
     }

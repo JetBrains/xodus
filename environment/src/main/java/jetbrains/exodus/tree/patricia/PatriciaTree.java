@@ -44,13 +44,20 @@ public class PatriciaTree extends PatriciaTreeBase {
 
             rememberBackRef(backRef);
         }
-        root = new ImmutableNode(log, rootLoggable, data.cloneWithAddressAndLength(it.getAddress(), it.available()));
+
+        if (rootLoggable.isDataInsideSinglePage()) {
+            root = new SinglePageImmutableNode(rootLoggable,
+                    data.cloneWithAddressAndLength(it.getAddress(), it.available()));
+        } else {
+            root = new MultiPageImmutableNode(log, rootLoggable,
+                    data.cloneWithAddressAndLength(it.getAddress(), it.available()));
+        }
     }
 
     @NotNull
     @Override
     public final PatriciaTreeMutable getMutableCopy() {
-        return new PatriciaTreeMutable(log, structureId, size, getRoot());
+        return new PatriciaTreeMutable(log, structureId, size, (ImmutableNode) getRoot());
     }
 
     @Override
@@ -60,7 +67,7 @@ public class PatriciaTree extends PatriciaTreeBase {
 
     @Override
     public final ITreeCursor openCursor() {
-        final ImmutableNode root = getRoot();
+        final NodeBase root = getRoot();
         return new TreeCursor(new PatriciaTraverser(this, root), root.hasValue());
     }
 
@@ -69,7 +76,7 @@ public class PatriciaTree extends PatriciaTreeBase {
     }
 
     @Override
-    final ImmutableNode getRoot() {
-        return root;
+    final NodeBase getRoot() {
+        return root.asNodeBase();
     }
 }

@@ -24,8 +24,8 @@ import java.util.*
 
 internal val Byte.unsigned: Int get() = this.toInt() and 0xff
 
-private const val CHILDREN_BITSET_SIZE_LONGS = 4
-private const val CHILDREN_BITSET_SIZE_BYTES = CHILDREN_BITSET_SIZE_LONGS * Long.SIZE_BYTES
+const val CHILDREN_BITSET_SIZE_LONGS = 4
+const val CHILDREN_BITSET_SIZE_BYTES = CHILDREN_BITSET_SIZE_LONGS * Long.SIZE_BYTES
 
 /**
  * In V2 database format, a Patricia node with children can be encoded in 3 different ways depending
@@ -37,15 +37,14 @@ private enum class V2ChildrenFormat {
     Bitset    // the number of children is in the range 33..255
 }
 
-internal class ImmutableNode : NodeBase {
+internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
+    private val loggable: RandomAccessLoggable
 
-    val loggable: RandomAccessLoggable
     private val log: Log
     private val data: ByteIterableWithAddress
     private val childrenCount: Short
     private val childAddressLength: Byte
     private val baseAddress: Long // if it is not equal to NULL_ADDRESS then the node is saved in the v2 format
-
 
     constructor(log: Log, loggable: RandomAccessLoggable, data: ByteIterableWithAddress) :
             this(log, loggable.type, loggable, data, data.iterator())
@@ -80,20 +79,14 @@ internal class ImmutableNode : NodeBase {
         this.data = data.cloneWithAddressAndLength(it.address, it.available())
     }
 
-    /**
-     * Creates empty node for an empty tree.
-     */
-    constructor(log: Log) : super(ByteIterable.EMPTY, null) {
-        this.log = log
-        @Suppress("INACCESSIBLE_TYPE")
-        loggable = NullLoggable.create()
-        data = ByteIterableWithAddress.EMPTY
-        childrenCount = 0.toShort()
-        childAddressLength = 0.toByte()
-        baseAddress = NULL_ADDRESS
+    override fun getLoggable(): RandomAccessLoggable {
+        return loggable
     }
 
-    public override fun getAddress() = loggable.address
+    override fun getAddress() = loggable.address
+    override fun asNodeBase(): NodeBase {
+        return this
+    }
 
     public override fun isMutable() = false
 
@@ -385,7 +378,7 @@ internal class ImmutableNode : NodeBase {
         override fun remove() =
             throw ExodusException("Can't remove manually Patricia node child, use Store.delete() instead")
 
-        override val parentNode: NodeBase get() = this@ImmutableNode
+        override val parentNode: NodeBase get() = this@MultiPageImmutableNode
 
         override val key: ByteIterable get() = keySequence
     }

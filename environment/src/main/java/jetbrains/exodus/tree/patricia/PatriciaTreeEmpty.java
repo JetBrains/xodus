@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,8 +16,10 @@
 package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
+import jetbrains.exodus.log.NullLoggable;
 import jetbrains.exodus.tree.ITreeCursor;
 import jetbrains.exodus.tree.ITreeMutable;
 import org.jetbrains.annotations.NotNull;
@@ -36,7 +38,8 @@ public final class PatriciaTreeEmpty extends PatriciaTreeBase {
     @NotNull
     @Override
     public ITreeMutable getMutableCopy() {
-        final PatriciaTreeMutable treeMutable = new PatriciaTreeMutable(log, structureId, 0, getRoot());
+        final PatriciaTreeMutable treeMutable = new PatriciaTreeMutable(log, structureId, 0,
+                (ImmutableNode) getRoot());
         return hasDuplicates ? new PatriciaTreeWithDuplicatesMutable(treeMutable) : treeMutable;
     }
 
@@ -51,8 +54,8 @@ public final class PatriciaTreeEmpty extends PatriciaTreeBase {
     }
 
     @Override
-    ImmutableNode getRoot() {
-        return new ImmutableNode(log);
+    NodeBase getRoot() {
+        return new SinglePageImmutableNode();
     }
 
     @Nullable
