@@ -230,7 +230,7 @@ final class SinglePageImmutableNode extends NodeBase implements ImmutableNode {
 
                 if (bitsetIdx > 0) {
                     for (int i = 0; i < bitsetIdx; i++) {
-                        index += Long.bitCount(nextLong(i * Long.SIZE, Long.SIZE));
+                        index += Long.bitCount(nextLong(i * Long.BYTES, Long.BYTES));
                     }
                 }
 

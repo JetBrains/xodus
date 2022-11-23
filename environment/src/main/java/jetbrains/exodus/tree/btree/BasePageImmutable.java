@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.tree.btree;
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.CompoundByteIteratorBase;
-import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.*;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.log.*;
 import org.jetbrains.annotations.NotNull;
@@ -32,7 +29,9 @@ abstract class BasePageImmutable extends BasePage {
     private ILeafNode maxKey = null;
     protected final Log log;
 
-    protected final boolean loggableInsideSinglePage;
+    protected final byte[] page;
+    private final int dataOffset;
+
     private final boolean formatWithHashCodeIsUsed;
 
 
@@ -44,10 +43,13 @@ abstract class BasePageImmutable extends BasePage {
     BasePageImmutable(@NotNull BTreeBase tree) {
         super(tree);
         data = ByteIterableWithAddress.EMPTY;
+
         size = 0;
-        loggableInsideSinglePage = true;
         log = tree.log;
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
+
+        dataOffset = 0;
+        page = ArrayByteIterable.EMPTY_BYTES;
     }
 
     /**
@@ -66,7 +68,14 @@ abstract class BasePageImmutable extends BasePage {
         this.data = init(data, it);
 
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
-        this.loggableInsideSinglePage = loggableInsideSinglePage;
+
+        if (loggableInsideSinglePage) {
+            page = this.data.getBaseBytes();
+            dataOffset = this.data.baseOffset();
+        } else {
+            page = null;
+            dataOffset = -1;
+        }
     }
 
     /**
@@ -87,8 +96,15 @@ abstract class BasePageImmutable extends BasePage {
 
         this.data = init(data, it);
 
-        this.loggableInsideSinglePage = loggableInsideSinglePage;
         formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
+
+        if (loggableInsideSinglePage) {
+            page = this.data.getBaseBytes();
+            dataOffset = this.data.baseOffset();
+        } else {
+            page = null;
+            dataOffset = -1;
+        }
     }
 
     private ByteIterableWithAddress init(final ByteIterableWithAddress data, @NotNull final ByteIteratorWithAddress itr) {
@@ -142,7 +158,22 @@ abstract class BasePageImmutable extends BasePage {
             return Loggable.NULL_ADDRESS;
         }
 
+        if (page != null) {
+            return getLong(index * keyAddressLen, keyAddressLen);
+        }
+
         return data.nextLong(index * keyAddressLen, keyAddressLen);
+    }
+
+    protected final long getLong(int offset, int length) {
+        offset += dataOffset;
+
+        long result = 0;
+        for (int i = 0; i < length; ++i) {
+            result = (result << 8) + ((int) page[offset + i] & 0xff);
+        }
+
+        return result;
     }
 
     @Override
@@ -177,11 +208,11 @@ abstract class BasePageImmutable extends BasePage {
             return -1;
         }
 
-        if (formatWithHashCodeIsUsed) {
-            if (loggableInsideSinglePage) {
-                return singePageBinarySearch(key, low);
-            }
+        if (page != null) {
+            return singePageBinarySearch(key, low);
+        }
 
+        if (formatWithHashCodeIsUsed) {
             return multiPageBinarySearch(key, low);
         } else {
             return compatibleBinarySearch(key, low);
@@ -249,15 +280,12 @@ abstract class BasePageImmutable extends BasePage {
     private int singePageBinarySearch(final ByteIterable key, int low) {
         int high = size - 1;
         final int bytesPerAddress = keyAddressLen;
-        final int baseOffset = data.baseOffset();
-        final byte[] page = data.getBaseBytes();
 
         while (low <= high) {
             final int mid = (low + high) >>> 1;
 
             final int offset = mid * bytesPerAddress;
-            final long leafAddress = LongBinding.entryToUnsignedLong(page,
-                    baseOffset + offset, bytesPerAddress);
+            final long leafAddress = getLong(offset, bytesPerAddress);
 
             final int cmp = tree.compareLeafToKey(leafAddress, key);
 
@@ -288,10 +316,9 @@ abstract class BasePageImmutable extends BasePage {
         while (low <= high) {
             final int mid = (low + high) >>> 1;
 
-            long midAddress = dataAddress + ((long) mid) * bytesPerAddress;
-            if (!loggableInsideSinglePage) {
-                midAddress = log.adjustLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
-            }
+            final long midAddress =
+                    log.adjustLoggableAddress(dataAddress, (((long) mid) * bytesPerAddress));
+
 
             final int offset;
 
