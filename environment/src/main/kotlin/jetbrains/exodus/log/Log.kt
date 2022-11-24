@@ -196,7 +196,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             }
 
             val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
-            if (!startupMetadata.isCorrectlyClosed || needToPerformMigration) {
+            if (!rwIsReadonly && !startupMetadata.isCorrectlyClosed || needToPerformMigration) {
                 if (!startupMetadata.isCorrectlyClosed) {
                     logger.error(
                         "Environment located at ${reader.location} has been closed incorrectly. " +
