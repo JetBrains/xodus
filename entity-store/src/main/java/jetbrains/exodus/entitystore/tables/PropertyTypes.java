@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -106,12 +106,16 @@ public final class PropertyTypes {
     }
 
     public PropertyValue entryToPropertyValue(@NotNull final ByteIterable entry, @Nullable ComparableBinding binding) {
-        final byte[] bytes = entry.getBytesUnsafe();
-        final ComparableValueType type = getPropertyType((byte) (bytes[0] ^ 0x80));
+        final byte[] bytes = entry.getBaseBytes();
+        final int offset = entry.baseOffset();
+
+        final ComparableValueType type = getPropertyType((byte) (bytes[offset] ^ 0x80));
         if (binding == null) {
             binding = type.getBinding();
         }
-        final Comparable data = binding.readObject(new ByteArraySizedInputStream(bytes, 1, entry.getLength() - 1));
+
+        final Comparable data = binding.readObject(new ByteArraySizedInputStream(bytes,
+                offset + 1, entry.getLength() - 1));
         return new PropertyValue(type, data);
     }
 

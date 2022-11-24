@@ -34,7 +34,7 @@ class LeafNodeDup extends LeafNode {
     protected final BTreeDup tree;
 
     LeafNodeDup(@NotNull BTreeBase mainTree, @NotNull RandomAccessLoggable loggable) {
-        super(loggable);
+        super(mainTree.log, loggable);
         tree = new BTreeDup(mainTree, this);
     }
 
@@ -141,7 +141,7 @@ class LeafNodeDup extends LeafNode {
         for (final RandomAccessLoggable loggable : context.dupLeafsLo) {
             switch (loggable.getType()) {
                 case BTreeBase.DUP_LEAF:
-                    new LeafNode(loggable).reclaim(dupStack);
+                    new LeafNode(log, loggable).reclaim(dupStack);
                     break;
                 case BTreeBase.DUP_BOTTOM:
                     tree.reclaimBottom(loggable, dupStack);
@@ -157,7 +157,7 @@ class LeafNodeDup extends LeafNode {
         for (final RandomAccessLoggable loggable : context.dupLeafsHi) {
             switch (loggable.getType()) {
                 case BTreeBase.DUP_LEAF:
-                    new LeafNode(loggable).reclaim(dupStack);
+                    new LeafNode(log, loggable).reclaim(dupStack);
                     break;
                 case BTreeBase.DUP_BOTTOM:
                     tree.reclaimBottom(loggable, dupStack);

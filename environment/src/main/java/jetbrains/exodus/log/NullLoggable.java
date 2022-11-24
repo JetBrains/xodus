@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,25 +15,22 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 
-public final class NullLoggable extends RandomAccessLoggableImpl {
-
+public final class NullLoggable {
     public static final byte TYPE = 0;
+    private static final SinglePageLoggable PROTOTYPE = new SinglePageLoggable(Loggable.NULL_ADDRESS,
+            Loggable.NULL_ADDRESS, TYPE, Loggable.NO_STRUCTURE_ID, Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES,
+            0, 0);
 
-    private static final NullLoggable PROTOTYPE = new NullLoggable(Loggable.NULL_ADDRESS);
-
-    NullLoggable(final long address) {
-        super(address, TYPE, ByteIterableWithAddress.getEmpty(address + 1), 0, NO_STRUCTURE_ID);
+    public static SinglePageLoggable create(final long startAddress, final long endAddress) {
+        return new SinglePageLoggable(startAddress, endAddress, TYPE, Loggable.NO_STRUCTURE_ID,
+                Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES, 0, 0);
     }
 
-    public static NullLoggable create() {
+    public static SinglePageLoggable create() {
         return PROTOTYPE;
-    }
-
-    @Override
-    public long getAddress() {
-        return Loggable.NULL_ADDRESS;
     }
 
     public static boolean isNullLoggable(final byte type) {

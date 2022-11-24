@@ -28,7 +28,7 @@ public class LogLockingTests extends LogTestsBase {
 
     @Test
     public void testLock() throws IOException {
-        initLog(1);
+        initLog(1, 1024);
         File xdLockFile = new File(getLogDirectory(), "xd.lck");
         Assert.assertTrue(xdLockFile.exists());
         Assert.assertFalse(canWrite(xdLockFile));
@@ -38,7 +38,7 @@ public class LogLockingTests extends LogTestsBase {
 
     @Test
     public void testLockContents() {
-        initLog(1);
+        initLog(1, 1024);
         final DataWriter writer = log.getConfig().getWriter();
         closeLog();
         Assert.assertTrue(writer.lockInfo().contains("org.junit."));
@@ -46,14 +46,14 @@ public class LogLockingTests extends LogTestsBase {
 
     @Test
     public void testDirectoryAlreadyLocked() {
-        initLog(1);
+        initLog(1, 1024);
         File xdLockFile = new File(getLogDirectory(), "xd.lck");
         Assert.assertTrue(xdLockFile.exists());
         Log prevLog = log;
         boolean alreadyLockedEx = false;
         try {
             log = null;
-            initLog(1);
+            initLog(1, 1024);
         } catch (ExodusException ex) {
             alreadyLockedEx = true;
         }
@@ -64,7 +64,7 @@ public class LogLockingTests extends LogTestsBase {
 
     @Test
     public void testDirectoryReleaseLock() throws IOException {
-        initLog(1);
+        initLog(1, 1024);
         File xdLockFile = new File(getLogDirectory(), "xd.lck");
         Assert.assertTrue(xdLockFile.exists());
         closeLog();
@@ -75,7 +75,7 @@ public class LogLockingTests extends LogTestsBase {
         Assert.assertTrue(xdLockFile.exists());
         boolean alreadyLockedEx = false;
         try {
-            initLog(1);
+            initLog(1, 1024);
         } catch (ExodusException ex) {
             alreadyLockedEx = true;
         }
@@ -107,11 +107,7 @@ public class LogLockingTests extends LogTestsBase {
         }
         // If it didn't help for some reasons (saw that it doesn't work on Solaris 10)
         if (can) {
-            RandomAccessFile file = null;
-            FileChannel channel = null;
-            try {
-                file = new RandomAccessFile(xdLockFile, "rw");
-                channel = file.getChannel();
+            try (RandomAccessFile file = new RandomAccessFile(xdLockFile, "rw"); FileChannel channel = file.getChannel()) {
                 FileLock lock = channel.tryLock();
                 if (lock != null) {
                     lock.release();
@@ -121,9 +117,6 @@ public class LogLockingTests extends LogTestsBase {
                 file.close();
             } catch (Throwable ignore) {
                 can = false;
-            } finally {
-                if (channel != null) channel.close();
-                if (file != null) file.close();
             }
         }
         return can;

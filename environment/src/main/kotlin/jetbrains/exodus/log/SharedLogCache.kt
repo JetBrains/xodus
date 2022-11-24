@@ -23,13 +23,15 @@ import kotlin.math.min
 internal class SharedLogCache : LogCache {
 
     private val pagesCache: LongObjectCacheBase<CachedValue>
-    internal val useSoftReferences: Boolean;
+    internal val useSoftReferences: Boolean
 
-    constructor(memoryUsage: Long,
-                pageSize: Int,
-                nonBlocking: Boolean,
-                useSoftReferences: Boolean,
-                cacheGenerationCount: Int) : super(memoryUsage, pageSize) {
+    constructor(
+        memoryUsage: Long,
+        pageSize: Int,
+        nonBlocking: Boolean,
+        useSoftReferences: Boolean,
+        cacheGenerationCount: Int
+    ) : super(memoryUsage, pageSize) {
         this.useSoftReferences = useSoftReferences
         val pagesCount = (memoryUsage / (pageSize +  /* each page consumes additionally 96 bytes in the cache */
                 96)).toInt()
@@ -48,11 +50,13 @@ internal class SharedLogCache : LogCache {
         }
     }
 
-    constructor(memoryUsagePercentage: Int,
-                pageSize: Int,
-                nonBlocking: Boolean,
-                useSoftReferences: Boolean,
-                cacheGenerationCount: Int) : super(memoryUsagePercentage, pageSize) {
+    constructor(
+        memoryUsagePercentage: Int,
+        pageSize: Int,
+        nonBlocking: Boolean,
+        useSoftReferences: Boolean,
+        cacheGenerationCount: Int
+    ) : super(memoryUsagePercentage, pageSize) {
         this.useSoftReferences = useSoftReferences
         pagesCache = if (memoryUsage == Long.MAX_VALUE) {
             if (nonBlocking) {
@@ -93,7 +97,14 @@ internal class SharedLogCache : LogCache {
     override fun hitRate() = pagesCache.hitRate()
 
     override fun cachePage(log: Log, pageAddress: Long, page: ByteArray) =
-            log.identity.let { logIdentity -> cachePage(getLogPageFingerPrint(logIdentity, pageAddress), logIdentity, pageAddress, page) }
+        log.identity.let { logIdentity ->
+            cachePage(
+                getLogPageFingerPrint(logIdentity, pageAddress),
+                logIdentity,
+                pageAddress,
+                page
+            )
+        }
 
     override fun getPage(log: Log, pageAddress: Long): ByteArray {
         val logIdentity = log.identity
@@ -120,20 +131,31 @@ internal class SharedLogCache : LogCache {
         } else log.getHighPage(pageAddress)
     }
 
-    override fun getPageIterable(log: Log, pageAddress: Long): ArrayByteIterable {
+    override fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
+
+        var adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA
+        if (!formatWithHashCodeIsUsed) {
+            adjustedPageSize = pageSize
+        }
+
         if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
-            return ArrayByteIterable(cachedValue.page)
+            return ArrayByteIterable(cachedValue.page, adjustedPageSize)
         }
         var page = log.getHighPage(pageAddress)
         if (page != null) {
-            return ArrayByteIterable(page, min(log.highAddress - pageAddress, pageSize.toLong()).toInt())
+            return ArrayByteIterable(
+                page, min(
+                    log.highAddress - pageAddress,
+                    adjustedPageSize.toLong()
+                ).toInt()
+            )
         }
         page = readFullPage(log, pageAddress)
         cachePage(key, logIdentity, pageAddress, page)
-        return ArrayByteIterable(page)
+        return ArrayByteIterable(page, adjustedPageSize)
     }
 
     override fun removePage(log: Log, pageAddress: Long) {
@@ -142,10 +164,11 @@ internal class SharedLogCache : LogCache {
     }
 
     private fun cachePage(key: Long, logIdentity: Int, address: Long, page: ByteArray) {
-        pagesCache.cacheObjectLocked(key, CachedValue(logIdentity, address, postProcessTailPage(page)))
+        pagesCache.cacheObjectLocked(key, CachedValue(logIdentity, address, page))
     }
 
     private class CachedValue(val logIdentity: Int, val address: Long, val page: ByteArray)
 }
 
-private fun getLogPageFingerPrint(logIdentity: Int, address: Long): Long = (address + logIdentity shl 32) + address + logIdentity
+private fun getLogPageFingerPrint(logIdentity: Int, address: Long): Long =
+    (address + logIdentity shl 32) + address + logIdentity

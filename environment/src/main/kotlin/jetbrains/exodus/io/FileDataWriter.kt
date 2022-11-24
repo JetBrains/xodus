@@ -177,7 +177,7 @@ open class FileDataWriter @JvmOverloads constructor(private val reader: FileData
 
     companion object : KLogging() {
 
-        private const val DELETED_FILE_EXTENSION = ".del"
+        const val DELETED_FILE_EXTENSION = ".del"
         private val warnIfWindows by lazy {
             logger.warn("Can't open directory channel. Log directory fsync won't be performed.")
         }

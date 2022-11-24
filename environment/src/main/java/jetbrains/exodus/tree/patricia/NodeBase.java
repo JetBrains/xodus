@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,9 +18,7 @@ package jetbrains.exodus.tree.patricia;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.log.ByteIterableWithAddress;
-import jetbrains.exodus.log.ByteIteratorWithAddress;
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.INode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,12 +26,11 @@ import org.jetbrains.annotations.Nullable;
 import java.io.PrintStream;
 
 @SuppressWarnings({"ProtectedField"})
-abstract class NodeBase implements INode {
-
-    private static final int LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH = 16;
-
+abstract class
+NodeBase implements INode {
     @NotNull
     protected ByteIterable keySequence;
+
     @Nullable
     protected ByteIterable value;
 
@@ -45,6 +42,7 @@ abstract class NodeBase implements INode {
     NodeBase(final byte type,
              @NotNull final ByteIterableWithAddress data,
              @NotNull final ByteIteratorWithAddress it) {
+
         this.keySequence = extractKey(type, data, it);
         this.value = extractValue(type, data, it);
     }
@@ -52,6 +50,26 @@ abstract class NodeBase implements INode {
     long matchesKeySequence(@NotNull final ByteIterator it) {
         int matchingLength = 0;
         final ByteIterator keyIt = keySequence.iterator();
+
+        if (keyIt instanceof ArrayByteIterable.Iterator && it instanceof ArrayByteIterable.Iterator) {
+            var keySequenceArray = (ArrayByteIterable.Iterator) keyIt;
+            var itArray = (ArrayByteIterable.Iterator) it;
+
+            matchingLength = keySequenceArray.match(itArray);
+            if (!keySequenceArray.hasNext()) {
+                return MatchResult.getMatchResult(matchingLength);
+            }
+
+            final byte keyByte = keySequenceArray.next();
+            if (!itArray.hasNext()) {
+                return MatchResult.getMatchResult(-matchingLength - 1, keyByte, false, (byte) 0);
+            }
+
+            final byte nextByte = itArray.next();
+            return MatchResult.getMatchResult(-matchingLength - 1, keyByte, true, nextByte);
+        }
+
+
         while (keyIt.hasNext()) {
             final byte keyByte = keyIt.next();
             if (!it.hasNext()) {
@@ -118,8 +136,8 @@ abstract class NodeBase implements INode {
     @Override
     public String toString() {
         return String.format("%s} %s %s",
-            keySequence.iterator().hasNext() ? "{key:" + keySequence.toString() : '{',
-            value == null ? "@" : value.toString() + " @", getAddress()
+                keySequence.iterator().hasNext() ? "{key:" + keySequence : '{',
+                value == null ? "@" : value + " @", getAddress()
         );
     }
 
@@ -246,20 +264,20 @@ abstract class NodeBase implements INode {
         if (!PatriciaTreeBase.nodeHasValue(type)) {
             return null;
         }
+
         return extractLazyIterable(data, it);
     }
 
     private static ByteIterable extractLazyIterable(@NotNull final ByteIterableWithAddress data,
                                                     @NotNull final ByteIteratorWithAddress it) {
-        final int length = CompressedUnsignedLongByteIterable.getInt(it);
+        final int length = it.getCompressedUnsignedInt();
         if (length == 1) {
             return ArrayByteIterable.fromByte(it.next());
         }
-        if (length < LAZY_KEY_VALUE_ITERABLE_MIN_LENGTH) {
-            return new ArrayByteIterable(it, length);
-        }
-        final ByteIterable result = data.subIterable((int) (it.getAddress() - data.getDataAddress()), length);
+
+        final ByteIterableWithAddress result = data.cloneWithAddressAndLength(it.getAddress(), length);
         it.skip(length);
+
         return result;
     }
 }

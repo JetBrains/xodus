@@ -276,13 +276,38 @@ public class EnvironmentTestsBase {
     }
 
     protected void setLogFileSize(int kilobytes) {
-        final EnvironmentConfig envConfig = env.getEnvironmentConfig();
-        if (envConfig.getLogCachePageSize() > kilobytes * 1024) {
-            envConfig.setLogCachePageSize(kilobytes * 1024);
+        EnvironmentConfig environmentConfig = new EnvironmentConfig().setLogCacheShared(false);
+
+        if (environmentConfig.getLogFileSize() != kilobytes) {
+            final EnvironmentConfig envConfig = env.getEnvironmentConfig();
+            if (envConfig.getLogCachePageSize() > kilobytes * 1024) {
+                envConfig.setLogCachePageSize(kilobytes * 1024);
+            }
+            envConfig.setLogFileSize(kilobytes);
+
+            recreateEnvinronment(envConfig);
         }
-        envConfig.setLogFileSize(kilobytes);
-        Log.invalidateSharedCache();
-        reopenEnvironment();
+    }
+
+    protected void recreateEnvinronment(EnvironmentConfig envConfig) {
+        env.close();
+
+        invalidateSharedCaches();
+        deleteRW();
+
+        final Pair<DataReader, DataWriter> readerWriterPair;
+        try {
+            readerWriterPair = createRW();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        reader = readerWriterPair.getFirst();
+        writer = readerWriterPair.getSecond();
+
+        LogConfig logConfig = LogConfig.create(reader, writer);
+
+        env = newEnvironmentInstance(logConfig, envConfig);
     }
 
     protected void set1KbFileWithoutGC() {

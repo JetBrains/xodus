@@ -35,7 +35,7 @@ internal open class MutableNode : NodeBase {
 
     internal val children: ChildReferenceSet
 
-    constructor(origin: ImmutableNode) : super(origin.keySequence, origin.value) {
+    constructor(origin: NodeBase) : super(origin.keySequence, origin.value) {
         children = ChildReferenceSet()
         copyChildrenFrom(origin)
     }
@@ -43,7 +43,7 @@ internal open class MutableNode : NodeBase {
     constructor(keySequence: ByteIterable) : this(keySequence, null, ChildReferenceSet())
 
     constructor(keySequence: ByteIterable, value: ByteIterable?, children: ChildReferenceSet)
-        : super(keySequence, value) {
+            : super(keySequence, value) {
         this.children = children
     }
 
@@ -166,23 +166,25 @@ internal open class MutableNode : NodeBase {
      * @param nextByte     next byte after prefix linking it with suffix.
      * @return the prefix node.
      */
-    fun splitKey(prefixLength: Int, nextByte: Byte): MutableNode {
-        val keyBytes = keySequence.bytesUnsafe
+    private fun splitKey(prefixLength: Int, nextByte: Byte): MutableNode {
         val prefixKey = when (prefixLength) {
             0 -> ByteIterable.EMPTY
-            1 -> SingleByteIterable.getIterable(keyBytes[0])
-            else -> ArrayByteIterable(keyBytes, prefixLength)
+            1 -> SingleByteIterable.getIterable(keySequence.byteAt(0))
+            else -> keySequence.subIterable(0, prefixLength)
         }
+
         val prefix = MutableNode(prefixKey)
         val suffixKey = when (val suffixLength = keySequence.length - prefixLength - 1) {
             0 -> ByteIterable.EMPTY
-            1 -> SingleByteIterable.getIterable(keyBytes[prefixLength + 1])
+            1 -> SingleByteIterable.getIterable(keySequence.byteAt(prefixLength + 1))
             else -> keySequence.subIterable(prefixLength + 1, suffixLength)
         }
+
         val suffix = MutableNode(
-            suffixKey, value,  // copy children of this node to the suffix one
-            children
+                suffixKey, value,  // copy children of this node to the suffix one
+                children
         )
+
         prefix.setChild(nextByte, suffix)
         return prefix
     }
@@ -194,7 +196,7 @@ internal open class MutableNode : NodeBase {
         val child = ref.getNode(tree)
         value = child.value
         keySequence = CompoundByteIterable(
-            arrayOf(keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence)
+                arrayOf(keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence)
         )
         copyChildrenFrom(child)
     }
@@ -278,7 +280,7 @@ internal open class MutableNode : NodeBase {
         iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.writtenHighAddress - startAddress)
         val data: ByteIterable = CompoundByteIterable(iterables, pos + 2)
         result =
-            if (singleFile) log.writeContinuously(type, structureId, data) else log.tryWrite(type, structureId, data)
+                if (singleFile) log.writeContinuously(type, structureId, data) else log.tryWrite(type, structureId, data)
         if (result < 0) {
             if (!singleFile) {
                 iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.writtenHighAddress - startAddress)
@@ -339,9 +341,9 @@ internal open class MutableNode : NodeBase {
         // if this is a sparse node make sure v2 format would result in a more compact saving
         if (childrenCount <= 32) {
             val bytesPerAddressV1 =
-                children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
+                    children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
             if (bytesPerAddress == bytesPerAddressV1 ||
-                (bytesPerAddressV1 - bytesPerAddress) * childrenCount <= getCompressedSize(baseAddress) + 1
+                    (bytesPerAddressV1 - bytesPerAddress) * childrenCount <= getCompressedSize(baseAddress) + 1
             ) {
                 saveChildrenV1(childrenCount, nodeStream)
                 return

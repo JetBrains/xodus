@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -123,6 +123,14 @@ public interface Environment extends Closeable, Backupable {
      * @see Transaction
      */
     void clear();
+
+    /**
+     * Indicates if environment is working in read-only mode.
+     *
+     * Use this method instead of {@link EnvironmentConfig#getEnvIsReadonly()}.
+     * @return {@code true} if environment is working in read-only mode.
+     */
+    boolean isReadOnly();
 
     /**
      * Closes environment instance. Make sure there are no unfinished transactions, otherwise the method fails with

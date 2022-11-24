@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -37,7 +37,7 @@ public abstract class JMHEnvBenchmarkBase {
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");
         env = Environments.newInstance(testsDirectory,
-            adjustEnvironmentConfig(new EnvironmentConfig().setLogFileSize(32768)));
+                adjustEnvironmentConfig(new EnvironmentConfig().setLogFileSize(32768)));
         store = env.computeInTransaction(txn -> env.openStore("JMHEnvBenchmark", getStoreConfig(), txn));
     }
 
@@ -55,6 +55,7 @@ public abstract class JMHEnvBenchmarkBase {
     protected abstract StoreConfig getStoreConfig();
 
     protected EnvironmentConfig adjustEnvironmentConfig(@NotNull final EnvironmentConfig ec) {
+        ec.setCheckPagesAtRuntime(false);
         return ec;
     }
 }

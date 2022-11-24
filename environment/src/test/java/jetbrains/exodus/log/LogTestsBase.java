@@ -18,6 +18,7 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.io.*;
 import jetbrains.exodus.util.IOUtil;
 import org.junit.After;
@@ -64,10 +65,6 @@ class LogTestsBase {
         return new Pair<>(reader, new FileDataWriter(reader));
     }
 
-    void initLog(final long fileSize) {
-        initLog(new LogConfig().setFileSize(fileSize));
-    }
-
     void initLog(final long fileSize, final int cachePageSize) {
         initLog(new LogConfig().setFileSize(fileSize).setCachePageSize(cachePageSize));
     }
@@ -76,7 +73,7 @@ class LogTestsBase {
         if (log == null) {
             synchronized (this) {
                 if (log == null) {
-                    log = new Log(config.setReaderWriter(reader, writer));
+                    log = new Log(config.setReaderWriter(reader, writer), EnvironmentImpl.CURRENT_FORMAT_VERSION);
                 }
             }
         }
@@ -86,7 +83,7 @@ class LogTestsBase {
         if (log == null) {
             synchronized (this) {
                 if (log == null) {
-                    log = new Log(LogConfig.create(reader, writer));
+                    log = new Log(LogConfig.create(reader, writer), EnvironmentImpl.CURRENT_FORMAT_VERSION);
                 }
             }
         }

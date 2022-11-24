@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,10 +17,7 @@ package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.ByteIterableWithAddress;
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.log.RandomAccessLoggable;
+import jetbrains.exodus.log.*;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -31,13 +28,17 @@ class LeafNode extends BaseLeafNode {
     @NotNull
     private final RandomAccessLoggable loggable;
     private final int keyLength;
+    protected final Log log;
+    protected final boolean insideSinglePage;
 
-    LeafNode(@NotNull final RandomAccessLoggable loggable) {
+    LeafNode(final Log log, @NotNull final RandomAccessLoggable loggable) {
+        this.log = log;
         this.loggable = loggable;
         final ByteIterableWithAddress data = loggable.getData();
         final int keyLength = data.getCompressedUnsignedInt();
         final int keyRecordSize = CompressedUnsignedLongByteIterable.getCompressedSize(keyLength);
         this.keyLength = (keyLength << 3) + keyRecordSize;
+        this.insideSinglePage = loggable.isDataInsideSinglePage();
     }
 
     @Override
@@ -51,12 +52,14 @@ class LeafNode extends BaseLeafNode {
 
     @Override
     public int compareKeyTo(@NotNull final ByteIterable iterable) {
-        return loggable.getData().compareTo(getKeyRecordSize(), getKeyLength(), iterable);
+        return loggable.getData().compareTo(getKeyRecordSize(), getKeyLength(), iterable,
+                0, iterable.getLength());
     }
 
     @Override
     public int compareValueTo(@NotNull final ByteIterable iterable) {
-        return loggable.getData().compareTo(getKeyRecordSize() + getKeyLength(), getValueLength(), iterable);
+        return loggable.getData().compareTo(getKeyRecordSize() + getKeyLength(),
+                getValueLength(), iterable, 0, iterable.getLength());
     }
 
     @Override
@@ -86,7 +89,8 @@ class LeafNode extends BaseLeafNode {
 
     @NotNull
     ByteIterableWithAddress getRawValue(final int offset) {
-        return loggable.getData().clone(getKeyRecordSize() + getKeyLength() + offset);
+        final var data = loggable.getData();
+        return data.cloneWithOffset(getKeyRecordSize() + getKeyLength() + offset);
     }
 
     private int getKeyLength() {

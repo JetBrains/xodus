@@ -32,8 +32,13 @@ public final class LogUtil {
     public static final int LOG_FILE_EXTENSION_LENGTH = 3;
     public static final int LOG_FILE_NAME_WITH_EXT_LENGTH = LOG_FILE_NAME_LENGTH + LOG_FILE_EXTENSION_LENGTH;
     public static final String LOG_FILE_EXTENSION = ".xd";
+
     public static final FilenameFilter LOG_FILE_NAME_FILTER = (dir, name) -> name.length() == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH &&
-        name.endsWith(LogUtil.LOG_FILE_EXTENSION);
+            name.endsWith(LogUtil.LOG_FILE_EXTENSION);
+
+    public static final FilenameFilter LOG_METADATA_FILE_NAME_FILTER = (dir, name) ->
+            name.equals(StartupMetadata.FIRST_FILE_NAME) || name.equals(StartupMetadata.SECOND_FILE_NAME);
+
 
     private static final char[] LOG_FILE_EXTENSION_CHARS = LOG_FILE_EXTENSION.toCharArray();
     private static final char[] LOG_FILE_NAME_ALPHABET = "0123456789abcdefghijklmnopqrstuv".toCharArray();
@@ -102,6 +107,12 @@ public final class LogUtil {
     public static File[] listFiles(@NotNull final File directory) {
         return IOUtil.listFiles(directory, LOG_FILE_NAME_FILTER);
     }
+
+    @NotNull
+    public static File[] listMetadataFiles(@NotNull final File directory) {
+        return IOUtil.listFiles(directory, LOG_METADATA_FILE_NAME_FILTER);
+    }
+
 
     @NotNull
     public static LongArrayList listFileAddresses(@NotNull final File directory) {

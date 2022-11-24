@@ -211,6 +211,10 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         final IntHashMap<String> map = new IntHashMap<>();
         final int count = 30000;
 
+        long seed = System.nanoTime();
+        System.out.println("TestPutDeleteRandomWithoutDuplicates seed " + seed);
+        RANDOM.setSeed(seed);
+
         TestUtil.time("Put took ", () -> {
             for (int i = 0; i < count; ++i) {
                 final int key = Math.abs(RANDOM.nextInt());

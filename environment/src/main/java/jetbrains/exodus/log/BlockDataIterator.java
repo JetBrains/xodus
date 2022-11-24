@@ -24,7 +24,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class BlockDataIterator extends ByteIteratorWithAddress {
+public class BlockDataIterator implements ByteIteratorWithAddress {
 
     private final Log log;
     private final Block block;
@@ -103,6 +103,11 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         return (int) (position - block.getAddress());
     }
 
+    @Override
+    public int available() {
+        throw new UnsupportedOperationException();
+    }
+
     public byte[] getLastPage() {
         return lastPage;
     }
@@ -159,7 +164,7 @@ public class BlockDataIterator extends ByteIteratorWithAddress {
         }
 
         @Override
-        public int read(@NotNull byte @NotNull [] b, int off, int len) {
+        public int read(byte @NotNull [] b, int off, int len) {
             final int readLength = block.read(b, position - block.getAddress(), off, len);
             if (readLength > 0) {
                 if (crypt) {

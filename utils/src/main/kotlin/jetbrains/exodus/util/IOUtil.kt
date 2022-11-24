@@ -16,6 +16,8 @@
 package jetbrains.exodus.util
 
 import java.io.*
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.file.Files
 import kotlin.math.min
 
@@ -117,7 +119,9 @@ object IOUtil {
             var totalRead: Long = 0
             while (totalRead < sourceLen) {
                 val read = source.read(buffer)
-                if (read < 0) break
+                if (read < 0) {
+                    break
+                }
                 if (read > 0) {
                     target.write(buffer, 0, min(sourceLen - totalRead, read.toLong()).toInt())
                     totalRead += read.toLong()
@@ -166,5 +170,22 @@ object IOUtil {
             off += read
         }
         return off
+    }
+
+    @JvmStatic
+    fun readFully(channel: FileChannel): ByteBuffer {
+        val data = ByteBuffer.allocate(channel.size().toInt())
+
+        while (data.hasRemaining()) {
+            val read = channel.read(data)
+
+            if (read < 0) {
+                throw EOFException()
+            }
+        }
+
+        data.rewind()
+
+        return data
     }
 }

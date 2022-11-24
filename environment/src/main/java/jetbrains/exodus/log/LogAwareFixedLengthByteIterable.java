@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,13 +22,41 @@ import org.jetbrains.annotations.NotNull;
 
 class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
 
-    LogAwareFixedLengthByteIterable(@NotNull final ByteIterableWithAddress source, final int offset, final int length) {
+    LogAwareFixedLengthByteIterable(@NotNull final ByteIterableWithAddress source,
+                                    final int offset, final int length) {
         super(source, offset, length);
     }
 
     @Override
     public int compareTo(final @NotNull ByteIterable right) {
-        return getSource().compareTo(offset, length, right);
+        return getSource().compareTo(offset, length, right, 0, right.getLength());
+    }
+
+    @Override
+    public int compareTo(int length, ByteIterable right, int rightLength) {
+        if (length > this.length) {
+            throw new IllegalArgumentException();
+        }
+
+        return getSource().compareTo(offset, length, right, 0, rightLength);
+    }
+
+    @Override
+    public int compareTo(int from, int length, ByteIterable right, int rightFrom, int rightLength) {
+        if (length > this.length - from) {
+            throw new IllegalArgumentException();
+        }
+
+        return getSource().compareTo(offset + from, length, right, rightFrom, rightLength);
+    }
+
+    @Override
+    public byte byteAt(int offset) {
+        if (offset >= this.length) {
+            throw new IllegalArgumentException();
+        }
+
+        return super.byteAt(offset + this.offset);
     }
 
     @Override
@@ -46,7 +74,7 @@ class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
         return new LogAwareFixedLengthByteIterator(bi, length);
     }
 
-    private static class LogAwareFixedLengthByteIterator extends ByteIterator implements BlockByteIterator {
+    private static class LogAwareFixedLengthByteIterator implements ByteIterator, BlockByteIterator {
 
         private final ByteIterator si;
         private int bytesToRead;
@@ -77,6 +105,7 @@ class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
         @Override
         public int nextBytes(byte[] array, int off, int len) {
             final int bytesToRead = Math.min(len, this.bytesToRead);
+
             if (si instanceof BlockByteIterator) {
                 final int result = ((BlockByteIterator) si).nextBytes(array, off, bytesToRead);
                 this.bytesToRead -= result;

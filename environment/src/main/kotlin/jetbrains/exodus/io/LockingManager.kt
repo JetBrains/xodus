@@ -145,7 +145,6 @@ internal class LockingManager internal constructor(private val dir: File, privat
     }
 
     companion object {
-
-        private const val LOCK_FILE_NAME = "xd.lck"
+        const val LOCK_FILE_NAME = "xd.lck"
     }
 }

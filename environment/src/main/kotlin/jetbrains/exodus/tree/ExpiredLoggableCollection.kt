@@ -65,6 +65,7 @@ class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? =
     companion object {
         @JvmStatic
         val EMPTY = ExpiredLoggableCollection()
+
         @JvmStatic
         val FROM_SCRATCH = ExpiredLoggableCollection(calcUtilizationFromScratch = true)
     }

@@ -15,28 +15,35 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Loggable for writing
- */
-final class TestLoggable implements Loggable {
+public final class MultiPageLoggable implements RandomAccessLoggable {
 
     private final byte type;
-    private final int structureId;
     @NotNull
-    private final ByteIterable data;
+    private final MultiPageByteIterableWithAddress data;
+    private final int structureId;
+    private final int dataLength;
+    private final long address;
+    private final Log log;
 
-    TestLoggable(final byte type, @NotNull final ByteIterable data, final int structureId) {
+    public MultiPageLoggable(final long address,
+                             final byte type,
+                             @NotNull final MultiPageByteIterableWithAddress data,
+                             final int dataLength,
+                             final int structureId,
+                             final Log log) {
+        this.address = address;
         this.type = type;
         this.data = data;
         this.structureId = structureId;
+        this.dataLength = dataLength;
+        this.log = log;
     }
 
     @Override
     public long getAddress() {
-        throw new UnsupportedOperationException("TestLoggable has no address until it is written to log");
+        return address;
     }
 
     @Override
@@ -46,23 +53,25 @@ final class TestLoggable implements Loggable {
 
     @Override
     public int length() {
-        throw new UnsupportedOperationException("TestLoggable has no address until it is written to log");
+        assert log != null;
+        return dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId) +
+                CompressedUnsignedLongByteIterable.getCompressedSize(dataLength) + 1;
     }
 
     @Override
     public long end() {
-        throw new UnsupportedOperationException("TestLoggable has no address until it is written to log");
+        assert log != null;
+        return log.adjustLoggableAddress(data.getDataAddress(), dataLength);
     }
 
     @NotNull
     @Override
-    public ByteIterable getData() {
+    public MultiPageByteIterableWithAddress getData() {
         return data;
     }
 
-    @Override
     public int getDataLength() {
-        return data.getLength();
+        return dataLength;
     }
 
     @Override
@@ -72,6 +81,6 @@ final class TestLoggable implements Loggable {
 
     @Override
     public boolean isDataInsideSinglePage() {
-        return true;
+        return false;
     }
 }

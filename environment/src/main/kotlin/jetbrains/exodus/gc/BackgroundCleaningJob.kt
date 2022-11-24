@@ -126,7 +126,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
             return false
         }
         val ec = gc.environment.environmentConfig
-        return ec.isGcEnabled && !ec.envIsReadonly && gc.isTooMuchFreeSpace
+        return ec.isGcEnabled && !gc.environment.isReadOnly && gc.isTooMuchFreeSpace
     }
 
     private fun wakeAt(gc: GarbageCollector, time: Long) {

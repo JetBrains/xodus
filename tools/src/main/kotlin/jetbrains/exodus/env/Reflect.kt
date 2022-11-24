@@ -62,6 +62,7 @@ fun main(args: Array<String>) {
                 "cp" -> {
                     copy = true; forcePrefixing = true
                 }
+
                 "u" -> utilizationInfo = true
                 "p" -> persistentEntityStoreInfo = true
                 else -> when {
@@ -202,47 +203,14 @@ class Reflect(directory: File) {
                             cipherId: String? = null,
                             cipherKey: String? = null,
                             cipherBasicIV: Long? = null): EnvironmentImpl {
-            val files = LogUtil.listFiles(directory)
-            files.sortWith { left, right ->
-                val cmp = LogUtil.getAddress(left.name) - LogUtil.getAddress(right.name)
-                if (cmp < 0) -1 else if (cmp > 0) 1 else 0
-            }
-            val filesLength = files.size
-            if (filesLength == 0) {
-                throw ExodusException("No database files found at $directory")
-            }
-            println("Files found: $filesLength")
-
-            var maxFileSize = 0L
-            files.forEachIndexed { i, f ->
-                val length = f.length()
-                if (i < filesLength - 1) {
-                    if (length % LogUtil.LOG_BLOCK_ALIGNMENT != 0L) {
-                        throw ExodusException("Length of non-last file ${f.name}  is badly aligned: $length")
-                    }
-                }
-                maxFileSize = max(maxFileSize, length)
-            }
-            println("Maximum file length: $maxFileSize")
-
-            val pageSize = if (maxFileSize % DEFAULT_PAGE_SIZE == 0L || filesLength == 1) DEFAULT_PAGE_SIZE else LogUtil.LOG_BLOCK_ALIGNMENT
-            println("Computed page size: $pageSize")
-
             val reader = FileDataReader(directory)
             val writer = FileDataWriter(reader)
             val config = newEnvironmentConfig {
-                logCachePageSize = pageSize
                 isGcEnabled = false
                 envIsReadonly = readonly
                 cipherId?.run { setCipherId(this) }
                 cipherKey?.run { setCipherKey(this) }
                 cipherBasicIV?.run { setCipherBasicIV(this) }
-                if (logFileSize == EnvironmentConfig.DEFAULT.logFileSize) {
-                    val fileSizeInKB = if (files.size > 1)
-                        (maxFileSize + pageSize - 1) / pageSize * pageSize / LogUtil.LOG_BLOCK_ALIGNMENT else
-                        EnvironmentConfig.DEFAULT.logFileSize
-                    logFileSize = fileSizeInKB
-                }
             }
             return Environments.newInstance(LogConfig.create(reader, writer), config) as EnvironmentImpl
         }
@@ -277,7 +245,7 @@ class Reflect(directory: File) {
                         println("Invalid root at address: ${loggable.address}")
                     }
                 }
-                if (loggable.address + loggable.length() >= endAddress) return@forEach
+                if (loggable.end() >= endAddress) return@forEach
             }
         }
         println("Roots found: $totalRoots")
@@ -381,7 +349,7 @@ class Reflect(directory: File) {
             try {
                 val loggable = log.read(it)
                 val fileAddress = log.getFileAddress(it)
-                val dataLength = loggable.length().toLong()
+                val dataLength = loggable.end() - loggable.address
                 usedSpace[fileAddress] = (usedSpace[fileAddress] ?: 0L) + dataLength
                 usedSpacePerStore[name] = (usedSpacePerStore[name] ?: 0L) + dataLength
                 val type = loggable.type.toInt()

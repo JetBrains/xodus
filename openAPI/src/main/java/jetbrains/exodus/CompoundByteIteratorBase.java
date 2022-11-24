@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Base iterator for {@link CompoundByteIterable}.
  */
-public abstract class CompoundByteIteratorBase extends ByteIterator {
+public abstract class CompoundByteIteratorBase implements ByteIterator {
 
     @Nullable
     private ByteIterator current;
@@ -63,14 +63,6 @@ public abstract class CompoundByteIteratorBase extends ByteIterator {
         hasNext();
         //noinspection ConstantConditions
         return current.next();
-    }
-
-    @NotNull
-    protected ByteIterator getCurrent() {
-        if (current == null) {
-            throw new ExodusException("Can't get current ByteIterator, hasNext() == false");
-        }
-        return current;
     }
 
     /**

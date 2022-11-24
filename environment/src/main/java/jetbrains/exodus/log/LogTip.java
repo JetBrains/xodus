@@ -17,14 +17,16 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.io.Block;
+import net.jpountz.xxhash.StreamingXXHash64;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class LogTip {
     private static final byte[] NO_BYTES = new byte[0];
 
-    @NotNull
-    final byte[] bytes;
+    final byte @NotNull [] bytes;
+    final StreamingXXHash64 xxHash64;
+
     public final long pageAddress;
     public final int count;
 
@@ -49,14 +51,26 @@ public class LogTip {
         this.count = -1;
         this.highAddress = this.approvedHighAddress = highAddress;
         this.blockSet = new BlockSet.Immutable(fileLengthBound); // no files
+        this.xxHash64 = BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(BufferedDataWriter.XX_HASH_SEED);
     }
 
-    // non-empty
-    public LogTip(@NotNull byte[] bytes,
+    public LogTip(byte @NotNull [] bytes,
                   long pageAddress,
                   int count,
                   long highAddress,
                   long approvedHighAddress,
+                  @NotNull final BlockSet.Immutable blockSet) {
+        this(bytes, pageAddress, count, highAddress, approvedHighAddress,
+                createHash(pageAddress, highAddress, bytes), blockSet);
+    }
+
+    // non-empty
+    public LogTip(byte @NotNull [] bytes,
+                  long pageAddress,
+                  int count,
+                  long highAddress,
+                  long approvedHighAddress,
+                  final StreamingXXHash64 xxHash64,
                   @NotNull final BlockSet.Immutable blockSet) {
         this.bytes = bytes;
         this.pageAddress = pageAddress;
@@ -64,18 +78,49 @@ public class LogTip {
         this.highAddress = highAddress;
         this.approvedHighAddress = approvedHighAddress;
         this.blockSet = blockSet;
+        this.xxHash64 = xxHash64;
     }
 
     public LogTip asTruncatedTo(final long highAddress) {
-        return new LogTip(bytes, pageAddress, count, highAddress, highAddress, blockSet);
+        updatePageHash(highAddress);
+
+        return new LogTip(bytes, pageAddress, count, highAddress, highAddress, xxHash64, blockSet);
     }
 
     LogTip withApprovedAddress(long updatedApprovedHighAddress) {
-        return new LogTip(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, blockSet);
+        return new LogTip(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, xxHash64, blockSet);
     }
 
-    LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress, @NotNull final BlockSet.Immutable blockSet) {
-        return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress, blockSet);
+    LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress,
+                      @NotNull final BlockSet.Immutable blockSet) {
+        updatePageHash(updatedHighAddress);
+
+        return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress,
+                xxHash64, blockSet);
+    }
+
+    private static StreamingXXHash64 createHash(final long pageAddress, final long highAddress, final byte[] bytes) {
+        final int len = (int) (highAddress - pageAddress);
+
+        final StreamingXXHash64 xxHash64 =
+                BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(BufferedDataWriter.XX_HASH_SEED);
+        xxHash64.update(bytes, 0, len);
+
+        return xxHash64;
+    }
+
+    private void updatePageHash(long updatedHighAddress) {
+        if (updatedHighAddress > highAddress) {
+            final int len = (int) (updatedHighAddress - highAddress);
+            final int offset = (int) (highAddress - pageAddress);
+
+            xxHash64.update(bytes, offset, len);
+        } else if (updatedHighAddress < highAddress) {
+            final int len = (int) (updatedHighAddress - pageAddress);
+
+            xxHash64.reset();
+            xxHash64.update(bytes, 0, len);
+        }
     }
 
     public long[] getAllFiles() {

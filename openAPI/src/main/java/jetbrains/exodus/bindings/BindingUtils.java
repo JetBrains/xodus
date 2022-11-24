@@ -125,6 +125,61 @@ public class BindingUtils {
         return ((c1 << 24) | (c2 << 16) | (c3 << 8) | c4);
     }
 
+    public static int readInt(byte[] data, int offset) {
+        final int c1 = Byte.toUnsignedInt(data[offset]);
+        final int c2 = Byte.toUnsignedInt(data[offset + 1]);
+        final int c3 = Byte.toUnsignedInt(data[offset + 2]);
+        final int c4 = Byte.toUnsignedInt(data[offset + 3]);
+
+        return ((c1 << 24) | (c2 << 16) | (c3 << 8) | c4);
+    }
+
+    public static void writeInt(int value, byte[] data, int offset) {
+        final byte c4 = (byte) value;
+        final byte c3 = (byte) (value >>> 8);
+        final byte c2 = (byte) (value >>> 16);
+        final byte c1 = (byte) (value >>> 24);
+
+        data[offset] = c1;
+        data[offset + 1] = c2;
+        data[offset + 2] = c3;
+        data[offset + 3] = c4;
+    }
+
+    public static long readLong(byte[] data, int offset) {
+        final long c1 = Byte.toUnsignedInt(data[offset]);
+        final long c2 = Byte.toUnsignedInt(data[offset + 1]);
+        final long c3 = Byte.toUnsignedInt(data[offset + 2]);
+        final long c4 = Byte.toUnsignedInt(data[offset + 3]);
+        final long c5 = Byte.toUnsignedInt(data[offset + 4]);
+        final long c6 = Byte.toUnsignedInt(data[offset + 5]);
+        final long c7 = Byte.toUnsignedInt(data[offset + 6]);
+        final long c8 = Byte.toUnsignedInt(data[offset + 7]);
+
+        return ((c1 << 56) | (c2 << 48) | (c3 << 40) | (c4 << 32) |
+                (c5 << 24) | (c6 << 16) | (c7 << 8) | c8);
+    }
+
+    public static void writeLong(long value, byte[] data, int offset) {
+        final byte c8 = (byte) value;
+        final byte c7 = (byte) (value >>> 8);
+        final byte c6 = (byte) (value >>> 16);
+        final byte c5 = (byte) (value >>> 24);
+        final byte c4 = (byte) (value >>> 32);
+        final byte c3 = (byte) (value >>> 40);
+        final byte c2 = (byte) (value >>> 48);
+        final byte c1 = (byte) (value >>> 56);
+
+        data[offset] = c1;
+        data[offset + 1] = c2;
+        data[offset + 2] = c3;
+        data[offset + 3] = c4;
+        data[offset + 4] = c5;
+        data[offset + 5] = c6;
+        data[offset + 6] = c7;
+        data[offset + 7] = c8;
+    }
+
     private static long readUnsignedLong(@NotNull final ByteArrayInputStream stream) {
         final long c1 = stream.read();
         final long c2 = stream.read();

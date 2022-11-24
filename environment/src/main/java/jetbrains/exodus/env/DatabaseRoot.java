@@ -50,10 +50,6 @@ final class DatabaseRoot {
         return loggable.getAddress();
     }
 
-    public long length() {
-        return loggable.length();
-    }
-
     long getRootAddress() {
         return rootAddress;
     }

@@ -310,13 +310,18 @@ internal class PatriciaTreeMutable(
 
     override fun getOpenCursors() = openCursors
 
-    fun mutateNode(node: ImmutableNode): MutableNode {
+    fun mutateNode(node: MultiPageImmutableNode): MutableNode {
+        addExpiredLoggable(node.loggable)
+        return MutableNode(node)
+    }
+
+    fun mutateNode(node: SinglePageImmutableNode): MutableNode {
         addExpiredLoggable(node.loggable)
         return MutableNode(node)
     }
 
     private fun addExpiredLoggable(sourceLoggable: RandomAccessLoggable?) {
-        if (sourceLoggable != null && sourceLoggable.address != NullLoggable.NULL_ADDRESS) {
+        if (sourceLoggable != null && sourceLoggable.address != Loggable.NULL_ADDRESS) {
             var expiredLoggables = expiredLoggables
             if (expiredLoggables == null) {
                 expiredLoggables = ExpiredLoggableCollection()

@@ -35,15 +35,16 @@ fun main(args: Array<String>) {
         "refactorings" -> jetbrains.exodus.entityStore.main(args.skipFirst)
         "scytale" -> jetbrains.exodus.crypto.main(args.skipFirst)
         "vfs" -> jetbrains.exodus.vfs.main(args.skipFirst)
-        "replicator" -> jetbrains.exodus.entityStore.replication.main(args.skipFirst)
         "environmentjsconsole" ->
             startRhinoServer(args.skipFirst, ENVIRONMENTS).use {
                 ptyShell(it.port)
             }
+
         "entitystorejsconsole" ->
             startRhinoServer(args.skipFirst, ENTITY_STORES).use {
                 ptyShell(it.port)
             }
+
         else -> printUsage()
     }
     exitProcess(0)

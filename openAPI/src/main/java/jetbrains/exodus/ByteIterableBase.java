@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus;
 
-import jetbrains.exodus.util.ByteIterableUtil;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -26,8 +25,7 @@ import java.util.Arrays;
  * Base class for most of {@link ByteIterable} implementations.
  */
 public abstract class ByteIterableBase implements ByteIterable {
-
-    protected static final byte[][] SINGLE_BYTES;
+    public static final byte[][] SINGLE_BYTES;
 
     static {
         SINGLE_BYTES = new byte[256][];
@@ -43,7 +41,43 @@ public abstract class ByteIterableBase implements ByteIterable {
 
     @Override
     public int compareTo(@NotNull final ByteIterable right) {
-        return ByteIterableUtil.compare(this, right);
+        var thisStart = baseOffset();
+        var thisLen = getLength();
+
+        var rightStart = right.baseOffset();
+        var rightLen = right.getLength();
+
+        return Arrays.compareUnsigned(this.getBaseBytes(), thisStart,
+                thisStart + thisLen, right.getBaseBytes(), rightStart,
+                rightStart + rightLen);
+    }
+
+    @Override
+    public int compareTo(int length, ByteIterable right, int rightLength) {
+        var thisStart = baseOffset();
+        var rightStart = right.baseOffset();
+
+        return Arrays.compareUnsigned(this.getBaseBytes(), thisStart,
+                thisStart + length, right.getBaseBytes(), rightStart,
+                rightStart + rightLength);
+    }
+
+    @Override
+    public int compareTo(int from, int length, ByteIterable right, int rightFrom, int rightLength) {
+        var thisStart = baseOffset();
+        var rightStart = right.baseOffset();
+
+        return Arrays.compareUnsigned(this.getBaseBytes(), thisStart + from,
+                thisStart + length, right.getBaseBytes(), rightStart + rightFrom,
+                rightStart + rightLength);
+    }
+
+    @Override
+    public byte byteAt(int offset) {
+        var base = getBaseBytes();
+        var baseOffset = baseOffset();
+
+        return base[baseOffset + offset];
     }
 
     @Override
@@ -89,6 +123,20 @@ public abstract class ByteIterableBase implements ByteIterable {
     }
 
     @Override
+    public int baseOffset() {
+        return 0;
+    }
+
+    @Override
+    public byte[] getBaseBytes() {
+        if (bytes == null) {
+            fillBytes();
+        }
+
+        return bytes;
+    }
+
+    @Override
     public int getLength() {
         if (length == -1) {
             fillBytes();
@@ -98,7 +146,15 @@ public abstract class ByteIterableBase implements ByteIterable {
 
     @NotNull
     public ByteIterable subIterable(final int offset, final int length) {
-        return length == 0 ? EMPTY : new FixedLengthByteIterable(this, offset, length);
+        if (length == 0) {
+            return EMPTY;
+        }
+
+        if (bytes != null) {
+            return new ArrayByteIterable(bytes, baseOffset() + offset, length);
+        }
+
+        return new FixedLengthByteIterable(this, offset, length);
     }
 
     public ByteIterable getSource() {
@@ -121,24 +177,28 @@ public abstract class ByteIterableBase implements ByteIterable {
      */
     @Override
     public int hashCode() {
-        final byte[] a = getBytesUnsafe();
+        final byte[] a = getBaseBytes();
+        final int offset = baseOffset();
+
         if (a == null) {
             return 0;
         }
         int result = 1;
         final int length = getLength();
         for (int i = 0; i < length; i++) {
-            result = 31 * result + a[i];
+            result = 31 * result + a[offset + i];
         }
+
         return result;
     }
 
     @Override
     public String toString() {
-        return toString(getBytesUnsafe(), 0, getLength());
+        var offset = baseOffset();
+        return toString(getBaseBytes(), offset, offset + getLength());
     }
 
-    public static String toString(@Nullable final byte[] bytes, final int start, final int end) {
+    public static String toString(final byte @Nullable [] bytes, final int start, final int end) {
         if (bytes == null) {
             return "null";
         }
@@ -160,8 +220,9 @@ public abstract class ByteIterableBase implements ByteIterable {
         if (bi instanceof ArrayByteIterable) {
             final ArrayByteIterable abi = (ArrayByteIterable) bi;
             final int length = abi.getLength();
+            final int offset = abi.baseOffset();
             if (length > 0) {
-                output.write(abi.bytes, 0, length);
+                output.write(abi.bytes, offset, length);
             }
         } else {
             final ByteIterator it = bi.iterator();
@@ -203,8 +264,7 @@ public abstract class ByteIterableBase implements ByteIterable {
         return result;
     }
 
-    @NotNull
-    public static byte[] readIterable(@NotNull final ByteIterable it) {
+    public static byte @NotNull [] readIterable(@NotNull final ByteIterable it) {
         return readIterator(it.iterator(), it.getLength());
     }
 

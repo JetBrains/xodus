@@ -32,7 +32,6 @@ import java.io.File
 import java.io.FileOutputStream
 
 class BackupTests : EntityStoreTestBase() {
-
     override fun needsImplicitTxn(): Boolean {
         return false
     }
@@ -155,7 +154,8 @@ class BackupTests : EntityStoreTestBase() {
         Thread.sleep(1000)
         val backupDir = TestUtil.createTempDir()
         try {
-            val backup = CompressBackupUtil.backup(if (useBackupBean) BackupBean(store) else store, backupDir, null, true)
+            val backup = CompressBackupUtil.backup(if (useBackupBean) BackupBean(store) else store,
+                    backupDir, null, true)
             finish[0] = true
             val restoreDir = TestUtil.createTempDir()
             try {
@@ -166,7 +166,8 @@ class BackupTests : EntityStoreTestBase() {
                     newStore.executeInReadonlyTransaction { t ->
                         val txn = t as PersistentStoreTransaction
                         TestCase.assertEquals(issueCount.toLong(), txn.getAll("Issue").size())
-                        lastUsedBlobHandle[0] = newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
+                        lastUsedBlobHandle[0] =
+                                newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
                         for (issue in txn.getAll("Issue")) {
                             val description = issue.getBlobString("description")
                             TestCase.assertNotNull(description)

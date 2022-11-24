@@ -15,28 +15,37 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Loggable for writing
- */
-final class TestLoggable implements Loggable {
+final class SinglePageLoggable implements RandomAccessLoggable {
 
-    private final byte type;
+    private final long address;
+    private final long end;
     private final int structureId;
-    @NotNull
-    private final ByteIterable data;
+    private final byte type;
 
-    TestLoggable(final byte type, @NotNull final ByteIterable data, final int structureId) {
-        this.type = type;
-        this.data = data;
+    private int length = -1;
+
+    private final ArrayByteIterableWithAddress data;
+
+    SinglePageLoggable(final long address,
+                       final long end,
+                       final byte type,
+                       final int structureId,
+                       final long dataAddress,
+                       final byte @NotNull [] bytes,
+                       final int start,
+                       final int dataLength) {
+        this.data = new ArrayByteIterableWithAddress(dataAddress, bytes, start, dataLength);
         this.structureId = structureId;
+        this.type = type;
+        this.address = address;
+        this.end = end;
     }
 
     @Override
     public long getAddress() {
-        throw new UnsupportedOperationException("TestLoggable has no address until it is written to log");
+        return address;
     }
 
     @Override
@@ -46,17 +55,25 @@ final class TestLoggable implements Loggable {
 
     @Override
     public int length() {
-        throw new UnsupportedOperationException("TestLoggable has no address until it is written to log");
+        if (length >= 0) {
+            return length;
+        }
+
+        var dataLength = getDataLength();
+        length = dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId) +
+                CompressedUnsignedLongByteIterable.getCompressedSize(dataLength) + 1;
+
+        return length;
     }
 
     @Override
     public long end() {
-        throw new UnsupportedOperationException("TestLoggable has no address until it is written to log");
+        return end;
     }
 
     @NotNull
     @Override
-    public ByteIterable getData() {
+    public ArrayByteIterableWithAddress getData() {
         return data;
     }
 

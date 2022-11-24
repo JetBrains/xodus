@@ -34,6 +34,7 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
         val names = computeInReadonlyTransaction { txn -> getAllStoreNames(txn) }
         val storesCount = names.size
         progress?.invoke("Stores found: $storesCount")
+
         names.forEachIndexed { i, name ->
             val started = Date()
             print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
@@ -43,6 +44,7 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                 newEnv.executeInExclusiveTransaction { targetTxn ->
                     try {
                         executeInReadonlyTransaction { sourceTxn ->
+
                             val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                             val targetConfig = sourceStore.config.let { sourceConfig ->
                                 if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
@@ -56,6 +58,7 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                                     guard.reset()
                                     print(copyStoreMessage(started, name, i + 1, storesCount, (it.toLong() * 100L / storeSize)))
                                 }
+
                             }
                         }
                     } catch (t: Throwable) {

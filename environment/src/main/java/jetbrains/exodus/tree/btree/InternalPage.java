@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,18 +28,20 @@ class InternalPage extends BasePageImmutable {
 
     private byte childAddressLen;
 
-    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data) {
-        super(tree, data);
+    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data,
+                           final boolean loggableInsideSinglePage) {
+        super(tree, data, loggableInsideSinglePage);
     }
 
-    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size) {
-        super(tree, data, size);
+    protected InternalPage(@NotNull final BTreeBase tree, @NotNull final ByteIterableWithAddress data, int size,
+                           final boolean loggableInsideSinglePage) {
+        super(tree, data, size, loggableInsideSinglePage);
     }
 
     @Override
     protected void loadAddressLengths(final int length, final ByteIterator it) {
         super.loadAddressLengths(length, it);
-        it.skip(size * keyAddressLen);
+        it.skip(((long) size) * keyAddressLen);
         checkAddressLength(childAddressLen = it.next());
     }
 
@@ -51,8 +53,13 @@ class InternalPage extends BasePageImmutable {
 
     @Override
     public long getChildAddress(final int index) {
-        final int offset = size * keyAddressLen + index * childAddressLen + 1;
-        return data.nextLong((int) (dataAddress - data.getDataAddress() + offset), childAddressLen);
+        final int offset = size * keyAddressLen + 1 + index * childAddressLen;
+
+        if (page != null) {
+            return getLong(offset, childAddressLen);
+        }
+
+        return data.nextLong(offset, childAddressLen);
     }
 
     @Override
@@ -138,7 +145,8 @@ class InternalPage extends BasePageImmutable {
 
     @Override
     public String toString() {
-        return "Internal [" + size + "] @ " + (getDataAddress() - CompressedUnsignedLongByteIterable.getIterable(size << 1).getLength() - 2);
+        return "Internal [" + size + "] @ " + (getDataAddress() -
+                CompressedUnsignedLongByteIterable.getIterable(size << 1).getLength() - 2);
     }
 
     @Override

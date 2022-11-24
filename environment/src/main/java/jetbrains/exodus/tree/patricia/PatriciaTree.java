@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -38,18 +38,26 @@ public class PatriciaTree extends PatriciaTreeBase {
         }
         final ByteIterableWithAddress data = rootLoggable.getData();
         final ByteIteratorWithAddress it = data.iterator();
-        size = CompressedUnsignedLongByteIterable.getLong(it);
+        size = it.getCompressedUnsignedLong();
         if (nodeHasBackReference(type)) {
-            long backRef = CompressedUnsignedLongByteIterable.getLong(it);
+            long backRef = it.getCompressedUnsignedLong();
+
             rememberBackRef(backRef);
         }
-        root = new ImmutableNode(rootLoggable, data.clone((int) (it.getAddress() - data.getDataAddress())));
+
+        if (rootLoggable.isDataInsideSinglePage()) {
+            root = new SinglePageImmutableNode(rootLoggable,
+                    data.cloneWithAddressAndLength(it.getAddress(), it.available()));
+        } else {
+            root = new MultiPageImmutableNode(log, rootLoggable,
+                    data.cloneWithAddressAndLength(it.getAddress(), it.available()));
+        }
     }
 
     @NotNull
     @Override
     public final PatriciaTreeMutable getMutableCopy() {
-        return new PatriciaTreeMutable(log, structureId, size, getRoot());
+        return new PatriciaTreeMutable(log, structureId, size, (ImmutableNode) getRoot());
     }
 
     @Override
@@ -59,7 +67,7 @@ public class PatriciaTree extends PatriciaTreeBase {
 
     @Override
     public final ITreeCursor openCursor() {
-        final ImmutableNode root = getRoot();
+        final NodeBase root = getRoot();
         return new TreeCursor(new PatriciaTraverser(this, root), root.hasValue());
     }
 
@@ -68,7 +76,7 @@ public class PatriciaTree extends PatriciaTreeBase {
     }
 
     @Override
-    final ImmutableNode getRoot() {
-        return root;
+    final NodeBase getRoot() {
+        return root.asNodeBase();
     }
 }

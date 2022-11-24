@@ -30,6 +30,8 @@ public class DataCorruptionException extends ExodusException {
 
     public static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
+        log.switchToReadOnlyMode();
+
         throw new DataCorruptionException(message, address, log.getFileLengthBound());
     }
 

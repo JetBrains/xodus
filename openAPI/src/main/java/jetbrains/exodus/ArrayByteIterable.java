@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,14 +18,19 @@ package jetbrains.exodus;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
+
 /**
  * An adapter of byte array to {@link ByteIterable}.
  */
 public class ArrayByteIterable extends ByteIterableBase {
 
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     public static final EmptyIterable EMPTY = new EmptyIterable();
 
-    private static final ArrayByteIterable SINGLE_BYTE_ITERABLES[];
+    protected int offset;
+
+    private static final ArrayByteIterable[] SINGLE_BYTE_ITERABLES;
 
     static {
         SINGLE_BYTE_ITERABLES = new ArrayByteIterable[256];
@@ -39,45 +44,119 @@ public class ArrayByteIterable extends ByteIterableBase {
         if (length == 0) {
             fillBytes(EMPTY_ITERATOR);
         } else {
-            final byte[] bytes = bi.getBytesUnsafe();
+
             if (length == 1) {
-                fillBytes(bytes[0], EMPTY_ITERATOR);
+                fillBytes(bi.byteAt(0), EMPTY_ITERATOR);
             } else {
                 this.length = length;
-                this.bytes = bytes;
+
+                final byte[] bytes = bi.getBaseBytes();
+                final int baseOffset = bi.baseOffset();
+
+                if (baseOffset == 0) {
+                    this.bytes = bytes;
+                } else {
+                    this.bytes = Arrays.copyOfRange(bytes, baseOffset, baseOffset + length);
+                }
             }
         }
+
+        this.offset = 0;
+    }
+
+    @Override
+    public int compareTo(@NotNull ByteIterable right) {
+        if (right instanceof ArrayByteIterable) {
+            var rightIterable = (ArrayByteIterable) right;
+
+            return Arrays.compareUnsigned(bytes, offset, offset + length, rightIterable.bytes,
+                    rightIterable.offset, rightIterable.offset + rightIterable.length);
+        }
+
+        var rightOffset = right.baseOffset();
+        var rightBase = right.getBaseBytes();
+
+        return Arrays.compareUnsigned(bytes, offset, offset + length, rightBase,
+                rightOffset, rightOffset + right.getLength());
+    }
+
+
+    @Override
+    public int compareTo(int length, ByteIterable right, int rightLength) {
+        if (right instanceof ArrayByteIterable) {
+            var rightIterable = (ArrayByteIterable) right;
+
+            return Arrays.compareUnsigned(bytes, offset, offset + length, rightIterable.bytes,
+                    rightIterable.offset, rightIterable.offset + rightLength);
+        }
+
+        var rightOffset = right.baseOffset();
+        var rightBase = right.getBaseBytes();
+
+        return Arrays.compareUnsigned(bytes, offset, offset + length, rightBase,
+                rightOffset, rightOffset + rightLength);
+    }
+
+    @Override
+    public int compareTo(int from, int length, ByteIterable right, int rightFrom, int rightLength) {
+        var offset = from + this.offset;
+
+        if (right instanceof ArrayByteIterable) {
+            var rightIterable = (ArrayByteIterable) right;
+            var rightOffset = rightFrom + rightIterable.offset;
+
+            return Arrays.compareUnsigned(bytes, offset, offset + length, rightIterable.bytes,
+                    rightOffset, rightOffset + rightLength);
+        }
+
+        var rightOffset = rightFrom + right.baseOffset();
+        var rightBase = right.getBaseBytes();
+
+        return Arrays.compareUnsigned(bytes, offset, offset + length, rightBase,
+                rightOffset, rightOffset + rightLength);
     }
 
     public ArrayByteIterable(@NotNull final ByteIterator it) {
         fillBytes(it);
+
+        this.offset = 0;
     }
 
     public ArrayByteIterable(@NotNull final ByteIterator it, final int size) {
         bytes = readIterator(it, size);
         length = size;
+        this.offset = 0;
     }
 
     public ArrayByteIterable(final byte firstByte, @NotNull final ByteIterable bi) {
         fillBytes(firstByte, bi.iterator());
+        this.offset = 0;
     }
 
     public ArrayByteIterable(final byte firstByte, @NotNull final ByteIterator it) {
         fillBytes(firstByte, it);
+        this.offset = 0;
     }
 
     public ArrayByteIterable(byte[] bytes, int length) {
+        this(bytes, 0, length);
+    }
+
+    public ArrayByteIterable(byte[] bytes, int offset, int length) {
         if (length == 0) {
             fillBytes(EMPTY_ITERATOR);
+            this.offset = 0;
         } else if (length == 1) {
-            fillBytes(bytes[0], EMPTY_ITERATOR);
+            fillBytes(bytes[offset], EMPTY_ITERATOR);
+            this.offset = 0;
         } else {
             this.bytes = bytes;
             this.length = length;
+            this.offset = offset;
         }
     }
 
-    public ArrayByteIterable(@NotNull byte[] bytes) {
+    public ArrayByteIterable(byte @NotNull [] bytes) {
         this(bytes, bytes.length);
     }
 
@@ -87,30 +166,36 @@ public class ArrayByteIterable extends ByteIterableBase {
     }
 
     public Iterator iterator(final int offset) {
-        return new Iterator(offset);
+        return new Iterator(bytes, this.offset + offset, length - offset);
     }
 
-    public void setBytes(@NotNull byte[] bytes) {
+    public void setBytes(byte @NotNull [] bytes) {
         this.bytes = bytes;
         length = bytes.length;
+        this.offset = 0;
     }
 
     @Override
     public byte[] getBytesUnsafe() {
-        return bytes;
+        if (offset == 0) {
+            return bytes;
+        }
+
+        return Arrays.copyOfRange(bytes, offset, offset + length);
+    }
+
+    @Override
+    public @NotNull ByteIterable subIterable(int offset, int length) {
+        return new ArrayByteIterable(bytes, this.offset + offset, length);
     }
 
     public void writeTo(@NotNull final LightOutputStream output) {
-        output.write(bytes, 0, length);
-    }
-
-    public static Iterator getEmptyIterator() {
-        return EMPTY.ITERATOR;
+        output.write(bytes, offset, length);
     }
 
     @Override
     protected Iterator getIterator() {
-        return new Iterator(0);
+        return new Iterator(bytes, this.offset, length);
     }
 
     @Override
@@ -118,63 +203,78 @@ public class ArrayByteIterable extends ByteIterableBase {
         // do nothing
     }
 
+    @Override
+    public int baseOffset() {
+        return offset;
+    }
+
+    @Override
+    public byte[] getBaseBytes() {
+        return bytes;
+    }
+
+    @Override
+    public byte byteAt(int offset) {
+        return bytes[this.offset + offset];
+    }
+
     public static ArrayByteIterable fromByte(final byte b) {
         return SINGLE_BYTE_ITERABLES[b & 0xff];
     }
 
-    public class Iterator extends ByteIterator {
+    public static class Iterator implements ByteIterator {
+        protected final byte[] bytes;
+        protected final int end;
+        protected int offset;
 
-        private int offset;
-
-        public Iterator(int offset) {
+        public Iterator(final byte[] bytes, int offset, int length) {
             this.offset = offset;
+            this.end = offset + length;
+            this.bytes = bytes;
         }
 
         @Override
         public boolean hasNext() {
-            return offset < length;
+            return offset < end;
         }
 
         @Override
         public byte next() {
-            final int offset = this.offset;
-            final byte result = bytes[offset];
-            // such logic prevents from advancing of empty iterator
-            this.offset = offset + 1;
-            return result;
+            return bytes[offset++];
         }
 
         @Override
         public long skip(long bytes) {
-            final long result = Math.min(bytes, ArrayByteIterable.this.length - offset);
-            offset += (int) result;
+            final int result = (int) Math.min(bytes, end - offset);
+            offset += result;
             return result;
         }
 
-        public byte[] getBytesUnsafe() {
-            return bytes;
+        public int match(Iterator iterator) {
+            var mismatch = Arrays.mismatch(bytes, offset, end, iterator.bytes,
+                    iterator.offset, iterator.end);
+
+            if (mismatch == -1) {
+                var result = end - offset;
+                offset = end;
+                iterator.offset = iterator.end;
+
+                return result;
+            }
+
+            offset += mismatch;
+            iterator.offset += mismatch;
+
+            return mismatch;
         }
 
-        public int getLength() {
-            return length;
-        }
 
-        public int getOffset() {
-            return offset;
-        }
-
-        public int nextBytes(byte[] array, int off, int len) {
-            final int copyLen = Math.min(len, length - offset);
-            System.arraycopy(bytes, offset, array, off, copyLen);
-            offset += copyLen;
-            return copyLen;
-        }
     }
 
     @SuppressWarnings({"NonConstantFieldWithUpperCaseName"})
-    public static final class EmptyIterable extends ArrayByteIterable {
+    private static final class EmptyIterable extends ArrayByteIterable {
 
-        public final Iterator ITERATOR = new Iterator(0);
+        public final Iterator ITERATOR = new Iterator(null, 0, 0);
 
         EmptyIterable() {
             super(EMPTY_BYTES, 0);
@@ -191,7 +291,7 @@ public class ArrayByteIterable extends ByteIterableBase {
         }
 
         @Override
-        public void setBytes(@NotNull byte[] bytes) {
+        public void setBytes(byte @NotNull [] bytes) {
             throw new UnsupportedOperationException();
         }
     }

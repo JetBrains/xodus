@@ -68,7 +68,7 @@ public class PatriciaReclaimTest extends PatriciaTestBase {
         tm = t.getMutableCopy();
         assertMatches(tm, RM("aaa", N('b', "", "aaab"), N('c', "", "aaac")));
         tm.put(kv("aabb", "aabb"));
-        long secondAddress = a + log.read(a).length();
+        long secondAddress = log.read(a).end();
         a = saveTree();
         t = openTree(a, false);
         tm = t.getMutableCopy();

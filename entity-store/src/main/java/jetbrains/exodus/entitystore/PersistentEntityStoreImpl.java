@@ -277,7 +277,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
             return result;
         });
-        if (!config.getRefactoringSkipAll() && !environment.getEnvironmentConfig().getEnvIsReadonly()) {
+        if (!config.getRefactoringSkipAll() && !environment.isReadOnly()) {
             applyRefactorings(fromScratch); // this method includes refactorings that could be clustered into separate txns
         }
     }
@@ -537,7 +537,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     @Override
-    public StoreTransaction beginExclusiveTransaction() {
+    public PersistentStoreTransaction beginExclusiveTransaction() {
         final PersistentStoreTransaction txn = new PersistentStoreTransaction(this, TransactionType.Exclusive);
         registerTransaction(txn);
         return txn;

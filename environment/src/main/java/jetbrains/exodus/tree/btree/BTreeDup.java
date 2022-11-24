@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,7 +16,7 @@
 package jetbrains.exodus.tree.btree;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.log.ByteIteratorWithAddress;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
@@ -36,14 +36,14 @@ final class BTreeDup extends BTreeBase {
         dataIterator = mainTree.getDataIterator(Loggable.NULL_ADDRESS);
         this.leafNodeDup = leafNodeDup;
         leafNodeDupKey = leafNodeDup.getKey();
-        final ByteIterator iterator = leafNodeDup.getRawValue(0).iterator();
-        final long l = CompressedUnsignedLongByteIterable.getLong(iterator);
+        final ByteIteratorWithAddress iterator = leafNodeDup.getRawValue(0).iterator();
+        final long l = iterator.getCompressedUnsignedLong();
         size = l >> 1;
         if ((l & 1) == 1) {
-            long offset = CompressedUnsignedLongByteIterable.getLong(iterator);
+            long offset = iterator.getCompressedUnsignedLong();
             startAddress = leafNodeDup.getAddress() - offset;
             dataOffset = (byte) (CompressedUnsignedLongByteIterable.getCompressedSize(l)
-                + CompressedUnsignedLongByteIterable.getCompressedSize(offset));
+                    + CompressedUnsignedLongByteIterable.getCompressedSize(offset));
         } else {
             startAddress = Loggable.NULL_ADDRESS;
             dataOffset = (byte) CompressedUnsignedLongByteIterable.getCompressedSize(l);
@@ -73,7 +73,8 @@ final class BTreeDup extends BTreeBase {
     @NotNull
     @Override
     protected BasePage getRoot() {
-        return loadPage(leafNodeDup.getType(), leafNodeDup.getRawValue(dataOffset));
+        return loadPage(leafNodeDup.getType(), leafNodeDup.getRawValue(dataOffset),
+                leafNodeDup.insideSinglePage);
     }
 
     @Override
@@ -81,7 +82,7 @@ final class BTreeDup extends BTreeBase {
     protected LeafNode loadLeaf(final long address) {
         final RandomAccessLoggable loggable = getLoggable(address);
         if (loggable.getType() == DUP_LEAF) {
-            return new LeafNode(loggable) {
+            return new LeafNode(log, loggable) {
                 @NotNull
                 @Override
                 public ByteIterable getValue() {
@@ -95,7 +96,7 @@ final class BTreeDup extends BTreeBase {
 
                 @Override
                 public String toString() {
-                    return "DLN {key:" + getKey().toString() + "} @ " + getAddress();
+                    return "DLN {key:" + getKey() + "} @ " + getAddress();
                 }
             };
         } else {
