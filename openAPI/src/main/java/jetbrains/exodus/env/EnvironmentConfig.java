@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  *     final EnvironmentConfig config = new EnvironmentConfig();
  *     final Environment env = Environments.newInstance(""dbDirectory", config.setGcFileMinAge(3).setGcRunPeriod(60000));
  * </pre>
- *
+ * <p>
  * Some setting are mutable at runtime and some are immutable. Immutable at runtime settings can be changed, but they
  * won't take effect on the {@linkplain Environment} instance. Those settings are applicable only during
  * {@linkplain Environment} instance creation.
@@ -90,6 +90,8 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String MEMORY_USAGE_PERCENTAGE = "exodus.memoryUsagePercentage";
 
     public static final String USE_VERSION1_FORMAT = "exodus.useVersion1Format";
+
+    public static final String CHECK_PAGES_AT_RUNTIME = "exodus.checkPagesAtRuntime";
 
     /**
      * Defines id of {@linkplain StreamCipherProvider} which will be used to encrypt the database. Default value is
@@ -457,7 +459,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Defines the number of read-only {@linkplain Transaction transactions} that can be started in parallel. By
      * default it is unlimited.
      * <p>Mutable at runtime: no
-     *
+     * <p>
      * As of 1.4.0, is deprecated.
      *
      * @see Transaction
@@ -711,71 +713,72 @@ public class EnvironmentConfig extends AbstractConfig {
     public EnvironmentConfig(@NotNull final ConfigurationStrategy strategy) {
         //noinspection unchecked
         super(new Pair[]{
-            new Pair(MEMORY_USAGE_PERCENTAGE, 50),
-            new Pair(USE_VERSION1_FORMAT, true),
-            new Pair(CIPHER_ID, null),
-            new Pair(CIPHER_KEY, null),
-            new Pair(CIPHER_BASIC_IV, 0L),
-            new Pair(PROFILER_ENABLED, false),
-            new Pair(LOG_DURABLE_WRITE, false),
-            new Pair(LOG_FILE_SIZE, 8192L),
-            new Pair(LOG_LOCK_TIMEOUT, 0L),
-            new Pair(LOG_LOCK_ID, null),
-            new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
-            new Pair(LOG_CACHE_OPEN_FILES, 500),
-            new Pair(LOG_CACHE_USE_NIO, false),
-            new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
-            new Pair(LOG_CACHE_SHARED, true),
-            new Pair(LOG_CACHE_NON_BLOCKING, true),
-            new Pair(LOG_CACHE_GENERATION_COUNT, 2),
-            new Pair(LOG_CACHE_USE_SOFT_REFERENCES, false),
-            new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
-            new Pair(LOG_CACHE_WARMUP, false),
-            new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
-            new Pair(LOG_CLEAR_INVALID, false),
-            new Pair(LOG_SYNC_PERIOD, 10000L),
-            new Pair(LOG_FULL_FILE_READ_ONLY, true),
-            new Pair(LOG_ALLOW_REMOVABLE, false),
-            new Pair(LOG_ALLOW_REMOTE, false),
-            new Pair(LOG_ALLOW_RAM_DISK, false),
-            new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
-            new Pair(ENV_IS_READONLY, false),
-            new Pair(ENV_FAIL_FAST_IN_READONLY, true),
-            new Pair(ENV_READONLY_EMPTY_STORES, false),
-            new Pair(ENV_STOREGET_CACHE_SIZE, 0),
-            new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 200),
-            new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 200),
-            new Pair(ENV_CLOSE_FORCEDLY, false),
-            new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
-            new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
-            new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
-            new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
-            new Pair(ENV_TXN_TRACE_FINISH, false),
-            new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
-            new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
-            new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
-            new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
-            new Pair(ENV_GATHER_STATISTICS, true),
-            new Pair(ENV_COMPACT_ON_OPEN, false),
-            new Pair(TREE_MAX_PAGE_SIZE, 128),
-            new Pair(TREE_DUP_MAX_PAGE_SIZE, 8),
-            new Pair(GC_ENABLED, true),
-            new Pair(GC_START_IN, 10000),
-            new Pair(GC_MIN_UTILIZATION, 50),
-            new Pair(GC_RENAME_FILES, false),
-            new Pair(GC_MIN_FILE_AGE, 2),
-            new Pair(GC_FILES_INTERVAL, 3),
-            new Pair(GC_RUN_PERIOD, 5000),
-            new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
-            new Pair(GC_UTILIZATION_FROM_FILE, ""),
-            new Pair(GC_FILES_DELETION_DELAY, 5000),
-            new Pair(GC_RUN_EVERY, 0),
-            new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
-            new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
-            new Pair(GC_TRANSACTION_TIMEOUT, 500),
-            new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
-            new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
-            new Pair(META_SERVER, null)
+                new Pair(MEMORY_USAGE_PERCENTAGE, 50),
+                new Pair(USE_VERSION1_FORMAT, true),
+                new Pair(CIPHER_ID, null),
+                new Pair(CIPHER_KEY, null),
+                new Pair(CIPHER_BASIC_IV, 0L),
+                new Pair(PROFILER_ENABLED, false),
+                new Pair(LOG_DURABLE_WRITE, false),
+                new Pair(LOG_FILE_SIZE, 8192L),
+                new Pair(LOG_LOCK_TIMEOUT, 0L),
+                new Pair(LOG_LOCK_ID, null),
+                new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
+                new Pair(LOG_CACHE_OPEN_FILES, 500),
+                new Pair(LOG_CACHE_USE_NIO, false),
+                new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
+                new Pair(LOG_CACHE_SHARED, true),
+                new Pair(LOG_CACHE_NON_BLOCKING, true),
+                new Pair(LOG_CACHE_GENERATION_COUNT, 2),
+                new Pair(LOG_CACHE_USE_SOFT_REFERENCES, false),
+                new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
+                new Pair(LOG_CACHE_WARMUP, false),
+                new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
+                new Pair(LOG_CLEAR_INVALID, false),
+                new Pair(LOG_SYNC_PERIOD, 10000L),
+                new Pair(LOG_FULL_FILE_READ_ONLY, true),
+                new Pair(LOG_ALLOW_REMOVABLE, false),
+                new Pair(LOG_ALLOW_REMOTE, false),
+                new Pair(LOG_ALLOW_RAM_DISK, false),
+                new Pair(LOG_DATA_READER_WRITER_PROVIDER, DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER),
+                new Pair(ENV_IS_READONLY, false),
+                new Pair(ENV_FAIL_FAST_IN_READONLY, true),
+                new Pair(ENV_READONLY_EMPTY_STORES, false),
+                new Pair(ENV_STOREGET_CACHE_SIZE, 0),
+                new Pair(ENV_STOREGET_CACHE_MIN_TREE_SIZE, 200),
+                new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 200),
+                new Pair(ENV_CLOSE_FORCEDLY, false),
+                new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
+                new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
+                new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
+                new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
+                new Pair(ENV_TXN_TRACE_FINISH, false),
+                new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
+                new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
+                new Pair(ENV_MONITOR_TXNS_EXPIRATION_TIMEOUT, (int) TimeUnit.HOURS.toMillis(8)),
+                new Pair(ENV_MONITOR_TXNS_CHECK_FREQ, 60000),
+                new Pair(ENV_GATHER_STATISTICS, true),
+                new Pair(ENV_COMPACT_ON_OPEN, false),
+                new Pair(TREE_MAX_PAGE_SIZE, 128),
+                new Pair(TREE_DUP_MAX_PAGE_SIZE, 8),
+                new Pair(GC_ENABLED, true),
+                new Pair(GC_START_IN, 10000),
+                new Pair(GC_MIN_UTILIZATION, 50),
+                new Pair(GC_RENAME_FILES, false),
+                new Pair(GC_MIN_FILE_AGE, 2),
+                new Pair(GC_FILES_INTERVAL, 3),
+                new Pair(GC_RUN_PERIOD, 5000),
+                new Pair(GC_UTILIZATION_FROM_SCRATCH, false),
+                new Pair(GC_UTILIZATION_FROM_FILE, ""),
+                new Pair(GC_FILES_DELETION_DELAY, 5000),
+                new Pair(GC_RUN_EVERY, 0),
+                new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
+                new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
+                new Pair(GC_TRANSACTION_TIMEOUT, 500),
+                new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
+                new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
+                new Pair(META_SERVER, null),
+                new Pair(CHECK_PAGES_AT_RUNTIME, true)
         }, strategy);
     }
 
@@ -859,6 +862,14 @@ public class EnvironmentConfig extends AbstractConfig {
 
     public EnvironmentConfig setUseVersion1Format(final boolean useVersion1Format) {
         return setSetting(USE_VERSION1_FORMAT, useVersion1Format);
+    }
+
+    public boolean getCheckPagesAtRuntime() {
+        return (Boolean) getSetting(CHECK_PAGES_AT_RUNTIME);
+    }
+
+    public EnvironmentConfig setCheckPagesAtRuntime(final boolean checkPagesAtRuntime) {
+        return setSetting(CHECK_PAGES_AT_RUNTIME, checkPagesAtRuntime);
     }
 
     /**
@@ -1585,7 +1596,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * Returns {@code true} if the {@linkplain Environment} instance is read-only. Default value is {@code false}.
      * <p>Mutable at runtime: yes
-     *
+     * <p>
      * *WARNING* do not use this method to check if {@linkplain Environment} is working in read-only mode at runtime.
      * Please use {@linkplain  Environment#isReadOnly()} instead.
      *
@@ -1904,7 +1915,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Returns the number of read-only {@linkplain Transaction transactions} that can be started in parallel. By
      * default it is unlimited.
      * <p>Mutable at runtime: no
-     *
+     * <p>
      * As of 1.4.0, is deprecated.
      *
      * @return number of read-only {@linkplain Transaction transactions} that can be started in parallel
@@ -1918,7 +1929,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Sets the number of read-only {@linkplain Transaction transactions} that can be started in parallel. By
      * default it is unlimited.
      * <p>Mutable at runtime: no
-     *
+     * <p>
      * As of 1.4.0, is deprecated.
      *
      * @param maxParallelReadonlyTxns number of read-only {@linkplain Transaction transactions} that can be started in parallel

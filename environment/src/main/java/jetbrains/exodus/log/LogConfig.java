@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -56,8 +56,11 @@ public class LogConfig {
     private boolean lockIgnored;
     private boolean useV1Format;
 
+    private boolean checkPagesAtRuntime;
+
     public LogConfig() {
         useV1Format = EnvironmentConfig.DEFAULT.getUseVersion1Format();
+        checkPagesAtRuntime = EnvironmentConfig.DEFAULT.getCheckPagesAtRuntime();
     }
 
     public LogConfig setLocation(@NotNull final String location) {
@@ -341,6 +344,10 @@ public class LogConfig {
 
     public boolean useV1Format() {
         return useV1Format;
+    }
+
+    public boolean isCheckPagesAtRuntime() {
+        return checkPagesAtRuntime;
     }
 
     public void setUseV1Format(boolean useV1Format) {

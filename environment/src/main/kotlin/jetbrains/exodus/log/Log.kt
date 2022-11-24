@@ -117,8 +117,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             val allFiles = tip.allFiles
             val filesCount = allFiles.size
             return if (filesCount == 0) 0L else (filesCount - 1) * fileLengthBound + getLastFileSize(
-                    allFiles[filesCount - 1],
-                    tip
+                allFiles[filesCount - 1],
+                tip
             )
         }
 
@@ -155,17 +155,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 startupMetadata = metadata
             } else {
                 startupMetadata = StartupMetadata.createStub(
-                        config.cachePageSize, expectedEnvironmentVersion,
-                        fileLength
+                    config.cachePageSize, expectedEnvironmentVersion,
+                    fileLength
                 )
                 needToPerformMigration = reader.blocks.iterator().hasNext()
             }
 
             if (config.cachePageSize != startupMetadata.pageSize) {
                 logger.warn(
-                        "Environment $location was created with cache page size equals to " +
-                                "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
-                                "page size will be updated to ${startupMetadata.pageSize}"
+                    "Environment $location was created with cache page size equals to " +
+                            "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
+                            "page size will be updated to ${startupMetadata.pageSize}"
                 )
 
                 config.cachePageSize = startupMetadata.pageSize
@@ -173,9 +173,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
             if (fileLength != startupMetadata.fileLengthBoundary) {
                 logger.warn(
-                        "Environment $location was created with maximum files size equals to " +
-                                "${startupMetadata.fileLengthBoundary} but provided file size is $fileLength " +
-                                "file size will be updated to ${startupMetadata.fileLengthBoundary}"
+                    "Environment $location was created with maximum files size equals to " +
+                            "${startupMetadata.fileLengthBoundary} but provided file size is $fileLength " +
+                            "file size will be updated to ${startupMetadata.fileLengthBoundary}"
                 )
                 config.fileSize = startupMetadata.fileLengthBoundary / 1024
             }
@@ -190,8 +190,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
             if (expectedEnvironmentVersion != startupMetadata.environmentFormatVersion) {
                 throw ExodusException(
-                        "For environment $location expected format version is $expectedEnvironmentVersion " +
-                                "but  data are stored using version ${startupMetadata.environmentFormatVersion}"
+                    "For environment $location expected format version is $expectedEnvironmentVersion " +
+                            "but  data are stored using version ${startupMetadata.environmentFormatVersion}"
                 )
             }
 
@@ -199,8 +199,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             if (!startupMetadata.isCorrectlyClosed || needToPerformMigration) {
                 if (!startupMetadata.isCorrectlyClosed) {
                     logger.error(
-                            "Environment located at ${reader.location} has been closed incorrectly. " +
-                                    "Data check routine is started to assess data consistency ..."
+                        "Environment located at ${reader.location} has been closed incorrectly. " +
+                                "Data check routine is started to assess data consistency ..."
                     )
                 }
 
@@ -234,13 +234,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 val memoryUsagePercentage = config.memoryUsagePercentage
                 if (config.isSharedCache)
                     getSharedCache(
-                            memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
-                            generationCount
+                        memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
+                        generationCount
                     )
                 else
                     SeparateLogCache(
-                            memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
-                            generationCount
+                        memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
+                        generationCount
                     )
             }
             DeferredIO.getJobProcessor()
@@ -256,8 +256,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 val highPageAddress = getHighPageAddress(currentHighAddress)
                 val highPageContent = ByteArray(cachePageSize)
                 val tmpTip = LogTip(
-                        highPageContent, highPageAddress, cachePageSize, currentHighAddress,
-                        currentHighAddress, blockSetImmutable
+                    highPageContent, highPageAddress, cachePageSize, currentHighAddress,
+                    currentHighAddress, blockSetImmutable
                 )
                 this.internalTip = AtomicReference(tmpTip)
 
@@ -268,8 +268,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 }
 
                 val proposedTip = LogTip(
-                        highPageContent, highPageAddress, highPageSize, currentHighAddress,
-                        currentHighAddress, blockSetImmutable
+                    highPageContent, highPageAddress, highPageSize, currentHighAddress,
+                    currentHighAddress, blockSetImmutable
                 )
                 this.internalTip.set(proposedTip)
                 tmpTip.xxHash64.close()
@@ -288,10 +288,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                                 for (i in 0 until dataLength) {
                                     if (!data.hasNext()) {
                                         throw ExodusException(
-                                                "Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(
-                                                        data.address,
-                                                        fileLengthBound
-                                                )
+                                            "Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(
+                                                data.address,
+                                                fileLengthBound
+                                            )
                                         )
                                     }
                                     data.next()
@@ -399,17 +399,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             hasNext = blockIterator.hasNext()
             if (blockLength > fileLengthBound || hasNext && blockLength != fileLengthBound) {
                 clearLogReason =
-                        "Unexpected file length" + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound)
+                    "Unexpected file length" + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound)
             }
             // if the file address is not a multiple of fileLengthBound
             if (clearLogReason == null && address != getFileAddress(address)) {
                 if (rwIsReadonly || !clearInvalidLog) {
                     throw ExodusException(
-                            "Unexpected file address " +
-                                    LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(
-                                    address,
-                                    fileLengthBound
-                            )
+                        "Unexpected file address " +
+                                LogUtil.getLogFilename(address) + LogUtil.getWrongAddressErrorMessage(
+                            address,
+                            fileLengthBound
+                        )
                     )
                 }
                 clearLogReason = "Unexpected file address " +
@@ -433,10 +433,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                     if (hasNext || !rwIsReadonly) {
                         if (read != cachePageSize) {
                             DataCorruptionException.raise(
-                                    "Page is broken. Expected and actual" +
-                                            " page sizes are different. {expected: $cachePageSize , actual: $read}",
-                                    this,
-                                    pageAddress
+                                "Page is broken. Expected and actual" +
+                                        " page sizes are different. {expected: $cachePageSize , actual: $read}",
+                                this,
+                                pageAddress
                             )
                         }
 
@@ -635,17 +635,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             val end = dataAddress + dataLength
 
             return SinglePageLoggable(
-                    address, end,
-                    type, structureId, dataAddress, it.currentPage,
-                    it.offset, dataLength
+                address, end,
+                type, structureId, dataAddress, it.currentPage,
+                it.offset, dataLength
             )
         }
 
         val data = MultiPageByteIterableWithAddress(dataAddress, dataLength, this)
 
         return MultiPageLoggable(
-                address,
-                type, data, dataLength, structureId, this
+            address,
+            type, data, dataLength, structureId, this
         )
     }
 
@@ -877,9 +877,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     @JvmOverloads
     fun removeFile(
-            address: Long,
-            rbt: RemoveBlockType = RemoveBlockType.Delete,
-            blockSetMutable: BlockSet.Mutable? = null
+        address: Long,
+        rbt: RemoveBlockType = RemoveBlockType.Delete,
+        blockSetMutable: BlockSet.Mutable? = null
     ) {
         val block = tip.blockSet.getBlock(address)
         val listeners = blockListeners.notifyListeners { it.beforeBlockDeleted(block, reader, writer) }
@@ -931,15 +931,16 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 val block = logTip.blockSet.getBlock(fileAddress)
                 val readBytes = block.read(output, pageAddress - fileAddress, 0, output.size)
 
-                val checkConsistency = formatWithHashCodeIsUsed &&
+                val checkConsistency = config.isCheckPagesAtRuntime &&
+                        formatWithHashCodeIsUsed &&
                         (!rwIsReadonly || pageAddress < (highAddress and
                                 ((cachePageSize - 1).inv()).toLong()))
 
                 if (checkConsistency) {
                     if (readBytes < cachePageSize) {
                         DataCorruptionException.raise(
-                                "Page size less than expected. " +
-                                        "{actual : $readBytes, expected $cachePageSize }.", this, pageAddress
+                            "Page size less than expected. " +
+                                    "{actual : $readBytes, expected $cachePageSize }.", this, pageAddress
                         )
                     }
 
@@ -959,8 +960,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                     }
 
                     cryptBlocksMutable(
-                            cipherProvider, config.cipherKey, config.cipherBasicIV,
-                            pageAddress, output, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
+                        cipherProvider, config.cipherKey, config.cipherBasicIV,
+                        pageAddress, output, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
                     )
                 }
                 notifyReadBytes(output, readBytes)
@@ -993,8 +994,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             val lockTimeout = config.lockTimeout
             if (!writer.lock(lockTimeout)) {
                 throw ExodusException(
-                        "Can't acquire environment lock after " +
-                                lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo()
+                    "Can't acquire environment lock after " +
+                            lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo()
                 )
             }
         }
@@ -1119,8 +1120,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 val length = refreshed.length()
                 if (length < fileLengthBound) {
                     throw IllegalStateException(
-                            "File's too short (" + LogUtil.getLogFilename(lastFile)
-                                    + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound
+                        "File's too short (" + LogUtil.getLogFilename(lastFile)
+                                + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound
                     )
                 }
                 if (config.isFullFileReadonly && block is File) {
@@ -1187,19 +1188,19 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         }
 
         private fun getSharedCache(
-                memoryUsage: Long,
-                pageSize: Int,
-                nonBlocking: Boolean,
-                useSoftReferences: Boolean,
-                cacheGenerationCount: Int
+            memoryUsage: Long,
+            pageSize: Int,
+            nonBlocking: Boolean,
+            useSoftReferences: Boolean,
+            cacheGenerationCount: Int
         ): LogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
                         sharedCache = SharedLogCache(
-                                memoryUsage, pageSize, nonBlocking, useSoftReferences,
-                                cacheGenerationCount
+                            memoryUsage, pageSize, nonBlocking, useSoftReferences,
+                            cacheGenerationCount
                         )
                     }
                     result = sharedCache
@@ -1212,19 +1213,19 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         }
 
         private fun getSharedCache(
-                memoryUsagePercentage: Int,
-                pageSize: Int,
-                nonBlocking: Boolean,
-                useSoftReferences: Boolean,
-                cacheGenerationCount: Int
+            memoryUsagePercentage: Int,
+            pageSize: Int,
+            nonBlocking: Boolean,
+            useSoftReferences: Boolean,
+            cacheGenerationCount: Int
         ): LogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
                         sharedCache = SharedLogCache(
-                                memoryUsagePercentage, pageSize, nonBlocking, useSoftReferences,
-                                cacheGenerationCount
+                            memoryUsagePercentage, pageSize, nonBlocking, useSoftReferences,
+                            cacheGenerationCount
                         )
                     }
                     result = sharedCache
@@ -1239,8 +1240,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         private fun checkCachePageSize(pageSize: Int, cache: LogCache) {
             if (cache.pageSize != pageSize) {
                 throw ExodusException(
-                        "SharedLogCache was created with page size ${cache.pageSize}" +
-                                " and then requested with page size $pageSize. EnvironmentConfig.LOG_CACHE_PAGE_SIZE is set manually."
+                    "SharedLogCache was created with page size ${cache.pageSize}" +
+                            " and then requested with page size $pageSize. EnvironmentConfig.LOG_CACHE_PAGE_SIZE is set manually."
                 )
             }
         }
@@ -1248,8 +1249,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         private fun checkUseSoftReferences(useSoftReferences: Boolean, cache: SharedLogCache) {
             if (cache.useSoftReferences != useSoftReferences) {
                 throw ExodusException(
-                        "SharedLogCache was created with useSoftReferences = ${cache.useSoftReferences}" +
-                                " and then requested with useSoftReferences = $useSoftReferences. EnvironmentConfig.LOG_CACHE_USE_SOFT_REFERENCES is set manually."
+                    "SharedLogCache was created with useSoftReferences = ${cache.useSoftReferences}" +
+                            " and then requested with useSoftReferences = $useSoftReferences. EnvironmentConfig.LOG_CACHE_USE_SOFT_REFERENCES is set manually."
                 )
             }
         }
