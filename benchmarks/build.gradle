@@ -56,4 +56,5 @@ jmh {
 task deleteEmptyBenchmarkList(type: Delete) {
     delete "$buildDir/jmh-generated-classes/META-INF/BenchmarkList"
 }
+
 jmhCompileGeneratedClasses.finalizedBy deleteEmptyBenchmarkList
