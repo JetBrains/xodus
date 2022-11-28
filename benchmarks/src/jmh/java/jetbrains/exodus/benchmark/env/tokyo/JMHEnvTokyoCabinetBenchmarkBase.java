@@ -23,7 +23,7 @@ import java.io.IOException;
 
 abstract class JMHEnvTokyoCabinetBenchmarkBase extends JMHEnvBenchmarkBase {
 
-    private static final ByteIterable[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveEntries(TokyoCabinetBenchmark.KEYS_COUNT);
+    protected static final ByteIterable[] successiveKeys = TokyoCabinetBenchmark.getSuccessiveEntries(TokyoCabinetBenchmark.KEYS_COUNT);
     static final ByteIterable[] randomKeys = TokyoCabinetBenchmark.getRandomEntries(TokyoCabinetBenchmark.KEYS_COUNT);
 
     public void setup() throws IOException {
