@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -112,8 +112,7 @@ public class EnvironmentImpl implements Environment {
 
     @Nullable
     private final StreamCipherProvider streamCipherProvider;
-    @Nullable
-    private final byte[] cipherKey;
+    private final byte @Nullable [] cipherKey;
     private final long cipherBasicIV;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
@@ -126,6 +125,7 @@ public class EnvironmentImpl implements Environment {
         checkStorageType(logLocation, ec);
 
         final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
+        assert readerWriterProvider != null;
         readerWriterProvider.onEnvironmentCreated(this);
 
         final Pair<MetaTreeImpl, Integer> meta;
@@ -374,8 +374,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Override
-    @Nullable
-    public byte[] getCipherKey() {
+    public byte @Nullable [] getCipherKey() {
         return cipherKey;
     }
 
@@ -938,23 +937,6 @@ public class EnvironmentImpl implements Environment {
         txns.forEach(executable);
     }
 
-    // for tests only
-    boolean awaitUpdate(final long fromAddress, long timeout) {
-        final int delta = 20;
-        try {
-            while (timeout > 0) {
-                if (log.getHighAddress() > fromAddress) {
-                    return true;
-                }
-                Thread.sleep(delta);
-                timeout -= delta;
-            }
-        } catch (InterruptedException ignore) {
-            Thread.currentThread().interrupt();
-        }
-        return false;
-    }
-
     protected StoreImpl createTemporaryEmptyStore(String name) {
         return new TemporaryEmptyStore(this, name);
     }
@@ -1077,7 +1059,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     private int allocateStructureId() {
-        /**
+        /*
          * <TRICK>
          * Allocates structure id so that 256 doesn't factor it. This ensures that corresponding byte iterable
          * will never end with zero byte, and any such id can be used as a key in meta tree without collision
@@ -1131,7 +1113,9 @@ public class EnvironmentImpl implements Environment {
     }
 
     private static void checkStorageType(@NotNull final String location, @NotNull final EnvironmentConfig ec) {
-        if (ec.getLogDataReaderWriterProvider().equals(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER)) {
+        var provider = ec.getLogDataReaderWriterProvider();
+        if (provider.equals(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER) ||
+                provider.equals(DataReaderWriterProvider.SYNCHRONOUS_READER_WRITER_PROVIDER)) {
             final File databaseDir = new File(location);
             if (!ec.isLogAllowRemovable() && IOUtil.isRemovableFile(databaseDir)) {
                 throw new StorageTypeNotAllowedException("Database on removable storage is not allowed");

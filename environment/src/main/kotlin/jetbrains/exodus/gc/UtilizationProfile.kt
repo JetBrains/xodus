@@ -28,7 +28,7 @@ import jetbrains.exodus.io.DataReader
 import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.kotlin.synchronized
 import jetbrains.exodus.log.AbstractBlockListener
-import jetbrains.exodus.log.BufferedDataWriter
+import jetbrains.exodus.log.SyncBufferedDataWriter
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.tree.ExpiredLoggableCollection
@@ -41,7 +41,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     private val log: Log = env.log
     private val usefulFileSize = (log.fileLengthBound / log.cachePageSize) *
-            (log.cachePageSize - BufferedDataWriter.LOGGABLE_DATA) // file size which could be used by loggables
+            (log.cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA) // file size which could be used by loggables
     private val filesUtilization = LongHashMap<MutableLong>() // file address -> number of free bytes
     private var totalBytes: Long = 0
     private var totalFreeBytes: Long = 0

@@ -21,16 +21,14 @@ import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
 import jetbrains.exodus.crypto.cryptBlocksMutable
-import jetbrains.exodus.io.DataReader
-import jetbrains.exodus.io.DataWriter
-import jetbrains.exodus.io.FileDataReader
-import jetbrains.exodus.io.RemoveBlockType
+import jetbrains.exodus.io.*
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.util.DeferredIO
 import jetbrains.exodus.util.IdGenerator
 import mu.KLogging
 import java.io.Closeable
 import java.io.File
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.experimental.xor
 
@@ -40,6 +38,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     @JvmField
     internal val cache: LogCache
+
+    val writeBoundarySemaphore: Semaphore
 
     @Volatile
     var isClosing: Boolean = false
@@ -227,7 +227,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
             cache = if (memoryUsage != 0L) {
                 if (config.isSharedCache)
-                    getSharedCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
+                    getSharedCache(
+                        memoryUsage,
+                        cachePageSize,
+                        nonBlockingCache,
+                        useSoftReferences,
+                        generationCount
+                    )
                 else
                     SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
             } else {
@@ -243,6 +249,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                         generationCount
                     )
             }
+
+            val writeBoundary = (fileLength / cachePageSize).toInt()
+            writeBoundarySemaphore = if (config.isSharedCache) {
+                getSharedWriteBoundarySemaphore(writeBoundary)
+            } else {
+                Semaphore(writeBoundary)
+            }
+
             DeferredIO.getJobProcessor()
             isClosing = false
 
@@ -334,7 +348,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
             formatWithHashCodeIsUsed = !needToPerformMigration
 
-            nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
+            nullPage = SyncBufferedDataWriter.generateNullPage(cachePageSize)
+            //ensure that write always correctly positioned.
+            if (writer.isOpen) {
+                writer.close()
+            }
+
 
             if (config.isWarmup) {
                 warmup()
@@ -352,8 +371,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         try {
             writer.padWholePageWithNulls()
 
-            writer.commit(false)
-            writer.flush(false)
+            writer.commit()
+            writer.flush()
         } finally {
             endWrite()
         }
@@ -363,8 +382,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         val pageAddress = (cachePageSize - 1).toLong().inv() and address
         val writtenSpace = address - pageAddress
 
-        assert(writtenSpace >= 0 && writtenSpace < cachePageSize - BufferedDataWriter.LOGGABLE_DATA)
-        return cachePageSize - BufferedDataWriter.LOGGABLE_DATA - writtenSpace.toInt()
+        assert(writtenSpace >= 0 && writtenSpace < cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA)
+        return cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA - writtenSpace.toInt()
     }
 
     fun switchToReadOnlyMode() {
@@ -440,7 +459,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                             )
                         }
 
-                        BufferedDataWriter.checkPageConsistency(pageAddress, page, cachePageSize, this)
+                        SyncBufferedDataWriter.checkPageConsistency(pageAddress, page, cachePageSize, this)
                     }
                 }
             }
@@ -458,7 +477,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     }
 
     fun beginWrite(): LogTip {
-        val writer = BufferedDataWriter(this, this.writer, tip)
+        val writer = if (this.writer is AsyncDataWriter) {
+            AsyncBufferedDataWriter(
+                this, writer, tip, formatWithHashCodeIsUsed,
+                writeBoundarySemaphore
+            )
+        } else {
+            SyncBufferedDataWriter(this, this.writer, tip, formatWithHashCodeIsUsed)
+        }
         this.bufferedWriter = writer
         return writer.startingTip
     }
@@ -524,11 +550,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         val writtenInPage = address and cachePageReminderMask
         val pageAddress = address and (cachePageReminderMask.inv())
 
-        val adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
+        val adjustedPageSize = cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA
         val writtenSincePageStart = writtenInPage + offset
         val fullPages = writtenSincePageStart / adjustedPageSize
 
-        return pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
+        return pageAddress + writtenSincePageStart + fullPages * SyncBufferedDataWriter.LOGGABLE_DATA
     }
 
 
@@ -784,7 +810,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     @JvmOverloads
     fun flush(forceSync: Boolean = false) {
-        ensureWriter().flush(true)
+        ensureWriter().flush()
         if (forceSync || config.isDurableWrite) {
             sync()
         }
@@ -810,8 +836,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                     val written = writer.padPageWithNulls()
 
                     if (written > 0) {
-                        writer.commit(true)
-                        writer.flush(true)
+                        writer.commit()
+                        writer.flush()
                         closeFullFileIfNecessary(writer)
                     }
                 } finally {
@@ -912,7 +938,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         val writer = ensureWriter()
 
         if (writer.padWithNulls(fileLengthBound, nullPage)) {
-            writer.commit(true)
+            writer.commit()
 
             closeFullFileIfNecessary(writer)
         }
@@ -944,7 +970,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                         )
                     }
 
-                    BufferedDataWriter.checkPageConsistency(pageAddress, output, cachePageSize, this)
+                    SyncBufferedDataWriter.checkPageConsistency(pageAddress, output, cachePageSize, this)
                 }
 
                 val cipherProvider = config.cipherProvider
@@ -953,7 +979,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                         readBytes
                     } else {
                         if (formatWithHashCodeIsUsed) {
-                            cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
+                            cachePageSize - SyncBufferedDataWriter.HASH_CODE_SIZE
                         } else {
                             cachePageSize
                         }
@@ -1031,9 +1057,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             recordLength += dataLengthIterable.length
             recordLength += dataLength
 
-            val leftInPage = cachePageSize - (result.toInt() and (cachePageSize - 1)) - BufferedDataWriter.LOGGABLE_DATA
+            val leftInPage =
+                cachePageSize - (result.toInt() and (cachePageSize - 1)) - SyncBufferedDataWriter.LOGGABLE_DATA
             val delta = if (leftInPage in 1 until recordLength && recordLength < (cachePageSize shr 4)) {
-                leftInPage + BufferedDataWriter.LOGGABLE_DATA
+                leftInPage + SyncBufferedDataWriter.LOGGABLE_DATA
             } else {
                 0
             }
@@ -1058,7 +1085,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             }
 
         }
-        writer.commit(true)
+        writer.commit()
         closeFullFileIfNecessary(writer)
 
         return result
@@ -1176,6 +1203,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         @Volatile
         private var sharedCache: SharedLogCache? = null
 
+        @Volatile
+        private var sharedWriteBoundarySemaphore: Semaphore? = null
+
         /**
          * For tests only!!!
          */
@@ -1185,6 +1215,18 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             synchronized(Log::class.java) {
                 sharedCache = null
             }
+        }
+
+        private fun getSharedWriteBoundarySemaphore(writeBoundary: Int): Semaphore {
+            var result = sharedWriteBoundarySemaphore
+            if (result == null) {
+                synchronized(Log::class.java) {
+                    sharedWriteBoundarySemaphore = Semaphore(writeBoundary)
+                    result = sharedWriteBoundarySemaphore
+                }
+            }
+
+            return result.notNull
         }
 
         private fun getSharedCache(

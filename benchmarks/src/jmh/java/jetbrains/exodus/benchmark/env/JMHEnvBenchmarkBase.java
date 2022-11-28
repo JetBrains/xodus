@@ -55,7 +55,6 @@ public abstract class JMHEnvBenchmarkBase {
     protected abstract StoreConfig getStoreConfig();
 
     protected EnvironmentConfig adjustEnvironmentConfig(@NotNull final EnvironmentConfig ec) {
-        ec.setCheckPagesAtRuntime(false);
         return ec;
     }
 }

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,11 +15,8 @@
  */
 package jetbrains.exodus.log;
 
-import jetbrains.exodus.core.dataStructures.hash.LongIterator;
-import jetbrains.exodus.io.Block;
 import net.jpountz.xxhash.StreamingXXHash64;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class LogTip {
     private static final byte[] NO_BYTES = new byte[0];
@@ -36,9 +33,6 @@ public class LogTip {
     @NotNull
     final BlockSet.Immutable blockSet;
 
-    @Nullable
-    private Iterable<Block> cachedBlocks;
-
     // empty
     LogTip(final long fileLengthBound) {
         this(fileLengthBound, 0, 0);
@@ -51,7 +45,7 @@ public class LogTip {
         this.count = -1;
         this.highAddress = this.approvedHighAddress = highAddress;
         this.blockSet = new BlockSet.Immutable(fileLengthBound); // no files
-        this.xxHash64 = BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(BufferedDataWriter.XX_HASH_SEED);
+        this.xxHash64 = SyncBufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(SyncBufferedDataWriter.XX_HASH_SEED);
     }
 
     public LogTip(byte @NotNull [] bytes,
@@ -91,19 +85,11 @@ public class LogTip {
         return new LogTip(bytes, pageAddress, count, highAddress, updatedApprovedHighAddress, xxHash64, blockSet);
     }
 
-    LogTip withResize(int updatedCount, long updatedHighAddress, long updatedApprovedHighAddress,
-                      @NotNull final BlockSet.Immutable blockSet) {
-        updatePageHash(updatedHighAddress);
-
-        return new LogTip(bytes, pageAddress, updatedCount, updatedHighAddress, updatedApprovedHighAddress,
-                xxHash64, blockSet);
-    }
-
     private static StreamingXXHash64 createHash(final long pageAddress, final long highAddress, final byte[] bytes) {
         final int len = (int) (highAddress - pageAddress);
 
         final StreamingXXHash64 xxHash64 =
-                BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(BufferedDataWriter.XX_HASH_SEED);
+                SyncBufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(SyncBufferedDataWriter.XX_HASH_SEED);
         xxHash64.update(bytes, 0, len);
 
         return xxHash64;
@@ -129,18 +115,5 @@ public class LogTip {
 
     public BlockSet.Mutable getBlockSetCopy() {
         return blockSet.beginWrite();
-    }
-
-    public LongIterator getFilesFrom(final long highAddress) {
-        return blockSet.getFilesFrom(highAddress);
-    }
-
-    @Nullable
-    public Iterable<Block> getCachedBlocks() {
-        return cachedBlocks;
-    }
-
-    public void setCachedBlocks(@NotNull final Iterable<Block> cachedBlocks) {
-        this.cachedBlocks = cachedBlocks;
     }
 }

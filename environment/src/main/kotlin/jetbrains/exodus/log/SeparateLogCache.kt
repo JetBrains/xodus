@@ -98,7 +98,7 @@ internal class SeparateLogCache : LogCache {
     override fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable {
         var page = pagesCache.tryKeyLocked(pageAddress)
 
-        var adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA
+        var adjustedPageSize = pageSize - SyncBufferedDataWriter.LOGGABLE_DATA
         if (!formatWithHashCodeIsUsed) {
             adjustedPageSize = pageSize
         }

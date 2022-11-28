@@ -404,7 +404,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void mappedFileNotUnmapped() {
         File tempDir = TestUtil.createTempDir();
         try {
-            final Environment env = Environments.newInstance(tempDir, new EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024).setLogCacheShared(false));
+            final Environment env = Environments.newInstance(tempDir,
+                    new EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024).setLogCacheShared(false));
             final Store store = env.computeInTransaction(txn -> env.openStore("0", StoreConfig.WITHOUT_DUPLICATES, txn));
             env.executeInTransaction(txn -> {
                 store.put(txn, StringBinding.stringToEntry("k"), StringBinding.stringToEntry("v"));
