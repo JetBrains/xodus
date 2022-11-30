@@ -26,8 +26,6 @@ import jetbrains.exodus.core.execution.LatchJob
 import jetbrains.exodus.core.execution.SharedTimer
 import jetbrains.exodus.env.*
 import jetbrains.exodus.io.Block
-import jetbrains.exodus.io.DataReader
-import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.AbstractBlockListener
 import jetbrains.exodus.log.Log
@@ -54,7 +52,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     init {
         environment.log.addBlockListener(object : AbstractBlockListener() {
 
-            override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
+            override fun blockCreated(block: Block) {
                 utilizationProfile.estimateTotalBytes()
                 if (!cleaner.isCleaning && isTooMuchFreeSpace) {
                     wake()

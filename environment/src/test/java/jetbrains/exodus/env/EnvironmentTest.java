@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -41,6 +41,7 @@ import java.util.*;
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
 import static org.junit.Assert.*;
 
+@SuppressWarnings({"ObjectAllocationInLoop", "MethodCallInLoopCondition"})
 public class EnvironmentTest extends EnvironmentTestsBase {
 
     private final Map<String, File> subfolders = new HashMap<>();
@@ -277,7 +278,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         reopenEnvironment();
         final LogTestConfig testConfig = new LogTestConfig();
         testConfig.setMaxHighAddress(10470);
-        testConfig.setSettingHighAddressDenied(true);
         //noinspection deprecation
         env.getLog().setLogTestConfig(testConfig);
         try {
@@ -672,7 +672,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 int i;
                 for (i = count / 2; i < count; ++i) {
                     if (!cursor.getNext()) break;
-                    Assert.assertEquals("" + i, IntegerBinding.intToEntry(i), cursor.getKey());
+                    Assert.assertEquals(String.valueOf(i), IntegerBinding.intToEntry(i), cursor.getKey());
                 }
                 Assert.assertEquals(count, i);
             }
@@ -717,7 +717,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         return env;
     }
 
-    private void waitForPendingFinalizers(@SuppressWarnings("SameParameterValue") final long timeoutMillis) {
+    private static void waitForPendingFinalizers(@SuppressWarnings("SameParameterValue") final long timeoutMillis) {
         final long started = System.currentTimeMillis();
         final WeakReference<Object> ref = new WeakReference<>(new Object());
         while (ref.get() != null && System.currentTimeMillis() - started < timeoutMillis) {

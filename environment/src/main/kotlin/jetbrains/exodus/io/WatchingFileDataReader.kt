@@ -24,14 +24,17 @@ import mu.KLogging
 import java.nio.file.*
 import java.util.concurrent.TimeUnit
 
-class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
-                             internal val fileDataReader: FileDataReader) : DataReader {
+class WatchingFileDataReader(
+    private val envGetter: () -> EnvironmentImpl?,
+    internal val fileDataReader: FileDataReader
+) : DataReader {
 
     companion object : KLogging() {
         private const val DEBOUNCE_INTERVAL = 100L // 100 milliseconds
-        private val FORCE_CHECK_INTERVAL = java.lang.Long.getLong("jetbrains.exodus.io.watching.forceCheckEach", 3000L) // 3 seconds by default
+        private val FORCE_CHECK_INTERVAL =
+            java.lang.Long.getLong("jetbrains.exodus.io.watching.forceCheckEach", 3000L) // 3 seconds by default
         private val EVENT_KINDS =
-                arrayOf(StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE)
+            arrayOf(StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE)
     }
 
     private val watchService = FileSystems.getDefault().newWatchService()
@@ -68,14 +71,15 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
      * Add callback that is invoked when new data arrives and Environment is successfully updated.
      */
     fun addNewDataListener(listener: (Long, Long) -> Unit) =
-            synchronized(newDataListeners) {
-                newDataListeners.add(listener)
-            }
+        synchronized(newDataListeners) {
+            newDataListeners.add(listener)
+        }
 
+    @Suppress("unused")
     fun removeNewDataListener(listener: (Long, Long) -> Unit) =
-            synchronized(newDataListeners) {
-                newDataListeners.remove(listener)
-            }
+        synchronized(newDataListeners) {
+            newDataListeners.remove(listener)
+        }
 
     private fun doWatch() {
         val currentThread = Thread.currentThread()
@@ -95,7 +99,11 @@ class WatchingFileDataReader(private val envGetter: () -> EnvironmentImpl?,
                     }
                     for (event in events) {
                         val eventContext = event.context()
-                        if (eventContext is Path && LogUtil.LOG_FILE_NAME_FILTER.accept(null, eventContext.fileName.toString())) {
+                        if (eventContext is Path && LogUtil.LOG_FILE_NAME_FILTER.accept(
+                                null,
+                                eventContext.fileName.toString()
+                            )
+                        ) {
                             hasFileUpdates = true
                             break
                         }

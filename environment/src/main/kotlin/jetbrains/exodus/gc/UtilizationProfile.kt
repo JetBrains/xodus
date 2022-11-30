@@ -24,13 +24,8 @@ import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.io.Block
-import jetbrains.exodus.io.DataReader
-import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.kotlin.synchronized
-import jetbrains.exodus.log.AbstractBlockListener
-import jetbrains.exodus.log.SyncBufferedDataWriter
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
-import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.*
 import jetbrains.exodus.tree.ExpiredLoggableCollection
 import java.io.File
 import java.util.*
@@ -41,7 +36,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     private val log: Log = env.log
     private val usefulFileSize = (log.fileLengthBound / log.cachePageSize) *
-            (log.cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA) // file size which could be used by loggables
+            (log.cachePageSize - BufferedDataWriter.LOGGABLE_DATA) // file size which could be used by loggables
     private val filesUtilization = LongHashMap<MutableLong>() // file address -> number of free bytes
     private var totalBytes: Long = 0
     private var totalFreeBytes: Long = 0
@@ -50,7 +45,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     init {
         log.addBlockListener(object : AbstractBlockListener() {
-            override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
+            override fun blockCreated(block: Block) {
                 filesUtilization.synchronized {
                     this[block.address] = MutableLong(0L)
                 }

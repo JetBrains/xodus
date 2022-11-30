@@ -10,6 +10,7 @@ buildscript {
     ext.junitVersion = '4.13.2'
     ext.slf4jVersion = '1.7.30'
     ext.commonsCompressVersion = '1.21'
+    ext.jcToolsVersion = '4.0.1'
 }
 
 plugins {
@@ -29,7 +30,7 @@ def mavenPublishPassword = hasProperty('mavenPublishPassword') ? project.mavenPu
 def signingKeyId = hasProperty('signingKeyId') ? project.signingKeyId : ''
 def signingPassword = hasProperty('signingPassword') ? project.signingPassword : ''
 def signingSecretKeyRingFile = hasProperty('signingSecretKeyRingFile') ? project.signingSecretKeyRingFile : '../key.gpg'
-def publishUrl = isDailyBuild ?  "https://packages.jetbrains.team/maven/p/xodus/xodus-daily" : mavenPublishUrl
+def publishUrl = isDailyBuild ? "https://packages.jetbrains.team/maven/p/xodus/xodus-daily" : mavenPublishUrl
 
 
 static def shouldDeploy(project) {
@@ -94,6 +95,7 @@ subprojects {
     dependencies {
         implementation "org.apache.commons:commons-compress:$commonsCompressVersion"
         implementation 'org.lz4:lz4-java:1.8.0'
+        implementation "org.jctools:jctools-core:$jcToolsVersion"
 
         testImplementation group: 'junit', name: 'junit', version: "$junitVersion"
         testImplementation group: 'org.slf4j', name: 'slf4j-simple', version: "$slf4jVersion"

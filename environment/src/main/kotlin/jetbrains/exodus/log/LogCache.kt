@@ -16,7 +16,6 @@
 package jetbrains.exodus.log
 
 import jetbrains.exodus.ArrayByteIterable
-import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
 import jetbrains.exodus.util.MathUtil
 
@@ -63,7 +62,8 @@ internal abstract class LogCache {
             "Log cache page size should be a power of 2: $pageSize"
         }
         val maxMemory = Runtime.getRuntime().maxMemory()
-        memoryUsage = if (maxMemory == Long.MAX_VALUE) Long.MAX_VALUE else maxMemory / 100L * memoryUsagePercentage.toLong()
+        memoryUsage =
+            if (maxMemory == Long.MAX_VALUE) Long.MAX_VALUE else maxMemory / 100L * memoryUsagePercentage.toLong()
         this.memoryUsagePercentage = memoryUsagePercentage
     }
 
@@ -73,52 +73,20 @@ internal abstract class LogCache {
 
     abstract fun cachePage(log: Log, pageAddress: Long, page: ByteArray)
 
-    abstract fun getPage(log: Log, pageAddress: Long): ByteArray
+    abstract fun getPage(
+        log: Log, writer: BufferedDataWriter, pageAddress: Long
+    ): ByteArray
 
     abstract fun getCachedPage(log: Log, pageAddress: Long): ByteArray?
 
-    protected abstract fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable
+   abstract fun getPageIterable(
+        log: Log,
+        writer: BufferedDataWriter,
+        pageAddress: Long,
+        formatWithHashCodeIsUsed: Boolean
+    ): ArrayByteIterable
 
     internal abstract fun removePage(log: Log, pageAddress: Long)
-
-    protected fun readFullPage(log: Log, pageAddress: Long): ByteArray {
-        val fileAddress = log.getFileAddress(pageAddress)
-        var readAheadMultiple = 1
-        while (readAheadMultiple < log.config.cacheReadAheadMultiple) {
-            if (log.getFileAddress(pageAddress + pageSize * readAheadMultiple) != fileAddress ||
-                    getCachedPage(log, pageAddress + pageSize * readAheadMultiple) != null) {
-                break
-            }
-            ++readAheadMultiple
-        }
-        return if (readAheadMultiple == 1) {
-            allocPage().also { page -> readBytes(log, page, pageAddress) }
-        } else {
-            val pages = ByteArray(pageSize * readAheadMultiple)
-            readBytes(log, pages, pageAddress)
-            for (i in 1 until readAheadMultiple) {
-                val page = allocPage()
-                System.arraycopy(pages, pageSize * i, page, 0, pageSize)
-                cachePage(log, pageAddress + pageSize * i, page)
-            }
-            allocPage().also { page ->
-                System.arraycopy(pages, 0, page, 0, pageSize)
-                cachePage(log, pageAddress, page)
-            }
-        }
-    }
-
-    fun allocPage() = ByteArray(pageSize)
-
-    private fun readBytes(log: Log, bytes: ByteArray, pageAddress: Long) {
-        val bytesRead = log.readBytes(bytes, pageAddress)
-
-        if (bytesRead != bytes.size) {
-            throw ExodusException("Can't read full page from log [" + log.location + "] with address "
-                    + pageAddress + " (file " + LogUtil.getLogFilename(log.getFileAddress(pageAddress)) + "), offset: "
-                    + pageAddress % log.fileLengthBound + ", read: " + bytesRead)
-        }
-    }
 
     companion object {
 

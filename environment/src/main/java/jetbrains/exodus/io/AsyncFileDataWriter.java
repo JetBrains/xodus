@@ -2,6 +2,7 @@ package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
+import jetbrains.exodus.core.dataStructures.LongIntPair;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.system.JVMConstants;
@@ -21,7 +22,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncDataWriter {
+public class AsyncFileDataWriter extends AbstractDataWriter {
     private static final Logger logger = LoggerFactory.getLogger(AsyncFileDataWriter.class);
 
     private AsynchronousFileChannel dirChannel;
@@ -76,7 +77,7 @@ public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncData
     }
 
     @Override
-    public Pair<Block, CompletableFuture<Void>> asyncWrite(byte[] b, int off, int len) {
+    public Pair<Block, CompletableFuture<LongIntPair>> asyncWrite(byte[] b, int off, int len) {
         AsynchronousFileChannel channel;
         try {
             channel = ensureChannel("Can't write, AsyncFileDataWriter is closed");
@@ -90,8 +91,9 @@ public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncData
         }
         var buffer = ByteBuffer.wrap(b, off, len);
 
-        var future = new CompletableFuture<Void>();
-        channel.write(buffer, position, null, new WriteCompletionHandler(buffer, future, lockingManager, channel, position));
+        var future = new CompletableFuture<LongIntPair>();
+        channel.write(buffer, position, null, new WriteCompletionHandler(buffer, future,
+                lockingManager, channel, position, block.getAddress(), len));
         position += len;
 
         return new Pair<>(block, future);
@@ -205,6 +207,7 @@ public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncData
     }
 
     @Override
+    @Deprecated
     public void truncateBlock(long blockAddress, long length) {
         var block = new FileDataReader.FileBlock(blockAddress, reader);
         removeFileFromFileCache(block);
@@ -224,7 +227,7 @@ public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncData
         logger.info("Truncated file " + block.getAbsolutePath() + " to length = " + length);
     }
 
-    private void removeFileFromFileCache(File file) {
+    private static void removeFileFromFileCache(File file) {
         try {
             SharedOpenFilesCache.getInstance().removeFile(file);
         } catch (IOException e) {
@@ -249,7 +252,8 @@ public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncData
         throw new ExodusException(errorMessage);
     }
 
-    private AsynchronousFileChannel openOrCreateChannel(FileDataReader.FileBlock fileBlock, long length) throws IOException {
+    private AsynchronousFileChannel openOrCreateChannel(FileDataReader.FileBlock fileBlock,
+                                                        long length) throws IOException {
         var blockPath = fileBlock.toPath();
 
         if (!fileBlock.exists()) {
@@ -261,19 +265,14 @@ public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncData
             }
         }
 
-        boolean fsync = false;
-        var position = (long) Files.getAttribute(blockPath, "size");
+        var position = ((Long) Files.getAttribute(blockPath, "size")).longValue();
+
         if (position != length) {
-            Files.setAttribute(blockPath, "size", length);
-            position = length;
-            fsync = true;
+            throw new ExodusException("Invalid size for the file " + blockPath.toAbsolutePath());
         }
 
         final AsynchronousFileChannel channel = AsynchronousFileChannel.open(blockPath,
                 StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-        if (fsync) {
-            channel.force(true);
-        }
 
         this.block = fileBlock;
         this.channel = channel;
@@ -284,22 +283,28 @@ public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncData
 
     private static final class WriteCompletionHandler implements CompletionHandler<Integer, Void> {
         private final @NotNull ByteBuffer buffer;
-        private final @NotNull CompletableFuture<Void> future;
+        private final @NotNull CompletableFuture<LongIntPair> future;
         private final @NotNull LockingManager lockingManager;
 
         private final @NotNull AsynchronousFileChannel channel;
 
         private final long position;
+        private final long address;
+
+        private final int len;
 
         private WriteCompletionHandler(@NotNull ByteBuffer buffer,
-                                       @NotNull CompletableFuture<Void> future,
+                                       @NotNull CompletableFuture<LongIntPair> future,
                                        @NotNull LockingManager lockingManager,
-                                       @NotNull AsynchronousFileChannel channel, final long position) {
+                                       @NotNull AsynchronousFileChannel channel, final long position,
+                                       final long address, int len) {
             this.buffer = buffer;
             this.future = future;
             this.lockingManager = lockingManager;
             this.channel = channel;
             this.position = position;
+            this.address = address;
+            this.len = len;
         }
 
 
@@ -307,14 +312,15 @@ public class AsyncFileDataWriter extends AbstractDataWriter implements AsyncData
         public void completed(Integer result, Void attachment) {
             if (buffer.remaining() > 0) {
                 channel.write(buffer, buffer.position() + position, null, this);
+                return;
             }
 
-            future.complete(null);
+            future.complete(new LongIntPair(address + position, len));
         }
 
         @Override
         public void failed(Throwable exc, Void attachment) {
-            if (lockingManager.getUsableSpace() < buffer.capacity()) {
+            if (lockingManager.getUsableSpace() < len) {
                 future.completeExceptionally(new OutOfDiskSpaceException(exc));
             } else {
                 future.completeExceptionally(exc);

@@ -80,15 +80,15 @@ final class MultiPageByteIterableWithAddress implements ByteIterableWithAddress 
 
     @Override
     public ByteIteratorWithAddress iterator() {
-        return new DataIterator(log, getDataAddress(), length);
+        return new DataIterator(log, address, length);
     }
 
     public ByteIteratorWithAddress iterator(final int offset) {
         if (offset == 0) {
-            return new DataIterator(log, getDataAddress(), length);
+            return new DataIterator(log, address, length);
         }
 
-        return new DataIterator(log, log.adjustLoggableAddress(getDataAddress(), offset), length);
+        return new DataIterator(log, log.adjustLoggableAddress(address, offset), length);
     }
 
 
@@ -152,9 +152,7 @@ final class MultiPageByteIterableWithAddress implements ByteIterableWithAddress 
     private static int compare(final int leftOffset, final long leftAddress, final int len,
                                final ByteIterable right, int rightOffset, final int rightLen,
                                final Log log) {
-        final LogCache cache = log.cache;
         final int pageSize = log.getCachePageSize();
-        final boolean formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
         final int mask = pageSize - 1;
 
         long alignedAddress = log.adjustLoggableAddress(leftAddress, leftOffset);
@@ -165,7 +163,7 @@ final class MultiPageByteIterableWithAddress implements ByteIterableWithAddress 
         int leftStep = ((int) alignedAddress) & mask;
 
         alignedAddress -= leftStep;
-        ArrayByteIterable leftPage = cache.getPageIterable(log, alignedAddress, formatWithHashCodeIsUsed);
+        ArrayByteIterable leftPage = log.getPageIterable(alignedAddress);
 
         final int leftPageLen = leftPage.getLength();
         if (leftPageLen <= leftStep) { // alignment is >= 0 for sure
@@ -194,7 +192,8 @@ final class MultiPageByteIterableWithAddress implements ByteIterableWithAddress 
                 return len - rightBaseLen;
             }
             // move left array to next cache page
-            leftPage = cache.getPageIterable(log, alignedAddress += pageSize, formatWithHashCodeIsUsed);
+            alignedAddress += pageSize;
+            leftPage = log.getPageIterable(alignedAddress);
             leftBaseArray = leftPage.getBaseBytes();
             leftBaseOffset = leftPage.baseOffset();
 

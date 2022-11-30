@@ -11,7 +11,7 @@ public class AsyncFileDataReaderWriterProvider extends DataReaderWriterProvider 
 
     @Override
     public Pair<DataReader, DataWriter> newReaderWriter(@NotNull String location) {
-        var reader = new FileDataReader(FileDataReaderWriterProvider.checkDirectory(location));
+        var reader = new FileDataReader(WatchingFileDataReaderWriterProvider.checkDirectory(location));
         String lockId = null;
 
         if (env != null) {

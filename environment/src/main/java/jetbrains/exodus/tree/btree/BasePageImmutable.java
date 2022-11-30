@@ -230,7 +230,7 @@ abstract class BasePageImmutable extends BasePage {
         long rightAddress = -1L;
         byte[] rightPage = null;
 
-        final int adjustedPageSize = log.getCachePageSize() - SyncBufferedDataWriter.LOGGABLE_DATA;
+        final int adjustedPageSize = log.getCachePageSize() - BufferedDataWriter.LOGGABLE_DATA;
         final BinarySearchIterator it = new BinarySearchIterator(adjustedPageSize);
 
         while (low <= high) {
@@ -258,6 +258,7 @@ abstract class BasePageImmutable extends BasePage {
                     it.nextPage = rightPage = log.getCachedPage(nextPageAddress);
                     rightAddress = nextPageAddress;
                 }
+                //noinspection ObjectAllocationInLoop
                 leafAddress = it.asCompound().nextLong(bytesPerAddress);
             } else {
                 leafAddress = it.nextLong(bytesPerAddress);
@@ -324,11 +325,12 @@ abstract class BasePageImmutable extends BasePage {
 
             final int adjustedPageSize;
             if (formatWithHashCodeIsUsed) {
-                adjustedPageSize = cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA;
+                adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
             } else {
                 adjustedPageSize = cachePageSize;
             }
 
+            @SuppressWarnings("ObjectAllocationInLoop")
             final BinarySearchIterator it = new BinarySearchIterator(adjustedPageSize);
             it.offset = offset = ((int) midAddress) & (cachePageSize - 1); // cache page size is always a power of 2
             final long pageAddress = midAddress - offset;
@@ -350,6 +352,7 @@ abstract class BasePageImmutable extends BasePage {
                     it.nextPage = rightPage = log.getCachedPage(nextPageAddress);
                     rightAddress = nextPageAddress;
                 }
+                //noinspection ObjectAllocationInLoop
                 leafAddress = it.asCompound().nextLong(bytesPerAddress);
             } else {
                 leafAddress = it.nextLong(bytesPerAddress);

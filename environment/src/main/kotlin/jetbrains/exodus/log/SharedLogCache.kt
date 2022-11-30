@@ -106,7 +106,9 @@ internal class SharedLogCache : LogCache {
             )
         }
 
-    override fun getPage(log: Log, pageAddress: Long): ByteArray {
+    override fun getPage(
+        log: Log, writer: BufferedDataWriter, pageAddress: Long
+    ): ByteArray {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
@@ -117,7 +119,7 @@ internal class SharedLogCache : LogCache {
         if (page != null) {
             return page
         }
-        page = readFullPage(log, pageAddress)
+        page = writer.readPage(pageAddress)
         cachePage(key, logIdentity, pageAddress, page)
         return page
     }
@@ -131,12 +133,17 @@ internal class SharedLogCache : LogCache {
         } else log.getHighPage(pageAddress)
     }
 
-    override fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable {
+    override fun getPageIterable(
+        log: Log,
+        writer: BufferedDataWriter,
+        pageAddress: Long,
+        formatWithHashCodeIsUsed: Boolean
+    ): ArrayByteIterable {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
 
-        var adjustedPageSize = pageSize - SyncBufferedDataWriter.LOGGABLE_DATA
+        var adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA
         if (!formatWithHashCodeIsUsed) {
             adjustedPageSize = pageSize
         }
@@ -153,7 +160,7 @@ internal class SharedLogCache : LogCache {
                 ).toInt()
             )
         }
-        page = readFullPage(log, pageAddress)
+        page = writer.readPage(pageAddress)
         cachePage(key, logIdentity, pageAddress, page)
         return ArrayByteIterable(page, adjustedPageSize)
     }

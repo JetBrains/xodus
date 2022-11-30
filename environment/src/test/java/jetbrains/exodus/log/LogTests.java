@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,6 +28,7 @@ import java.util.Iterator;
 
 import static java.lang.Integer.valueOf;
 
+@SuppressWarnings({"MultiplyOrDivideByPowerOfTwo", "MethodCallInLoopCondition", "AutoUnboxing"})
 public class LogTests extends LogTestsBase {
 
     private static final Loggable DUMMY_LOGGABLE = createNoDataLoggable((byte) 1);
@@ -131,7 +132,7 @@ public class LogTests extends LogTestsBase {
         for (int i = 0; i < 100; ++i) {
             getLog().write(DUMMY_LOGGABLE);
             getLog().doPadWithNulls();
-            Assert.assertEquals(i + 1, getLog().ensureWriter().getBlockSetMutable().size());
+            Assert.assertEquals(i + 1, getLog().getWrittenFilesSize());
         }
         getLog().flush();
         getLog().endWrite();
@@ -186,13 +187,8 @@ public class LogTests extends LogTestsBase {
         initLog(1, 1024);
         // one kb loggable can't be placed in a single file of one kb size
         TestUtil.runWithExpectedException(() -> {
-            try {
-                log.beginWrite();
-                getLog().write(ONE_KB_LOGGABLE);
-            } catch (Throwable t) {
-                getLog().abortWrite();
-                throw t;
-            }
+            log.beginWrite();
+            getLog().write(ONE_KB_LOGGABLE);
         }, TooBigLoggableException.class);
     }
 
@@ -314,42 +310,6 @@ public class LogTests extends LogTestsBase {
         Assert.assertEquals(count, i);
     }
 
-    @Test
-    public void testClearInvalidLog() {
-        initLog(2, 1024);
-
-        getLog().beginWrite();
-        for (int i = 0; i < 2048; ++i) {
-            getLog().write(DUMMY_LOGGABLE);
-        }
-        getLog().flush();
-        getLog().endWrite();
-
-        closeLog();
-        try {
-            initLog(1, 1024);
-        } catch (ExodusException e) {
-            return;
-        }
-
-        Assert.assertTrue("Expected exception wasn't thrown", true);
-    }
-
-    @Test
-    public void testClearInvalidLog2() {
-        initLog(2, 1024);
-
-        getLog().beginWrite();
-        for (int i = 0; i < 2048; ++i) {
-            getLog().write(DUMMY_LOGGABLE);
-        }
-        getLog().flush();
-        getLog().endWrite();
-        closeLog();
-
-        initLog(new LogConfig().setFileSize(1).setClearInvalidLog(true));
-    }
-
     private void testWriteImmediateRead(int fileSize, int pageSize) {
         initLog(fileSize, pageSize);
         final int count = 50000;
@@ -403,7 +363,7 @@ public class LogTests extends LogTestsBase {
 
     @SuppressWarnings("SameParameterValue")
     static long expectedAddress(long written, int pageSize) {
-        int adjustedPageSize = pageSize - SyncBufferedDataWriter.LOGGABLE_DATA;
+        int adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA;
         long reminder = written % adjustedPageSize;
         long pages = (written - reminder) / adjustedPageSize;
 
@@ -413,6 +373,6 @@ public class LogTests extends LogTestsBase {
     @SuppressWarnings("SameParameterValue")
     public static long adjustedLogFileSize(long fileSize, int pageSize) {
         long pages = fileSize / pageSize;
-        return (pageSize - SyncBufferedDataWriter.LOGGABLE_DATA) * pages;
+        return (pageSize - BufferedDataWriter.LOGGABLE_DATA) * pages;
     }
 }

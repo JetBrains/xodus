@@ -97,7 +97,7 @@ public final class DataIterator implements ByteIteratorWithAddress {
         pageOffset += pageBytesToSkip;
 
         if (bytesToSkip > pageBytesToSkip) {
-            long chunkSize = cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA;
+            long chunkSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
 
             if (!formatWithHashCodeIsUsed) {
                 chunkSize = cachePageSize;
@@ -142,11 +142,11 @@ public final class DataIterator implements ByteIteratorWithAddress {
         final long pageAddress = address & pageAddressMask;
 
         if (this.pageAddress != pageAddress) {
-            page = log.cache.getPage(log, pageAddress);
+            page = log.getCachedPage(pageAddress);
             this.pageAddress = pageAddress;
         }
 
-        chunkLength = cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA;
+        chunkLength = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
         if (!formatWithHashCodeIsUsed) {
             chunkLength = cachePageSize;
         }
@@ -185,7 +185,7 @@ public final class DataIterator implements ByteIteratorWithAddress {
             final long pageAddress = address & pageAddressMask;
 
             chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
-                    cachePageSize - SyncBufferedDataWriter.LOGGABLE_DATA);
+                    cachePageSize - BufferedDataWriter.LOGGABLE_DATA);
             if (!formatWithHashCodeIsUsed) {
                 chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
                         cachePageSize);

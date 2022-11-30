@@ -17,7 +17,7 @@ package jetbrains.exodus.backup;
 
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.log.SyncBufferedDataWriter;
+import jetbrains.exodus.log.BufferedDataWriter;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
@@ -167,20 +167,20 @@ public class FileDescriptorInputStream extends InputStream {
 
         final long pageAddress = fileAddress + position;
         if (read < pageSize) {
-            Arrays.fill(page, read, pageSize - SyncBufferedDataWriter.LOGGABLE_DATA, (byte) 0x80);
+            Arrays.fill(page, read, pageSize - BufferedDataWriter.LOGGABLE_DATA, (byte) 0x80);
 
             if (cipherProvider != null) {
                 assert cipherKey != null;
 
                 EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey,
-                        cipherBasicIV, pageAddress, page, read, pageSize - SyncBufferedDataWriter.LOGGABLE_DATA - read,
+                        cipherBasicIV, pageAddress, page, read, pageSize - BufferedDataWriter.LOGGABLE_DATA - read,
                         LogUtil.LOG_BLOCK_ALIGNMENT);
             }
 
-            SyncBufferedDataWriter.updateHashCode(page);
+            BufferedDataWriter.updateHashCode(page);
         }
 
-        SyncBufferedDataWriter.checkPageConsistency(pageAddress, page, pageSize, log);
+        BufferedDataWriter.checkPageConsistency(pageAddress, page, pageSize, log);
 
         pagePosition = 0;
         return true;

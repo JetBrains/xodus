@@ -95,10 +95,15 @@ internal class SeparateLogCache : LogCache {
 
     override fun cachePage(log: Log, pageAddress: Long, page: ByteArray) = cachePage(pageAddress, page)
 
-    override fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable {
+    override fun getPageIterable(
+        log: Log,
+        writer: BufferedDataWriter,
+        pageAddress: Long,
+        formatWithHashCodeIsUsed: Boolean
+    ): ArrayByteIterable {
         var page = pagesCache.tryKeyLocked(pageAddress)
 
-        var adjustedPageSize = pageSize - SyncBufferedDataWriter.LOGGABLE_DATA
+        var adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA
         if (!formatWithHashCodeIsUsed) {
             adjustedPageSize = pageSize
         }
@@ -118,13 +123,15 @@ internal class SeparateLogCache : LogCache {
             )
         }
 
-        page = readFullPage(log, pageAddress)
+        page = writer.readPage(pageAddress)
         cachePage(pageAddress, page)
 
         return ArrayByteIterable(page, adjustedPageSize)
     }
 
-    override fun getPage(log: Log, pageAddress: Long): ByteArray {
+    override fun getPage(
+        log: Log, writer: BufferedDataWriter, pageAddress: Long
+    ): ByteArray {
         var page = pagesCache.tryKeyLocked(pageAddress)
         if (page != null) {
             return page
@@ -133,7 +140,7 @@ internal class SeparateLogCache : LogCache {
         if (page != null) {
             return page
         }
-        page = readFullPage(log, pageAddress)
+        page = writer.readPage(pageAddress)
         cachePage(pageAddress, page)
         return page
     }

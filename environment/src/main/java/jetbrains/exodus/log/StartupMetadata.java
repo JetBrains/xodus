@@ -234,8 +234,8 @@ public final class StartupMetadata {
             return -1;
         }
 
-        final long hash = SyncBufferedDataWriter.xxHash.hash(content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
-                SyncBufferedDataWriter.XX_HASH_SEED);
+        final long hash = BufferedDataWriter.xxHash.hash(content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
+                BufferedDataWriter.XX_HASH_SEED);
 
         if (hash != content.getLong(HASHCODE_OFFSET)) {
             return -1;
@@ -277,8 +277,8 @@ public final class StartupMetadata {
         content.putLong(FILE_LENGTH_BOUNDARY_OFFSET, fileLengthBoundary);
         content.put(CORRECTLY_CLOSED_FLAG_OFFSET, correctlyClosedFlag ? (byte) 1 : 0);
 
-        final long hash = SyncBufferedDataWriter.xxHash.hash(content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
-                SyncBufferedDataWriter.XX_HASH_SEED);
+        final long hash = BufferedDataWriter.xxHash.hash(content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
+                BufferedDataWriter.XX_HASH_SEED);
         content.putLong(HASHCODE_OFFSET, hash);
 
         return content;

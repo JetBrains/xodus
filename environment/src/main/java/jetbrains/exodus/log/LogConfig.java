@@ -211,6 +211,7 @@ public class LogConfig {
         return this;
     }
 
+    @SuppressWarnings("unused")
     public int getCacheReadAheadMultiple() {
         if (cacheReadAheadMultiple == 0) {
             cacheReadAheadMultiple = EnvironmentConfig.DEFAULT.getLogCacheReadAheadMultiple();
@@ -261,6 +262,7 @@ public class LogConfig {
         return clearInvalidLog;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setClearInvalidLog(boolean clearInvalidLog) {
         this.clearInvalidLog = clearInvalidLog;
         return this;
@@ -302,6 +304,7 @@ public class LogConfig {
         return cipherProvider;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setCipherProvider(StreamCipherProvider cipherProvider) {
         this.cipherProvider = cipherProvider;
         return this;
@@ -333,9 +336,6 @@ public class LogConfig {
                 switch (readerWriterProvider) {
                     case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER:
                         readerWriterProviderInstance = new AsyncFileDataReaderWriterProvider();
-                        break;
-                    case DataReaderWriterProvider.SYNCHRONOUS_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new FileDataReaderWriterProvider();
                         break;
                     case DataReaderWriterProvider.WATCHING_READER_WRITER_PROVIDER:
                         readerWriterProviderInstance = new WatchingFileDataReaderWriterProvider();

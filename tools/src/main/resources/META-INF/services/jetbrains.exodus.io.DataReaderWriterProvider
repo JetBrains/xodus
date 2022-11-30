@@ -1,4 +1,3 @@
-jetbrains.exodus.io.FileDataReaderWriterProvider
+jetbrains.exodus.io.AsyncFileDataReaderWriterProvider
 jetbrains.exodus.io.WatchingFileDataReaderWriterProvider
 jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider
-jetbrains.exodus.log.replication.S3DataReaderWriterProvider

@@ -133,7 +133,7 @@ public class EnvironmentImpl implements Environment {
             meta = MetaTreeImpl.create(this);
         }
         metaTree = meta.getFirst();
-        structureId = new AtomicInteger(meta.getSecond());
+        structureId = new AtomicInteger(meta.getSecond().intValue());
         txns = new TransactionSet();
         txnSafeTasks = new LinkedList<>();
         invalidateStoreGetCache();
@@ -172,6 +172,8 @@ public class EnvironmentImpl implements Environment {
         streamCipherProvider = logConfig.getCipherProvider();
         cipherKey = logConfig.getCipherKey();
         cipherBasicIV = logConfig.getCipherBasicIV();
+
+        flushAndSync();
 
         loggerInfo("Exodus environment created: " + logLocation);
 
@@ -222,6 +224,7 @@ public class EnvironmentImpl implements Environment {
         return gc;
     }
 
+    @SuppressWarnings("MethodMayBeStatic")
     public int getCurrentFormatVersion() {
         return CURRENT_FORMAT_VERSION;
     }
@@ -406,7 +409,7 @@ public class EnvironmentImpl implements Environment {
                         throwableOnCommit = null;
                         final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this);
                         metaTree = meta.getFirst();
-                        structureId.set(meta.getSecond());
+                        structureId.set(meta.getSecond().intValue());
                     } finally {
                         metaWriteLock.unlock();
                     }
@@ -431,7 +434,7 @@ public class EnvironmentImpl implements Environment {
                 return;
             }
         }
-        final MetaServer metaServer = getEnvironmentConfig().getMetaServer();
+        final MetaServer metaServer = ec.getMetaServer();
         if (metaServer != null) {
             metaServer.stop(this);
         }
@@ -582,7 +585,14 @@ public class EnvironmentImpl implements Environment {
     public void flushAndSync() {
         synchronized (commitLock) {
             if (isOpen()) {
-                getLog().sync();
+                var log = this.log;
+
+                log.beginWrite();
+                try {
+                    log.sync();
+                } finally {
+                    log.endWrite();
+                }
             }
         }
     }
@@ -594,7 +604,6 @@ public class EnvironmentImpl implements Environment {
                 log.forgetFiles(files);
                 log.endWrite();
             } catch (Throwable t) {
-                log.abortWrite();
                 throw ExodusException.toExodusException(t, "Failed to forget files in log");
             }
         }
@@ -788,6 +797,7 @@ public class EnvironmentImpl implements Environment {
         return true;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     MetaTreeImpl holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
         return holdNewestSnapshotBy(txn, true);
     }
@@ -974,6 +984,7 @@ public class EnvironmentImpl implements Environment {
         loggerDebug(message, null);
     }
 
+    @SuppressWarnings("SameParameterValue")
     static void loggerDebug(@NotNull final String message, @Nullable final Throwable t) {
         if (logger.isDebugEnabled()) {
             if (t == null) {
@@ -1114,8 +1125,7 @@ public class EnvironmentImpl implements Environment {
 
     private static void checkStorageType(@NotNull final String location, @NotNull final EnvironmentConfig ec) {
         var provider = ec.getLogDataReaderWriterProvider();
-        if (provider.equals(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER) ||
-                provider.equals(DataReaderWriterProvider.SYNCHRONOUS_READER_WRITER_PROVIDER)) {
+        if (provider.equals(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER)) {
             final File databaseDir = new File(location);
             if (!ec.isLogAllowRemovable() && IOUtil.isRemovableFile(databaseDir)) {
                 throw new StorageTypeNotAllowedException("Database on removable storage is not allowed");
