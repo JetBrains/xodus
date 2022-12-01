@@ -32,6 +32,8 @@ import net.jpountz.xxhash.XXHashFactory;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Arrays;
@@ -41,6 +43,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 public final class BufferedDataWriter {
+    private static final Logger logger = LoggerFactory.getLogger(BufferedDataWriter.class);
+
     public static final long XX_HASH_SEED = 0xADEF1279AL;
     public static final XXHashFactory XX_HASH_FACTORY = XXHashFactory.fastestJavaInstance();
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
@@ -125,6 +129,7 @@ public final class BufferedDataWriter {
 
             if (err != null) {
                 writeError = err;
+                logger.error("Error during writing of data to the file.", err);
             }
 
             writeBoundarySemaphore.release();
@@ -363,10 +368,11 @@ public final class BufferedDataWriter {
 
     void flush() {
         checkWriteError();
+
         if (currentPage.committedCount < pageSize) {
+            logCache.cachePage(log, currentPage.pageAddress, currentPage.bytes);
             computeWriteCache(writeCache, currentPage.pageAddress, writeCacheFlushCompute);
         }
-
     }
 
     private void checkWriteError() {
