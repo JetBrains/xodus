@@ -144,13 +144,12 @@ class WatchingFileDataReader(
     // returns
     private fun doUpdate(force: Boolean, currentThread: Thread): Long {
         envGetter()?.run {
-            val prevTip = log.tip
+            val prevHighAddress = log.highAddress
             if (!tryUpdate()) {
                 logger.debug { (if (force) "Can't force-update env at " else "Can't update env at ") + location }
             } else {
                 logger.debug { (if (force) "Env force-updated at " else "Env updated at ") + location }
-                val newHighAddress = log.tip.approvedHighAddress
-                val prevHighAddress = prevTip.approvedHighAddress
+                val newHighAddress = log.highAddress
                 if (newHighAddress > prevHighAddress) {
                     synchronized(newDataListeners) {
                         newDataListeners.toTypedArray()

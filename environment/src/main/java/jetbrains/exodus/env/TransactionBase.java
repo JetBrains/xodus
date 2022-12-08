@@ -96,7 +96,7 @@ public abstract class TransactionBase implements Transaction {
 
     @Override
     public long getHighAddress() {
-        return metaTree.logTip.highAddress;
+        return metaTree.highAddress;
     }
 
     @Override
@@ -141,8 +141,8 @@ public abstract class TransactionBase implements Transaction {
     public void checkIsFinished() {
         if (isFinished()) {
             throw traceFinish == EMPTY_TRACE ?
-                new TransactionFinishedException() :
-                new TransactionFinishedException(traceFinish);
+                    new TransactionFinishedException() :
+                    new TransactionFinishedException(traceFinish);
         }
     }
 
@@ -173,8 +173,8 @@ public abstract class TransactionBase implements Transaction {
         return getMetaTree().root;
     }
 
-    boolean checkVersion(final long root) {
-        return metaTree.root == root;
+    boolean invalidVersion(final long root) {
+        return metaTree.root != root;
     }
 
     @Nullable

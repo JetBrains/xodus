@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,26 +28,18 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
 
     private final Log log;
     private final Block block;
-    private final byte[] lastPage;
-    private final long lastPageAddress;
     private long position;
     private final long end;
     private final BufferedInputStream stream;
 
-    private int lastPageCount;
-
-    public BlockDataIterator(Log log, LogTip prevTip, Block block, long startAddress) {
+    public BlockDataIterator(Log log, Block block, long startAddress) {
         this.log = log;
         this.block = block;
         this.position = startAddress;
         this.end = block.getAddress() + block.length();
-        this.lastPageAddress = log.getHighPageAddress(end);
-        this.lastPage = new byte[log.getCachePageSize()];
+
         final LogConfig config = log.getConfig();
-        if (lastPageAddress == prevTip.pageAddress) {
-            lastPageCount = prevTip.count;
-            System.arraycopy(prevTip.bytes, 0, lastPage, 0, prevTip.count); // fill with unencrypted bytes
-        }
+
         this.stream = new BufferedInputStream(new BlockStream(config, block, position), log.getCachePageSize());
     }
 
@@ -108,18 +100,6 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
         throw new UnsupportedOperationException();
     }
 
-    public byte[] getLastPage() {
-        return lastPage;
-    }
-
-    public long getLastPageAddress() {
-        return lastPageAddress;
-    }
-
-    public int getLastPageCount() {
-        return lastPageCount;
-    }
-
     private class BlockStream extends InputStream {
         @NotNull
         private final LogConfig config;
@@ -159,7 +139,7 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
             if (n >= Integer.MAX_VALUE) {
                 throw new UnsupportedOperationException();
             }
-            final byte[] skipped = new byte[(int)n]; // TODO: try to optimize it i. e. by using BufferedInputStream#mark
+            final byte[] skipped = new byte[(int) n];
             return read(skipped, 0, (int) n);
         }
 
@@ -177,22 +157,7 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
                         checkCipher(currentPosition);
                     }
                 }
-                final long nextPosition = position + readLength;
-                if (nextPosition > lastPageAddress) {
-                    final int skip;
-                    final int offset;
-                    if (position < lastPageAddress) {
-                        skip = (int) (lastPageAddress - position);
-                        offset = 0;
-                    } else {
-                        offset = (int) (position - lastPageAddress);
-                        skip = 0;
-                    }
-                    final int length = Math.min(lastPage.length - offset, readLength - skip);
-                    System.arraycopy(b, off + skip, lastPage, offset, length);
-                    lastPageCount += length;
-                }
-                position = nextPosition;
+                position = position + readLength;
             }
             return readLength;
         }
@@ -215,7 +180,7 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
             }
         }
 
-        private StreamCipher makeCipher(final Integer offset) {
+        private StreamCipher makeCipher(final int offset) {
             final StreamCipher result = config.getCipherProvider().newCipher();
             final long iv = config.getCipherBasicIV() + ((block.getAddress() + offset) / LogUtil.LOG_BLOCK_ALIGNMENT);
             result.init(config.getCipherKey(), EnvKryptKt.asHashedIV(iv));

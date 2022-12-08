@@ -39,12 +39,11 @@ public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmar
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void successiveWrite() {
-        env.executeInTransaction(txn -> {
-            for (final ByteIterable key : successiveKeys) {
+        for (final ByteIterable key : successiveKeys) {
+            env.executeInTransaction(txn -> {
                 store.add(txn, key, key);
-
-            }
-        });
+            });
+        }
     }
 
     @Benchmark
@@ -53,11 +52,11 @@ public class JMHEnvTokyoCabinetWriteBenchmark extends JMHEnvTokyoCabinetBenchmar
     @Measurement(iterations = MEASUREMENT_ITERATIONS)
     @Fork(FORKS)
     public void randomWrite() {
-        env.executeInTransaction(txn -> {
-            for (final ByteIterable key : randomKeys) {
+        for (final ByteIterable key : randomKeys) {
+            env.executeInTransaction(txn -> {
                 store.add(txn, key, key);
-            }
-        });
+            });
+        }
     }
 
     @Override

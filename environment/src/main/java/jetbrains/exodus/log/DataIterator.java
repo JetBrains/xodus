@@ -196,8 +196,11 @@ public final class DataIterator implements ByteIteratorWithAddress {
             }
         } catch (BlockNotFoundException ignore) {
         }
+
         pageAddress = -1L;
         page = null;
+        chunkLength = 0;
+        pageOffset = 0;
     }
 
     public byte[] getCurrentPage() {

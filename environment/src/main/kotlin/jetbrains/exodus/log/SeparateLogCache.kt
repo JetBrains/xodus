@@ -18,7 +18,6 @@ package jetbrains.exodus.log
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.core.dataStructures.*
 import jetbrains.exodus.core.dataStructures.LongObjectCacheBase.Companion.DEFAULT_SIZE
-import kotlin.math.min
 
 internal class SeparateLogCache : LogCache {
 
@@ -112,17 +111,6 @@ internal class SeparateLogCache : LogCache {
             return ArrayByteIterable(page, adjustedPageSize)
         }
 
-        page = log.getHighPage(pageAddress)
-
-        if (page != null) {
-            return ArrayByteIterable(
-                page, min(
-                    log.highAddress - pageAddress,
-                    adjustedPageSize.toLong()
-                ).toInt()
-            )
-        }
-
         page = writer.readPage(pageAddress)
         cachePage(pageAddress, page)
 
@@ -136,22 +124,15 @@ internal class SeparateLogCache : LogCache {
         if (page != null) {
             return page
         }
-        page = log.getHighPage(pageAddress)
-        if (page != null) {
-            return page
-        }
+
         page = writer.readPage(pageAddress)
         cachePage(pageAddress, page)
+
         return page
     }
 
     override fun getCachedPage(log: Log, pageAddress: Long): ByteArray? {
-        var page = pagesCache.getObjectLocked(pageAddress)
-        if (page != null) {
-            return page
-        }
-        page = log.getHighPage(pageAddress)
-        return page
+        return pagesCache.getObjectLocked(pageAddress)
     }
 
     override fun removePage(log: Log, pageAddress: Long) {

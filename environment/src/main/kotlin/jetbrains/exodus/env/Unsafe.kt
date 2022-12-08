@@ -39,15 +39,17 @@ internal fun EnvironmentImpl.tryUpdate(): Boolean {
 }
 
 private fun EnvironmentImpl.tryUpdateUnsafe(): Boolean {
-    val tip = log.tip
-    log.tryUpdate(tip)?.let {
-        val updatedTip = it.second
+    val prevHighAddress = log.highAddress
+    log.tryUpdate(prevHighAddress)?.let {
+        val root = it.first.rootAddress
+        val highAddress = it.second
+        val files = it.third
+
         return executeInMetaWriteLock {
             try {
-                log.compareAndSetTip(tip, updatedTip)
-                val root = it.first.rootAddress
-                loadMetaTree(root, updatedTip)?.let { metaTree ->
-                    metaTreeInternal = MetaTreeImpl(metaTree, root, updatedTip).also {
+                log.updateBlockSetHighAddressUnsafe(prevHighAddress, highAddress, files)
+                loadMetaTree(root, highAddress)?.let { metaTree ->
+                    metaTreeInternal = MetaTreeImpl(metaTree, root, highAddress).also {
                         MetaTreeImpl.cloneTree(metaTree) // try to traverse meta tree
                     }
                     true
@@ -66,9 +68,9 @@ private fun EnvironmentImpl.tryUpdateUnsafe(): Boolean {
 }
 
 // advance to some root loggable
-private fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
-    val blockSet = tip.blockSetCopy
-    val addedBlocks = config.reader.getBlocks(getFileAddress(tip.highAddress))
+private fun Log.tryUpdate(highAddress: Long): Triple<DatabaseRoot, Long, BlockSet.Immutable>? {
+    val blockSet = mutableBlocksUnsafe()
+    val addedBlocks = config.reader.getBlocks(getFileAddress(highAddress))
     val itr = addedBlocks.iterator()
     if (!itr.hasNext()) {
         return null
@@ -84,21 +86,24 @@ private fun Log.tryUpdate(tip: LogTip): Pair<DatabaseRoot, LogTip>? {
     }
     // create loggable
     // update "last page"
-    return tryUpdate(this, lastBlock, tip, blockSet)
+    return tryUpdate(this, lastBlock, blockSet)
 }
 
-private fun tryUpdate(log: Log, lastBlock: Block, tip: LogTip, blockSet: BlockSet.Mutable): Pair<DatabaseRoot, LogTip>? {
+private fun tryUpdate(
+    log: Log,
+    lastBlock: Block,
+    blockSet: BlockSet.Mutable
+): Triple<DatabaseRoot, Long, BlockSet.Immutable>? {
     val lastBlockAddress = lastBlock.address
     val highAddress = lastBlockAddress + lastBlock.length()
-    val startAddress = maxOf(tip.approvedHighAddress, lastBlockAddress)
+    val startAddress = maxOf(highAddress, lastBlockAddress)
     if (startAddress > lastBlockAddress + log.fileLengthBound) {
         throw IllegalStateException("Log truncated abnormally, aborting")
     }
-    val dataIterator = BlockDataIterator(log, tip, lastBlock, startAddress)
+    val dataIterator = BlockDataIterator(log, lastBlock, startAddress)
     val loggables = LoggableIteratorUnsafe(log, dataIterator)
     val rootType = DatabaseRoot.DATABASE_ROOT_TYPE
     var lastRoot: DatabaseRoot? = null
-    var approvedHighAddress = startAddress
     try {
         while (loggables.hasNext()) {
             val loggable = loggables.next()
@@ -118,23 +123,21 @@ private fun tryUpdate(log: Log, lastBlock: Block, tip: LogTip, blockSet: BlockSe
             if (loggableEnd != dataIterator.address) {
                 break
             }
-            approvedHighAddress = loggableEnd
             if (loggableEnd == highAddress) {
                 break
             }
         }
     } catch (e: ExodusException) {
-        Log.logger.info(e) { "Exception on Log recovery by tryUpdate() in ${Thread.currentThread().name}. Approved high address = $approvedHighAddress" }
+        Log.logger.info(e) { "Exception on Log recovery by tryUpdate() in ${Thread.currentThread().name}." }
     }
     if (lastRoot == null) {
         return null
     }
-    return lastRoot to with(dataIterator) {
-        LogTip(lastPage, lastPageAddress, lastPageCount, highAddress, approvedHighAddress, blockSet.endWrite())
-    }
+    return Triple(lastRoot, highAddress, blockSet.endWrite())
 }
 
-internal class LoggableIteratorUnsafe(private val log: Log, internal val iterator: ByteIteratorWithAddress) : Iterator<RandomAccessLoggable> {
+internal class LoggableIteratorUnsafe(private val log: Log, internal val iterator: ByteIteratorWithAddress) :
+    Iterator<RandomAccessLoggable> {
 
     fun getHighAddress() = iterator.address
 

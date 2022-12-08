@@ -15,10 +15,12 @@
  */
 package jetbrains.exodus.env;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
-import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeMutable;
@@ -31,9 +33,9 @@ import java.util.*;
 public class ReadWriteTransaction extends TransactionBase {
 
     @NotNull
-    private final Map<Integer, ITreeMutable> mutableTrees;
+    private final Int2ObjectOpenHashMap<ITreeMutable> mutableTrees;
     @NotNull
-    private final LongHashMap<Pair<String, ITree>> removedStores;
+    private final Long2ObjectOpenHashMap<Pair<String, ITree>> removedStores;
     @NotNull
     private final Map<String, TreeMetaInfo> createdStores;
     @Nullable
@@ -48,8 +50,9 @@ public class ReadWriteTransaction extends TransactionBase {
                          final boolean isExclusive,
                          final boolean cloneMeta) {
         super(env, isExclusive);
-        mutableTrees = new TreeMap<>();
-        removedStores = new LongHashMap<>();
+        mutableTrees = new Int2ObjectOpenHashMap<>();
+        removedStores = new Long2ObjectOpenHashMap<>();
+
         createdStores = new HashMapDecorator<>();
         this.beginHook = () -> {
             final MetaTreeImpl currentMetaTree = env.getMetaTreeInternal();
@@ -66,8 +69,8 @@ public class ReadWriteTransaction extends TransactionBase {
 
     ReadWriteTransaction(@NotNull final TransactionBase origin, @Nullable final Runnable beginHook) {
         super(origin.getEnvironment(), false);
-        mutableTrees = new TreeMap<>();
-        removedStores = new LongHashMap<>();
+        mutableTrees = new Int2ObjectOpenHashMap<>();
+        removedStores = new Long2ObjectOpenHashMap<>();
         createdStores = new HashMapDecorator<>();
         final EnvironmentImpl env = getEnvironment();
         this.beginHook = getWrappedBeginHook(beginHook);
@@ -139,7 +142,7 @@ public class ReadWriteTransaction extends TransactionBase {
         if (!env.isRegistered(this)) {
             throw new ExodusException("Transaction should remain registered after revert");
         }
-        if (!checkVersion(oldRoot)) {
+        if (invalidVersion(oldRoot)) {
             clearImmutableTrees();
             env.runTransactionSafeTasks();
         }
@@ -167,8 +170,8 @@ public class ReadWriteTransaction extends TransactionBase {
         final EnvironmentImpl env = getEnvironment();
         final String storeName = getMetaTree().getStoreNameByStructureId(structureId, env);
         return storeName == null ?
-            new TemporaryEmptyStore(env) :
-            env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, getTreeMetaInfo(storeName));
+                new TemporaryEmptyStore(env) :
+                env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, getTreeMetaInfo(storeName));
     }
 
     @NotNull
@@ -229,25 +232,28 @@ public class ReadWriteTransaction extends TransactionBase {
     }
 
     ExpiredLoggableCollection doCommit(@NotNull final MetaTreeImpl.Proto[] out) {
-        final Set<Map.Entry<Integer, ITreeMutable>> entries = mutableTrees.entrySet();
-        final Set<Map.Entry<Long, Pair<String, ITree>>> removedEntries = removedStores.entrySet();
+
+        final Long2ObjectMap.FastEntrySet<Pair<String, ITree>> removedEntries = removedStores.long2ObjectEntrySet();
+
         ExpiredLoggableCollection expiredLoggables = ExpiredLoggableCollection.getEMPTY();
         final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
             final Pair<String, ITree> value = entry.getValue();
-            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey());
+            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey().longValue());
             expiredLoggables = expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()).trimToSize());
         }
         removedStores.clear();
+
         for (final Map.Entry<String, TreeMetaInfo> entry : createdStores.entrySet()) {
             MetaTreeImpl.addStore(metaTreeMutable, entry.getKey(), entry.getValue());
         }
         createdStores.clear();
-        for (final Map.Entry<Integer, ITreeMutable> entry : entries) {
-            final ITreeMutable treeMutable = entry.getValue();
+
+        for (final ITreeMutable treeMutable : mutableTrees.values()) {
             expiredLoggables = expiredLoggables.mergeWith(treeMutable.getExpiredLoggables().trimToSize());
             MetaTreeImpl.saveTree(metaTreeMutable, treeMutable);
         }
+
         clearImmutableTrees();
         mutableTrees.clear();
         expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.getExpiredLoggables().trimToSize());
@@ -271,6 +277,7 @@ public class ReadWriteTransaction extends TransactionBase {
             }
         }
         final int structureId = store.getStructureId();
+
         ITreeMutable result = mutableTrees.get(structureId);
         if (result == null) {
             result = getTree(store).getMutableCopy();

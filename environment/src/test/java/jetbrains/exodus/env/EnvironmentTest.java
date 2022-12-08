@@ -102,18 +102,18 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         l = log.getLastLoggableOfType(BTreeBase.BOTTOM_ROOT);
         assertNotNull(l);
         Assert.assertEquals(40L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress(), log.getTip());
+        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
         assertNotNull(l);
         Assert.assertEquals(12L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress(), log.getTip());
+        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
         assertNotNull(l);
         Assert.assertEquals(0L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress(), log.getTip());
+        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
         Assert.assertNull(l);
-        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, Long.MAX_VALUE, log.getTip());
+        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, Long.MAX_VALUE);
         assertNotNull(l);
         Assert.assertEquals(48L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, l.getAddress(), log.getTip());
+        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, l.getAddress());
         assertNotNull(l);
         l = log.getFirstLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
         assertNotNull(l);
@@ -348,16 +348,12 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             for (int i = 0; i < 100; i++) {
                 Transaction txn = env.beginTransaction();
                 try {
-                    while (true) {
+                    do {
                         final String name = "testDatabase" + j % 10;
                         final Store store = env.openStore(name, expectedConfig, txn);
                         store.put(txn, StringBinding.stringToEntry("key" + i), StringBinding.stringToEntry("value" + i));
-                        if (txn.flush()) {
-                            break;
-                        } else {
-                            txn.revert();
-                        }
-                    }
+                        txn.revert();
+                    } while (!txn.flush());
                 } finally {
                     txn.abort();
                 }

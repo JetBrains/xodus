@@ -39,19 +39,18 @@ final class MetaTreeImpl implements MetaTree {
 
     final ITree tree;
     final long root;
-    final LogTip logTip;
+    final long highAddress;
 
-    MetaTreeImpl(final ITree tree, long root, LogTip logTip) {
+    MetaTreeImpl(final ITree tree, long root, long highAddress) {
         this.tree = tree;
         this.root = root;
-        this.logTip = logTip;
+        this.highAddress = highAddress;
     }
 
     static Pair<MetaTreeImpl, Integer> create(@NotNull final EnvironmentImpl env) {
         final Log log = env.getLog();
-        final LogTip logTip = log.getTip();
-        if (logTip.highAddress > EMPTY_LOG_BOUND) {
-
+        final long highAddress = log.getHighAddress();
+        if (highAddress > EMPTY_LOG_BOUND) {
             Loggable rootLoggable;
             final long rootAddress = log.getStartUpDbRoot();
             if (log.isClossedCorrectly() && rootAddress >= 0) {
@@ -73,9 +72,9 @@ final class MetaTreeImpl implements MetaTree {
                 }
                 if (dbRoot != null && dbRoot.isValid()) {
                     try {
-                        final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress(), logTip);
+                        final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress(), highAddress);
                         if (metaTree != null) {
-                            return new Pair<>(new MetaTreeImpl(metaTree, root, logTip),
+                            return new Pair<>(new MetaTreeImpl(metaTree, root, highAddress),
                                     Integer.valueOf(dbRoot.getLastStructureId()));
                         }
                     } catch (ExodusException e) {
@@ -87,7 +86,7 @@ final class MetaTreeImpl implements MetaTree {
                     }
                 }
                 // continue recovery
-                rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root, logTip);
+                rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
             }
             // "abnormal program termination", "blue screen of doom"
             // Something quite strange with the database: it is not empty, but no valid
@@ -103,34 +102,33 @@ final class MetaTreeImpl implements MetaTree {
         final ITree resultTree = getEmptyMetaTree(env);
         final long root;
         log.beginWrite();
-        final LogTip createdTip;
+        final long createdHighAddress;
         try {
             final long rootAddress = resultTree.getMutableCopy().save();
             root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
                     DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
             log.flush();
-            createdTip = log.endWrite();
+            createdHighAddress = log.endWrite();
         } catch (Throwable t) {
             throw new ExodusException("Can't init meta tree in log", t);
         }
-        return new Pair<>(new MetaTreeImpl(resultTree, root, createdTip),
+        return new Pair<>(new MetaTreeImpl(resultTree, root, createdHighAddress),
                 Integer.valueOf(EnvironmentImpl.META_TREE_ID));
     }
 
-    static MetaTreeImpl create(@NotNull final EnvironmentImpl env, @NotNull final LogTip logTip,
+    static MetaTreeImpl create(@NotNull final EnvironmentImpl env, final long highAddress,
                                @NotNull final MetaTreePrototype prototype) {
         return new MetaTreeImpl(
-                env.loadMetaTree(prototype.treeAddress(), logTip),
+                env.loadMetaTree(prototype.treeAddress(), highAddress),
                 prototype.rootAddress(),
-                logTip
+                highAddress
         );
     }
 
     static MetaTreeImpl create(@NotNull final EnvironmentImpl env, final long highAddress) {
         final Log log = env.getLog();
-        final LogTip logTip = log.getTip();
         final Loggable rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE,
-                highAddress, logTip);
+                highAddress);
 
         if (rootLoggable == null) {
             throw new ExodusException("Failed to find root loggable before address = " + highAddress);
@@ -150,12 +148,12 @@ final class MetaTreeImpl implements MetaTree {
             throw new ExodusException("Can't load valid database root by address = " + root);
         }
 
-        return new MetaTreeImpl(env.loadMetaTree(dbRoot.getRootAddress(), logTip), root, logTip);
+        return new MetaTreeImpl(env.loadMetaTree(dbRoot.getRootAddress(), highAddress), root, highAddress);
     }
 
     @Override
-    public LogTip getLogTip() {
-        return logTip;
+    public long getHighAddress() {
+        return highAddress;
     }
 
     @Override
@@ -271,7 +269,7 @@ final class MetaTreeImpl implements MetaTree {
     }
 
     MetaTreeImpl getClone() {
-        return new MetaTreeImpl(cloneTree(tree), root, logTip);
+        return new MetaTreeImpl(cloneTree(tree), root, highAddress);
     }
 
     static boolean isStringKey(final ArrayByteIterable key) {

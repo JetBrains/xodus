@@ -28,7 +28,6 @@ import jetbrains.exodus.util.IdGenerator
 import mu.KLogging
 import java.io.Closeable
 import java.util.concurrent.Semaphore
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.experimental.xor
 
 class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
@@ -48,19 +47,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         private set
 
     private val reader: DataReader = config.reader
+    private val dataWriter: DataWriter = config.writer
+
     private val writer: BufferedDataWriter
-
-    private val internalTip: AtomicReference<LogTip>
-
-    val tip: LogTip get() = internalTip.get()
-
-    /** Last ticks when the sync operation was performed. */
-    private var lastSyncTicks: Long = 0
 
     private val blockListeners = ArrayList<BlockListener>(2)
     private val readBytesListeners = ArrayList<ReadBytesListener>(2)
 
-    var startupMetadata: StartupMetadata
+    private var startupMetadata: StartupMetadata
 
     val isClossedCorrectly: Boolean
         get() = startupMetadata.isCorrectlyClosed
@@ -86,23 +80,23 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         get() = reader.location
 
     val numberOfFiles: Long
-        get() = tip.blockSet.size().toLong()
+        get() = writer.numberOfFiles().toLong()
 
     /**
      * Returns addresses of log files from the newest to the oldest ones.
      */
     val allFileAddresses: LongArray
-        get() = tip.blockSet.array
+        get() = writer.allFiles()
 
     val highAddress: Long
-        get() = tip.highAddress
-
-    val writtenHighAddress: Long
         get() = writer.highAddress
 
-    val lowAddress: Long
+    val writtenHighAddress: Long
+        get() = writer.currentHighAddress
+
+    val lowFileAddress: Long
         get() {
-            val result = tip.blockSet.minimum
+            val result = writer.minimumFile
             return result ?: Loggable.NULL_ADDRESS
         }
 
@@ -111,11 +105,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     val diskUsage: Long
         get() {
-            val allFiles = tip.allFiles
+            val allFiles = writer.allFiles()
+            val highAddress = writer.highAddress
+
             val filesCount = allFiles.size
-            return if (filesCount == 0) 0L else (filesCount - 1) * fileLengthBound + getLastFileSize(
+
+            return if (filesCount == 0) 0L else (filesCount - 1) * fileLengthBound + getFileSize(
                 allFiles[filesCount - 1],
-                tip
+                highAddress
             )
         }
 
@@ -131,15 +128,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     private var rwIsReadonly: Boolean
 
     init {
-        val writer = config.writer
-        tryLock(writer)
+        tryLock()
         try {
             rwIsReadonly = config.readerWriterProvider?.isReadonly ?: false
 
             val fileLength = config.fileSize * 1024L
-            if (reader is FileDataReader) {
-                reader.setLog(this)
-            }
 
             val metadata = if (reader is FileDataReader) {
                 StartupMetadata.open(reader, rwIsReadonly)
@@ -202,7 +195,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                     )
                 }
 
-                checkLogConsistency(blockSetMutable, writer)
+                checkLogConsistency(blockSetMutable)
 
                 if (!startupMetadata.isCorrectlyClosed) {
                     logger.error("Data check is completed for environment ${reader.location}.")
@@ -260,86 +253,90 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
             val lastFileAddress = blockSetMutable.maximum
             updateLogIdentity()
+
+            val page: ByteArray
+            val highAddress: Long
+
             if (lastFileAddress == null) {
-                internalTip = AtomicReference(LogTip(fileLengthBound))
+                page = ByteArray(cachePageSize)
+                highAddress = 0
             } else {
-                val lastFileLength = blockSetMutable.getBlock(lastFileAddress).length()
+                blockSetMutable.getBlock(lastFileAddress)
+                val lastBlock = blockSetMutable.getBlock(lastFileAddress)
+                val lastFileLength = lastBlock.length()
                 val currentHighAddress = lastFileAddress + lastFileLength
                 val highPageAddress = getHighPageAddress(currentHighAddress)
                 val highPageContent = ByteArray(cachePageSize)
-                val tmpTip = LogTip(
-                    highPageContent, highPageAddress, cachePageSize, currentHighAddress,
-                    currentHighAddress, blockSetImmutable
-                )
-                this.internalTip = AtomicReference(tmpTip)
 
-                val highPageSize = if (currentHighAddress == 0L) {
-                    0
-                } else {
-                    readBytes(highPageContent, highPageAddress)
+
+                if (currentHighAddress > 0) {
+                    readFromBlock(lastBlock, highPageAddress, highPageContent, currentHighAddress)
                 }
 
-                val proposedTip = LogTip(
-                    highPageContent, highPageAddress, highPageSize, currentHighAddress,
-                    currentHighAddress, blockSetImmutable
-                )
-                this.internalTip.set(proposedTip)
+                page = highPageContent
+                highAddress = currentHighAddress
+            }
 
-                if (!startupMetadata.isCorrectlyClosed || needToPerformMigration) {
-                    // here we should check whether last loggable is written correctly
-                    val lastFileLoggables = LoggableIterator(this, lastFileAddress)
-                    while (lastFileLoggables.hasNext()) {
-                        val loggable = lastFileLoggables.next()
-                        val dataLength = if (NullLoggable.isNullLoggable(loggable)) 0 else loggable.dataLength
-                        if (dataLength > 0) {
-                            // if not null loggable read all data to the end
-                            val data = loggable.data.iterator()
-                            for (i in 0 until dataLength) {
-                                if (!data.hasNext()) {
-                                    throw ExodusException(
-                                        "Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(
-                                            data.address,
-                                            fileLengthBound
-                                        )
-                                    )
-                                }
-                                data.next()
-                            }
-                        } else if (dataLength < 0) {
-                            DataCorruptionException.raise(
-                                "Negative loggable length, database is corrupted", this,
-                                loggable.address
-                            )
-                        }
-                        val approvedHighAddressCandidate = loggable.end()
-                        if (approvedHighAddressCandidate > currentHighAddress) {
-                            DataCorruptionException.raise(
-                                "Loggable end is out of bounds of the log",
-                                this, loggable.address
-                            )
-                        }
-                    }
-                }
+            if (reader is FileDataReader) {
+                reader.setLog(this)
             }
 
             val maxWriteBoundary = (fileLengthBound / cachePageSize).toInt()
             this.writer = BufferedDataWriter(
                 this,
-                writer,
+                dataWriter,
                 !needToPerformMigration,
                 getSharedWriteBoundarySemaphore(maxWriteBoundary),
-                maxWriteBoundary, tip
+                maxWriteBoundary, blockSetImmutable, highAddress, page, config.syncPeriod
             )
 
+
+
+            if (lastFileAddress != null && (
+                        !startupMetadata.isCorrectlyClosed || needToPerformMigration)
+            ) {
+                // here we should check whether last loggable is written correctly
+                val lastFileLoggables = LoggableIterator(this, lastFileAddress)
+                while (lastFileLoggables.hasNext()) {
+                    val loggable = lastFileLoggables.next()
+                    val dataLength = if (NullLoggable.isNullLoggable(loggable)) 0 else loggable.dataLength
+                    if (dataLength > 0) {
+                        // if not null loggable read all data to the end
+                        val data = loggable.data.iterator()
+                        for (i in 0 until dataLength) {
+                            if (!data.hasNext()) {
+                                throw ExodusException(
+                                    "Can't read loggable fully" + LogUtil.getWrongAddressErrorMessage(
+                                        data.address,
+                                        fileLengthBound
+                                    )
+                                )
+                            }
+                            data.next()
+                        }
+                    } else if (dataLength < 0) {
+                        DataCorruptionException.raise(
+                            "Negative loggable length, database is corrupted", this,
+                            loggable.address
+                        )
+                    }
+                    val approvedHighAddressCandidate = loggable.end()
+                    if (approvedHighAddressCandidate > highAddress) {
+                        DataCorruptionException.raise(
+                            "Loggable end is out of bounds of the log",
+                            this, loggable.address
+                        )
+                    }
+                }
+            }
+
             if (needToPerformMigration) {
-                val highAddress = highAddress
                 val writtenInPage = highAddress and (cachePageSize - 1).toLong()
 
                 if (writtenInPage > 0) {
                     padWholePageWithNulls()
                 }
             }
-
 
             formatWithHashCodeIsUsed = !needToPerformMigration
             nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
@@ -355,7 +352,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     private fun padWholePageWithNulls() {
         beginWrite()
-        beforeWrite(writer)
+        beforeWrite()
         try {
             writer.padWholePageWithNulls()
             writer.flush()
@@ -384,7 +381,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         return startupMetadata.rootAddress
     }
 
-    private fun checkLogConsistency(blockSetMutable: BlockSet.Mutable, writer: DataWriter) {
+    private fun checkLogConsistency(blockSetMutable: BlockSet.Mutable) {
         val blockIterator = reader.blocks.iterator()
         if (!blockIterator.hasNext()) {
             return
@@ -427,7 +424,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 }
                 logger.error("Clearing log due to: $clearLogReason")
                 blockSetMutable.clear()
-                writer.clear()
+                dataWriter.clear()
                 break
             }
 
@@ -460,27 +457,16 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     }
 
 
-    fun beginWrite(): LogTip {
-        val startingTip = tip
-        writer.beforeWrite(startingTip)
-
-        return startingTip
+    fun beginWrite(): Long {
+        return writer.beforeWrite()
     }
 
-    fun endWrite(): LogTip {
-        val logTip = writer.startingTip
-        val updatedTip = writer.endWrite()
-
-        compareAndSetTip(logTip, updatedTip)
-        return updatedTip
+    fun endWrite(): Long {
+        return writer.endWrite()
     }
 
-    fun compareAndSetTip(logTip: LogTip, updatedTip: LogTip): LogTip {
-        if (!internalTip.compareAndSet(logTip, updatedTip)) {
-            throw ExodusException("write start/finish mismatch")
-        }
-
-        return updatedTip
+    fun needsToBeSynchronized(): Boolean {
+        return writer.needsToBeSynchronized()
     }
 
     fun getFileAddress(address: Long): Long {
@@ -488,7 +474,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     }
 
     fun getNextFileAddress(fileAddress: Long): Long {
-        val files = tip.blockSet.getFilesFrom(fileAddress)
+        val files = writer.getFilesFrom(fileAddress)
+
         if (files.hasNext()) {
             val result = files.nextLong()
             if (result != fileAddress) {
@@ -498,11 +485,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 return files.nextLong()
             }
         }
+
         return Loggable.NULL_ADDRESS
     }
 
-    private fun isLastFileAddress(address: Long, logTip: LogTip): Boolean {
-        return getFileAddress(address) == getFileAddress(logTip.highAddress)
+    private fun isLastFileAddress(address: Long, highAddress: Long): Boolean {
+        return getFileAddress(address) == getFileAddress(highAddress)
     }
 
     fun isLastWrittenFileAddress(address: Long): Boolean {
@@ -528,49 +516,44 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     fun hasAddress(address: Long): Boolean {
         val fileAddress = getFileAddress(address)
-        val logTip = tip
-        val files = logTip.blockSet.getFilesFrom(fileAddress)
+        val files = writer.getFilesFrom(fileAddress)
+        val highAddress = writer.highAddress
+
         if (!files.hasNext()) {
             return false
         }
         val leftBound = files.nextLong()
-        return leftBound == fileAddress && leftBound + getFileSize(leftBound, logTip) > address
+        return leftBound == fileAddress && leftBound + getFileSize(leftBound, highAddress) > address
     }
 
     fun hasAddressRange(from: Long, to: Long): Boolean {
         var fileAddress = getFileAddress(from)
-        val logTip = tip
-        val files = logTip.blockSet.getFilesFrom(fileAddress)
+        val files = writer.getFilesFrom(fileAddress)
+        val highAddress = writer.highAddress
+
         do {
             if (!files.hasNext() || files.nextLong() != fileAddress) {
                 return false
             }
-            fileAddress += getFileSize(fileAddress, logTip)
+            fileAddress += getFileSize(fileAddress, highAddress)
         } while (fileAddress in (from + 1)..to)
+
         return true
     }
 
     @JvmOverloads
-    fun getFileSize(fileAddress: Long, logTip: LogTip = tip): Long {
+    fun getFileSize(fileAddress: Long, highAddress: Long = writer.highAddress): Long {
         // readonly files (not last ones) all have the same size
-        return if (!isLastFileAddress(fileAddress, logTip)) {
+        return if (!isLastFileAddress(fileAddress, highAddress)) {
             fileLengthBound
-        } else getLastFileSize(fileAddress, logTip)
+        } else getLastFileSize(fileAddress, highAddress)
     }
 
-    private fun getLastFileSize(fileAddress: Long, logTip: LogTip): Long {
-        val highAddress = logTip.highAddress
+    private fun getLastFileSize(fileAddress: Long, highAddress: Long): Long {
         val result = highAddress % fileLengthBound
         return if (result == 0L && highAddress != fileAddress) {
             fileLengthBound
         } else result
-    }
-
-    fun getHighPage(alignedAddress: Long): ByteArray? {
-        val tip = tip
-        return if (tip.pageAddress == alignedAddress && tip.count >= 0) {
-            tip.bytes
-        } else null
     }
 
     fun getCachedPage(pageAddress: Long): ByteArray {
@@ -706,22 +689,21 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
      * @return loggable or null if it doesn't exists.
      */
     fun getFirstLoggableOfType(type: Int): Loggable? {
-        val logTip = tip
-        val files = logTip.blockSet.getFilesFrom(0)
-        val approvedHighAddress = logTip.approvedHighAddress
+        val files = writer.getFilesFrom(0)
+
         while (files.hasNext()) {
             val fileAddress = files.nextLong()
             val it = getLoggableIterator(fileAddress)
+
             while (it.hasNext()) {
                 val loggable = it.next()
+
                 if (loggable == null || loggable.address >= fileAddress + fileLengthBound) {
                     break
                 }
+
                 if (loggable.type.toInt() == type) {
                     return loggable
-                }
-                if (loggable.end() == approvedHighAddress) {
-                    break
                 }
             }
         }
@@ -736,26 +718,24 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
      */
     fun getLastLoggableOfType(type: Int): Loggable? {
         var result: Loggable? = null
-        val logTip = tip
-        val approvedHighAddress = logTip.approvedHighAddress
-        for (fileAddress in logTip.blockSet.array) {
-            if (result != null) {
-                break
-            }
+        val files = writer.allFiles()
+
+        for (fileAddress in files) {
             val it = getLoggableIterator(fileAddress)
+
             while (it.hasNext()) {
                 val loggable = it.next()
+
                 if (loggable == null || loggable.address >= fileAddress + fileLengthBound) {
                     break
                 }
+
                 if (loggable.type.toInt() == type) {
                     result = loggable
                 }
-                if (loggable.end() == approvedHighAddress) {
-                    break
-                }
             }
         }
+
         return result
     }
 
@@ -765,15 +745,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
      * @param type type of loggable.
      * @return loggable or null if it doesn't exists.
      */
-    fun getLastLoggableOfTypeBefore(type: Int, beforeAddress: Long, logTip: LogTip): Loggable? {
+    fun getLastLoggableOfTypeBefore(type: Int, beforeAddress: Long): Loggable? {
         var result: Loggable? = null
-        for (fileAddress in logTip.blockSet.array) {
-            if (result != null) {
-                break
-            }
+        for (fileAddress in writer.allFiles()) {
             if (fileAddress >= beforeAddress) {
                 continue
             }
+
             val it = getLoggableIterator(fileAddress)
             while (it.hasNext()) {
                 val loggable = it.next() ?: break
@@ -790,39 +768,39 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     }
 
     fun isImmutableFile(fileAddress: Long): Boolean {
-        return fileAddress + fileLengthBound <= tip.approvedHighAddress
+        return fileAddress + fileLengthBound <= writer.highAddress
     }
 
-    @JvmOverloads
-    fun flush(forceSync: Boolean = false) {
+    fun flush() {
         writer.flush()
-        if (forceSync || config.isDurableWrite) {
+        if (config.isDurableWrite) {
             sync()
         }
     }
 
     fun sync() {
         writer.sync()
-        lastSyncTicks = System.currentTimeMillis()
     }
 
     override fun close() {
         isClosing = true
 
         if (!rwIsReadonly) {
-            if (formatWithHashCodeIsUsed) {
+            val highAddress = writer.highAddress
+            if (formatWithHashCodeIsUsed && (highAddress.toInt() and (cachePageSize - 1)) != 0) {
                 beginWrite()
                 try {
-                    beforeWrite(writer)
+                    beforeWrite()
 
                     //we pad page with nulls to ensure that all pages could be checked on consistency
                     //by hash code which is stored at the end of the page.
                     val written = writer.padPageWithNulls()
-
-                    if (written > 0) {
-                        writer.flush()
-                        closeFullFileIfNecessary()
+                    if (written == 0) {
+                        throw ExodusException("Invalid value of tip of the log $highAddress")
                     }
+
+                    writer.flush()
+                    writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
                 } finally {
                     endWrite()
                 }
@@ -838,32 +816,21 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         reader.close()
         writer.close()
 
-        val logTip = tip
-
-        //remove all files from log, so access to them become impossible if read of data
-        //will be concurrently happen
-        compareAndSetTip(logTip, LogTip(fileLengthBound, logTip.pageAddress, logTip.highAddress))
-
         release()
     }
 
     fun release() {
         if (!config.isLockIgnored) {
-            writer.release()
+            dataWriter.release()
         }
     }
 
-    fun clear(): LogTip {
-        val logTip = tip
+    fun clear() {
         cache.clear()
         reader.close()
         writer.clear()
 
-        val updatedTip = LogTip(fileLengthBound)
-        compareAndSetTip(logTip, updatedTip)
-
         updateLogIdentity()
-        return updatedTip
     }
 
     // for tests only
@@ -888,17 +855,15 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         address: Long,
         rbt: RemoveBlockType = RemoveBlockType.Delete
     ) {
-        val block = tip.blockSet.getBlock(address)
-        val listeners = blockListeners.notifyListeners { it.beforeBlockDeleted(block) }
-        try {
-            if (!rwIsReadonly) {
-                writer.removeBlock(address, rbt)
-            }
-            // clear cache
-            clearFileFromLogCache(address)
-        } finally {
-            listeners.forEach { it.afterBlockDeleted(address) }
-        }
+        writer.removeBlock(address, rbt)
+    }
+
+    fun notifyBeforeBlockDeleted(block: Block) {
+        blockListeners.notifyListeners { it.beforeBlockDeleted(block) }
+    }
+
+    fun notifyAfterBlockDeleted(address: Long) {
+        blockListeners.notifyListeners { it.afterBlockDeleted(address) }
     }
 
     fun clearFileFromLogCache(address: Long, offset: Long = 0L) {
@@ -911,67 +876,35 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
     fun doPadWithNulls() {
         if (writer.padWithNulls(fileLengthBound, nullPage)) {
-            closeFullFileIfNecessary()
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
         }
     }
 
     fun readBytes(output: ByteArray, pageAddress: Long): Int {
         val fileAddress = getFileAddress(pageAddress)
-        val logTip = tip
-        val files = logTip.blockSet.getFilesFrom(fileAddress)
+        val files = writer.getFilesFrom(fileAddress)
+        val highAddress = writer.highAddress
 
         if (files.hasNext()) {
             val leftBound = files.nextLong()
-            val fileSize = getFileSize(leftBound, logTip)
+            val fileSize = getFileSize(leftBound, highAddress)
 
             if (leftBound == fileAddress && fileAddress + fileSize > pageAddress) {
-                val block = logTip.blockSet.getBlock(fileAddress)
-                val readBytes = block.read(output, pageAddress - fileAddress, 0, output.size)
-
-                val checkConsistency = config.isCheckPagesAtRuntime &&
-                        formatWithHashCodeIsUsed &&
-                        (!rwIsReadonly || pageAddress < (highAddress and
-                                ((cachePageSize - 1).inv()).toLong()))
-
-                if (checkConsistency) {
-                    if (readBytes < cachePageSize) {
-                        DataCorruptionException.raise(
-                            "Page size less than expected. " +
-                                    "{actual : $readBytes, expected $cachePageSize }.", this, pageAddress
-                        )
-                    }
-
-                    BufferedDataWriter.checkPageConsistency(pageAddress, output, cachePageSize, this)
+                val block = writer.getBlock(fileAddress)
+                if (block == null) {
+                    BlockNotFoundException.raise(this, pageAddress)
+                    return 0
                 }
 
-                val cipherProvider = config.cipherProvider
-                if (cipherProvider != null) {
-                    val encryptedBytes = if (readBytes < cachePageSize) {
-                        readBytes
-                    } else {
-                        if (formatWithHashCodeIsUsed) {
-                            cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
-                        } else {
-                            cachePageSize
-                        }
-                    }
-
-                    cryptBlocksMutable(
-                        cipherProvider, config.cipherKey, config.cipherBasicIV,
-                        pageAddress, output, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
-                    )
-                }
-                notifyReadBytes(output, readBytes)
-
-                return readBytes
+                return readFromBlock(block, pageAddress, output, highAddress)
             }
-            if (fileAddress < (logTip.blockSet.minimum ?: -1L)) {
+            if (fileAddress < (writer.minimumFile ?: -1L)) {
                 BlockNotFoundException.raise(
                     "Address is out of log space, underflow",
                     this, pageAddress
                 )
             }
-            if (fileAddress >= (logTip.blockSet.maximum ?: -1L)) {
+            if (fileAddress >= (writer.maximumFile ?: -1L)) {
                 BlockNotFoundException.raise(
                     "Address is out of log space, overflow",
                     this, pageAddress
@@ -980,6 +913,52 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         }
         BlockNotFoundException.raise(this, pageAddress)
         return 0
+    }
+
+    private fun readFromBlock(
+        block: Block,
+        pageAddress: Long,
+        output: ByteArray,
+        highAddress: Long
+    ): Int {
+        val readBytes = block.read(
+            output,
+            pageAddress - block.address, 0, output.size
+        )
+        val checkConsistency = config.isCheckPagesAtRuntime &&
+                formatWithHashCodeIsUsed &&
+                (!rwIsReadonly || pageAddress < (highAddress and
+                        ((cachePageSize - 1).inv()).toLong()))
+        if (checkConsistency) {
+            if (readBytes < cachePageSize) {
+                DataCorruptionException.raise(
+                    "Page size less than expected. " +
+                            "{actual : $readBytes, expected $cachePageSize }.", this, pageAddress
+                )
+            }
+
+            BufferedDataWriter.checkPageConsistency(pageAddress, output, cachePageSize, this)
+        }
+
+        val cipherProvider = config.cipherProvider
+        if (cipherProvider != null) {
+            val encryptedBytes = if (readBytes < cachePageSize) {
+                readBytes
+            } else {
+                if (formatWithHashCodeIsUsed) {
+                    cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
+                } else {
+                    cachePageSize
+                }
+            }
+
+            cryptBlocksMutable(
+                cipherProvider, config.cipherKey, config.cipherBasicIV,
+                pageAddress, output, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
+            )
+        }
+        notifyReadBytes(output, readBytes)
+        return readBytes
     }
 
     fun getWrittenFilesSize(): Int {
@@ -996,13 +975,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         return DataIterator(this, address)
     }
 
-    private fun tryLock(writer: DataWriter) {
+    private fun tryLock() {
         if (!config.isLockIgnored) {
             val lockTimeout = config.lockTimeout
-            if (!writer.lock(lockTimeout)) {
+            if (!dataWriter.lock(lockTimeout)) {
                 throw ExodusException(
                     "Can't acquire environment lock after " +
-                            lockTimeout + " ms.\n\n Lock owner info: \n" + writer.lockInfo()
+                            lockTimeout + " ms.\n\n Lock owner info: \n" + dataWriter.lockInfo()
                 )
             }
         }
@@ -1021,7 +1000,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             throw ExodusException("Environment is working in read-only mode. No writes are allowed")
         }
 
-        var result = beforeWrite(writer)
+        var result = beforeWrite()
 
         val isNull = NullLoggable.isNullLoggable(type)
         var recordLength = 1
@@ -1065,13 +1044,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
         }
 
-        closeFullFileIfNecessary()
-
+        writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
         return result
     }
 
-    private fun beforeWrite(writer: BufferedDataWriter): Long {
-        val result = writer.highAddress
+    private fun beforeWrite(): Long {
+        val result = writer.currentHighAddress
 
         // begin of test-only code
         @Suppress("DEPRECATION") val testConfig = this.testConfig
@@ -1087,14 +1065,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         return result
     }
 
-    private fun closeFullFileIfNecessary() {
-        if (!writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)) {
-            if (System.currentTimeMillis() > lastSyncTicks + config.syncPeriod) {
-                flush(true)
-            }
-        }
-    }
-
     /**
      * Sets LogTestConfig.
      * Is destined for tests only, please don't set a not-null value in application code.
@@ -1105,14 +1075,20 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         this.testConfig = testConfig
     }
 
-    fun notifyBlockCreated(address: Long) {
-        val block = tip.blockSet.getBlock(address)
+    fun notifyBlockCreated(block: Block) {
         blockListeners.notifyListeners { it.blockCreated(block) }
     }
 
-    fun notifyBlockModified(address: Long) {
-        val block = tip.blockSet.getBlock(address)
+    fun notifyBlockModified(block: Block) {
         blockListeners.notifyListeners { it.blockModified(block) }
+    }
+
+    fun mutableBlocksUnsafe(): BlockSet.Mutable {
+        return writer.mutableBlocksUnsafe()
+    }
+
+    fun updateBlockSetHighAddressUnsafe(prevHighAddress: Long, highAddress: Long, blockSet: BlockSet.Immutable) {
+        writer.updateBlockSetHighAddressUnsafe(prevHighAddress, highAddress, blockSet)
     }
 
     private fun notifyReadBytes(bytes: ByteArray, count: Int) {

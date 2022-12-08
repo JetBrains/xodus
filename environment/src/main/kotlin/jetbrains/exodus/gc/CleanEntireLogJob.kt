@@ -32,7 +32,7 @@ internal class CleanEntireLogJob(private val gc: GarbageCollector) : LatchJob() 
                 if (numberOfFiles == 1L || numberOfFiles >= lastNumberOfFiles) break
                 lastNumberOfFiles = numberOfFiles
                 val highFileAddress = log.highFileAddress
-                var fileAddress = log.lowAddress
+                var fileAddress = log.lowFileAddress
                 while (fileAddress != highFileAddress) {
                     gc.doCleanFile(fileAddress)
                     fileAddress = log.getNextFileAddress(fileAddress)
