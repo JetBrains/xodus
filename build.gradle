@@ -203,6 +203,7 @@ subprojects {
                 }
                 publications {
                     mavenJava(MavenPublication) {
+                        artifactId = "xodus-${project.name}"
                         pom {
                             name = 'Xodus'
                             description = 'Xodus is pure Java transactional schema-less embedded database'
