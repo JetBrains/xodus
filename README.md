@@ -3,7 +3,6 @@
 [![official JetBrains project](https://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jetbrains.xodus/xodus-openAPI/badge.svg)](https://search.maven.org/#search%7Cga%7C1%7Corg.jetbrains.xodus%20-dnq%20-time)
 [![Last Release](https://img.shields.io/github/release-date/jetbrains/xodus.svg?logo=github)](https://github.com/jetbrains/xodus/releases/latest)
-[![TeamCity (build status)](https://img.shields.io/teamcity/http/teamcity.jetbrains.com/s/Xodus_Build.svg)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build&branch_Xodus=<default>&guest=1)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 ![Pure Java + Kotlin](https://img.shields.io/badge/100%25-java%2bkotlin-orange.svg)
 [![Stack Overflow](https://img.shields.io/:stack%20overflow-xodus-brightgreen.svg)](https://stackoverflow.com/questions/tagged/xodus)
