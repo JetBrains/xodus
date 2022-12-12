@@ -16,10 +16,13 @@
 package jetbrains.exodus.io;
 
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.core.dataStructures.LongIntPair;
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.env.EnvironmentConfig;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Closeable;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code DataWriter} defines the way how data is written to {@code Log}, how {@linkplain Block blocks} appear in
@@ -35,6 +38,7 @@ import java.io.Closeable;
  * @see DataReaderWriterProvider
  * @since 1.3.0
  */
+@SuppressWarnings("InterfaceWithOnlyOneDirectInheritor")
 public interface DataWriter extends Closeable {
 
     /**
@@ -107,7 +111,9 @@ public interface DataWriter extends Closeable {
      *
      * @param blockAddress address of {@linkplain Block block} to truncate
      * @param length       {@linkplain Block block} length
+     * @deprecated data files are not designed to be truncated
      */
+    @Deprecated
     void truncateBlock(long blockAddress, long length);
 
     /**
@@ -138,4 +144,32 @@ public interface DataWriter extends Closeable {
      * @see #lock(long)
      */
     String lockInfo();
+
+    /**
+     * Asynchronously writes binary data to {@code Log}.
+     * Returns new {@linkplain Block} instance representing mutable block and completable future which will be executed
+     * once asynchronous write was executed.
+     *
+     * This method is not thread safe and can not be used by multiple threads without external synchronization.
+     *
+     * @param b   binary data array
+     * @param off starting offset in the array
+     * @param len number of byte to write
+     * @return  Pair which consist of mutable {@linkplain Block} instance and completable future which services
+     * as indicator of completion (successful or unsuccessful) of requested write.
+     * Result of execution of completable future are: start address of the position where data is written and
+     * amount of data was written in bytes.
+     * @see Block
+     * @since 3.0
+     */
+    Pair<Block, CompletableFuture<LongIntPair>> asyncWrite(byte[] b, int off, int len);
+
+
+    /**
+     * Return current position of writer inside the file.
+     * This method is not thread safe and can not be used without external synchronization.
+     * @return current position of writer inside the file.
+     * @since 3.0
+     */
+    long position();
 }

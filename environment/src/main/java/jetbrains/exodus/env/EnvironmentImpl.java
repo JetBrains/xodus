@@ -36,7 +36,6 @@ import jetbrains.exodus.io.StorageTypeNotAllowedException;
 import jetbrains.exodus.log.DataIterator;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
-import jetbrains.exodus.log.LogTip;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
@@ -54,7 +53,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
@@ -99,6 +100,11 @@ public class EnvironmentImpl implements Environment {
     private final DatabaseProfiler profilerMBean;
 
     /**
+     * Reference to the task which periodically ensures that stored data are synced to the disk.
+     */
+    private final @Nullable ScheduledFuture<?> syncTask;
+
+    /**
      * Throwable caught during commit after which rollback of highAddress failed.
      * Generally, it should ne null, otherwise environment is inoperative:
      * no transaction can be started or committed in that state. Once environment became inoperative,
@@ -112,8 +118,7 @@ public class EnvironmentImpl implements Environment {
 
     @Nullable
     private final StreamCipherProvider streamCipherProvider;
-    @Nullable
-    private final byte[] cipherKey;
+    private final byte @Nullable [] cipherKey;
     private final long cipherBasicIV;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
@@ -126,6 +131,7 @@ public class EnvironmentImpl implements Environment {
         checkStorageType(logLocation, ec);
 
         final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
+        assert readerWriterProvider != null;
         readerWriterProvider.onEnvironmentCreated(this);
 
         final Pair<MetaTreeImpl, Integer> meta;
@@ -133,7 +139,7 @@ public class EnvironmentImpl implements Environment {
             meta = MetaTreeImpl.create(this);
         }
         metaTree = meta.getFirst();
-        structureId = new AtomicInteger(meta.getSecond());
+        structureId = new AtomicInteger(meta.getSecond().intValue());
         txns = new TransactionSet();
         txnSafeTasks = new LinkedList<>();
         invalidateStoreGetCache();
@@ -173,6 +179,15 @@ public class EnvironmentImpl implements Environment {
         cipherKey = logConfig.getCipherKey();
         cipherBasicIV = logConfig.getCipherBasicIV();
 
+        if (!isReadOnly()) {
+            flushAndSync();
+
+            syncTask = SyncIO.scheduleSyncLoop(this);
+        } else {
+            syncTask = null;
+        }
+
+
         loggerInfo("Exodus environment created: " + logLocation);
 
         if (!log.getFormatWithHashCodeIsUsed()) {
@@ -180,6 +195,7 @@ public class EnvironmentImpl implements Environment {
                 throw new ExodusException("Environment " + logLocation +
                         " uses out of dated binary format but can not be migrated because " +
                         "is opened in read-only mode.");
+
             }
         }
     }
@@ -222,6 +238,7 @@ public class EnvironmentImpl implements Environment {
         return gc;
     }
 
+    @SuppressWarnings("MethodMayBeStatic")
     public int getCurrentFormatVersion() {
         return CURRENT_FORMAT_VERSION;
     }
@@ -374,8 +391,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     @Override
-    @Nullable
-    public byte[] getCipherKey() {
+    public byte @Nullable [] getCipherKey() {
         return cipherKey;
     }
 
@@ -407,7 +423,7 @@ public class EnvironmentImpl implements Environment {
                         throwableOnCommit = null;
                         final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this);
                         metaTree = meta.getFirst();
-                        structureId.set(meta.getSecond());
+                        structureId.set(meta.getSecond().intValue());
                     } finally {
                         metaWriteLock.unlock();
                     }
@@ -432,7 +448,7 @@ public class EnvironmentImpl implements Environment {
                 return;
             }
         }
-        final MetaServer metaServer = getEnvironmentConfig().getMetaServer();
+        final MetaServer metaServer = ec.getMetaServer();
         if (metaServer != null) {
             metaServer.stop(this);
         }
@@ -467,6 +483,9 @@ public class EnvironmentImpl implements Environment {
 
                 if (!isReadOnly()) {
                     log.updateStartUpDbRoot(metaTree.rootAddress());
+
+                    assert syncTask != null;
+                    syncTask.cancel(false);
                 }
 
                 log.close();
@@ -583,7 +602,14 @@ public class EnvironmentImpl implements Environment {
     public void flushAndSync() {
         synchronized (commitLock) {
             if (isOpen()) {
-                getLog().sync();
+                var log = this.log;
+
+                log.beginWrite();
+                try {
+                    log.sync();
+                } finally {
+                    log.endWrite();
+                }
             }
         }
     }
@@ -595,7 +621,6 @@ public class EnvironmentImpl implements Environment {
                 log.forgetFiles(files);
                 log.endWrite();
             } catch (Throwable t) {
-                log.abortWrite();
                 throw ExodusException.toExodusException(t, "Failed to forget files in log");
             }
         }
@@ -693,8 +718,8 @@ public class EnvironmentImpl implements Environment {
      * @return tree instance or null if the address is not valid.
      */
     @Nullable
-    BTree loadMetaTree(final long rootAddress, final LogTip logTip) {
-        if (rootAddress < 0 || rootAddress >= logTip.highAddress) return null;
+    BTree loadMetaTree(final long rootAddress, final long highAddress) {
+        if (rootAddress < 0 || rootAddress >= highAddress) return null;
         return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
             @NotNull
             @Override
@@ -736,32 +761,31 @@ public class EnvironmentImpl implements Environment {
                 throw new ReadonlyTransactionException();
             }
             checkIsOperative();
-            if (!txn.checkVersion(metaTree.root)) {
+            if (txn.invalidVersion(metaTree.root)) {
                 // meta lock not needed 'cause write can only occur in another commit lock
                 return false;
             }
             if (wasUpSaved) {
                 up.setDirty(false);
             }
-            final LogTip logTip = log.beginWrite();
-            initialHighAddress = logTip.highAddress;
+            initialHighAddress = log.beginWrite();
             boolean writeConfirmed = false;
             try {
                 final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
-                final LogTip updatedTip;
+                final long updatedHighAddress;
                 try {
                     expiredLoggables = txn.doCommit(tree);
                 } finally {
                     log.flush();
-                    updatedTip = log.endWrite();
+                    updatedHighAddress = log.endWrite();
                 }
 
                 final MetaTreeImpl.Proto proto = tree[0];
                 metaWriteLock.lock();
                 try {
                     writeConfirmed = true;
-                    resultingHighAddress = updatedTip.approvedHighAddress;
-                    txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedTip, proto));
+                    resultingHighAddress = updatedHighAddress;
+                    txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedHighAddress, proto));
                     txn.executeCommitHook();
                 } finally {
                     metaWriteLock.unlock();
@@ -789,6 +813,7 @@ public class EnvironmentImpl implements Environment {
         return true;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     MetaTreeImpl holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
         return holdNewestSnapshotBy(txn, true);
     }
@@ -938,23 +963,6 @@ public class EnvironmentImpl implements Environment {
         txns.forEach(executable);
     }
 
-    // for tests only
-    boolean awaitUpdate(final long fromAddress, long timeout) {
-        final int delta = 20;
-        try {
-            while (timeout > 0) {
-                if (log.getHighAddress() > fromAddress) {
-                    return true;
-                }
-                Thread.sleep(delta);
-                timeout -= delta;
-            }
-        } catch (InterruptedException ignore) {
-            Thread.currentThread().interrupt();
-        }
-        return false;
-    }
-
     protected StoreImpl createTemporaryEmptyStore(String name) {
         return new TemporaryEmptyStore(this, name);
     }
@@ -992,6 +1000,7 @@ public class EnvironmentImpl implements Environment {
         loggerDebug(message, null);
     }
 
+    @SuppressWarnings("SameParameterValue")
     static void loggerDebug(@NotNull final String message, @Nullable final Throwable t) {
         if (logger.isDebugEnabled()) {
             if (t == null) {
@@ -1077,7 +1086,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     private int allocateStructureId() {
-        /**
+        /*
          * <TRICK>
          * Allocates structure id so that 256 doesn't factor it. This ensures that corresponding byte iterable
          * will never end with zero byte, and any such id can be used as a key in meta tree without collision
@@ -1131,7 +1140,8 @@ public class EnvironmentImpl implements Environment {
     }
 
     private static void checkStorageType(@NotNull final String location, @NotNull final EnvironmentConfig ec) {
-        if (ec.getLogDataReaderWriterProvider().equals(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER)) {
+        var provider = ec.getLogDataReaderWriterProvider();
+        if (provider.equals(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER)) {
             final File databaseDir = new File(location);
             if (!ec.isLogAllowRemovable() && IOUtil.isRemovableFile(databaseDir)) {
                 throw new StorageTypeNotAllowedException("Database on removable storage is not allowed");
@@ -1223,6 +1233,10 @@ public class EnvironmentImpl implements Environment {
                     } finally {
                         txn.abort();
                     }
+                    if (!log.isReadOnly()) {
+                        log.updateStartUpDbRoot(metaTree.root);
+                        flushAndSync();
+                    }
                 }
             }
         }
@@ -1261,6 +1275,51 @@ public class EnvironmentImpl implements Environment {
         private RunnableWithTxnRoot(Runnable runnable, long txnRoot) {
             this.runnable = runnable;
             this.txnRoot = txnRoot;
+        }
+    }
+
+    private static final class SyncIO {
+        private static volatile ScheduledExecutorService syncExecutor;
+        private static final ReentrantLock lock = new ReentrantLock();
+
+        private static ScheduledExecutorService getSyncExecutor() {
+            if (syncExecutor == null) {
+                lock.lock();
+                try {
+                    if (syncExecutor == null) {
+                        syncExecutor = Executors.newScheduledThreadPool(1);
+                    }
+                } finally {
+                    lock.unlock();
+                }
+            }
+
+            return syncExecutor;
+        }
+
+        public static ScheduledFuture<?> scheduleSyncLoop(final EnvironmentImpl environment) {
+            var executor = getSyncExecutor();
+            var syncPeriod = environment.ec.getLogSyncPeriod();
+
+            return executor.scheduleWithFixedDelay(() -> {
+                try {
+                    if (environment.log.needsToBeSynchronized()) {
+                        synchronized (environment.commitLock) {
+                            if (environment.isOpen()) {
+                                if (environment.log.needsToBeSynchronized()) {
+                                    environment.flushAndSync();
+                                }
+                            } else if (environment.syncTask != null) {
+                                environment.syncTask.cancel(false);
+                            }
+                        }
+                    }
+                } catch (final Throwable t) {
+                    logger.error("Error during synchronization of content of log " +
+                            environment.log.getLocation(), t);
+                    environment.throwableOnCommit = t;
+                }
+            }, syncPeriod, Math.min(syncPeriod / 10, 1_000), TimeUnit.MILLISECONDS);
         }
     }
 }

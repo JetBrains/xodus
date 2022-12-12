@@ -68,7 +68,7 @@ open class GarbageCollectorLowCacheTest : EnvironmentTestsBase() {
         val gc = environment.gc
 
         val highFileAddress = log.highFileAddress
-        var fileAddress = log.lowAddress
+        var fileAddress = log.lowFileAddress
         while (fileAddress != highFileAddress) {
             gc.doCleanFile(fileAddress)
             fileAddress = log.getNextFileAddress(fileAddress)

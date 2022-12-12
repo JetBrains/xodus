@@ -13,16 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log
+package jetbrains.exodus.core.dataStructures;
 
-import jetbrains.exodus.io.Block
-
-interface BlockListener {
-
-    fun blockCreated(block: Block)
-
-    fun beforeBlockDeleted(block: Block)
-    fun afterBlockDeleted(address: Long)
-
-    fun blockModified(block: Block)
+@FunctionalInterface
+public interface LongObjectBifFunction<T, U> {
+    U apply(long first, T second);
 }

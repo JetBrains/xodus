@@ -15,11 +15,24 @@
  */
 package jetbrains.exodus.io
 
-class WatchingFileDataWriter(reader: FileDataReader, lockId: String? = null) : FileDataWriter(reader, lockId) {
+class WatchingFileDataWriter : AbstractDataWriter() {
+    override fun write(b: ByteArray?, off: Int, len: Int): Block = throw UnsupportedOperationException()
 
     override fun removeBlock(blockAddress: Long, rbt: RemoveBlockType) = throw UnsupportedOperationException()
 
+    @Deprecated("Data files are not designed to be truncated")
     override fun truncateBlock(blockAddress: Long, length: Long) = throw UnsupportedOperationException()
+    override fun lock(timeout: Long) = throw UnsupportedOperationException()
+    override fun release()= throw UnsupportedOperationException()
+    override fun lockInfo() = throw UnsupportedOperationException()
 
+    override fun asyncWrite(b: ByteArray?, off: Int, len: Int) = throw UnsupportedOperationException()
+
+    override fun position() = throw UnsupportedOperationException()
+
+    override fun syncImpl() = throw UnsupportedOperationException()
+
+    override fun closeImpl() = throw UnsupportedOperationException()
     override fun clearImpl() = throw UnsupportedOperationException()
+    override fun openOrCreateBlockImpl(address: Long, length: Long) = throw UnsupportedOperationException()
 }

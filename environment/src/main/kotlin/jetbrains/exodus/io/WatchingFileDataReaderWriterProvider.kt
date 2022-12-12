@@ -15,15 +15,56 @@
  */
 package jetbrains.exodus.io
 
-class WatchingFileDataReaderWriterProvider : FileDataReaderWriterProvider() {
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.EnvironmentImpl
+import java.io.File
+
+class WatchingFileDataReaderWriterProvider : DataReaderWriterProvider() {
+    private var env: EnvironmentImpl? = null
 
     override fun isReadonly() = true
 
-    override fun newFileDataReader(location: String) =
-            WatchingFileDataReader({ env }, (super.newFileDataReader(location) as FileDataReader).apply {
-                usedWithWatcher = true
-            })
+    fun newFileDataReader(location: String) =
+        WatchingFileDataReader({ env }, nonWatchingFileDataReader(location).apply {
+            usedWithWatcher = true
+        })
 
-    override fun newFileDataWriter(location: String, reader: DataReader) =
-            WatchingFileDataWriter((reader as WatchingFileDataReader).fileDataReader, env?.environmentConfig?.logLockId)
+    fun newFileDataWriter() =
+        WatchingFileDataWriter()
+
+    override fun newReaderWriter(location: String): Pair<DataReader, DataWriter> {
+        val reader = newFileDataReader(location)
+        return Pair(reader, newFileDataWriter())
+    }
+
+    override fun onEnvironmentCreated(environment: Environment) {
+        super.onEnvironmentCreated(environment)
+        this.env = environment as EnvironmentImpl
+    }
+
+    private fun nonWatchingFileDataReader(location: String): FileDataReader {
+        val ec = env?.environmentConfig
+        return FileDataReader(checkDirectory(location)).apply {
+            @Suppress("DEPRECATION")
+            if (ec != null && ec.logCacheUseNio) {
+                useNio(ec.logCacheFreePhysicalMemoryThreshold)
+            }
+        }
+    }
+
+    companion object {
+        @JvmStatic
+        protected fun checkDirectory(location: String): File {
+            val directory = File(location)
+            if (directory.isFile) {
+                throw ExodusException("A directory is required: $directory")
+            }
+            if (!directory.exists() && !directory.mkdirs()) {
+                throw ExodusException("Failed to create directory: $directory")
+            }
+            return directory
+        }
+    }
 }

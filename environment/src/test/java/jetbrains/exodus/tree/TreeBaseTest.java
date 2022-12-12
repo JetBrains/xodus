@@ -85,7 +85,8 @@ public abstract class TreeBaseTest {
     }
 
     protected LogConfig createLogConfig() {
-        return new LogConfig().setNonBlockingCache(true).setReaderWriterProvider(EnvironmentConfig.DEFAULT.getLogDataReaderWriterProvider());
+        return new LogConfig().setNonBlockingCache(true).setReaderWriterProvider(
+                EnvironmentConfig.DEFAULT.getLogDataReaderWriterProvider());
     }
 
     @After

@@ -142,7 +142,7 @@ public final class DataIterator implements ByteIteratorWithAddress {
         final long pageAddress = address & pageAddressMask;
 
         if (this.pageAddress != pageAddress) {
-            page = log.cache.getPage(log, pageAddress);
+            page = log.getCachedPage(pageAddress);
             this.pageAddress = pageAddress;
         }
 
@@ -196,8 +196,11 @@ public final class DataIterator implements ByteIteratorWithAddress {
             }
         } catch (BlockNotFoundException ignore) {
         }
+
         pageAddress = -1L;
         page = null;
+        chunkLength = 0;
+        pageOffset = 0;
     }
 
     public byte[] getCurrentPage() {

@@ -16,7 +16,6 @@
 package jetbrains.exodus.env
 
 import jetbrains.exodus.ExodusException
-import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.crypto.newCipherProvider
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.FileDataWriter
@@ -64,10 +63,12 @@ object Environments {
     @JvmStatic
     fun <T : EnvironmentImpl> newInstance(envCreator: () -> T): T = prepare(envCreator)
 
+    @Suppress("unused")
     @JvmStatic
     fun newContextualInstance(dir: String, subDir: String, ec: EnvironmentConfig): ContextualEnvironment =
         prepare { ContextualEnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
 
+    @Suppress("unused")
     @JvmStatic
     fun newContextualInstance(dir: String): ContextualEnvironment = newContextualInstance(dir, EnvironmentConfig())
 
@@ -75,6 +76,7 @@ object Environments {
     fun newContextualInstance(dir: String, ec: EnvironmentConfig): ContextualEnvironment =
         prepare { ContextualEnvironmentImpl(newLogInstance(File(dir), ec), ec) }
 
+    @Suppress("unused")
     @JvmStatic
     fun newContextualInstance(dir: File): ContextualEnvironment = newContextualInstance(dir, EnvironmentConfig())
 
@@ -105,6 +107,7 @@ object Environments {
                 ec.isGcEnabled = false
                 isLockIgnored = true
             }
+
             fileSize = ec.logFileSize
             lockTimeout = ec.logLockTimeout
             cachePageSize = ec.logCachePageSize
@@ -122,13 +125,16 @@ object Environments {
             cipherProvider = ec.cipherId?.let { cipherId -> newCipherProvider(cipherId) }
             cipherKey = ec.cipherKey
             cipherBasicIV = ec.cipherBasicIV
+            isCheckPagesAtRuntime = ec.checkPagesAtRuntime
+
             setUseV1Format(ec.useVersion1Format)
         })
     }
 
     @JvmStatic
-    fun newLogInstance(config: LogConfig): Log = Log(config.also
-    { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) }, EnvironmentImpl.CURRENT_FORMAT_VERSION
+    fun newLogInstance(config: LogConfig): Log = Log(
+        config.also
+        { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) }, EnvironmentImpl.CURRENT_FORMAT_VERSION
     )
 
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {

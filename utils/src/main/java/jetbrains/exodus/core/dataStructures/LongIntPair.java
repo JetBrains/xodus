@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log
+package jetbrains.exodus.core.dataStructures;
 
-import jetbrains.exodus.io.Block
+public class LongIntPair {
+    public final long first;
+    public final int second;
 
-interface BlockListener {
-
-    fun blockCreated(block: Block)
-
-    fun beforeBlockDeleted(block: Block)
-    fun afterBlockDeleted(address: Long)
-
-    fun blockModified(block: Block)
+    public LongIntPair(long first, int second) {
+        this.first = first;
+        this.second = second;
+    }
 }

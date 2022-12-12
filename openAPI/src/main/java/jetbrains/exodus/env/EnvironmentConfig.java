@@ -59,7 +59,7 @@ import java.util.concurrent.TimeUnit;
  * @see Environment
  * @see Environment#getEnvironmentConfig()
  */
-@SuppressWarnings({"WeakerAccess", "unused"})
+@SuppressWarnings({"WeakerAccess", "unused", "AutoBoxing", "AutoUnboxing"})
 public class EnvironmentConfig extends AbstractConfig {
 
     public static final EnvironmentConfig DEFAULT = new EnvironmentConfig(ConfigurationStrategy.IGNORE) {
@@ -91,6 +91,17 @@ public class EnvironmentConfig extends AbstractConfig {
 
     public static final String USE_VERSION1_FORMAT = "exodus.useVersion1Format";
 
+    /**
+     * Xodus performs check of consistency of pages loaded from disk.
+     * This option allows to enable/disable this check.
+     * <p>
+     * Disabling this check should improve general performance of database but
+     * decreases durability guaranties.
+     * <p>
+     * Default value is {@code true}.
+     *
+     * <p>Mutable at runtime: no</p>
+     */
     public static final String CHECK_PAGES_AT_RUNTIME = "exodus.checkPagesAtRuntime";
 
     /**
@@ -199,10 +210,14 @@ public class EnvironmentConfig extends AbstractConfig {
      * cache page from the buffer, otherwise reads the page from {@linkplain java.io.RandomAccessFile}. If is set to
      * {@code false} then LogCache always reads {@linkplain java.io.RandomAccessFile} on cache miss.
      * Default value was {@code true} before version {@code 1.2.3}. As of {@code 1.2.3}, default value is {@code false}.
+     *
      * <p>Mutable at runtime: no
      *
      * @see #LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD
+     * @deprecated Because of upcoming release of virtual threads feature this property is deprecated.
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     public static final String LOG_CACHE_USE_NIO = "exodus.log.cache.useNIO";
 
     /**
@@ -214,7 +229,10 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @see #LOG_CACHE_USE_NIO
+     * @deprecated Because of upcoming release of virtual threads feature this property is deprecated.
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     public static final String LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD = "exodus.log.cache.freePhysicalMemoryThreshold";
 
     /**
@@ -447,8 +465,8 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String ENV_TXN_TRACE_FINISH = "exodus.env.txn.traceFinish";
 
     /**
-     * Defines the number of {@linkplain Transaction transactions} that can be started in parallel. By default it is
-     * unlimited.
+     * Defines the number of {@linkplain Transaction transactions} that can be started in parallel.
+     * It is unlimited by default.
      * <p>Mutable at runtime: no
      *
      * @see Transaction
@@ -723,7 +741,7 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_FILE_SIZE, 8192L),
                 new Pair(LOG_LOCK_TIMEOUT, 0L),
                 new Pair(LOG_LOCK_ID, null),
-                new Pair(LOG_CACHE_PAGE_SIZE, 64 * 1024),
+                new Pair(LOG_CACHE_PAGE_SIZE, 64 << 10),
                 new Pair(LOG_CACHE_OPEN_FILES, 500),
                 new Pair(LOG_CACHE_USE_NIO, false),
                 new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
@@ -864,10 +882,22 @@ public class EnvironmentConfig extends AbstractConfig {
         return setSetting(USE_VERSION1_FORMAT, useVersion1Format);
     }
 
+    /**
+     * Indicates if disk page consistency is checked at runtime.
+     *
+     * @see #CHECK_PAGES_AT_RUNTIME
+     */
     public boolean getCheckPagesAtRuntime() {
         return (Boolean) getSetting(CHECK_PAGES_AT_RUNTIME);
     }
 
+    /**
+     * Sets if disk page consistency is checked at runtime.
+     *
+     * @param checkPagesAtRuntime {@code ture} if consistency of disk pages is checked during runtime and
+     *                            {@code false} otherwise.
+     * @see #CHECK_PAGES_AT_RUNTIME
+     */
     public EnvironmentConfig setCheckPagesAtRuntime(final boolean checkPagesAtRuntime) {
         return setSetting(CHECK_PAGES_AT_RUNTIME, checkPagesAtRuntime);
     }
@@ -918,8 +948,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @see StreamCipher#init(byte[], long)
      * @see StreamCipherProvider
      */
-    @Nullable
-    public byte[] getCipherKey() {
+    public byte @Nullable [] getCipherKey() {
         Object cipherKey = getSetting(CIPHER_KEY);
         if (cipherKey instanceof String) {
             cipherKey = KryptKt.toBinaryKey((String) cipherKey);
@@ -1172,11 +1201,14 @@ public class EnvironmentConfig extends AbstractConfig {
      * cache page from the buffer, otherwise reads the page from {@linkplain java.io.RandomAccessFile}. If is set to
      * {@code false} then LogCache always reads {@linkplain java.io.RandomAccessFile} on cache miss.
      * Default value was {@code true} before version {@code 1.2.3}. As of {@code 1.2.3}, default value is {@code false}.
+     *
      * <p>Mutable at runtime: no
      *
      * @return {@code true} mapping of .xd files in memory is allowed
      * @see #getLogCacheFreePhysicalMemoryThreshold()
+     * @deprecated Because of upcoming release of virtual threads feature this property is deprecated.
      */
+    @Deprecated
     public boolean getLogCacheUseNio() {
         return (Boolean) getSetting(LOG_CACHE_USE_NIO);
     }
@@ -1187,11 +1219,14 @@ public class EnvironmentConfig extends AbstractConfig {
      * cache page from the buffer, otherwise reads the page from {@linkplain java.io.RandomAccessFile}. If is set to
      * {@code false} then LogCache always reads {@linkplain java.io.RandomAccessFile} on cache miss.
      * Default value was {@code true} before version {@code 1.2.3}. As of {@code 1.2.3}, default value is {@code false}.
+     *
      * <p>Mutable at runtime: no
      *
      * @param useNio {@code true} is using NIO is allowed
      * @return this {@code EnvironmentConfig} instance
+     * @deprecated Because of upcoming release of virtual threads feature this property is deprecated.
      */
+    @Deprecated
     public EnvironmentConfig setLogCacheUseNio(final boolean useNio) {
         return setSetting(LOG_CACHE_USE_NIO, useNio);
     }
@@ -1644,6 +1679,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @param failFast {@code true} if attempt modify data shouldn fail immediately in read-only mode
      * @return this {@code EnvironmentConfig} instance
      */
+    @SuppressWarnings("UnusedReturnValue")
     public EnvironmentConfig setEnvFailFastInReadonly(final boolean failFast) {
         return setSetting(ENV_FAIL_FAST_IN_READONLY, failFast);
     }
@@ -1694,6 +1730,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @param storeGetCacheSize size of the "store-get" cache
      * @return this {@code EnvironmentConfig} instance
      */
+    @SuppressWarnings("UnusedReturnValue")
     public EnvironmentConfig setEnvStoreGetCacheSize(final int storeGetCacheSize) {
         if (storeGetCacheSize < 0) {
             throw new InvalidSettingException("Negative StoreGetCache size");
@@ -1920,6 +1957,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @return number of read-only {@linkplain Transaction transactions} that can be started in parallel
      */
+    @SuppressWarnings("MethodMayBeStatic")
     @Deprecated
     public int getEnvMaxParallelReadonlyTxns() {
         return Integer.MAX_VALUE;
@@ -2149,6 +2187,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @return {@code 0}
      */
+    @SuppressWarnings("MethodMayBeStatic")
     @Deprecated
     public int getTreeNodesCacheSize() {
         return 0;
@@ -2210,6 +2249,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @return this {@code EnvironmentConfig} instance
      * @throws InvalidSettingException {@code startInMillis} is negative
      */
+    @SuppressWarnings("UnusedReturnValue")
     public EnvironmentConfig setGcStartIn(final int startInMillis) throws InvalidSettingException {
         if (startInMillis < 0) {
             throw new InvalidSettingException("GC can't be postponed for that number of milliseconds: " + startInMillis);
@@ -2239,6 +2279,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @return this {@code EnvironmentConfig} instance
      * @throws InvalidSettingException {@code percent} is not in the range [1..90]
      */
+    @SuppressWarnings("UnusedReturnValue")
     public EnvironmentConfig setGcMinUtilization(int percent) throws InvalidSettingException {
         if (percent < 1 || percent > 90) {
             throw new InvalidSettingException("Invalid minimum log files utilization: " + percent);
@@ -2275,6 +2316,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @return {@code false}
      */
+    @SuppressWarnings("MethodMayBeStatic")
     @Deprecated
     public boolean getGcUseExpirationChecker() {
         return false;

@@ -18,7 +18,6 @@ package jetbrains.exodus.log
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.core.dataStructures.*
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase.DEFAULT_SIZE
-import kotlin.math.min
 
 internal class SharedLogCache : LogCache {
 
@@ -106,19 +105,19 @@ internal class SharedLogCache : LogCache {
             )
         }
 
-    override fun getPage(log: Log, pageAddress: Long): ByteArray {
+    override fun getPage(
+        log: Log, writer: BufferedDataWriter, pageAddress: Long
+    ): ByteArray {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
         if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
             return cachedValue.page
         }
-        var page = log.getHighPage(pageAddress)
-        if (page != null) {
-            return page
-        }
-        page = readFullPage(log, pageAddress)
+
+        val page = writer.readPage(pageAddress)
         cachePage(key, logIdentity, pageAddress, page)
+
         return page
     }
 
@@ -126,12 +125,18 @@ internal class SharedLogCache : LogCache {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.getObjectLocked(key)
+
         return if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
             cachedValue.page
-        } else log.getHighPage(pageAddress)
+        } else null
     }
 
-    override fun getPageIterable(log: Log, pageAddress: Long, formatWithHashCodeIsUsed: Boolean): ArrayByteIterable {
+    override fun getPageIterable(
+        log: Log,
+        writer: BufferedDataWriter,
+        pageAddress: Long,
+        formatWithHashCodeIsUsed: Boolean
+    ): ArrayByteIterable {
         val logIdentity = log.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
@@ -144,17 +149,10 @@ internal class SharedLogCache : LogCache {
         if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
             return ArrayByteIterable(cachedValue.page, adjustedPageSize)
         }
-        var page = log.getHighPage(pageAddress)
-        if (page != null) {
-            return ArrayByteIterable(
-                page, min(
-                    log.highAddress - pageAddress,
-                    adjustedPageSize.toLong()
-                ).toInt()
-            )
-        }
-        page = readFullPage(log, pageAddress)
+
+        val page = writer.readPage(pageAddress)
         cachePage(key, logIdentity, pageAddress, page)
+
         return ArrayByteIterable(page, adjustedPageSize)
     }
 

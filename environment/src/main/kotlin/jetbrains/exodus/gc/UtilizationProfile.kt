@@ -24,13 +24,8 @@ import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
 import jetbrains.exodus.io.Block
-import jetbrains.exodus.io.DataReader
-import jetbrains.exodus.io.DataWriter
 import jetbrains.exodus.kotlin.synchronized
-import jetbrains.exodus.log.AbstractBlockListener
-import jetbrains.exodus.log.BufferedDataWriter
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
-import jetbrains.exodus.log.Log
+import jetbrains.exodus.log.*
 import jetbrains.exodus.tree.ExpiredLoggableCollection
 import java.io.File
 import java.util.*
@@ -50,7 +45,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     init {
         log.addBlockListener(object : AbstractBlockListener() {
-            override fun blockCreated(block: Block, reader: DataReader, writer: DataWriter) {
+            override fun blockCreated(block: Block) {
                 filesUtilization.synchronized {
                     this[block.address] = MutableLong(0L)
                 }

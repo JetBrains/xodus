@@ -18,7 +18,6 @@ package jetbrains.exodus.log;
 public class LogTestConfig {
 
     private long maxHighAddress;
-    private boolean settingHighAddressDenied;
 
     /**
      * If maxHighAddress is set to a non-negative value, no loggable with address GE to it will be written.
@@ -29,16 +28,5 @@ public class LogTestConfig {
 
     public void setMaxHighAddress(final long maxHighAddress) {
         this.maxHighAddress = maxHighAddress;
-    }
-
-    /**
-     * If settingHighAddressDenied is true, attempt to modify log high address with Log.setHighAddress() will fail.
-     */
-    public boolean isSettingHighAddressDenied() {
-        return settingHighAddressDenied;
-    }
-
-    public void setSettingHighAddressDenied(final boolean settingHighAddressDenied) {
-        this.settingHighAddressDenied = settingHighAddressDenied;
     }
 }

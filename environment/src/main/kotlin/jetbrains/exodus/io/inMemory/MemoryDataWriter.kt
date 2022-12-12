@@ -16,12 +16,15 @@
 package jetbrains.exodus.io.inMemory
 
 import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.LongIntPair
+import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.io.AbstractDataWriter
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
 import org.jetbrains.annotations.NotNull
+import java.util.concurrent.CompletableFuture
 
 open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
 
@@ -43,6 +46,7 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
         logger.info { "Deleted file " + LogUtil.getLogFilename(blockAddress) }
     }
 
+    @Deprecated("Data files are not designed to be truncated")
     override fun truncateBlock(blockAddress: Long, length: Long) {
         memory.getOrCreateBlockData(blockAddress, length)
         logger.info { "Truncated file " + LogUtil.getLogFilename(blockAddress) }
@@ -55,6 +59,16 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
     override fun release() = true
 
     override fun lockInfo(): String? = null
+    override fun asyncWrite(b: ByteArray, off: Int, len: Int): Pair<Block, CompletableFuture<LongIntPair>> {
+        val position = data.size
+        write(b, off, len)
+
+        return Pair(data, CompletableFuture.completedFuture(LongIntPair(data.address + position.toLong(), len)))
+    }
+
+    override fun position(): Long {
+        return data.size.toLong()
+    }
 
     override fun syncImpl() {}
 

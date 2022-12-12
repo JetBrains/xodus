@@ -258,6 +258,7 @@ abstract class BasePageImmutable extends BasePage {
                     it.nextPage = rightPage = log.getCachedPage(nextPageAddress);
                     rightAddress = nextPageAddress;
                 }
+                //noinspection ObjectAllocationInLoop
                 leafAddress = it.asCompound().nextLong(bytesPerAddress);
             } else {
                 leafAddress = it.nextLong(bytesPerAddress);
@@ -329,6 +330,7 @@ abstract class BasePageImmutable extends BasePage {
                 adjustedPageSize = cachePageSize;
             }
 
+            @SuppressWarnings("ObjectAllocationInLoop")
             final BinarySearchIterator it = new BinarySearchIterator(adjustedPageSize);
             it.offset = offset = ((int) midAddress) & (cachePageSize - 1); // cache page size is always a power of 2
             final long pageAddress = midAddress - offset;
@@ -350,6 +352,7 @@ abstract class BasePageImmutable extends BasePage {
                     it.nextPage = rightPage = log.getCachedPage(nextPageAddress);
                     rightAddress = nextPageAddress;
                 }
+                //noinspection ObjectAllocationInLoop
                 leafAddress = it.asCompound().nextLong(bytesPerAddress);
             } else {
                 leafAddress = it.nextLong(bytesPerAddress);

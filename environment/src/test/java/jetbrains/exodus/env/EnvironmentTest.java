@@ -41,6 +41,7 @@ import java.util.*;
 import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
 import static org.junit.Assert.*;
 
+@SuppressWarnings({"ObjectAllocationInLoop", "MethodCallInLoopCondition"})
 public class EnvironmentTest extends EnvironmentTestsBase {
 
     private final Map<String, File> subfolders = new HashMap<>();
@@ -101,18 +102,18 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         l = log.getLastLoggableOfType(BTreeBase.BOTTOM_ROOT);
         assertNotNull(l);
         Assert.assertEquals(40L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress(), log.getTip());
+        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
         assertNotNull(l);
         Assert.assertEquals(12L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress(), log.getTip());
+        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
         assertNotNull(l);
         Assert.assertEquals(0L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress(), log.getTip());
+        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
         Assert.assertNull(l);
-        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, Long.MAX_VALUE, log.getTip());
+        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, Long.MAX_VALUE);
         assertNotNull(l);
         Assert.assertEquals(48L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, l.getAddress(), log.getTip());
+        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, l.getAddress());
         assertNotNull(l);
         l = log.getFirstLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
         assertNotNull(l);
@@ -277,7 +278,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         reopenEnvironment();
         final LogTestConfig testConfig = new LogTestConfig();
         testConfig.setMaxHighAddress(10470);
-        testConfig.setSettingHighAddressDenied(true);
         //noinspection deprecation
         env.getLog().setLogTestConfig(testConfig);
         try {
@@ -348,16 +348,12 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             for (int i = 0; i < 100; i++) {
                 Transaction txn = env.beginTransaction();
                 try {
-                    while (true) {
+                    do {
                         final String name = "testDatabase" + j % 10;
                         final Store store = env.openStore(name, expectedConfig, txn);
                         store.put(txn, StringBinding.stringToEntry("key" + i), StringBinding.stringToEntry("value" + i));
-                        if (txn.flush()) {
-                            break;
-                        } else {
-                            txn.revert();
-                        }
-                    }
+                        txn.revert();
+                    } while (!txn.flush());
                 } finally {
                     txn.abort();
                 }
@@ -404,7 +400,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void mappedFileNotUnmapped() {
         File tempDir = TestUtil.createTempDir();
         try {
-            final Environment env = Environments.newInstance(tempDir, new EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024).setLogCacheShared(false));
+            final Environment env = Environments.newInstance(tempDir,
+                    new EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024).setLogCacheShared(false));
             final Store store = env.computeInTransaction(txn -> env.openStore("0", StoreConfig.WITHOUT_DUPLICATES, txn));
             env.executeInTransaction(txn -> {
                 store.put(txn, StringBinding.stringToEntry("k"), StringBinding.stringToEntry("v"));
@@ -671,7 +668,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 int i;
                 for (i = count / 2; i < count; ++i) {
                     if (!cursor.getNext()) break;
-                    Assert.assertEquals("" + i, IntegerBinding.intToEntry(i), cursor.getKey());
+                    Assert.assertEquals(String.valueOf(i), IntegerBinding.intToEntry(i), cursor.getKey());
                 }
                 Assert.assertEquals(count, i);
             }
@@ -716,7 +713,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         return env;
     }
 
-    private void waitForPendingFinalizers(@SuppressWarnings("SameParameterValue") final long timeoutMillis) {
+    private static void waitForPendingFinalizers(@SuppressWarnings("SameParameterValue") final long timeoutMillis) {
         final long started = System.currentTimeMillis();
         final WeakReference<Object> ref = new WeakReference<>(new Object());
         while (ref.get() != null && System.currentTimeMillis() - started < timeoutMillis) {

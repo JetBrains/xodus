@@ -62,7 +62,7 @@ class LogTestsBase {
 
     protected Pair<DataReader, DataWriter> createLogRW() {
         FileDataReader reader = new FileDataReader(logDirectory);
-        return new Pair<>(reader, new FileDataWriter(reader));
+        return new Pair<>(reader, new AsyncFileDataWriter(reader));
     }
 
     void initLog(final long fileSize, final int cachePageSize) {

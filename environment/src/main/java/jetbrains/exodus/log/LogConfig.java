@@ -89,6 +89,7 @@ public class LogConfig {
         return lockTimeout;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setLockTimeout(long lockTimeout) {
         this.lockTimeout = lockTimeout;
         return this;
@@ -106,6 +107,7 @@ public class LogConfig {
         return memoryUsage;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setMemoryUsage(final long memUsage) {
         memoryUsage = memUsage;
         return this;
@@ -118,6 +120,7 @@ public class LogConfig {
         return memoryUsagePercentage;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setMemoryUsagePercentage(final int memoryUsagePercentage) {
         this.memoryUsagePercentage = memoryUsagePercentage;
         return this;
@@ -160,6 +163,7 @@ public class LogConfig {
         return isDurableWrite;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public LogConfig setDurableWrite(boolean durableWrite) {
         isDurableWrite = durableWrite;
         return this;
@@ -169,6 +173,7 @@ public class LogConfig {
         return sharedCache;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setSharedCache(boolean sharedCache) {
         this.sharedCache = sharedCache;
         return this;
@@ -187,6 +192,7 @@ public class LogConfig {
         return cacheUseSoftReferences;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setCacheUseSoftReferences(boolean cacheUseSoftReferences) {
         this.cacheUseSoftReferences = cacheUseSoftReferences;
         return this;
@@ -199,11 +205,13 @@ public class LogConfig {
         return cacheGenerationCount;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setCacheGenerationCount(int cacheGenerationCount) {
         this.cacheGenerationCount = cacheGenerationCount;
         return this;
     }
 
+    @SuppressWarnings("unused")
     public int getCacheReadAheadMultiple() {
         if (cacheReadAheadMultiple == 0) {
             cacheReadAheadMultiple = EnvironmentConfig.DEFAULT.getLogCacheReadAheadMultiple();
@@ -234,6 +242,7 @@ public class LogConfig {
         return cacheOpenFilesCount;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setCacheOpenFilesCount(int cacheOpenFilesCount) {
         this.cacheOpenFilesCount = cacheOpenFilesCount;
         return this;
@@ -243,6 +252,7 @@ public class LogConfig {
         return cleanDirectoryExpected;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setCleanDirectoryExpected(boolean cleanDirectoryExpected) {
         this.cleanDirectoryExpected = cleanDirectoryExpected;
         return this;
@@ -252,6 +262,7 @@ public class LogConfig {
         return clearInvalidLog;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setClearInvalidLog(boolean clearInvalidLog) {
         this.clearInvalidLog = clearInvalidLog;
         return this;
@@ -273,6 +284,7 @@ public class LogConfig {
         return syncPeriod;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public LogConfig setSyncPeriod(long syncPeriod) {
         this.syncPeriod = syncPeriod;
         return this;
@@ -282,6 +294,7 @@ public class LogConfig {
         return fullFileReadonly;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setFullFileReadonly(boolean fullFileReadonly) {
         this.fullFileReadonly = fullFileReadonly;
         return this;
@@ -291,6 +304,7 @@ public class LogConfig {
         return cipherProvider;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setCipherProvider(StreamCipherProvider cipherProvider) {
         this.cipherProvider = cipherProvider;
         return this;
@@ -321,7 +335,7 @@ public class LogConfig {
             if (readerWriterProviderInstance == null) {
                 switch (readerWriterProvider) {
                     case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new FileDataReaderWriterProvider();
+                        readerWriterProviderInstance = new AsyncFileDataReaderWriterProvider();
                         break;
                     case DataReaderWriterProvider.WATCHING_READER_WRITER_PROVIDER:
                         readerWriterProviderInstance = new WatchingFileDataReaderWriterProvider();
@@ -342,6 +356,10 @@ public class LogConfig {
         return provider != null && provider.isReadonly();
     }
 
+    public void setUseV1Format(boolean useV1Format) {
+        this.useV1Format = useV1Format;
+    }
+
     public boolean useV1Format() {
         return useV1Format;
     }
@@ -350,8 +368,8 @@ public class LogConfig {
         return checkPagesAtRuntime;
     }
 
-    public void setUseV1Format(boolean useV1Format) {
-        this.useV1Format = useV1Format;
+    public void setCheckPagesAtRuntime(boolean checkPagesAtRuntime) {
+        this.checkPagesAtRuntime = checkPagesAtRuntime;
     }
 
     public static LogConfig create(@NotNull final DataReader reader, @NotNull final DataWriter writer) {
@@ -363,7 +381,10 @@ public class LogConfig {
         if (location == null) {
             throw new InvalidSettingException("Location for DataReader and DataWriter is not specified");
         }
-        Pair<DataReader, DataWriter> readerWriter = getReaderWriterProvider().newReaderWriter(location);
+
+        var provider = getReaderWriterProvider();
+        assert provider != null;
+        final Pair<DataReader, DataWriter> readerWriter = provider.newReaderWriter(location);
         reader = readerWriter.getFirst();
         writer = readerWriter.getSecond();
     }

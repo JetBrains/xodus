@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.log.LogTip;
-
 public interface MetaTree extends MetaTreePrototype {
-    LogTip getLogTip();
+    long getHighAddress();
 }

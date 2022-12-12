@@ -27,11 +27,11 @@ import java.util.ServiceLoader;
  * Service provider interface for creation instances of {@linkplain DataReader} and {@linkplain DataWriter}.
  * {@linkplain DataReader} and {@linkplain DataWriter} are used by {@code Log} implementation to perform basic
  * operations with {@linkplain Block blocks} ({@code .xd} files) and basic read/write/delete operations.
- *
+ * <p>
  * Service provider interface is identified by a fully-qualified name of its implementation. When opening an
  * {@linkplain Environment}, {@linkplain #DEFAULT_READER_WRITER_PROVIDER} is used as default provide name. To use a
  * custom I/O provider, specify its fully-qualified name as a parameter of {@linkplain EnvironmentConfig#setLogDataReaderWriterProvider}.
- *
+ * <p>
  * On {@linkplain Environment} creation new instance of {@code DataReaderWriterProvider} is created.
  *
  * @see Block
@@ -46,7 +46,7 @@ public abstract class DataReaderWriterProvider {
     /**
      * Fully-qualified name of default {@code DataReaderWriteProvider}.
      */
-    public static final String DEFAULT_READER_WRITER_PROVIDER = "jetbrains.exodus.io.FileDataReaderWriterProvider";
+    public static final String DEFAULT_READER_WRITER_PROVIDER = "jetbrains.exodus.io.AsyncFileDataReaderWriterProvider";
 
     /**
      * Fully-qualified name of read-only watching {@code DataReaderWriteProvider}.
