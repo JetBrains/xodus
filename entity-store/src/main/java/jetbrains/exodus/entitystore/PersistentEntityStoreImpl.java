@@ -589,6 +589,61 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         txn.closeCaches();
     }
 
+    public void ensureBlobsConsistency(final PersistentStoreTransaction txn) {
+        try (Cursor entityTypesCursor = entityTypes.getTable().getSecondIndexCursor(txn.getEnvironmentTransaction())) {
+            while (entityTypesCursor.getNext()) {
+                final int entityTypeId = IntegerBinding.compressedEntryToInt(entityTypesCursor.getKey());
+
+                var blobsTable = getBlobsTable(txn, entityTypeId);
+                var store = blobsTable.getPrimaryIndex();
+                var envTransaction = txn.getEnvironmentTransaction();
+
+                try (var blobCursor = store.openCursor(envTransaction)) {
+                    while (blobCursor.getNext()) {
+                        var blobIterable = blobCursor.getValue();
+                        var blobHandle = entryToBlobHandle(blobIterable);
+
+                        if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
+                            int counter = 0;
+                            final int sleepInterval = 50;
+                            final int counterMaxValue = config.getBlobMaxReadWaitingInterval() * 1000 / sleepInterval;
+
+                            while (true) {
+                                var blobLocation = blobVault.getBlobLocation(blobHandle);
+                                if (blobLocation.exists() && blobLocation.length() ==
+                                        getBlobFileLength(blobHandle, envTransaction).longValue()) {
+                                    break;
+                                }
+
+                                if (counter > counterMaxValue) {
+                                    if (!blobLocation.exists()) {
+                                        throw new ExodusException("Blob file " + blobLocation.getAbsolutePath() +
+                                                " does not exist in expected location.");
+                                    }
+
+                                    var expectedBlobLength = getBlobFileLength(blobHandle, envTransaction).longValue();
+                                    if (blobLocation.length() != expectedBlobLength) {
+                                        throw new ExodusException("Blob file " + blobLocation.getAbsolutePath() +
+                                                " expected length is " + expectedBlobLength + " but actual is " +
+                                                blobLocation.length());
+                                    }
+
+                                    break;
+                                }
+
+                                counter++;
+                                //noinspection BusyWait
+                                Thread.sleep(sleepInterval);
+                            }
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    throw new ExodusException("Store : " + getName() + " - Execution of thread was interrupted", e);
+                }
+            }
+        }
+    }
+
     @Override
     public void clear() {
         environment.clear();
@@ -1051,7 +1106,41 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (result != null) {
             return result;
         }
-        result = blobVault.getContent(blobHandle, txn.getEnvironmentTransaction());
+
+        var envTxn = txn.getEnvironmentTransaction();
+        var blobLength = getBlobFileLength(blobHandle, envTxn);
+
+        result = blobVault.getContent(blobHandle, envTxn, blobLength);
+
+        if (result == null) {
+            int counter = 0;
+
+            final int sleepInterval = 50;
+            final int counterMaxValue = config.getBlobMaxReadWaitingInterval() * 1000 / sleepInterval;
+
+            while (true) {
+                try {
+                    Thread.sleep(sleepInterval);
+                } catch (InterruptedException e) {
+                    throw new ExodusException("Store : " + getName() +
+                            " . Reading of blob content was interrupted.", e);
+                }
+                counter++;
+
+                result = blobVault.getContent(blobHandle, envTxn,
+                        blobLength);
+
+                if (result != null) {
+                    break;
+                }
+
+                if (counter >= counterMaxValue) {
+                    throw new ExodusException("Store : " + getName() + " data is broken. " +
+                            "Can not read blob with handle " + blobHandle);
+                }
+            }
+        }
+
         if (result == null && !readerWriterProvider.isReadonly()) {
             loggerWarn("Blob not found: " + blobVault.getBlobLocation(blobHandle), new FileNotFoundException());
         }
@@ -1081,7 +1170,41 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             try {
                 final InputStream stream = blobStream.getSecond();
                 if (stream == null) {
-                    return blobVault.getStringContent(blobHandle, txn.getEnvironmentTransaction());
+                    var envTxn = txn.getEnvironmentTransaction();
+                    var blobLength = getBlobFileLength(blobHandle, envTxn);
+
+                    var blobString = blobVault.getStringContent(blobHandle, envTxn,
+                            blobLength);
+
+                    if (blobString != null) {
+                        return blobString;
+                    }
+
+                    int counter = 0;
+                    final int sleepInterval = 50;
+                    final int counterMaxValue = config.getBlobMaxReadWaitingInterval() * 1000 / sleepInterval;
+
+                    while (true) {
+                        try {
+                            Thread.sleep(sleepInterval);
+                        } catch (InterruptedException e) {
+                            throw new ExodusException("Store : " + getName() +
+                                    " . Reading of blob content was interrupted.", e);
+                        }
+                        counter++;
+
+                        blobString = blobVault.getStringContent(blobHandle, envTxn,
+                                blobLength);
+
+                        if (blobString != null) {
+                            return blobString;
+                        }
+
+                        if (counter >= counterMaxValue) {
+                            throw new ExodusException("Store : " + getName() + " data is broken. " +
+                                    "Can not read blob with handle " + blobHandle);
+                        }
+                    }
                 }
                 result = UTFUtil.readUTF(stream);
             } catch (UTFDataFormatException e) {

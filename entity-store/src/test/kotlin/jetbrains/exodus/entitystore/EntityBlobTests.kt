@@ -233,7 +233,7 @@ class EntityBlobTests : EntityStoreTestBase() {
         }
         store.executeInReadonlyTransaction { txn ->
             txn as PersistentStoreTransaction
-            val content = store.blobVault.getContent(0, txn.environmentTransaction)
+            val content = store.blobVault.getContent(0, txn.environmentTransaction, null)
             assertNotNull(content)
             try {
                 content?.close()
@@ -244,7 +244,8 @@ class EntityBlobTests : EntityStoreTestBase() {
         store.clear()
         store.executeInReadonlyTransaction { txn ->
             assertNull(store.blobVault
-                .getContent(0, (txn as PersistentStoreTransaction).environmentTransaction))
+                .getContent(0, (txn as PersistentStoreTransaction).environmentTransaction,
+                    null))
         }
     }
 

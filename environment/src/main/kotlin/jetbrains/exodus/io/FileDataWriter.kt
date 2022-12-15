@@ -86,6 +86,9 @@ open class FileDataWriter @JvmOverloads constructor(
         return lockingManager.lock(timeout)
     }
 
+    fun lockFilePath() = lockingManager.lockFilePath()
+
+
     override fun release(): Boolean {
         return lockingManager.release()
     }

@@ -27,6 +27,7 @@ import jetbrains.exodus.core.dataStructures.ObjectCacheDecorator;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.execution.locks.Semaphore;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;

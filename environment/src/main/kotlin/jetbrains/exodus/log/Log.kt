@@ -29,6 +29,7 @@ import mu.KLogging
 import java.io.Closeable
 import java.util.concurrent.Semaphore
 import kotlin.experimental.xor
+import kotlin.text.StringBuilder
 
 class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
 
@@ -979,10 +980,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         if (!config.isLockIgnored) {
             val lockTimeout = config.lockTimeout
             if (!dataWriter.lock(lockTimeout)) {
-                throw ExodusException(
-                    "Can't acquire environment lock after " +
-                            lockTimeout + " ms.\n\n Lock owner info: \n" + dataWriter.lockInfo()
-                )
+                val exceptionMessage = StringBuilder()
+                exceptionMessage.append(
+                    "Can't acquire environment lock after "
+                ).append(lockTimeout).append(" ms.\n\n Lock owner info: \n").append(dataWriter.lockInfo())
+                if (dataWriter is FileDataWriter) {
+                    exceptionMessage.append("\n Lock file path: ").append(dataWriter.lockFilePath())
+                }
+                throw ExodusException(exceptionMessage.toString())
             }
         }
     }

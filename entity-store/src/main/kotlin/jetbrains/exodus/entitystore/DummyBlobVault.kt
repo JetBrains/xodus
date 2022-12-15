@@ -33,7 +33,11 @@ class DummyBlobVault(config: PersistentEntityStoreConfig) : BlobVault(config) {
 
     override fun getBackupStrategy() = throw NotImplementedError()
 
-    override fun getContent(blobHandle: Long, txn: Transaction) = throw NotImplementedError()
+    override fun getContent(
+        blobHandle: Long,
+        txn: Transaction,
+        expectedLength: Long?
+    ) = throw NotImplementedError()
 
     override fun getSize(blobHandle: Long, txn: Transaction) = throw NotImplementedError()
 
