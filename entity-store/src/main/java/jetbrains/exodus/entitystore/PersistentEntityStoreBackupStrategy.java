@@ -76,7 +76,9 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
             if (blobVault instanceof FileSystemBlobVault) {
                 lastUsedHandle = store.getSequence(txn,
                         PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn);
+                store.ensureBlobsConsistency(txn);
             }
+
         } finally {
             txn.abort();
         }
@@ -84,7 +86,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
     @Override
     public Iterable<VirtualFileDescriptor> getContents() {
-        return () -> new Iterator<VirtualFileDescriptor>() {
+        return () -> new Iterator<>() {
 
             private Iterator<VirtualFileDescriptor> filesIterator = environmentBackupStrategy.getContents().iterator();
             private boolean environmentListed = false;

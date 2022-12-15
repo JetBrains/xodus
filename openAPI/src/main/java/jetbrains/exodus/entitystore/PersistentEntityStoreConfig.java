@@ -39,7 +39,7 @@ import java.util.Map;
  *     final PersistentEntityStoreConfig config = new PersistentEntityStoreConfig().setBlobStringsCacheSize(4000).setCachingDisabled(true);
  *     final PersistentEntityStore store = PersistentEntityStores.newInstance(config, environment, "storeName");
  * </pre>
- *
+ * <p>
  * Some setting are mutable at runtime and some are immutable. Immutable at runtime settings can be changed, but they
  * won't take effect on the {@linkplain PersistentEntityStore} instance. Those settings are applicable only during
  * {@linkplain PersistentEntityStore} instance creation.
@@ -158,6 +158,22 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      */
     @Deprecated
     public static final String BLOB_STRINGS_CACHE_SIZE = "exodus.entityStore.blobStringsCacheSize";
+
+    /**
+     * In case of usage of file system for storing of blobs writing of blob's content is performed
+     * after the commit of metadata in Xodus environment. That implies delay between transaction acknowledge
+     * and real write of data which can cause situation when blob content can be incorrectly read in
+     * another thread. To avoid such situation blob content is checked before returning to the user.
+     * If content is incomplete thread will wait specified amount of time in seconds till blob content
+     * will be completely written by the transaction, otherwise exception will be thrown.
+     * <p>
+     * Default value: {@code 300}
+     *
+     * <p>Mutable at runtime: yes
+     *
+     * @since 3.0
+     */
+    public static final String BLOB_MAX_READ_WAITING_INTERVAL = "exodus.entityStore.maxReadWaitingInterval";
 
     /**
      * If is set to {@code true} then EntityIterableCache is not operable.
@@ -361,44 +377,45 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     @SuppressWarnings({"rawtypes", "unchecked"})
     public PersistentEntityStoreConfig(@NotNull final ConfigurationStrategy strategy) {
         super(new Pair[]{
-            new Pair(REFACTORING_SKIP_ALL, false),
-            new Pair(USE_INT_FOR_LOCAL_ID, false),
-            new Pair(REFACTORING_FORCE_ALL, false),
-            new Pair(REFACTORING_NULL_INDICES, false),
-            new Pair(REFACTORING_BLOB_NULL_INDICES, false),
-            new Pair(REFACTORING_HEAVY_LINKS, false),
-            new Pair(REFACTORING_HEAVY_PROPS, false),
-            new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
-            new Pair(REFACTORING_DEDUPLICATE_BLOBS_EVERY, 30),
-            new Pair(REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE, 10),
-            new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
-            new Pair(BLOB_STRINGS_CACHE_SHARED, true),
-            new Pair(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, 100000L),
-            new Pair(CACHING_DISABLED, false),
-            new Pair(REORDERING_DISABLED, false),
-            new Pair(EXPLAIN_ON, false),
-            new Pair(DEBUG_LINK_DATA_GETTER, false),
-            new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
-            new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
-            new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
-            new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
-            new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
-            new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
-            new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
-            new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
-            new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
-            new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
-            new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
-            new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
-            new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
-            new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
-            new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, 60000L),
-            new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
-            new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
-            new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
-            new Pair(GATHER_STATISTICS, true),
-            new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
-            new Pair(REPLICATOR, null)
+                new Pair(REFACTORING_SKIP_ALL, false),
+                new Pair(USE_INT_FOR_LOCAL_ID, false),
+                new Pair(REFACTORING_FORCE_ALL, false),
+                new Pair(REFACTORING_NULL_INDICES, false),
+                new Pair(REFACTORING_BLOB_NULL_INDICES, false),
+                new Pair(REFACTORING_HEAVY_LINKS, false),
+                new Pair(REFACTORING_HEAVY_PROPS, false),
+                new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
+                new Pair(REFACTORING_DEDUPLICATE_BLOBS_EVERY, 30),
+                new Pair(REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE, 10),
+                new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
+                new Pair(BLOB_STRINGS_CACHE_SHARED, true),
+                new Pair(BLOB_STRINGS_CACHE_MAX_VALUE_SIZE, 100000L),
+                new Pair(CACHING_DISABLED, false),
+                new Pair(REORDERING_DISABLED, false),
+                new Pair(EXPLAIN_ON, false),
+                new Pair(DEBUG_LINK_DATA_GETTER, false),
+                new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
+                new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
+                new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
+                new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
+                new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
+                new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
+                new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
+                new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
+                new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
+                new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
+                new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
+                new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
+                new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
+                new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
+                new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, 60000L),
+                new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
+                new Pair(TRANSACTION_LINKS_CACHE_SIZE, 1024),
+                new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
+                new Pair(GATHER_STATISTICS, true),
+                new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
+                new Pair(REPLICATOR, null),
+                new Pair(BLOB_MAX_READ_WAITING_INTERVAL, 300)
         }, strategy);
     }
 
@@ -511,6 +528,14 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     @Deprecated
     public int getBlobStringsCacheSize() {
         return (Integer) getSetting(BLOB_STRINGS_CACHE_SIZE);
+    }
+
+    public PersistentEntityStoreConfig setBlobMaxReadWaitingInterval(final int maxReadWaitingInterval) {
+        return setSetting(BLOB_MAX_READ_WAITING_INTERVAL, maxReadWaitingInterval);
+    }
+
+    public int getBlobMaxReadWaitingInterval() {
+        return ((Integer) getSetting(BLOB_MAX_READ_WAITING_INTERVAL)).intValue();
     }
 
     @Deprecated

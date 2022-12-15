@@ -129,6 +129,9 @@ internal class LockingManager internal constructor(private val dir: File, privat
         return File(dir, LOCK_FILE_NAME)
     }
 
+    fun lockFilePath() = getLockFile().absolutePath
+
+
     private fun throwFailedToLock(e: IOException): Boolean {
         if (usableSpace < 4096) {
             throw OutOfDiskSpaceException(e)
