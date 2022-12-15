@@ -53,7 +53,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     private static final int READ_BUFFER_SIZE = 0x4000;
     static final ByteArraySpinAllocator bufferAllocator = new ByteArraySpinAllocator(READ_BUFFER_SIZE);
     private static final BlobStringsCache.BlobStringsCacheCreator
-        stringContentCacheCreator = new BlobStringsCache.BlobStringsCacheCreator();
+            stringContentCacheCreator = new BlobStringsCache.BlobStringsCacheCreator();
     private static final IdGenerator identityGenerator = new IdGenerator();
 
     private final PersistentEntityStoreConfig config;
@@ -69,8 +69,8 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     protected BlobVault(@NotNull final PersistentEntityStoreConfig config) {
         this.config = config;
         stringContentCache = config.isBlobStringsCacheShared() ?
-            stringContentCacheCreator.getInstance() :
-            new BlobStringsCache.BlobStringsCacheCreator().getInstance();
+                stringContentCacheCreator.getInstance() :
+                new BlobStringsCache.BlobStringsCacheCreator().getInstance();
         vaultIdentity = identityGenerator.nextId();
     }
 
@@ -115,13 +115,17 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     /**
      * Returns binary content of blob identified by specified blob handle as {@linkplain InputStream}.
      *
-     * @param blobHandle blob handle
-     * @param txn        {@linkplain Transaction} instance
+     * @param blobHandle     blob handle
+     * @param txn            {@linkplain Transaction} instance
+     * @param expectedLength Expected size of content in bytes.
+     *                       If sizes do not match {@code null} will be returned.
+     *                       Can be {@code null} in such case content length verification will be bypassed.
      * @return binary content of blob as {@linkplain InputStream}
      * @see Entity#getBlob(String)
      */
     @Nullable
-    public abstract InputStream getContent(final long blobHandle, @NotNull final Transaction txn);
+    public abstract InputStream getContent(final long blobHandle, @NotNull final Transaction txn,
+                                           @Nullable Long expectedLength);
 
     /**
      * Returns size of blob identified by specified blob handle in bytes.
@@ -195,22 +199,21 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     /**
      * Returns string content of blob identified by specified blob handle. String contents cache is used.
      *
-     * @param blobHandle blob handle
-     * @param txn        {@linkplain Transaction} instance
+     * @param blobHandle        blob handle
+     * @param txn               {@linkplain Transaction} instance
+     * @param expectedRawLength Expected size of the blob in bytes.
+     *                          If sizes do not match {@code null} will be returned.
+     *                          Can be {@code null} in such case content length verification will be bypassed.
      * @return string content of blob identified by specified blob handle
      * @throws IOException if something went wrong
      */
     @Nullable
-    public final String getStringContent(final long blobHandle, @NotNull final Transaction txn) throws IOException {
+    public final String getStringContent(final long blobHandle, @NotNull final Transaction txn,
+                                         @Nullable Long expectedRawLength) throws IOException {
         String result;
         result = stringContentCache.tryKey(this, blobHandle);
         if (result == null) {
-            final InputStream content = getContent(blobHandle, txn);
-            if (content == null) {
-                if (logger.isWarnEnabled()) {
-                    logger.warn("Blob string not found: " + getBlobLocation(blobHandle), new FileNotFoundException());
-                }
-            }
+            final InputStream content = getContent(blobHandle, txn, expectedRawLength);
             result = content == null ? null : UTFUtil.readUTF(content);
             if (result != null && result.length() <= config.getBlobStringsCacheMaxValueSize()) {
                 if (stringContentCache.getObject(this, blobHandle) == null) {

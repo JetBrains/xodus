@@ -45,8 +45,12 @@ class EncryptedBlobVault(
         return decorated.getBlob(blobHandle)
     }
 
-    override fun getContent(blobHandle: Long, txn: Transaction): InputStream? {
-        return decorated.getContent(blobHandle, txn)?.run {
+    override fun getContent(
+        blobHandle: Long,
+        txn: Transaction,
+        expectedLength: Long?
+    ): InputStream? {
+        return decorated.getContent(blobHandle, txn, expectedLength)?.run {
             StreamCipherInputStream(this) {
                 newCipher(blobHandle)
             }
