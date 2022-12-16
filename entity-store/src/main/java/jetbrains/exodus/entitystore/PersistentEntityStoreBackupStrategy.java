@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -44,12 +44,21 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                 public long acceptFile(@NotNull final VirtualFileDescriptor file) {
                     //noinspection AccessStaticViaInstance
                     if (!file.hasContent() || file.getName().equals(fsBlobVault.VERSION_FILE)) {
+                        System.out.println("Vault: file " + file.getFile() +
+                                " is accepted. ");
                         return super.acceptFile(file);
                     }
                     final File f = file.getFile();
                     if (f != null && fsBlobVault.getBlobHandleByFile(f) > lastUsedHandle) {
+                        System.out.println("Vault: file " + file.getFile()+
+                                " is rejected. File handle : " +
+                                fsBlobVault.getBlobHandleByFile(file.getFile()));
                         return -1L;
                     }
+
+                    System.out.println("Vault: file " + file.getFile() +
+                            " is accepted. File handle : " +
+                            fsBlobVault.getBlobHandleByFile(file.getFile()));
                     return super.acceptFile(file);
                 }
             };

@@ -151,7 +151,7 @@ class BackupTests : EntityStoreTestBase() {
                 })
             }
         }
-        Thread.sleep(1000)
+
         val backupDir = TestUtil.createTempDir()
         try {
             val backup = CompressBackupUtil.backup(if (useBackupBean) BackupBean(store) else store,
