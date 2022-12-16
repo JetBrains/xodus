@@ -103,6 +103,10 @@ subprojects {
         testImplementation group: 'org.slf4j', name: 'slf4j-simple', version: "$slf4jVersion"
     }
 
+    test {
+        systemProperty "exodus.test.buildDir", project.buildDir
+    }
+
     // tests for most of sub-projects run with database encryption turned on
     if (!(project.name in ['benchmarks', 'compress', 'crypto', 'openAPI', 'samples', 'utils'])) {
         test {

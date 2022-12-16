@@ -48,8 +48,6 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                     }
                     final File f = file.getFile();
                     if (f != null && fsBlobVault.getBlobHandleByFile(f) > lastUsedHandle) {
-                        System.out.println("VaultBackup : file " + f + " handle " + fsBlobVault.getBlobHandleByFile(f)
-                                + " was rejected.");
                         return -1L;
                     }
                     return super.acceptFile(file);
@@ -80,8 +78,6 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                         PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn);
                 store.ensureBlobsConsistency(txn);
             }
-
-            System.out.println("Backup: last used handle - " + lastUsedHandle);
         } finally {
             txn.abort();
         }

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- * <p>
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p>
+ *
  * https://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class TestUtil {
 
@@ -53,7 +55,15 @@ public class TestUtil {
 
     public static File createTempDir() {
         try {
-            return Files.createTempDirectory("xodus-tests").toFile();
+            var buildDir = System.getProperty("exodus.test.buildDir");
+            var prefix = "xodus-tests";
+
+            if (buildDir != null) {
+                return Files.createTempDirectory(Paths.get(buildDir), prefix).toFile();
+            }
+
+            return Files.createTempDirectory(prefix).toFile();
+
         } catch (IOException e) {
             throw new IllegalStateException("Failed to create temporary directory");
         }
