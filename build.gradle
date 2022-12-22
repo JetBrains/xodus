@@ -185,6 +185,7 @@ subprojects {
         javadocJar {
             dependsOn dokkaJavadoc
             from dokkaJavadoc.outputDirectory
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         }
     }
 
@@ -209,6 +210,8 @@ subprojects {
                 }
                 publications {
                     mavenJava(MavenPublication) {
+                        artifactId = "xodus-${project.name}"
+                        from components.java
                         pom {
                             name = 'Xodus'
                             description = 'Xodus is pure Java transactional schema-less embedded database'
