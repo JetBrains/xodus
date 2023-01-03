@@ -44,21 +44,13 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                 public long acceptFile(@NotNull final VirtualFileDescriptor file) {
                     //noinspection AccessStaticViaInstance
                     if (!file.hasContent() || file.getName().equals(fsBlobVault.VERSION_FILE)) {
-                        System.out.println("Vault: file " + file.getFile() +
-                                " is accepted. ");
                         return super.acceptFile(file);
                     }
                     final File f = file.getFile();
                     if (f != null && fsBlobVault.getBlobHandleByFile(f) > lastUsedHandle) {
-                        System.out.println("Vault: file " + file.getFile()+
-                                " is rejected. File handle : " +
-                                fsBlobVault.getBlobHandleByFile(file.getFile()));
+
                         return -1L;
                     }
-
-                    System.out.println("Vault: file " + file.getFile() +
-                            " is accepted. File handle : " +
-                            fsBlobVault.getBlobHandleByFile(file.getFile()));
                     return super.acceptFile(file);
                 }
             };
@@ -86,6 +78,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
                 lastUsedHandle = store.getSequence(txn,
                         PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn);
                 store.ensureBlobsConsistency(txn);
+                ((FileSystemBlobVault)blobVault).addBlobHandleDeletionThreshold(lastUsedHandle);
             }
         } finally {
             txn.abort();
@@ -126,6 +119,11 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
     @Override
     public void afterBackup() throws Exception {
         store.getEnvironment().resumeGC();
+        final BlobVault blobVault = store.getBlobVault().getSourceVault();
+
+        if (blobVault instanceof FileSystemBlobVault) {
+            ((FileSystemBlobVault)blobVault).removeBlobHandleDeletionThreshold(lastUsedHandle);
+        }
 
         blobVaultBackupStrategy.afterBackup();
         environmentBackupStrategy.afterBackup();

@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVault {
@@ -56,6 +57,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     private final int version;
     @Nullable
     private VaultSizeFunctions sizeFunctions;
+
+    private final ConcurrentSkipListSet<Long> deferredBlobDeletionThreshold = new ConcurrentSkipListSet<>();
 
     /**
      * Blob size is calculated by inspecting directory files only on first request
@@ -107,6 +110,14 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 output.writeInt(expectedVersion);
             }
         }
+    }
+
+    public void addBlobHandleDeletionThreshold(final long blobHandle) {
+        deferredBlobDeletionThreshold.add(Long.valueOf(blobHandle));
+    }
+
+    public boolean removeBlobHandleDeletionThreshold(final long blobHandle) {
+        return deferredBlobDeletionThreshold.remove(Long.valueOf(blobHandle));
     }
 
     @Override
@@ -211,25 +222,9 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 copy.add(it.nextLong());
             }
             final Environment environment = txn.getEnvironment();
-            environment.executeTransactionSafeTask(() -> DeferredIO.getJobProcessor().queueIn(new Job() {
-                @Override
-                protected void execute() {
-                    final long[] blobHandles = copy.getInstantArray();
-                    for (int i = 0; i < copy.size(); ++i) {
-                        delete(blobHandles[i]);
-                    }
-                }
-
-                @Override
-                public String getName() {
-                    return "Delete obsolete blob files";
-                }
-
-                @Override
-                public String getGroup() {
-                    return environment.getLocation();
-                }
-            }, environment.getEnvironmentConfig().getGcFilesDeletionDelay()));
+            environment.executeTransactionSafeTask(() -> DeferredIO.getJobProcessor().queueIn(
+                    new DeleteDeferredBlobsJob(copy, environment),
+                    environment.getEnvironmentConfig().getGcFilesDeletionDelay()));
         }
     }
 
@@ -394,5 +389,62 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     private static boolean isEmptyDir(@NotNull final File dir) {
         final File[] files = dir.listFiles();
         return files != null && files.length == 0;
+    }
+
+    private final class DeleteDeferredBlobsJob extends Job {
+        private final LongArrayList copy;
+        private final Environment environment;
+
+        public DeleteDeferredBlobsJob(LongArrayList copy, Environment environment) {
+            this.copy = copy;
+            this.environment = environment;
+        }
+
+        @Override
+        protected void execute() {
+            final long[] blobHandles = copy.getInstantArray();
+            Long blobThreshold;
+
+            try {
+                blobThreshold = deferredBlobDeletionThreshold.first();
+            } catch (NoSuchElementException e) {
+                blobThreshold = null;
+            }
+
+            if (blobThreshold != null) {
+                final long thresholdHandle = blobThreshold.longValue();
+                final LongArrayList deferredBlobs = new LongArrayList();
+
+                for (int i = 0; i < copy.size(); ++i) {
+                    final long blobHandle = blobHandles[i];
+                    if (blobHandle <= thresholdHandle) {
+                        deferredBlobs.add(blobHandle);
+                    } else {
+                        delete(blobHandles[i]);
+                    }
+                }
+
+                if (!deferredBlobs.isEmpty()) {
+                    DeferredIO.getJobProcessor().queueIn(
+                            new DeleteDeferredBlobsJob(deferredBlobs, environment),
+                            environment.getEnvironmentConfig().getGcFilesDeletionDelay());
+                }
+            } else {
+                for (int i = 0; i < copy.size(); ++i) {
+                    delete(blobHandles[i]);
+                }
+            }
+
+        }
+
+        @Override
+        public String getName() {
+            return "Delete obsolete blob files";
+        }
+
+        @Override
+        public String getGroup() {
+            return environment.getLocation();
+        }
     }
 }
