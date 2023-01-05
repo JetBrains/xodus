@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2022 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,11 +32,17 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
     private final long end;
     private final BufferedInputStream stream;
 
+    private byte[] currentPage;
+    private int pageIndex;
+
+    private final int pageSize;
+
     public BlockDataIterator(Log log, Block block, long startAddress) {
         this.log = log;
         this.block = block;
         this.position = startAddress;
         this.end = block.getAddress() + block.length();
+        this.pageSize = log.getCachePageSize();
 
         final LogConfig config = log.getConfig();
 
@@ -55,13 +61,38 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
                     "DataIterator: no more bytes available", log, position);
         }
         try {
-            final byte[] result = new byte[1];
-            if (stream.read(result, 0, 1) < 1) {
+            if (currentPage != null) {
+                var result = currentPage[pageIndex];
+                pageIndex++;
+
+                position++;
+
+                if (pageIndex < pageSize) {
+                    return result;
+                }
+            }
+
+            int currentPageSize = (int) Math.min(end - position, pageSize);
+            final byte[] result = new byte[currentPageSize];
+
+            if (stream.read(result, 0, currentPageSize) < currentPageSize) {
                 DataCorruptionException.raise(
                         "DataIterator: no more bytes available", log, position);
             }
-            position++;
-            return result[0];
+
+            if (log.getFormatWithHashCodeIsUsed()) {
+                BufferedDataWriter.checkPageConsistency(
+                        position,
+                        result,
+                        pageSize,
+                        log
+                );
+            }
+
+            this.currentPage = result;
+            pageIndex = (int) (position & (pageSize - 1));
+
+            return next();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -78,7 +109,16 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
                 }
                 result += skipped;
             }
+
             position += result;
+            if (currentPage != null) {
+                pageIndex += result;
+
+                if (pageIndex >= currentPage.length) {
+                    currentPage = null;
+                }
+            }
+
             return result;
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -229,7 +229,7 @@ object Environments {
             }
         }
 
-        if (env.log.isClossedCorrectly) {
+        if (env.log.isClosedCorrectly) {
             if (env.log.formatWithHashCodeIsUsed) {
                 env.gc.utilizationProfile.load()
                 val rootAddress = env.metaTree.rootAddress()
