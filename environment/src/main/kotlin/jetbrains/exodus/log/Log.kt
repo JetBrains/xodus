@@ -31,6 +31,12 @@ import java.io.Closeable
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.util.Arrays
+import java.util.TreeMap
 import java.util.concurrent.Semaphore
 import kotlin.experimental.xor
 import kotlin.text.StringBuilder
@@ -140,7 +146,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             val fileLength = config.fileSize * 1024L
 
             val metadata = if (reader is FileDataReader) {
-                StartupMetadata.open(reader, rwIsReadonly)
+                StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion, fileLength)
             } else {
                 StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion, fileLength)
             }
@@ -194,22 +200,46 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
             var logWasChanged = false
 
+            formatWithHashCodeIsUsed = !needToPerformMigration
+
+            var tmpLeftovers = false
+            LogUtil.listTlcFiles(File(location)).use {
+                var count = 0
+
+                it.forEach { path ->
+                    Files.deleteIfExists(path)
+                    count++
+                }
+
+                if (count > 0) {
+                    logger.error(
+                        "Temporary files which are used during environment" +
+                                " auto-recovery have been found, typically it indicates that recovery routine finished " +
+                                "incorrectly, triggering database check."
+                    )
+                    tmpLeftovers = true
+                }
+            }
+
             if (!rwIsReadonly &&
-                (!startupMetadata.isCorrectlyClosed || needToPerformMigration) && reader is FileDataReader
+                (!startupMetadata.isCorrectlyClosed || needToPerformMigration || tmpLeftovers) && reader is FileDataReader
             ) {
                 logger.error(
-                    "Environment located at ${reader.location} has been closed incorrectly. " +
+                    "Environment located at $location has been closed incorrectly. " +
                             "Data check routine is started to assess data consistency ..."
                 )
 
-                val newRootAddress = checkLogConsistency(blockSetMutable)
+                val newRootAddress = checkLogConsistency(
+                    blockSetMutable,
+                    startupMetadata.rootAddress
+                )
 
                 if (newRootAddress != Long.MIN_VALUE) {
                     startupMetadata.rootAddress = newRootAddress
                     logWasChanged = true
                 }
 
-                logger.error("Data check is completed for environment ${reader.location}.")
+                logger.error("Data check is completed for environment ${location}.")
             } else {
                 val blockIterator = reader.blocks.iterator()
 
@@ -316,7 +346,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 logWasChanged = true
             }
 
-            formatWithHashCodeIsUsed = !needToPerformMigration
             nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
 
             if (logWasChanged) {
@@ -375,7 +404,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         return startupMetadata.rootAddress
     }
 
-    private fun checkLogConsistency(blockSetMutable: BlockSet.Mutable): Long {
+    private fun checkLogConsistency(blockSetMutable: BlockSet.Mutable, loadedDbRootAddress: Long): Long {
         val reader = this.reader as FileDataReader
 
         val blockIterator = reader.blocks.iterator()
@@ -387,19 +416,29 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             throw ExodusException("Clean log is expected")
         }
 
+        val blocks = TreeMap<Long, FileDataReader.FileBlock>()
+        while (blockIterator.hasNext()) {
+            val block = blockIterator.next()
+            blocks[block.address] = block as FileDataReader.FileBlock
+        }
+
         val clearInvalidLog = config.isClearInvalidLog
         var hasNext: Boolean
 
         var dbRootAddress = Long.MIN_VALUE
         var dbRootEndAddress = Long.MIN_VALUE
 
+        val fileBlockIterator = blocks.values.iterator()
         try {
             do {
-                val block = blockIterator.next()
+                val block = fileBlockIterator.next()
                 val address = block.address
+
+                logger.info("File ${LogUtil.getLogFilename(address)} is being verified.")
+
                 val blockLength = block.length()
                 // if it is not the last file and its size is not as expected
-                hasNext = blockIterator.hasNext()
+                hasNext = fileBlockIterator.hasNext()
 
                 if (blockLength > fileLengthBound || hasNext && blockLength != fileLengthBound) {
                     DataCorruptionException.raise(
@@ -418,32 +457,22 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                     )
                 }
 
-
-                val blockDataIterator = BlockDataIterator(this, block, address)
+                val blockDataIterator = BlockDataIterator(this, block, address, formatWithHashCodeIsUsed)
                 while (blockDataIterator.hasNext()) {
                     val loggableAddress = blockDataIterator.address
                     val loggableType = blockDataIterator.next() xor 0x80.toByte()
 
-                    if (loggableType < 0) {
-                        DataCorruptionException.raise("Loggable with negative type", this, loggableAddress)
+                    checkLoggableType(loggableType, loggableAddress)
+
+                    if (NullLoggable.isNullLoggable(loggableType)) {
+                        continue
                     }
 
                     val structureId = CompressedUnsignedLongByteIterable.getInt(blockDataIterator)
-                    if (structureId < 0) {
-                        DataCorruptionException.raise(
-                            "Loggable with negative structure id was encountered",
-                            this, loggableAddress
-                        )
-                    }
+                    checkStructureId(structureId, loggableAddress)
 
                     val dataLength = CompressedUnsignedLongByteIterable.getInt(blockDataIterator)
-                    if (dataLength < 0) {
-                        DataCorruptionException.raise(
-                            "Loggable with negative length was encountered",
-                            this, loggableAddress
-                        )
-                    }
-
+                    checkDataLength(dataLength, loggableAddress)
 
                     if (loggableType == DatabaseRoot.DATABASE_ROOT_TYPE) {
                         if (structureId != Loggable.NO_STRUCTURE_ID) {
@@ -468,6 +497,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                             dataAddress,
                             loggableData, 0, dataLength
                         )
+
                         val dbRoot = DatabaseRoot(rootLoggable)
                         if (dbRoot.isValid) {
                             dbRootAddress = loggableAddress
@@ -479,7 +509,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                             )
                         }
                     } else {
-                        blockDataIterator.skip(dataLength.toLong())
+                        for (i in 0 until dataLength) {
+                            blockDataIterator.next()
+                        }
                     }
                 }
 
@@ -491,26 +523,115 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                     logger.error("Data corruption was detected. Reason : ${dataCorruptionException.message} . Environment $location will be cleared.")
                     blockSetMutable.clear()
                     dataWriter.clear()
+
                     rwIsReadonly = false
                     return -1
                 }
 
-                logger.error(
-                    "Data corruption was detected. Reason : ${dataCorruptionException.message} . " +
-                            "Environment log $location will be truncated till address : $dbRootEndAddress ..."
-                )
+                if (dbRootEndAddress > 0) {
+                    logger.error(
+                        "Data corruption was detected. Reason : ${dataCorruptionException.message} . " +
+                                "Environment log $location will be truncated till address : $dbRootEndAddress ..."
+                    )
 
-                val endBlock = reader.getBlocks(dbRootEndAddress / fileLengthBound).iterator().next() as File
-                val endBlockLength = dbRootEndAddress % fileLengthBound
+                    val endBlockAddress = getFileAddress(dbRootEndAddress)
+                    val blocksToTruncateIterator = reader.getBlocks(endBlockAddress).iterator()
+                    val endBlock = blocksToTruncateIterator.next() as FileDataReader.FileBlock
 
-                try {
-                    RandomAccessFile(endBlock, "rw").use {
-                        it.setLength(endBlockLength)
-                        sync()
+                    var endBlockLength = dbRootEndAddress % fileLengthBound
+                    val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
+                    if (endBlockReminder > 0) {
+                        endBlockLength = endBlockLength - endBlockReminder + cachePageSize
                     }
-                } catch (e: IOException) {
-                    logger.error("Error during truncation of file ${endBlock.absolutePath}", e)
-                    throw ExodusException("Can not restored log corruption", dataCorruptionException)
+
+                    if (!endBlock.canWrite()) {
+                        if (!endBlock.setWritable(true)) {
+                            throw ExodusException(
+                                "Can not write into file " + endBlock.absolutePath,
+                                dataCorruptionException
+                            )
+                        }
+                    }
+
+                    logger.warn("File ${endBlock.absolutePath} is going to be truncated.")
+                    val endBlockBackupPath =
+                        Path.of(location).resolve(
+                            endBlock.name.substring(0, endBlock.name.length - LogUtil.LOG_FILE_EXTENSION_LENGTH) +
+                                    LogUtil.TMP_TRUNCATION_FILE_EXTENSION
+                        )
+
+                    try {
+                        Files.copy(Path.of(endBlock.toURI()), endBlockBackupPath, StandardCopyOption.REPLACE_EXISTING)
+
+                        RandomAccessFile(endBlockBackupPath.toFile(), "rw").use {
+                            if (endBlockReminder > 0) {
+                                val lastPage = ByteArray(cachePageSize)
+                                val position = dbRootEndAddress % fileLengthBound - endBlockReminder
+
+                                it.seek(position)
+
+                                it.read(lastPage, 0, endBlockReminder)
+                                Arrays.fill(lastPage, endBlockReminder, lastPage.size, 0x80.toByte())
+                                BufferedDataWriter.updateHashCode(lastPage)
+
+                                it.seek(position)
+                                it.write(lastPage)
+                            }
+
+                            it.setLength(endBlockLength)
+                            it.fd.sync()
+                        }
+
+                        try {
+                            Files.move(
+                                endBlockBackupPath, Path.of(endBlock.toURI()),
+                                StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE
+                            )
+                        } catch (moveNotSupported: AtomicMoveNotSupportedException) {
+                            logger.warn(
+                                "Environment: $location. " +
+                                        "Atomic move is not supported by the file system and can not be used during " +
+                                        "log restore. Falling back to the non-atomic move."
+                            )
+                            Files.move(
+                                endBlockBackupPath, Path.of(endBlock.toURI()),
+                                StandardCopyOption.REPLACE_EXISTING
+                            )
+                        }
+
+                        RandomAccessFile(endBlock, "rw").use {
+                            it.fd.sync()
+                        }
+                    } catch (e: IOException) {
+                        logger.error("Error during truncation of file ${endBlock.absolutePath}", e)
+                        throw ExodusException("Can not restored log corruption", dataCorruptionException)
+                    }
+
+                    blockSetMutable.add(endBlockAddress, endBlock)
+
+                    if (fileBlockIterator.hasNext()) {
+                        val blockToDelete = fileBlockIterator.next() as File
+                        if (!blockToDelete.canWrite()) {
+                            if (!blockToDelete.setWritable(true)) {
+                                throw ExodusException(
+                                    "Can not write into file " + blockToDelete.absolutePath,
+                                    dataCorruptionException
+                                )
+                            }
+                        }
+                        Files.deleteIfExists(Path.of(blockToDelete.toURI()))
+                    }
+                } else {
+                    logger.error(
+                        "Data corruption was detected. Reason : ${dataCorruptionException.message} . " +
+                                "Environment $location will be cleared."
+                    )
+
+                    blockSetMutable.clear()
+                    dataWriter.clear()
+
+                    rwIsReadonly = false
+                    return -1
                 }
 
                 rwIsReadonly = false
@@ -523,7 +644,46 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             }
         }
 
+        if (loadedDbRootAddress != dbRootAddress) {
+            logger.warn(
+                "DB root address stored in log metadata and detected are different. " +
+                        "Root address will be fixed. Stored address : $loadedDbRootAddress , detected  $dbRootAddress ."
+            )
+            return dbRootAddress
+        }
+
         return Long.MIN_VALUE
+    }
+
+    private fun checkDataLength(dataLength: Int, loggableAddress: Long) {
+        if (dataLength < 0) {
+            DataCorruptionException.raise(
+                "Loggable with negative length was encountered",
+                this, loggableAddress
+            )
+        }
+
+        if (dataLength > fileLengthBound) {
+            DataCorruptionException.raise(
+                "Loggable with length bigger than allowed value was discovered.",
+                this, loggableAddress
+            )
+        }
+    }
+
+    private fun checkStructureId(structureId: Int, loggableAddress: Long) {
+        if (structureId < 0) {
+            DataCorruptionException.raise(
+                "Loggable with negative structure id was encountered",
+                this, loggableAddress
+            )
+        }
+    }
+
+    private fun checkLoggableType(loggableType: Byte, loggableAddress: Long) {
+        if (loggableType < 0) {
+            DataCorruptionException.raise("Loggable with negative type", this, loggableAddress)
+        }
     }
 
 
@@ -691,8 +851,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     }
 
     private fun read(type: Byte, it: ByteIteratorWithAddress, address: Long): RandomAccessLoggable {
+        checkLoggableType(type, address)
+
         val structureId = CompressedUnsignedLongByteIterable.getInt(it)
+        checkStructureId(structureId, address)
+
         val dataLength = CompressedUnsignedLongByteIterable.getInt(it)
+        checkDataLength(dataLength, address)
+
         val dataAddress = it.address
 
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
@@ -1182,6 +1348,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     }
 
     companion object : KLogging() {
+
+
         private val identityGenerator = IdGenerator()
 
         @Volatile

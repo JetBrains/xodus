@@ -116,7 +116,9 @@ public final class StartupMetadata {
     }
 
     public static @Nullable StartupMetadata open(final FileDataReader reader,
-                                                 final boolean isReadOnly) throws IOException {
+                                                 final boolean isReadOnly, final int pageSize,
+                                                 final int environmentFormatVersion,
+                                                 final long fileLengthBoundary) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
         final Path firstFilePath = dbPath.resolve(FIRST_FILE_NAME);
         final Path secondFilePath = dbPath.resolve(SECOND_FILE_NAME);
@@ -187,6 +189,10 @@ public final class StartupMetadata {
         }
 
         if (content == null) {
+            final ByteBuffer updatedMetadata = serialize(1, environmentFormatVersion, -1,
+                    pageSize, fileLengthBoundary, false);
+            store(updatedMetadata, dbPath, useFirstFile);
+
             return null;
         }
 

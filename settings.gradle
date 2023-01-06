@@ -21,4 +21,5 @@ include 'utils',
         'samples',
         'sshd',
         'tools'
+include 'environment-crash-tests'
 

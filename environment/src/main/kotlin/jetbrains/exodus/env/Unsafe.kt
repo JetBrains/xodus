@@ -100,7 +100,7 @@ private fun tryUpdate(
     if (startAddress > lastBlockAddress + log.fileLengthBound) {
         throw IllegalStateException("Log truncated abnormally, aborting")
     }
-    val dataIterator = BlockDataIterator(log, lastBlock, startAddress)
+    val dataIterator = BlockDataIterator(log, lastBlock, startAddress, false)
     val loggables = LoggableIteratorUnsafe(log, dataIterator)
     val rootType = DatabaseRoot.DATABASE_ROOT_TYPE
     var lastRoot: DatabaseRoot? = null

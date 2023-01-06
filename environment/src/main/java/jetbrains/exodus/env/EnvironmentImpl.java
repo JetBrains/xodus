@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2023 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -772,7 +772,6 @@ public class EnvironmentImpl implements Environment {
                 up.setDirty(false);
             }
             initialHighAddress = log.beginWrite();
-            boolean writeConfirmed = false;
             try {
                 final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
                 final long updatedHighAddress;
@@ -786,7 +785,6 @@ public class EnvironmentImpl implements Environment {
                 final MetaTreeImpl.Proto proto = tree[0];
                 metaWriteLock.lock();
                 try {
-                    writeConfirmed = true;
                     resultingHighAddress = updatedHighAddress;
                     txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedHighAddress, proto));
                     txn.executeCommitHook();
@@ -795,13 +793,16 @@ public class EnvironmentImpl implements Environment {
                 }
                 // update txn profiler within commitLock
                 updateTxnProfiler(txn, initialHighAddress, resultingHighAddress);
-            } catch (Throwable t) { // pokemon exception handling to decrease try/catch block overhead
-                loggerError("Failed to flush transaction", t);
-                if (writeConfirmed) {
-                    throwableOnCommit = t; // inoperative on failing to read meta tree
-                    throw ExodusException.toExodusException(t, "Failed to read meta tree");
-                }
-                throw ExodusException.toExodusException(t, "Failed to flush transaction");
+            } catch (final Throwable t) {
+                final String errorMessage = "Failed to flush transaction. Please close and open environment " +
+                        "to trigger environment recovery routine";
+
+                loggerError(errorMessage, t);
+
+                log.switchToReadOnlyMode();
+                throwableOnCommit = t;
+
+                throw ExodusException.toExodusException(t, errorMessage);
             }
         }
         gc.fetchExpiredLoggables(expiredLoggables);

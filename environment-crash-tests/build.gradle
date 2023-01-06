@@ -1,4 +1,4 @@
 dependencies {
-    api project(':compress')
     testImplementation project(':utils').sourceSets.test.output
+    testImplementation project(':environment')
 }

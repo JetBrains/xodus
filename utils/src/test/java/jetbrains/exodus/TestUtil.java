@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2023 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,10 +21,10 @@ import org.junit.Assert;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class TestUtil {
-
-    private static final int TEMP_DIR_ATTEMPTS = 10000;
 
     private TestUtil() {
     }
@@ -52,19 +52,19 @@ public class TestUtil {
 
     // from Guava code
     public static File createTempDir() {
-        File baseDir = new File(System.getProperty("java.io.tmpdir"));
-        String baseName = System.currentTimeMillis() + "-";
-
-        for (int counter = 0; counter < TEMP_DIR_ATTEMPTS; counter++) {
-            File tempDir = new File(baseDir, baseName + counter);
-            if (tempDir.mkdir()) {
-                return tempDir;
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        try {
+            if (buildDir != null) {
+                return Files.createTempDirectory(Path.of(buildDir), "xodus-test").toFile();
             }
+
+            System.out.println("Build directory is not set !!!");
+            return Files.createTempDirectory("xodus-test").toFile();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-        throw new IllegalStateException("Failed to create directory within "
-                + TEMP_DIR_ATTEMPTS + " attempts (tried "
-                + baseName + "0 to " + baseName + (TEMP_DIR_ATTEMPTS - 1) + ')');
     }
+
 
     public static boolean streamsEqual(InputStream s1, InputStream s2) throws IOException {
         return streamsEqual(s1, s2, true);

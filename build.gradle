@@ -97,6 +97,7 @@ subprojects {
         implementation 'org.lz4:lz4-java:1.8.0'
         implementation "it.unimi.dsi:fastutil:8.5.9"
         implementation "org.jctools:jctools-core:$jcToolsVersion"
+        implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
 
 
         testImplementation group: 'junit', name: 'junit', version: "$junitVersion"
@@ -121,6 +122,7 @@ subprojects {
         }
     }
 
+
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'
     }
@@ -132,6 +134,7 @@ subprojects {
     }
 
     test {
+        systemProperty 'exodus.tests.buildDirectory', project.buildDir
         minHeapSize = '1g'
         maxHeapSize = '1g'
         jvmArgs = ['-ea'
