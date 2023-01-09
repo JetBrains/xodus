@@ -40,6 +40,7 @@ public class CrashTest {
 
         processBuilder.command(javaExec.toAbsolutePath().toString(),
                 "-cp", classPath,
+                "-Xmx1g",
                 "-Dexodus.cipherId=" + System.getProperty("exodus.cipherId"),
                 "-Dexodus.cipherKey=" + System.getProperty("exodus.cipherKey"),
                 "-Dexodus.cipherBasicIV=" + System.getProperty("exodus.cipherBasicIV"),
