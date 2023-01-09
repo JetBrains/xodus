@@ -218,9 +218,6 @@ public class CrashTest {
             }
 
             store.delete(txn, keyToDelete);
-
-            stores.remove(storeId);
-
             return true;
         }
 
