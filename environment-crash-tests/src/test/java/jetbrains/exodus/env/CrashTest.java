@@ -134,7 +134,7 @@ public class CrashTest {
                                 createStore(environment, txn, stores, storeIdGen[0]++);
                             } else if (operation < 0.0015 && environment.getAllStoreNames(txn).size() >= 100) {
                                 deleteStore(environment, txn, stores, contentRnd);
-                            } else if (operation < 0.5) {
+                            } else if (operation < 0.6) {
                                 addEntryToStore(environment, txn, stores, contentRnd);
                             } else if (operation < 0.7) {
                                 deleteEntryFromStore(environment, txn, stores, contentRnd);
