@@ -423,14 +423,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
         }
 
         logger.info("Files found in directory $location ...")
-
+        logger.info("------------------------------------------------------")
         val blockAddressIterator = blocks.keys.iterator()
         while (blockAddressIterator.hasNext()) {
             val address = blockAddressIterator.next()
             logger.info(LogUtil.getLogFilename(address))
         }
-
-
         logger.info("------------------------------------------------------")
 
         val clearInvalidLog = config.isClearInvalidLog
