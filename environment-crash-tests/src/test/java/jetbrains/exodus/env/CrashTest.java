@@ -126,20 +126,25 @@ public class CrashTest {
                     var operationsInTx = rnd.nextInt(100) + 1;
 
                     environment.executeInTransaction(txn -> {
-                        for (int i = 0; i < operationsInTx; i++) {
+                        for (int i = 0; i < operationsInTx; ) {
                             haltIssued[0] = checkHaltSignal(contentRnd, haltIssued[0], shutdownFile);
                             var operation = rnd.nextDouble();
 
-                            if (operation < 0.001 && stores.size() < 1_000) {
-                                createStore(environment, txn, stores, storeIdGen[0]++);
-                            } else if (operation < 0.0015 && stores.size() >= 100) {
-                                deleteStore(environment, txn, stores, contentRnd);
+                            var success = false;
+                            if (operation < 0.001) {
+                                success = createStore(environment, txn, stores, storeIdGen[0]++);
+                            } else if (operation < 0.0015) {
+                                success = deleteStore(environment, txn, stores, contentRnd);
                             } else if (operation < 0.5) {
-                                addEntryToStore(environment, txn, stores, contentRnd);
+                                success = addEntryToStore(environment, txn, stores, contentRnd);
                             } else if (operation < 0.7) {
-                                deleteEntryFromStore(environment, txn, stores, contentRnd);
+                                success = deleteEntryFromStore(environment, txn, stores, contentRnd);
                             } else {
-                                updateEntryInStore(environment, txn, stores, contentRnd);
+                                success = updateEntryInStore(environment, txn, stores, contentRnd);
+                            }
+
+                            if (success) {
+                                i++;
                             }
                         }
                     });
@@ -171,12 +176,12 @@ public class CrashTest {
         }
 
 
-        private static void updateEntryInStore(final Environment environment,
-                                               final Transaction txn,
-                                               final LongOpenHashSet stores,
-                                               final Random contentRnd) {
+        private static boolean updateEntryInStore(final Environment environment,
+                                                  final Transaction txn,
+                                                  final LongOpenHashSet stores,
+                                                  final Random contentRnd) {
             if (stores.isEmpty()) {
-                return;
+                return false;
             }
 
             final long storeId = choseRandomStore(stores, contentRnd);
@@ -184,7 +189,7 @@ public class CrashTest {
             var keyToUpdate = chooseRandomKey(txn, store, contentRnd);
 
             if (keyToUpdate == null) {
-                return;
+                return false;
             }
 
             final int valueSize = contentRnd.nextInt(1024) + 1;
@@ -193,13 +198,14 @@ public class CrashTest {
             contentRnd.nextBytes(value);
             store.put(txn, keyToUpdate, new ArrayByteIterable(value));
 
+            return true;
         }
 
-        private static void deleteEntryFromStore(final Environment environment, final Transaction txn,
-                                                 final LongOpenHashSet stores,
-                                                 final Random contentRnd) {
+        private static boolean deleteEntryFromStore(final Environment environment, final Transaction txn,
+                                                    final LongOpenHashSet stores,
+                                                    final Random contentRnd) {
             if (stores.isEmpty()) {
-                return;
+                return false;
             }
 
             final long storeId = choseRandomStore(stores, contentRnd);
@@ -208,13 +214,14 @@ public class CrashTest {
 
             ByteIterable keyToDelete = chooseRandomKey(txn, store, contentRnd);
             if (keyToDelete == null) {
-                return;
+                return false;
             }
 
             store.delete(txn, keyToDelete);
 
             stores.remove(storeId);
 
+            return true;
         }
 
         @Nullable
@@ -277,9 +284,9 @@ public class CrashTest {
             return first + contentRnd.nextInt(diff + 1);
         }
 
-        private static void addEntryToStore(final Environment environment, final Transaction txn, final LongOpenHashSet stores, final Random contentRnd) {
+        private static boolean addEntryToStore(final Environment environment, final Transaction txn, final LongOpenHashSet stores, final Random contentRnd) {
             if (stores.isEmpty()) {
-                return;
+                return false;
             }
 
             final int keySize = contentRnd.nextInt(64) + 1;
@@ -295,17 +302,21 @@ public class CrashTest {
 
             var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
             store.put(txn, new ArrayByteIterable(key), new ArrayByteIterable(value));
+
+            return true;
         }
 
-        private static void deleteStore(final Environment environment, final Transaction txn,
-                                        final LongOpenHashSet stores, Random contentRnd) {
-            if (stores.isEmpty()) {
-                return;
+        private static boolean deleteStore(final Environment environment, final Transaction txn,
+                                           final LongOpenHashSet stores, Random contentRnd) {
+            if (stores.size() <= 100) {
+                return false;
             }
 
             final long storeToRemove = choseRandomStore(stores, contentRnd);
             environment.removeStore(String.valueOf(storeToRemove), txn);
             stores.remove(storeToRemove);
+
+            return true;
         }
 
         private static long choseRandomStore(LongOpenHashSet stores, Random contentRnd) {
@@ -320,9 +331,14 @@ public class CrashTest {
             return storeId;
         }
 
-        private static void createStore(final Environment environment, Transaction txn, final LongOpenHashSet stores, final long storeId) {
+        private static boolean createStore(final Environment environment, Transaction txn, final LongOpenHashSet stores, final long storeId) {
+            if (stores.size() >= 1_000) {
+                return false;
+            }
+
             environment.openStore(String.valueOf(storeId), StoreConfig.WITHOUT_DUPLICATES, txn);
             stores.add(storeId);
+            return true;
         }
     }
 }
