@@ -10,17 +10,25 @@ import jetbrains.exodus.util.Random;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class SingleThreadCrashTest {
+public class CrashTest {
     @Test
-    public void simpleSingleThreadCrashTest() throws Exception {
+    public void crashTest() throws Exception {
+        //noinspection InfiniteLoopStatement
+        while (true) {
+            doCrashTest();
+        }
+    }
+
+    private static void doCrashTest() throws IOException, InterruptedException {
         var tmpDir = TestUtil.createTempDir();
         var dbDir = Files.createTempDirectory(Path.of(tmpDir.toURI()), "db");
 
         var javaHome = System.getProperty("java.home");
-        System.out.println(SingleThreadCrashTest.class.getSimpleName() + " : java home - " + javaHome +
+        System.out.println(CrashTest.class.getSimpleName() + " : java home - " + javaHome +
                 ", working directory - " + tmpDir.getAbsolutePath());
         var javaExec = Path.of(javaHome, "bin", "java");
 
@@ -28,21 +36,30 @@ public class SingleThreadCrashTest {
 
         var classPath = System.getProperty("java.class.path");
 
+        final long seed = System.nanoTime();
+        System.out.println(CrashTest.class.getSimpleName() + " runner seed : " + seed);
+
         processBuilder.command(javaExec.toAbsolutePath().toString(),
                 "-cp", classPath,
                 "-Dexodus.cipherId=" + System.getProperty("exodus.cipherId"),
                 "-Dexodus.cipherKey=" + System.getProperty("exodus.cipherKey"),
                 "-Dexodus.cipherBasicIV=" + System.getProperty("exodus.cipherBasicIV"),
-                SingleThreadCrashTest.CodeRunner.class.getName(),
+                CodeRunner.class.getName(),
                 dbDir.toAbsolutePath().toString(),
-                tmpDir.getAbsolutePath());
+                tmpDir.getAbsolutePath(),
+                String.valueOf(seed));
 
         processBuilder.inheritIO();
 
         var process = processBuilder.start();
 
+        final Random rnd = new Random(seed);
         System.out.println("Process started.");
-        Thread.sleep(300_000);
+        final long shutdownTime = rnd.nextInt(5 * 60 * 1_000) + 1_000;
+
+        System.out.printf("Time till application halt %,d  seconds.%n", Long.valueOf(shutdownTime / 1_000));
+        Thread.sleep(shutdownTime);
+
         System.out.println("Shutdown issued.");
 
         Files.createFile(Path.of(tmpDir.toURI()).resolve("shutdown"));
@@ -52,11 +69,16 @@ public class SingleThreadCrashTest {
         System.out.println("Checking the database. DB folder : " + dbDir.toAbsolutePath());
 
         final long start = System.nanoTime();
+        int entries;
+
         try (final Environment environment = Environments.newInstance(dbDir.toFile())) {
             final long end = System.nanoTime();
 
             System.out.printf("Open time %d ms %n", Long.valueOf((end - start) / 1_000_000));
-            environment.executeInReadonlyTransaction(txn -> {
+
+            entries = environment.computeInReadonlyTransaction(txn -> {
+                var entriesCount = 0;
+
                 var storeNames = environment.getAllStoreNames(txn);
                 System.out.printf("%d stores were found.%n", Integer.valueOf(storeNames.size()));
 
@@ -67,86 +89,60 @@ public class SingleThreadCrashTest {
                         while (cursor.getNext()) {
                             cursor.getKey();
                             cursor.getValue();
+                            entriesCount++;
                         }
                     }
                 }
-            });
+
+                return Integer.valueOf(entriesCount);
+            }).intValue();
         }
 
-        System.out.println("Database check is completed.");
+        System.out.printf("%,d entries were checked. Database check is completed.%n", Integer.valueOf(entries));
 
         IOUtil.deleteRecursively(tmpDir);
     }
 
     public static final class CodeRunner {
         public static void main(String[] args) {
-            long storeIdGen = 0;
+            final long[] storeIdGen = new long[1];
             final var stores = new LongOpenHashSet();
 
-            final long seed = System.nanoTime();
-
-            System.out.println(SingleThreadCrashTest.class.getSimpleName() + " runner seed : " + seed);
+            final long seed = Long.parseLong(args[2]);
 
             final Random rnd = new Random(seed);
             final Random contentRnd = new Random(seed);
 
             System.out.println("Environment will be opened at " + args[0]);
 
-            long operations = 0;
-            long storesCreated = 0;
-            long storesDeleted = 0;
-            long entitiesAdded = 0;
-            long entitiesUpdated = 0;
-            long entitiesDeleted = 0;
+            boolean[] haltIssued = new boolean[1];
 
             var shutdownFile = Path.of(args[1]).resolve("shutdown");
             try (final Environment environment = Environments.newInstance(args[0])) {
-                createStore(environment, stores, storeIdGen++);
-                storesCreated++;
-                operations++;
+                environment.executeInTransaction(txn -> createStore(environment, txn, stores, storeIdGen[0]++));
 
                 //noinspection InfiniteLoopStatement
                 while (true) {
-                    if (Files.exists(shutdownFile)) {
-                        Runtime.getRuntime().halt(-1);
-                    }
-                    var operation = rnd.nextDouble();
+                    var operationsInTx = rnd.nextInt(100) + 1;
 
-                    var success = false;
-                    if (operation < 0.001) {
-                        createStore(environment, stores, storeIdGen++);
-                        storesCreated++;
-                        operations++;
-                        success = true;
-                    } else if (operation < 0.0015) {
-                        if (deleteStore(environment, stores, contentRnd)) {
-                            storesDeleted++;
-                            operations++;
-                            success = true;
-                        }
-                    } else if (operation < 0.5) {
-                        if (addEntryToStore(environment, stores, contentRnd)) {
-                            entitiesAdded++;
-                            operations++;
-                            success = true;
-                        }
-                    } else if (operation < 0.7) {
-                        if (deleteEntryFromStore(environment, stores, contentRnd)) {
-                            entitiesDeleted++;
-                            operations++;
-                            success = true;
-                        }
-                    } else {
-                        if (updateEntryInStore(environment, stores, contentRnd)) {
-                            entitiesUpdated++;
-                            operations++;
-                            success = true;
-                        }
-                    }
+                    environment.executeInTransaction(txn -> {
+                        for (int i = 0; i < operationsInTx; i++) {
+                            haltIssued[0] = checkHaltSignal(rnd, haltIssued[0], shutdownFile);
+                            var operation = rnd.nextDouble();
 
-                    if (success && operations % 10_000 == 0) {
-                        printStats(operations, storesCreated, storesDeleted, entitiesAdded, entitiesUpdated, entitiesDeleted);
-                    }
+                            if (operation < 0.001 && environment.getAllStoreNames(txn).size() < 1_000) {
+                                createStore(environment, txn, stores, storeIdGen[0]++);
+                            } else if (operation < 0.0015 && environment.getAllStoreNames(txn).size() >= 100) {
+                                deleteStore(environment, txn, stores, contentRnd);
+                            } else if (operation < 0.5) {
+                                addEntryToStore(environment, txn, stores, contentRnd);
+                            } else if (operation < 0.7) {
+                                deleteEntryFromStore(environment, txn, stores, contentRnd);
+                            } else {
+                                updateEntryInStore(environment, txn, stores, contentRnd);
+                            }
+                        }
+                    });
                 }
             } catch (Exception e) {
                 e.printStackTrace(System.err);
@@ -154,59 +150,71 @@ public class SingleThreadCrashTest {
             }
         }
 
-        private static void printStats(long operations, long storesCreated, long storesDeleted, long entitiesAdded,
-                                       long entitiesUpdated, long entitiesDeleted) {
-            //noinspection AutoBoxing
-            System.out.printf("%,d operations were performed. Stores created : %,d ," +
-                            " stores deleted : %,d , entries deleted %,d , entries added %,d , entries updated %,d %n",
-                    operations, storesCreated, storesDeleted, entitiesDeleted, entitiesAdded, entitiesUpdated);
+        private static boolean checkHaltSignal(Random rnd, boolean haltIssued, Path shutdownFile) {
+            if (!haltIssued && Files.exists(shutdownFile)) {
+                var haltDelay = rnd.nextInt(10_000);
+                var haltThread = new Thread(() -> {
+                    try {
+                        Thread.sleep(haltDelay);
+                    } catch (InterruptedException e) {
+                        //ignore
+                    }
+
+                    Runtime.getRuntime().halt(1);
+                });
+
+                haltThread.start();
+
+                haltIssued = true;
+            }
+            return haltIssued;
         }
 
-        private static boolean updateEntryInStore(final Environment environment, final LongOpenHashSet stores,
-                                                  final Random contentRnd) {
+
+        private static void updateEntryInStore(final Environment environment,
+                                               final Transaction txn,
+                                               final LongOpenHashSet stores,
+                                               final Random contentRnd) {
             if (stores.isEmpty()) {
-                return false;
+                return;
             }
 
             final long storeId = choseRandomStore(stores, contentRnd);
-            environment.executeInTransaction(txn -> {
-                var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
-                var keyToUpdate = chooseRandomKey(txn, store, contentRnd);
+            var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
+            var keyToUpdate = chooseRandomKey(txn, store, contentRnd);
 
-                if (keyToUpdate == null) {
-                    return;
-                }
+            if (keyToUpdate == null) {
+                return;
+            }
 
-                final int valueSize = contentRnd.nextInt(1024) + 1;
-                var value = new byte[valueSize];
+            final int valueSize = contentRnd.nextInt(1024) + 1;
+            var value = new byte[valueSize];
 
-                contentRnd.nextBytes(value);
-                store.put(txn, keyToUpdate, new ArrayByteIterable(value));
-            });
+            contentRnd.nextBytes(value);
+            store.put(txn, keyToUpdate, new ArrayByteIterable(value));
 
-            return true;
         }
 
-        private static boolean deleteEntryFromStore(final Environment environment, final LongOpenHashSet stores,
-                                                    final Random contentRnd) {
+        private static void deleteEntryFromStore(final Environment environment, final Transaction txn,
+                                                 final LongOpenHashSet stores,
+                                                 final Random contentRnd) {
             if (stores.isEmpty()) {
-                return false;
+                return;
             }
 
             final long storeId = choseRandomStore(stores, contentRnd);
-            environment.executeInTransaction(txn -> {
-                var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
 
-                ByteIterable keyToDelete = chooseRandomKey(txn, store, contentRnd);
-                if (keyToDelete == null) {
-                    return;
-                }
+            var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
 
-                store.delete(txn, keyToDelete);
-            });
+            ByteIterable keyToDelete = chooseRandomKey(txn, store, contentRnd);
+            if (keyToDelete == null) {
+                return;
+            }
+
+            store.delete(txn, keyToDelete);
+
             stores.remove(storeId);
 
-            return true;
         }
 
         @Nullable
@@ -269,9 +277,9 @@ public class SingleThreadCrashTest {
             return first + contentRnd.nextInt(diff + 1);
         }
 
-        private static boolean addEntryToStore(final Environment environment, final LongOpenHashSet stores, final Random contentRnd) {
+        private static void addEntryToStore(final Environment environment, final Transaction txn, final LongOpenHashSet stores, final Random contentRnd) {
             if (stores.isEmpty()) {
-                return false;
+                return;
             }
 
             final int keySize = contentRnd.nextInt(64) + 1;
@@ -285,23 +293,21 @@ public class SingleThreadCrashTest {
 
             final long storeId = choseRandomStore(stores, contentRnd);
 
-            environment.executeInTransaction(txn -> {
-                var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
+            var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
+            if (store.count(txn) < 1_000_000) {
                 store.put(txn, new ArrayByteIterable(key), new ArrayByteIterable(value));
-            });
-
-            return true;
+            }
         }
 
-        private static boolean deleteStore(final Environment environment, final LongOpenHashSet stores, Random contentRnd) {
+        private static void deleteStore(final Environment environment, final Transaction txn,
+                                        final LongOpenHashSet stores, Random contentRnd) {
             if (stores.isEmpty()) {
-                return false;
+                return;
             }
 
             final long storeToRemove = choseRandomStore(stores, contentRnd);
-            environment.executeInTransaction(txn -> environment.removeStore(String.valueOf(storeToRemove), txn));
+            environment.removeStore(String.valueOf(storeToRemove), txn);
             stores.remove(storeToRemove);
-            return true;
         }
 
         private static long choseRandomStore(LongOpenHashSet stores, Random contentRnd) {
@@ -316,9 +322,8 @@ public class SingleThreadCrashTest {
             return storeId;
         }
 
-        private static void createStore(final Environment environment, final LongOpenHashSet stores, final long storeId) {
-            environment.executeInTransaction(tx ->
-                    environment.openStore(String.valueOf(storeId), StoreConfig.WITHOUT_DUPLICATES, tx));
+        private static void createStore(final Environment environment, Transaction txn, final LongOpenHashSet stores, final long storeId) {
+            environment.openStore(String.valueOf(storeId), StoreConfig.WITHOUT_DUPLICATES, txn);
             stores.add(storeId);
         }
     }
