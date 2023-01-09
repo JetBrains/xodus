@@ -55,7 +55,7 @@ public class CrashTest {
 
         final Random rnd = new Random(seed);
         System.out.println("Process started.");
-        final long shutdownTime = rnd.nextInt(5 * 60 * 1_000) + 1_000;
+        final long shutdownTime = rnd.nextInt(15 * 60 * 1_000) + 1_000;
 
         System.out.printf("Time till application halt %,d  seconds.%n", Long.valueOf(shutdownTime / 1_000));
         Thread.sleep(shutdownTime);
