@@ -1,6 +1,5 @@
 package jetbrains.exodus.env;
 
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 
@@ -60,7 +59,7 @@ public class CrashTest {
         System.out.printf("Time till application halt %,d  seconds.%n", Long.valueOf(shutdownTime / 1_000));
         Thread.sleep(shutdownTime);
 
-        System.out.println("Shutdown issued.");
+        System.out.println("Halt is issued.");
 
         Files.createFile(Path.of(tmpDir.toURI()).resolve("shutdown"));
         process.waitFor();
@@ -106,7 +105,6 @@ public class CrashTest {
     public static final class CodeRunner {
         public static void main(String[] args) {
             final long[] storeIdGen = new long[1];
-            final var stores = new LongOpenHashSet();
 
             final long seed = Long.parseLong(args[2]);
 
@@ -119,7 +117,7 @@ public class CrashTest {
 
             var shutdownFile = Path.of(args[1]).resolve("shutdown");
             try (final Environment environment = Environments.newInstance(args[0])) {
-                environment.executeInTransaction(txn -> createStore(environment, txn, stores, storeIdGen[0]++));
+                environment.executeInTransaction(txn -> createStore(environment, txn, storeIdGen[0]++));
 
                 //noinspection InfiniteLoopStatement
                 while (true) {
@@ -132,15 +130,15 @@ public class CrashTest {
 
                             var success = false;
                             if (operation < 0.001) {
-                                success = createStore(environment, txn, stores, storeIdGen[0]++);
+                                success = createStore(environment, txn, storeIdGen[0]++);
                             } else if (operation < 0.0015) {
-                                success = deleteStore(environment, txn, stores, contentRnd);
+                                success = deleteStore(environment, txn, contentRnd);
                             } else if (operation < 0.5) {
-                                success = addEntryToStore(environment, txn, stores, contentRnd);
+                                success = addEntryToStore(environment, txn, contentRnd);
                             } else if (operation < 0.7) {
-                                success = deleteEntryFromStore(environment, txn, stores, contentRnd);
+                                success = deleteEntryFromStore(environment, txn, contentRnd);
                             } else {
-                                success = updateEntryInStore(environment, txn, stores, contentRnd);
+                                success = updateEntryInStore(environment, txn, contentRnd);
                             }
 
                             if (success) {
@@ -178,14 +176,13 @@ public class CrashTest {
 
         private static boolean updateEntryInStore(final Environment environment,
                                                   final Transaction txn,
-                                                  final LongOpenHashSet stores,
                                                   final Random contentRnd) {
-            if (stores.isEmpty()) {
+            final String storeName = choseRandomStore(environment, txn, contentRnd);
+            if (storeName == null) {
                 return false;
             }
 
-            final long storeId = choseRandomStore(stores, contentRnd);
-            var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
+            var store = environment.openStore(storeName, StoreConfig.USE_EXISTING, txn);
             var keyToUpdate = chooseRandomKey(txn, store, contentRnd);
 
             if (keyToUpdate == null) {
@@ -202,15 +199,13 @@ public class CrashTest {
         }
 
         private static boolean deleteEntryFromStore(final Environment environment, final Transaction txn,
-                                                    final LongOpenHashSet stores,
                                                     final Random contentRnd) {
-            if (stores.isEmpty()) {
+            final String storeName = choseRandomStore(environment, txn, contentRnd);
+            if (storeName == null) {
                 return false;
             }
 
-            final long storeId = choseRandomStore(stores, contentRnd);
-
-            var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
+            var store = environment.openStore(storeName, StoreConfig.USE_EXISTING, txn);
 
             ByteIterable keyToDelete = chooseRandomKey(txn, store, contentRnd);
             if (keyToDelete == null) {
@@ -281,8 +276,9 @@ public class CrashTest {
             return first + contentRnd.nextInt(diff + 1);
         }
 
-        private static boolean addEntryToStore(final Environment environment, final Transaction txn, final LongOpenHashSet stores, final Random contentRnd) {
-            if (stores.isEmpty()) {
+        private static boolean addEntryToStore(final Environment environment, final Transaction txn, final Random contentRnd) {
+            final String storeName = choseRandomStore(environment, txn, contentRnd);
+            if (storeName == null) {
                 return false;
             }
 
@@ -295,46 +291,51 @@ public class CrashTest {
             contentRnd.nextBytes(key);
             contentRnd.nextBytes(value);
 
-            final long storeId = choseRandomStore(stores, contentRnd);
 
-            var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
+            var store = environment.openStore(storeName, StoreConfig.USE_EXISTING, txn);
             store.put(txn, new ArrayByteIterable(key), new ArrayByteIterable(value));
 
             return true;
         }
 
-        private static boolean deleteStore(final Environment environment, final Transaction txn,
-                                           final LongOpenHashSet stores, Random contentRnd) {
-            if (stores.size() <= 100) {
+        private static boolean deleteStore(final Environment environment, final Transaction txn, Random contentRnd) {
+            if (environment.getAllStoreNames(txn).size() <= 100) {
                 return false;
             }
 
-            final long storeToRemove = choseRandomStore(stores, contentRnd);
-            environment.removeStore(String.valueOf(storeToRemove), txn);
-            stores.remove(storeToRemove);
+            final String storeToRemove = choseRandomStore(environment, txn, contentRnd);
+            if (storeToRemove == null) {
+                return false;
+            }
+
+            environment.removeStore(storeToRemove, txn);
 
             return true;
         }
 
-        private static long choseRandomStore(LongOpenHashSet stores, Random contentRnd) {
-            final int storeIndex = contentRnd.nextInt(stores.size());
-            var storeIterator = stores.iterator();
-            long storeId = 0;
-
-            for (int i = 0; i <= storeIndex; i++) {
-                storeId = storeIterator.nextLong();
+        private static String choseRandomStore(final Environment environment, final Transaction txn, Random contentRnd) {
+            var stores = environment.getAllStoreNames(txn);
+            if (stores.isEmpty()) {
+                return null;
             }
 
-            return storeId;
+            final int storeIndex = contentRnd.nextInt(stores.size());
+            var storeIterator = stores.iterator();
+            String storeName = null;
+
+            for (int i = 0; i <= storeIndex; i++) {
+                storeName = storeIterator.next();
+            }
+
+            return storeName;
         }
 
-        private static boolean createStore(final Environment environment, Transaction txn, final LongOpenHashSet stores, final long storeId) {
-            if (stores.size() >= 1_000) {
+        private static boolean createStore(final Environment environment, Transaction txn, final long storeId) {
+            if (environment.getAllStoreNames(txn).size() >= 1_000) {
                 return false;
             }
 
             environment.openStore(String.valueOf(storeId), StoreConfig.WITHOUT_DUPLICATES, txn);
-            stores.add(storeId);
             return true;
         }
     }
