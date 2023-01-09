@@ -2,3 +2,7 @@ dependencies {
     testImplementation project(':utils').sourceSets.test.output
     testImplementation project(':environment')
 }
+
+test {
+    testLogging.showStandardStreams = true
+}
