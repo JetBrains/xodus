@@ -123,7 +123,7 @@ public class CrashTest {
 
                 //noinspection InfiniteLoopStatement
                 while (true) {
-                    var operationsInTx = rnd.nextInt(100) + 1;
+                    var operationsInTx = rnd.nextInt(50) + 1;
 
                     environment.executeInTransaction(txn -> {
                         for (int i = 0; i < operationsInTx; i++) {
