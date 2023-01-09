@@ -123,18 +123,18 @@ public class CrashTest {
 
                 //noinspection InfiniteLoopStatement
                 while (true) {
-                    var operationsInTx = rnd.nextInt(50) + 1;
+                    var operationsInTx = rnd.nextInt(100) + 1;
 
                     environment.executeInTransaction(txn -> {
                         for (int i = 0; i < operationsInTx; i++) {
                             haltIssued[0] = checkHaltSignal(contentRnd, haltIssued[0], shutdownFile);
                             var operation = rnd.nextDouble();
 
-                            if (operation < 0.001 && environment.getAllStoreNames(txn).size() < 1_000) {
+                            if (operation < 0.001 && stores.size() < 1_000) {
                                 createStore(environment, txn, stores, storeIdGen[0]++);
-                            } else if (operation < 0.0015 && environment.getAllStoreNames(txn).size() >= 100) {
+                            } else if (operation < 0.0015 && stores.size() >= 100) {
                                 deleteStore(environment, txn, stores, contentRnd);
-                            } else if (operation < 0.6) {
+                            } else if (operation < 0.5) {
                                 addEntryToStore(environment, txn, stores, contentRnd);
                             } else if (operation < 0.7) {
                                 deleteEntryFromStore(environment, txn, stores, contentRnd);
