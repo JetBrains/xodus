@@ -422,6 +422,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
             blocks[block.address] = block as FileDataReader.FileBlock
         }
 
+        logger.info("Files found in directory $location ...")
+        {
+            val fileBlockIterator = blocks.keys.iterator()
+            while (fileBlockIterator.hasNext()) {
+                val address = fileBlockIterator.next()
+                logger.info(LogUtil.getLogFilename(address))
+            }
+
+        }
+        logger.info("------------------------------------------------------")
+
         val clearInvalidLog = config.isClearInvalidLog
         var hasNext: Boolean
 
