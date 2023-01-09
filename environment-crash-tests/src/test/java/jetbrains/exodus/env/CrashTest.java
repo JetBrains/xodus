@@ -127,7 +127,7 @@ public class CrashTest {
 
                     environment.executeInTransaction(txn -> {
                         for (int i = 0; i < operationsInTx; i++) {
-                            haltIssued[0] = checkHaltSignal(rnd, haltIssued[0], shutdownFile);
+                            haltIssued[0] = checkHaltSignal(contentRnd, haltIssued[0], shutdownFile);
                             var operation = rnd.nextDouble();
 
                             if (operation < 0.001 && environment.getAllStoreNames(txn).size() < 1_000) {
@@ -294,9 +294,7 @@ public class CrashTest {
             final long storeId = choseRandomStore(stores, contentRnd);
 
             var store = environment.openStore(String.valueOf(storeId), StoreConfig.USE_EXISTING, txn);
-            if (store.count(txn) < 1_000_000) {
-                store.put(txn, new ArrayByteIterable(key), new ArrayByteIterable(value));
-            }
+            store.put(txn, new ArrayByteIterable(key), new ArrayByteIterable(value));
         }
 
         private static void deleteStore(final Environment environment, final Transaction txn,
