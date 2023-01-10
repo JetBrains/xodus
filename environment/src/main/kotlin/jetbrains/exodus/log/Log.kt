@@ -237,6 +237,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 if (newRootAddress != Long.MIN_VALUE) {
                     startupMetadata.rootAddress = newRootAddress
                     logWasChanged = true
+                    SharedOpenFilesCache.invalidate()
                 }
 
                 logger.error("Data check is completed for environment ${location}.")
@@ -449,7 +450,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
                 // if it is not the last file and its size is not as expected
                 hasNext = fileBlockIterator.hasNext()
 
-                if (blockLength > fileLengthBound || hasNext && blockLength != fileLengthBound) {
+                if (blockLength > fileLengthBound || hasNext && blockLength != fileLengthBound || blockLength == 0L) {
                     DataCorruptionException.raise(
                         "Unexpected file length. " +
                                 "Expected length : $fileLengthBound, actual file length : $blockLength .", this,

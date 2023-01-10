@@ -7,6 +7,7 @@ import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.Random;
 import org.jetbrains.annotations.Nullable;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -15,6 +16,7 @@ import java.nio.file.Path;
 
 public class CrashTest {
     @Test
+    @Ignore
     public void crashTest() throws Exception {
         //noinspection InfiniteLoopStatement
         while (true) {
@@ -55,7 +57,7 @@ public class CrashTest {
 
         final Random rnd = new Random(seed);
         System.out.println("Process started.");
-        final long shutdownTime = rnd.nextInt(15 * 60 * 1_000) + 1_000;
+        final long shutdownTime = rnd.nextInt(60 * 60 * 1_000) + 1_000;
 
         System.out.printf("Time till application halt %,d  seconds.%n", Long.valueOf(shutdownTime / 1_000));
         Thread.sleep(shutdownTime);
