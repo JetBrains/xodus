@@ -31,7 +31,6 @@ import java.nio.file.Path;
 
 public class CrashTest {
     @Test
-    @Ignore
     public void crashTest() throws Exception {
         //noinspection InfiniteLoopStatement
         while (true) {
