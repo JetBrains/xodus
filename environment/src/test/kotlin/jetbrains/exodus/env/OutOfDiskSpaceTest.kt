@@ -30,7 +30,7 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
     @Test
     @TestFor(issue = "XD-733")
     fun `emulate out of disk space`() {
-        val (store0, store1) = prepareStores()
+        var (store0, store1) = prepareStores()
 
         val highAddress = log.highAddress
         for (l in highAddress * 2 downTo highAddress) {
@@ -46,7 +46,19 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
                     }
                 }
             } catch (e: ExodusException) {
+                //ignore
             }
+
+            reopenEnvironment()
+
+            store0 = env.computeInTransaction { txn ->
+                env.openStore("store0", StoreConfig.WITHOUT_DUPLICATES, txn)
+            }
+
+            store1 = env.computeInTransaction { txn ->
+                env.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn)
+            }
+
             env.log.setLogTestConfig(null)
             env.executeInTransaction { txn ->
                 store0.put(txn, StringBinding.stringToEntry(" "), ArrayByteIterable(ByteArray(4)))
@@ -61,7 +73,8 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
     @Test
     @TestFor(issue = "XD-733")
     fun `too big loggable`() {
-        val (store0, store1) = prepareStores()
+        var store0 = prepareStores().first
+
         println(env.log.highAddress)
         for (i in 0 until 10) {
             try {
@@ -69,13 +82,27 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
                     store0.put(txn, StringBinding.stringToEntry(" "), ArrayByteIterable(ByteArray(1024)))
                 }
             } catch (e: TooBigLoggableException) {
+                reopenEnvironment()
+
+                store0 = env.computeInTransaction { txn ->
+                    env.openStore("store0", StoreConfig.WITHOUT_DUPLICATES, txn)
+                }
+
+                val store1 = env.computeInTransaction { txn ->
+                    env.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn)
+                }
+
                 assert(store0, store1)
+
                 env.executeInTransaction { txn ->
                     store0.put(txn, StringBinding.stringToEntry(" "), ArrayByteIterable(ByteArray(128)))
                 }
                 assert(store0, store1)
                 env.executeInTransaction { txn ->
-                    Assert.assertEquals(ArrayByteIterable(ByteArray(128)), store0[txn, StringBinding.stringToEntry(" ")])
+                    Assert.assertEquals(
+                        ArrayByteIterable(ByteArray(128)),
+                        store0[txn, StringBinding.stringToEntry(" ")]
+                    )
                 }
                 println(env.log.highAddress)
                 continue
@@ -107,10 +134,16 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
     private fun assert(store0: Store, store1: Store) {
         for (i in 0..9) {
             env.executeInTransaction { txn ->
-                Assert.assertEquals(StringBinding.stringToEntry(i.toString()), store0[txn, IntegerBinding.intToEntry(i)])
+                Assert.assertEquals(
+                    StringBinding.stringToEntry(i.toString()),
+                    store0[txn, IntegerBinding.intToEntry(i)]
+                )
             }
             env.executeInTransaction { txn ->
-                Assert.assertEquals(IntegerBinding.intToEntry(i), store1[txn, StringBinding.stringToEntry(i.toString())])
+                Assert.assertEquals(
+                    IntegerBinding.intToEntry(i),
+                    store1[txn, StringBinding.stringToEntry(i.toString())]
+                )
             }
         }
     }

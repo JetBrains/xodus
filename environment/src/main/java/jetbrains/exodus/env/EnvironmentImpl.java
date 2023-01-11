@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2023 JetBrains s.r.o.
- * <p>
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p>
+ *
  * https://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -123,78 +123,84 @@ public class EnvironmentImpl implements Environment {
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
-        this.log = log;
-        this.ec = ec;
-        final String logLocation = log.getLocation();
-        applyEnvironmentSettings(logLocation, ec);
+        try {
+            this.log = log;
+            this.ec = ec;
+            final String logLocation = log.getLocation();
+            applyEnvironmentSettings(logLocation, ec);
 
-        checkStorageType(logLocation, ec);
+            checkStorageType(logLocation, ec);
 
-        final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
-        assert readerWriterProvider != null;
-        readerWriterProvider.onEnvironmentCreated(this);
+            final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
+            assert readerWriterProvider != null;
+            readerWriterProvider.onEnvironmentCreated(this);
 
-        final Pair<MetaTreeImpl, Integer> meta;
-        synchronized (commitLock) {
-            meta = MetaTreeImpl.create(this);
-        }
-        metaTree = meta.getFirst();
-        structureId = new AtomicInteger(meta.getSecond().intValue());
-        txns = new TransactionSet();
-        txnSafeTasks = new LinkedList<>();
-        invalidateStoreGetCache();
-        envSettingsListener = new EnvironmentSettingsListener();
-        ec.addChangedSettingsListener(envSettingsListener);
-
-        gc = new GarbageCollector(this);
-
-        ReentrantReadWriteLock metaLock = new ReentrantReadWriteLock();
-        metaReadLock = metaLock.readLock();
-        metaWriteLock = metaLock.writeLock();
-
-        txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
-
-        statistics = new EnvironmentStatistics(this);
-        txnProfiler = ec.getProfilerEnabled() ? new TxnProfiler() : null;
-        final jetbrains.exodus.env.management.EnvironmentConfig configMBean =
-                ec.isManagementEnabled() ? createConfigMBean(this) : null;
-        if (configMBean != null) {
-            this.configMBean = configMBean;
-            // if we don't gather statistics then we should not expose corresponding managed bean
-            statisticsMBean = ec.getEnvGatherStatistics() ? new jetbrains.exodus.env.management.EnvironmentStatistics(this) : null;
-            profilerMBean = txnProfiler == null ? null : new DatabaseProfiler(this);
-        } else {
-            this.configMBean = null;
-            statisticsMBean = null;
-            profilerMBean = null;
-        }
-
-        throwableOnCommit = null;
-        throwableOnClose = null;
-
-        stuckTxnMonitor = (transactionTimeout() > 0 || transactionExpirationTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
-
-        final LogConfig logConfig = log.getConfig();
-        streamCipherProvider = logConfig.getCipherProvider();
-        cipherKey = logConfig.getCipherKey();
-        cipherBasicIV = logConfig.getCipherBasicIV();
-
-        if (!isReadOnly()) {
-            syncTask = SyncIO.scheduleSyncLoop(this);
-        } else {
-            syncTask = null;
-        }
-
-
-        loggerInfo("Exodus environment created: " + logLocation);
-
-        if (!log.getFormatWithHashCodeIsUsed()) {
-            if (isReadOnly()) {
-                throw new ExodusException("Environment " + logLocation +
-                        " uses out of dated binary format but can not be migrated because " +
-                        "is opened in read-only mode.");
-
+            final Pair<MetaTreeImpl, Integer> meta;
+            synchronized (commitLock) {
+                meta = MetaTreeImpl.create(this);
             }
+            metaTree = meta.getFirst();
+            structureId = new AtomicInteger(meta.getSecond().intValue());
+            txns = new TransactionSet();
+            txnSafeTasks = new LinkedList<>();
+            invalidateStoreGetCache();
+            envSettingsListener = new EnvironmentSettingsListener();
+            ec.addChangedSettingsListener(envSettingsListener);
+
+            gc = new GarbageCollector(this);
+
+            ReentrantReadWriteLock metaLock = new ReentrantReadWriteLock();
+            metaReadLock = metaLock.readLock();
+            metaWriteLock = metaLock.writeLock();
+
+            txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
+
+            statistics = new EnvironmentStatistics(this);
+            txnProfiler = ec.getProfilerEnabled() ? new TxnProfiler() : null;
+            final jetbrains.exodus.env.management.EnvironmentConfig configMBean =
+                    ec.isManagementEnabled() ? createConfigMBean(this) : null;
+            if (configMBean != null) {
+                this.configMBean = configMBean;
+                // if we don't gather statistics then we should not expose corresponding managed bean
+                statisticsMBean = ec.getEnvGatherStatistics() ? new jetbrains.exodus.env.management.EnvironmentStatistics(this) : null;
+                profilerMBean = txnProfiler == null ? null : new DatabaseProfiler(this);
+            } else {
+                this.configMBean = null;
+                statisticsMBean = null;
+                profilerMBean = null;
+            }
+
+            throwableOnCommit = null;
+            throwableOnClose = null;
+
+            stuckTxnMonitor = (transactionTimeout() > 0 || transactionExpirationTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
+
+            final LogConfig logConfig = log.getConfig();
+            streamCipherProvider = logConfig.getCipherProvider();
+            cipherKey = logConfig.getCipherKey();
+            cipherBasicIV = logConfig.getCipherBasicIV();
+
+            if (!isReadOnly()) {
+                syncTask = SyncIO.scheduleSyncLoop(this);
+            } else {
+                syncTask = null;
+            }
+
+
+            loggerInfo("Exodus environment created: " + logLocation);
+
+            if (!log.getFormatWithHashCodeIsUsed()) {
+                if (isReadOnly()) {
+                    throw new ExodusException("Environment " + logLocation +
+                            " uses out of dated binary format but can not be migrated because " +
+                            "is opened in read-only mode.");
+
+                }
+            }
+        } catch (Exception e) {
+            log.switchToReadOnlyMode();
+            log.release();
+            throw e;
         }
     }
 
@@ -486,8 +492,9 @@ public class EnvironmentImpl implements Environment {
                     } finally {
                         metaReadLock.unlock();
                     }
+                }
 
-                    assert syncTask != null;
+                if (syncTask != null) {
                     syncTask.cancel(false);
                 }
 

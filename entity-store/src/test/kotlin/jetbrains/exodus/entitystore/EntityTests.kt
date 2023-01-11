@@ -659,10 +659,6 @@ class EntityTests : EntityStoreTestBase() {
                         true
                     }
                     Assert.assertTrue(wasTooBig)
-                    store.executeInTransaction {
-                        Assert.assertEquals("value", issue.getProperty("p1"))
-                        Assert.assertEquals("value", issue.getProperty("p2"))
-                    }
                 }
             }
         } finally {

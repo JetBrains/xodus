@@ -307,7 +307,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             env.getLog().setLogTestConfig(null);
             AbstractConfig.suppressConfigChangeListenersForThread();
             try {
-                ec.setEnvIsReadonly(true);
                 reopenEnvironment();
             } finally {
                 AbstractConfig.resumeConfigChangeListenersForThread();

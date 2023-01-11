@@ -137,9 +137,10 @@ subprojects {
         systemProperty 'exodus.tests.buildDirectory', project.buildDir
         minHeapSize = '1g'
         maxHeapSize = '1g'
-        jvmArgs = ['-ea'
+        jvmArgs = ['-ea', '-XX:+HeapDumpOnOutOfMemoryError'
                    //, '-Dexodus.log.cache.useSoftReferences=true'
                    //, '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=2808'
+
         ]
         //testLogging.showStandardStreams = true
     }

@@ -48,7 +48,7 @@ open class Memory {
         }
     }
 
-    internal fun removeBlock(blockAddress: Long): Boolean {
+    fun removeBlock(blockAddress: Long): Boolean {
         val removed = data.synchronized {
             remove(blockAddress)
         }
@@ -137,6 +137,13 @@ open class Memory {
                 data = ByteArray(newCapacity)
                 System.arraycopy(oldData, 0, data, 0, oldCapacity)
             }
+        }
+
+        fun truncate(newSize: Int) {
+            if (newSize < 0) {
+                throw IllegalArgumentException("Invalid size of the block $newSize")
+            }
+            this.size = newSize
         }
     }
 }
