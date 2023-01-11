@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.log.DataCorruptionException
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import org.junit.After
@@ -34,7 +35,7 @@ import org.junit.Test
 import java.io.File
 
 private const val ENTRIES = 1000
-private val expectedException = InvalidCipherParametersException::class.java
+private val expectedException = DataCorruptionException::class.java
 
 @Suppress("DEPRECATION")
 class InvalidCipherParametersTest {

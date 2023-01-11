@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,11 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 @SuppressWarnings("WeakerAccess")
 public final class LogUtil {
@@ -33,8 +38,17 @@ public final class LogUtil {
     public static final int LOG_FILE_NAME_WITH_EXT_LENGTH = LOG_FILE_NAME_LENGTH + LOG_FILE_EXTENSION_LENGTH;
     public static final String LOG_FILE_EXTENSION = ".xd";
 
+    public static final String TMP_TRUNCATION_FILE_EXTENSION = ".tnc";
+    public static final int TMP_TRUNCATION_FILE_WITH_EXT_LENGTH = LOG_FILE_EXTENSION_LENGTH +
+            TMP_TRUNCATION_FILE_EXTENSION.length();
+
+
     public static final FilenameFilter LOG_FILE_NAME_FILTER = (dir, name) -> name.length() == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH &&
             name.endsWith(LogUtil.LOG_FILE_EXTENSION);
+
+    public static final Predicate<Path> TMP_TRUNCATION_FILE_NAME_FILTER =
+            path -> path.getFileName().toString().length() == LogUtil.TMP_TRUNCATION_FILE_WITH_EXT_LENGTH &&
+                    path.endsWith(LogUtil.TMP_TRUNCATION_FILE_EXTENSION);
 
     public static final FilenameFilter LOG_METADATA_FILE_NAME_FILTER = (dir, name) ->
             name.equals(StartupMetadata.FIRST_FILE_NAME) || name.equals(StartupMetadata.SECOND_FILE_NAME);
@@ -51,7 +65,7 @@ public final class LogUtil {
         ALPHA_INDEXES = new IntHashMap<>();
         final char[] alphabet = LOG_FILE_NAME_ALPHABET;
         for (int i = 0; i < alphabet.length; ++i) {
-            ALPHA_INDEXES.put(alphabet[i], i);
+            ALPHA_INDEXES.put(alphabet[i], Integer.valueOf(i));
         }
     }
 
@@ -84,7 +98,7 @@ public final class LogUtil {
             if (integer == null) {
                 throw new ExodusException("Invalid log file name: " + logFilename);
             }
-            address = (address << 5) + integer;
+            address = (address << 5) + integer.longValue();
         }
         return address * LOG_BLOCK_ALIGNMENT;
     }
@@ -106,6 +120,12 @@ public final class LogUtil {
     @NotNull
     public static File[] listFiles(@NotNull final File directory) {
         return IOUtil.listFiles(directory, LOG_FILE_NAME_FILTER);
+    }
+
+    @NotNull
+    public static Stream<Path> listTlcFiles(@NotNull final File directory) throws IOException  {
+        //noinspection resource
+        return Files.list(Path.of(directory.toURI())).filter(TMP_TRUNCATION_FILE_NAME_FILTER);
     }
 
     @NotNull

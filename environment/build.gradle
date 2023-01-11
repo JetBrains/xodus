@@ -2,12 +2,3 @@ dependencies {
     api project(':compress')
     testImplementation project(':utils').sourceSets.test.output
 }
-
-task migrationTest(type: JavaExec) {
-    dependsOn classes
-    group = "execution"
-    description = "Runs tests which migrates database to new format"
-    classpath = sourceSets.test.runtimeClasspath
-    main = "jetbrains.exodus.MigrationTest"
-    jvmArgs '-Xmx16g'
-}

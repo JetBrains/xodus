@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -195,7 +195,7 @@ abstract class ExodusLuceneTestsBase : EnvironmentTestsBase() {
                         "in 2019.[58]\n" +
                         "A new \"sabrelet\" winglet, helping takeoff and landing performance and delivering 3% better fuel burn, " +
                         "will be standard and available for retrofit.[58] Designed with CFD tools by Sukhoi and TsAGI, the " +
-                        "“saberlets” debuted flight tests on 21 December 2017. They should improve hot and high airport " +
+                        "“saberlets�? debuted flight tests on 21 December 2017. They should improve hot and high airport " +
                         "performance and cut costs up to $70,000 per year. Parts of the wing are reinforced for the aerodynamic " +
                         "loads distribution change. " +
                         "settings java.lang.NullPointerException " +

@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,8 @@ final class MetaTreeImpl implements MetaTree {
         if (highAddress > EMPTY_LOG_BOUND) {
             Loggable rootLoggable;
             final long rootAddress = log.getStartUpDbRoot();
-            if (log.isClossedCorrectly() && rootAddress >= 0) {
+
+            if (rootAddress >= 0) {
                 rootLoggable = log.read(rootAddress);
             } else {
                 rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
