@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import mu.KLogging
 
-open class MemoryDataReader(private val memory: Memory) : DataReader, KLogging() {
+open class MemoryDataReader(val memory: Memory) : DataReader, KLogging() {
 
     private val memoryBlocks get() = memory.allBlocks.asSequence()
 
@@ -43,7 +43,7 @@ open class MemoryDataReader(private val memory: Memory) : DataReader, KLogging()
 
     override fun getLocation() = memory.toString()
 
-    private class MemoryBlock constructor(private val data: Memory.Block) : Block {
+    class MemoryBlock internal constructor(private val data: Memory.Block) : Block {
 
         override fun getAddress(): Long {
             return data.address
@@ -54,6 +54,10 @@ open class MemoryDataReader(private val memory: Memory) : DataReader, KLogging()
         override fun read(output: ByteArray, position: Long, offset: Int, count: Int) =
                 data.read(output, position, offset, count)
 
+        fun write(b: ByteArray, off: Int, len: Int) = data.write(b, off, len)
+
         override fun refresh() = this
+
+        fun truncate(newLength: Int) = data.truncate(newLength)
     }
 }

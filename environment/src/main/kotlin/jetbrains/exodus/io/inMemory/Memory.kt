@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ open class Memory {
         }
     }
 
-    internal fun removeBlock(blockAddress: Long): Boolean {
+    fun removeBlock(blockAddress: Long): Boolean {
         val removed = data.synchronized {
             remove(blockAddress)
         }
@@ -137,6 +137,13 @@ open class Memory {
                 data = ByteArray(newCapacity)
                 System.arraycopy(oldData, 0, data, 0, oldCapacity)
             }
+        }
+
+        fun truncate(newSize: Int) {
+            if (newSize < 0) {
+                throw IllegalArgumentException("Invalid size of the block $newSize")
+            }
+            this.size = newSize
         }
     }
 }

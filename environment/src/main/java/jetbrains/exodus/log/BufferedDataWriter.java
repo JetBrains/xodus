@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,7 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.io.Block;
-import jetbrains.exodus.io.DataWriter;
-import jetbrains.exodus.io.RemoveBlockType;
+import jetbrains.exodus.io.*;
 import net.jpountz.xxhash.StreamingXXHash64;
 import net.jpountz.xxhash.XXHash64;
 import net.jpountz.xxhash.XXHashFactory;
@@ -357,7 +355,6 @@ public final class BufferedDataWriter {
         return fileAddress == nextFileAddress;
     }
 
-
     byte[] readPage(final long pageAddress) {
         var holder = writeCache.get(pageAddress);
         if (holder != null) {
@@ -407,6 +404,7 @@ public final class BufferedDataWriter {
                 for (long pageAddress = file; pageAddress < fileEnd; pageAddress += pageSize) {
                     if (writeCache.containsKey(pageAddress)) {
                         waitForCompletion = true;
+                        break;
                     }
                 }
             }
@@ -535,8 +533,12 @@ public final class BufferedDataWriter {
         lastSyncedTs = System.currentTimeMillis();
     }
 
-    void close() {
-        sync();
+    void close(boolean sync) {
+        if (sync) {
+            sync();
+        } else {
+            ensureWritesAreCompleted();
+        }
 
         writer.close();
 

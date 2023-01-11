@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,7 @@
 package jetbrains.exodus.log;
 
 import jetbrains.exodus.crypto.EnvKryptKt;
-import jetbrains.exodus.crypto.StreamCipher;
 import jetbrains.exodus.io.Block;
-import org.jetbrains.annotations.NotNull;
-
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 
 public class BlockDataIterator implements ByteIteratorWithAddress {
 
@@ -30,17 +24,32 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
     private final Block block;
     private long position;
     private final long end;
-    private final BufferedInputStream stream;
 
-    public BlockDataIterator(Log log, Block block, long startAddress) {
+    private byte[] currentPage;
+
+    private final int pageSize;
+
+    private final int chunkSize;
+
+    private final boolean checkPage;
+
+    private final LogConfig config;
+
+    public BlockDataIterator(Log log, Block block, long startAddress, boolean checkPage) {
+        this.checkPage = checkPage;
         this.log = log;
         this.block = block;
         this.position = startAddress;
         this.end = block.getAddress() + block.length();
+        this.pageSize = log.getCachePageSize();
 
-        final LogConfig config = log.getConfig();
+        config = log.getConfig();
 
-        this.stream = new BufferedInputStream(new BlockStream(config, block, position), log.getCachePageSize());
+        if (log.getFormatWithHashCodeIsUsed()) {
+            chunkSize = pageSize - BufferedDataWriter.LOGGABLE_DATA;
+        } else {
+            chunkSize = pageSize;
+        }
     }
 
     @Override
@@ -54,35 +63,88 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
             DataCorruptionException.raise(
                     "DataIterator: no more bytes available", log, position);
         }
-        try {
-            final byte[] result = new byte[1];
-            if (stream.read(result, 0, 1) < 1) {
-                DataCorruptionException.raise(
-                        "DataIterator: no more bytes available", log, position);
-            }
+
+        if (currentPage != null) {
+            var pageOffset = (int) position & (pageSize - 1);
+
+            assert pageOffset <= pageSize;
+
+            var result = currentPage[pageOffset];
             position++;
-            return result[0];
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+
+            if (pageOffset + 1 == chunkSize) {
+                position = position - pageOffset - 1 + pageSize;
+                currentPage = null;
+            }
+
+            return result;
         }
+
+        loadPage();
+        return next();
+    }
+
+    private void loadPage() {
+        int currentPageSize = (int) Math.min(end - position, pageSize);
+        final byte[] result = new byte[currentPageSize];
+        final int read = block.read(result, position - block.getAddress(), 0, currentPageSize);
+
+        if (read != currentPageSize) {
+            DataCorruptionException.raise("Incorrect amount of bytes was read, expected " +
+                            currentPageSize + " but was " + read,
+                    log, position);
+        }
+
+        if (checkPage) {
+            if (currentPageSize != pageSize) {
+                DataCorruptionException.raise("Incorrect page size -  " + currentPageSize, log, position);
+            }
+
+            BufferedDataWriter.checkPageConsistency(position, result, pageSize, log);
+        }
+
+        var cipherProvider = config.getCipherProvider();
+        int encryptedBytes;
+        if (cipherProvider != null) {
+            if (currentPageSize < pageSize) {
+                encryptedBytes = currentPageSize;
+            } else {
+                encryptedBytes = chunkSize;
+            }
+
+            EnvKryptKt.cryptBlocksMutable(
+                    cipherProvider, config.getCipherKey(), config.getCipherBasicIV(),
+                    position, result, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
+            );
+        }
+
+        this.currentPage = result;
     }
 
     @Override
     public long skip(long bytes) {
-        try {
-            long result = 0;
-            while (result < bytes) {
-                final long skipped = stream.skip(bytes - result);
-                if (skipped <= 0) {
-                    break;
-                }
-                result += skipped;
-            }
-            position += result;
-            return result;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        final long bytesToSkip = Math.min(bytes, position - end);
+        var currentPageOffset = (int) position & (pageSize - 1);
+
+        final long pageBytesToSkip = Math.min(bytesToSkip, chunkSize - currentPageOffset);
+        position += pageBytesToSkip;
+
+        if (bytesToSkip > pageBytesToSkip) {
+            final long rest = bytesToSkip - pageBytesToSkip;
+
+            final long pagesToSkip = rest / chunkSize;
+            final long pageSkip = pagesToSkip * pageSize;
+            final long offsetSkip = pagesToSkip * chunkSize;
+
+
+            final int pageOffset = (int) (rest - offsetSkip);
+            final long addressDiff = pageSkip + pageOffset;
+
+            position += addressDiff;
+            currentPage = null;
         }
+
+        return bytesToSkip;
     }
 
     @Override
@@ -98,98 +160,5 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
     @Override
     public int available() {
         throw new UnsupportedOperationException();
-    }
-
-    private class BlockStream extends InputStream {
-        @NotNull
-        private final LogConfig config;
-        private final Block block;
-        private final boolean crypt;
-        private long position;
-        private StreamCipher cipher;
-
-        BlockStream(@NotNull LogConfig config, Block block, long position) {
-            this.config = config;
-            this.block = block;
-            if (config.getCipherProvider() != null) {
-                final long skip = position % LogUtil.LOG_BLOCK_ALIGNMENT;
-                this.position = position - skip; // pre-load some data to initialize cipher properly
-                crypt = true;
-                cipher = makeCipher((int) (this.position - block.getAddress()));
-                if (skip > 0) {
-                    final long skipped = skipInternal(skip);
-                    if (skipped < skip) {
-                        DataCorruptionException.raise(
-                                "DataIterator: no more bytes available", log, position - skipped);
-                    }
-                }
-            } else {
-                this.position = position;
-                crypt = false;
-            }
-        }
-
-        @Override
-        public int read() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public long skip(long n) {
-            if (n >= Integer.MAX_VALUE) {
-                throw new UnsupportedOperationException();
-            }
-            final byte[] skipped = new byte[(int) n];
-            return read(skipped, 0, (int) n);
-        }
-
-        @Override
-        public int read(byte @NotNull [] b, int off, int len) {
-            final int readLength = block.read(b, position - block.getAddress(), off, len);
-            if (readLength > 0) {
-                if (crypt) {
-                    final int end = off + readLength;
-                    long currentPosition = position;
-                    for (int i = off; i < end; i++) {
-                        b[i] = cipher.crypt(b[i]);
-                        currentPosition++;
-                        // TODO: optimize (find aligned position and reset cipher only on it)
-                        checkCipher(currentPosition);
-                    }
-                }
-                position = position + readLength;
-            }
-            return readLength;
-        }
-
-        private long skipInternal(long n) {
-            final int count = (int) n;
-            final byte[] skipped = new byte[count];
-            final int read = block.read(skipped, position - block.getAddress(), 0, count);
-            for (int i = 0; i < read; i++) {
-                cipher.crypt(skipped[i]);
-            }
-            position += read;
-            return read;
-        }
-
-        private void checkCipher(final long position) {
-            final int offset = (int) (position - block.getAddress());
-            if (offset % LogUtil.LOG_BLOCK_ALIGNMENT == 0) {
-                cipher = makeCipher(offset);
-            }
-        }
-
-        private StreamCipher makeCipher(final int offset) {
-            final StreamCipher result = config.getCipherProvider().newCipher();
-            final long iv = config.getCipherBasicIV() + ((block.getAddress() + offset) / LogUtil.LOG_BLOCK_ALIGNMENT);
-            result.init(config.getCipherKey(), EnvKryptKt.asHashedIV(iv));
-            return result;
-        }
-
-        @Override
-        public void close() {
-            // do nothing
-        }
     }
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,7 +116,9 @@ public final class StartupMetadata {
     }
 
     public static @Nullable StartupMetadata open(final FileDataReader reader,
-                                                 final boolean isReadOnly) throws IOException {
+                                                 final boolean isReadOnly, final int pageSize,
+                                                 final int environmentFormatVersion,
+                                                 final long fileLengthBoundary) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
         final Path firstFilePath = dbPath.resolve(FIRST_FILE_NAME);
         final Path secondFilePath = dbPath.resolve(SECOND_FILE_NAME);
@@ -187,6 +189,10 @@ public final class StartupMetadata {
         }
 
         if (content == null) {
+            final ByteBuffer updatedMetadata = serialize(1, environmentFormatVersion, -1,
+                    pageSize, fileLengthBoundary, false);
+            store(updatedMetadata, dbPath, useFirstFile);
+
             return null;
         }
 
@@ -202,7 +208,7 @@ public final class StartupMetadata {
     }
 
     public static StartupMetadata createStub(int pageSize, final int environmentFormatVersion, final long fileLengthBoundary) {
-        return new StartupMetadata(true, -1, true, pageSize, 1,
+        return new StartupMetadata(false, -1, true, pageSize, 1,
                 environmentFormatVersion, fileLengthBoundary);
     }
 

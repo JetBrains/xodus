@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 
-final class DatabaseRoot {
+public final class DatabaseRoot {
 
-    static final byte DATABASE_ROOT_TYPE = 1;
+    public static final byte DATABASE_ROOT_TYPE = 1;
 
     private static final long MAGIC_DIFF = 199L;
 
@@ -34,7 +34,7 @@ final class DatabaseRoot {
     private final int lastStructureId;
     private final boolean isValid;
 
-    DatabaseRoot(@NotNull final Loggable loggable) {
+    public DatabaseRoot(@NotNull final Loggable loggable) {
         this(loggable, loggable.getData().iterator());
     }
 
@@ -58,7 +58,7 @@ final class DatabaseRoot {
         return lastStructureId;
     }
 
-    boolean isValid() {
+    public boolean isValid() {
         return isValid;
     }
 
