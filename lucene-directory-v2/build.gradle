@@ -1,0 +1,16 @@
+buildscript {
+    ext.luceneVersion = '8.10.0'
+}
+dependencies {
+    api project(':vfs')
+    implementation "org.apache.lucene:lucene-core:$luceneVersion"
+    implementation "org.apache.lucene:lucene-analyzers-common:$luceneVersion"
+    implementation "org.apache.lucene:lucene-queries:$luceneVersion"
+    implementation "org.apache.lucene:lucene-queryparser:$luceneVersion"
+
+    //noinspection DependencyNotationArgument
+    testImplementation project(':environment').sourceSets.test.output
+    //noinspection DependencyNotationArgument
+    testImplementation project(':utils').sourceSets.test.output
+    testImplementation "org.apache.lucene:lucene-test-framework:$luceneVersion"
+}
