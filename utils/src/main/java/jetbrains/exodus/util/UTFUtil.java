@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2023 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -57,7 +57,7 @@ public class UTFUtil {
     }
 
     /**
-     * Reads a string from input stream saved as a sequence of UTF chunks.
+     * Reads a string from input stream saved as a sequence of UTF chunks and closes steam after its usage.
      *
      * @param stream stream to read from.
      * @return output string
@@ -71,24 +71,28 @@ public class UTFUtil {
             final int streamSize = sizedStream.size();
             if (streamSize >= 2) {
                 sizedStream.mark(Integer.MAX_VALUE);
-                final int utfLen = dataInput.readUnsignedShort();
-                if (utfLen == streamSize - 2) {
-                    boolean isAscii = true;
-                    final byte[] bytes = sizedStream.toByteArray();
-                    for (int i = 0; i < utfLen; ++i) {
-                        if ((bytes[i + 2] & 0xff) > 127) {
-                            isAscii = false;
-                            break;
+                try {
+                    final int utfLen = dataInput.readUnsignedShort();
+                    if (utfLen == streamSize - 2) {
+                        boolean isAscii = true;
+                        final byte[] bytes = sizedStream.toByteArray();
+                        for (int i = 0; i < utfLen; ++i) {
+                            if ((bytes[i + 2] & 0xff) > 127) {
+                                isAscii = false;
+                                break;
+                            }
+                        }
+                        if (isAscii) {
+                            return fromAsciiByteArray(bytes, 2, utfLen);
                         }
                     }
-                    if (isAscii) {
-                        return fromAsciiByteArray(bytes, 2, utfLen);
-                    }
+                } finally {
+                    sizedStream.reset();
                 }
-                sizedStream.reset();
             }
         }
-        try {
+
+        try (dataInput) {
             String result = null;
             StringBuilder builder = null;
             for (; ; ) {
@@ -96,7 +100,7 @@ public class UTFUtil {
                 try {
                     temp = dataInput.readUTF();
                     if (result != null && result.length() == 0 &&
-                        builder != null && builder.length() == 0 && temp.length() == 0) {
+                            builder != null && builder.length() == 0 && temp.length() == 0) {
                         break;
                     }
                 } catch (EOFException e) {
@@ -112,9 +116,17 @@ public class UTFUtil {
                     builder.append(temp);
                 }
             }
+
+            //streams managed by transaction should be reset.
+            if (stream.markSupported()) {
+                try {
+                    stream.reset();
+                } catch (IOException e) {
+                    //should never happen with tx managed steams
+                }
+            }
+
             return (builder != null) ? builder.toString() : result;
-        } finally {
-            dataInput.close();
         }
     }
 

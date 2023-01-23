@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2023 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,12 +15,15 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 
 public interface DiskBasedBlobVault {
 
@@ -38,4 +41,8 @@ public interface DiskBasedBlobVault {
     long size();
 
     void close();
+
+    @NotNull Path copyToTemporaryStore(long handle, final @NotNull InputStream stream) throws IOException;
+
+    void generateDirForTmpBlobs(Environment environment) throws IOException;
 }
