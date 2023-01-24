@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,6 @@ fun main(args: Array<String>) {
         "refactorings" -> jetbrains.exodus.entityStore.main(args.skipFirst)
         "scytale" -> jetbrains.exodus.crypto.main(args.skipFirst)
         "vfs" -> jetbrains.exodus.vfs.main(args.skipFirst)
-        "replicator" -> jetbrains.exodus.entityStore.replication.main(args.skipFirst)
         "environmentjsconsole" ->
             startRhinoServer(args.skipFirst, ENVIRONMENTS).use {
                 ptyShell(it.port)

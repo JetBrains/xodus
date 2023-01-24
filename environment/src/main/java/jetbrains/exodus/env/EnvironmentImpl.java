@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -716,6 +716,9 @@ public class EnvironmentImpl implements Environment {
                 // meta lock not needed 'cause write can only occur in another commit lock
                 return false;
             }
+
+            txn.executeBeforeTransactionFlushAction();
+
             if (wasUpSaved) {
                 up.setDirty(false);
             }

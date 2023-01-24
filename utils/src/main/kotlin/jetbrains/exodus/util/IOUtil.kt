@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,7 +116,7 @@ object IOUtil {
         try {
             var totalRead: Long = 0
             while (totalRead < sourceLen) {
-                val read = source.read(buffer)
+                val read = source.read(buffer, 0, min(buffer.size.toLong(), sourceLen - totalRead).toInt())
                 if (read < 0) break
                 if (read > 0) {
                     target.write(buffer, 0, min(sourceLen - totalRead, read.toLong()).toInt())
