@@ -806,7 +806,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             bufferedInputStream = new BufferedInputStream(stream);
         }
 
-        bufferedInputStream.mark(Integer.MAX_VALUE);
         blobStreams.put(blobHandle, bufferedInputStream);
     }
 
@@ -840,15 +839,21 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 }
 
                 try {
-                    assert stream.markSupported();
+                    try {
+                        stream.reset();
+                    } catch (IOException e) {
+                        //ignore
+                    }
 
-                    stream.reset();
-                    stream.mark(Integer.MAX_VALUE);
+                    if (stream.markSupported()) {
+                        stream.mark(Integer.MAX_VALUE);
+                    }
 
                     return stream.skip(Long.MAX_VALUE); // warning, this may return inaccurate results
                 } finally {
-                    stream.reset();
-                    stream.mark(Integer.MAX_VALUE);
+                    if (stream.markSupported()) {
+                        stream.reset();
+                    }
                 }
             }
         }
@@ -871,7 +876,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (blobStreams != null) {
             final InputStream stream = blobStreams.get(blobHandle);
             if (stream != null) {
-                stream.reset();
+                stream.mark(Integer.MAX_VALUE);
                 return new InputStreamCloseGuard(stream);
             }
         }

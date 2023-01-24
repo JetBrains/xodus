@@ -88,14 +88,12 @@ class EncryptedBlobVault(
         }
         var openFiles: MutableList<InputStream>? = null
         try {
-            if (blobFiles != null && blobFiles.isNotEmpty()) {
+            if (!blobFiles.isNullOrEmpty()) {
                 openFiles = mutableListOf()
                 blobFiles.forEach {
                     streams[it.key] = StreamCipherInputStream(
                         FileInputStream(it.value)
-                            .also { openFiles.add(it) }
-                            .asBuffered
-                            .apply { mark(Int.MAX_VALUE) }
+                            .also { file -> openFiles.add(file) }.asBuffered
                     ) {
                         newCipher(it.key)
                     }

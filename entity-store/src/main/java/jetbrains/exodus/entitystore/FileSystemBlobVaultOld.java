@@ -212,7 +212,18 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         if (blobStreams != null) {
             blobStreams.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>) object -> {
                 final InputStream stream = object.getValue();
-                stream.reset();
+                //reset the stream if it was changed during transaction processing.
+                //all streams are hold by transaction should support mark method.
+                //stream could be changed if they are returned to user during transaction processing
+                try {
+                    stream.reset();
+                } catch (IOException e) {
+                    //ignore if mark was not set
+                }
+
+                //reset mark position to avoid OOM
+                stream.mark(IOUtil.DEFAULT_BUFFER_SIZE);
+
                 setContent(object.getKey(), stream);
                 return true;
             });

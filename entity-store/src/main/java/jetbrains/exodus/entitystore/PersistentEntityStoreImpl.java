@@ -1164,7 +1164,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         InputStream bufferedStream = new BufferedInputStream(stream);
 
         int maxEmbeddedBlobSize = config.getMaxInPlaceBlobSize();
-        bufferedStream.mark(maxEmbeddedBlobSize + 1);
+        bufferedStream.mark(Math.max(maxEmbeddedBlobSize + 1, IOUtil.DEFAULT_BUFFER_SIZE));
 
         final ByteArrayOutputStream memCopy = new LightByteArrayOutputStream();
         IOUtil.copyStreams(bufferedStream, maxEmbeddedBlobSize + 1, memCopy, IOUtil.getBUFFER_ALLOCATOR());
