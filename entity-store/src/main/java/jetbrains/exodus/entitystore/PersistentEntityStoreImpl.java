@@ -41,6 +41,7 @@ import jetbrains.exodus.io.WatchingFileDataReaderWriterProvider;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
+import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
 import kotlin.Unit;
@@ -1286,7 +1287,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         var bufferedStream = new BufferedInputStream(stream);
         var maxEmbeddedBlobSize = config.getMaxInPlaceBlobSize();
 
-        bufferedStream.mark(maxEmbeddedBlobSize + 1);
+        bufferedStream.mark(Math.max(maxEmbeddedBlobSize + 1, IOUtil.DEFAULT_BUFFER_SIZE));
 
         var size = (int) bufferedStream.skip(maxEmbeddedBlobSize + 1);
         bufferedStream.reset();
