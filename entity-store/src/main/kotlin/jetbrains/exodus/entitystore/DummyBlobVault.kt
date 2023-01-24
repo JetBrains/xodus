@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongSet
 import jetbrains.exodus.env.Transaction
 import java.io.File
 import java.io.InputStream
+import java.nio.file.Path
 
 /**
  * A blob vault that stores no blobs. Is intended to be used with in-memory databases for which all blobs are stored
@@ -43,10 +44,12 @@ class DummyBlobVault(config: PersistentEntityStoreConfig) : BlobVault(config) {
 
     override fun requiresTxn() = false
 
-    override fun flushBlobs(blobStreams: LongHashMap<InputStream>?,
-                            blobFiles: LongHashMap<File>?,
-                            deferredBlobsToDelete:
-                            LongSet?, txn: Transaction) = throw NotImplementedError()
+    override fun flushBlobs(
+        blobStreams: LongHashMap<InputStream>?,
+        blobFiles: LongHashMap<File>?,
+        tmpBlobs: LongHashMap<Path>?, deferredBlobsToDelete:
+        LongSet?, txn: Transaction
+    ) = throw NotImplementedError()
 
     override fun size() = 0L
 

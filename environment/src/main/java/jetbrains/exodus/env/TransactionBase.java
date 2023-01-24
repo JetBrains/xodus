@@ -53,6 +53,9 @@ public abstract class TransactionBase implements Transaction {
     private StackTrace traceFinish;
     private boolean disableStoreGetCache;
 
+    @Nullable
+    private Runnable beforeTransactionFlushAction;
+
     public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
         this.env = env;
         this.creatingThread = Thread.currentThread();
@@ -223,6 +226,16 @@ public abstract class TransactionBase implements Transaction {
     protected void clearImmutableTrees() {
         synchronized (immutableTrees) {
             immutableTrees.clear();
+        }
+    }
+
+    public void setBeforeTransactionFlushAction(@NotNull Runnable exec) {
+        this.beforeTransactionFlushAction = exec;
+    }
+
+    void executeBeforeTransactionFlushAction() {
+        if (beforeTransactionFlushAction != null) {
+            beforeTransactionFlushAction.run();
         }
     }
 
