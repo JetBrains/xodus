@@ -28,8 +28,12 @@ object IOUtil {
 
     private const val READ_BUFFER_SIZE = 0x4000
 
+    const val DEFAULT_BUFFER_SIZE = 8 * 1024
+
     @JvmStatic
     val BUFFER_ALLOCATOR = ByteArraySpinAllocator(READ_BUFFER_SIZE)
+
+
 
     private const val BLOCK_SIZE = "exodus.io.blockSize"
     private val NO_FILES = arrayOf<File>()
