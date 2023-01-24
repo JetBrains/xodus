@@ -15,12 +15,15 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 
 public interface DiskBasedBlobVault {
 
@@ -38,4 +41,8 @@ public interface DiskBasedBlobVault {
     long size();
 
     void close();
+
+    @NotNull Path copyToTemporaryStore(long handle, final @NotNull InputStream stream) throws IOException;
+
+    void generateDirForTmpBlobs(Environment environment) throws IOException;
 }

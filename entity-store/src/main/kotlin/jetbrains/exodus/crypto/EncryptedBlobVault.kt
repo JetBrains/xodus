@@ -21,16 +21,19 @@ import jetbrains.exodus.entitystore.BlobVault
 import jetbrains.exodus.entitystore.BlobVaultItem
 import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
+import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Transaction
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
-import java.io.OutputStream
+import java.nio.file.Path
 
-class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
-                         private val cipherProvider: StreamCipherProvider,
-                         private val cipherKey: ByteArray,
-                         private val cipherBasicIV: Long) : BlobVault(decorated), DiskBasedBlobVault {
+class EncryptedBlobVault(
+    private val decorated: FileSystemBlobVaultOld,
+    private val cipherProvider: StreamCipherProvider,
+    private val cipherKey: ByteArray,
+    private val cipherBasicIV: Long
+) : BlobVault(decorated), DiskBasedBlobVault {
 
     override fun getSourceVault() = decorated
 
@@ -74,10 +77,13 @@ class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
 
     override fun requiresTxn() = decorated.requiresTxn()
 
-    override fun flushBlobs(blobStreams: LongHashMap<InputStream>?,
-                            blobFiles: LongHashMap<File>?,
-                            deferredBlobsToDelete: LongSet?,
-                            txn: Transaction) {
+    override fun flushBlobs(
+        blobStreams: LongHashMap<InputStream>?,
+        blobFiles: LongHashMap<File>?,
+        tmpBlobs: LongHashMap<Path>?,
+        deferredBlobsToDelete: LongSet?,
+        txn: Transaction
+    ) {
         val streams = LongHashMap<InputStream>()
         blobStreams?.forEach {
             streams[it.key] = StreamCipherInputStream(it.value) {
@@ -90,16 +96,16 @@ class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
                 openFiles = mutableListOf()
                 blobFiles.forEach {
                     streams[it.key] = StreamCipherInputStream(
-                            FileInputStream(it.value)
-                                    .also { openFiles.add(it) }
-                                    .asBuffered
-                                    .apply { mark(Int.MAX_VALUE) }
+                        FileInputStream(it.value)
+                            .also { openFiles.add(it) }
+                            .asBuffered
+                            .apply { mark(Int.MAX_VALUE) }
                     ) {
                         newCipher(it.key)
                     }
                 }
             }
-            decorated.flushBlobs(streams, null, deferredBlobsToDelete, txn)
+            decorated.flushBlobs(streams, null, tmpBlobs, deferredBlobsToDelete, txn)
         } finally {
             openFiles?.forEach { it.close() }
         }
@@ -110,11 +116,16 @@ class EncryptedBlobVault(private val decorated: FileSystemBlobVaultOld,
     override fun nextHandle(txn: Transaction) = decorated.nextHandle(txn)
 
     override fun close() = decorated.close()
+    override fun copyToTemporaryStore(handle: Long, stream: InputStream): Path {
+        return decorated.copyToTemporaryStore(handle, StreamCipherInputStream(stream) {
+            newCipher(handle)
+        })
+    }
 
-    fun wrapOutputStream(blobHandle: Long, output: OutputStream): StreamCipherOutputStream {
-        return StreamCipherOutputStream(output, newCipher(blobHandle))
+    override fun generateDirForTmpBlobs(environment: Environment?) {
+        decorated.generateDirForTmpBlobs(environment)
     }
 
     private fun newCipher(blobHandle: Long) =
-            cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }
+        cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }
 }

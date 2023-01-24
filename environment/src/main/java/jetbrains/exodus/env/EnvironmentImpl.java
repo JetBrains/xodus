@@ -775,6 +775,9 @@ public class EnvironmentImpl implements Environment {
                 // meta lock not needed 'cause write can only occur in another commit lock
                 return false;
             }
+
+            txn.executeBeforeTransactionFlushAction();
+
             if (wasUpSaved) {
                 up.setDirty(false);
             }

@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
@@ -99,7 +100,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
         }
         files.add(file);
         final StringBuilder dir = new StringBuilder();
-        for (ListIterator iterator = files.listIterator(files.size()); iterator.hasPrevious(); ) {
+        for (ListIterator<String> iterator = files.listIterator(files.size()); iterator.hasPrevious(); ) {
             dir.append('/');
             dir.append(iterator.previous());
         }
@@ -145,10 +146,11 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     public abstract boolean requiresTxn();
 
     /**
-     * Method called by {@linkplain PersistentEntityStore} to flush blobs identified by blobs. Two maps represent two
+     * Method called by {@linkplain PersistentEntityStore} to flush blobs identified by blobs. Three maps represent three
      * ways of dealing with blob content: using streams and {@code java.io.File} instances. They naturally follow from
      * the {@linkplain Entity} API, having two methods to set blob: {@linkplain Entity#setBlob(String, InputStream)}
-     * and {@linkplain Entity#setBlob(String, File)}.
+     * and {@linkplain Entity#setBlob(String, File)}. The last map is used to keep copy  of streams into temporary vault
+     * storage before commit and then moving them into permanent vault store after commit to ensure durability of commit.
      *
      * <p>The set {@code deferredBlobsToDelete} contains blob handles of blobs that should be deleted after the
      * transaction is finished. In most cases, these blobs cannot be deleted immediately without violating isolation
@@ -160,6 +162,8 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      *
      * @param blobStreams           map of blob handles to {@linkplain InputStream} instances
      * @param blobFiles             map of blob handles to {@linkplain File} instances
+     * @param tmpBlobs              map of blob which were temporary stored inside of vault using
+     *                              {@link DiskBasedBlobVault#copyToTemporaryStore(long, InputStream)}
      * @param deferredBlobsToDelete set of blob handles of blobs that should be deleted after the transaction is finished
      * @param txn                   {@linkplain Transaction} instance
      * @throws Exception something went wrong
@@ -169,7 +173,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      */
     public abstract void flushBlobs(@Nullable final LongHashMap<InputStream> blobStreams,
                                     @Nullable final LongHashMap<File> blobFiles,
-                                    @Nullable final LongSet deferredBlobsToDelete,
+                                    @Nullable LongHashMap<Path> tmpBlobs, @Nullable final LongSet deferredBlobsToDelete,
                                     @NotNull final Transaction txn) throws Exception;
 
     /**
@@ -242,6 +246,10 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
                                                        final boolean closeSource) throws IOException {
         final ByteArrayOutputStream memCopy = copyStream(source, closeSource);
         return new ByteArraySizedInputStream(memCopy.toByteArray(), 0, memCopy.size());
+    }
+
+    public final BufferedInputStream getFileStream(@NotNull final File file) throws IOException {
+        return new BufferedInputStream(new FileInputStream(file));
     }
 
     public final ByteArraySizedInputStream cloneFile(@NotNull final File file) throws IOException {

@@ -34,11 +34,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVault {
-
     protected static final Logger logger = LoggerFactory.getLogger("FileSystemBlobVault");
 
     @NonNls
@@ -57,21 +62,27 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     @Nullable
     private VaultSizeFunctions sizeFunctions;
 
+    private volatile Path tmpBlobsDir;
+
+    private final Lock tmpBlobDirLock = new ReentrantLock();
+
     /**
      * Blob size is calculated by inspecting directory files only on first request
      * After that, it's been calculated incrementally
      */
     private final AtomicLong size;
 
-    FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
+    FileSystemBlobVaultOld(@NotNull Environment environment,
+                           @NotNull final PersistentEntityStoreConfig config,
                            @NotNull final String parentDirectory,
                            @NotNull final String blobsDirectory,
                            @NotNull final String blobExtension,
                            @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
-        this(config, parentDirectory, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
+        this(environment, config, parentDirectory, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
     }
 
-    FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
+    FileSystemBlobVaultOld(@NotNull Environment environment,
+                           @NotNull final PersistentEntityStoreConfig config,
                            @NotNull final String parentDirectory,
                            @NotNull final String blobsDirectory,
                            @NotNull final String blobExtension,
@@ -107,6 +118,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 output.writeInt(expectedVersion);
             }
         }
+
+        generateDirForTmpBlobs(environment);
     }
 
     @Override
@@ -143,6 +156,19 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 setContentImpl(content, location);
             }
         }
+        if (size.get() != UNKNOWN_SIZE) {
+            size.addAndGet(IOUtil.getAdjustedFileLength(location));
+        }
+    }
+
+    private void setContent(final long blobHandle, @NotNull final Path file) throws Exception {
+        final File location = getBlobLocation(blobHandle, false);
+        try {
+            Files.move(file, location.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(file, location.toPath());
+        }
+
         if (size.get() != UNKNOWN_SIZE) {
             size.addAndGet(IOUtil.getAdjustedFileLength(location));
         }
@@ -186,7 +212,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     @Override
     public void flushBlobs(@Nullable final LongHashMap<InputStream> blobStreams,
                            @Nullable final LongHashMap<File> blobFiles,
-                           @Nullable final LongSet deferredBlobsToDelete,
+                           @Nullable LongHashMap<Path> tmpBlobs, @Nullable final LongSet deferredBlobsToDelete,
                            @NotNull final Transaction txn) throws Exception {
         if (blobStreams != null) {
             blobStreams.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>) object -> {
@@ -196,6 +222,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 return true;
             });
         }
+
         // if there were blob files then move them
         if (blobFiles != null) {
             blobFiles.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, File>, Exception>) object -> {
@@ -203,6 +230,15 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 return true;
             });
         }
+
+        // if there were temporary stored blob files then move them
+        if (tmpBlobs != null) {
+            tmpBlobs.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, Path>, Exception>) object -> {
+                setContent(object.getKey().longValue(), object.getValue());
+                return true;
+            });
+        }
+
         // if there are deferred blobs to delete then defer their deletion
         if (deferredBlobsToDelete != null) {
             final LongArrayList copy = new LongArrayList(deferredBlobsToDelete.size());
@@ -250,6 +286,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
 
     @Override
     public void close() {
+        IOUtil.deleteRecursively(location);
     }
 
     @NotNull
@@ -291,7 +328,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                                     }
                                 } else if (file.exists()) {
                                     // something strange with filesystem
-                                    throw new EntityStoreException("File or directory expected: " + file.toString());
+                                    throw new EntityStoreException("File or directory expected: " + file);
                                 }
                             }
                             if (queue.isEmpty()) {
@@ -336,6 +373,18 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         return blobsDirectory + super.getBlobKey(blobHandle) + blobExtension;
     }
 
+    @Override
+    public @NotNull Path copyToTemporaryStore(long handle, @NotNull final InputStream stream) throws IOException {
+        var tempFile = Files.createTempFile(tmpBlobsDir, "xodus", "blob-vault");
+
+        try (var out = Files.newOutputStream(tempFile)) {
+            IOUtil.copyStreams(stream, out, IOUtil.getBUFFER_ALLOCATOR());
+        }
+        stream.close();
+
+        return tempFile;
+    }
+
     @NotNull
     public File getBlobLocation(long blobHandle, boolean readonly) {
         File dir = location;
@@ -373,6 +422,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         try (OutputStream blobOutput = new BufferedOutputStream(new FileOutputStream(location))) {
             IOUtil.copyStreams(content, blobOutput, bufferAllocator);
         }
+
+        content.close();
     }
 
     private long calculateBlobVaultSize() {
@@ -389,6 +440,21 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
             deleteRecursively(dir);
         }
         return true;
+    }
+
+    public void generateDirForTmpBlobs(Environment environment) throws IOException {
+        tmpBlobDirLock.lock();
+        try {
+            var newTmpDir = Files.createTempDirectory("blob-vault-for-" + location.getName());
+            if (tmpBlobsDir != null) {
+                environment.executeTransactionSafeTask(() -> IOUtil.deleteRecursively(tmpBlobsDir.toFile()));
+            }
+            tmpBlobsDir = newTmpDir;
+
+            logger.info("Temporary directory " + tmpBlobsDir + " has been created for blob vault " + location);
+        } finally {
+            tmpBlobDirLock.unlock();
+        }
     }
 
     private static boolean isEmptyDir(@NotNull final File dir) {

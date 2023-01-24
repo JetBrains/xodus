@@ -418,16 +418,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             final PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter persistentSequenceGetter =
                     () -> getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
             try {
-                blobVault = new FileSystemBlobVault(config, location, BLOBS_DIR, BLOBS_EXTENSION,
+                blobVault = new FileSystemBlobVault(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION,
                         new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
             } catch (UnexpectedBlobVaultVersionException e) {
                 blobVault = null;
             }
             if (blobVault == null) {
                 if (config.getMaxInPlaceBlobSize() > 0) {
-                    blobVault = new FileSystemBlobVaultOld(config, location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
+                    blobVault = new FileSystemBlobVaultOld(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
                 } else {
-                    blobVault = new FileSystemBlobVaultOld(config, location, BLOBS_DIR, BLOBS_EXTENSION,
+                    blobVault = new FileSystemBlobVaultOld(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION,
                             new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
                 }
             }
@@ -887,7 +887,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
         if ((value instanceof ComparableSet && ((ComparableSet) value).isEmpty()) ||
-                (value instanceof Boolean && value.equals(false))) {
+                (value instanceof Boolean && value.equals(Boolean.FALSE))) {
             return deleteProperty(txn, entity, propertyName);
         }
         final PropertyValue propValue = propertyTypes.dataToPropertyValue(value);
@@ -1283,12 +1283,18 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                         @NotNull final PersistentEntity entity,
                         @NotNull final String blobName,
                         @NotNull final InputStream stream) throws IOException {
-        final ByteArraySizedInputStream copy = stream instanceof ByteArraySizedInputStream ?
-                (ByteArraySizedInputStream) stream : blobVault.cloneStream(stream, true);
-        final long blobHandle = createBlobHandle(txn, entity, blobName, copy, copy.size());
+        var bufferedStream = new BufferedInputStream(stream);
+        var maxEmbeddedBlobSize = config.getMaxInPlaceBlobSize();
+
+        bufferedStream.mark(maxEmbeddedBlobSize + 1);
+
+        var size = (int) bufferedStream.skip(maxEmbeddedBlobSize + 1);
+        bufferedStream.reset();
+
+        final long blobHandle = createBlobHandle(txn, entity, blobName, bufferedStream, size);
+
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-            setBlobFileLength(txn, blobHandle, copy.size());
-            txn.addBlob(blobHandle, copy);
+            txn.addBlob(blobHandle, bufferedStream);
         }
     }
 
@@ -1303,6 +1309,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final int size = (int) length;
         final long blobHandle = createBlobHandle(txn, entity, blobName,
                 size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneFile(file), size);
+
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
             setBlobFileLength(txn, blobHandle, length);
             txn.addBlob(blobHandle, file);
@@ -1332,8 +1339,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private long createBlobHandle(@NotNull final PersistentStoreTransaction txn,
                                   @NotNull final PersistentEntity entity,
                                   @NotNull final String blobName,
-                                  @Nullable final ByteArraySizedInputStream stream,
-                                  final int size) {
+                                  @Nullable final InputStream stream,
+                                  final int size) throws IOException {
         final EntityId id = entity.getId();
         final long entityLocalId = id.getLocalId();
         final int blobId = getPropertyId(txn, blobName, true);
@@ -1353,9 +1360,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             if (stream == null) {
                 throw new NullPointerException("In-memory blob content is expected");
             }
+
+            var embeddedStream = getBlobVault().cloneStream(stream, true);
             if (!useVersion1Format()) {
                 // check for duplicate
-                final ByteIterable hashEntry = findDuplicate(txn, typeId, stream);
+                final ByteIterable hashEntry = findDuplicate(txn, typeId, embeddedStream);
                 if (hashEntry != null) {
                     blobs.put(envTxn, entityLocalId, blobId,
                             new CompoundByteIterable(new ByteIterable[]{
@@ -1372,7 +1381,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     new CompoundByteIterable(new ByteIterable[]{
                             blobHandleToEntry(blobHandle),
                             CompressedUnsignedLongByteIterable.getIterable(size),
-                            new ArrayByteIterable(stream.toByteArray(), size)
+                            new ArrayByteIterable(embeddedStream.toByteArray(), size)
                     })
             );
         } else {
