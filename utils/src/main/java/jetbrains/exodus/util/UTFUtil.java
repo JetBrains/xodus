@@ -93,6 +93,11 @@ public class UTFUtil {
         }
 
         try (dataInput) {
+            //streams managed by transaction should be reset.
+            if (stream.markSupported()) {
+                stream.mark(Integer.MAX_VALUE);
+            }
+
             String result = null;
             StringBuilder builder = null;
             for (; ; ) {
@@ -117,7 +122,7 @@ public class UTFUtil {
                 }
             }
 
-            //streams managed by transaction should be reset.
+
             if (stream.markSupported()) {
                 try {
                     stream.reset();
