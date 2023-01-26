@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,9 @@ public abstract class TransactionBase implements Transaction {
     @Nullable
     private StackTrace traceFinish;
     private boolean disableStoreGetCache;
+
+    @Nullable
+    private Runnable beforeTransactionFlushAction;
 
     public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
         this.env = env;
@@ -223,6 +226,16 @@ public abstract class TransactionBase implements Transaction {
     protected void clearImmutableTrees() {
         synchronized (immutableTrees) {
             immutableTrees.clear();
+        }
+    }
+
+    public void setBeforeTransactionFlushAction(@NotNull Runnable exec) {
+        this.beforeTransactionFlushAction = exec;
+    }
+
+    void executeBeforeTransactionFlushAction() {
+        if (beforeTransactionFlushAction != null) {
+            beforeTransactionFlushAction.run();
         }
     }
 

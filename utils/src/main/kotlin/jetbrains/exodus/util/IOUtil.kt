@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,12 @@ object IOUtil {
 
     private const val READ_BUFFER_SIZE = 0x4000
 
+    const val DEFAULT_BUFFER_SIZE = 8 * 1024
+
     @JvmStatic
     val BUFFER_ALLOCATOR = ByteArraySpinAllocator(READ_BUFFER_SIZE)
+
+
 
     private const val BLOCK_SIZE = "exodus.io.blockSize"
     private val NO_FILES = arrayOf<File>()
@@ -116,7 +120,7 @@ object IOUtil {
         try {
             var totalRead: Long = 0
             while (totalRead < sourceLen) {
-                val read = source.read(buffer)
+                val read = source.read(buffer, 0, min(buffer.size.toLong(), sourceLen - totalRead).toInt())
                 if (read < 0) break
                 if (read > 0) {
                     target.write(buffer, 0, min(sourceLen - totalRead, read.toLong()).toInt())

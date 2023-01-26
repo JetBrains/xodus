@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.env.Environment;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -24,12 +25,13 @@ public class FileSystemBlobVault extends FileSystemBlobVaultOld {
 
     private static final int EXPECTED_VERSION = 1;
 
-    public FileSystemBlobVault(@NotNull final PersistentEntityStoreConfig config,
+    public FileSystemBlobVault(@NotNull Environment environment,
+                               @NotNull final PersistentEntityStoreConfig config,
                                @NotNull final String parentDirectory,
                                @NotNull final String blobsDirectory,
                                @NotNull final String blobExtension,
                                @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
-        super(config, parentDirectory, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
+        super(environment, config, parentDirectory, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
     }
 
     @NotNull
