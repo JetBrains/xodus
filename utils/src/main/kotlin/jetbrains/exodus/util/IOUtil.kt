@@ -34,7 +34,6 @@ object IOUtil {
     val BUFFER_ALLOCATOR = ByteArraySpinAllocator(READ_BUFFER_SIZE)
 
 
-
     private const val BLOCK_SIZE = "exodus.io.blockSize"
     private val NO_FILES = arrayOf<File>()
     private val getStoreTypeMethod = UnsafeHolder.doPrivileged {
@@ -54,43 +53,43 @@ object IOUtil {
      */
     @JvmStatic
     fun isRemovableFile(file: File) =
-            try {
-                Files.getFileStore(file.toPath()).getAttribute("volume:isRemovable") == true
-            } catch (_: Throwable) {
-                false
-            }
+        try {
+            Files.getFileStore(file.toPath()).getAttribute("volume:isRemovable") == true
+        } catch (_: Throwable) {
+            false
+        }
 
     /**
      * Returns 'true' if the method is invoked in Windows & the file is remote.
      */
     @JvmStatic
     fun isRemoteFile(file: File) =
-            try {
-                getStoreTypeMethod?.run {
-                    invoke(Files.getFileStore(file.toPath())) == 4
-                } ?: false
-            } catch (_: Throwable) {
-                false
-            }
+        try {
+            getStoreTypeMethod?.run {
+                invoke(Files.getFileStore(file.toPath())) == 4
+            } ?: false
+        } catch (_: Throwable) {
+            false
+        }
 
     /**
      * Returns 'true' if the method is invoked in Windows & the file exists on a RAM disk..
      */
     @JvmStatic
     fun isRamDiskFile(file: File) =
-            try {
-                getStoreTypeMethod?.run {
-                    invoke(Files.getFileStore(file.toPath())) == 6
-                } ?: false
-            } catch (_: Throwable) {
-                false
-            }
+        try {
+            getStoreTypeMethod?.run {
+                invoke(Files.getFileStore(file.toPath())) == 6
+            } ?: false
+        } catch (_: Throwable) {
+            false
+        }
 
     @JvmStatic
     fun getAdjustedFileLength(file: File): Long =
-            blockSize.let { blockSize ->
-                (file.length() + blockSize - 1) / blockSize * blockSize
-            }
+        blockSize.let { blockSize ->
+            (file.length() + blockSize - 1) / blockSize * blockSize
+        }
 
     @JvmStatic
     fun getDirectorySize(dir: File, extension: String, recursive: Boolean): Long {
@@ -107,22 +106,26 @@ object IOUtil {
     }
 
     @JvmStatic
-    fun copyStreams(source: InputStream,
-                    target: OutputStream,
-                    bufferAllocator: ByteArraySpinAllocator) {
+    fun copyStreams(
+        source: InputStream,
+        target: OutputStream,
+        bufferAllocator: ByteArraySpinAllocator
+    ) {
         copyStreams(source, Long.MAX_VALUE, target, bufferAllocator)
     }
 
     @JvmStatic
-    fun copyStreams(source: InputStream,
-                    sourceLen: Long,
-                    target: OutputStream,
-                    bufferAllocator: ByteArraySpinAllocator) {
+    fun copyStreams(
+        source: InputStream,
+        sourceLen: Long,
+        target: OutputStream,
+        bufferAllocator: ByteArraySpinAllocator
+    ) {
         val buffer = bufferAllocator.alloc()
         try {
             var totalRead: Long = 0
             while (totalRead < sourceLen) {
-                val read = source.read(buffer)
+                val read = source.read(buffer, 0, min(buffer.size.toLong(), sourceLen - totalRead).toInt())
                 if (read < 0) {
                     break
                 }
