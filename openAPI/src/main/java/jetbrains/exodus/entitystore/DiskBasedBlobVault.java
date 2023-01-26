@@ -35,7 +35,8 @@ public interface DiskBasedBlobVault {
 
     boolean delete(long blobHandle);
 
-    @Nullable InputStream getContent(long blobHandle, @NotNull Transaction txn);
+    @Nullable InputStream getContent(long blobHandle, @NotNull Transaction txn,
+                                     @Nullable Long expectedContentLength);
 
     long size();
 
