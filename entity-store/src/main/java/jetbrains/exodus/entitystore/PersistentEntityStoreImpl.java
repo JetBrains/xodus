@@ -1284,15 +1284,25 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                         @NotNull final PersistentEntity entity,
                         @NotNull final String blobName,
                         @NotNull final InputStream stream) throws IOException {
-        var bufferedStream = new BufferedInputStream(stream);
-        var maxEmbeddedBlobSize = config.getMaxInPlaceBlobSize();
+        InputStream bufferedStream = new BufferedInputStream(stream);
 
-        bufferedStream.mark(Math.max(maxEmbeddedBlobSize + 1, IOUtil.DEFAULT_BUFFER_SIZE));
+        int maxEmbeddedBlobSize = config.getMaxInPlaceBlobSize();
+        bufferedStream.mark(maxEmbeddedBlobSize + 1);
 
-        var size = (int) bufferedStream.skip(maxEmbeddedBlobSize + 1);
-        bufferedStream.reset();
+        final ByteArrayOutputStream memCopy = new LightByteArrayOutputStream();
+        IOUtil.copyStreams(bufferedStream, maxEmbeddedBlobSize + 1, memCopy, IOUtil.getBUFFER_ALLOCATOR());
+
+        final int size = memCopy.size();
+        if (size <= maxEmbeddedBlobSize) {
+            bufferedStream.close();
+
+            bufferedStream = new ByteArraySizedInputStream(memCopy.toByteArray(), 0, size);
+        } else {
+            bufferedStream.reset();
+        }
 
         final long blobHandle = createBlobHandle(txn, entity, blobName, bufferedStream, size);
+
 
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
             txn.addBlob(blobHandle, bufferedStream);
@@ -1362,7 +1372,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 throw new NullPointerException("In-memory blob content is expected");
             }
 
-            var embeddedStream = getBlobVault().cloneStream(stream, true);
+            var embeddedStream = (ByteArraySizedInputStream) stream;
             if (!useVersion1Format()) {
                 // check for duplicate
                 final ByteIterable hashEntry = findDuplicate(txn, typeId, embeddedStream);
