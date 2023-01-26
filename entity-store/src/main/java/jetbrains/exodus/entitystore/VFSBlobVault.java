@@ -89,8 +89,16 @@ public class VFSBlobVault extends BlobVault {
     }
 
     @Override
-    @NotNull
-    public InputStream getContent(long blobHandle, @NotNull final Transaction txn) {
+    @Nullable
+    public InputStream getContent(long blobHandle, @NotNull final Transaction txn, @Nullable Long expectedLength) {
+        if (expectedLength != null) {
+            long actualLength = fs.getFileLength(txn, blobHandle);
+
+            if (actualLength != expectedLength.longValue()) {
+                return null;
+            }
+        }
+
         return fs.readFile(txn, blobHandle);
     }
 
@@ -184,7 +192,7 @@ public class VFSBlobVault extends BlobVault {
                 if (i++ % 100 == 0) {
                     txn.flush();
                 }
-                final InputStream content = sourceVault.getContent(blobId, txn);
+                final InputStream content = sourceVault.getContent(blobId, txn, null);
                 if (content != null) {
                     importBlob(txn, blobId, content);
                 }
