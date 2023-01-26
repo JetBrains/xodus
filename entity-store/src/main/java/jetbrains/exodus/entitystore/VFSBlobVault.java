@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.Map;
 
 public class VFSBlobVault extends BlobVault {
@@ -46,10 +47,6 @@ public class VFSBlobVault extends BlobVault {
 
     @NotNull
     private final VirtualFileSystem fs;
-
-    public VFSBlobVault(@NotNull final PersistentEntityStoreConfig config, @NotNull final Environment env) {
-        this(config, new VirtualFileSystem(env, BLOB_VAULT_VFS_CONFIG));
-    }
 
     public VFSBlobVault(@NotNull final PersistentEntityStoreConfig config, @NotNull final VirtualFileSystem fs) {
         super(config);
@@ -114,20 +111,28 @@ public class VFSBlobVault extends BlobVault {
     @Override
     public void flushBlobs(@Nullable final LongHashMap<InputStream> blobStreams,
                            @Nullable final LongHashMap<File> blobFiles,
-                           @Nullable final LongSet deferredBlobsToDelete,
+                           @Nullable LongHashMap<Path> tmpBlobs, @Nullable final LongSet deferredBlobsToDelete,
                            @NotNull final Transaction txn) throws Exception {
         if (blobStreams != null) {
             blobStreams.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>) object -> {
                 final InputStream stream = object.getValue();
-                stream.reset();
-                setContent(object.getKey(), stream, txn);
+                //reset the stream if it was changed during transaction processing.
+                //all streams are hold by transaction should support mark method.
+                try {
+                    stream.reset();
+                } catch (IOException e) {
+                    //ignore if mark was not set
+                }
+
+                stream.mark(IOUtil.DEFAULT_BUFFER_SIZE);
+                setContent(object.getKey().longValue(), stream, txn);
                 return true;
             });
         }
         // if there were blob files then move them
         if (blobFiles != null) {
             blobFiles.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, File>, Exception>) object -> {
-                setContent(object.getKey(), object.getValue(), txn);
+                setContent(object.getKey().longValue(), object.getValue(), txn);
                 return true;
             });
         }
@@ -166,7 +171,8 @@ public class VFSBlobVault extends BlobVault {
     }
 
     public void refactorFromFS(@NotNull final PersistentEntityStoreImpl store) throws IOException {
-        final BlobVault sourceVault = new FileSystemBlobVaultOld(store.getConfig(), store.getLocation(),
+        final BlobVault sourceVault = new FileSystemBlobVaultOld(store.getEnvironment(),
+                store.getConfig(), store.getLocation(),
                 "blobs", ".blob", BlobHandleGenerator.IMMUTABLE);
 
         final LongSet allBlobs = store.computeInReadonlyTransaction(txn -> loadAllBlobs(store, (PersistentStoreTransaction) txn));
