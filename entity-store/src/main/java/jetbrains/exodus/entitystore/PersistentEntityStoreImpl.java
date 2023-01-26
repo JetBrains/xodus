@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import jetbrains.exodus.io.WatchingFileDataReaderWriterProvider;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
+import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
 import kotlin.Unit;
@@ -416,17 +417,17 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             final PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter persistentSequenceGetter =
                 () -> getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
             try {
-                blobVault = new FileSystemBlobVault(config, location, BLOBS_DIR, BLOBS_EXTENSION,
-                    new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
+                blobVault = new FileSystemBlobVault(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION,
+                        new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
             } catch (UnexpectedBlobVaultVersionException e) {
                 blobVault = null;
             }
             if (blobVault == null) {
                 if (config.getMaxInPlaceBlobSize() > 0) {
-                    blobVault = new FileSystemBlobVaultOld(config, location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
+                    blobVault = new FileSystemBlobVaultOld(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
                 } else {
-                    blobVault = new FileSystemBlobVaultOld(config, location, BLOBS_DIR, BLOBS_EXTENSION,
-                        new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
+                    blobVault = new FileSystemBlobVaultOld(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION,
+                            new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
                 }
             }
             final long current = persistentSequenceGetter.get().get();
@@ -838,7 +839,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
         if ((value instanceof ComparableSet && ((ComparableSet) value).isEmpty()) ||
-            (value instanceof Boolean && value.equals(false))) {
+                (value instanceof Boolean && value.equals(Boolean.FALSE))) {
             return deleteProperty(txn, entity, propertyName);
         }
         final PropertyValue propValue = propertyTypes.dataToPropertyValue(value);
@@ -1163,12 +1164,27 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                         @NotNull final PersistentEntity entity,
                         @NotNull final String blobName,
                         @NotNull final InputStream stream) throws IOException {
-        final ByteArraySizedInputStream copy = stream instanceof ByteArraySizedInputStream ?
-            (ByteArraySizedInputStream) stream : blobVault.cloneStream(stream, true);
-        final long blobHandle = createBlobHandle(txn, entity, blobName, copy, copy.size());
+        InputStream bufferedStream = new BufferedInputStream(stream);
+
+        int maxEmbeddedBlobSize = config.getMaxInPlaceBlobSize();
+        bufferedStream.mark(Math.max(maxEmbeddedBlobSize + 1, IOUtil.DEFAULT_BUFFER_SIZE));
+
+        final ByteArrayOutputStream memCopy = new LightByteArrayOutputStream();
+        IOUtil.copyStreams(bufferedStream, maxEmbeddedBlobSize + 1, memCopy, IOUtil.getBUFFER_ALLOCATOR());
+
+        final int size = memCopy.size();
+        if (size <= maxEmbeddedBlobSize) {
+            bufferedStream.close();
+
+            bufferedStream = new ByteArraySizedInputStream(memCopy.toByteArray(), 0, size);
+        } else {
+            bufferedStream.reset();
+        }
+
+        final long blobHandle = createBlobHandle(txn, entity, blobName, bufferedStream, size);
+
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-            setBlobFileLength(txn, blobHandle, copy.size());
-            txn.addBlob(blobHandle, copy);
+            txn.addBlob(blobHandle, bufferedStream);
         }
     }
 
@@ -1182,7 +1198,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         final int size = (int) length;
         final long blobHandle = createBlobHandle(txn, entity, blobName,
-            size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneFile(file), size);
+                size > config.getMaxInPlaceBlobSize() ? null : blobVault.cloneFile(file), size);
+
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
             setBlobFileLength(txn, blobHandle, length);
             txn.addBlob(blobHandle, file);
@@ -1212,7 +1229,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private long createBlobHandle(@NotNull final PersistentStoreTransaction txn,
                                   @NotNull final PersistentEntity entity,
                                   @NotNull final String blobName,
-                                  @Nullable final ByteArraySizedInputStream stream,
+                                  @Nullable final InputStream stream,
                                   final int size) {
         final EntityId id = entity.getId();
         final long entityLocalId = id.getLocalId();
@@ -1233,9 +1250,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             if (stream == null) {
                 throw new NullPointerException("In-memory blob content is expected");
             }
+
+            ByteArraySizedInputStream embeddedStream = (ByteArraySizedInputStream) stream;
             if (!useVersion1Format()) {
                 // check for duplicate
-                final ByteIterable hashEntry = findDuplicate(txn, typeId, stream);
+                final ByteIterable hashEntry = findDuplicate(txn, typeId, embeddedStream);
                 if (hashEntry != null) {
                     blobs.put(envTxn, entityLocalId, blobId,
                         new CompoundByteIterable(new ByteIterable[]{
@@ -1249,11 +1268,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
             blobHandle = IN_PLACE_BLOB_HANDLE;
             blobs.put(envTxn, entityLocalId, blobId,
-                new CompoundByteIterable(new ByteIterable[]{
-                    blobHandleToEntry(blobHandle),
-                    CompressedUnsignedLongByteIterable.getIterable(size),
-                    new ArrayByteIterable(stream.toByteArray(), size)
-                })
+                    new CompoundByteIterable(new ByteIterable[]{
+                            blobHandleToEntry(blobHandle),
+                            CompressedUnsignedLongByteIterable.getIterable(size),
+                            new ArrayByteIterable(embeddedStream.toByteArray(), size)
+                    })
             );
         } else {
             blobHandle = blobVault.nextHandle(envTxn);

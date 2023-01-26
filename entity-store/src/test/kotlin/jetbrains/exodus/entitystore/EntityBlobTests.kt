@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -114,9 +114,9 @@ class EntityBlobTests : EntityStoreTestBase() {
     fun testNonAsciiBlobString() {
         val txn = storeTransaction
         val issue = txn.newEntity("Issue")
-        issue.setBlobString("description", "абвгдеёжзийклмнопрстуфхкцчшщъыьэюя")
+        issue.setBlobString("description", "абвгдеёжзийклмнопр�?туфхкцчшщъыь�?ю�?")
         txn.flush()
-        Assert.assertEquals("абвгдеёжзийклмнопрстуфхкцчшщъыьэюя", issue.getBlobString("description"))
+        Assert.assertEquals("абвгдеёжзийклмнопр�?туфхкцчшщъыь�?ю�?", issue.getBlobString("description"))
     }
 
     @TestFor(issue = "JT-44824")

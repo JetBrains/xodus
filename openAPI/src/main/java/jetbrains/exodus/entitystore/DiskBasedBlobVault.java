@@ -1,5 +1,5 @@
 /**
- * Copyright 2010 - 2022 JetBrains s.r.o.
+ * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,15 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 
 public interface DiskBasedBlobVault {
 
@@ -37,4 +40,8 @@ public interface DiskBasedBlobVault {
     long size();
 
     void close();
+
+    @NotNull Path copyToTemporaryStore(long handle, final @NotNull InputStream stream) throws IOException;
+
+    void generateDirForTmpBlobs(Environment environment) throws IOException;
 }
