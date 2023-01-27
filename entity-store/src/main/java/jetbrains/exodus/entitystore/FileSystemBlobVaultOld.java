@@ -176,9 +176,14 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
 
     @Override
     @Nullable
-    public InputStream getContent(final long blobHandle, @NotNull final Transaction txn) {
+    public InputStream getContent(final long blobHandle, @NotNull final Transaction txn, @Nullable Long expectedLength) {
         try {
-            return new FileInputStream(getBlobLocation(blobHandle));
+            File location = getBlobLocation(blobHandle);
+            if (expectedLength != null && location.length() != expectedLength.longValue()) {
+                return null;
+            }
+
+            return new FileInputStream(location);
         } catch (FileNotFoundException e) {
             return null;
         }
