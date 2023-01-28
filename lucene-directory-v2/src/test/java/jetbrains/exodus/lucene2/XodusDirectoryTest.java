@@ -22,13 +22,14 @@ import org.apache.lucene.store.BaseDirectoryTestCase;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.TestRuleLimitSysouts;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 @ThreadLeakFilters(filters = XodusThreadFilter.class)
 @TestRuleLimitSysouts.Limit(bytes = 20 * 1024)
 public class XodusDirectoryTest extends BaseDirectoryTestCase {
     @Override
-    protected Directory getDirectory(Path path) {
+    protected Directory getDirectory(Path path) throws IOException {
         Environment environment = Environments.newInstance(path.toFile());
 
         return new XodusDirectory(environment);

@@ -18,6 +18,7 @@ package jetbrains.exodus.lucene2;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
+import jetbrains.exodus.crypto.StreamCipher;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentImpl;
@@ -26,6 +27,7 @@ import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.io.SharedOpenFilesCache;
 import jetbrains.exodus.log.CacheDataProvider;
 import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.SharedLogCache;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.*;
@@ -33,10 +35,7 @@ import org.apache.lucene.util.FutureObjects;
 import org.apache.lucene.util.IOUtils;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.EOFException;
-import java.io.FileNotFoundException;
-import java.io.FilterOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
@@ -57,6 +56,8 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
     private final SharedLogCache sharedLogCache;
     private final StreamCipherProvider cipherProvider;
+
+    private final byte[] cipherKey;
 
     private final int identity;
 
@@ -81,7 +82,11 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
     private final int pageSize;
 
-    protected XodusDirectory(Environment environment) {
+    private final AtomicLong ivGen;
+
+    private final Random ivRnd = new Random();
+
+    protected XodusDirectory(Environment environment) throws IOException {
         this.environment = (EnvironmentImpl) environment;
         var log = this.environment.getLog();
         var logConfig = log.getConfig();
@@ -99,7 +104,10 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                     " . Only environments with shared cache are supported.");
         }
 
+
         this.cipherProvider = logConfig.getCipherProvider();
+        this.cipherKey = logConfig.getCipherKey();
+
         this.identity = Log.Companion.getIdentityGenerator().nextId();
 
         this.nameToAddressStore = environment.computeInTransaction(txn ->
@@ -108,27 +116,66 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         this.luceneOutputPath = path.resolve("luceneOutput");
         this.luceneIndex = path.resolve("luceneIndex");
 
-        try {
-            if (!Files.exists(luceneOutputPath)) {
-                Files.createDirectory(luceneOutputPath);
-            }
 
-            if (!Files.exists(luceneIndex)) {
-                Files.createDirectory(luceneIndex);
-            }
-        } catch (IOException e) {
-            throw new ExodusException("Can not initialize lucene directory", e);
+        if (!Files.exists(luceneOutputPath)) {
+            Files.createDirectory(luceneOutputPath);
         }
 
-        try {
-            this.nextAddress = new AtomicLong(DirUtil.getNextAddress(luceneIndex));
-        } catch (IOException e) {
-            throw new ExodusException("Error of fetching of next file address for directory" + path, e);
+        if (!Files.exists(luceneIndex)) {
+            Files.createDirectory(luceneIndex);
         }
 
+        long[] maxAddressLengthIv = new long[]{-1, -1, -1};
+        var fetchIvs = cipherKey != null;
+
+        try (var fileStream = DirUtil.listLuceneFiles(path)) {
+            fileStream.forEach(p -> {
+                        var indexFile = p.getFileName().toString();
+                        var address = DirUtil.getFileAddress(indexFile);
+
+                        if (address > maxAddressLengthIv[0]) {
+                            maxAddressLengthIv[0] = address;
+                            try {
+                                maxAddressLengthIv[1] = Files.size(p);
+                            } catch (IOException e) {
+                                throw new ExodusException("Error during fetching of size of file " + p, e);
+                            }
+                        }
+
+                        if (fetchIvs) {
+                            var ivFileName = DirUtil.getIvFileName(indexFile);
+                            var ivPath = luceneIndex.resolve(ivFileName);
+
+                            if (Files.exists(ivPath)) {
+                                try (var ivStream = new DataInputStream(Files.newInputStream(ivPath))) {
+                                    var iv = ivStream.readLong();
+
+                                    if (iv > maxAddressLengthIv[2]) {
+                                        maxAddressLengthIv[2] = iv;
+                                    }
+                                } catch (EOFException eof) {
+                                    //ignore
+                                } catch (IOException e) {
+                                    throw new ExodusException("Can not read iv file " + ivRnd, e);
+                                }
+                            }
+                        }
+                    }
+            );
+        }
+
+        if (maxAddressLengthIv[0] >= 0) {
+            this.nextAddress = new AtomicLong(maxAddressLengthIv[0] + maxAddressLengthIv[1]);
+        } else {
+            this.nextAddress = new AtomicLong(0);
+        }
+
+
+        this.ivGen = new AtomicLong(maxAddressLengthIv[2] + 1);
         this.path = path;
         this.pageSize = log.getCachePageSize();
     }
+
 
     @Override
     public String[] listAll() {
@@ -208,7 +255,13 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             throw new FileAlreadyExistsException("File " + name + " already exists");
         }
 
-        return new XodusIndexOutput(name + outputIndex.getAndIncrement(), name);
+        var index = outputIndex.getAndIncrement();
+        if (cipherKey == null) {
+            return new XodusIndexOutput(name + index, name, null);
+        }
+
+        return new XodusIndexOutput(name + outputIndex.getAndIncrement(),
+                name, name + index + ".iv");
     }
 
     @Override
@@ -244,6 +297,15 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                             IOUtils.fsync(luceneIndex.resolve(indexName), false);
                         } catch (IOException e) {
                             throw new ExodusException("Error during syncing of file " + fileName, e);
+                        }
+
+                        if (cipherKey != null) {
+                            var ivFileName = DirUtil.getIvFileName(indexName);
+                            try {
+                                IOUtils.fsync(luceneIndex.resolve(ivFileName), false);
+                            } catch (IOException e) {
+                                throw new ExodusException("Error during syncing of file " + ivFileName, e);
+                            }
                         }
                     } else {
                         throw new ExodusException("File " + fileName + " does not exist.");
@@ -377,6 +439,13 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         try {
             cache.removeFile(path.toFile());
             Files.deleteIfExists(path);
+
+            if (cipherKey != null) {
+                var ivPath = luceneIndex.resolve(DirUtil.getIvFileName(path.getFileName().toString()));
+                cache.removeFile(ivPath.toFile());
+                Files.deleteIfExists(ivPath);
+            }
+
             pendingDeletes.remove(file);
         } catch (IOException ioe) {
             // On windows, a file delete can fail because there's still an open
@@ -398,14 +467,44 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         var filesCache = SharedOpenFilesCache.getInstance();
         var fileName = DirUtil.getFileNameByAddress(fileAddress);
         var pageOffset = pageAddress - fileAddress;
+
         var filePath = luceneIndex.resolve(fileName);
 
         var page = new byte[pageSize];
 
+        int dataRead;
         try (var file = filesCache.getCachedFile(filePath.toFile())) {
-            DirUtil.readFully(file, pageOffset, page);
+            dataRead = DirUtil.readFully(file, pageOffset, page);
         } catch (IOException e) {
             throw new ExodusException("Can not access file " + fileName, e);
+        }
+
+        if (cipherKey != null) {
+            var ivPosition = pageOffset / LogUtil.LOG_BLOCK_ALIGNMENT * Long.BYTES;
+            var ivPath = luceneIndex.resolve(DirUtil.getIvFileName(fileName));
+
+            final long[] ivs = new long[(dataRead + LogUtil.LOG_BLOCK_ALIGNMENT - 1) / LogUtil.LOG_BLOCK_ALIGNMENT];
+            try (var ivFile = filesCache.getCachedFile(ivPath.toFile())) {
+                ivFile.seek(ivPosition);
+
+                for (int i = 0; i < ivs.length; i++) {
+                    ivs[i] = ivFile.readLong();
+                }
+            } catch (IOException e) {
+                throw new ExodusException("Can not access file " + ivPath, e);
+            }
+
+            var cipher = cipherProvider.newCipher();
+            int index = 0;
+
+            for (long iv : ivs) {
+                cipher.init(cipherKey, iv);
+
+                for (int i = 0; index < dataRead && i < LogUtil.LOG_BLOCK_ALIGNMENT; i++) {
+                    page[index] = cipher.crypt(page[index]);
+                    index++;
+                }
+            }
         }
 
         return page;
@@ -434,6 +533,23 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         return NoLockFactory.INSTANCE.obtainLock(this, name);
     }
 
+    private OutputStream openOutputStream(String fileName, String ivFileName, OpenOption[] options) throws IOException {
+        var fileStream = Files.newOutputStream(luceneOutputPath.resolve(fileName), options);
+        if (cipherKey == null) {
+            return fileStream;
+        }
+
+        var ivStream = new DataOutputStream(
+                Files.newOutputStream(luceneOutputPath.resolve(ivFileName), options));
+        return new StreamCipherOutputStream(fileStream, cipherKey, cipherProvider,
+                ivGen, ivStream, ivRnd);
+    }
+
+    private static long asHashedIv(long iv) {
+        return iv * 6364136223846793005L - 4019793664819917546L;
+    }
+
+
     final class XodusIndexOutput extends OutputStreamIndexOutput {
         /**
          * The maximum chunk size is 8192 bytes, because file channel mallocs
@@ -442,17 +558,19 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         static final int CHUNK_SIZE = 8192;
 
         final Path filePath;
+        final Path ivFilePath;
+
         final String indexName;
 
         boolean closed;
 
-        public XodusIndexOutput(String fileName, final String indexName) throws IOException {
-            this(fileName, indexName, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
+        public XodusIndexOutput(String fileName, final String indexName, String ivFileName) throws IOException {
+            this(fileName, indexName, ivFileName, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
         }
 
-        XodusIndexOutput(String fileName, String indexName, OpenOption... options) throws IOException {
+        XodusIndexOutput(String fileName, String indexName, String ivFileName, OpenOption... options) throws IOException {
             super("XodusIndexOutput(path=\"" + luceneOutputPath.resolve(fileName) + "\")", fileName,
-                    new FilterOutputStream(Files.newOutputStream(luceneOutputPath.resolve(fileName), options)) {
+                    new FilterOutputStream(openOutputStream(fileName, ivFileName, options)) {
                         // This implementation ensures, that we never write more than CHUNK_SIZE bytes:
                         @Override
                         public void write(byte @NotNull [] b, int offset, int length) throws IOException {
@@ -466,8 +584,15 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                     }, CHUNK_SIZE);
 
             filePath = luceneOutputPath.resolve(fileName);
+            if (ivFileName != null) {
+                ivFilePath = luceneOutputPath.resolve(ivFileName);
+            } else {
+                ivFilePath = null;
+            }
+
             this.indexName = indexName;
         }
+
 
         @Override
         public String getName() {
@@ -482,14 +607,27 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 var fileLength = Files.size(filePath);
 
                 var fileAddress = nextAddress.getAndAdd(fileLength + 1);
-                var indexPath = luceneIndex.resolve(DirUtil.getFileNameByAddress(fileAddress));
 
-                assert !Files.exists(indexPath);
+                var indexFileName = DirUtil.getFileNameByAddress(fileAddress);
+                var indexPath = luceneIndex.resolve(indexFileName);
+
                 try {
                     Files.move(filePath, indexPath, StandardCopyOption.ATOMIC_MOVE);
                 } catch (AtomicMoveNotSupportedException e) {
                     Files.move(filePath, indexPath);
                 }
+
+                if (ivFilePath != null) {
+                    var ivFileName = DirUtil.getIvFileName(indexFileName);
+                    var ivPath = luceneIndex.resolve(ivFileName);
+
+                    try {
+                        Files.move(ivFilePath, ivPath, StandardCopyOption.ATOMIC_MOVE);
+                    } catch (AtomicMoveNotSupportedException e) {
+                        Files.move(ivFilePath, ivPath);
+                    }
+                }
+
 
                 environment.executeInTransaction(txn -> {
                     var key = StringBinding.stringToEntry(indexName);
@@ -876,6 +1014,104 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
     protected void ensureOpen() throws AlreadyClosedException {
         if (!environment.isOpen()) {
             throw new AlreadyClosedException("Directory " + path + " already closed");
+        }
+    }
+
+    private static final class StreamCipherOutputStream extends FilterOutputStream {
+        private final byte[] cipherKey;
+        private final StreamCipher cipher;
+
+        private final AtomicLong ivGen;
+
+        private final DataOutputStream ivStream;
+
+        private final Random ivRnd;
+
+        private long position;
+
+        private long ivPosition;
+
+
+        public StreamCipherOutputStream(final @NotNull OutputStream out,
+                                        final byte @NotNull [] cipherKey,
+                                        final @NotNull StreamCipherProvider cipherProvider,
+                                        final @NotNull AtomicLong ivGen, @NotNull DataOutputStream ivStream,
+                                        final Random ivRnd) throws IOException {
+            super(out);
+
+            this.ivStream = ivStream;
+            this.ivGen = ivGen;
+            this.ivRnd = ivRnd;
+            this.cipherKey = cipherKey;
+
+            cipher = cipherProvider.newCipher();
+
+            generateAndStoreIv();
+        }
+
+        private void generateAndStoreIvIfNeeded() throws IOException {
+            if (position - ivPosition == LogUtil.LOG_BLOCK_ALIGNMENT) {
+                generateAndStoreIv();
+                ivPosition = position;
+            }
+        }
+
+        private void generateAndStoreIv() throws IOException {
+            long iv = asHashedIv(ivGen.getAndAdd(ivRnd.nextInt(16)));
+            ivStream.writeLong(iv);
+            cipher.init(cipherKey, iv);
+        }
+
+
+        @Override
+        public void write(int b) throws IOException {
+            generateAndStoreIvIfNeeded();
+
+            b = cipher.crypt((byte) b);
+
+            out.write(b);
+            position++;
+        }
+
+        @Override
+        public void write(byte @NotNull [] b) throws IOException {
+            b = Arrays.copyOf(b, b.length);
+
+            encryptArray(b);
+
+            out.write(b);
+        }
+
+        private void encryptArray(byte @NotNull [] b) throws IOException {
+            for (int i = 0; i < b.length; i++) {
+                generateAndStoreIvIfNeeded();
+
+                b[i] = cipher.crypt(b[i]);
+                position++;
+            }
+        }
+
+        @Override
+        public void write(byte @NotNull [] b, int off, int len) throws IOException {
+            b = Arrays.copyOfRange(b, off, off + len);
+
+            encryptArray(b);
+
+            out.write(b);
+        }
+
+        @Override
+        public void flush() throws IOException {
+            ivStream.flush();
+
+            super.flush();
+        }
+
+        @Override
+        public void close() throws IOException {
+            ivStream.close();
+
+            super.close();
         }
     }
 }

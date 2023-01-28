@@ -26,6 +26,7 @@ import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 public final class DirUtil {
     public static final int LUCENE_FILE_NAME_LENGTH = 13;
@@ -39,6 +40,7 @@ public final class DirUtil {
     private static final char[] LUCENE_FILE_EXTENSION_CHARS = LUCENE_FILE_EXTENSION.toCharArray();
 
     private static final IntHashMap<Integer> ALPHA_INDEXES;
+    public static final String IV_FILE_EXTENSION = ".iv";
 
     static {
         ALPHA_INDEXES = new IntHashMap<>();
@@ -72,6 +74,10 @@ public final class DirUtil {
         return new String(name);
     }
 
+    static @NotNull String getIvFileName(String indexFileName) {
+        return indexFileName.substring(0, LUCENE_FILE_NAME_LENGTH) + IV_FILE_EXTENSION;
+    }
+
     static long getFileAddress(String name) {
         final int length = name.length();
         if (length != LUCENE_FILE_NAME_WITH_EXT_LENGTH || !name.endsWith(LUCENE_FILE_EXTENSION)) {
@@ -89,7 +95,7 @@ public final class DirUtil {
         return address;
     }
 
-    static void readFully(@NotNull RandomAccessFile file, long offset, final byte[] page) throws IOException {
+    static int readFully(@NotNull RandomAccessFile file, long offset, final byte[] page) throws IOException {
         int dataRead = 0;
         while (dataRead < page.length) {
             file.seek(offset + dataRead);
@@ -100,36 +106,19 @@ public final class DirUtil {
                     throw new EOFException("EOF for file " + file + " has been encountered");
                 }
 
-                return;
+                return dataRead;
             }
 
             dataRead += r;
         }
+
+        return dataRead;
     }
 
-    static long getNextAddress(Path path) throws IOException {
-        long[] maxAddressAndLength = new long[]{-1, -1};
-
-        try (var fileStream = Files.walk(path)) {
-            fileStream.filter(LUCENE_FILE_FILTER).forEach(p -> {
-                        var address = getFileAddress(p.getFileName().toString());
-                        if (address > maxAddressAndLength[0]) {
-                            maxAddressAndLength[0] = address;
-                            try {
-                                maxAddressAndLength[1] = Files.size(p);
-                            } catch (IOException e) {
-                                throw new ExodusException("Error during fetching of size of file " + p, e);
-                            }
-                        }
-                    }
-            );
-        }
-
-        if (maxAddressAndLength[0] >= 0) {
-            return maxAddressAndLength[0] + maxAddressAndLength[1];
-        }
-
-        return 0;
+    @NotNull
+    public static Stream<Path> listLuceneFiles(Path path) throws IOException {
+        //noinspection resource
+        return Files.walk(path).filter(LUCENE_FILE_FILTER);
     }
 
 }
