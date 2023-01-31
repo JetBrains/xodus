@@ -918,18 +918,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         localCache = (EntityIterableCacheAdapter) store.getEntityIterableCache().getCacheAdapter();
         mutableCache = null;
         mutatedInTxn = null;
-
-        if (blobStreams != null) {
-            for (InputStream stream : blobStreams.values()) {
-                try {
-                    stream.close();
-                } catch (IOException e) {
-                    logger.error("Error during reverting of caches.", e);
-                }
-            }
-            blobStreams = null;
-        }
-
+        blobStreams = null;
         blobFiles = null;
         deferredBlobsToDelete = null;
         tmpBlobFiles = null;
