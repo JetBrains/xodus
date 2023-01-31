@@ -297,7 +297,6 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
 
     @Override
     public void close() {
-        IOUtil.deleteRecursively(location);
     }
 
     @NotNull
