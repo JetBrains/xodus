@@ -28,6 +28,7 @@ import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
+import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -945,6 +946,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                     for (Map.Entry<Long, InputStream> entry : blobStreams.entrySet()) {
                         Long handle = entry.getKey();
                         InputStream stream = entry.getValue();
+
+                        //reset the stream if it was changed during transaction processing.
+                        //all streams are hold by transaction should support mark method.
+                        //stream could be changed if they are returned to user during transaction processing
+                        stream.reset();
+
+                        //reset mark position to avoid OOM
+                        stream.mark(IOUtil.DEFAULT_BUFFER_SIZE);
 
                         long blobHandle = handle.longValue();
 
