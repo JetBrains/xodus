@@ -5,33 +5,7 @@ import org.jctools.maps.NonBlockingHashMapLong;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
-
-
-class OperationLogRecord {
-    final long key; // final thread-safety for fields, primitives for access speed
-    // final makes no sense for methods and classes for the multi-threading
-    final long value;
-    final long transactionId;
-    final String operation; // shouldn't be strings, but leave like this for now
-
-    OperationLogRecord(long key, long value, long transactionId, String operation) {
-        this.key = key;
-        this.value = value;
-        this.transactionId = transactionId;
-        this.operation = operation;
-    }
-}
-
-class OperationReference {
-    // for later: in case we have multiple operations we can use linked list as here we always have one thread per txId -> thread-safety !!
-    final long address;
-    volatile State state = State.IN_PROGRESS;
-
-    OperationReference(long address, State state) {
-        this.address = address;
-        this.state = state;
-    }
-}
+import java.util.function.Function;
 
 class MVCCRecord {
     final AtomicLong maxTransactionId;
@@ -42,7 +16,6 @@ class MVCCRecord {
         this.linksToOperations = linksToOperations;
     }
 }
-
 
 class MVCCDataStructure {
     private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); //primitive long keys
@@ -61,6 +34,14 @@ class MVCCDataStructure {
         }
     }
 
+    // This one is static and non-lambdified to optimize performance
+    private static final Function<Long, MVCCRecord> createRecord = new Function<>() {
+        @Override
+        public MVCCRecord apply(Long o) {
+            return new MVCCRecord(new AtomicLong(0), new ConcurrentSkipListMap<>());
+        }
+    };
+
     // should be separate for with duplicates and without, for now we do without only
     public static long readLogRecord(long currentTransactionId, long key) {
         var keyHashCode = Long.hashCode(key);
@@ -68,9 +49,7 @@ class MVCCDataStructure {
         // todo: put block not to add transactions less than ours
         // replace to compute (with lock) - get mvcc record and update (atomic long) maxtransactionID, compareAndSet
         // todo: seems we don't need a custom compute here as autoboxing is not an issue here
-        MVCCRecord mvccRecord = hashMap.computeIfAbsent((long) keyHashCode, (k) -> //todo redo lambda as static field not to re-create the object
-            new MVCCRecord(new AtomicLong(0), new ConcurrentSkipListMap<>())
-        );
+        MVCCRecord mvccRecord = hashMap.computeIfAbsent((long) keyHashCode, createRecord);
 
         compareWithCurrentAndSet(mvccRecord, currentTransactionId); //increment version
 
@@ -105,10 +84,10 @@ class MVCCDataStructure {
         for (element in q until reach currentTransactionId )
 //        for (OperationReference operation : reverseMaxTxId.values()) {
             // if we don't see anything it means that "write" reverted itself, look at Case
-            while (operation.state == State.IN_PROGRESS){
+            while (operation.state == OperationReferenceState.IN_PROGRESS){
                 Thread.onSpinWait(); // pass to the next thread, not to waste resources
             } // for "write" operation in progress, wait for it, for case when we see this "write" and wait till it finishes to understand if the element is valid
-            if (operation.state == State.ABORTED) // "write" failed, not to ask mvccRecord.linksToOperations for the second time if it was deleted
+            if (operation.state == OperationReferenceState.ABORTED) // "write" failed, not to ask mvccRecord.linksToOperations for the second time if it was deleted
                 continue; // we go to the next record in for loop
         //----------------------------------
             var operation2 = operationLog.get(operation.address);
@@ -121,42 +100,31 @@ class MVCCDataStructure {
         return searchInBTree(key);
     }
 
-    long searchInBTree(long key){
+    private long searchInBTree(long key){
         // mock method for the search of the operation in B-tree
         return 0L;
     }
 
     public static void write(long transactionId, long key, long value, String inputOperation) {
         long keyHashCode = Long.hashCode(key);
-        MVCCRecord mvccRecord = hashMap.get(keyHashCode);
-        if (mvccRecord == null) {
-            mvccRecord = new MVCCRecord(transactionId, new SortedMap());
-            hashMap.put(keyHashCode, mvccRecord);
-        } // todo replace to compute
+
+        MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
+        hashMap.putIfAbsent(keyHashCode, mvccRecord);
 
         var recordAddress = address.getAndIncrement();
         operationLog.put(recordAddress, new OperationLogRecord(key, value, transactionId, inputOperation));
-        var operation = new OperationReference(recordAddress, State.IN_PROGRESS);
+        var operation = new OperationReference(recordAddress, OperationReferenceState.IN_PROGRESS);
         mvccRecord.linksToOperations.put(transactionId, operation);
 
         if (transactionId < mvccRecord.maxTransactionId.get()) {
-            operation.state = State.ABORTED; // later in "read" we ignore this
+            operation.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
             hashMap.remove(keyHashCode);
             throw new ExodusException(); // rollback
         }
-        operation.state = State.COMPLETED; // what we inserted "read" can see
+        operation.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
         // advanced approach: state-machine
-
         //here we first work with collection, after that increment version, in read vica versa
     }
-
-
-}
-
-enum State {
-    IN_PROGRESS,
-    ABORTED,
-    COMPLETED
 }
 
 // todo:  ROLLING_BACK (we put this state when read sees write which is in progress, not commited )for the transactions state
