@@ -1,12 +1,12 @@
 /**
  * Copyright 2010 - 2023 JetBrains s.r.o.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * https://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,7 +27,6 @@ import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.io.SharedOpenFilesCache;
 import jetbrains.exodus.log.CacheDataProvider;
 import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.SharedLogCache;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.*;
@@ -164,16 +163,23 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             );
         }
 
+        this.pageSize = log.getCachePageSize();
+
         if (maxAddressLengthIv[0] >= 0) {
-            this.nextAddress = new AtomicLong(maxAddressLengthIv[0] + maxAddressLengthIv[1]);
+            var nextAddress = maxAddressLengthIv[0] + maxAddressLengthIv[1];
+            var pages = (nextAddress + pageSize - 1) / pageSize;
+
+            if (pages == 0) {
+                pages = 1;
+            }
+
+            this.nextAddress = new AtomicLong(pages * pageSize);
         } else {
             this.nextAddress = new AtomicLong(0);
         }
 
-
         this.ivGen = new AtomicLong(maxAddressLengthIv[2] + 1);
         this.path = path;
-        this.pageSize = log.getCachePageSize();
     }
 
 
@@ -206,8 +212,31 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         var address = mapNameFileAddress(name);
         var indexFileName = DirUtil.getFileNameByAddress(address);
         var indexFilePath = luceneIndex.resolve(indexFileName);
+        var fileSize = Files.size(indexFilePath);
 
-        return Files.size(indexFilePath);
+        if (cipherKey == null) {
+            return fileSize;
+        }
+
+        return subtractWithIvSpace(Long.BYTES, fileSize);
+    }
+
+    private long subtractWithIvSpace(long start, long end) {
+        if (cipherKey == null) {
+            return end - start;
+        }
+
+        var spaceLeftInPage = pageSize - (start & (pageSize - 1));
+        var diff = end - start;
+
+        if (diff > spaceLeftInPage) {
+            start += spaceLeftInPage;
+            var pages = (end - start + pageSize - 1) / pageSize;
+
+            return end - start - pages * Long.BYTES + spaceLeftInPage;
+        }
+
+        return diff;
     }
 
     private long mapNameFileAddress(String name) throws FileNotFoundException {
@@ -256,12 +285,13 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         }
 
         var index = outputIndex.getAndIncrement();
+        var fileName = name + index;
         if (cipherKey == null) {
-            return new XodusIndexOutput(name + index, name, null);
+            return new XodusIndexOutput(fileName, name, null, openOutputStream(fileName));
         }
 
-        return new XodusIndexOutput(name + outputIndex.getAndIncrement(),
-                name, name + index + ".iv");
+        return new XodusIndexOutput(fileName,
+                name, name + index + ".iv", openOutputStream(fileName));
     }
 
     @Override
@@ -276,8 +306,6 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
     @Override
     public void sync(Collection<String> names) {
         ensureOpen();
-
-        environment.flushAndSync();
 
         environment.executeInReadonlyTransaction(txn -> {
             try (var cursor = nameToAddressStore.openCursor(txn)) {
@@ -302,7 +330,10 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                         if (cipherKey != null) {
                             var ivFileName = DirUtil.getIvFileName(indexName);
                             try {
-                                IOUtils.fsync(luceneIndex.resolve(ivFileName), false);
+                                var ivFilePath = luceneIndex.resolve(ivFileName);
+                                if (Files.exists(ivFilePath)) {
+                                    IOUtils.fsync(ivFilePath, false);
+                                }
                             } catch (IOException e) {
                                 throw new ExodusException("Error during syncing of file " + ivFileName, e);
                             }
@@ -322,7 +353,6 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         ensureOpen();
 
         environment.flushAndSync();
-
         IOUtils.fsync(luceneIndex, true);
 
         maybeDeletePendingFiles();
@@ -442,7 +472,6 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
             if (cipherKey != null) {
                 var ivPath = luceneIndex.resolve(DirUtil.getIvFileName(path.getFileName().toString()));
-                cache.removeFile(ivPath.toFile());
                 Files.deleteIfExists(ivPath);
             }
 
@@ -480,30 +509,14 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         }
 
         if (cipherKey != null) {
-            var ivPosition = pageOffset / LogUtil.LOG_BLOCK_ALIGNMENT * Long.BYTES;
-            var ivPath = luceneIndex.resolve(DirUtil.getIvFileName(fileName));
-
-            final long[] ivs = new long[(dataRead + LogUtil.LOG_BLOCK_ALIGNMENT - 1) / LogUtil.LOG_BLOCK_ALIGNMENT];
-            try (var ivFile = filesCache.getCachedFile(ivPath.toFile())) {
-                ivFile.seek(ivPosition);
-
-                for (int i = 0; i < ivs.length; i++) {
-                    ivs[i] = ivFile.readLong();
-                }
-            } catch (IOException e) {
-                throw new ExodusException("Can not access file " + ivPath, e);
-            }
+            assert dataRead > Long.BYTES;
 
             var cipher = cipherProvider.newCipher();
-            int index = 0;
+            var iv = (long) LONG_VAR_HANDLE.get(page, 0);
 
-            for (long iv : ivs) {
-                cipher.init(cipherKey, iv);
-
-                for (int i = 0; index < dataRead && i < LogUtil.LOG_BLOCK_ALIGNMENT; i++) {
-                    page[index] = cipher.crypt(page[index]);
-                    index++;
-                }
+            cipher.init(cipherKey, iv);
+            for (int i = Long.BYTES; i < dataRead; i++) {
+                page[i] = cipher.crypt(page[i]);
             }
         }
 
@@ -520,6 +533,12 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         var indexFilePath = luceneIndex.resolve(indexFileName);
         var fileSize = Files.size(indexFilePath);
 
+        if (cipherKey != null) {
+            return new XodusIndexInput("XodusIndexInput(path=\"" + indexFilePath + "\")", fileAddress,
+                    Long.BYTES, fileSize);
+
+        }
+
         return new XodusIndexInput("XodusIndexInput(path=\"" + indexFilePath + "\")", fileAddress,
                 0, fileSize);
     }
@@ -533,20 +552,20 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         return NoLockFactory.INSTANCE.obtainLock(this, name);
     }
 
-    private OutputStream openOutputStream(String fileName, String ivFileName, OpenOption[] options) throws IOException {
-        var fileStream = Files.newOutputStream(luceneOutputPath.resolve(fileName), options);
+
+    private static long asHashedIv(long iv) {
+        return iv * 6364136223846793005L - 4019793664819917546L;
+    }
+
+    private OutputStream openOutputStream(String fileName) throws IOException {
+        var fileStream = Files.newOutputStream(luceneOutputPath.resolve(fileName), StandardOpenOption.WRITE,
+                StandardOpenOption.CREATE_NEW);
         if (cipherKey == null) {
             return fileStream;
         }
 
-        var ivStream = new DataOutputStream(
-                Files.newOutputStream(luceneOutputPath.resolve(ivFileName), options));
         return new StreamCipherOutputStream(fileStream, cipherKey, cipherProvider,
-                ivGen, ivStream, ivRnd);
-    }
-
-    private static long asHashedIv(long iv) {
-        return iv * 6364136223846793005L - 4019793664819917546L;
+                ivGen, ivRnd, pageSize);
     }
 
 
@@ -564,13 +583,12 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
         boolean closed;
 
-        public XodusIndexOutput(String fileName, final String indexName, String ivFileName) throws IOException {
-            this(fileName, indexName, ivFileName, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
-        }
+        final OutputStream os;
 
-        XodusIndexOutput(String fileName, String indexName, String ivFileName, OpenOption... options) throws IOException {
+
+        XodusIndexOutput(String fileName, String indexName, String ivFileName, OutputStream stream) {
             super("XodusIndexOutput(path=\"" + luceneOutputPath.resolve(fileName) + "\")", fileName,
-                    new FilterOutputStream(openOutputStream(fileName, ivFileName, options)) {
+                    new FilterOutputStream(stream) {
                         // This implementation ensures, that we never write more than CHUNK_SIZE bytes:
                         @Override
                         public void write(byte @NotNull [] b, int offset, int length) throws IOException {
@@ -591,6 +609,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             }
 
             this.indexName = indexName;
+            this.os = stream;
         }
 
 
@@ -605,29 +624,26 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 super.close();
 
                 var fileLength = Files.size(filePath);
+                var pages = (fileLength + pageSize - 1) / pageSize;
+                if (pages == 0) {
+                    pages = 1;
+                }
 
-                var fileAddress = nextAddress.getAndAdd(fileLength + 1);
-
+                var fileAddress = nextAddress.getAndAdd(pages * pageSize);
                 var indexFileName = DirUtil.getFileNameByAddress(fileAddress);
                 var indexPath = luceneIndex.resolve(indexFileName);
+
+                if (ivFilePath != null) {
+                    try (var ivStream = new DataOutputStream(Files.newOutputStream(ivFilePath))) {
+                        ivStream.writeLong(((StreamCipherOutputStream) os).maxIv);
+                    }
+                }
 
                 try {
                     Files.move(filePath, indexPath, StandardCopyOption.ATOMIC_MOVE);
                 } catch (AtomicMoveNotSupportedException e) {
                     Files.move(filePath, indexPath);
                 }
-
-                if (ivFilePath != null) {
-                    var ivFileName = DirUtil.getIvFileName(indexFileName);
-                    var ivPath = luceneIndex.resolve(ivFileName);
-
-                    try {
-                        Files.move(ivFilePath, ivPath, StandardCopyOption.ATOMIC_MOVE);
-                    } catch (AtomicMoveNotSupportedException e) {
-                        Files.move(ivFilePath, ivPath);
-                    }
-                }
-
 
                 environment.executeInTransaction(txn -> {
                     var key = StringBinding.stringToEntry(indexName);
@@ -637,6 +653,103 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 });
 
                 closed = true;
+            }
+        }
+    }
+
+    private static final class StreamCipherOutputStream extends FilterOutputStream {
+        private final byte[] cipherKey;
+        private final StreamCipher cipher;
+
+        private final AtomicLong ivGen;
+
+        private final Random ivRnd;
+
+
+        private final int pageSize;
+
+        private long position;
+
+        private long ivPosition;
+
+        private long maxIv;
+
+
+        public StreamCipherOutputStream(final @NotNull OutputStream out,
+                                        final byte @NotNull [] cipherKey,
+                                        final @NotNull StreamCipherProvider cipherProvider,
+                                        final @NotNull AtomicLong ivGen,
+                                        final Random ivRnd, final int pageSize) throws IOException {
+            super(out);
+
+            this.ivGen = ivGen;
+            this.ivRnd = ivRnd;
+            this.cipherKey = cipherKey;
+
+            cipher = cipherProvider.newCipher();
+
+            this.pageSize = pageSize;
+
+            generateAndStoreCipher();
+        }
+
+
+        private void generateAndStoreCipher() throws IOException {
+            final long iv = asHashedIv(ivGen.getAndAdd(ivRnd.nextInt(16)));
+
+            cipher.init(cipherKey, iv);
+            maxIv = iv;
+            var rawIv = new byte[Long.BYTES];
+
+            LONG_VAR_HANDLE.set(rawIv, 0, iv);
+            out.write(rawIv);
+            position += Long.BYTES;
+        }
+
+
+        @Override
+        public void write(int b) throws IOException {
+            if (position - ivPosition == pageSize) {
+                ivPosition = position;
+                generateAndStoreCipher();
+            }
+
+            b = cipher.crypt((byte) b);
+
+            out.write(b);
+            position++;
+        }
+
+        @Override
+        public void write(byte @NotNull [] b) throws IOException {
+            write(b, 0, b.length);
+        }
+
+        public void write(byte @NotNull [] b, int off, int len) throws IOException {
+            b = Arrays.copyOfRange(b, off, off + len);
+
+            if (position - ivPosition == pageSize) {
+                ivPosition = position;
+                generateAndStoreCipher();
+            }
+
+            int offset = -1;
+            for (int i = 0; i < b.length; i++) {
+                b[i] = cipher.crypt(b[i]);
+                position++;
+
+                if (position - ivPosition == pageSize && i < b.length - 1) {
+                    out.write(b, offset + 1, i - offset);
+
+                    ivPosition = position;
+                    generateAndStoreCipher();
+
+                    offset = i;
+                }
+            }
+
+            if (offset < b.length - 1) {
+                out.write(b, offset + 1, b.length - (offset + 1));
             }
         }
     }
@@ -673,14 +786,22 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             var pageAddress = fileAddress + position - pageOffset;
 
             readPageIfNeeded(pageAddress);
+            movePosition(1);
 
-            position++;
             return page[pageOffset];
         }
 
+        private void movePosition(int diff) {
+            position += diff;
+            if ((position & (pageSize - 1)) == 0) {
+                position += Long.BYTES;
+            }
+        }
+
+
         @Override
         public void readBytes(byte[] b, int offset, int len) throws IOException {
-            if (position + len > end) {
+            if (addWithIvSpace(position, len) > end) {
                 throw new EOFException("Read past EOF. Position: " + position + ", requested bytes : " + len);
             }
 
@@ -697,7 +818,8 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 System.arraycopy(page, pageOffset, b, offset + bytesRead, bytesToCopy);
 
                 bytesRead += bytesToCopy;
-                position += bytesToCopy;
+
+                movePosition(bytesToCopy);
             }
         }
 
@@ -715,12 +837,35 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
         @Override
         public long getFilePointer() {
-            return position - basePosition;
+            return subtractWithIvSpace(basePosition, position);
+        }
+
+        private long addWithIvSpace(final long position, long len) {
+            if (cipherKey == null) {
+                return position + len;
+            }
+
+            var spaceLeftInPage = pageSize - (position & (pageSize - 1));
+            if (len >= spaceLeftInPage) {
+                len -= spaceLeftInPage;
+
+                var dataPageSize = pageSize - Long.BYTES;
+                var pages = (len + dataPageSize - 1) / dataPageSize;
+                var result = position + spaceLeftInPage + len + pages * Long.BYTES;
+
+                if ((result & (pageSize - 1)) == 0) {
+                    return result + Long.BYTES;
+                }
+
+                return result;
+            }
+
+            return position + len;
         }
 
         @Override
         public void seek(long pos) throws IOException {
-            pos += basePosition;
+            pos = addWithIvSpace(basePosition, pos);
 
             if (pos > end) {
                 throw new EOFException("Position past the file size was requested. Position : "
@@ -739,7 +884,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
         @Override
         public long length() {
-            return end - basePosition;
+            return subtractWithIvSpace(basePosition, end);
         }
 
         @Override
@@ -749,8 +894,11 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                         " out of bounds: offset=" + offset + ",length=" + length + ",fileLength=" + this.length() + ": " + this);
             }
 
-            return new XodusIndexInput(sliceDescription, fileAddress, basePosition + offset,
-                    basePosition + offset + length);
+            var start = addWithIvSpace(basePosition, offset);
+            var end = addWithIvSpace(start, length);
+
+            return new XodusIndexInput(sliceDescription, fileAddress, start,
+                    end);
         }
 
         @Override
@@ -758,12 +906,19 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             var pageOffset = (int) position & (pageSize - 1);
             var pageAddress = fileAddress + position - pageOffset;
 
-            final long remaining = Math.min(end - position, pageSize - pageOffset);
+            long remaining = Math.min(end - position, pageSize - pageOffset);
 
             if (remaining >= Short.BYTES) {
                 readPageIfNeeded(pageAddress);
+
+                pageOffset = (int) position & (pageSize - 1);
+                remaining = Math.min(end - position, pageSize - pageOffset);
+                if (remaining < Short.BYTES) {
+                    return super.readShort();
+                }
+
                 var value = (short) SHORT_VAR_HANDLE.get(page, pageOffset);
-                position += Short.BYTES;
+                movePosition(Short.BYTES);
 
                 return value;
             }
@@ -776,12 +931,13 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             var pageOffset = (int) position & (pageSize - 1);
             var pageAddress = fileAddress + position - pageOffset;
 
-            final long remaining = Math.min(end - position, pageSize - pageOffset);
+            long remaining = Math.min(end - position, pageSize - pageOffset);
             if (remaining >= Integer.BYTES) {
                 readPageIfNeeded(pageAddress);
+                pageOffset = (int) position & (pageSize - 1);
 
                 var value = (int) INT_VAR_HANDLE.get(page, pageOffset);
-                position += Integer.BYTES;
+                movePosition(Integer.BYTES);
 
                 return value;
             }
@@ -795,56 +951,67 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             var pageAddress = fileAddress + position - pageOffset;
 
 
-            final long remaining = Math.min(end - position, pageSize - pageOffset);
+            long remaining = Math.min(end - position, pageSize - pageOffset);
 
+            int positionOffset = 0;
             if (5 <= remaining) {
                 readPageIfNeeded(pageAddress);
+                try {
+                    pageOffset = (int) position & (pageSize - 1);
+                    remaining = Math.min(end - position, pageSize - pageOffset);
+                    if (remaining < 5) {
+                        return super.readVInt();
+                    }
 
-                byte b = page[pageOffset];
-                position++;
+                    byte b = page[pageOffset];
+                    positionOffset++;
 
-                if (b >= 0) {
-                    return b;
+                    if (b >= 0) {
+                        return b;
+                    }
+
+                    pageOffset++;
+                    int i = b & 0x7F;
+                    b = page[pageOffset];
+                    positionOffset++;
+
+                    i |= (b & 0x7F) << 7;
+                    if (b >= 0) {
+                        return i;
+                    }
+
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
+
+                    i |= (b & 0x7F) << 14;
+
+                    if (b >= 0) {
+                        return i;
+                    }
+
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
+
+                    i |= (b & 0x7F) << 21;
+                    if (b >= 0) {
+                        return i;
+                    }
+
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
+
+                    // Warning: the next ands use 0x0F / 0xF0 - beware copy/paste errors:
+                    i |= (b & 0x0F) << 28;
+                    if ((b & 0xF0) == 0) {
+                        return i;
+                    }
+                } finally {
+                    movePosition(positionOffset);
                 }
 
-                pageOffset++;
-                int i = b & 0x7F;
-                b = page[pageOffset];
-                position++;
-
-                i |= (b & 0x7F) << 7;
-                if (b >= 0) {
-                    return i;
-                }
-
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
-
-                i |= (b & 0x7F) << 14;
-
-                if (b >= 0) {
-                    return i;
-                }
-
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
-
-                i |= (b & 0x7F) << 21;
-                if (b >= 0) {
-                    return i;
-                }
-
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
-
-                // Warning: the next ands use 0x0F / 0xF0 - beware copy/paste errors:
-                i |= (b & 0x0F) << 28;
-                if ((b & 0xF0) == 0) {
-                    return i;
-                }
                 throw new IOException("Invalid vInt detected (too many bits)");
             } else {
                 return super.readVInt();
@@ -862,7 +1029,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 readPageIfNeeded(pageAddress);
 
                 var value = (long) LONG_VAR_HANDLE.get(page, pageOffset);
-                position += Long.BYTES;
+                movePosition(Long.BYTES);
 
                 return value;
             }
@@ -880,84 +1047,89 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             if (9 <= remaining) {
                 readPageIfNeeded(pageAddress);
 
-                byte b = page[pageOffset];
-                position++;
+                int positionOffset = 0;
+                try {
+                    byte b = page[pageOffset];
+                    positionOffset++;
 
-                if (b >= 0) {
-                    return b;
-                }
+                    if (b >= 0) {
+                        return b;
+                    }
 
-                pageOffset++;
-                long i = b & 0x7FL;
-                b = page[pageOffset];
-                position++;
+                    pageOffset++;
+                    long i = b & 0x7FL;
+                    b = page[pageOffset];
+                    positionOffset++;
 
-                i |= (b & 0x7FL) << 7;
-                if (b >= 0) {
-                    return i;
-                }
+                    i |= (b & 0x7FL) << 7;
+                    if (b >= 0) {
+                        return i;
+                    }
 
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
 
-                i |= (b & 0x7FL) << 14;
-                if (b >= 0) {
-                    return i;
-                }
+                    i |= (b & 0x7FL) << 14;
+                    if (b >= 0) {
+                        return i;
+                    }
 
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
 
-                i |= (b & 0x7FL) << 21;
-                if (b >= 0) {
-                    return i;
-                }
+                    i |= (b & 0x7FL) << 21;
+                    if (b >= 0) {
+                        return i;
+                    }
 
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
 
-                i |= (b & 0x7FL) << 28;
-                if (b >= 0) {
-                    return i;
-                }
+                    i |= (b & 0x7FL) << 28;
+                    if (b >= 0) {
+                        return i;
+                    }
 
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
 
-                i |= (b & 0x7FL) << 35;
-                if (b >= 0) {
-                    return i;
-                }
+                    i |= (b & 0x7FL) << 35;
+                    if (b >= 0) {
+                        return i;
+                    }
 
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
 
-                i |= (b & 0x7FL) << 42;
-                if (b >= 0) {
-                    return i;
-                }
+                    i |= (b & 0x7FL) << 42;
+                    if (b >= 0) {
+                        return i;
+                    }
 
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
 
-                i |= (b & 0x7FL) << 49;
-                if (b >= 0) {
-                    return i;
-                }
+                    i |= (b & 0x7FL) << 49;
+                    if (b >= 0) {
+                        return i;
+                    }
 
-                pageOffset++;
-                b = page[pageOffset];
-                position++;
+                    pageOffset++;
+                    b = page[pageOffset];
+                    positionOffset++;
 
-                i |= (b & 0x7FL) << 56;
-                if (b >= 0) {
-                    return i;
+                    i |= (b & 0x7FL) << 56;
+                    if (b >= 0) {
+                        return i;
+                    }
+                } finally {
+                    movePosition(positionOffset);
                 }
 
                 throw new IOException("Invalid vLong detected (negative values disallowed)");
@@ -983,7 +1155,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                     dst[i] = (long) LONG_LE_VAR_HANDLE.get(page, pageOffset);
                 }
 
-                position += bytesNeeded;
+                movePosition(bytesNeeded);
             } else {
                 super.readLELongs(dst, offset, length);
             }
@@ -1001,7 +1173,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                         " file size : " + end + ", bytes to skip : " + numBytes);
             }
 
-            this.position += numBytes;
+            this.position = addWithIvSpace(position, numBytes);
 
             var pageOffset = (int) position & (pageSize - 1);
             var pageAddress = fileAddress + position - pageOffset;
@@ -1017,101 +1189,4 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         }
     }
 
-    private static final class StreamCipherOutputStream extends FilterOutputStream {
-        private final byte[] cipherKey;
-        private final StreamCipher cipher;
-
-        private final AtomicLong ivGen;
-
-        private final DataOutputStream ivStream;
-
-        private final Random ivRnd;
-
-        private long position;
-
-        private long ivPosition;
-
-
-        public StreamCipherOutputStream(final @NotNull OutputStream out,
-                                        final byte @NotNull [] cipherKey,
-                                        final @NotNull StreamCipherProvider cipherProvider,
-                                        final @NotNull AtomicLong ivGen, @NotNull DataOutputStream ivStream,
-                                        final Random ivRnd) throws IOException {
-            super(out);
-
-            this.ivStream = ivStream;
-            this.ivGen = ivGen;
-            this.ivRnd = ivRnd;
-            this.cipherKey = cipherKey;
-
-            cipher = cipherProvider.newCipher();
-
-            generateAndStoreIv();
-        }
-
-        private void generateAndStoreIvIfNeeded() throws IOException {
-            if (position - ivPosition == LogUtil.LOG_BLOCK_ALIGNMENT) {
-                generateAndStoreIv();
-                ivPosition = position;
-            }
-        }
-
-        private void generateAndStoreIv() throws IOException {
-            long iv = asHashedIv(ivGen.getAndAdd(ivRnd.nextInt(16)));
-            ivStream.writeLong(iv);
-            cipher.init(cipherKey, iv);
-        }
-
-
-        @Override
-        public void write(int b) throws IOException {
-            generateAndStoreIvIfNeeded();
-
-            b = cipher.crypt((byte) b);
-
-            out.write(b);
-            position++;
-        }
-
-        @Override
-        public void write(byte @NotNull [] b) throws IOException {
-            b = Arrays.copyOf(b, b.length);
-
-            encryptArray(b);
-
-            out.write(b);
-        }
-
-        private void encryptArray(byte @NotNull [] b) throws IOException {
-            for (int i = 0; i < b.length; i++) {
-                generateAndStoreIvIfNeeded();
-
-                b[i] = cipher.crypt(b[i]);
-                position++;
-            }
-        }
-
-        @Override
-        public void write(byte @NotNull [] b, int off, int len) throws IOException {
-            b = Arrays.copyOfRange(b, off, off + len);
-
-            encryptArray(b);
-
-            out.write(b);
-        }
-
-        @Override
-        public void flush() throws IOException {
-            ivStream.flush();
-
-            super.flush();
-        }
-
-        @Override
-        public void close() throws IOException {
-            ivStream.close();
-
-            super.close();
-        }
-    }
 }

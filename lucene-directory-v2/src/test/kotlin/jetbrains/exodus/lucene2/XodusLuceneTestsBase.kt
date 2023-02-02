@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.lucene2
 
+import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.EnvironmentTestsBase
 import jetbrains.exodus.env.Environments
@@ -53,7 +54,9 @@ abstract class XodusLuceneTestsBase : EnvironmentTestsBase() {
     }
 
     override fun createEnvironment() {
-        env = Environments.newInstance(LogConfig.create(reader, writer)) as EnvironmentImpl
+        val envConfig = EnvironmentConfig()
+        envConfig.logCachePageSize = 1024
+        env = Environments.newInstance(LogConfig.create(reader, writer), envConfig) as EnvironmentImpl
     }
 
     @After
