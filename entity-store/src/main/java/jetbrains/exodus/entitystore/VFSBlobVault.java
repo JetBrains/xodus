@@ -126,12 +126,7 @@ public class VFSBlobVault extends BlobVault {
                 final InputStream stream = object.getValue();
                 //reset the stream if it was changed during transaction processing.
                 //all streams are hold by transaction should support mark method.
-                try {
-                    stream.reset();
-                } catch (IOException e) {
-                    //ignore if mark was not set
-                }
-
+                stream.reset();
                 stream.mark(IOUtil.DEFAULT_BUFFER_SIZE);
                 setContent(object.getKey().longValue(), stream, txn);
                 return true;
