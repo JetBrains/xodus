@@ -1,17 +1,50 @@
 package jetbrains.exodus.log;
 import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
+import org.jctools.queues.MpmcUnboundedXaddArrayQueue;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
+class OperationReference {
+    // for later: in case we have multiple operations we can use linked list as here we always have one thread per txId -> thread-safety !!
+    final long address;
+    volatile OperationReferenceState state = OperationReferenceState.IN_PROGRESS;
+
+    OperationReference(long address, OperationReferenceState state) {
+        this.address = address;
+        this.state = state;
+    }
+}
+
+enum OperationReferenceState {
+    IN_PROGRESS,
+    ABORTED,
+    COMPLETED
+}
+
+
+class OperationsLinksEntry {
+    final OperationReference linksToOperations;
+    final long txId;
+
+    OperationsLinksEntry(OperationReference linksToOperations, long txId) {
+        this.linksToOperations = linksToOperations;
+        this.txId = txId;
+    }
+
+    public long getTxId() {
+        return this.txId;
+    }
+}
+
 class MVCCRecord {
     final AtomicLong maxTransactionId;
-    final ConcurrentSkipListMap<Long, OperationReference> linksToOperations; // txId + link to record in OL
+    final MpmcUnboundedXaddArrayQueue<OperationsLinksEntry> linksToOperations; // array of links to record in OL
 
-    MVCCRecord(AtomicLong maxTransactionId, ConcurrentSkipListMap<Long, OperationReference> linksToOperations) {
+    MVCCRecord(AtomicLong maxTransactionId, MpmcUnboundedXaddArrayQueue<OperationsLinksEntry> linksToOperations) {
         this.maxTransactionId = maxTransactionId;
         this.linksToOperations = linksToOperations;
     }
@@ -38,69 +71,65 @@ class MVCCDataStructure {
     private static final Function<Long, MVCCRecord> createRecord = new Function<>() {
         @Override
         public MVCCRecord apply(Long o) {
-            return new MVCCRecord(new AtomicLong(0), new ConcurrentSkipListMap<>());
+            return new MVCCRecord(new AtomicLong(0), new MpmcUnboundedXaddArrayQueue<>(16));
         }
     };
 
+    // todo: WIP
     // should be separate for with duplicates and without, for now we do without only
     public static long readLogRecord(long currentTransactionId, long key) {
+
         var keyHashCode = Long.hashCode(key);
-
-        // todo: put block not to add transactions less than ours
-        // replace to compute (with lock) - get mvcc record and update (atomic long) maxtransactionID, compareAndSet
-        // todo: seems we don't need a custom compute here as autoboxing is not an issue here
         MVCCRecord mvccRecord = hashMap.computeIfAbsent((long) keyHashCode, createRecord);
-
         compareWithCurrentAndSet(mvccRecord, currentTransactionId); //increment version
 
         // advanced approach: state-machine
-
-        // after compute execution we have mvccRecord in any case (instead of mvccRecord == null)
-        // if the id of write transaction is less than ours, we prohibit to insert here
-        // this inserted mvccRecord will be removed by GC
-        // optimization: if during the execution of the compute we don't have any write transaction with id < ours,
-        // we don't need to insert
-        // we need to make sure that we don't have such write transaction (or we have it)
-
-
-        // find maximum id smaller than the id of the current transaction
-
-
-        // todo: use abstract class MpmcUnboundedXaddArrayQueue as linksToOperations
-        //
-        var maxTxId =  mvccRecord.linksToOperations.headMap(currentTransactionId);
-        var reverseMaxTxId =  maxTxId.descendingMap(); // from max to min
-
-        // Case:
-        // readTxId=8, mvccRecord.linksToOperations.maxTxId=6 -> mvccRecord.maxTransactionId=8 (due to compareWithCurrentAndSet)
-        // "write" tx inserts transaction with id=7,
-        //         for (OperationReference operation : reverseMaxTxId.values())  read "6", so if "write" will insert 7,
-        //         we won't see it as we started with 6 and below
-        // in this case "write" will see that mvccRecord.maxTransactionId=8, and as it has 7, it ("write") will rollback itself
-        // this way we avoid blocking
-
-        // iterate operations and get log record, compare keys until they are matching
-
-        for (element in q until reach currentTransactionId )
-//        for (OperationReference operation : reverseMaxTxId.values()) {
-            // if we don't see anything it means that "write" reverted itself, look at Case
-            while (operation.state == OperationReferenceState.IN_PROGRESS){
-                Thread.onSpinWait(); // pass to the next thread, not to waste resources
-            } // for "write" operation in progress, wait for it, for case when we see this "write" and wait till it finishes to understand if the element is valid
-            if (operation.state == OperationReferenceState.ABORTED) // "write" failed, not to ask mvccRecord.linksToOperations for the second time if it was deleted
-                continue; // we go to the next record in for loop
-        //----------------------------------
-            var operation2 = operationLog.get(operation.address);
-            if (operation2.key == key){
-                return operation2.value;  // run cycle again for q
+        final AtomicLong minMaxValue = new AtomicLong(0);
+        OperationsLinksEntry targetEntry;
+        var maxTxId = mvccRecord.maxTransactionId.get();
+        mvccRecord.linksToOperations.forEach( linkEntry -> {
+            var candidate = linkEntry.txId;
+            var currentMax = minMaxValue.get();
+            if (candidate < maxTxId && candidate > currentMax) {
+                while (linkEntry.linksToOperations.state == OperationReferenceState.IN_PROGRESS){
+                    Thread.onSpinWait(); // pass to the next thread, not to waste resources
+                }
+                if(linkEntry.linksToOperations.state != OperationReferenceState.ABORTED) {
+                    minMaxValue.compareAndSet(currentMax, candidate);
+                    targetEntry = linkEntry;
+                }
             }
-        //----------------------------------
+        });
+        var operation2 = operationLog.get(targetEntry.linksToOperations.address); // check if exists
+        if (operation2.key == key){
+            return operation2.value;
+        } else {
+            ArrayList<OperationsLinksEntry> selectionOfLessThanMaxTxId = new ArrayList<OperationsLinksEntry>();
+            mvccRecord.linksToOperations.forEach( linkEntry -> {
+                if (linkEntry.txId < maxTxId) {
+                    if (linkEntry.linksToOperations.state != OperationReferenceState.ABORTED) {
+                        selectionOfLessThanMaxTxId.add(linkEntry);
+                    }
+                    while (linkEntry.linksToOperations.state == OperationReferenceState.IN_PROGRESS){
+                        Thread.onSpinWait();
+                    }
+                }
+            });
+            selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationsLinksEntry::getTxId).reversed());
+            for (OperationsLinksEntry linkEntry: selectionOfLessThanMaxTxId) {
+                operation2 = operationLog.get(linkEntry.linksToOperations.address);
+                if (operation2.key == key){
+                    return operation2.value;
+                }
+            }
+
+
         }
         // potentially we can use LinkedList
         return searchInBTree(key);
     }
 
-    private long searchInBTree(long key){
+    private static long searchInBTree(long key){
         // mock method for the search of the operation in B-tree
         return 0L;
     }
@@ -114,7 +143,7 @@ class MVCCDataStructure {
         var recordAddress = address.getAndIncrement();
         operationLog.put(recordAddress, new OperationLogRecord(key, value, transactionId, inputOperation));
         var operation = new OperationReference(recordAddress, OperationReferenceState.IN_PROGRESS);
-        mvccRecord.linksToOperations.put(transactionId, operation);
+        mvccRecord.linksToOperations.add(new OperationsLinksEntry(operation, transactionId));
 
         if (transactionId < mvccRecord.maxTransactionId.get()) {
             operation.state = OperationReferenceState.ABORTED; // later in "read" we ignore this

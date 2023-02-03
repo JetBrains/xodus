@@ -17,19 +17,3 @@ class OperationLogRecord {
     }
 }
 
-class OperationReference {
-    // for later: in case we have multiple operations we can use linked list as here we always have one thread per txId -> thread-safety !!
-    final long address;
-    volatile OperationReferenceState state = OperationReferenceState.IN_PROGRESS;
-
-    OperationReference(long address, OperationReferenceState state) {
-        this.address = address;
-        this.state = state;
-    }
-}
-
-enum OperationReferenceState {
-    IN_PROGRESS,
-    ABORTED,
-    COMPLETED
-}
