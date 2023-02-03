@@ -180,10 +180,10 @@ public class PersistentEntity implements Entity, TxnProvider {
     }
 
     @Override
-    public void setBlob(@NotNull final String blobName, @NotNull final InputStream blob) {
+    public InputStream setBlob(@NotNull final String blobName, @NotNull final InputStream blob) {
         assertWritable();
         try {
-            store.setBlob(getTransaction(), this, blobName, blob);
+            return store.setBlob(getTransaction(), this, blobName, blob);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }

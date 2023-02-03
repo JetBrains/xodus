@@ -28,6 +28,7 @@ import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
+import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -839,16 +840,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 }
 
                 try {
-                    try {
-                        stream.reset();
-                    } catch (IOException e) {
-                        //ignore
-                    }
-
-                    if (stream.markSupported()) {
-                        stream.mark(Integer.MAX_VALUE);
-                    }
-
+                    stream.reset();
+                    stream.mark(Integer.MAX_VALUE);
                     return stream.skip(Long.MAX_VALUE); // warning, this may return inaccurate results
                 } finally {
                     if (stream.markSupported()) {
@@ -876,6 +869,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (blobStreams != null) {
             final InputStream stream = blobStreams.get(blobHandle);
             if (stream != null) {
+                stream.reset();
                 stream.mark(Integer.MAX_VALUE);
                 return new InputStreamCloseGuard(stream);
             }
@@ -918,18 +912,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         localCache = (EntityIterableCacheAdapter) store.getEntityIterableCache().getCacheAdapter();
         mutableCache = null;
         mutatedInTxn = null;
-
-        if (blobStreams != null) {
-            for (InputStream stream : blobStreams.values()) {
-                try {
-                    stream.close();
-                } catch (IOException e) {
-                    logger.error("Error during reverting of caches.", e);
-                }
-            }
-            blobStreams = null;
-        }
-
+        blobStreams = null;
         blobFiles = null;
         deferredBlobsToDelete = null;
         tmpBlobFiles = null;
@@ -956,6 +939,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                     for (Map.Entry<Long, InputStream> entry : blobStreams.entrySet()) {
                         Long handle = entry.getKey();
                         InputStream stream = entry.getValue();
+
+                        //reset the stream if it was changed during transaction processing.
+                        //all streams are hold by transaction should support mark method.
+                        //stream could be changed if they are returned to user during transaction processing
+                        stream.reset();
+
+                        //reset mark position to avoid OOM
+                        stream.mark(IOUtil.DEFAULT_BUFFER_SIZE);
 
                         long blobHandle = handle.longValue();
 

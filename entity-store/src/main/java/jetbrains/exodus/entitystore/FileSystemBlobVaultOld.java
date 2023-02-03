@@ -220,11 +220,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 //reset the stream if it was changed during transaction processing.
                 //all streams are hold by transaction should support mark method.
                 //stream could be changed if they are returned to user during transaction processing
-                try {
-                    stream.reset();
-                } catch (IOException e) {
-                    //ignore if mark was not set
-                }
+                stream.reset();
 
                 //reset mark position to avoid OOM
                 stream.mark(IOUtil.DEFAULT_BUFFER_SIZE);
@@ -297,7 +293,6 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
 
     @Override
     public void close() {
-        IOUtil.deleteRecursively(location);
     }
 
     @NotNull

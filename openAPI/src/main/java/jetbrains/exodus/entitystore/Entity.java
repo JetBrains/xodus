@@ -211,8 +211,10 @@ public interface Entity extends Comparable<Entity> {
      * @see #setBlobString(String, String)
      * @see #deleteBlob(String)
      * @see PersistentEntityStoreConfig#getMaxInPlaceBlobSize()
+     * @return Input stream which is stored in entity store. Original input stream could be closed during processing of
+     * passed in stream. Returned instance would allow to continue to work with it in case of transaction rollback.
      */
-    void setBlob(@NotNull final String blobName, @NotNull final InputStream blob);
+    InputStream setBlob(@NotNull final String blobName, @NotNull final InputStream blob);
 
     /**
      * Sets value (as contents of {@linkplain File}) of blob with specified name. For large blobs (having size larger
