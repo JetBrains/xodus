@@ -903,8 +903,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             return false;
         }
         getPropertiesTable(txn, entityId.getTypeId()).put(
-                txn, entityId.getLocalId(), PropertyTypes.propertyValueToEntry(propValue), oldValueEntry,
-                propertyId, valueType);
+                txn, entityId.getLocalId(), PropertyTypes.propertyValueToEntry(propValue), oldValueEntry, propertyId, valueType);
         txn.propertyChanged(entityId, propertyId, oldValue, value);
         return true;
 
@@ -1280,11 +1279,18 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return new Pair<>(blobHandle, txn.getBlobStream(blobHandle));
     }
 
-    public void setBlob(@NotNull final PersistentStoreTransaction txn,
-                        @NotNull final PersistentEntity entity,
-                        @NotNull final String blobName,
-                        @NotNull final InputStream stream) throws IOException {
-        InputStream bufferedStream = new BufferedInputStream(stream);
+    public InputStream setBlob(@NotNull final PersistentStoreTransaction txn,
+                               @NotNull final PersistentEntity entity,
+                               @NotNull final String blobName,
+                               @NotNull final InputStream stream) throws IOException {
+        InputStream bufferedStream;
+
+        if (!(stream instanceof BufferedInputStream)) {
+            bufferedStream = new BufferedInputStream(stream);
+        } else {
+            bufferedStream = stream;
+        }
+
 
         int maxEmbeddedBlobSize = config.getMaxInPlaceBlobSize();
         bufferedStream.mark(maxEmbeddedBlobSize + 1);
@@ -1307,6 +1313,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
             txn.addBlob(blobHandle, bufferedStream);
         }
+
+        return bufferedStream;
     }
 
     public void setBlob(@NotNull final PersistentStoreTransaction txn,

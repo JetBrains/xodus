@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Transaction
+import jetbrains.exodus.util.IOUtil
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -97,7 +98,7 @@ class EncryptedBlobVault(
                 blobFiles.forEach {
                     streams[it.key] = StreamCipherInputStream(
                         FileInputStream(it.value)
-                            .also { file -> openFiles.add(file) }.asBuffered
+                            .also { file -> openFiles.add(file) }.asBuffered.also { stream -> stream.mark(IOUtil.DEFAULT_BUFFER_SIZE) }
                     ) {
                         newCipher(it.key)
                     }
