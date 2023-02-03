@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,7 +68,7 @@ public class VfsStreamsTests extends VfsTestsBase {
             "и дребезжанья окон.\n" +
             "Мысль не имеет приметы,\n" +
             "лишь имя длиной в строку.\n" +
-            "�?мя то \"смерть\", и это\n" +
+            "Имя то \"смерть\", и это\n" +
             "нравится старику.";
 
     @Test

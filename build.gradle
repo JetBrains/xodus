@@ -87,7 +87,8 @@ subprojects {
         include "**/*.kt"
         include "**/*.java"
         mapping {
-            kt = 'JAVADOC_STYLE'
+            kt = 'SLASHSTAR_STYLE'
+            java = 'SLASHSTAR_STYLE'
         }
     }
 
