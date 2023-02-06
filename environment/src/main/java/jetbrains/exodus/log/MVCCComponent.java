@@ -33,11 +33,11 @@ enum OperationReferenceState {
 
 
 class OperationsLinksEntry {
-    final OperationReference linksToOperations;
+    final ArrayList<OperationReference> referencesToOperations;
     final long txId;
 
-    OperationsLinksEntry(OperationReference linksToOperations, long txId) {
-        this.linksToOperations = linksToOperations;
+    OperationsLinksEntry(ArrayList<OperationReference> linksToOperations, long txId) {
+        this.referencesToOperations = linksToOperations;
         this.txId = txId;
     }
 
@@ -100,33 +100,51 @@ class MVCCDataStructure {
             var candidate = linkEntry.txId;
             var currentMax = minMaxValue.get();
             if (candidate < maxTxId && candidate > currentMax) {
-                while (linkEntry.linksToOperations.state == OperationReferenceState.IN_PROGRESS){
+                while (linkEntry.referencesToOperations.stream().anyMatch(it -> it.state == OperationReferenceState.IN_PROGRESS)){
                     Thread.onSpinWait(); // pass to the next thread, not to waste resources
                 }
-                if(linkEntry.linksToOperations.state != OperationReferenceState.ABORTED) {
+                if(linkEntry.referencesToOperations.stream().noneMatch(it -> it.state != OperationReferenceState.ABORTED)) {
                     minMaxValue.compareAndSet(currentMax, candidate);
                     targetEntry.set(linkEntry);
                 }
             }
         });
-        var targetOperationInLog = operationLog.get(targetEntry.get().linksToOperations.address); // check if exists
+        // todo not sure which approach is better - (q1)
+//        var tmpEntrySet = operationLog.entrySet().stream()
+//                .filter(it -> targetEntry.get().referencesToOperations.stream()
+//                        .anyMatch(it2 -> it2.address == it.getKey()));
+//        var targetOperationInLog = tmp.findFirst();
+
+        OperationLogRecord targetOperationInLog = null;
+        for (var entry: targetEntry.get().referencesToOperations) {
+            targetOperationInLog = operationLog.get(entry.address);
+            if (targetOperationInLog != null){
+                break;
+            }
+        }
+
+        if (targetOperationInLog == null){
+            searchInBTree(key);
+        }
+
         if (targetOperationInLog.key == key){
             return targetOperationInLog.value;
         } else {
             ArrayList<OperationsLinksEntry> selectionOfLessThanMaxTxId = new ArrayList<>();
             mvccRecord.linksToOperations.forEach( linkEntry -> {
                 if (linkEntry.txId < maxTxId) {
-                    while (linkEntry.linksToOperations.state == OperationReferenceState.IN_PROGRESS){
+                    while (linkEntry.referencesToOperations.stream().anyMatch(it -> it.state == OperationReferenceState.IN_PROGRESS)){
                         Thread.onSpinWait();
                     }
-                    if (linkEntry.linksToOperations.state != OperationReferenceState.ABORTED) {
+                    //todo - if all referencesToOperations.state != ABORTED or any? probably any? (q2)
+                    if (linkEntry.referencesToOperations.state != OperationReferenceState.ABORTED) {
                         selectionOfLessThanMaxTxId.add(linkEntry);
                     }
                 }
             });
             selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationsLinksEntry::getTxId).reversed());
             for (OperationsLinksEntry linkEntry: selectionOfLessThanMaxTxId) {
-                targetOperationInLog = operationLog.get(linkEntry.linksToOperations.address);
+                targetOperationInLog = operationLog.get(linkEntry.referencesToOperations.address); // todo - do after (q1) solved
                 if (targetOperationInLog.key == key){
                     return targetOperationInLog.value;
                 }
@@ -134,14 +152,13 @@ class MVCCDataStructure {
 
 
         }
-        // potentially we can use LinkedList
+        // potentially we can use ArrayList
         return searchInBTree(key);
     }
 
     private static ByteBuffer searchInBTree(ByteBuffer key){
         // mock method for the search of the operation in B-tree
-        var buffer= ByteBuffer.allocate(0);
-        return buffer;
+        return ByteBuffer.allocate(0);
     }
 
     public static void write(long transactionId, ByteBuffer key, ByteBuffer value, String inputOperation) {
