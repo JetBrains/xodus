@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import jetbrains.exodus.core.dataStructures.IntArrayList;
-import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.cached.*;
@@ -78,8 +78,8 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                             }
                             id = it.nextId();
                         }
-                        min = localIds.get(0);
-                        max = localIds.get(localIds.size() - 1);
+                        min = localIds.getLong(0);
+                        max = localIds.getLong(localIds.size() - 1);
                     } else {
                         int lastTypeId = -1;
                         long lastLocalId = -1;
@@ -157,7 +157,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                             return makeSingleTypeSortedIterable(txn, source, it, typeIds, localIds, min, max);
                         } else {
                             return new MultiTypeSortedEntityIdArrayCachedInstanceIterable(
-                                txn, source, typeIds.toArray(), localIds.toArray(), it.toSet()
+                                txn, source, typeIds.toArray(), localIds.toLongArray(), it.toSet()
                             );
                         }
                     } else {
@@ -165,7 +165,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                             return makeSingleTypeUnsortedIterable(txn, source, it, typeIds, localIds, min, max);
                         } else {
                             return new MultiTypeUnsortedEntityIdArrayCachedInstanceIterable(
-                                txn, source, typeIds.toArray(), localIds.toArray(), it.toSet()
+                                txn, source, typeIds.toArray(), localIds.toLongArray(), it.toSet()
                             );
                         }
                     }
@@ -193,7 +193,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                     if (range < Integer.MAX_VALUE
                         && range <= ((long) MAX_COMPRESSED_SET_LOAD_FACTOR * length)) {
                         final SortedEntityIdSet set = new ImmutableSingleTypeEntityIdBitSet(
-                            typeId, min, max, localIds.getInstantArray(), length
+                            typeId, min, max, localIds.elements(), length
                         );
                         // if there are no duplicates in localIds
                         if (set.count() == length) {
@@ -203,7 +203,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
                 }
             }
         }
-        return new SingleTypeSortedEntityIdArrayCachedInstanceIterable(txn, source, typeId, localIds.toArray(), it.toSet());
+        return new SingleTypeSortedEntityIdArrayCachedInstanceIterable(txn, source, typeId, localIds.toLongArray(), it.toSet());
     }
 
     @NotNull
@@ -212,7 +212,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
         IntArrayList typeIds, LongArrayList localIds, long min, long max
     ) {
         return new SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(
-            txn, source, typeIds.get(0), localIds.toArray(), it.toSet(), min, max
+            txn, source, typeIds.get(0), localIds.toLongArray(), it.toSet(), min, max
         );
     }
 

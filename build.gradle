@@ -97,6 +97,7 @@ subprojects {
         implementation "org.apache.commons:commons-compress:$commonsCompressVersion"
         implementation 'org.lz4:lz4-java:1.8.0'
         implementation "it.unimi.dsi:fastutil:8.5.9"
+        implementation 'com.google.guava:guava:31.1-jre'
         implementation "org.jctools:jctools-core:$jcToolsVersion"
         implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
 

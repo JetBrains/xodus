@@ -15,10 +15,10 @@
  */
 package jetbrains.exodus.log;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestUtil;
-import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -333,7 +333,8 @@ public class LogTests extends LogTestsBase {
         log.flush();
         log.endWrite();
         for (int i = 0; i < count; ++i) {
-            Assert.assertEquals(i, (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(addrs.get(i)).getData()));
+            Assert.assertEquals(i, (int) CompressedUnsignedLongByteIterable.getLong(getLog().read(
+                    addrs.getLong(i)).getData()));
         }
     }
 

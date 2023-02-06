@@ -17,10 +17,10 @@
 
 package jetbrains.exodus.entitystore
 
+import it.unimi.dsi.fastutil.longs.LongArrayList
 import jetbrains.exodus.*
 import jetbrains.exodus.bindings.*
 import jetbrains.exodus.core.dataStructures.IntArrayList
-import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.core.dataStructures.hash.*
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLong23TreeSet
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet
@@ -35,6 +35,7 @@ import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import mu.KLogging
 import java.util.*
+import java.util.function.LongConsumer
 import kotlin.experimental.xor
 
 class PersistentEntityStoreRefactorings(private val store: PersistentEntityStoreImpl) {
@@ -79,7 +80,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         store.environment.executeInExclusiveTransaction { txn ->
                             val allPropsIndex = props.allPropsIndex
                             for (i in 0 until aFieldIds.size()) {
-                                allPropsIndex.put(txn, aFieldIds[i], aLocalIds[i])
+                                allPropsIndex.put(txn, aFieldIds[i], aLocalIds.getLong(i))
                             }
                         }
                         aFieldIds.clear()
@@ -93,7 +94,8 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             txn as PersistentStoreTransaction
                             for (i in 0 until dFieldIds.size()) {
                                 props.delete(
-                                    txn, dLocalIds[i], cursorValueToDelete.notNull, dFieldIds[i], propTypeToDelete.notNull
+                                    txn, dLocalIds.getLong(i),
+                                    cursorValueToDelete.notNull, dFieldIds[i], propTypeToDelete.notNull
                                 )
                             }
                         }
@@ -736,9 +738,9 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     txn.environmentTransaction
                 )
                 val oldEntitiesTable = SingleColumnTable(txn, tableName, USE_EXISTING)
-                entityIds.toArray().forEach { id ->
+                entityIds.forEach(LongConsumer { id ->
                     entityOfTypeBitmap.set(txn.environmentTransaction, id, true)
-                }
+                })
                 safeRemoveStore(oldEntitiesTable.database.name, txn.environmentTransaction)
             }
         }

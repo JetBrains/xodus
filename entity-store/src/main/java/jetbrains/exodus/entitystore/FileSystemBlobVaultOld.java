@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.entitystore;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
-import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
@@ -261,8 +261,9 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
             environment.executeTransactionSafeTask(() -> DeferredIO.getJobProcessor().queueIn(new Job() {
                 @Override
                 protected void execute() {
-                    final long[] blobHandles = copy.getInstantArray();
-                    for (int i = 0; i < copy.size(); ++i) {
+                    final long[] blobHandles = copy.elements();
+                    var len = copy.size();
+                    for (int i = 0; i < len; ++i) {
                         delete(blobHandles[i]);
                     }
                 }

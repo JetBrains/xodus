@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.io
 
+import it.unimi.dsi.fastutil.longs.LongArrayList
 import jetbrains.exodus.ExodusException
-import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import mu.KLogging
@@ -71,7 +71,7 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
     }
 
     private fun toBlocks(files: LongArrayList) =
-            files.toArray().asSequence().map { address -> FileBlock(address, this) }.asIterable()
+            files.toLongArray().asSequence().map { address -> FileBlock(address, this) }.asIterable()
 
     class FileBlock(private val address: Long, private val reader: FileDataReader) :
             File(reader.dir, LogUtil.getLogFilename(address)), Block {

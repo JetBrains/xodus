@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.util;
 
-import jetbrains.exodus.core.dataStructures.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import jetbrains.exodus.util.SpinAllocator;
 
 public class LongArrayListSpinAllocator {
@@ -37,8 +37,8 @@ public class LongArrayListSpinAllocator {
         @Override
         public void disposeInstance(final LongArrayList instance) {
             instance.clear();
-            if (instance.getCapacity() > MAXIMUM_KEEPING_CAPACITY) {
-                instance.setCapacity(INITIAL_CAPACITY);
+            if (instance.elements().length > MAXIMUM_KEEPING_CAPACITY) {
+                instance.trim(INITIAL_CAPACITY);
             }
         }
     }

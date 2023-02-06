@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.log;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;

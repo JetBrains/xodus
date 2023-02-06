@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.util;
 
+import it.unimi.dsi.fastutil.longs.LongListIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet;
@@ -65,7 +66,7 @@ public class ImmutableSingleTypeEntityIdBitSet implements SortedEntityIdSet {
         size = data.cardinality();
     }
 
-    public ImmutableSingleTypeEntityIdBitSet(final int singleTypeId, long min, long max, final LongIterator source) {
+    public ImmutableSingleTypeEntityIdBitSet(final int singleTypeId, long min, long max, final LongListIterator source) {
         this.singleTypeId = singleTypeId;
         this.min = min;
         this.max = max;
@@ -75,7 +76,7 @@ public class ImmutableSingleTypeEntityIdBitSet implements SortedEntityIdSet {
         }
         data = new BitSet((int) bitsCount);
         while (source.hasNext()) {
-            data.set((int) (source.next() - min));
+            data.set((int) (source.nextLong() - min));
         }
         size = data.cardinality();
     }

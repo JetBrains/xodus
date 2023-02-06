@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate
 
-import jetbrains.exodus.core.dataStructures.LongArrayList
+import it.unimi.dsi.fastutil.longs.LongArrayList
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.cached.SingleTypeUnsortedEntityIdArrayCachedInstanceIterable
 import jetbrains.exodus.entitystore.tables.LinkValue
@@ -84,7 +84,7 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
                 max = localId
             }
         }
-        return CachedLinksIterable(txn, localIds.toArray(), targets.toTypedArray(), min, max)
+        return CachedLinksIterable(txn, localIds.toLongArray(), targets.toTypedArray(), min, max)
     }
 
     private fun openCursor(txn: PersistentStoreTransaction) = store.getLinksSecondIndexCursor(txn, entityTypeId)
@@ -143,10 +143,10 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
         }
     }
 
-    private inner class CachedLinksIterable internal constructor(txn: PersistentStoreTransaction,
-                                                                 private val localIds: LongArray,
-                                                                 private val targets: Array<EntityId>,
-                                                                 min: Long, max: Long)
+    private inner class CachedLinksIterable(txn: PersistentStoreTransaction,
+                                            private val localIds: LongArray,
+                                            private val targets: Array<EntityId>,
+                                            min: Long, max: Long)
         : SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(txn, this@EntitiesWithCertainLinkIterable, entityTypeId, localIds, null, min, max) {
 
         override fun getIteratorImpl(txn: PersistentStoreTransaction): LinksIteratorWithTarget {
@@ -158,7 +158,7 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
 
                 override fun hasNextImpl() = i < localIds.size
 
-                override fun nextIdImpl(): EntityId? {
+                override fun nextIdImpl(): EntityId {
                     targetId = targets[i]
                     return PersistentEntityId(entityTypeId, localIds[i++])
                 }

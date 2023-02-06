@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.tree
 
+import it.unimi.dsi.fastutil.longs.LongArrayList
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.IntArrayList
-import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.log.Loggable
 
 class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? = null,
@@ -37,7 +37,7 @@ class ExpiredLoggableCollection(private val parent: ExpiredLoggableCollection? =
     }
 
     fun trimToSize(): ExpiredLoggableCollection {
-        addresses.trimToSize()
+        addresses.trim()
         lengths.trimToSize()
         return this
     }

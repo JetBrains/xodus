@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.gc
 
+import it.unimi.dsi.fastutil.longs.LongArrayList
 import jetbrains.exodus.ExodusException
-import jetbrains.exodus.core.dataStructures.LongArrayList
 import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
@@ -208,7 +208,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
                 // to underlying storage device before any file is deleted
                 environment.flushAndSync()
-                val filesArray = filesToDelete.toArray()
+                val filesArray = filesToDelete.toLongArray()
                 environment.removeFiles(filesArray, if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete)
                 filesArray.forEach { utilizationProfile.removeFile(it) }
                 utilizationProfile.estimateTotalBytesAndWakeGcIfNecessary()
