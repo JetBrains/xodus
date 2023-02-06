@@ -6,6 +6,7 @@ import org.jctools.queues.MpmcUnboundedXaddArrayQueue;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 class OperationReference {
@@ -85,7 +86,8 @@ class MVCCDataStructure {
 
         // advanced approach: state-machine
         final AtomicLong minMaxValue = new AtomicLong(0);
-        OperationsLinksEntry targetEntry;
+        final AtomicReference<OperationsLinksEntry> targetEntry = new AtomicReference<>();
+
         var maxTxId = mvccRecord.maxTransactionId.get();
         mvccRecord.linksToOperations.forEach( linkEntry -> {
             var candidate = linkEntry.txId;
@@ -96,15 +98,15 @@ class MVCCDataStructure {
                 }
                 if(linkEntry.linksToOperations.state != OperationReferenceState.ABORTED) {
                     minMaxValue.compareAndSet(currentMax, candidate);
-                    targetEntry = linkEntry;
+                    targetEntry.set(linkEntry);
                 }
             }
         });
-        var operation2 = operationLog.get(targetEntry.linksToOperations.address); // check if exists
-        if (operation2.key == key){
-            return operation2.value;
+        var targetOperationInLog = operationLog.get(targetEntry.get().linksToOperations.address); // check if exists
+        if (targetOperationInLog.key == key){
+            return targetOperationInLog.value;
         } else {
-            ArrayList<OperationsLinksEntry> selectionOfLessThanMaxTxId = new ArrayList<OperationsLinksEntry>();
+            ArrayList<OperationsLinksEntry> selectionOfLessThanMaxTxId = new ArrayList<>();
             mvccRecord.linksToOperations.forEach( linkEntry -> {
                 if (linkEntry.txId < maxTxId) {
                     while (linkEntry.linksToOperations.state == OperationReferenceState.IN_PROGRESS){
@@ -117,9 +119,9 @@ class MVCCDataStructure {
             });
             selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationsLinksEntry::getTxId).reversed());
             for (OperationsLinksEntry linkEntry: selectionOfLessThanMaxTxId) {
-                operation2 = operationLog.get(linkEntry.linksToOperations.address);
-                if (operation2.key == key){
-                    return operation2.value;
+                targetOperationInLog = operationLog.get(linkEntry.linksToOperations.address);
+                if (targetOperationInLog.key == key){
+                    return targetOperationInLog.value;
                 }
             }
 
