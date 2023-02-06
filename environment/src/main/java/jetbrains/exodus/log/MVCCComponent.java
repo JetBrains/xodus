@@ -2,12 +2,17 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.jctools.queues.MpmcUnboundedXaddArrayQueue;
+import net.jpountz.xxhash.XXHash64;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+
+import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_FACTORY;
+import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_SEED;
 
 class OperationReference {
     // for later: in case we have multiple operations we can use linked list as here we always have one thread per txId -> thread-safety !!
@@ -52,6 +57,7 @@ class MVCCRecord {
 }
 
 class MVCCDataStructure {
+    public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); //primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
 
@@ -78,9 +84,10 @@ class MVCCDataStructure {
 
     // todo: WIP
     // should be separate for with duplicates and without, for now we do without only
-    public static long readLogRecord(long currentTransactionId, long key) {
+    public static ByteBuffer readLogRecord(long currentTransactionId, ByteBuffer key) {
 
-        var keyHashCode = Long.hashCode(key);
+        final long keyHashCode = xxHash.hash(key, XX_HASH_SEED);
+
         MVCCRecord mvccRecord = hashMap.computeIfAbsent((long) keyHashCode, createRecord);
         compareWithCurrentAndSet(mvccRecord, currentTransactionId); //increment version
 
@@ -131,14 +138,14 @@ class MVCCDataStructure {
         return searchInBTree(key);
     }
 
-    private static long searchInBTree(long key){
+    private static ByteBuffer searchInBTree(ByteBuffer key){
         // mock method for the search of the operation in B-tree
-        return 0L;
+        var buffer= ByteBuffer.allocate(0);
+        return buffer;
     }
 
-    public static void write(long transactionId, long key, long value, String inputOperation) {
-        long keyHashCode = Long.hashCode(key);
-
+    public static void write(long transactionId, ByteBuffer key, ByteBuffer value, String inputOperation) {
+        final long keyHashCode = xxHash.hash(key, XX_HASH_SEED);
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         hashMap.putIfAbsent(keyHashCode, mvccRecord);
 
