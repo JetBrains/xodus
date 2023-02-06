@@ -107,11 +107,11 @@ class MVCCDataStructure {
             ArrayList<OperationsLinksEntry> selectionOfLessThanMaxTxId = new ArrayList<OperationsLinksEntry>();
             mvccRecord.linksToOperations.forEach( linkEntry -> {
                 if (linkEntry.txId < maxTxId) {
-                    if (linkEntry.linksToOperations.state != OperationReferenceState.ABORTED) {
-                        selectionOfLessThanMaxTxId.add(linkEntry);
-                    }
                     while (linkEntry.linksToOperations.state == OperationReferenceState.IN_PROGRESS){
                         Thread.onSpinWait();
+                    }
+                    if (linkEntry.linksToOperations.state != OperationReferenceState.ABORTED) {
+                        selectionOfLessThanMaxTxId.add(linkEntry);
                     }
                 }
             });
@@ -147,7 +147,7 @@ class MVCCDataStructure {
 
         if (transactionId < mvccRecord.maxTransactionId.get()) {
             operation.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
-            hashMap.remove(keyHashCode);
+            //pay att here - might require delete from mvccRecord.linksToOperations here
             throw new ExodusException(); // rollback
         }
         operation.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
