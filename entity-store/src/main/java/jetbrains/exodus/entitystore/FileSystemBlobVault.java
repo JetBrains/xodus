@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 public class FileSystemBlobVault extends FileSystemBlobVaultOld {
 
@@ -27,11 +28,10 @@ public class FileSystemBlobVault extends FileSystemBlobVaultOld {
 
     public FileSystemBlobVault(@NotNull Environment environment,
                                @NotNull final PersistentEntityStoreConfig config,
-                               @NotNull final String parentDirectory,
-                               @NotNull final String blobsDirectory,
+                               @NotNull final Path blobsDirectory,
                                @NotNull final String blobExtension,
                                @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
-        super(environment, config, parentDirectory, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
+        super(environment, config, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
     }
 
     @NotNull

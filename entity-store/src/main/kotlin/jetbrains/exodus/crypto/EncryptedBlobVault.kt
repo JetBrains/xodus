@@ -21,9 +21,7 @@ import jetbrains.exodus.entitystore.BlobVault
 import jetbrains.exodus.entitystore.BlobVaultItem
 import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
-import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Transaction
-import jetbrains.exodus.util.IOUtil
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -80,8 +78,8 @@ class EncryptedBlobVault(
 
     override fun flushBlobs(
         blobStreams: LongHashMap<InputStream>?,
-        blobFiles: LongHashMap<File>?,
-        tmpBlobs: LongHashMap<Path>?,
+        blobFiles: LongHashMap<Path>?,
+        tmpBlobFiles: LongHashMap<Path>?,
         deferredBlobsToDelete: LongSet?,
         txn: Transaction
     ) {
@@ -91,20 +89,22 @@ class EncryptedBlobVault(
                 newCipher(it.key)
             }
         }
+
         var openFiles: MutableList<InputStream>? = null
         try {
             if (!blobFiles.isNullOrEmpty()) {
                 openFiles = mutableListOf()
                 blobFiles.forEach {
                     streams[it.key] = StreamCipherInputStream(
-                        FileInputStream(it.value)
-                            .also { file -> openFiles.add(file) }.asBuffered.also { stream -> stream.mark(IOUtil.DEFAULT_BUFFER_SIZE) }
+                        FileInputStream(it.value.toFile())
+                            .also { file -> openFiles.add(file) }.asBuffered
                     ) {
                         newCipher(it.key)
                     }
                 }
             }
-            decorated.flushBlobs(streams, null, tmpBlobs, deferredBlobsToDelete, txn)
+
+            decorated.flushBlobs(streams, null, tmpBlobFiles, deferredBlobsToDelete, txn)
         } finally {
             openFiles?.forEach { it.close() }
         }
@@ -121,8 +121,10 @@ class EncryptedBlobVault(
         })
     }
 
-    override fun generateDirForTmpBlobs(environment: Environment?) {
-        decorated.generateDirForTmpBlobs(environment)
+    override fun openTmpStream(handle: Long, path: Path): InputStream {
+        return StreamCipherInputStream(decorated.openTmpStream(handle, path)) {
+            newCipher(handle)
+        }
     }
 
     private fun newCipher(blobHandle: Long) =
