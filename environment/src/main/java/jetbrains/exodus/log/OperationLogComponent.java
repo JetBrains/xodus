@@ -1,16 +1,17 @@
 package jetbrains.exodus.log;
 
 
-import java.nio.ByteBuffer;
+import jetbrains.exodus.ByteIterable;
+
 
 class OperationLogRecord {
-    final ByteBuffer key; // final thread-safety for fields, primitives for access speed
+    final ByteIterable key; // final thread-safety for fields, primitives for access speed
     // final makes no sense for methods and classes for the multi-threading
-    final ByteBuffer value;
+    final ByteIterable value;
     final long transactionId;
     final String operation; // shouldn't be strings, but leave like this for now
 
-    OperationLogRecord(ByteBuffer key, ByteBuffer value, long transactionId, String operation) {
+    OperationLogRecord(ByteIterable key, ByteIterable value, long transactionId, String operation) {
         this.key = key;
         this.value = value;
         this.transactionId = transactionId;
