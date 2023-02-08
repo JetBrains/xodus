@@ -198,12 +198,16 @@ public interface Entity extends Comparable<Entity> {
     String getBlobString(@NotNull final String blobName);
 
     /**
-     * Sets value (as {@linkplain InputStream}) of blob with specified name. For large blobs (having size greater
-     * than {@linkplain PersistentEntityStoreConfig#getMaxInPlaceBlobSize()} which is by default 10000), it is
-     * preferable to use {@linkplain #setBlob(String, File)} instead.
+     * Sets value (as {@linkplain InputStream}) of blob with specified name.
+     * <p>
+     * Stream instance can not be used once it is passed into the entity. If you wish to use stream after passing it
+     * into the entity please call {@linkplain  #getBlob(String)}, or use stream returned as result of the call of this
+     * method.
      *
      * @param blobName name of the blob
      * @param blob     blob value as {@linkplain InputStream}
+     * @return InputStream which is stored in entity store. Original input stream is closed during processing of
+     * passed in stream. Returned stream is valid only during duration of the transaction.
      * @see #getBlob(String)
      * @see #getBlobSize(String)
      * @see #getBlobString(String)
@@ -211,16 +215,15 @@ public interface Entity extends Comparable<Entity> {
      * @see #setBlobString(String, String)
      * @see #deleteBlob(String)
      * @see PersistentEntityStoreConfig#getMaxInPlaceBlobSize()
-     * @return Input stream which is stored in entity store. Original input stream could be closed during processing of
-     * passed in stream. Returned instance would allow to continue to work with it in case of transaction rollback.
      */
     InputStream setBlob(@NotNull final String blobName, @NotNull final InputStream blob);
 
     /**
-     * Sets value (as contents of {@linkplain File}) of blob with specified name. For large blobs (having size larger
-     * than {@linkplain PersistentEntityStoreConfig#getMaxInPlaceBlobSize()} which is by default 10000), using this
-     * method is preferable, because (in case if the database location and {@code file} exists on a common physical
-     * partition) it can succeed by just renaming the file instead of copying.
+     * Sets value (as contents of {@linkplain File}) of blob with specified name.
+     * It is preferred to use files which located on the same disk partition as the blob vault itself,
+     * otherwise transaction can take long amount of time because file will be copied into the another
+     * disk partition. In the last case better to use {@linkplain #setBlob(String, InputStream)} instead, because
+     * data will be copied first into the temporary location inside of blob vault.
      *
      * @param blobName name of the blob
      * @param file     blob value as {@linkplain InputStream}
@@ -231,6 +234,7 @@ public interface Entity extends Comparable<Entity> {
      * @see #setBlobString(String, String)
      * @see #deleteBlob(String)
      * @see PersistentEntityStoreConfig#getMaxInPlaceBlobSize()
+     * @see PersistentEntityStoreConfig#getBlobsDirectoryLocation()
      */
     void setBlob(@NotNull final String blobName, @NotNull final File file);
 

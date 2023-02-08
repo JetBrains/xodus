@@ -20,15 +20,10 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.dataStructures.FakeObjectCache;
-import jetbrains.exodus.core.dataStructures.NonAdjustableConcurrentObjectCache;
-import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
-import jetbrains.exodus.core.dataStructures.ObjectCacheDecorator;
+import jetbrains.exodus.core.dataStructures.*;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.*;
-import jetbrains.exodus.util.ByteArraySizedInputStream;
-import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -43,7 +38,6 @@ import java.util.function.BiFunction;
 
 @SuppressWarnings({"rawtypes"})
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
-
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
     enum TransactionType {
@@ -72,12 +66,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private EntityIterableCacheAdapterMutable mutableCache;
     private List<Updatable> mutatedInTxn;
     @Nullable
-    private LongHashMap<InputStream> blobStreams;
+    private LongHashMap<Pair<Path, TmpBlobVaultFileInputStream>> blobStreams;
     @Nullable
-    private LongHashMap<File> blobFiles;
-
-    @Nullable
-    private LongHashMap<Path> tmpBlobFiles;
+    private LongHashMap<Path> blobFiles;
 
     private LongSet deferredBlobsToDelete;
     private QueryCancellingPolicy queryCancellingPolicy;
@@ -161,8 +152,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public boolean isIdempotent() {
         return getEnvironmentTransaction().isIdempotent() &&
                 (blobStreams == null || blobStreams.isEmpty()) &&
-                (blobFiles == null || blobFiles.isEmpty()) &&
-                (tmpBlobFiles == null || tmpBlobFiles.isEmpty());
+                (blobFiles == null || blobFiles.isEmpty());
     }
 
     @Override
@@ -194,7 +184,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private boolean doCommit() {
         if (txn.commit()) {
             store.unregisterTransaction(this);
-            flushNonTransactionalBlobs();
             revertCaches();
             return true;
         }
@@ -227,7 +216,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     // exposed only for tests
     boolean doFlush() {
         if (txn.flush()) {
-            flushNonTransactionalBlobs();
             revertCaches(false); // do not clear props & links caches
             return true;
         }
@@ -792,26 +780,19 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         new LinkDeletedHandleChecker(this, sourceId, targetId, linkId, mutableCache(), mutatedInTxn).updateCache();
     }
 
-    void addBlob(final long blobHandle, @NotNull InputStream stream) {
-        LongHashMap<InputStream> blobStreams = this.blobStreams;
+    void addBlobStream(final long blobHandle, @NotNull Path stream, @Nullable TmpBlobVaultFileInputStream tmpStream) {
+        LongHashMap<Pair<Path, TmpBlobVaultFileInputStream>> blobStreams = this.blobStreams;
 
         if (blobStreams == null) {
             blobStreams = new LongHashMap<>();
             this.blobStreams = blobStreams;
         }
 
-        InputStream bufferedInputStream;
-        if (stream instanceof ByteArraySizedInputStream || stream instanceof BufferedInputStream) {
-            bufferedInputStream = stream;
-        } else {
-            bufferedInputStream = new BufferedInputStream(stream);
-        }
-
-        blobStreams.put(blobHandle, bufferedInputStream);
+        blobStreams.put(blobHandle, new Pair<>(stream, tmpStream));
     }
 
-    void addBlob(final long blobHandle, @NotNull final File file) {
-        LongHashMap<File> blobFiles = this.blobFiles;
+    void addBlobFile(final long blobHandle, @NotNull final Path file) {
+        LongHashMap<Path> blobFiles = this.blobFiles;
         if (blobFiles == null) {
             blobFiles = new LongHashMap<>();
             this.blobFiles = blobFiles;
@@ -830,32 +811,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     long getBlobSize(final long blobHandle) throws IOException {
-        final LongHashMap<InputStream> blobStreams = this.blobStreams;
+        final LongHashMap<Pair<Path, TmpBlobVaultFileInputStream>> blobStreams = this.blobStreams;
 
         if (blobStreams != null) {
-            final InputStream stream = blobStreams.get(blobHandle);
-            if (stream != null) {
-                if (stream instanceof ByteArraySizedInputStream) {
-                    return ((ByteArraySizedInputStream) stream).size();
-                }
-
-                try {
-                    stream.reset();
-                    stream.mark(Integer.MAX_VALUE);
-                    return stream.skip(Long.MAX_VALUE); // warning, this may return inaccurate results
-                } finally {
-                    if (stream.markSupported()) {
-                        stream.reset();
-                    }
-                }
+            final Pair<Path, TmpBlobVaultFileInputStream> streamPair = blobStreams.get(blobHandle);
+            if (streamPair != null) {
+                return Files.size(streamPair.first);
             }
         }
 
-        final LongHashMap<File> blobFiles = this.blobFiles;
+        final LongHashMap<Path> blobFiles = this.blobFiles;
         if (blobFiles != null) {
-            final File file = blobFiles.get(blobHandle);
+            final Path file = blobFiles.get(blobHandle);
             if (file != null) {
-                return file.length();
+                return Files.size(file);
             }
         }
 
@@ -864,22 +833,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Nullable
     InputStream getBlobStream(final long blobHandle) throws IOException {
-        final LongHashMap<InputStream> blobStreams = this.blobStreams;
+        final LongHashMap<Pair<Path, TmpBlobVaultFileInputStream>> blobStreams = this.blobStreams;
 
         if (blobStreams != null) {
-            final InputStream stream = blobStreams.get(blobHandle);
-            if (stream != null) {
-                stream.reset();
-                stream.mark(Integer.MAX_VALUE);
-                return new InputStreamCloseGuard(stream);
+            final Pair<Path, TmpBlobVaultFileInputStream> streamPair = blobStreams.get(blobHandle);
+            if (streamPair != null) {
+                return ((DiskBasedBlobVault) store.getBlobVault()).openTmpStream(blobHandle, streamPair.first);
             }
         }
 
-        final LongHashMap<File> blobFiles = this.blobFiles;
+        final LongHashMap<Path> blobFiles = this.blobFiles;
         if (blobFiles != null) {
-            final File file = blobFiles.get(blobHandle);
+            final Path file = blobFiles.get(blobHandle);
             if (file != null) {
-                return store.getBlobVault().getFileStream(file);
+                return store.getBlobVault().getFileStream(file.toFile());
             }
         }
 
@@ -909,13 +876,30 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             linksCache.clear();
             blobStringsCache.clear();
         }
+
         localCache = (EntityIterableCacheAdapter) store.getEntityIterableCache().getCacheAdapter();
         mutableCache = null;
         mutatedInTxn = null;
+
+        if (blobStreams != null && !blobStreams.isEmpty() &&
+                !store.getConfig().getDoNotInvalidateBlobStreamsOnRollback()) {
+            for (final Pair<Path, TmpBlobVaultFileInputStream> streamPair : blobStreams.values()) {
+                try {
+                    TmpBlobVaultFileInputStream tmpStream = streamPair.second;
+                    if (tmpStream != null) {
+                        streamPair.second.close();
+                    }
+
+                    Files.deleteIfExists(streamPair.first);
+                } catch (IOException e) {
+                    throw new ExodusException("Can not remove temporary blob " + streamPair + " during rollback.", e);
+                }
+            }
+        }
+
         blobStreams = null;
         blobFiles = null;
         deferredBlobsToDelete = null;
-        tmpBlobFiles = null;
     }
 
     // exposed only for tests
@@ -925,67 +909,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         final BlobVault blobVault = store.getBlobVault();
         if (blobVault.requiresTxn()) {
             try {
-                blobVault.flushBlobs(blobStreams, blobFiles, null, deferredBlobsToDelete, txn);
+                flushBlobs(blobVault);
             } catch (Exception e) {
                 // out of disk space not expected there
                 throw ExodusException.toEntityStoreException(e);
             }
-        } else if (blobStreams != null && blobVault instanceof DiskBasedBlobVault) {
-            ((TransactionBase) txn).setBeforeTransactionFlushAction(() -> {
-                DiskBasedBlobVault diskBasedBlobVault = (DiskBasedBlobVault) blobVault;
-                tmpBlobFiles = new LongHashMap<>();
-
-                try {
-                    for (Map.Entry<Long, InputStream> entry : blobStreams.entrySet()) {
-                        Long handle = entry.getKey();
-                        InputStream stream = entry.getValue();
-
-                        //reset the stream if it was changed during transaction processing.
-                        //all streams are hold by transaction should support mark method.
-                        //stream could be changed if they are returned to user during transaction processing
-                        stream.reset();
-
-                        //reset mark position to avoid OOM
-                        stream.mark(IOUtil.DEFAULT_BUFFER_SIZE);
-
-                        long blobHandle = handle.longValue();
-
-                        Path tmpFile = diskBasedBlobVault.copyToTemporaryStore(blobHandle, stream);
-                        tmpBlobFiles.put(blobHandle, tmpFile);
-
-                        store.setBlobFileLength(this, blobHandle, Files.size(tmpFile));
-                    }
-                } catch (Exception e) {
-                    for (Path blob : tmpBlobFiles.values()) {
-                        try {
-                            Files.deleteIfExists(blob);
-                        } catch (final IOException ex) {
-                            logger.error("Error during deletion of blob " + blob + " during clean up after error.",
-                                    ex);
-                        }
-                    }
-
-                    try {
-                        diskBasedBlobVault.generateDirForTmpBlobs(store.getEnvironment());
-                    } catch (final IOException ex) {
-                        logger.error("Error during re-generation of temporary directory during clean up process.",
-                                ex);
-                    }
-
-                    for (InputStream stream : blobStreams.values()) {
-                        try {
-                            stream.close();
-                        } catch (IOException ex) {
-                            logger.error("Error during closing of blob stream during clean up process.",
-                                    ex);
-                        }
-                    }
-
-                    throw new ExodusException("Error during creation of temporary file for blob", e);
-                } finally {
-                    blobStreams = null;
-                }
-            });
+        } else {
+            ((TransactionBase) txn).setBeforeTransactionFlushAction(this::flushNonTransactionalBlobs);
         }
 
         txn.setCommitHook(() -> {
@@ -995,6 +925,29 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 applyAtomicCaches(cache);
             }
         });
+    }
+
+    private void flushBlobs(final BlobVault blobVault) throws Exception {
+        if (blobStreams != null || blobFiles != null) {
+            final LongHashMap<Path> tmpBlobFiles;
+
+            if (blobStreams != null) {
+                tmpBlobFiles = new LongHashMap<>();
+
+                for (final Map.Entry<Long, Pair<Path, TmpBlobVaultFileInputStream>> entry : blobStreams.entrySet()) {
+                    final Pair<Path, TmpBlobVaultFileInputStream> pair = entry.getValue();
+                    final TmpBlobVaultFileInputStream tmpStream = pair.second;
+                    if (tmpStream != null) {
+                        tmpStream.close();
+                    }
+                    tmpBlobFiles.put(entry.getKey(), pair.first);
+                }
+            } else {
+                tmpBlobFiles = null;
+            }
+
+            blobVault.flushBlobs(null, blobFiles, tmpBlobFiles, deferredBlobsToDelete, txn);
+        }
     }
 
     private void applyAtomicCaches(@NotNull EntityIterableCacheAdapterMutable cache) {
@@ -1023,19 +976,17 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private void flushNonTransactionalBlobs() {
         final BlobVault blobVault = store.getBlobVault();
-        if (!blobVault.requiresTxn()) {
-            assert blobStreams == null;
 
-            if (tmpBlobFiles != null || blobFiles != null || deferredBlobsToDelete != null) {
-                ((EnvironmentImpl) txn.getEnvironment()).flushAndSync();
-                try {
-                    blobVault.flushBlobs(null, blobFiles, tmpBlobFiles, deferredBlobsToDelete, txn);
-                } catch (Exception e) {
-                    handleOutOfDiskSpace(e);
-                    throw ExodusException.toEntityStoreException(e);
-                }
+        if (blobStreams != null || blobFiles != null || deferredBlobsToDelete != null) {
+            ((EnvironmentImpl) txn.getEnvironment()).flushAndSync();
+            try {
+                flushBlobs(blobVault);
+            } catch (Exception e) {
+                handleOutOfDiskSpace(e);
+                throw ExodusException.toEntityStoreException(e);
             }
         }
+
     }
 
     private EntityIterableCacheAdapterMutable mutableCache() {
