@@ -21,7 +21,6 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.entitystore.tables.BlobsTable;
 import jetbrains.exodus.env.Cursor;
-import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.util.IOUtil;
@@ -118,9 +117,12 @@ public class VFSBlobVault extends BlobVault {
 
     @Override
     public void flushBlobs(@Nullable final LongHashMap<InputStream> blobStreams,
-                           @Nullable final LongHashMap<File> blobFiles,
-                           @Nullable LongHashMap<Path> tmpBlobs, @Nullable final LongSet deferredBlobsToDelete,
+                           final @Nullable LongHashMap<Path> blobFiles,
+                           @Nullable LongHashMap<Path> tmpBlobFiles,
+                           @Nullable final LongSet deferredBlobsToDelete,
                            @NotNull final Transaction txn) throws Exception {
+        assert tmpBlobFiles == null || tmpBlobFiles.isEmpty();
+
         if (blobStreams != null) {
             blobStreams.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>) object -> {
                 final InputStream stream = object.getValue();
@@ -134,8 +136,8 @@ public class VFSBlobVault extends BlobVault {
         }
         // if there were blob files then move them
         if (blobFiles != null) {
-            blobFiles.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, File>, Exception>) object -> {
-                setContent(object.getKey().longValue(), object.getValue(), txn);
+            blobFiles.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, Path>, Exception>) object -> {
+                setContent(object.getKey().longValue(), object.getValue().toFile(), txn);
                 return true;
             });
         }
@@ -171,33 +173,6 @@ public class VFSBlobVault extends BlobVault {
     @Override
     public BackupStrategy getBackupStrategy() {
         return BackupStrategy.EMPTY;
-    }
-
-    public void refactorFromFS(@NotNull final PersistentEntityStoreImpl store) throws IOException {
-        final BlobVault sourceVault = new FileSystemBlobVaultOld(store.getEnvironment(),
-                store.getConfig(), store.getLocation(),
-                "blobs", ".blob", BlobHandleGenerator.IMMUTABLE);
-
-        final LongSet allBlobs = store.computeInReadonlyTransaction(txn -> loadAllBlobs(store, (PersistentStoreTransaction) txn));
-        final Environment env = fs.getEnvironment();
-        final Transaction txn = env.beginTransaction();
-        try {
-            int i = 0;
-            for (final long blobId : allBlobs) {
-                if (i++ % 100 == 0) {
-                    txn.flush();
-                }
-                final InputStream content = sourceVault.getContent(blobId, txn, null);
-                if (content != null) {
-                    importBlob(txn, blobId, content);
-                }
-            }
-            txn.flush();
-        } catch (final IOException ioe) {
-            throw new EntityStoreException(ioe);
-        } finally {
-            txn.abort();
-        }
     }
 
     private void importBlob(final Transaction txn, final long blobHandle, @NotNull InputStream content) throws IOException {

@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
 import jetbrains.exodus.env.Transaction
-import java.io.File
 import java.io.InputStream
 import java.nio.file.Path
 
@@ -46,9 +45,10 @@ class DummyBlobVault(config: PersistentEntityStoreConfig) : BlobVault(config) {
 
     override fun flushBlobs(
         blobStreams: LongHashMap<InputStream>?,
-        blobFiles: LongHashMap<File>?,
-        tmpBlobs: LongHashMap<Path>?, deferredBlobsToDelete:
-        LongSet?, txn: Transaction
+        blobFiles: LongHashMap<Path>?,
+        tmpBlobFiles: LongHashMap<Path>?,
+        deferredBlobsToDelete: LongSet?,
+        txn: Transaction
     ) = throw NotImplementedError()
 
     override fun size() = 0L

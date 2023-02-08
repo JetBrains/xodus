@@ -146,8 +146,9 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
     public abstract boolean requiresTxn();
 
     /**
-     * Method called by {@linkplain PersistentEntityStore} to flush blobs identified by blobs. Three maps represent three
-     * ways of dealing with blob content: using streams and {@code java.io.File} instances. They naturally follow from
+     * Method called by {@linkplain PersistentEntityStore} to flush blobs. Three maps represent three
+     * ways of dealing with blob content: using streams, {@code java.io.File} instances and storing content
+     * of streams to the temporary directory before transaction commit. They naturally follow from
      * the {@linkplain Entity} API, having two methods to set blob: {@linkplain Entity#setBlob(String, InputStream)}
      * and {@linkplain Entity#setBlob(String, File)}. The last map is used to keep copy  of streams into temporary vault
      * storage before commit and then moving them into permanent vault store after commit to ensure durability of commit.
@@ -155,15 +156,11 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      * <p>The set {@code deferredBlobsToDelete} contains blob handles of blobs that should be deleted after the
      * transaction is finished. In most cases, these blobs cannot be deleted immediately without violating isolation
      * transaction guarantees.
-     *
-     * <p>Although transaction passed to the method is {@code @NotNull} it can be already finished (check by
-     * {@linkplain Transaction#isFinished()}). E.g., {@linkplain StoreTransaction#commit()} at first commits
-     * underlying environment {@linkplain Transaction} and then flushes blobs passing instance of committed transaction.
+     * <p>
      *
      * @param blobStreams           map of blob handles to {@linkplain InputStream} instances
      * @param blobFiles             map of blob handles to {@linkplain File} instances
-     * @param tmpBlobs              map of blob which were temporary stored inside of vault using
-     *                              {@link DiskBasedBlobVault#copyToTemporaryStore(long, InputStream)}
+     * @param tmpBlobFiles          map of blob handles to temporary files which are used to store content of input streams.
      * @param deferredBlobsToDelete set of blob handles of blobs that should be deleted after the transaction is finished
      * @param txn                   {@linkplain Transaction} instance
      * @throws Exception something went wrong
@@ -172,8 +169,9 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      * @see Transaction
      */
     public abstract void flushBlobs(@Nullable final LongHashMap<InputStream> blobStreams,
-                                    @Nullable final LongHashMap<File> blobFiles,
-                                    @Nullable LongHashMap<Path> tmpBlobs, @Nullable final LongSet deferredBlobsToDelete,
+                                    final @Nullable LongHashMap<Path> blobFiles,
+                                    @Nullable LongHashMap<Path> tmpBlobFiles,
+                                    @Nullable final LongSet deferredBlobsToDelete,
                                     @NotNull final Transaction txn) throws Exception;
 
     /**
