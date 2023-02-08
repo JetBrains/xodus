@@ -114,9 +114,9 @@ class EntityBlobTests : EntityStoreTestBase() {
     fun testNonAsciiBlobString() {
         val txn = storeTransaction
         val issue = txn.newEntity("Issue")
-        issue.setBlobString("description", "абвгдеёжзийклмнопр�?туфхкцчшщъыь�?ю�?")
+        issue.setBlobString("description", "абвгдеёжзийклмнопрстуфхкцчшщъыьъюя")
         txn.flush()
-        Assert.assertEquals("абвгдеёжзийклмнопр�?туфхкцчшщъыь�?ю�?", issue.getBlobString("description"))
+        Assert.assertEquals("абвгдеёжзийклмнопрстуфхкцчшщъыьъюя", issue.getBlobString("description"))
     }
 
     @TestFor(issue = "JT-44824")
