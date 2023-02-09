@@ -28,20 +28,14 @@ import java.nio.file.Path;
  */
 final class TmpBlobVaultFileInputStream extends FileInputStream {
     private final Path path;
-    private final long blobHandle;
 
-    public TmpBlobVaultFileInputStream(final Path path, final long blobHandle) throws IOException {
+    public TmpBlobVaultFileInputStream(final Path path) throws IOException {
         super(path.toFile());
         this.path = path;
-        this.blobHandle = blobHandle;
     }
 
     public Path getPath() {
         return path;
-    }
-
-    public long getBlobHandle() {
-        return blobHandle;
     }
 
 }
