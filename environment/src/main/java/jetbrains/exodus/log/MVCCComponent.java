@@ -51,9 +51,7 @@ class MVCCDataStructure {
     // should be separate for with duplicates and without, for now we do without only
     public static ByteIterable readLogRecord(long currentTransactionId, ByteIterable key) {
 
-        final long keyHashCode = xxHash.hash(key.getBaseBytes(), 0, key.getBaseBytes().length, XX_HASH_SEED);
-//        final long keyHashCode = xxHash.hash(key.getBaseBytes(), 0, // todo - should we take into account HASH_CODE_SIZE?
-//                key.getBaseBytes().length - , XX_HASH_SEED);
+        final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
 
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         compareWithCurrentAndSet(mvccRecord, currentTransactionId); //increment version
@@ -120,7 +118,8 @@ class MVCCDataStructure {
     }
 
     public static void write(long transactionId, ByteIterable key, ByteIterable value, String inputOperation) {
-        final long keyHashCode = xxHash.hash(key.getBaseBytes(), 0, key.getBaseBytes().length, XX_HASH_SEED);
+        final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
+
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         hashMap.putIfAbsent(keyHashCode, mvccRecord);
 
