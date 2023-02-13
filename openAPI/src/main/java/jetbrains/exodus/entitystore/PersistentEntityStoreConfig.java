@@ -25,6 +25,7 @@ import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.system.JVMConstants;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.Map;
 
@@ -363,10 +364,30 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String REPLICATOR = "exodus.entityStore.replicator";
 
     /**
+     * Location of directory on the file system where all blobs will be stored.
+     * Applicable only if disk based blob directory is used.
+     * If relative path is provided, path will be created relatively location of main database.
+     * If value is not provided then default value "blobs" is used.
+     * Default value {@code null}.
+     *
+     * <p>Mutable at runtime: no
+     */
+    public static final String BLOBS_DIRECTORY_LOCATION = "exodus.entityStore.blobsDirectoryLocation";
+
+    /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
      * <p>Mutable at runtime: no
      */
     public static final String USE_INT_FOR_LOCAL_ID = "exodus.entityStore.useIntForLocalId";
+
+    /**
+     * Not for public use, if this parameter set stream returned from {@link Entity#setBlob(String, InputStream)}
+     * will be valid after rollback.
+     * Default value is {@code false}.
+     *
+     * <p>Mutable at runtime: yes
+     */
+    public static final String DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK = "exodus.entityStore.doNotCloseBlobStreamsOnRollback";
 
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
 
@@ -415,7 +436,10 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(GATHER_STATISTICS, true),
                 new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
                 new Pair(REPLICATOR, null),
-                new Pair(BLOB_MAX_READ_WAITING_INTERVAL, 300)
+                new Pair(BLOB_MAX_READ_WAITING_INTERVAL, 300),
+                new Pair(DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK, Boolean.FALSE),
+                new Pair(BLOBS_DIRECTORY_LOCATION, null)
+
         }, strategy);
     }
 
@@ -749,6 +773,22 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreReplicator getStoreReplicator() {
         return (PersistentEntityStoreReplicator) getSetting(REPLICATOR);
+    }
+
+    public PersistentEntityStoreConfig setDoNotInvalidateBlobStreamsOnRollback(final boolean value) {
+        return setSetting(DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK, Boolean.valueOf(value));
+    }
+
+    public boolean getDoNotInvalidateBlobStreamsOnRollback() {
+        return ((Boolean) getSetting(DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK)).booleanValue();
+    }
+
+    public PersistentEntityStoreConfig setBlobsDirectoryLocation(final String value) {
+        return setSetting(BLOBS_DIRECTORY_LOCATION, value);
+    }
+
+    public String getBlobsDirectoryLocation() {
+        return (String) getSetting(BLOBS_DIRECTORY_LOCATION);
     }
 
     private static int defaultEntityIterableCacheSize() {
