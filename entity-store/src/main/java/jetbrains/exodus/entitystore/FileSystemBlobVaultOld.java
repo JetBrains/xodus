@@ -70,16 +70,14 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
      */
     private final AtomicLong size;
 
-    FileSystemBlobVaultOld(@NotNull Environment environment,
-                           @NotNull final PersistentEntityStoreConfig config,
+    FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
                            @NotNull final Path location,
                            @NotNull final String blobExtension,
                            @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
-        this(environment, config, location, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
+        this(config, location, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
     }
 
-    FileSystemBlobVaultOld(@NotNull Environment environment,
-                           @NotNull final PersistentEntityStoreConfig config,
+    FileSystemBlobVaultOld(@NotNull final PersistentEntityStoreConfig config,
                            final @NotNull Path location,
                            @NotNull final String blobExtension,
                            @NotNull final BlobHandleGenerator blobHandleGenerator,
@@ -361,7 +359,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     }
 
     @Override
-    public @NotNull Path copyToTemporaryStore(long handle, @NotNull final InputStream stream) throws IOException {
+    public @NotNull BufferedInputStream copyToTemporaryStore(long handle, @NotNull final InputStream stream,
+                                                             @Nullable StoreTransaction transaction) throws IOException {
         Path tempFile = Files.createTempFile(tmpBlobsDir, "xodus", "tmp-blob");
 
         try (OutputStream out = Files.newOutputStream(tempFile)) {
@@ -369,11 +368,12 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         }
         stream.close();
 
-        return tempFile;
+        return new TmpBlobVaultBufferedInputStream(Files.newInputStream(tempFile), tempFile, handle,
+                (PersistentStoreTransaction) transaction);
     }
 
     @Override
-    public @NotNull InputStream openTmpStream(long handle, Path path) throws IOException {
+    public @NotNull InputStream openTmpStream(long handle, @NotNull Path path) throws IOException {
         return new BufferedInputStream(Files.newInputStream(path));
     }
 

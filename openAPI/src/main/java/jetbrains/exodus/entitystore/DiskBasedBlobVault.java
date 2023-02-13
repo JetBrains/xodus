@@ -19,6 +19,7 @@ import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,7 +42,8 @@ public interface DiskBasedBlobVault {
 
     void close();
 
-    @NotNull Path copyToTemporaryStore(long handle, final @NotNull InputStream stream) throws IOException;
+    @NotNull BufferedInputStream copyToTemporaryStore(long handle, final @NotNull InputStream stream,
+                                                      @Nullable StoreTransaction transaction) throws IOException;
 
-    @NotNull InputStream openTmpStream(long handle,@NotNull Path path) throws IOException;
+    @NotNull InputStream openTmpStream(long handle, @NotNull Path path) throws IOException;
 }
