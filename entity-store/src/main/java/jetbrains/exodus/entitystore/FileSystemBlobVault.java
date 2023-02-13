@@ -31,7 +31,7 @@ public class FileSystemBlobVault extends FileSystemBlobVaultOld {
                                @NotNull final Path blobsDirectory,
                                @NotNull final String blobExtension,
                                @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
-        super(environment, config, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
+        super(config, blobsDirectory, blobExtension, blobHandleGenerator, EXPECTED_VERSION);
     }
 
     @NotNull
