@@ -42,12 +42,12 @@ import java.util.concurrent.Semaphore
 import kotlin.experimental.xor
 import kotlin.text.StringBuilder
 
-class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
+class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, CacheDataProvider {
 
     val created = System.currentTimeMillis()
 
     @JvmField
-    internal val cache: LogCache
+    var cache: LogCache
 
     private val writeBoundarySemaphore: Semaphore
 
@@ -55,8 +55,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     var isClosing: Boolean = false
         private set
 
-    var identity: Int = 0
-        private set
+    private var identity: Int = 0
 
     private val reader: DataReader = config.reader
     private val dataWriter: DataWriter = config.writer
@@ -886,11 +885,19 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     }
 
     fun getCachedPage(pageAddress: Long): ByteArray {
-        return cache.getPage(this, writer, pageAddress)
+        return cache.getPage(this, pageAddress, -1)
     }
 
     fun getPageIterable(pageAddress: Long): ArrayByteIterable {
-        return cache.getPageIterable(this, writer, pageAddress, formatWithHashCodeIsUsed)
+        return cache.getPageIterable(this, pageAddress, formatWithHashCodeIsUsed)
+    }
+
+    override fun getIdentity(): Int {
+        return identity
+    }
+
+    override fun readPage(pageAddress: Long, fileAddress: Long): ByteArray {
+        return writer.readPage(pageAddress)
     }
 
     fun addBlockListener(listener: BlockListener) {
@@ -1456,7 +1463,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable {
     companion object : KLogging() {
 
 
-        private val identityGenerator = IdGenerator()
+        val identityGenerator = IdGenerator()
 
         @Volatile
         private var sharedCache: SharedLogCache? = null

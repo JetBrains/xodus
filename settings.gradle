@@ -22,4 +22,5 @@ include 'utils',
         'sshd',
         'tools'
 include 'environment-crash-tests'
+include 'lucene-directory-v2'
 

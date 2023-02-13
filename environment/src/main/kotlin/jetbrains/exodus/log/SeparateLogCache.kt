@@ -92,11 +92,10 @@ internal class SeparateLogCache : LogCache {
 
     override fun hitRate() = pagesCache.hitRate()
 
-    override fun cachePage(log: Log, pageAddress: Long, page: ByteArray) = cachePage(pageAddress, page)
+    override fun cachePage(cacheDataProvider: CacheDataProvider, pageAddress: Long, page: ByteArray) = cachePage(pageAddress, page)
 
     override fun getPageIterable(
-        log: Log,
-        writer: BufferedDataWriter,
+        cacheDataProvider: CacheDataProvider,
         pageAddress: Long,
         formatWithHashCodeIsUsed: Boolean
     ): ArrayByteIterable {
@@ -111,31 +110,31 @@ internal class SeparateLogCache : LogCache {
             return ArrayByteIterable(page, adjustedPageSize)
         }
 
-        page = writer.readPage(pageAddress)
+        page = cacheDataProvider.readPage(pageAddress, -1)
         cachePage(pageAddress, page)
 
         return ArrayByteIterable(page, adjustedPageSize)
     }
 
     override fun getPage(
-        log: Log, writer: BufferedDataWriter, pageAddress: Long
+        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long
     ): ByteArray {
         var page = pagesCache.tryKeyLocked(pageAddress)
         if (page != null) {
             return page
         }
 
-        page = writer.readPage(pageAddress)
+        page = cacheDataProvider.readPage(pageAddress, fileStart)
         cachePage(pageAddress, page)
 
         return page
     }
 
-    override fun getCachedPage(log: Log, pageAddress: Long): ByteArray? {
+    override fun getCachedPage(cacheDataProvider: CacheDataProvider, pageAddress: Long): ByteArray? {
         return pagesCache.getObjectLocked(pageAddress)
     }
 
-    override fun removePage(log: Log, pageAddress: Long) {
+    override fun removePage(cacheDataProvider: CacheDataProvider, pageAddress: Long) {
         pagesCache.removeLocked(pageAddress)
     }
 

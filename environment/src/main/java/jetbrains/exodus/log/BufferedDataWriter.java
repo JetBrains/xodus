@@ -811,7 +811,7 @@ public final class BufferedDataWriter {
         var pageOffset = (int) highAddress & (pageSize - 1);
         var pageAddress = highAddress - pageOffset;
 
-        var page = logCache.getPage(log, this, pageAddress);
+        var page = logCache.getPage(log, pageAddress, -1);
 
         initCurrentPage(blockSet, highAddress, page);
     }

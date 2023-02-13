@@ -19,7 +19,7 @@ import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.core.dataStructures.*
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase.DEFAULT_SIZE
 
-internal class SharedLogCache : LogCache {
+class SharedLogCache : LogCache {
 
     private val pagesCache: LongObjectCacheBase<CachedValue>
     internal val useSoftReferences: Boolean
@@ -95,8 +95,8 @@ internal class SharedLogCache : LogCache {
 
     override fun hitRate() = pagesCache.hitRate()
 
-    override fun cachePage(log: Log, pageAddress: Long, page: ByteArray) =
-        log.identity.let { logIdentity ->
+    override fun cachePage(cacheDataProvider: CacheDataProvider, pageAddress: Long, page: ByteArray) =
+        cacheDataProvider.identity.let { logIdentity ->
             cachePage(
                 getLogPageFingerPrint(logIdentity, pageAddress),
                 logIdentity,
@@ -106,23 +106,23 @@ internal class SharedLogCache : LogCache {
         }
 
     override fun getPage(
-        log: Log, writer: BufferedDataWriter, pageAddress: Long
+        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long
     ): ByteArray {
-        val logIdentity = log.identity
+        val logIdentity = cacheDataProvider.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
         if (cachedValue != null && cachedValue.logIdentity == logIdentity && cachedValue.address == pageAddress) {
             return cachedValue.page
         }
 
-        val page = writer.readPage(pageAddress)
+        val page = cacheDataProvider.readPage(pageAddress, fileStart)
         cachePage(key, logIdentity, pageAddress, page)
 
         return page
     }
 
-    override fun getCachedPage(log: Log, pageAddress: Long): ByteArray? {
-        val logIdentity = log.identity
+    override fun getCachedPage(cacheDataProvider: CacheDataProvider, pageAddress: Long): ByteArray? {
+        val logIdentity = cacheDataProvider.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.getObjectLocked(key)
 
@@ -132,12 +132,11 @@ internal class SharedLogCache : LogCache {
     }
 
     override fun getPageIterable(
-        log: Log,
-        writer: BufferedDataWriter,
+        cacheDataProvider: CacheDataProvider,
         pageAddress: Long,
         formatWithHashCodeIsUsed: Boolean
     ): ArrayByteIterable {
-        val logIdentity = log.identity
+        val logIdentity = cacheDataProvider.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
 
@@ -150,14 +149,14 @@ internal class SharedLogCache : LogCache {
             return ArrayByteIterable(cachedValue.page, adjustedPageSize)
         }
 
-        val page = writer.readPage(pageAddress)
+        val page = cacheDataProvider.readPage(pageAddress, - 1)
         cachePage(key, logIdentity, pageAddress, page)
 
         return ArrayByteIterable(page, adjustedPageSize)
     }
 
-    override fun removePage(log: Log, pageAddress: Long) {
-        val key = getLogPageFingerPrint(log.identity, pageAddress)
+    override fun removePage( cacheDataProvider: CacheDataProvider, pageAddress: Long) {
+        val key = getLogPageFingerPrint(cacheDataProvider.identity, pageAddress)
         pagesCache.removeLocked(key)
     }
 

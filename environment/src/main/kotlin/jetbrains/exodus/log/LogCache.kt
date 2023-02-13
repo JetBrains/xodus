@@ -19,7 +19,7 @@ import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.InvalidSettingException
 import jetbrains.exodus.util.MathUtil
 
-internal abstract class LogCache {
+abstract class LogCache {
 
     internal val memoryUsage: Long
     protected val memoryUsagePercentage: Int
@@ -71,22 +71,21 @@ internal abstract class LogCache {
 
     abstract fun hitRate(): Float
 
-    abstract fun cachePage(log: Log, pageAddress: Long, page: ByteArray)
+    abstract fun cachePage(cacheDataProvider: CacheDataProvider, pageAddress: Long, page: ByteArray)
 
     abstract fun getPage(
-        log: Log, writer: BufferedDataWriter, pageAddress: Long
+        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long
     ): ByteArray
 
-    abstract fun getCachedPage(log: Log, pageAddress: Long): ByteArray?
+    abstract fun getCachedPage(cacheDataProvider: CacheDataProvider, pageAddress: Long): ByteArray?
 
    abstract fun getPageIterable(
-        log: Log,
-        writer: BufferedDataWriter,
+       cacheDataProvider: CacheDataProvider,
         pageAddress: Long,
         formatWithHashCodeIsUsed: Boolean
     ): ArrayByteIterable
 
-    internal abstract fun removePage(log: Log, pageAddress: Long)
+    internal abstract fun removePage( cacheDataProvider: CacheDataProvider, pageAddress: Long)
 
     companion object {
 

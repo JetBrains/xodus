@@ -47,7 +47,7 @@ public final class SharedOpenFilesCache {
         SharedOpenFilesCache.cacheSize = cacheSize;
     }
 
-    static SharedOpenFilesCache getInstance() {
+    public static SharedOpenFilesCache getInstance() {
         if (cacheSize == 0) {
             throw new ExodusException("Size of SharedOpenFilesCache is not set");
         }
@@ -78,7 +78,7 @@ public final class SharedOpenFilesCache {
     }
 
     @NotNull
-    SharedRandomAccessFile getCachedFile(@NotNull final File file) throws IOException {
+    public SharedRandomAccessFile getCachedFile(@NotNull final File file) throws IOException {
         SharedRandomAccessFile result;
         try (CriticalSection ignored = cache.newCriticalSection()) {
             result = cache.tryKey(file);
@@ -108,7 +108,7 @@ public final class SharedOpenFilesCache {
         return new SharedRandomAccessFile(file, "r");
     }
 
-    void removeFile(@NotNull final File file) throws IOException {
+    public void removeFile(@NotNull final File file) throws IOException {
         final SharedRandomAccessFile result;
         try (CriticalSection ignored = cache.newCriticalSection()) {
             result = cache.remove(file);
@@ -118,7 +118,7 @@ public final class SharedOpenFilesCache {
         }
     }
 
-    void removeDirectory(@NotNull final File dir) throws IOException {
+    public void removeDirectory(@NotNull final File dir) throws IOException {
         final List<SharedRandomAccessFile> result = new ArrayList<>();
         final List<File> obsoleteFiles = new ArrayList<>();
         try (CriticalSection ignored = cache.newCriticalSection()) {

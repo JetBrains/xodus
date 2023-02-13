@@ -55,6 +55,7 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -1301,7 +1302,7 @@ public class EnvironmentImpl implements Environment {
                 lock.lock();
                 try {
                     if (syncExecutor == null) {
-                        syncExecutor = Executors.newScheduledThreadPool(1);
+                        syncExecutor = Executors.newScheduledThreadPool(1, new SyncIOThreadFactory());
                     }
                 } finally {
                     lock.unlock();
@@ -1334,6 +1335,18 @@ public class EnvironmentImpl implements Environment {
                     environment.throwableOnCommit = t;
                 }
             }, syncPeriod, Math.min(syncPeriod / 10, 1_000), TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private static final class SyncIOThreadFactory implements ThreadFactory {
+        private static final AtomicLong idGen = new AtomicLong();
+
+        @Override
+        public Thread newThread(@NotNull Runnable r) {
+            var thread = new Thread(r);
+            thread.setName("Scheduled Xodus data sync thread #" + idGen.getAndIncrement());
+            thread.setUncaughtExceptionHandler((t, e) -> logger.error("Uncaught exception in thread" + t, e));
+            return thread;
         }
     }
 }
