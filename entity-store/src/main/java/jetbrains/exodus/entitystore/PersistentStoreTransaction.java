@@ -66,7 +66,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private EntityIterableCacheAdapterMutable mutableCache;
     private List<Updatable> mutatedInTxn;
     @Nullable
-    private LongHashMap<Pair<Path, TmpBlobVaultFileInputStream>> blobStreams;
+    private LongHashMap<TmpBlobVaultBufferedInputStream> blobStreams;
     @Nullable
     private LongHashMap<Path> blobFiles;
 
@@ -780,15 +780,15 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         new LinkDeletedHandleChecker(this, sourceId, targetId, linkId, mutableCache(), mutatedInTxn).updateCache();
     }
 
-    void addBlobStream(final long blobHandle, @NotNull Path stream, @Nullable TmpBlobVaultFileInputStream tmpStream) {
-        LongHashMap<Pair<Path, TmpBlobVaultFileInputStream>> blobStreams = this.blobStreams;
+    void addBlobStream(final long blobHandle, @NotNull TmpBlobVaultBufferedInputStream tmpStream) {
+        LongHashMap<TmpBlobVaultBufferedInputStream> blobStreams = this.blobStreams;
 
         if (blobStreams == null) {
             blobStreams = new LongHashMap<>();
             this.blobStreams = blobStreams;
         }
 
-        blobStreams.put(blobHandle, new Pair<>(stream, tmpStream));
+        blobStreams.put(blobHandle, tmpStream);
     }
 
     void addBlobFile(final long blobHandle, @NotNull final Path file) {
@@ -811,12 +811,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     long getBlobSize(final long blobHandle) throws IOException {
-        final LongHashMap<Pair<Path, TmpBlobVaultFileInputStream>> blobStreams = this.blobStreams;
+        final LongHashMap<TmpBlobVaultBufferedInputStream> blobStreams = this.blobStreams;
 
         if (blobStreams != null) {
-            final Pair<Path, TmpBlobVaultFileInputStream> streamPair = blobStreams.get(blobHandle);
-            if (streamPair != null) {
-                return Files.size(streamPair.first);
+            final TmpBlobVaultBufferedInputStream stream = blobStreams.get(blobHandle);
+            if (stream != null) {
+                return Files.size(stream.getPath());
             }
         }
 
@@ -833,12 +833,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Nullable
     InputStream getBlobStream(final long blobHandle) throws IOException {
-        final LongHashMap<Pair<Path, TmpBlobVaultFileInputStream>> blobStreams = this.blobStreams;
+        final LongHashMap<TmpBlobVaultBufferedInputStream> blobStreams = this.blobStreams;
 
         if (blobStreams != null) {
-            final Pair<Path, TmpBlobVaultFileInputStream> streamPair = blobStreams.get(blobHandle);
-            if (streamPair != null) {
-                return ((DiskBasedBlobVault) store.getBlobVault()).openTmpStream(blobHandle, streamPair.first);
+            final TmpBlobVaultBufferedInputStream stream = blobStreams.get(blobHandle);
+            if (stream != null) {
+                return ((DiskBasedBlobVault) store.getBlobVault()).openTmpStream(blobHandle, stream.getPath());
             }
         }
 
@@ -851,6 +851,16 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
 
         return null;
+    }
+
+    boolean containsBlobStream(final long blobHandle) {
+        final LongHashMap<TmpBlobVaultBufferedInputStream> blobStreams = this.blobStreams;
+
+        if (blobStreams != null) {
+            return blobStreams.containsKey(blobHandle);
+        }
+
+        return false;
     }
 
     void deferBlobDeletion(final long blobHandle) {
@@ -883,16 +893,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         if (blobStreams != null && !blobStreams.isEmpty() &&
                 !store.getConfig().getDoNotInvalidateBlobStreamsOnRollback()) {
-            for (final Pair<Path, TmpBlobVaultFileInputStream> streamPair : blobStreams.values()) {
+            for (final TmpBlobVaultBufferedInputStream stream : blobStreams.values()) {
                 try {
-                    TmpBlobVaultFileInputStream tmpStream = streamPair.second;
-                    if (tmpStream != null) {
-                        streamPair.second.close();
-                    }
-
-                    Files.deleteIfExists(streamPair.first);
+                    stream.close();
+                    Files.deleteIfExists(stream.getPath());
                 } catch (IOException e) {
-                    throw new ExodusException("Can not remove temporary blob " + streamPair + " during rollback.", e);
+                    throw new ExodusException("Can not remove temporary blob " + stream + " during rollback.", e);
                 }
             }
         }
@@ -934,13 +940,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (blobStreams != null) {
                 tmpBlobFiles = new LongHashMap<>();
 
-                for (final Map.Entry<Long, Pair<Path, TmpBlobVaultFileInputStream>> entry : blobStreams.entrySet()) {
-                    final Pair<Path, TmpBlobVaultFileInputStream> pair = entry.getValue();
-                    final TmpBlobVaultFileInputStream tmpStream = pair.second;
-                    if (tmpStream != null) {
-                        tmpStream.close();
-                    }
-                    tmpBlobFiles.put(entry.getKey(), pair.first);
+                for (final Map.Entry<Long, TmpBlobVaultBufferedInputStream> entry : blobStreams.entrySet()) {
+                    final TmpBlobVaultBufferedInputStream stream = entry.getValue();
+                    stream.close();
+                    tmpBlobFiles.put(entry.getKey(), stream.getPath());
                 }
             } else {
                 tmpBlobFiles = null;
@@ -1402,17 +1405,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         @Override
         protected ObjectCacheBase<PropertyId, V> createdDecorated() {
             return new NonAdjustableConcurrentObjectCache<>(size(), LOCAL_CACHE_GENERATIONS);
-        }
-    }
-
-    private static final class InputStreamCloseGuard extends FilterInputStream {
-        private InputStreamCloseGuard(InputStream in) {
-            super(in);
-        }
-
-        @Override
-        public void close() {
-            //do nothing
         }
     }
 }

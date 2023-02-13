@@ -439,9 +439,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
             if (blobVault == null) {
                 if (config.getMaxInPlaceBlobSize() > 0) {
-                    blobVault = new FileSystemBlobVaultOld(environment, config, blobPath, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
+                    blobVault = new FileSystemBlobVaultOld(config, blobPath, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
                 } else {
-                    blobVault = new FileSystemBlobVaultOld(environment, config, blobPath, BLOBS_EXTENSION,
+                    blobVault = new FileSystemBlobVaultOld(config, blobPath, BLOBS_EXTENSION,
                             new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
                 }
             }
@@ -1251,15 +1251,33 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                @NotNull final PersistentEntity entity,
                                @NotNull final String blobName,
                                @NotNull final InputStream stream) throws IOException {
-        if (stream instanceof TmpBlobVaultFileInputStream) {
-            TmpBlobVaultFileInputStream tmpStream = (TmpBlobVaultFileInputStream) stream;
+        if (stream instanceof TmpBlobVaultBufferedInputStream) {
+            TmpBlobVaultBufferedInputStream tmpStream = (TmpBlobVaultBufferedInputStream) stream;
             final Path path = tmpStream.getPath();
+            long blobHandle = tmpStream.getBlobHandle();
 
-            final long blobHandle = createBlobHandle(txn, entity, blobName, null, Integer.MAX_VALUE);
+            PersistentStoreTransaction transaction = tmpStream.getTransaction();
+
+            if (transaction != null) {
+                if (transaction != txn) {
+                    throw new ExodusException(
+                            "Blob stream was initially added in one transaction and used in another transaction.");
+                }
+
+                if (txn.containsBlobStream(blobHandle)) {
+                    return stream;
+                }
+
+                throw new ExodusException("Blob stream was added in current transaction, " +
+                        "but is not stored inside transaction.");
+            }
+
+
+            blobHandle = createBlobHandle(txn, entity, blobName, null, Integer.MAX_VALUE);
             tmpStream.close();
 
-            tmpStream = new TmpBlobVaultFileInputStream(path);
-            txn.addBlobStream(blobHandle, path, tmpStream);
+            tmpStream = new TmpBlobVaultBufferedInputStream(Files.newInputStream(path), path, blobHandle, txn);
+            txn.addBlobStream(blobHandle, tmpStream);
 
             final long size = Files.size(path);
             setBlobFileLength(txn, blobHandle, size);
@@ -1294,11 +1312,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final long blobHandle = createBlobHandle(txn, entity, blobName, bufferedStream, size);
 
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-            final Path tmpPath = ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle, bufferedStream);
-            final TmpBlobVaultFileInputStream tmpStream = new TmpBlobVaultFileInputStream(tmpPath);
+            final TmpBlobVaultBufferedInputStream tmpStream =
+                    (TmpBlobVaultBufferedInputStream) ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle,
+                            bufferedStream, txn);
 
-            txn.addBlobStream(blobHandle, tmpPath, tmpStream);
-            setBlobFileLength(txn, blobHandle, Files.size(tmpPath));
+            txn.addBlobStream(blobHandle, tmpStream);
+            setBlobFileLength(txn, blobHandle, Files.size(tmpStream.getPath()));
 
             return tmpStream;
         }
@@ -1340,9 +1359,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
             if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
                 setBlobFileLength(txn, blobHandle, copy.size());
-                final Path tmpPath = ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle, copy);
+                final TmpBlobVaultBufferedInputStream tmpStream = (TmpBlobVaultBufferedInputStream)
+                        ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle, copy, txn);
 
-                txn.addBlobStream(blobHandle, tmpPath, null);
+                txn.addBlobStream(blobHandle, tmpStream);
             }
         }
     }
