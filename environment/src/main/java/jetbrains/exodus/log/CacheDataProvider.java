@@ -19,4 +19,5 @@ public interface CacheDataProvider {
     int getIdentity();
 
     byte[] readPage(long pageAddress, long fileAddress);
+
 }
