@@ -141,7 +141,7 @@ internal class SharedLogCache : LogCache {
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
         val cachedValue = pagesCache.tryKeyLocked(key)
 
-        var adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA
+        var adjustedPageSize = pageSize - BufferedDataWriter.HASH_CODE_SIZE
         if (!formatWithHashCodeIsUsed) {
             adjustedPageSize = pageSize
         }

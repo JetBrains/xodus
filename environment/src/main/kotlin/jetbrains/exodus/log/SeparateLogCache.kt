@@ -102,7 +102,7 @@ internal class SeparateLogCache : LogCache {
     ): ArrayByteIterable {
         var page = pagesCache.tryKeyLocked(pageAddress)
 
-        var adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA
+        var adjustedPageSize = pageSize - BufferedDataWriter.HASH_CODE_SIZE
         if (!formatWithHashCodeIsUsed) {
             adjustedPageSize = pageSize
         }

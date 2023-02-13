@@ -46,7 +46,7 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
         config = log.getConfig();
 
         if (log.getFormatWithHashCodeIsUsed()) {
-            chunkSize = pageSize - BufferedDataWriter.LOGGABLE_DATA;
+            chunkSize = pageSize - BufferedDataWriter.HASH_CODE_SIZE;
         } else {
             chunkSize = pageSize;
         }
