@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2010 - 2023 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -282,8 +282,8 @@ open class XodusLuceneTests : XodusLuceneTestsBase() {
         assertMoreLikeThis("sukhoi superjet 100", SUMMARY, 1)
         assertMoreLikeThis("cooperation august sukhoi board aircraft", DESCRIPTION, 1)
         assertMoreLikeThis("cooperation august sukhoi board aircraft", SUMMARY, 1)
-        assertMoreLikeThis("ничего по-ру�?�?ки в индек�?е нет", DESCRIPTION, 0)
-        assertMoreLikeThis("ничего по-ру�?�?ки в индек�?е нет", SUMMARY, 0)
+        assertMoreLikeThis("ничего по-русски в индексе нет", DESCRIPTION, 0)
+        assertMoreLikeThis("ничего по-русски в индексе нет", SUMMARY, 0)
     }
 
     @Test
