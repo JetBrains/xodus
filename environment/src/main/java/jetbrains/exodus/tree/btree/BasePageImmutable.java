@@ -230,7 +230,7 @@ abstract class BasePageImmutable extends BasePage {
         long rightAddress = -1L;
         byte[] rightPage = null;
 
-        final int adjustedPageSize = log.getCachePageSize() - BufferedDataWriter.LOGGABLE_DATA;
+        final int adjustedPageSize = log.getCachePageSize() - BufferedDataWriter.HASH_CODE_SIZE;
         final BinarySearchIterator it = new BinarySearchIterator(adjustedPageSize);
 
         while (low <= high) {
@@ -325,7 +325,7 @@ abstract class BasePageImmutable extends BasePage {
 
             final int adjustedPageSize;
             if (formatWithHashCodeIsUsed) {
-                adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA;
+                adjustedPageSize = cachePageSize - BufferedDataWriter.HASH_CODE_SIZE;
             } else {
                 adjustedPageSize = cachePageSize;
             }

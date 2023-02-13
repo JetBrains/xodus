@@ -36,7 +36,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     private val log: Log = env.log
     private val usefulFileSize = (log.fileLengthBound / log.cachePageSize) *
-            (log.cachePageSize - BufferedDataWriter.LOGGABLE_DATA) // file size which could be used by loggables
+            (log.cachePageSize - BufferedDataWriter.HASH_CODE_SIZE) // file size which could be used by loggables
     private val filesUtilization = LongHashMap<MutableLong>() // file address -> number of free bytes
     private var totalBytes: Long = 0
     private var totalFreeBytes: Long = 0

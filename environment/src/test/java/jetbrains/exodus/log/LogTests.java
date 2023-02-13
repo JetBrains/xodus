@@ -363,7 +363,7 @@ public class LogTests extends LogTestsBase {
 
     @SuppressWarnings("SameParameterValue")
     static long expectedAddress(long written, int pageSize) {
-        int adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA;
+        int adjustedPageSize = pageSize - BufferedDataWriter.HASH_CODE_SIZE;
         long reminder = written % adjustedPageSize;
         long pages = (written - reminder) / adjustedPageSize;
 
@@ -373,6 +373,6 @@ public class LogTests extends LogTestsBase {
     @SuppressWarnings("SameParameterValue")
     public static long adjustedLogFileSize(long fileSize, int pageSize) {
         long pages = fileSize / pageSize;
-        return (pageSize - BufferedDataWriter.LOGGABLE_DATA) * pages;
+        return (pageSize - BufferedDataWriter.HASH_CODE_SIZE) * pages;
     }
 }

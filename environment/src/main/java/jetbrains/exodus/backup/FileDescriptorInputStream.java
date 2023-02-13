@@ -167,13 +167,13 @@ public class FileDescriptorInputStream extends InputStream {
 
         final long pageAddress = fileAddress + position;
         if (read < pageSize) {
-            Arrays.fill(page, read, pageSize - BufferedDataWriter.LOGGABLE_DATA, (byte) 0x80);
+            Arrays.fill(page, read, pageSize - BufferedDataWriter.HASH_CODE_SIZE, (byte) 0x80);
 
             if (cipherProvider != null) {
                 assert cipherKey != null;
 
                 EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey,
-                        cipherBasicIV, pageAddress, page, read, pageSize - BufferedDataWriter.LOGGABLE_DATA - read,
+                        cipherBasicIV, pageAddress, page, read, pageSize - BufferedDataWriter.HASH_CODE_SIZE - read,
                         LogUtil.LOG_BLOCK_ALIGNMENT);
             }
 

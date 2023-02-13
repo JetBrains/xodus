@@ -47,9 +47,6 @@ public final class BufferedDataWriter {
     public static final XXHashFactory XX_HASH_FACTORY = XXHashFactory.fastestJavaInstance();
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     public static final int HASH_CODE_SIZE = Long.BYTES;
-    public static final int FIRST_ITERABLE_OFFSET_SIZE = Integer.BYTES;
-    public static final int FIRST_ITERABLE_OFFSET = HASH_CODE_SIZE + FIRST_ITERABLE_OFFSET_SIZE;
-    public static final int LOGGABLE_DATA = FIRST_ITERABLE_OFFSET;
     @NotNull
     private final Log log;
     @NotNull
@@ -114,7 +111,7 @@ public final class BufferedDataWriter {
         this.syncPeriod = syncPeriod;
 
         pageSizeMask = (pageSize - 1);
-        adjustedPageSize = pageSize - BufferedDataWriter.LOGGABLE_DATA;
+        adjustedPageSize = pageSize - HASH_CODE_SIZE;
 
         this.writeCache = new NonBlockingHashMapLong<>(maxWriteBoundary, false);
 
@@ -207,7 +204,7 @@ public final class BufferedDataWriter {
         }
 
         currentPage.firstLoggable =
-                BindingUtils.readInt(page, pageSize - BufferedDataWriter.LOGGABLE_DATA);
+                BindingUtils.readInt(page, pageSize - BufferedDataWriter.HASH_CODE_SIZE);
         blockSet = files;
 
         assert currentHighAddress % pageSize == currentPage.writtenCount % pageSize;
@@ -270,13 +267,9 @@ public final class BufferedDataWriter {
         BindingUtils.writeLong(hash, bytes, hashCodeOffset);
     }
 
-    public static void writeFirstLoggableOffset(final byte @NotNull [] bytes, int offset) {
-        BindingUtils.writeInt(offset, bytes, bytes.length - LOGGABLE_DATA);
-    }
-
     public static byte[] generateNullPage(int pageSize) {
         final byte[] data = new byte[pageSize];
-        Arrays.fill(data, 0, pageSize - LOGGABLE_DATA, (byte) 0x80);
+        Arrays.fill(data, 0, pageSize - HASH_CODE_SIZE, (byte) 0x80);
 
         final long hash = xxHash.hash(data, 0, pageSize - HASH_CODE_SIZE, XX_HASH_SEED);
         BindingUtils.writeLong(hash, data, pageSize - HASH_CODE_SIZE);
@@ -284,7 +277,7 @@ public final class BufferedDataWriter {
         return data;
     }
 
-    void write(byte b, long firstLoggable) {
+    void write(byte b) {
         checkWriteError();
 
         MutablePage currentPage = allocateNewPageIfNeeded();
@@ -301,11 +294,10 @@ public final class BufferedDataWriter {
 
         if (writtenCount == adjustedPageSize) {
             currentPage.writtenCount = pageSize;
-            delta += LOGGABLE_DATA;
+            delta += HASH_CODE_SIZE;
         }
 
         currentHighAddress += delta;
-        writeFirstLoggableOffset(firstLoggable, currentPage);
 
         assert (int) (currentHighAddress & pageSizeMask) == (currentPage.writtenCount & pageSizeMask);
 
@@ -333,7 +325,7 @@ public final class BufferedDataWriter {
 
             if (currentPage.writtenCount == adjustedPageSize) {
                 currentPage.writtenCount = pageSize;
-                delta += LOGGABLE_DATA;
+                delta += HASH_CODE_SIZE;
 
                 writePage(currentPage);
             }
@@ -632,7 +624,7 @@ public final class BufferedDataWriter {
 
                     if (writtenCount == pageSize) {
                         BindingUtils.writeLong(xxHash64.getValue(), bytes,
-                                adjustedPageSize + FIRST_ITERABLE_OFFSET_SIZE);
+                                adjustedPageSize);
                     }
                 }
             } else {
@@ -816,14 +808,6 @@ public final class BufferedDataWriter {
         initCurrentPage(blockSet, highAddress, page);
     }
 
-    private void writeFirstLoggableOffset(long firstLoggable, BufferedDataWriter.MutablePage currentPage) {
-        if (firstLoggable >= 0 && currentPage.firstLoggable < 0) {
-            int loggableOffset = (int) (firstLoggable & pageSizeMask);
-
-            currentPage.firstLoggable = loggableOffset;
-            BufferedDataWriter.writeFirstLoggableOffset(currentPage.bytes, loggableOffset);
-        }
-    }
 
     private int doPadWholePageWithNulls() {
         final int writtenInPage = currentPage.writtenCount;
@@ -852,7 +836,7 @@ public final class BufferedDataWriter {
                 Arrays.fill(currentPage.bytes, writtenInPage, adjustedPageSize, (byte) 0x80);
                 currentPage.writtenCount = pageSize;
 
-                written = pageDelta + BufferedDataWriter.LOGGABLE_DATA;
+                written = pageDelta + BufferedDataWriter.HASH_CODE_SIZE;
             }
 
             return written;

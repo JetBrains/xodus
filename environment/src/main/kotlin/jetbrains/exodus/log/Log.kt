@@ -420,8 +420,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         val pageAddress = (cachePageSize - 1).toLong().inv() and address
         val writtenSpace = address - pageAddress
 
-        assert(writtenSpace >= 0 && writtenSpace < cachePageSize - BufferedDataWriter.LOGGABLE_DATA)
-        return cachePageSize - BufferedDataWriter.LOGGABLE_DATA - writtenSpace.toInt()
+        assert(writtenSpace >= 0 && writtenSpace < cachePageSize - BufferedDataWriter.HASH_CODE_SIZE)
+        return cachePageSize - BufferedDataWriter.HASH_CODE_SIZE - writtenSpace.toInt()
     }
 
     fun switchToReadOnlyMode() {
@@ -834,11 +834,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         val writtenInPage = address and cachePageReminderMask
         val pageAddress = address and (cachePageReminderMask.inv())
 
-        val adjustedPageSize = cachePageSize - BufferedDataWriter.LOGGABLE_DATA
+        val adjustedPageSize = cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
         val writtenSincePageStart = writtenInPage + offset
         val fullPages = writtenSincePageStart / adjustedPageSize
 
-        return pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.LOGGABLE_DATA
+        return pageAddress + writtenSincePageStart + fullPages * BufferedDataWriter.HASH_CODE_SIZE
     }
 
 
@@ -1359,7 +1359,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         var recordLength = 1
 
         if (isNull) {
-            writer.write(type xor 0x80.toByte(), result)
+            writer.write(type xor 0x80.toByte())
         } else {
             val structureIdIterable = CompressedUnsignedLongByteIterable.getIterable(structureId.toLong())
             val dataLength = data.length
@@ -1369,9 +1369,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             recordLength += dataLength
 
             val leftInPage =
-                cachePageSize - (result.toInt() and (cachePageSize - 1)) - BufferedDataWriter.LOGGABLE_DATA
+                cachePageSize - (result.toInt() and (cachePageSize - 1)) - BufferedDataWriter.HASH_CODE_SIZE
             val delta = if (leftInPage in 1 until recordLength && recordLength < (cachePageSize shr 4)) {
-                leftInPage + BufferedDataWriter.LOGGABLE_DATA
+                leftInPage + BufferedDataWriter.HASH_CODE_SIZE
             } else {
                 0
             }
@@ -1387,7 +1387,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 assert(result % cachePageSize.toLong() == 0L)
             }
 
-            writer.write(type xor 0x80.toByte(), result)
+            writer.write(type xor 0x80.toByte())
 
             writeByteIterable(writer, structureIdIterable)
             writeByteIterable(writer, dataLengthIterable)
@@ -1577,7 +1577,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 val offset = iterable.baseOffset()
 
                 if (length == 1) {
-                    writer.write(bytes[0], -1)
+                    writer.write(bytes[0])
                 } else {
                     writer.write(bytes, offset, length)
                 }
@@ -1588,9 +1588,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 writer.write(bytes, offset, length)
             } else {
                 val iterator = iterable.iterator()
-                writer.write(iterator.next(), -1)
+                writer.write(iterator.next())
                 if (length == 2) {
-                    writer.write(iterator.next(), -1)
+                    writer.write(iterator.next())
                 }
             }
         }
