@@ -21,7 +21,9 @@ import jetbrains.exodus.entitystore.BlobVault
 import jetbrains.exodus.entitystore.BlobVaultItem
 import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.env.Transaction
+import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -115,10 +117,14 @@ class EncryptedBlobVault(
     override fun nextHandle(txn: Transaction) = decorated.nextHandle(txn)
 
     override fun close() = decorated.close()
-    override fun copyToTemporaryStore(handle: Long, stream: InputStream): Path {
+    override fun copyToTemporaryStore(
+        handle: Long,
+        stream: InputStream,
+        transaction: StoreTransaction?
+    ): BufferedInputStream {
         return decorated.copyToTemporaryStore(handle, StreamCipherInputStream(stream) {
             newCipher(handle)
-        })
+        }, transaction)
     }
 
     override fun openTmpStream(handle: Long, path: Path): InputStream {

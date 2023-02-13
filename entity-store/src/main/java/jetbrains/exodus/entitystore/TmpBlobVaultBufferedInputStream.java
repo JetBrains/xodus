@@ -15,27 +15,40 @@
  */
 package jetbrains.exodus.entitystore;
 
-import java.io.FileInputStream;
-import java.io.IOException;
+import org.jetbrains.annotations.NotNull;
+
+import java.io.BufferedInputStream;
 import java.io.InputStream;
 import java.nio.file.Path;
 
 /**
  * Stream which is backed by the temporary file created inside {@link DiskBasedBlobVault}.
- * @see DiskBasedBlobVault#copyToTemporaryStore(long, InputStream)
+ *
+ * @see DiskBasedBlobVault#copyToTemporaryStore(long, InputStream, StoreTransaction)
  * @see Entity#setBlob(String, InputStream)
  * @see PersistentEntityStoreConfig#DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK
  */
-final class TmpBlobVaultFileInputStream extends FileInputStream {
+public class TmpBlobVaultBufferedInputStream  extends BufferedInputStream {
     private final Path path;
+    private final long blobHandle;
+    private final PersistentStoreTransaction transaction;
 
-    public TmpBlobVaultFileInputStream(final Path path) throws IOException {
-        super(path.toFile());
+    public TmpBlobVaultBufferedInputStream(@NotNull InputStream in, Path path, long blobHandle, PersistentStoreTransaction transaction) {
+        super(in);
         this.path = path;
+        this.blobHandle = blobHandle;
+        this.transaction = transaction;
     }
 
     public Path getPath() {
         return path;
     }
 
+    public long getBlobHandle() {
+        return blobHandle;
+    }
+
+    public PersistentStoreTransaction getTransaction() {
+        return transaction;
+    }
 }
