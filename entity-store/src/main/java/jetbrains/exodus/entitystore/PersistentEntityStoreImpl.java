@@ -52,6 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 @SuppressWarnings({"UnusedDeclaration", "ThisEscapedInObjectConstruction", "VolatileLongOrDoubleField",
@@ -393,11 +396,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 Settings.set(internalSettings, "Link null-indices present", "y");
             }
             if (blobVault instanceof VFSBlobVault && new File(location, BLOBS_DIR).exists()) {
-                try {
-                    ((VFSBlobVault) blobVault).refactorFromFS(this);
-                } catch (IOException e) {
-                    throw ExodusException.toEntityStoreException(e);
-                }
+                throw new ExodusException("Conversion from disk based storage to the file system storage is prohibited.");
             }
             if (blobVault instanceof DiskBasedBlobVault) {
                 if (fromScratch || Settings.get(internalSettings, "refactorBlobFileLengths() applied") == null) {
@@ -414,24 +413,41 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     private FileSystemBlobVaultOld createDefaultFSBlobVault() {
+        final Path blobPath;
+        final String blobLocation = config.getBlobsDirectoryLocation();
+        final Path locationPath = Paths.get(location);
+
+        if (blobLocation == null) {
+            blobPath = locationPath.resolve(BLOBS_DIR);
+        } else {
+            Path path = Paths.get(blobLocation);
+            if (path.isAbsolute()) {
+                blobPath = path;
+            } else {
+                blobPath = locationPath.resolve(path);
+            }
+        }
+
         try {
             FileSystemBlobVaultOld blobVault;
             final PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter persistentSequenceGetter =
                     () -> getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
             try {
-                blobVault = new FileSystemBlobVault(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION,
+                blobVault = new FileSystemBlobVault(environment, config, blobPath, BLOBS_EXTENSION,
                         new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
             } catch (UnexpectedBlobVaultVersionException e) {
                 blobVault = null;
             }
+
             if (blobVault == null) {
                 if (config.getMaxInPlaceBlobSize() > 0) {
-                    blobVault = new FileSystemBlobVaultOld(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
+                    blobVault = new FileSystemBlobVaultOld(config, blobPath, BLOBS_EXTENSION, BlobHandleGenerator.IMMUTABLE);
                 } else {
-                    blobVault = new FileSystemBlobVaultOld(environment, config, location, BLOBS_DIR, BLOBS_EXTENSION,
+                    blobVault = new FileSystemBlobVaultOld(config, blobPath, BLOBS_EXTENSION,
                             new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
                 }
             }
+
             final long current = persistentSequenceGetter.get().get();
             for (long blobHandle = current + 1; blobHandle < current + 1000; ++blobHandle) {
                 final BlobVaultItem item = blobVault.getBlob(blobHandle);
@@ -440,6 +456,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             }
             blobVault.setSizeFunctions(new CachedBlobLengths(environment, blobFileLengths));
+
+            logger.info("Blob vault has been created at " + blobPath);
+
             return blobVault;
         } catch (IOException e) {
             throw ExodusException.toExodusException(e);
@@ -1228,6 +1247,40 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                @NotNull final PersistentEntity entity,
                                @NotNull final String blobName,
                                @NotNull final InputStream stream) throws IOException {
+        if (stream instanceof TmpBlobVaultBufferedInputStream) {
+            TmpBlobVaultBufferedInputStream tmpStream = (TmpBlobVaultBufferedInputStream) stream;
+            final Path path = tmpStream.getPath();
+            long blobHandle = tmpStream.getBlobHandle();
+
+            PersistentStoreTransaction transaction = tmpStream.getTransaction();
+
+            if (transaction != null) {
+                if (transaction != txn) {
+                    throw new ExodusException(
+                            "Blob stream was initially added in one transaction and used in another transaction.");
+                }
+
+                if (txn.containsBlobStream(blobHandle)) {
+                    return stream;
+                }
+
+                throw new ExodusException("Blob stream was added in current transaction, " +
+                        "but is not stored inside transaction.");
+            }
+
+
+            blobHandle = createBlobHandle(txn, entity, blobName, null, Integer.MAX_VALUE);
+            tmpStream.close();
+
+            tmpStream = new TmpBlobVaultBufferedInputStream(Files.newInputStream(path), path, blobHandle, txn);
+            txn.addBlobStream(blobHandle, tmpStream);
+
+            final long size = Files.size(path);
+            setBlobFileLength(txn, blobHandle, size);
+
+            return tmpStream;
+        }
+
         InputStream bufferedStream;
 
         if (!(stream instanceof BufferedInputStream)) {
@@ -1255,7 +1308,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final long blobHandle = createBlobHandle(txn, entity, blobName, bufferedStream, size);
 
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-            txn.addBlob(blobHandle, bufferedStream);
+            final TmpBlobVaultBufferedInputStream tmpStream =
+                    (TmpBlobVaultBufferedInputStream) ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle,
+                            bufferedStream, txn);
+
+            txn.addBlobStream(blobHandle, tmpStream);
+            setBlobFileLength(txn, blobHandle, Files.size(tmpStream.getPath()));
+
+            return tmpStream;
         }
 
         return bufferedStream;
@@ -1275,7 +1335,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
             setBlobFileLength(txn, blobHandle, length);
-            txn.addBlob(blobHandle, file);
+            txn.addBlobFile(blobHandle, file.toPath());
         }
     }
 
@@ -1292,9 +1352,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             final int streamSize = memCopy.size();
             final ByteArraySizedInputStream copy = new ByteArraySizedInputStream(memCopy.toByteArray(), 0, streamSize);
             final long blobHandle = createBlobHandle(txn, entity, blobName, copy, streamSize);
+
             if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
                 setBlobFileLength(txn, blobHandle, copy.size());
-                txn.addBlob(blobHandle, copy);
+                final TmpBlobVaultBufferedInputStream tmpStream = (TmpBlobVaultBufferedInputStream)
+                        ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle, copy, txn);
+
+                txn.addBlobStream(blobHandle, tmpStream);
             }
         }
     }
@@ -1319,7 +1383,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (size == 0) {
             blobHandle = EMPTY_BLOB_HANDLE;
             blobs.put(envTxn, entityLocalId, blobId, blobHandleToEntry(blobHandle));
-        } else if (size <= config.getMaxInPlaceBlobSize()) {
+        } else if (size <= config.getMaxInPlaceBlobSize() || !(blobVault instanceof DiskBasedBlobVault)) {
             if (stream == null) {
                 throw new NullPointerException("In-memory blob content is expected");
             }
