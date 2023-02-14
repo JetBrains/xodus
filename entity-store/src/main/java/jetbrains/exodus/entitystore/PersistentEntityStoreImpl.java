@@ -1194,7 +1194,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 "Can not read blob located at " + blobVault.getBlobLocation(blobHandle) +
                 ". Blob name " + blobName + ". Entity id : " + entity.getId() +
                 ". Entity type : " + entity.getType() + ". Real length " + blobVault.getSize(blobHandle,
-                txn.getEnvironmentTransaction());
+                txn.getEnvironmentTransaction()) + ". ";
 
         if (blobLength != null) {
             message += "Expected blob length " + blobLength;
