@@ -1377,7 +1377,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 final TmpBlobVaultBufferedInputStream tmpStream = (TmpBlobVaultBufferedInputStream)
                         ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle, copy, txn);
 
-                txn.addBlobStream(blobHandle, tmpStream, false);
+                txn.addBlobStream(blobHandle, tmpStream, true);
             }
         }
     }
