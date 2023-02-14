@@ -1099,8 +1099,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
 
                 if (counter >= counterMaxValue) {
-                    throw new ExodusException("Store : " + getName() + " data is broken. " +
-                            "Can not read blob with handle " + blobHandle);
+                    final String message = generateBlobBrokenMessage(txn, entity, blobName, blobHandle, blobLength);
+                    throw new ExodusException(message);
                 }
             }
         }
@@ -1165,8 +1165,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                         }
 
                         if (counter >= counterMaxValue) {
-                            throw new ExodusException("Store : " + getName() + " data is broken. " +
-                                    "Can not read blob with handle " + blobHandle);
+                            final String message = generateBlobBrokenMessage(txn,
+                                    entity, blobName, blobHandle, blobLength);
+                            throw new ExodusException(message);
                         }
                     }
                 }
@@ -1179,6 +1180,24 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             txn.cacheBlobString(entity, blobId, result);
         }
         return result;
+    }
+
+    @NotNull
+    private String generateBlobBrokenMessage(@NotNull final PersistentStoreTransaction txn,
+                                             @NotNull PersistentEntity entity, @NotNull String blobName,
+                                             long blobHandle, @Nullable Long blobLength) {
+        String message = "Store : " + getName() + " data is broken. " +
+                "Can not read blob located at " + blobVault.getBlobLocation(blobHandle) +
+                ". Blob name " + blobName + ". Entity id : " + entity.getId() +
+                ". Entity type : " + entity.getType() + ". Real length " + blobVault.getSize(blobHandle,
+                txn.getEnvironmentTransaction()) + ". ";
+
+        if (blobLength != null) {
+            message += "Expected blob length " + blobLength;
+        } else {
+            message += "Expected blob length is undefined.";
+        }
+        return message;
     }
 
     @Nullable
@@ -1263,11 +1282,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 if (txn.containsBlobStream(blobHandle)) {
                     return stream;
                 }
-
-                throw new ExodusException("Blob stream was added in current transaction, " +
-                        "but is not stored inside transaction.");
             }
-
 
             blobHandle = createBlobHandle(txn, entity, blobName, null, Integer.MAX_VALUE);
             tmpStream.close();
