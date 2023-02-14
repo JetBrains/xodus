@@ -18,6 +18,16 @@ enum TransactionState {
     COMPLETED
 }
 
+class Transaction {
+    final AtomicLong snapshotId;
+    final MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> operations; // array of links to record in OL
+
+    Transaction(AtomicLong snapshotId, MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> operations) {
+        this.snapshotId = snapshotId;
+        this.operations = operations;
+    }
+}
+
 class MVCCRecord {
     final AtomicLong maxTransactionId;
     final MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> linksToOperationsQueue; // array of links to record in OL
@@ -70,7 +80,7 @@ class MVCCDataStructure {
 
         var maxTxId = mvccRecord.maxTransactionId.get();
         for (var linkEntry: mvccRecord.linksToOperationsQueue){
-            var candidateTxId = linkEntry.txId;
+            var candidateTxId = linkEntry.txId.get();
             var currentMax = minMaxValue;
 
             // we add to queue several objects with one txID, the last one re-writes the previous value,
@@ -97,7 +107,7 @@ class MVCCDataStructure {
         } else {
             ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId = new ArrayList<>();
             mvccRecord.linksToOperationsQueue.forEach(linkEntry -> {
-                if (linkEntry.txId < maxTxId) {
+                if (linkEntry.txId.get() < maxTxId) {
                     while (linkEntry.state == OperationReferenceState.IN_PROGRESS){
                         Thread.onSpinWait();
                     }
@@ -125,38 +135,44 @@ class MVCCDataStructure {
         return ByteIterable.EMPTY;
     }
 
-    //Создай методы для старта и коммита транзакции. А также таблицу состояния тразакций.
-    //Перейди от абстрактных write - read. К put, update, remove для дерева с уникальными ключами.
-
-    public static void commit() {
-
+    public static void commitTransaction() {
+        // insert changes as mvcc record + change status here?
+        // ABORTED/COMPLETED here
     }
 
-    public static void put() {
-
+    // todo return transaction
+    public static void startTransaction() {
+        // if write {
+        // do first part (introduce put, update, remove)
+        // increment snapshotId (atomic long counter)
+        // }
+        // if read - do read and  not increment
     }
 
 
-    public static void update() {
-
+    // todo in get() if we have remove, return NULL
+    public static void remove(Transaction transaction) {
+        write(transaction);
+    }
+    public static void put(Transaction transaction) {
+        write(transaction);
     }
 
-    public static void remove() {
 
-    }
-
-    public static void write(long transactionId, ByteIterable key, ByteIterable value, String inputOperation) {
+    // todo id of the inputOperation, not operation itself
+    // todo replace transactionId, ByteIterable key, ByteIterable value with transaction
+    public static void write(Transaction transaction, ByteIterable key, ByteIterable value, int inputOperation) {
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
 
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         hashMap.putIfAbsent(keyHashCode, mvccRecord);
 
         var recordAddress = address.getAndIncrement();
-        operationLog.put(recordAddress, new OperationLogRecord(key, value, transactionId, inputOperation));
-        var linksEntry = new OperationReferenceEntry(recordAddress, transactionId);
+        operationLog.put(recordAddress, new OperationLogRecord(key, value, transaction.snapshotId, inputOperation));
+        var linksEntry = new OperationReferenceEntry(recordAddress, transaction.snapshotId);
         mvccRecord.linksToOperationsQueue.add(linksEntry);
 
-        if (transactionId < mvccRecord.maxTransactionId.get()) {
+        if (transaction.snapshotId.get() < mvccRecord.maxTransactionId.get()) {
             linksEntry.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
             //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
             throw new ExodusException(); // rollback
