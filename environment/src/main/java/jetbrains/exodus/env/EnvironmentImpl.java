@@ -1346,6 +1346,7 @@ public class EnvironmentImpl implements Environment {
             var thread = new Thread(r);
             thread.setName("Scheduled Xodus data sync thread #" + idGen.getAndIncrement());
             thread.setUncaughtExceptionHandler((t, e) -> logger.error("Uncaught exception in thread" + t, e));
+            thread.setDaemon(true);
             return thread;
         }
     }

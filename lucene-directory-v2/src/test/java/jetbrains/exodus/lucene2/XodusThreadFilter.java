@@ -20,21 +20,6 @@ import com.carrotsearch.randomizedtesting.ThreadFilter;
 public class XodusThreadFilter implements ThreadFilter {
     @Override
     public boolean reject(Thread t) {
-        if (t.getName().contains("Scheduled Xodus data sync thread")) {
-            return true;
-        }
-
-        var stackTrace = t.getStackTrace();
-
-        for (var stackElement : stackTrace) {
-            if (stackElement.getClassName().contains("sun.nio.ch.AsynchronousChannelGroupImpl") ||
-                    stackElement.getClassName().contains("sun.nio.ch.Iocp") ||
-                    stackElement.getClassName().contains("jetbrains.exodus.core.execution.ThreadJobProcessor")) {
-                return true;
-            }
-        }
-
-
-        return false;
+        return t.isDaemon();
     }
 }

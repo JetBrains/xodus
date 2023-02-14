@@ -32,38 +32,43 @@ class XodusConcurrentCursorTest {
     @Test
     fun test() {
         val threadPool = Executors.newFixedThreadPool(20)
-        val env = Environments.newInstance(Files.createTempDirectory("test").toFile())
-        val limiter = Semaphore(100)
-        env.assertCount(0L)
+        try {
+            val env = Environments.newInstance(Files.createTempDirectory("test").toFile())
+            val limiter = Semaphore(100)
+            env.assertCount(0L)
 
-        //insert data
-        env.executeInTransaction { txn ->
-            val store = env.openStore(txn)
-            repeat(10_000) {
-                store.put(txn, IntegerBinding.intToEntry(it), StringBinding.stringToEntry("val_$it"))
-            }
-        }
-        env.assertCount(10_000L)
-
-        //iterate through data and submit each key to async deletion
-        env.executeInReadonlyTransaction { txn ->
-            val store = env.openStore(txn)
-            val futures = mutableListOf<Future<out Any>>()
-            store.openCursor(txn).use { cursor ->
-                while (cursor.next) {
-                    val key = cursor.key
-                    limiter.acquire()
-                    threadPool.submit {
-                        env.deleteEntryInSeparateTransaction(key)
-                        limiter.release()
-                    }.also { futures.add(it) }
+            //insert data
+            env.executeInTransaction { txn ->
+                val store = env.openStore(txn)
+                repeat(10_000) {
+                    store.put(txn, IntegerBinding.intToEntry(it), StringBinding.stringToEntry("val_$it"))
                 }
             }
-            futures.forEach { it.get() }
+            env.assertCount(10_000L)
+
+            //iterate through data and submit each key to async deletion
+            env.executeInReadonlyTransaction { txn ->
+                val store = env.openStore(txn)
+                val futures = mutableListOf<Future<out Any>>()
+                store.openCursor(txn).use { cursor ->
+                    while (cursor.next) {
+                        val key = cursor.key
+                        limiter.acquire()
+                        threadPool.submit {
+                            env.deleteEntryInSeparateTransaction(key)
+                            limiter.release()
+                        }.also { futures.add(it) }
+                    }
+                }
+                futures.forEach { it.get() }
+            }
+
+            //expecting that cursor has iterated through all keys and submitted them for deletion
+            env.assertCount(0L)
+        } finally {
+            threadPool.shutdown()
         }
 
-        //expecting that cursor has iterated through all keys and submitted them for deletion
-        env.assertCount(0L)
     }
 
     private fun Environment.openStore(txn: Transaction) = openStore("myStore", StoreConfig.WITHOUT_DUPLICATES, txn)
