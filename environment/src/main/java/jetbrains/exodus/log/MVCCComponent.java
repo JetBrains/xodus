@@ -12,6 +12,12 @@ import java.util.function.Function;
 
 import static jetbrains.exodus.log.BufferedDataWriter.*;
 
+enum TransactionState {
+    IN_PROGRESS,
+    ABORTED,
+    COMPLETED
+}
+
 class MVCCRecord {
     final AtomicLong maxTransactionId;
     final MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> linksToOperationsQueue; // array of links to record in OL
@@ -26,6 +32,8 @@ class MVCCDataStructure {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
+    private static final NonBlockingHashMapLong<TransactionState> transactionsStateMap =
+            new NonBlockingHashMapLong<>(); // txID + state
 
     private static final AtomicLong address = new AtomicLong();
 
@@ -117,6 +125,26 @@ class MVCCDataStructure {
         return ByteIterable.EMPTY;
     }
 
+    //Создай методы для старта и коммита транзакции. А также таблицу состояния тразакций.
+    //Перейди от абстрактных write - read. К put, update, remove для дерева с уникальными ключами.
+
+    public static void commit() {
+
+    }
+
+    public static void put() {
+
+    }
+
+
+    public static void update() {
+
+    }
+
+    public static void remove() {
+
+    }
+
     public static void write(long transactionId, ByteIterable key, ByteIterable value, String inputOperation) {
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
 
@@ -139,8 +167,8 @@ class MVCCDataStructure {
     }
 }
 
-// todo:  ROLLING_BACK (we put this state when read sees write which is in progress, not commited )for the transactions state
-// todo:   such transactions should be rolledback
+// todo:  ROLLING_BACK (we put this state when read sees write which is in progress, not committed) for the transactions state
+//        such transactions should be rolled back
 
 
 
