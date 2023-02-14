@@ -1292,7 +1292,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             tmpStream.close();
 
             tmpStream = new TmpBlobVaultBufferedInputStream(Files.newInputStream(path), path, blobHandle, txn);
-            txn.addBlobStream(blobHandle, tmpStream);
+            txn.addBlobStream(blobHandle, tmpStream, !config.getDoNotInvalidateBlobStreamsOnRollback());
 
             final long size = Files.size(path);
             setBlobFileLength(txn, blobHandle, size);
@@ -1331,7 +1331,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     (TmpBlobVaultBufferedInputStream) ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle,
                             bufferedStream, txn);
 
-            txn.addBlobStream(blobHandle, tmpStream);
+            txn.addBlobStream(blobHandle, tmpStream, !config.getDoNotInvalidateBlobStreamsOnRollback());
             setBlobFileLength(txn, blobHandle, Files.size(tmpStream.getPath()));
 
             return tmpStream;
@@ -1377,7 +1377,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 final TmpBlobVaultBufferedInputStream tmpStream = (TmpBlobVaultBufferedInputStream)
                         ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle, copy, txn);
 
-                txn.addBlobStream(blobHandle, tmpStream);
+                txn.addBlobStream(blobHandle, tmpStream, false);
             }
         }
     }
