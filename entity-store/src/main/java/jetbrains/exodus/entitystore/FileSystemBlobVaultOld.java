@@ -38,6 +38,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -144,6 +145,9 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     private void setContent(final long blobHandle, @NotNull final InputStream content) throws Exception {
         final File location = getBlobLocation(blobHandle, false);
         setContentImpl(content, location);
+
+        setPosixPermissions(location);
+
         if (size.get() != UNKNOWN_SIZE) {
             size.addAndGet(IOUtil.getAdjustedFileLength(location));
         }
@@ -157,8 +161,26 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
             Files.move(file, location.toPath());
         }
 
+        setPosixPermissions(location);
+
         if (size.get() != UNKNOWN_SIZE) {
             size.addAndGet(IOUtil.getAdjustedFileLength(location));
+        }
+    }
+
+    private static void setPosixPermissions(File location) {
+        final HashSet<PosixFilePermission> permissions = new HashSet<>();
+        permissions.add(PosixFilePermission.OWNER_WRITE);
+        permissions.add(PosixFilePermission.OWNER_READ);
+
+        permissions.add(PosixFilePermission.GROUP_READ);
+        permissions.add(PosixFilePermission.OTHERS_READ);
+
+
+        try {
+            Files.setPosixFilePermissions(location.toPath(), permissions);
+        } catch (IOException e) {
+            logger.error("Setting of POSIX permissions was failed", e);
         }
     }
 
