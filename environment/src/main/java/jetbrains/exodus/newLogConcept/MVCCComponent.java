@@ -1,4 +1,4 @@
-package jetbrains.exodus.log;
+package jetbrains.exodus.newLogConcept;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
@@ -12,21 +12,21 @@ import java.util.function.Function;
 
 import static jetbrains.exodus.log.BufferedDataWriter.*;
 
-enum TransactionState {
-    IN_PROGRESS,
-    ABORTED,
-    COMPLETED
+enum OperationType {
+    PUT,
+    REMOVE
 }
 
-class Transaction {
-    final AtomicLong snapshotId;
-    final MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> operations; // array of links to record in OL
+class Operation {
+    final OperationType type;
+    final int id;
 
-    Transaction(AtomicLong snapshotId, MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> operations) {
-        this.snapshotId = snapshotId;
-        this.operations = operations;
+    Operation(OperationType operationType, int operationId) {
+        this.type = operationType;
+        this.id = operationId;
     }
 }
+
 
 class MVCCRecord {
     final AtomicLong maxTransactionId;
@@ -46,6 +46,7 @@ class MVCCDataStructure {
             new NonBlockingHashMapLong<>(); // txID + state
 
     private static final AtomicLong address = new AtomicLong();
+    private static final AtomicLong snapshotId = new AtomicLong(1); //todo initial value?
 
     private static void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
         while(true) {
@@ -67,12 +68,13 @@ class MVCCDataStructure {
     };
 
     // should be separate for with duplicates and without, for now we do without only
-    public static ByteIterable readLogRecord(long currentTransactionId, ByteIterable key) {
+    // todo in get() if we have remove, return NULL
+    public static ByteIterable get(Transaction currentTransaction, ByteIterable key) {
 
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
 
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
-        compareWithCurrentAndSet(mvccRecord, currentTransactionId); //increment version
+        compareWithCurrentAndSet(mvccRecord, currentTransaction.snapshotId.get()); //increment version
 
         // advanced approach: state-machine
         long minMaxValue = 0;
@@ -135,52 +137,62 @@ class MVCCDataStructure {
         return ByteIterable.EMPTY;
     }
 
-    public static void commitTransaction() {
-        // insert changes as mvcc record + change status here?
-        // ABORTED/COMPLETED here
+    void doSomething(Operation operation) {
+        var transaction = startWriteTransaction();
+//        if (operation.type == OperationType.PUT){
+//            put(transaction);
+//        } else if (operation.type == OperationType.REMOVE) {
+//            remove(transaction);
+//        }
+        commitTransaction(transaction);
     }
 
-    // todo return transaction
-    public static void startTransaction() {
-        // if write {
-        // do first part (introduce put, update, remove)
-        // increment snapshotId (atomic long counter)
-        // }
-        // if read - do read and  not increment
+    public static Transaction startReadTransaction() {
+        return startTransaction(TransactionType.READ);
     }
 
-
-    // todo in get() if we have remove, return NULL
-    public static void remove(Transaction transaction) {
-        write(transaction);
-    }
-    public static void put(Transaction transaction) {
-        write(transaction);
+    public static Transaction startWriteTransaction() {
+        return startTransaction(TransactionType.WRITE);
     }
 
+    public static Transaction startTransaction(TransactionType type) {
+        var recordAddress = address.getAndIncrement();
+        operationLog.put(recordAddress, new OperationLogRecord(key, value, snapshotId, inputOperationId));
+        var linksEntry = new OperationReferenceEntry(recordAddress, snapshotId);
 
-    // todo id of the inputOperation, not operation itself
-    // todo replace transactionId, ByteIterable key, ByteIterable value with transaction
-    public static void write(Transaction transaction, ByteIterable key, ByteIterable value, int inputOperation) {
+        Transaction newTransaction;
+        if (type == TransactionType.WRITE){
+            AtomicLong localSnapshotId = new AtomicLong(snapshotId.get() + 10); // 10 is random num > 1 for increment
+            newTransaction = new Transaction(localSnapshotId, linksEntry, type);
+        } else {
+            newTransaction = new Transaction(snapshotId, linksEntry, type);
+        }
+        return newTransaction;
+    }
+
+    public static void commitTransaction(Transaction transaction) {
+
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         hashMap.putIfAbsent(keyHashCode, mvccRecord);
+        mvccRecord.linksToOperationsQueue.add(transaction.operationLink);
 
-        var recordAddress = address.getAndIncrement();
-        operationLog.put(recordAddress, new OperationLogRecord(key, value, transaction.snapshotId, inputOperation));
-        var linksEntry = new OperationReferenceEntry(recordAddress, transaction.snapshotId);
-        mvccRecord.linksToOperationsQueue.add(linksEntry);
-
+        // operation status check
         if (transaction.snapshotId.get() < mvccRecord.maxTransactionId.get()) {
-            linksEntry.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
+            transaction.operationLink.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
             //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
             throw new ExodusException(); // rollback
         }
-        linksEntry.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
+        var currentSnapId = snapshotId.get();
+        var txSnapId = transaction.snapshotId.get();
+        if (currentSnapId < txSnapId) {
+            snapshotId.compareAndSet(currentSnapId, txSnapId);
+        }
+        transaction.operationLink.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
         // advanced approach: state-machine
         //here we first work with collection, after that increment version, in read vica versa
     }
+
 }
 
 // todo:  ROLLING_BACK (we put this state when read sees write which is in progress, not committed) for the transactions state

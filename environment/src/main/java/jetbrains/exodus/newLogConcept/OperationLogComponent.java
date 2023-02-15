@@ -1,4 +1,4 @@
-package jetbrains.exodus.log;
+package jetbrains.exodus.newLogConcept;
 
 
 import jetbrains.exodus.ByteIterable;
