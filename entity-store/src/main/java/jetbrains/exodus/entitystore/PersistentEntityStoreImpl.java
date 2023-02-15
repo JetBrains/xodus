@@ -1066,6 +1066,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobStream == null) {
             return null;
         }
+
         final long blobHandle = blobStream.getFirst();
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return EMPTY_INPUT_STREAM;
@@ -1081,37 +1082,10 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         result = blobVault.getContent(blobHandle, envTxn, blobLength);
 
         if (result == null) {
-            int counter = 0;
-
-            final int sleepInterval = 50;
-            final int counterMaxValue = config.getBlobMaxReadWaitingInterval() * 1000 / sleepInterval;
-
-            while (true) {
-                try {
-                    Thread.sleep(sleepInterval);
-                } catch (InterruptedException e) {
-                    throw new ExodusException("Store : " + getName() +
-                            " . Reading of blob content was interrupted.", e);
-                }
-                counter++;
-
-                result = blobVault.getContent(blobHandle, envTxn,
-                        blobLength);
-
-                if (result != null) {
-                    break;
-                }
-
-                if (counter >= counterMaxValue) {
-                    final String message = generateBlobBrokenMessage(txn, entity, blobName, blobHandle, blobLength);
-                    throw new ExodusException(message);
-                }
-            }
+            final String message = generateBlobBrokenMessage(txn, entity, blobName, blobHandle, blobLength);
+            throw new ExodusException(message);
         }
 
-        if (result == null && !readerWriterProvider.isReadonly()) {
-            loggerWarn("Blob not found: " + blobVault.getBlobLocation(blobHandle), new FileNotFoundException());
-        }
         return result;
     }
 
@@ -1148,41 +1122,21 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                         return blobString;
                     }
 
-                    int counter = 0;
-                    final int sleepInterval = 50;
-                    final int counterMaxValue = config.getBlobMaxReadWaitingInterval() * 1000 / sleepInterval;
-
-                    while (true) {
-                        try {
-                            Thread.sleep(sleepInterval);
-                        } catch (InterruptedException e) {
-                            throw new ExodusException("Store : " + getName() +
-                                    " . Reading of blob content was interrupted.", e);
-                        }
-                        counter++;
-
-                        blobString = blobVault.getStringContent(blobHandle, envTxn,
-                                blobLength);
-
-                        if (blobString != null) {
-                            return blobString;
-                        }
-
-                        if (counter >= counterMaxValue) {
-                            final String message = generateBlobBrokenMessage(txn,
-                                    entity, blobName, blobHandle, blobLength);
-                            throw new ExodusException(message);
-                        }
-                    }
+                    final String message = generateBlobBrokenMessage(txn,
+                            entity, blobName, blobHandle, blobLength);
+                    throw new ExodusException(message);
                 }
+
                 result = UTFUtil.readUTF(stream);
             } catch (UTFDataFormatException e) {
                 result = e.toString();
             }
         }
+
         if (result != null) {
             txn.cacheBlobString(entity, blobId, result);
         }
+
         return result;
     }
 
@@ -1190,14 +1144,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private String generateBlobBrokenMessage(@NotNull final PersistentStoreTransaction txn,
                                              @NotNull PersistentEntity entity, @NotNull String blobName,
                                              long blobHandle, @Nullable Long blobLength) {
-        String message = "Store : " + getName() + " data is broken. " +
-                "Can not read blob located at " + blobVault.getBlobLocation(blobHandle) +
-                ". Blob name " + blobName + ". Entity id : " + entity.getId() +
-                ". Entity type : " + entity.getType() + ". Real length " + blobVault.getSize(blobHandle,
-                txn.getEnvironmentTransaction()) + ". ";
+        final File location = blobVault.getBlobLocation(blobHandle);
+        String message = "Store : '" + getName() + "' data is broken. " +
+                "Can not read blob located at '" + location +
+                "'. Blob property name '" + blobName + "'. Entity id : " + entity.getId() +
+                ". Entity type : '" + entity.getType() + "'. Real blob length " + location.length() + " bytes. ";
 
         if (blobLength != null) {
-            message += "Expected blob length " + blobLength;
+            message += "Expected blob length " + blobLength + " bytes.";
         } else {
             message += "Expected blob length is undefined.";
         }
