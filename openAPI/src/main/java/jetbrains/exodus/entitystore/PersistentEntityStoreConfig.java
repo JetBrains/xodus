@@ -161,22 +161,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String BLOB_STRINGS_CACHE_SIZE = "exodus.entityStore.blobStringsCacheSize";
 
     /**
-     * In case of usage of file system for storing of blobs writing of blob's content is performed
-     * after the commit of metadata in Xodus environment. That implies delay between transaction acknowledge
-     * and real write of data which can cause situation when blob content can be incorrectly read in
-     * another thread. To avoid such situation blob content is checked before returning to the user.
-     * If content is incomplete thread will wait specified amount of time in seconds till blob content
-     * will be completely written by the transaction, otherwise exception will be thrown.
-     * <p>
-     * Default value: {@code 300}
-     *
-     * <p>Mutable at runtime: yes
-     *
-     * @since 3.0
-     */
-    public static final String BLOB_MAX_READ_WAITING_INTERVAL = "exodus.entityStore.maxReadWaitingInterval";
-
-    /**
      * If is set to {@code true} then EntityIterableCache is not operable.
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
      * <p>Mutable at runtime: yes
@@ -436,7 +420,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(GATHER_STATISTICS, true),
                 new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
                 new Pair(REPLICATOR, null),
-                new Pair(BLOB_MAX_READ_WAITING_INTERVAL, 300),
                 new Pair(DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK, Boolean.FALSE),
                 new Pair(BLOBS_DIRECTORY_LOCATION, null)
 
@@ -552,14 +535,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     @Deprecated
     public int getBlobStringsCacheSize() {
         return (Integer) getSetting(BLOB_STRINGS_CACHE_SIZE);
-    }
-
-    public PersistentEntityStoreConfig setBlobMaxReadWaitingInterval(final int maxReadWaitingInterval) {
-        return setSetting(BLOB_MAX_READ_WAITING_INTERVAL, maxReadWaitingInterval);
-    }
-
-    public int getBlobMaxReadWaitingInterval() {
-        return ((Integer) getSetting(BLOB_MAX_READ_WAITING_INTERVAL)).intValue();
     }
 
     @Deprecated
