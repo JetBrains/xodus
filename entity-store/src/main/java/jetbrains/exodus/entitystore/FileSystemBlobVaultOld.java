@@ -181,6 +181,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
             Files.setPosixFilePermissions(location.toPath(), permissions);
         } catch (IOException e) {
             logger.error("Setting of POSIX permissions was failed", e);
+        } catch (UnsupportedOperationException e) {
+            //ignore
         }
     }
 
