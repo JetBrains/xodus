@@ -34,10 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -63,6 +60,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     private VaultSizeFunctions sizeFunctions;
 
     private final Path tmpBlobsDir;
+
+    private final AtomicLong tempFileCounter = new AtomicLong();
 
 
     /**
@@ -385,14 +384,18 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     @Override
     public @NotNull BufferedInputStream copyToTemporaryStore(long handle, @NotNull final InputStream stream,
                                                              @Nullable StoreTransaction transaction) throws IOException {
-        Path tempFile = Files.createTempFile(tmpBlobsDir, "xodus", "tmp-blob");
-
-        try (var out = Files.newOutputStream(tempFile)) {
-            IOUtil.copyStreams(stream, out, IOUtil.getBUFFER_ALLOCATOR());
+        final Path tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement());
+        long read;
+        try {
+            try (OutputStream out = Files.newOutputStream(tempFile, StandardOpenOption.CREATE_NEW,
+                    StandardOpenOption.WRITE)) {
+                read = IOUtil.copyStreams(stream, out, IOUtil.getBUFFER_ALLOCATOR());
+            }
+        } finally {
+            stream.close();
         }
-        stream.close();
 
-        return new TmpBlobVaultBufferedInputStream(Files.newInputStream(tempFile), tempFile, handle,
+        return new TmpBlobVaultBufferedInputStream(Files.newInputStream(tempFile), tempFile, handle, read,
                 (PersistentStoreTransaction) transaction);
     }
 

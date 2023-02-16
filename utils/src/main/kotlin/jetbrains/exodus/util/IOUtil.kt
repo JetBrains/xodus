@@ -106,21 +106,17 @@ object IOUtil {
     }
 
     @JvmStatic
-    fun copyStreams(
-        source: InputStream,
-        target: OutputStream,
-        bufferAllocator: ByteArraySpinAllocator
-    ) {
-        copyStreams(source, Long.MAX_VALUE, target, bufferAllocator)
+    fun copyStreams(source: InputStream,
+                    target: OutputStream,
+                    bufferAllocator: ByteArraySpinAllocator) : Long {
+        return copyStreams(source, Long.MAX_VALUE, target, bufferAllocator)
     }
 
     @JvmStatic
-    fun copyStreams(
-        source: InputStream,
-        sourceLen: Long,
-        target: OutputStream,
-        bufferAllocator: ByteArraySpinAllocator
-    ) {
+    fun copyStreams(source: InputStream,
+                    sourceLen: Long,
+                    target: OutputStream,
+                    bufferAllocator: ByteArraySpinAllocator) : Long {
         val buffer = bufferAllocator.alloc()
         try {
             var totalRead: Long = 0
@@ -134,6 +130,7 @@ object IOUtil {
                     totalRead += read.toLong()
                 }
             }
+            return totalRead
         } finally {
             bufferAllocator.dispose(buffer)
         }
