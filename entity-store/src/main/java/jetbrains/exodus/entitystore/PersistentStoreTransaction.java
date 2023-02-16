@@ -73,6 +73,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private LongSet deferredBlobsToDelete;
     private QueryCancellingPolicy queryCancellingPolicy;
 
+    private boolean checkInvalidateBlobsFlag;
+
     PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, TransactionType.Regular);
     }
@@ -892,6 +894,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         revertCaches(true);
     }
 
+    public void checkInvalidateBlobsFlag() {
+        checkInvalidateBlobsFlag = true;
+    }
+
     private void revertCaches(final boolean clearPropsAndLinksCache) {
         if (clearPropsAndLinksCache) {
             propsCache.clear();
@@ -903,21 +909,24 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         mutableCache = null;
         mutatedInTxn = null;
 
-        if (blobStreams != null && !blobStreams.isEmpty() &&
-                !store.getConfig().getDoNotInvalidateBlobStreamsOnRollback()) {
-            for (final Pair<TmpBlobVaultBufferedInputStream, Boolean> streamPair : blobStreams.values()) {
-                try {
-                    if (streamPair.second.booleanValue()) {
-                        final TmpBlobVaultBufferedInputStream stream = streamPair.first;
-                        final Path path = stream.getPath();
+        try {
+            if (blobStreams != null && !blobStreams.isEmpty()) {
+                for (final Pair<TmpBlobVaultBufferedInputStream, Boolean> streamPair : blobStreams.values()) {
+                    try {
+                        if (!checkInvalidateBlobsFlag || streamPair.second.booleanValue()) {
+                            final TmpBlobVaultBufferedInputStream stream = streamPair.first;
+                            final Path path = stream.getPath();
 
-                        stream.close();
-                        Files.deleteIfExists(path);
+                            stream.close();
+                            Files.deleteIfExists(path);
+                        }
+                    } catch (IOException e) {
+                        throw new ExodusException("Can not remove temporary blob " + streamPair + " during rollback.", e);
                     }
-                } catch (IOException e) {
-                    throw new ExodusException("Can not remove temporary blob " + streamPair + " during rollback.", e);
                 }
             }
+        } finally {
+            checkInvalidateBlobsFlag = false;
         }
 
         blobStreams = null;
