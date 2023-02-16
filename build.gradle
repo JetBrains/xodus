@@ -127,7 +127,6 @@ subprojects {
     }
 
     test {
-        exclude '**/*'
         minHeapSize = '1g'
         maxHeapSize = '1g'
         jvmArgs = ['-ea'

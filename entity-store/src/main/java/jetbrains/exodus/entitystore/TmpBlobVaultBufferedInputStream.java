@@ -30,7 +30,7 @@ import java.nio.file.Path;
  */
 public class TmpBlobVaultBufferedInputStream  extends BufferedInputStream {
     private final Path path;
-    private final long blobHandle;
+    private long blobHandle;
     private final PersistentStoreTransaction transaction;
 
     public TmpBlobVaultBufferedInputStream(@NotNull InputStream in, Path path, long blobHandle, PersistentStoreTransaction transaction) {
@@ -46,6 +46,10 @@ public class TmpBlobVaultBufferedInputStream  extends BufferedInputStream {
 
     public long getBlobHandle() {
         return blobHandle;
+    }
+
+    public void setBlobHandle(long handle) {
+        this.blobHandle = handle;
     }
 
     public PersistentStoreTransaction getTransaction() {
