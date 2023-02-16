@@ -28,16 +28,20 @@ import java.nio.file.Path;
  * @see Entity#setBlob(String, InputStream)
  * @see PersistentEntityStoreConfig#DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK
  */
-public class TmpBlobVaultBufferedInputStream  extends BufferedInputStream {
+public class TmpBlobVaultBufferedInputStream extends BufferedInputStream {
     private final Path path;
     private long blobHandle;
     private final PersistentStoreTransaction transaction;
 
-    public TmpBlobVaultBufferedInputStream(@NotNull InputStream in, Path path, long blobHandle, PersistentStoreTransaction transaction) {
+    private final long size;
+
+    public TmpBlobVaultBufferedInputStream(@NotNull InputStream in, Path path, long blobHandle, long size,
+                                           PersistentStoreTransaction transaction) {
         super(in);
         this.path = path;
         this.blobHandle = blobHandle;
         this.transaction = transaction;
+        this.size = size;
     }
 
     public Path getPath() {
@@ -54,5 +58,9 @@ public class TmpBlobVaultBufferedInputStream  extends BufferedInputStream {
 
     public PersistentStoreTransaction getTransaction() {
         return transaction;
+    }
+
+    public long getSize() {
+        return size;
     }
 }
