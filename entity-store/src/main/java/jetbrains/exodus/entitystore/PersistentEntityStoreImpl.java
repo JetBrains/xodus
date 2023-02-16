@@ -1293,9 +1293,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             tmpStream.setBlobHandle(blobHandle);
 
             txn.addBlobStream(blobHandle, tmpStream, !config.getDoNotInvalidateBlobStreamsOnRollback());
-
-            final long size = Files.size(path);
-            setBlobFileLength(txn, blobHandle, size);
+            setBlobFileLength(txn, blobHandle, tmpStream.getSize());
 
             return tmpStream;
         }
@@ -1332,7 +1330,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                             bufferedStream, txn);
 
             txn.addBlobStream(blobHandle, tmpStream, !config.getDoNotInvalidateBlobStreamsOnRollback());
-            setBlobFileLength(txn, blobHandle, Files.size(tmpStream.getPath()));
+            setBlobFileLength(txn, blobHandle, tmpStream.getSize());
 
             return tmpStream;
         }

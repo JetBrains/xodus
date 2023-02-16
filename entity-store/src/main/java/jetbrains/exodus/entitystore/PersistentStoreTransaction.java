@@ -905,10 +905,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             ArrayList<InputStream> streams = openedBlobStreams.get(blobHandle);
             if (streams == null) {
                 streams = new ArrayList<>();
+                openedBlobStreams.put(blobHandle, streams);
             }
-            streams.add(stream);
 
-            openedBlobStreams.put(blobHandle, streams);
+            streams.add(stream);
         } finally {
             openedBlobStreamsLock.unlock();
         }
@@ -918,15 +918,17 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (this.openedBlobStreams != null) {
             openedBlobStreamsLock.lock();
             try {
-                final ArrayList<InputStream> streams = openedBlobStreams.get(blobHandle);
-                if (streams != null) {
-                    streams.remove(stream);
+                final LongHashMap<ArrayList<InputStream>> openedBlobStreams = this.openedBlobStreams;
+                if (openedBlobStreams != null) {
+                    final ArrayList<InputStream> streams = openedBlobStreams.get(blobHandle);
+                    if (streams != null) {
+                        streams.remove(stream);
 
-                    if (streams.isEmpty()) {
-                        openedBlobStreams.remove(blobHandle);
+                        if (streams.isEmpty()) {
+                            openedBlobStreams.remove(blobHandle);
+                        }
                     }
                 }
-
             } finally {
                 openedBlobStreamsLock.unlock();
             }
@@ -1029,21 +1031,30 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private void closeOpenedBlobStreams() {
         if (openedBlobStreams != null) {
+            int closed = 0;
             openedBlobStreamsLock.lock();
             try {
-                for (ArrayList<InputStream> streams : openedBlobStreams.values()) {
-                    for (InputStream stream : streams) {
-                        try {
-                            stream.close();
-                        } catch (IOException e) {
-                            logger.error("Error during closing of stream acquired from blob", e);
+                final LongHashMap<ArrayList<InputStream>> openedBlobStreams = this.openedBlobStreams;
+                if (openedBlobStreams != null) {
+                    for (ArrayList<InputStream> streams : openedBlobStreams.values()) {
+                        for (InputStream stream : streams) {
+                            try {
+                                stream.close();
+                                closed++;
+                            } catch (IOException e) {
+                                logger.error("Error during closing of stream acquired from blob", e);
+                            }
                         }
                     }
+
                 }
 
-                openedBlobStreams = null;
+                this.openedBlobStreams = null;
             } finally {
                 openedBlobStreamsLock.unlock();
+            }
+            if (closed > 0) {
+                logger.warn("There are " + closed + " streams left open after reading of blobs.");
             }
         }
     }
@@ -1052,13 +1063,16 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (openedBlobStreams != null) {
             openedBlobStreamsLock.lock();
             try {
-                ArrayList<InputStream> streams = openedBlobStreams.remove(blobHandle);
-                if (streams != null) {
-                    for (InputStream stream : streams) {
-                        try {
-                            stream.close();
-                        } catch (IOException e) {
-                            logger.error("Error during closing of stream acquired from blob", e);
+                final LongHashMap<ArrayList<InputStream>> openedBlobStreams = this.openedBlobStreams;
+                if (openedBlobStreams != null) {
+                    ArrayList<InputStream> streams = openedBlobStreams.remove(blobHandle);
+                    if (streams != null) {
+                        for (InputStream stream : streams) {
+                            try {
+                                stream.close();
+                            } catch (IOException e) {
+                                logger.error("Error during closing of stream acquired from blob", e);
+                            }
                         }
                     }
                 }
