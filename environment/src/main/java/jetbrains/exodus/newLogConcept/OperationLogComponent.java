@@ -10,14 +10,14 @@ class OperationLogRecord {
     final ByteIterable key; // final thread-safety for fields, primitives for access speed
     // final makes no sense for methods and classes for the multi-threading
     final ByteIterable value;
-    final AtomicLong transactionId;
-    final int operationId; // shouldn't be strings, but leave like this for now
+    final long transactionId; // todo do we actually need it
+    final OperationType operationType;
 
-    OperationLogRecord(ByteIterable key, ByteIterable value, AtomicLong transactionId, int operationId) {
+    OperationLogRecord(ByteIterable key, ByteIterable value, long transactionId, OperationType operationType) {
         this.key = key;
         this.value = value;
         this.transactionId = transactionId;
-        this.operationId = operationId;
+        this.operationType = operationType;
     }
 }
 

@@ -1,7 +1,5 @@
 package jetbrains.exodus.newLogConcept;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 enum OperationReferenceState {
     IN_PROGRESS,
     ABORTED,
@@ -11,15 +9,15 @@ enum OperationReferenceState {
 class OperationReferenceEntry {
     final long operationAddress; // not an array as we have multiple entries of OperationsLinksEntry in queue with same txId
     volatile OperationReferenceState state = OperationReferenceState.IN_PROGRESS;
-    final AtomicLong txId;
+    final long txId;
 
 
-    OperationReferenceEntry(long linkToOperation, AtomicLong txId) {
+    OperationReferenceEntry(long linkToOperation, long txId) {
         this.operationAddress = linkToOperation;
         this.txId = txId;
     }
 
-    public AtomicLong getTxId() {
+    public long getTxId() {
         return this.txId;
     }
 }

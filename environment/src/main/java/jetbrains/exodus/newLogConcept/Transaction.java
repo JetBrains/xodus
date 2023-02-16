@@ -1,7 +1,8 @@
 package jetbrains.exodus.newLogConcept;
 
+import it.unimi.dsi.fastutil.longs.LongLongPair;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.ArrayList;
 
 enum TransactionState {
     IN_PROGRESS,
@@ -16,14 +17,18 @@ enum TransactionType {
 
 class Transaction {
     final TransactionType type;
-    final AtomicLong snapshotId;
-    final OperationReferenceEntry operationLink; // array of links to record in OL
+    long snapshotId;
+    OperationReferenceEntry operationLink; // array of links to record in OL
+    ArrayList<LongLongPair> hashAddressPair = new ArrayList<>();
+    // todo add array with hashcode-address longLongPair (or smth similar)
 
-    Transaction(AtomicLong snapshotId,
-                OperationReferenceEntry operationReference,
+    Transaction(long snapshotId,
                 TransactionType type) {
         this.snapshotId = snapshotId;
-        this.operationLink = operationReference;
         this.type = type;
+    }
+
+    void setOperationLink(OperationReferenceEntry linkEntry){
+        this.operationLink = linkEntry;
     }
 }

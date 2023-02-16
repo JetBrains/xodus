@@ -1,4 +1,5 @@
 package jetbrains.exodus.newLogConcept;
+import it.unimi.dsi.fastutil.longs.LongLongImmutablePair;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
@@ -16,17 +17,6 @@ enum OperationType {
     PUT,
     REMOVE
 }
-
-class Operation {
-    final OperationType type;
-    final int id;
-
-    Operation(OperationType operationType, int operationId) {
-        this.type = operationType;
-        this.id = operationId;
-    }
-}
-
 
 class MVCCRecord {
     final AtomicLong maxTransactionId;
@@ -46,8 +36,8 @@ class MVCCDataStructure {
             new NonBlockingHashMapLong<>(); // txID + state
 
     private static final AtomicLong address = new AtomicLong();
-    private static final AtomicLong snapshotId = new AtomicLong(1); //todo initial value?
-
+    private static AtomicLong snapshotId = new AtomicLong(1L); //todo initial value?
+    private static AtomicLong writeTxSnapshotId = snapshotId;
     private static void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
         while(true) {
             long value = mvccRecord.maxTransactionId.get();
@@ -69,12 +59,12 @@ class MVCCDataStructure {
 
     // should be separate for with duplicates and without, for now we do without only
     // todo in get() if we have remove, return NULL
-    public static ByteIterable get(Transaction currentTransaction, ByteIterable key) {
+    public static ByteIterable read(Transaction currentTransaction, ByteIterable key) {
 
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
 
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
-        compareWithCurrentAndSet(mvccRecord, currentTransaction.snapshotId.get()); //increment version
+        compareWithCurrentAndSet(mvccRecord, currentTransaction.snapshotId); //increment version
 
         // advanced approach: state-machine
         long minMaxValue = 0;
@@ -82,7 +72,7 @@ class MVCCDataStructure {
 
         var maxTxId = mvccRecord.maxTransactionId.get();
         for (var linkEntry: mvccRecord.linksToOperationsQueue){
-            var candidateTxId = linkEntry.txId.get();
+            var candidateTxId = linkEntry.txId;
             var currentMax = minMaxValue;
 
             // we add to queue several objects with one txID, the last one re-writes the previous value,
@@ -98,10 +88,16 @@ class MVCCDataStructure {
             }
         }
 
-        OperationLogRecord targetOperationInLog = operationLog.get(targetEntry.operationAddress); //todo null check
+        // case for REMOVE operation
+        if (targetEntry == null){
+            return null;
+        }
 
+        OperationLogRecord targetOperationInLog = operationLog.get(targetEntry.operationAddress);
+
+        // case for error - smth goes wrong
         if (targetOperationInLog == null){
-            return searchInBTree(key);
+            throw new ExodusException();
         }
 
         if (targetOperationInLog.key.equals(key)){
@@ -109,7 +105,7 @@ class MVCCDataStructure {
         } else {
             ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId = new ArrayList<>();
             mvccRecord.linksToOperationsQueue.forEach(linkEntry -> {
-                if (linkEntry.txId.get() < maxTxId) {
+                if (linkEntry.txId < maxTxId) {
                     while (linkEntry.state == OperationReferenceState.IN_PROGRESS){
                         Thread.onSpinWait();
                     }
@@ -125,8 +121,6 @@ class MVCCDataStructure {
                     return targetOperationInLog.value;
                 }
             }
-
-
         }
         // potentially we can use ArrayList
         return searchInBTree(key);
@@ -134,17 +128,43 @@ class MVCCDataStructure {
 
     private static ByteIterable searchInBTree(ByteIterable key){
         // mock method for the search of the operation in B-tree
-        return ByteIterable.EMPTY;
+        return null;
     }
 
-    void doSomething(Operation operation) {
+    // mock method for testing purposes
+    void doSomething() {
         var transaction = startWriteTransaction();
-//        if (operation.type == OperationType.PUT){
-//            put(transaction);
-//        } else if (operation.type == OperationType.REMOVE) {
-//            remove(transaction);
-//        }
+        var key = ByteIterable.EMPTY;
+        var value = ByteIterable.EMPTY;
+
+        put(transaction, key, value);
+        remove(transaction, key, value);
+
         commitTransaction(transaction);
+    }
+
+    public static void put(Transaction transaction,
+                           ByteIterable key,
+                           ByteIterable value) {
+        addToLog(transaction, key, value, OperationType.PUT);
+    }
+
+    public static void remove(Transaction transaction,
+                              ByteIterable key,
+                              ByteIterable value) {
+        addToLog(transaction, key, value, OperationType.REMOVE);
+    }
+
+    public static void addToLog(Transaction transaction,
+                                ByteIterable key,
+                                ByteIterable value,
+                                OperationType operationType) {
+        var recordAddress = address.getAndIncrement();
+        final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
+        transaction.hashAddressPair.add(new LongLongImmutablePair(keyHashCode, recordAddress));
+
+        operationLog.put(recordAddress, new OperationLogRecord(key, value, snapshotId.get(), operationType));
+        transaction.setOperationLink(new OperationReferenceEntry(recordAddress, snapshotId.get()));
     }
 
     public static Transaction startReadTransaction() {
@@ -156,21 +176,20 @@ class MVCCDataStructure {
     }
 
     public static Transaction startTransaction(TransactionType type) {
-        var recordAddress = address.getAndIncrement();
-        operationLog.put(recordAddress, new OperationLogRecord(key, value, snapshotId, inputOperationId));
-        var linksEntry = new OperationReferenceEntry(recordAddress, snapshotId);
-
         Transaction newTransaction;
-        if (type == TransactionType.WRITE){
-            AtomicLong localSnapshotId = new AtomicLong(snapshotId.get() + 10); // 10 is random num > 1 for increment
-            newTransaction = new Transaction(localSnapshotId, linksEntry, type);
+        if (type == TransactionType.READ){
+            newTransaction = new Transaction(snapshotId.get(), type);
         } else {
-            newTransaction = new Transaction(snapshotId, linksEntry, type);
+            newTransaction = new Transaction(writeTxSnapshotId.incrementAndGet(), type);
         }
+
         return newTransaction;
     }
 
     public static void commitTransaction(Transaction transaction) {
+        // todo do nothing if it's READ transaction - if mvcc records collection is empty, do nothing here
+
+        var currentSnapId = snapshotId;
 
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
@@ -178,15 +197,15 @@ class MVCCDataStructure {
         mvccRecord.linksToOperationsQueue.add(transaction.operationLink);
 
         // operation status check
-        if (transaction.snapshotId.get() < mvccRecord.maxTransactionId.get()) {
+        if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
             transaction.operationLink.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
             //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
             throw new ExodusException(); // rollback
         }
-        var currentSnapId = snapshotId.get();
-        var txSnapId = transaction.snapshotId.get();
-        if (currentSnapId < txSnapId) {
-            snapshotId.compareAndSet(currentSnapId, txSnapId);
+
+        var txSnapId = transaction.snapshotId;
+        if (currentSnapId.get() < txSnapId) {
+            snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
         }
         transaction.operationLink.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
         // advanced approach: state-machine
