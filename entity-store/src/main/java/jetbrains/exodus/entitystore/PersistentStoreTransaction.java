@@ -34,6 +34,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
 
 @SuppressWarnings({"rawtypes"})
@@ -217,10 +218,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     // exposed only for tests
     boolean doFlush() {
-        if (txn.flush()) {
-            revertCaches(false); // do not clear props & links caches
-            return true;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        if (rnd.nextInt(10) == 9) {
+            if (txn.flush()) {
+                revertCaches(false); // do not clear props & links caches
+                return true;
+            }
         }
+
         revert();
         return false;
     }
