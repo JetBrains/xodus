@@ -3,7 +3,6 @@ package jetbrains.exodus.newLogConcept;
 
 import jetbrains.exodus.ByteIterable;
 
-import java.util.concurrent.atomic.AtomicLong;
 
 
 class OperationLogRecord {

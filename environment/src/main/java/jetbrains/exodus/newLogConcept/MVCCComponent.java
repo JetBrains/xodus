@@ -14,7 +14,7 @@ import java.util.function.Function;
 import static jetbrains.exodus.log.BufferedDataWriter.*;
 
 enum OperationType {
-    PUT,
+    PUT, //todo convert to int later, for ex 0 and 1
     REMOVE
 }
 
@@ -161,7 +161,7 @@ class MVCCDataStructure {
                                 OperationType operationType) {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-        transaction.hashAddressPair.add(new LongLongImmutablePair(keyHashCode, recordAddress));
+        transaction.setHashAddressPair(new LongLongImmutablePair(keyHashCode, recordAddress));
 
         operationLog.put(recordAddress, new OperationLogRecord(key, value, snapshotId.get(), operationType));
         transaction.setOperationLink(new OperationReferenceEntry(recordAddress, snapshotId.get()));
@@ -187,31 +187,30 @@ class MVCCDataStructure {
     }
 
     public static void commitTransaction(Transaction transaction) {
-        // todo do nothing if it's READ transaction - if mvcc records collection is empty, do nothing here
+        // todo replace to if (mvcc records collection is empty)
+        if (transaction.type == TransactionType.WRITE){
+            var currentSnapId = snapshotId;
+            var keyHashCode = transaction.hashAddressPair.firstLong();
+            MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
+            hashMap.putIfAbsent(keyHashCode, mvccRecord);
+            mvccRecord.linksToOperationsQueue.add(transaction.operationLink);
 
-        var currentSnapId = snapshotId;
+            // operation status check
+            if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
+                transaction.operationLink.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
+                //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
+                throw new ExodusException(); // rollback
+            }
 
-        final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-        MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
-        hashMap.putIfAbsent(keyHashCode, mvccRecord);
-        mvccRecord.linksToOperationsQueue.add(transaction.operationLink);
-
-        // operation status check
-        if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
-            transaction.operationLink.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
-            //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
-            throw new ExodusException(); // rollback
+            var txSnapId = transaction.snapshotId;
+            if (currentSnapId.get() < txSnapId) {
+                snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
+            }
+            transaction.operationLink.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
+            // advanced approach: state-machine
+            //here we first work with collection, after that increment version, in read vica versa
         }
-
-        var txSnapId = transaction.snapshotId;
-        if (currentSnapId.get() < txSnapId) {
-            snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
-        }
-        transaction.operationLink.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
-        // advanced approach: state-machine
-        //here we first work with collection, after that increment version, in read vica versa
     }
-
 }
 
 // todo:  ROLLING_BACK (we put this state when read sees write which is in progress, not committed) for the transactions state

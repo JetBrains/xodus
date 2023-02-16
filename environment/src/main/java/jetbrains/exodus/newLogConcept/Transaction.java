@@ -19,9 +19,9 @@ class Transaction {
     final TransactionType type;
     long snapshotId;
     OperationReferenceEntry operationLink; // array of links to record in OL
-    ArrayList<LongLongPair> hashAddressPair = new ArrayList<>();
-    // todo add array with hashcode-address longLongPair (or smth similar)
+    LongLongPair hashAddressPair;
 
+    // todo convert to array   ArrayList<LongLongPair> hashAddressPair = new ArrayList<>();
     Transaction(long snapshotId,
                 TransactionType type) {
         this.snapshotId = snapshotId;
@@ -31,4 +31,9 @@ class Transaction {
     void setOperationLink(OperationReferenceEntry linkEntry){
         this.operationLink = linkEntry;
     }
+
+    public void setHashAddressPair(LongLongPair hashAddressPair) {
+        this.hashAddressPair = hashAddressPair;
+    }
+
 }
