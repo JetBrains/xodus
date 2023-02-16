@@ -803,9 +803,19 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     void deleteBlob(final long blobHandle) {
         if (blobStreams != null) {
-            //noinspection resource
-            blobStreams.remove(blobHandle);
+            final Pair<TmpBlobVaultBufferedInputStream, Boolean> pair = blobStreams.remove(blobHandle);
+
+            if (pair != null) {
+                final Path path = pair.first.getPath();
+                try {
+                    pair.first.close();
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    throw new ExodusException("Error during removal of blob " + path, e);
+                }
+            }
         }
+
         if (blobFiles != null) {
             blobFiles.remove(blobHandle);
         }
