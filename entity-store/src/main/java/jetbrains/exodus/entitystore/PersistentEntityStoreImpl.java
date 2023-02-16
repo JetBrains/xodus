@@ -1241,17 +1241,18 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private String generateBlobBrokenMessage(@NotNull final PersistentStoreTransaction txn,
                                              @NotNull PersistentEntity entity, @NotNull String blobName,
                                              long blobHandle, @Nullable Long blobLength) {
-        String message = "Store : " + getName() + " data is broken. " +
-                "Can not read blob located at " + blobVault.getBlobLocation(blobHandle) +
-                ". Blob name " + blobName + ". Entity id : " + entity.getId() +
-                ". Entity type : " + entity.getType() + ". Real length " + blobVault.getSize(blobHandle,
-                txn.getEnvironmentTransaction()) + ". ";
+        final File blobLocation = blobVault.getBlobLocation(blobHandle);
+        String message = "Store : '" + getName() + "' data is broken. " +
+                "Can not read blob located at '" + blobLocation +
+                "'. Blob property name '" + blobName + "'. Entity id : '" + entity.getId() +
+                "'. Entity type : '" + entity.getType() + "'. Real length " + blobLocation.length() + " bytes. ";
 
         if (blobLength != null) {
-            message += "Expected blob length " + blobLength;
+            message += "Expected blob length " + blobLength + " bytes.";
         } else {
             message += "Expected blob length is undefined.";
         }
+
         return message;
     }
 
@@ -1340,9 +1341,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
 
             blobHandle = createBlobHandle(txn, entity, blobName, null, Integer.MAX_VALUE);
-            tmpStream.close();
+            tmpStream.setBlobHandle(blobHandle);
 
-            tmpStream = new TmpBlobVaultBufferedInputStream(Files.newInputStream(path), path, blobHandle, txn);
             txn.addBlobStream(blobHandle, tmpStream, !config.getDoNotInvalidateBlobStreamsOnRollback());
 
             final long size = Files.size(path);
