@@ -34,6 +34,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
 @SuppressWarnings({"rawtypes"})
@@ -67,6 +68,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private List<Updatable> mutatedInTxn;
     @Nullable
     private LongHashMap<Pair<TmpBlobVaultBufferedInputStream, Boolean>> blobStreams;
+
+    private volatile LongHashMap<ArrayList<InputStream>> openedBlobStreams;
+    private final ReentrantLock openedBlobStreamsLock = new ReentrantLock();
+
     @Nullable
     private LongHashMap<Path> blobFiles;
 
@@ -196,6 +201,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public void abort() {
         try {
+            closeOpenedBlobStreams();
             store.unregisterTransaction(this);
             revertCaches();
         } finally {
@@ -227,6 +233,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public void revert() {
+        closeOpenedBlobStreams();
         txn.revert();
         revertCaches();
 
@@ -808,6 +815,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             final Pair<TmpBlobVaultBufferedInputStream, Boolean> pair = blobStreams.remove(blobHandle);
 
             if (pair != null) {
+                closeOpenedBlobStreams(blobHandle);
+
                 final Path path = pair.first.getPath();
                 try {
                     pair.first.close();
@@ -848,23 +857,79 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     InputStream getBlobStream(final long blobHandle) throws IOException {
         final LongHashMap<Pair<TmpBlobVaultBufferedInputStream, Boolean>> blobStreams = this.blobStreams;
 
+        InputStream result = null;
         if (blobStreams != null) {
             final Pair<TmpBlobVaultBufferedInputStream, Boolean> streamPair = blobStreams.get(blobHandle);
             if (streamPair != null) {
-                return ((DiskBasedBlobVault) store.getBlobVault()).openTmpStream(blobHandle,
+                result = ((DiskBasedBlobVault) store.getBlobVault()).openTmpStream(blobHandle,
                         streamPair.getFirst().getPath());
             }
         }
 
-        final LongHashMap<Path> blobFiles = this.blobFiles;
-        if (blobFiles != null) {
-            final Path file = blobFiles.get(blobHandle);
-            if (file != null) {
-                return store.getBlobVault().getFileStream(file.toFile());
+        if (result == null) {
+            final LongHashMap<Path> blobFiles = this.blobFiles;
+            if (blobFiles != null) {
+                final Path file = blobFiles.get(blobHandle);
+                if (file != null) {
+                    result = store.getBlobVault().getFileStream(file.toFile());
+                }
             }
         }
 
+        if (result != null) {
+            addOpenBlobStream(blobHandle, result);
+
+            return new FilterInputStream(result) {
+                @Override
+                public void close() throws IOException {
+                    super.close();
+
+                    removeOpenBlobInputStream(blobHandle, in);
+                }
+            };
+        }
+
         return null;
+    }
+
+    private void addOpenBlobStream(long blobHandle, InputStream stream) {
+        openedBlobStreamsLock.lock();
+        try {
+            LongHashMap<ArrayList<InputStream>> openedBlobStreams = this.openedBlobStreams;
+            if (openedBlobStreams == null) {
+                openedBlobStreams = new LongHashMap<>();
+                this.openedBlobStreams = openedBlobStreams;
+            }
+
+            ArrayList<InputStream> streams = openedBlobStreams.get(blobHandle);
+            if (streams == null) {
+                streams = new ArrayList<>();
+            }
+            streams.add(stream);
+
+            openedBlobStreams.put(blobHandle, streams);
+        } finally {
+            openedBlobStreamsLock.unlock();
+        }
+    }
+
+    private void removeOpenBlobInputStream(long blobHandle, InputStream stream) {
+        if (this.openedBlobStreams != null) {
+            openedBlobStreamsLock.lock();
+            try {
+                final ArrayList<InputStream> streams = openedBlobStreams.get(blobHandle);
+                if (streams != null) {
+                    streams.remove(stream);
+
+                    if (streams.isEmpty()) {
+                        openedBlobStreams.remove(blobHandle);
+                    }
+                }
+
+            } finally {
+                openedBlobStreamsLock.unlock();
+            }
+        }
     }
 
     boolean containsBlobStream(final long blobHandle) {
@@ -910,6 +975,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         mutatedInTxn = null;
 
         try {
+            closeOpenedBlobStreams();
+
             if (blobStreams != null && !blobStreams.isEmpty()) {
                 for (final Pair<TmpBlobVaultBufferedInputStream, Boolean> streamPair : blobStreams.values()) {
                     try {
@@ -959,8 +1026,51 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         });
     }
 
+    private void closeOpenedBlobStreams() {
+        if (openedBlobStreams != null) {
+            openedBlobStreamsLock.lock();
+            try {
+                for (ArrayList<InputStream> streams : openedBlobStreams.values()) {
+                    for (InputStream stream : streams) {
+                        try {
+                            stream.close();
+                        } catch (IOException e) {
+                            logger.error("Error during closing of stream acquired from blob", e);
+                        }
+                    }
+                }
+
+                openedBlobStreams = null;
+            } finally {
+                openedBlobStreamsLock.unlock();
+            }
+        }
+    }
+
+    private void closeOpenedBlobStreams(long blobHandle) {
+        if (openedBlobStreams != null) {
+            openedBlobStreamsLock.lock();
+            try {
+                ArrayList<InputStream> streams = openedBlobStreams.remove(blobHandle);
+                if (streams != null) {
+                    for (InputStream stream : streams) {
+                        try {
+                            stream.close();
+                        } catch (IOException e) {
+                            logger.error("Error during closing of stream acquired from blob", e);
+                        }
+                    }
+                }
+            } finally {
+                openedBlobStreamsLock.unlock();
+            }
+        }
+    }
+
     private void flushBlobs(final BlobVault blobVault) throws Exception {
         if (blobStreams != null || blobFiles != null) {
+            closeOpenedBlobStreams();
+
             final LongHashMap<Path> tmpBlobFiles;
 
             if (blobStreams != null) {
