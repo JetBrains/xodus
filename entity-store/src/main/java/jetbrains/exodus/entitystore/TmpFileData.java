@@ -22,10 +22,12 @@ public class TmpFileData {
     public final Path path;
     public final InputStream stream;
     public final long size;
+    public final long tmpHandle;
 
-    public TmpFileData(Path path, InputStream stream, long size) {
+    public TmpFileData(Path path, InputStream stream, long size, long tmpHandle) {
         this.path = path;
         this.stream = stream;
         this.size = size;
+        this.tmpHandle = tmpHandle;
     }
 }
