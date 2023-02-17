@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
@@ -382,8 +383,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     }
 
     @Override
-    public @NotNull BufferedInputStream copyToTemporaryStore(long handle, @NotNull final InputStream stream,
-                                                             @Nullable StoreTransaction transaction) throws IOException {
+    public @NotNull Pair<Path, Long> copyToTemporaryStore(long handle, @NotNull final InputStream stream,
+                                              @Nullable StoreTransaction transaction) throws IOException {
         final Path tempFile;
         if (handle >= 0) {
             tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement() + "-" + handle);
@@ -401,8 +402,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
             stream.close();
         }
 
-        return new TmpBlobVaultBufferedInputStream(Files.newInputStream(tempFile), tempFile, handle, read,
-                (PersistentStoreTransaction) transaction);
+        return new Pair<>(tempFile, read);
     }
 
     @Override
