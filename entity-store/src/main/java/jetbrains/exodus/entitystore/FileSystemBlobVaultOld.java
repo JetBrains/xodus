@@ -384,13 +384,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
 
     @Override
     public @NotNull Pair<Path, Long> copyToTemporaryStore(long handle, @NotNull final InputStream stream,
-                                              @Nullable StoreTransaction transaction) throws IOException {
-        final Path tempFile;
-        if (handle >= 0) {
-            tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement() + "-" + handle);
-        } else {
-            tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement());
-        }
+                                                          @Nullable StoreTransaction transaction) throws IOException {
+        final Path tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement());
 
         long read;
         try {
