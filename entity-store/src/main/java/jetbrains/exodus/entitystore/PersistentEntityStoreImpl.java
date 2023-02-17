@@ -52,10 +52,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings({"UnusedDeclaration", "ThisEscapedInObjectConstruction", "VolatileLongOrDoubleField",
         "ObjectAllocationInLoop", "ReuseOfLocalVariable", "rawtypes"})
@@ -144,6 +146,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     private final Set<TableCreationOperation> tableCreationLog = new HashSet<>();
+
+    private final SecureRandom tmpHandleIdGen = new SecureRandom();
 
     @NotNull
     private final TxnProvider txnProvider = this::getAndCheckCurrentTransaction;
@@ -1344,7 +1348,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         final Path path = tmpFileData.path;
         final long blobHandle = createBlobHandle(txn, entity, blobName, null, Integer.MAX_VALUE);
 
-        txn.addBlobStream(blobHandle, path, false);
+        txn.addBlobStream(blobHandle, tmpFileData.tmpHandle, path, false);
         setBlobFileLength(txn, blobHandle, tmpFileData.size);
 
         return tmpFileData;
@@ -1380,20 +1384,23 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
 
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
+            final long tmpHandle = tmpHandleIdGen.nextLong();
+
             final Pair<Path, Long> tmpFilePair =
-                    ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle,
+                    ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(tmpHandle,
                             bufferedStream, txn);
 
             final Path path = tmpFilePair.first;
             final long fileSize = tmpFilePair.second;
 
-            txn.addBlobStream(blobHandle, tmpFilePair.first, invalidate);
+            txn.addBlobStream(blobHandle, tmpHandle,
+                    tmpFilePair.first, invalidate);
             setBlobFileLength(txn, blobHandle, tmpFilePair.second);
 
-            return new TmpFileData(path, null, fileSize);
+            return new TmpFileData(path, null, fileSize, blobHandle);
         }
 
-        return new TmpFileData(null, bufferedStream, size);
+        return new TmpFileData(null, bufferedStream, size, blobHandle);
     }
 
     public void setBlob(@NotNull final PersistentStoreTransaction txn,
@@ -1433,7 +1440,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 final Pair<Path, Long> tmpStream =
                         ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(blobHandle, copy, txn);
 
-                txn.addBlobStream(blobHandle, tmpStream.first, true);
+                txn.addBlobStream(blobHandle, blobHandle, tmpStream.first, true);
             }
         }
     }

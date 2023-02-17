@@ -210,12 +210,10 @@ public class PersistentEntity implements Entity, TxnProvider {
         }
     }
 
-    public TmpFileData setDnqBlob(@NotNull final PersistentStoreTransaction txn,
-                                  @NotNull final PersistentEntity entity,
-                                  @NotNull final String blobName, @NotNull final TmpFileData tmpFileData) {
+    public TmpFileData setDnqBlob(@NotNull final String blobName, @NotNull final TmpFileData tmpFileData) {
         assertWritable();
         try {
-            return store.setDnqBlob(txn, entity, blobName, tmpFileData);
+            return store.setDnqBlob(getTransaction(), this, blobName, tmpFileData);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
