@@ -192,6 +192,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private boolean doCommit() {
         if (txn.commit()) {
             store.unregisterTransaction(this);
+            flushNonTransactionalBlobs();
             revertCaches();
             return true;
         }
@@ -225,6 +226,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     // exposed only for tests
     boolean doFlush() {
         if (txn.flush()) {
+            flushNonTransactionalBlobs();
             revertCaches(false); // do not clear props & links caches
             return true;
         }
@@ -1004,8 +1006,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 // out of disk space not expected there
                 throw ExodusException.toEntityStoreException(e);
             }
-        } else {
-            ((TransactionBase) txn).setBeforeTransactionFlushAction(this::flushNonTransactionalBlobs);
         }
 
         txn.setCommitHook(() -> {
