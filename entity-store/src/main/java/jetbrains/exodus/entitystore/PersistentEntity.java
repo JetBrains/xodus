@@ -25,9 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
@@ -201,7 +199,7 @@ public class PersistentEntity implements Entity, TxnProvider {
         }
     }
 
-    public TmpFileData setDnqBlob(@NotNull final String blobName, @NotNull final InputStream stream) {
+    public TmpBlobHandle setDnqBlob(@NotNull final String blobName, @NotNull final InputStream stream) {
         assertWritable();
         try {
             return store.setDnqBlob(getTransaction(), this, blobName, stream);
@@ -210,10 +208,10 @@ public class PersistentEntity implements Entity, TxnProvider {
         }
     }
 
-    public TmpFileData setDnqBlob(@NotNull final String blobName, @NotNull final TmpFileData tmpFileData) {
+    public TmpBlobHandle setDnqBlob(@NotNull final String blobName, @NotNull final TmpBlobHandle tmpBlobHandle) {
         assertWritable();
         try {
-            return store.setDnqBlob(getTransaction(), this, blobName, tmpFileData);
+            return store.setDnqBlob(getTransaction(), this, blobName, tmpBlobHandle);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -231,6 +229,19 @@ public class PersistentEntity implements Entity, TxnProvider {
             throw ExodusException.toEntityStoreException(e);
         }
         return true;
+    }
+
+    public TmpBlobHandle setDnqBlobString(@NotNull final String blobName, @NotNull final String blobString) {
+        String oldValue = getBlobString(blobName);
+        if (blobString.equals(oldValue)) {
+            return null;
+        }
+
+        try {
+            return store.setDnqBlobString(getTransaction(), this, blobName, blobString);
+        } catch (Exception e) {
+            throw ExodusException.toEntityStoreException(e);
+        }
     }
 
     @Override
