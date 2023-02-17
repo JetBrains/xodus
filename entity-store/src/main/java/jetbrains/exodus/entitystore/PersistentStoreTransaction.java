@@ -67,7 +67,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private EntityIterableCacheAdapterMutable mutableCache;
     private List<Updatable> mutatedInTxn;
     @Nullable
-    private LongHashMap<Pair<TmpBlobVaultBufferedInputStream, Boolean>> blobStreams;
+    private LongHashMap<Pair<Path, Boolean>> blobStreams;
 
     private volatile LongHashMap<ArrayList<InputStream>> openedBlobStreams;
     private final ReentrantLock openedBlobStreamsLock = new ReentrantLock();
@@ -790,16 +790,16 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         new LinkDeletedHandleChecker(this, sourceId, targetId, linkId, mutableCache(), mutatedInTxn).updateCache();
     }
 
-    void addBlobStream(final long blobHandle, @NotNull TmpBlobVaultBufferedInputStream tmpStream,
+    void addBlobStream(final long blobHandle, @NotNull Path tmpFilePath,
                        final boolean invalidateOnRollback) {
-        LongHashMap<Pair<TmpBlobVaultBufferedInputStream, Boolean>> blobStreams = this.blobStreams;
+        LongHashMap<Pair<Path, Boolean>> blobStreams = this.blobStreams;
 
         if (blobStreams == null) {
             blobStreams = new LongHashMap<>();
             this.blobStreams = blobStreams;
         }
 
-        blobStreams.put(blobHandle, new Pair<>(tmpStream, Boolean.valueOf(invalidateOnRollback)));
+        blobStreams.put(blobHandle, new Pair<>(tmpFilePath, Boolean.valueOf(invalidateOnRollback)));
     }
 
     void addBlobFile(final long blobHandle, @NotNull final Path file) {
@@ -813,14 +813,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     void deleteBlob(final long blobHandle) {
         if (blobStreams != null) {
-            final Pair<TmpBlobVaultBufferedInputStream, Boolean> pair = blobStreams.remove(blobHandle);
+            final Pair<Path, Boolean> pair = blobStreams.remove(blobHandle);
 
             if (pair != null) {
                 closeOpenedBlobStreams(blobHandle);
 
-                final Path path = pair.first.getPath();
+                final Path path = pair.first;
                 try {
-                    pair.first.close();
                     Files.deleteIfExists(path);
                 } catch (IOException e) {
                     throw new ExodusException("Error during removal of blob " + path, e);
@@ -834,12 +833,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     long getBlobSize(final long blobHandle) throws IOException {
-        final LongHashMap<Pair<TmpBlobVaultBufferedInputStream, Boolean>> blobStreams = this.blobStreams;
+        final LongHashMap<Pair<Path, Boolean>> blobStreams = this.blobStreams;
 
         if (blobStreams != null) {
-            final Pair<TmpBlobVaultBufferedInputStream, Boolean> streamPair = blobStreams.get(blobHandle);
+            final Pair<Path, Boolean> streamPair = blobStreams.get(blobHandle);
             if (streamPair != null) {
-                return Files.size(streamPair.getFirst().getPath());
+                return Files.size(streamPair.getFirst());
             }
         }
 
@@ -856,14 +855,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Nullable
     InputStream getBlobStream(final long blobHandle) throws IOException {
-        final LongHashMap<Pair<TmpBlobVaultBufferedInputStream, Boolean>> blobStreams = this.blobStreams;
+        final LongHashMap<Pair<Path, Boolean>> blobStreams = this.blobStreams;
 
         InputStream result = null;
         if (blobStreams != null) {
-            final Pair<TmpBlobVaultBufferedInputStream, Boolean> streamPair = blobStreams.get(blobHandle);
+            final Pair<Path, Boolean> streamPair = blobStreams.get(blobHandle);
             if (streamPair != null) {
                 result = ((DiskBasedBlobVault) store.getBlobVault()).openTmpStream(blobHandle,
-                        streamPair.getFirst().getPath());
+                        streamPair.getFirst());
             }
         }
 
@@ -935,16 +934,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    boolean containsBlobStream(final long blobHandle) {
-        final LongHashMap<Pair<TmpBlobVaultBufferedInputStream, Boolean>> blobStreams = this.blobStreams;
-
-        if (blobStreams != null) {
-            return blobStreams.containsKey(blobHandle);
-        }
-
-        return false;
-    }
-
     void deferBlobDeletion(final long blobHandle) {
         if (deferredBlobsToDelete == null) {
             deferredBlobsToDelete = new LongHashSet();
@@ -981,13 +970,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             closeOpenedBlobStreams();
 
             if (blobStreams != null && !blobStreams.isEmpty()) {
-                for (final Pair<TmpBlobVaultBufferedInputStream, Boolean> streamPair : blobStreams.values()) {
+                for (final Pair<Path, Boolean> streamPair : blobStreams.values()) {
                     try {
                         if (!checkInvalidateBlobsFlag || streamPair.second.booleanValue()) {
-                            final TmpBlobVaultBufferedInputStream stream = streamPair.first;
-                            final Path path = stream.getPath();
-
-                            stream.close();
+                            final Path path = streamPair.first;
                             Files.deleteIfExists(path);
                         }
                     } catch (IOException e) {
@@ -1091,10 +1077,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (blobStreams != null) {
                 tmpBlobFiles = new LongHashMap<>();
 
-                for (final Map.Entry<Long, Pair<TmpBlobVaultBufferedInputStream, Boolean>> entry : blobStreams.entrySet()) {
-                    final TmpBlobVaultBufferedInputStream stream = entry.getValue().first;
-                    stream.close();
-                    tmpBlobFiles.put(entry.getKey(), stream.getPath());
+                for (final Map.Entry<Long, Pair<Path, Boolean>> entry : blobStreams.entrySet()) {
+                    tmpBlobFiles.put(entry.getKey(), entry.getValue().first);
                 }
             } else {
                 tmpBlobFiles = null;

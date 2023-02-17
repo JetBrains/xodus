@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -42,8 +43,8 @@ public interface DiskBasedBlobVault {
 
     void close();
 
-    @NotNull BufferedInputStream copyToTemporaryStore(long handle, final @NotNull InputStream stream,
-                                                      @Nullable StoreTransaction transaction) throws IOException;
+    @NotNull Pair<Path, Long> copyToTemporaryStore(long handle, final @NotNull InputStream stream,
+                                       @Nullable StoreTransaction transaction) throws IOException;
 
     @NotNull InputStream openTmpStream(long handle, @NotNull Path path) throws IOException;
 }

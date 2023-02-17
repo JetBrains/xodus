@@ -17,13 +17,13 @@ package jetbrains.exodus.crypto
 
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.LongSet
+import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.entitystore.BlobVault
 import jetbrains.exodus.entitystore.BlobVaultItem
 import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.env.Transaction
-import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -121,7 +121,7 @@ class EncryptedBlobVault(
         handle: Long,
         stream: InputStream,
         transaction: StoreTransaction?
-    ): BufferedInputStream {
+    ): Pair<Path, Long> {
         return decorated.copyToTemporaryStore(handle, StreamCipherInputStream(stream) {
             newCipher(handle)
         }, transaction)
