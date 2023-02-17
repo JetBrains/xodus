@@ -384,7 +384,13 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     @Override
     public @NotNull BufferedInputStream copyToTemporaryStore(long handle, @NotNull final InputStream stream,
                                                              @Nullable StoreTransaction transaction) throws IOException {
-        final Path tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement());
+        final Path tempFile;
+        if (handle >= 0) {
+            tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement() + "-" + handle);
+        } else {
+            tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement());
+        }
+
         long read;
         try {
             try (OutputStream out = Files.newOutputStream(tempFile, StandardOpenOption.CREATE_NEW,
