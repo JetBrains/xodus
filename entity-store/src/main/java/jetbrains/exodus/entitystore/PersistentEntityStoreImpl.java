@@ -1344,7 +1344,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     tmpFilePair.first, invalidate);
             setBlobFileLength(txn, blobHandle, tmpFilePair.second);
 
-            return new TmpFileData(path, null, fileSize, blobHandle);
+            return new TmpFileData(path, null, fileSize, tmpHandle);
         }
 
         return new TmpFileData(null, bufferedStream, size, blobHandle);
