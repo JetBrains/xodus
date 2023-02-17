@@ -1076,9 +1076,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             final LongHashMap<Path> tmpBlobFiles;
             final LongHashMap<InputStream> tmpStreams;
 
+            final ArrayList<Path> filesToDelete = new ArrayList<>();
+
             if (blobStreams != null) {
                 tmpBlobFiles = new LongHashMap<>();
                 tmpStreams = new LongHashMap<>();
+
 
                 boolean encryptedStorage = blobVault instanceof EncryptedBlobVault;
 
@@ -1091,6 +1094,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                         tmpBlobFiles.put(entry.getKey(), entry.getValue().first);
                     } else {
                         tmpStreams.put(blobHandle, ((DiskBasedBlobVault) blobVault).openTmpStream(tmpBlobHandle, triple.first));
+                        filesToDelete.add(triple.first);
                     }
                 }
             } else {
@@ -1099,6 +1103,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             }
 
             blobVault.flushBlobs(tmpStreams, blobFiles, tmpBlobFiles, deferredBlobsToDelete, txn);
+
+            for (final Path fileToDelete : filesToDelete) {
+                Files.deleteIfExists(fileToDelete);
+            }
 
             blobStreams = null;
             blobFiles = null;
