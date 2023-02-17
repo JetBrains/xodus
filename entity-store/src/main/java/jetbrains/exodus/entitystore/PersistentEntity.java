@@ -25,7 +25,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
@@ -180,10 +182,10 @@ public class PersistentEntity implements Entity, TxnProvider {
     }
 
     @Override
-    public InputStream setBlob(@NotNull final String blobName, @NotNull final InputStream blob) {
+    public void setBlob(@NotNull final String blobName, @NotNull final InputStream blob) {
         assertWritable();
         try {
-            return store.setBlob(getTransaction(), this, blobName, blob);
+            store.setBlob(getTransaction(), this, blobName, blob);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -194,6 +196,26 @@ public class PersistentEntity implements Entity, TxnProvider {
         assertWritable();
         try {
             store.setBlob(getTransaction(), this, blobName, file);
+        } catch (Exception e) {
+            throw ExodusException.toEntityStoreException(e);
+        }
+    }
+
+    public TmpFileData setDnqBlob(@NotNull final String blobName, @NotNull final InputStream stream) {
+        assertWritable();
+        try {
+            return store.setDnqBlob(getTransaction(), this, blobName, stream);
+        } catch (Exception e) {
+            throw ExodusException.toEntityStoreException(e);
+        }
+    }
+
+    public TmpFileData setDnqBlob(@NotNull final PersistentStoreTransaction txn,
+                                  @NotNull final PersistentEntity entity,
+                                  @NotNull final String blobName, @NotNull final TmpFileData tmpFileData) {
+        assertWritable();
+        try {
+            return store.setDnqBlob(txn, entity, blobName, tmpFileData);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
