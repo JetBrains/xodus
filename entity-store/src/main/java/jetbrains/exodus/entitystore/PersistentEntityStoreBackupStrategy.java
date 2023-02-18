@@ -30,6 +30,8 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
     private final PersistentEntityStoreImpl store;
     private long lastUsedHandle;
 
+    private PersistentStoreTransaction transaction;
+
     public PersistentEntityStoreBackupStrategy(@NotNull final PersistentEntityStoreImpl store) {
         this.store = store;
         environmentBackupStrategy = new BackupStrategyDecorator(store.getEnvironment().getBackupStrategy());
@@ -82,6 +84,8 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         } finally {
             txn.abort();
         }
+
+        transaction = store.beginReadonlyTransaction();
     }
 
     @Override
@@ -117,6 +121,8 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
     @Override
     public void afterBackup() throws Exception {
+        transaction.abort();
+
         store.getEnvironment().resumeGC();
 
         blobVaultBackupStrategy.afterBackup();
