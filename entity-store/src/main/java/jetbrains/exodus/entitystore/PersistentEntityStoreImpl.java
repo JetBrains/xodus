@@ -1339,14 +1339,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                     @NotNull final PersistentEntity entity,
                                     @NotNull final String blobName, @NotNull final TmpBlobHandle tmpBlobHandle)
             throws IOException {
-        if (tmpBlobHandle.path == null) {
-            Objects.requireNonNull(tmpBlobHandle.stream);
-            return doSetBlob(txn, entity, blobName, tmpBlobHandle.stream, false);
-        }
-
         if (tmpBlobHandle.size == 0) {
             createBlobHandle(txn, entity, blobName, null, 0);
             return tmpBlobHandle;
+        }
+
+        if (tmpBlobHandle.path == null) {
+            Objects.requireNonNull(tmpBlobHandle.stream);
+            return doSetBlob(txn, entity, blobName, tmpBlobHandle.stream, false);
         }
 
         final Path path = tmpBlobHandle.path;
