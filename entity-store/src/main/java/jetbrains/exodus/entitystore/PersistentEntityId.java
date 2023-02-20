@@ -20,26 +20,13 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase;
 import org.jetbrains.annotations.NotNull;
 
 public class PersistentEntityId implements EntityId {
-
     @NotNull
-    public static final PersistentEntityId EMPTY_ID = new PersistentEntityId(0, 0);
+    public static final EntityId EMPTY_ID = new EmptyId();
 
     private static final long serialVersionUID = -3875948066835180514L;
 
     private final int entityTypeId;
     private final long entityLocalId;
-
-    /**
-     * Generic entity id constructor.
-     *
-     * @param entityTypeId  entity type id.
-     * @param entityLocalId local entity id within entity type.
-     * @param version       entity version.
-     */
-    public PersistentEntityId(final int entityTypeId, final long entityLocalId, final int version) {
-        this.entityTypeId = entityTypeId;
-        this.entityLocalId = entityLocalId;
-    }
 
     /**
      * Generic constructor for id of the last (up-to-date) version of entity.
