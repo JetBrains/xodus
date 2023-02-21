@@ -13,6 +13,8 @@ import java.util.function.Function;
 
 import static jetbrains.exodus.log.BufferedDataWriter.*;
 
+
+
 enum OperationType {
     PUT, //todo convert to int later, for ex 0 and 1
     REMOVE
@@ -38,7 +40,7 @@ class MVCCDataStructure {
     private static final AtomicLong address = new AtomicLong();
     private static AtomicLong snapshotId = new AtomicLong(1L); //todo initial value?
     private static AtomicLong writeTxSnapshotId = snapshotId;
-    private static void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
+    private void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
         while(true) {
             long value = mvccRecord.maxTransactionId.get();
             // prohibit any write transaction to spoil situation here
@@ -59,7 +61,7 @@ class MVCCDataStructure {
 
     // should be separate for with duplicates and without, for now we do without only
     // todo in get() if we have remove, return NULL
-    public static ByteIterable read(Transaction currentTransaction, ByteIterable key) {
+    public ByteIterable read(Transaction currentTransaction, ByteIterable key) {
 
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
 
@@ -126,7 +128,7 @@ class MVCCDataStructure {
         return searchInBTree(key);
     }
 
-    private static ByteIterable searchInBTree(ByteIterable key){
+    private ByteIterable searchInBTree(ByteIterable key){
         // mock method for the search of the operation in B-tree
         return null;
     }
@@ -143,39 +145,39 @@ class MVCCDataStructure {
         commitTransaction(transaction);
     }
 
-    public static void put(Transaction transaction,
+    public void put(Transaction transaction,
                            ByteIterable key,
                            ByteIterable value) {
         addToLog(transaction, key, value, OperationType.PUT);
     }
 
-    public static void remove(Transaction transaction,
+    public void remove(Transaction transaction,
                               ByteIterable key,
                               ByteIterable value) {
         addToLog(transaction, key, value, OperationType.REMOVE);
     }
 
-    public static void addToLog(Transaction transaction,
+    public void addToLog(Transaction transaction,
                                 ByteIterable key,
                                 ByteIterable value,
                                 OperationType operationType) {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-        transaction.setHashAddressPair(new LongLongImmutablePair(keyHashCode, recordAddress));
+        transaction.addToHashAddressPairList(new LongLongImmutablePair(keyHashCode, recordAddress));
 
         operationLog.put(recordAddress, new OperationLogRecord(key, value, snapshotId.get(), operationType));
         transaction.setOperationLink(new OperationReferenceEntry(recordAddress, snapshotId.get()));
     }
 
-    public static Transaction startReadTransaction() {
+    public Transaction startReadTransaction() {
         return startTransaction(TransactionType.READ);
     }
 
-    public static Transaction startWriteTransaction() {
+    public Transaction startWriteTransaction() {
         return startTransaction(TransactionType.WRITE);
     }
 
-    public static Transaction startTransaction(TransactionType type) {
+    public Transaction startTransaction(TransactionType type) {
         Transaction newTransaction;
         if (type == TransactionType.READ){
             newTransaction = new Transaction(snapshotId.get(), type);
@@ -186,11 +188,11 @@ class MVCCDataStructure {
         return newTransaction;
     }
 
-    public static void commitTransaction(Transaction transaction) {
+    public void commitTransaction(Transaction transaction) {
         // todo replace to if (mvcc records collection is empty)
         if (transaction.type == TransactionType.WRITE){
             var currentSnapId = snapshotId;
-            var keyHashCode = transaction.hashAddressPair.firstLong();
+            var keyHashCode = transaction.hashAddressPairList.first().firstLong(); // todo which one to take?
             MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
             hashMap.putIfAbsent(keyHashCode, mvccRecord);
             mvccRecord.linksToOperationsQueue.add(transaction.operationLink);

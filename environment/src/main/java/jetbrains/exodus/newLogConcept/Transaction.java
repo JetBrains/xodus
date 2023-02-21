@@ -10,18 +10,11 @@ enum TransactionState {
     COMPLETED
 }
 
-enum TransactionType {
-    READ,
-    WRITE
-}
-
-class Transaction {
+public class Transaction {
     final TransactionType type;
     long snapshotId;
     OperationReferenceEntry operationLink; // array of links to record in OL
-    LongLongPair hashAddressPair;
-
-    // todo convert to array   ArrayList<LongLongPair> hashAddressPair = new ArrayList<>();
+    ArrayList<LongLongPair> hashAddressPairList = new ArrayList<>();
     Transaction(long snapshotId,
                 TransactionType type) {
         this.snapshotId = snapshotId;
@@ -32,8 +25,8 @@ class Transaction {
         this.operationLink = linkEntry;
     }
 
-    public void setHashAddressPair(LongLongPair hashAddressPair) {
-        this.hashAddressPair = hashAddressPair;
+    public void addToHashAddressPairList(LongLongPair hashAddressPair) {
+        this.hashAddressPairList.add(hashAddressPair);
     }
 
 }
