@@ -201,13 +201,10 @@ public interface Entity extends Comparable<Entity> {
      * Sets value (as {@linkplain InputStream}) of blob with specified name.
      * <p>
      * Stream instance can not be used once it is passed into the entity. If you wish to use stream after passing it
-     * into the entity please call {@linkplain  #getBlob(String)}, or use stream returned as result of the call of this
-     * method.
+     * into the entity please call {@linkplain  #getBlob(String)}.
      *
      * @param blobName name of the blob
      * @param blob     blob value as {@linkplain InputStream}
-     * @return InputStream which is stored in entity store. Original input stream is closed during processing of
-     * passed in stream. Returned stream is valid only during duration of the transaction.
      * @see #getBlob(String)
      * @see #getBlobSize(String)
      * @see #getBlobString(String)
@@ -216,7 +213,7 @@ public interface Entity extends Comparable<Entity> {
      * @see #deleteBlob(String)
      * @see PersistentEntityStoreConfig#getMaxInPlaceBlobSize()
      */
-    InputStream setBlob(@NotNull final String blobName, @NotNull final InputStream blob);
+    void setBlob(@NotNull final String blobName, @NotNull final InputStream blob);
 
     /**
      * Sets value (as contents of {@linkplain File}) of blob with specified name.

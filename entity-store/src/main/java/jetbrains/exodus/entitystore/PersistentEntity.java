@@ -180,10 +180,10 @@ public class PersistentEntity implements Entity, TxnProvider {
     }
 
     @Override
-    public InputStream setBlob(@NotNull final String blobName, @NotNull final InputStream blob) {
+    public void setBlob(@NotNull final String blobName, @NotNull final InputStream blob) {
         assertWritable();
         try {
-            return store.setBlob(getTransaction(), this, blobName, blob);
+            store.setBlob(getTransaction(), this, blobName, blob);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -194,6 +194,24 @@ public class PersistentEntity implements Entity, TxnProvider {
         assertWritable();
         try {
             store.setBlob(getTransaction(), this, blobName, file);
+        } catch (Exception e) {
+            throw ExodusException.toEntityStoreException(e);
+        }
+    }
+
+    public TmpBlobHandle setDnqBlob(@NotNull final String blobName, @NotNull final InputStream stream) {
+        assertWritable();
+        try {
+            return store.setDnqBlob(getTransaction(), this, blobName, stream);
+        } catch (Exception e) {
+            throw ExodusException.toEntityStoreException(e);
+        }
+    }
+
+    public TmpBlobHandle setDnqBlob(@NotNull final String blobName, @NotNull final TmpBlobHandle tmpBlobHandle) {
+        assertWritable();
+        try {
+            return store.setDnqBlob(getTransaction(), this, blobName, tmpBlobHandle);
         } catch (Exception e) {
             throw ExodusException.toEntityStoreException(e);
         }
@@ -211,6 +229,19 @@ public class PersistentEntity implements Entity, TxnProvider {
             throw ExodusException.toEntityStoreException(e);
         }
         return true;
+    }
+
+    public TmpBlobHandle setDnqBlobString(@NotNull final String blobName, @NotNull final String blobString) {
+        String oldValue = getBlobString(blobName);
+        if (blobString.equals(oldValue)) {
+            return null;
+        }
+
+        try {
+            return store.setDnqBlobString(getTransaction(), this, blobName, blobString);
+        } catch (Exception e) {
+            throw ExodusException.toEntityStoreException(e);
+        }
     }
 
     @Override

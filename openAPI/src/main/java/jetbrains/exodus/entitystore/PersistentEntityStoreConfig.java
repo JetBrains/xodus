@@ -380,15 +380,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      */
     public static final String USE_INT_FOR_LOCAL_ID = "exodus.entityStore.useIntForLocalId";
 
-    /**
-     * Not for public use, if this parameter set stream returned from {@link Entity#setBlob(String, InputStream)}
-     * will be valid after rollback.
-     * Default value is {@code false}.
-     *
-     * <p>Mutable at runtime: yes
-     */
-    public static final String DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK = "exodus.entityStore.doNotCloseBlobStreamsOnRollback";
-
     private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_SIZE = 4096;
 
     public PersistentEntityStoreConfig() {
@@ -437,7 +428,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
                 new Pair(REPLICATOR, null),
                 new Pair(BLOB_MAX_READ_WAITING_INTERVAL, 300),
-                new Pair(DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK, Boolean.FALSE),
                 new Pair(BLOBS_DIRECTORY_LOCATION, null)
 
         }, strategy);
@@ -773,14 +763,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreReplicator getStoreReplicator() {
         return (PersistentEntityStoreReplicator) getSetting(REPLICATOR);
-    }
-
-    public PersistentEntityStoreConfig setDoNotInvalidateBlobStreamsOnRollback(final boolean value) {
-        return setSetting(DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK, Boolean.valueOf(value));
-    }
-
-    public boolean getDoNotInvalidateBlobStreamsOnRollback() {
-        return ((Boolean) getSetting(DO_NOT_INVALIDATE_BLOB_STREAMS_ON_ROLLBACK)).booleanValue();
     }
 
     public PersistentEntityStoreConfig setBlobsDirectoryLocation(final String value) {

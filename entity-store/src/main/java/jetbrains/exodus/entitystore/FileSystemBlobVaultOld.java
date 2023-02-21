@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
+import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
@@ -34,10 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -62,6 +61,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     private VaultSizeFunctions sizeFunctions;
 
     private final Path tmpBlobsDir;
+
+    private final AtomicLong tempFileCounter = new AtomicLong();
 
 
     /**
@@ -144,6 +145,9 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     private void setContent(final long blobHandle, @NotNull final InputStream content) throws Exception {
         final File location = getBlobLocation(blobHandle, false);
         setContentImpl(content, location);
+
+        setPosixPermissions(location);
+
         if (size.get() != UNKNOWN_SIZE) {
             size.addAndGet(IOUtil.getAdjustedFileLength(location));
         }
@@ -157,8 +161,28 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
             Files.move(file, location.toPath());
         }
 
+        setPosixPermissions(location);
+
         if (size.get() != UNKNOWN_SIZE) {
             size.addAndGet(IOUtil.getAdjustedFileLength(location));
+        }
+    }
+
+    private static void setPosixPermissions(File location) {
+        final HashSet<PosixFilePermission> permissions = new HashSet<>();
+        permissions.add(PosixFilePermission.OWNER_WRITE);
+        permissions.add(PosixFilePermission.OWNER_READ);
+
+        permissions.add(PosixFilePermission.GROUP_READ);
+        permissions.add(PosixFilePermission.OTHERS_READ);
+
+
+        try {
+            Files.setPosixFilePermissions(location.toPath(), permissions);
+        } catch (IOException e) {
+            logger.error("Setting of POSIX permissions was failed", e);
+        } catch (UnsupportedOperationException e) {
+            //ignore
         }
     }
 
@@ -359,17 +383,21 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     }
 
     @Override
-    public @NotNull BufferedInputStream copyToTemporaryStore(long handle, @NotNull final InputStream stream,
-                                                             @Nullable StoreTransaction transaction) throws IOException {
-        Path tempFile = Files.createTempFile(tmpBlobsDir, "xodus", "tmp-blob");
+    public @NotNull Pair<Path, Long> copyToTemporaryStore(long handle, @NotNull final InputStream stream,
+                                                          @Nullable StoreTransaction transaction) throws IOException {
+        final Path tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement());
 
-        try (OutputStream out = Files.newOutputStream(tempFile)) {
-            IOUtil.copyStreams(stream, out, IOUtil.getBUFFER_ALLOCATOR());
+        long read;
+        try {
+            try (OutputStream out = Files.newOutputStream(tempFile, StandardOpenOption.CREATE_NEW,
+                    StandardOpenOption.WRITE)) {
+                read = IOUtil.copyStreams(stream, out, IOUtil.getBUFFER_ALLOCATOR());
+            }
+        } finally {
+            stream.close();
         }
-        stream.close();
 
-        return new TmpBlobVaultBufferedInputStream(Files.newInputStream(tempFile), tempFile, handle,
-                (PersistentStoreTransaction) transaction);
+        return new Pair<>(tempFile, read);
     }
 
     @Override
