@@ -25,6 +25,7 @@ import jetbrains.exodus.env.DatabaseRoot
 import jetbrains.exodus.io.*
 import jetbrains.exodus.io.inMemory.MemoryDataReader
 import jetbrains.exodus.kotlin.notNull
+import jetbrains.exodus.tree.ExpiredLoggableCollection
 import jetbrains.exodus.util.DeferredIO
 import jetbrains.exodus.util.IdGenerator
 import mu.KLogging
@@ -989,12 +990,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         return LoggableIterator(this, startAddress)
     }
 
-    fun tryWrite(type: Byte, structureId: Int, data: ByteIterable): Long {
+    fun tryWrite(type: Byte, structureId: Int, data: ByteIterable, expiredLoggables: ExpiredLoggableCollection): Long {
         // allow new file creation only if new file starts loggable
-        val result = writeContinuously(type, structureId, data)
+        val result = writeContinuously(type, structureId, data, expiredLoggables)
         if (result < 0) {
             // rollback loggable and pad last file with nulls
-            doPadWithNulls()
+            doPadWithNulls(expiredLoggables)
         }
         return result
     }
@@ -1006,17 +1007,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
      * @param loggable - loggable to write.
      * @return address where the loggable was placed.
      */
-    fun write(loggable: Loggable): Long {
-        return write(loggable.type, loggable.structureId, loggable.data)
+    fun write(loggable: Loggable, expiredLoggables: ExpiredLoggableCollection): Long {
+        return write(loggable.type, loggable.structureId, loggable.data, expiredLoggables)
     }
 
-    fun write(type: Byte, structureId: Int, data: ByteIterable): Long {
+    fun write(type: Byte, structureId: Int, data: ByteIterable, expiredLoggables: ExpiredLoggableCollection): Long {
         // allow new file creation only if new file starts loggable
-        var result = writeContinuously(type, structureId, data)
+        var result = writeContinuously(type, structureId, data, expiredLoggables)
         if (result < 0) {
             // rollback loggable and pad last file with nulls
-            doPadWithNulls()
-            result = writeContinuously(type, structureId, data)
+            doPadWithNulls(expiredLoggables)
+            result = writeContinuously(type, structureId, data, expiredLoggables)
             if (result < 0) {
                 throw TooBigLoggableException()
             }
@@ -1223,8 +1224,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
-    fun doPadWithNulls() {
-        if (writer.padWithNulls(fileLengthBound, nullPage)) {
+    fun doPadWithNulls(expiredLoggables: ExpiredLoggableCollection) {
+        val address = writer.currentHighAddress
+        val written = writer.padWithNulls(fileLengthBound, nullPage)
+
+        if (written > 0) {
+            expiredLoggables.add(address, written)
             writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
         }
     }
@@ -1348,7 +1353,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         return highAddress - alignment // aligned address
     }
 
-    fun writeContinuously(type: Byte, structureId: Int, data: ByteIterable): Long {
+    fun writeContinuously(
+        type: Byte, structureId: Int, data: ByteIterable,
+        expiredLoggables: ExpiredLoggableCollection
+    ): Long {
         if (rwIsReadonly) {
             throw ExodusException("Environment is working in read-only mode. No writes are allowed")
         }
@@ -1381,9 +1389,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
 
             if (delta > 0) {
+                val gapAddress = writer.currentHighAddress
                 val written = writer.padPageWithNulls()
+
                 assert(written == delta)
                 result += written
+                expiredLoggables.add(gapAddress, written)
+
                 assert(result % cachePageSize.toLong() == 0L)
             }
 
@@ -1391,10 +1403,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             writeByteIterable(writer, structureIdIterable)
             writeByteIterable(writer, dataLengthIterable)
+
             if (dataLength > 0) {
                 writeByteIterable(writer, data)
             }
-
         }
 
         writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)

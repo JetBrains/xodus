@@ -462,7 +462,7 @@ public final class BufferedDataWriter {
         }
     }
 
-    boolean padWithNulls(long fileLengthBound, byte[] nullPage) {
+    int padWithNulls(long fileLengthBound, byte[] nullPage) {
         checkWriteError();
 
         assert nullPage.length == pageSize;
@@ -478,7 +478,7 @@ public final class BufferedDataWriter {
             currentHighAddress += written;
 
             assert (int) (currentHighAddress & pageSizeMask) == (this.currentPage.writtenCount & pageSizeMask);
-            return written > 0;
+            return written;
         }
 
         final long reminder = fileLengthBound - spaceWritten;
@@ -495,7 +495,7 @@ public final class BufferedDataWriter {
 
         currentHighAddress += written;
         assert (int) (currentHighAddress & pageSizeMask) == (this.currentPage.writtenCount & pageSizeMask);
-        return written > 0;
+        return written;
     }
 
     private MutablePage allocateNewPageIfNeeded() {
@@ -591,7 +591,7 @@ public final class BufferedDataWriter {
 
         if (writeCache.size() == 1) {
             var entry = writeCache.entrySet().iterator().next();
-            assert entry.getKey().longValue() == currentPage.pageAddress;
+            assert entry.getKey() == currentPage.pageAddress;
             assert entry.getValue().written.get() < pageSize;
         }
 
@@ -736,7 +736,7 @@ public final class BufferedDataWriter {
             var blockSet = blockSetMutable;
             var lastFile = blockSet.getMaximum();
             if (lastFile != null) {
-                var lastFileAddress = lastFile.longValue();
+                var lastFileAddress = lastFile;
                 var block = blockSet.getBlock(lastFileAddress);
 
                 var refreshed = block.refresh();

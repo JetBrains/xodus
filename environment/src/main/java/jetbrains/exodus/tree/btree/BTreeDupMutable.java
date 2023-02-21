@@ -76,10 +76,12 @@ final class BTreeDupMutable extends BTreeMutable {
         ByteIterable[] iterables;
         long result;
         final boolean canRetry;
+        var expired = getExpiredLoggables();
+
         if (log.isLastWrittenFileAddress(startAddress)) {
             sizeIterable = CompressedUnsignedLongByteIterable.getIterable(size << 1);
             iterables = new ByteIterable[]{keyIterable, key, sizeIterable, rootDataIterable};
-            result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables));
+            result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables), expired);
             if (result >= 0) {
                 address = result;
                 return result;
@@ -105,11 +107,11 @@ final class BTreeDupMutable extends BTreeMutable {
                 CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
         iterables = new ByteIterable[]{keyIterable, key, sizeIterable, offsetIterable, rootDataIterable};
         final ByteIterable data = new CompoundByteIterable(iterables);
-        result = canRetry ? log.tryWrite(type, structureId, data) : log.writeContinuously(type, structureId, data);
+        result = canRetry ? log.tryWrite(type, structureId, data, expired) : log.writeContinuously(type, structureId, data, expired);
         if (result < 0) {
             if (canRetry) {
                 iterables[3] = CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress);
-                result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables));
+                result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables), expired);
 
                 if (result < 0) {
                     throw new TooBigLoggableException();
@@ -134,8 +136,7 @@ final class BTreeDupMutable extends BTreeMutable {
     }
 
     @Override
-    @Nullable
-    public Iterable<ITreeCursorMutable> getOpenCursors() {
+    public @NotNull Iterable<ITreeCursorMutable> getOpenCursors() {
         return throwCantOpenCursor();
     }
 
@@ -188,7 +189,7 @@ final class BTreeDupMutable extends BTreeMutable {
 
                 @Override
                 public String toString() {
-                    return "DLN {key:" + getKey().toString() + "} @ " + getAddress();
+                    return "DLN {key:" + getKey() + "} @ " + getAddress();
                 }
             };
         } else {

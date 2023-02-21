@@ -322,13 +322,20 @@ internal class PatriciaTreeMutable(
 
     private fun addExpiredLoggable(sourceLoggable: RandomAccessLoggable?) {
         if (sourceLoggable != null && sourceLoggable.address != Loggable.NULL_ADDRESS) {
-            var expiredLoggables = expiredLoggables
-            if (expiredLoggables == null) {
-                expiredLoggables = ExpiredLoggableCollection()
-                this.expiredLoggables = expiredLoggables
-            }
+            val expiredLoggables = getOrInitExperedLoggables()
             expiredLoggables.add(sourceLoggable)
         }
+    }
+
+    fun getOrInitExperedLoggables(): ExpiredLoggableCollection {
+        var expiredLoggables = expiredLoggables
+
+        if (expiredLoggables == null) {
+            expiredLoggables = ExpiredLoggableCollection()
+            this.expiredLoggables = expiredLoggables
+        }
+
+        return expiredLoggables
     }
 
     private fun deleteImpl(key: ByteIterable): Boolean {

@@ -118,6 +118,8 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
         final BTreeBase tree = getTree();
         final int structureId = tree.structureId;
         final Log log = tree.log;
+        var expiredLoggables = ((BTreeMutable)tree).getExpiredLoggables();
+
         if (flag == ReclaimFlag.PRESERVE) {
             // there is a chance to update the flag to RECLAIM
             if (log.getWrittenHighAddress() % log.getFileLengthBound() == 0) {
@@ -125,12 +127,13 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
                 flag = ReclaimFlag.RECLAIM;
             } else {
                 final ByteIterable[] iterables = getByteIterables(flag);
-                long result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables));
+
+                long result = log.tryWrite(type, structureId, new CompoundByteIterable(iterables), expiredLoggables);
                 if (result < 0) {
                     iterables[0] = CompressedUnsignedLongByteIterable.getIterable(
-                        (size << 1) + ReclaimFlag.RECLAIM.value
+                        ((long) size << 1) + ReclaimFlag.RECLAIM.value
                     );
-                    result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables));
+                    result = log.writeContinuously(type, structureId, new CompoundByteIterable(iterables), expiredLoggables);
 
                     if (result < 0) {
                         throw new TooBigLoggableException();
@@ -139,7 +142,8 @@ abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
                 return result;
             }
         }
-        return log.write(type, structureId, new CompoundByteIterable(getByteIterables(flag)));
+
+        return log.write(type, structureId, new CompoundByteIterable(getByteIterables(flag)), expiredLoggables);
     }
 
     protected abstract byte getType();

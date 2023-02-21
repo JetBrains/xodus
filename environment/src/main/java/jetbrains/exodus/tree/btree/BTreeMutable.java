@@ -219,7 +219,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
                 savedData
         };
 
-        return log.write(type, structureId, new CompoundByteIterable(iterables));
+        return log.write(type, structureId, new CompoundByteIterable(iterables), getExpiredLoggables());
     }
 
     protected void addExpiredLoggable(@NotNull Loggable loggable) {
