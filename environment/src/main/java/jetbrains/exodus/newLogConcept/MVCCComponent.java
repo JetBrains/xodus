@@ -1,5 +1,4 @@
 package jetbrains.exodus.newLogConcept;
-import it.unimi.dsi.fastutil.longs.LongLongImmutablePair;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
@@ -163,10 +162,9 @@ class MVCCDataStructure {
                                 OperationType operationType) {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-        transaction.addToHashAddressPairList(new LongLongImmutablePair(keyHashCode, recordAddress));
-
-        operationLog.put(recordAddress, new OperationLogRecord(key, value, snapshotId.get(), operationType));
-        transaction.setOperationLink(new OperationReferenceEntry(recordAddress, snapshotId.get()));
+        var snapshot = snapshotId.get();
+        transaction.addOperationLink(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
+        operationLog.put(recordAddress, new OperationLogRecord(key, value, snapshot, operationType));
     }
 
     public Transaction startReadTransaction() {
@@ -192,25 +190,28 @@ class MVCCDataStructure {
         // todo replace to if (mvcc records collection is empty)
         if (transaction.type == TransactionType.WRITE){
             var currentSnapId = snapshotId;
-            var keyHashCode = transaction.hashAddressPairList.first().firstLong(); // todo which one to take?
-            MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
-            hashMap.putIfAbsent(keyHashCode, mvccRecord);
-            mvccRecord.linksToOperationsQueue.add(transaction.operationLink);
+            for (var operation: transaction.operationLinkList) {
+                var keyHashCode = operation.keyHashCode;
+                MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
+                hashMap.putIfAbsent(keyHashCode, mvccRecord);
+                mvccRecord.linksToOperationsQueue.add(operation);
 
-            // operation status check
-            if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
-                transaction.operationLink.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
-                //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
-                throw new ExodusException(); // rollback
+                // operation status check
+                if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
+                    operation.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
+                    //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
+                    throw new ExodusException(); // rollback
+                }
+
+                var txSnapId = transaction.snapshotId;
+                if (currentSnapId.get() < txSnapId) {
+                    snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
+                }
+                operation.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
+                // advanced approach: state-machine
+                //here we first work with collection, after that increment version, in read vica versa
             }
 
-            var txSnapId = transaction.snapshotId;
-            if (currentSnapId.get() < txSnapId) {
-                snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
-            }
-            transaction.operationLink.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
-            // advanced approach: state-machine
-            //here we first work with collection, after that increment version, in read vica versa
         }
     }
 }
