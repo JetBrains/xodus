@@ -196,17 +196,20 @@ class MVCCDataStructure {
                 hashMap.putIfAbsent(keyHashCode, mvccRecord);
                 mvccRecord.linksToOperationsQueue.add(operation);
 
-                // operation status check
-                if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
-                    operation.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
-                    //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
-                    throw new ExodusException(); // rollback
+                while(true) {
+                    // operation status check
+                    if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
+                        operation.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
+                        //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
+                        throw new ExodusException(); // rollback
+                    }
+                    var txSnapId = transaction.snapshotId;
+                    if (currentSnapId.get() < txSnapId) {
+                        snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
+                        break;
+                    }
                 }
 
-                var txSnapId = transaction.snapshotId;
-                if (currentSnapId.get() < txSnapId) {
-                    snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
-                }
                 operation.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
                 // advanced approach: state-machine
                 //here we first work with collection, after that increment version, in read vica versa
