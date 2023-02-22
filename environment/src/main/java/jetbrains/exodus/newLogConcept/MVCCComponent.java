@@ -52,6 +52,67 @@ class MVCCDataStructure {
         }
     };
 
+
+    private ByteIterable searchInBTree(ByteIterable key){
+        // mock method for the search of the operation in B-tree
+        return null;
+    }
+
+    // mock method for testing purposes
+    void doSomething() {
+        var transaction = startWriteTransaction();
+        var key = ByteIterable.EMPTY;
+        var value = ByteIterable.EMPTY;
+
+        put(transaction, key, value);
+        remove(transaction, key, value);
+
+        commitTransaction(transaction);
+    }
+
+
+    public Transaction startReadTransaction() {
+        return startTransaction(TransactionType.READ);
+    }
+
+    public Transaction startWriteTransaction() {
+        return startTransaction(TransactionType.WRITE);
+    }
+
+    public Transaction startTransaction(TransactionType type) {
+        Transaction newTransaction;
+        if (type == TransactionType.READ){
+            newTransaction = new Transaction(snapshotId.get(), type);
+        } else {
+            newTransaction = new Transaction(writeTxSnapshotId.incrementAndGet(), type);
+        }
+        return newTransaction;
+    }
+
+    public void put(Transaction transaction,
+                           ByteIterable key,
+                           ByteIterable value) {
+        addToLog(transaction, key, value, 0);
+    }
+
+    public void remove(Transaction transaction,
+                              ByteIterable key,
+                              ByteIterable value) {
+        addToLog(transaction, key, value, 1);
+    }
+
+    public void addToLog(Transaction transaction,
+                                ByteIterable key,
+                                ByteIterable value,
+                                int operationType) {
+        var recordAddress = address.getAndIncrement();
+        final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
+        var snapshot = snapshotId.get();
+        transaction.addOperationLink(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
+        operationLog.put(recordAddress, new OperationLogRecord(key, value, operationType));
+    }
+
+
     // should be separate for with duplicates and without, for now we do without only
     // in get() if we have remove, return NULL
     public ByteIterable read(Transaction currentTransaction, ByteIterable key) {
@@ -98,17 +159,12 @@ class MVCCDataStructure {
         if (targetOperationInLog.key.equals(key)){
             return targetOperationInLog.value;
         } else {
+
             ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId = new ArrayList<>();
             mvccRecord.linksToOperationsQueue.forEach(linkEntry -> {
-                if (linkEntry.txId < maxTxId) {
-                    while (linkEntry.state == OperationReferenceState.IN_PROGRESS){
-                        Thread.onSpinWait();
-                    }
-                    if (linkEntry.state != OperationReferenceState.ABORTED) {
-                        selectionOfLessThanMaxTxId.add(linkEntry);
-                    }
-                }
+                waitAndAddLinkEntry(linkEntry, selectionOfLessThanMaxTxId, maxTxId);
             });
+
             selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationReferenceEntry::getTxId).reversed());
             for (OperationReferenceEntry linkEntry: selectionOfLessThanMaxTxId) {
                 targetOperationInLog = operationLog.get(linkEntry.operationAddress);
@@ -121,62 +177,17 @@ class MVCCDataStructure {
         return searchInBTree(key);
     }
 
-    private ByteIterable searchInBTree(ByteIterable key){
-        // mock method for the search of the operation in B-tree
-        return null;
-    }
-
-    // mock method for testing purposes
-    void doSomething() {
-        var transaction = startWriteTransaction();
-        var key = ByteIterable.EMPTY;
-        var value = ByteIterable.EMPTY;
-
-        put(transaction, key, value);
-        remove(transaction, key, value);
-
-        commitTransaction(transaction);
-    }
-
-    public void put(Transaction transaction,
-                           ByteIterable key,
-                           ByteIterable value) {
-        addToLog(transaction, key, value, 0);
-    }
-
-    public void remove(Transaction transaction,
-                              ByteIterable key,
-                              ByteIterable value) {
-        addToLog(transaction, key, value, 1);
-    }
-
-    public void addToLog(Transaction transaction,
-                                ByteIterable key,
-                                ByteIterable value,
-                                int operationType) {
-        var recordAddress = address.getAndIncrement();
-        final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-        var snapshot = snapshotId.get();
-        transaction.addOperationLink(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
-        operationLog.put(recordAddress, new OperationLogRecord(key, value, operationType));
-    }
-
-    public Transaction startReadTransaction() {
-        return startTransaction(TransactionType.READ);
-    }
-
-    public Transaction startWriteTransaction() {
-        return startTransaction(TransactionType.WRITE);
-    }
-
-    public Transaction startTransaction(TransactionType type) {
-        Transaction newTransaction;
-        if (type == TransactionType.READ){
-            newTransaction = new Transaction(snapshotId.get(), type);
-        } else {
-            newTransaction = new Transaction(writeTxSnapshotId.incrementAndGet(), type);
+    private void waitAndAddLinkEntry(OperationReferenceEntry linkEntry,
+                                     ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId,
+                                     long maxTxId) {
+        if (linkEntry.txId < maxTxId) {
+            while (linkEntry.state == OperationReferenceState.IN_PROGRESS){
+                Thread.onSpinWait();
+            }
+            if (linkEntry.state != OperationReferenceState.ABORTED) {
+                selectionOfLessThanMaxTxId.add(linkEntry);
+            }
         }
-        return newTransaction;
     }
 
     public void commitTransaction(Transaction transaction) {
@@ -184,11 +195,7 @@ class MVCCDataStructure {
         if (!transaction.operationLinkList.isEmpty()){
             var currentSnapId = snapshotId;
             for (var operation: transaction.operationLinkList) {
-                var keyHashCode = operation.keyHashCode;
-                MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
-                hashMap.putIfAbsent(keyHashCode, mvccRecord);
-                mvccRecord.linksToOperationsQueue.add(operation);
-
+                MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
                 while(true) {
                     // operation status check
                     if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
@@ -206,8 +213,15 @@ class MVCCDataStructure {
                 // advanced approach: state-machine
                 //here we first work with collection, after that increment version, in read vica versa
             }
-
         }
+    }
+
+    private MVCCRecord mvccRecordCreateAndPut(OperationReferenceEntry operation){
+        var keyHashCode = operation.keyHashCode;
+        MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
+        hashMap.putIfAbsent(keyHashCode, mvccRecord);
+        mvccRecord.linksToOperationsQueue.add(operation);
+        return mvccRecord;
     }
 }
 
