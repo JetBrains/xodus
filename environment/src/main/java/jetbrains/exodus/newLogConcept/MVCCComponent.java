@@ -13,12 +13,6 @@ import java.util.function.Function;
 import static jetbrains.exodus.log.BufferedDataWriter.*;
 
 
-
-enum OperationType {
-    PUT, //todo convert to int later, for ex 0 and 1
-    REMOVE
-}
-
 class MVCCRecord {
     final AtomicLong maxTransactionId;
     final MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> linksToOperationsQueue; // array of links to record in OL
@@ -37,8 +31,8 @@ class MVCCDataStructure {
             new NonBlockingHashMapLong<>(); // txID + state
 
     private static final AtomicLong address = new AtomicLong();
-    private static AtomicLong snapshotId = new AtomicLong(1L); //todo initial value?
-    private static AtomicLong writeTxSnapshotId = snapshotId;
+    private static final AtomicLong snapshotId = new AtomicLong(1L); //todo initial value?
+    private static final AtomicLong writeTxSnapshotId = snapshotId;
     private void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
         while(true) {
             long value = mvccRecord.maxTransactionId.get();
@@ -59,7 +53,7 @@ class MVCCDataStructure {
     };
 
     // should be separate for with duplicates and without, for now we do without only
-    // todo in get() if we have remove, return NULL
+    // in get() if we have remove, return NULL
     public ByteIterable read(Transaction currentTransaction, ByteIterable key) {
 
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
@@ -147,24 +141,24 @@ class MVCCDataStructure {
     public void put(Transaction transaction,
                            ByteIterable key,
                            ByteIterable value) {
-        addToLog(transaction, key, value, OperationType.PUT);
+        addToLog(transaction, key, value, 0);
     }
 
     public void remove(Transaction transaction,
                               ByteIterable key,
                               ByteIterable value) {
-        addToLog(transaction, key, value, OperationType.REMOVE);
+        addToLog(transaction, key, value, 1);
     }
 
     public void addToLog(Transaction transaction,
                                 ByteIterable key,
                                 ByteIterable value,
-                                OperationType operationType) {
+                                int operationType) {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
         var snapshot = snapshotId.get();
         transaction.addOperationLink(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
-        operationLog.put(recordAddress, new OperationLogRecord(key, value, snapshot, operationType));
+        operationLog.put(recordAddress, new OperationLogRecord(key, value, operationType));
     }
 
     public Transaction startReadTransaction() {
@@ -182,13 +176,12 @@ class MVCCDataStructure {
         } else {
             newTransaction = new Transaction(writeTxSnapshotId.incrementAndGet(), type);
         }
-
         return newTransaction;
     }
 
     public void commitTransaction(Transaction transaction) {
-        // todo replace to if (mvcc records collection is empty)
-        if (transaction.type == TransactionType.WRITE){
+        // if transaction.type is WRITE
+        if (!transaction.operationLinkList.isEmpty()){
             var currentSnapId = snapshotId;
             for (var operation: transaction.operationLinkList) {
                 var keyHashCode = operation.keyHashCode;
@@ -209,7 +202,6 @@ class MVCCDataStructure {
                         break;
                     }
                 }
-
                 operation.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
                 // advanced approach: state-machine
                 //here we first work with collection, after that increment version, in read vica versa
