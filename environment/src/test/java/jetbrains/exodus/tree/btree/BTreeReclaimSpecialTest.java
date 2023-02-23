@@ -20,6 +20,7 @@ import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.LogTests;
 import jetbrains.exodus.log.NullLoggable;
 import jetbrains.exodus.log.RandomAccessLoggable;
+import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import jetbrains.exodus.tree.ITreeCursor;
 import org.junit.Assert;
 import org.junit.Test;
@@ -42,7 +43,8 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         final long adjustedFileSize = LogTests.adjustedLogFileSize(fileSize, log.getCachePageSize());
         log.beginWrite();
         for (long l = 1; l < adjustedFileSize; ++l) { // fill all file except for one byte with nulls
-            log.write(NullLoggable.create());
+            var expired = ExpiredLoggableCollection.newInstance(log);
+            log.write(NullLoggable.create(), expired);
         }
         log.flush();
         log.endWrite();

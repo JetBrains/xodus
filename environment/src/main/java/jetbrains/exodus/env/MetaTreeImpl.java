@@ -47,7 +47,8 @@ final class MetaTreeImpl implements MetaTree {
         this.highAddress = highAddress;
     }
 
-    static Pair<MetaTreeImpl, Integer> create(@NotNull final EnvironmentImpl env) {
+    static Pair<MetaTreeImpl, Integer> create(@NotNull final EnvironmentImpl env,
+                                              @NotNull ExpiredLoggableCollection expired) {
         final Log log = env.getLog();
         final long highAddress = log.getHighAddress();
         if (highAddress > EMPTY_LOG_BOUND) {
@@ -76,7 +77,7 @@ final class MetaTreeImpl implements MetaTree {
                         final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress(), highAddress);
                         if (metaTree != null) {
                             return new Pair<>(new MetaTreeImpl(metaTree, root, highAddress),
-                                    Integer.valueOf(dbRoot.getLastStructureId()));
+                                    dbRoot.getLastStructureId());
                         }
                     } catch (ExodusException e) {
                         //noinspection ObjectAllocationInLoop
@@ -107,14 +108,14 @@ final class MetaTreeImpl implements MetaTree {
         try {
             final long rootAddress = resultTree.getMutableCopy().save();
             root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-                    DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID));
+                    DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID), expired);
             log.flush();
             createdHighAddress = log.endWrite();
         } catch (Throwable t) {
             throw new ExodusException("Can't init meta tree in log", t);
         }
         return new Pair<>(new MetaTreeImpl(resultTree, root, createdHighAddress),
-                Integer.valueOf(EnvironmentImpl.META_TREE_ID));
+                EnvironmentImpl.META_TREE_ID);
     }
 
     static MetaTreeImpl create(@NotNull final EnvironmentImpl env, final long highAddress,
@@ -218,7 +219,7 @@ final class MetaTreeImpl implements MetaTree {
         final Log log = env.getLog();
         final int lastStructureId = env.getLastStructureId();
         final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-                DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId));
+                DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId), expired);
         expired.add(dbRootAddress, (int) (log.getWrittenHighAddress() - dbRootAddress));
         return new MetaTreeImpl.Proto(newMetaTreeAddress, dbRootAddress);
     }

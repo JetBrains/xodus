@@ -139,7 +139,7 @@ internal open class MutableNode : NodeBase {
      * @param b     next byte of child suffix.
      * @param child child node.
      */
-    fun addRightChild(b: Byte, child: MutableNode) {
+    private fun addRightChild(b: Byte, child: MutableNode) {
         val right = children.right
         require(right == null || right.firstByte.unsigned < b.unsigned)
         children.putRight(ChildReferenceMutable(b, child))
@@ -181,8 +181,8 @@ internal open class MutableNode : NodeBase {
         }
 
         val suffix = MutableNode(
-                suffixKey, value,  // copy children of this node to the suffix one
-                children
+            suffixKey, value,  // copy children of this node to the suffix one
+            children
         )
 
         prefix.setChild(nextByte, suffix)
@@ -196,7 +196,7 @@ internal open class MutableNode : NodeBase {
         val child = ref.getNode(tree)
         value = child.value
         keySequence = CompoundByteIterable(
-                arrayOf(keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence)
+            arrayOf(keySequence, SingleByteIterable.getIterable(ref.firstByte), child.keySequence)
         )
         copyChildrenFrom(child)
     }
@@ -244,8 +244,9 @@ internal open class MutableNode : NodeBase {
         val mainIterable: ByteIterable = nodeStream.asArrayByteIterable()
         val startAddress = context.startAddress
         var result: Long
+        val expiredLoggables = tree.getOrInitExperedLoggables()
         if (!isRoot) {
-            result = log.write(type, structureId, mainIterable)
+            result = log.write(type, structureId, mainIterable, expiredLoggables)
             // save address of the first saved loggable
             if (startAddress == Loggable.NULL_ADDRESS) {
                 context.startAddress = result
@@ -258,7 +259,7 @@ internal open class MutableNode : NodeBase {
         // In that case, startAddress is undefined, i.e. no other child is saved before root.
         if (startAddress == Loggable.NULL_ADDRESS) {
             iterables[1] = mainIterable
-            result = log.write(type, structureId, CompoundByteIterable(iterables, 2))
+            result = log.write(type, structureId, CompoundByteIterable(iterables, 2), expiredLoggables)
             return result
         }
         // Tree is saved with several loggables. Is it saved in a single file?
@@ -269,7 +270,8 @@ internal open class MutableNode : NodeBase {
             iterables[2] = mainIterable
         } else {
             iterables[1] = mainIterable
-            result = log.tryWrite(type, structureId, CompoundByteIterable(iterables, 2))
+            result = log.tryWrite(type, structureId, CompoundByteIterable(iterables, 2), expiredLoggables)
+
             if (result >= 0) {
                 return result
             }
@@ -280,11 +282,16 @@ internal open class MutableNode : NodeBase {
         iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.writtenHighAddress - startAddress)
         val data: ByteIterable = CompoundByteIterable(iterables, pos + 2)
         result =
-                if (singleFile) log.writeContinuously(type, structureId, data) else log.tryWrite(type, structureId, data)
+            if (singleFile) {
+                log.writeContinuously(type, structureId, data, expiredLoggables)
+            } else {
+                log.tryWrite(type, structureId, data, expiredLoggables)
+            }
         if (result < 0) {
             if (!singleFile) {
                 iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.writtenHighAddress - startAddress)
-                result = log.writeContinuously(type, structureId, CompoundByteIterable(iterables, pos + 2))
+                result =
+                    log.writeContinuously(type, structureId, CompoundByteIterable(iterables, pos + 2), expiredLoggables)
                 if (result >= 0) {
                     return result
                 }
@@ -341,9 +348,9 @@ internal open class MutableNode : NodeBase {
         // if this is a sparse node make sure v2 format would result in a more compact saving
         if (childrenCount <= 32) {
             val bytesPerAddressV1 =
-                    children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
+                children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
             if (bytesPerAddress == bytesPerAddressV1 ||
-                    (bytesPerAddressV1 - bytesPerAddress) * childrenCount <= getCompressedSize(baseAddress) + 1
+                (bytesPerAddressV1 - bytesPerAddress) * childrenCount <= getCompressedSize(baseAddress) + 1
             ) {
                 saveChildrenV1(childrenCount, nodeStream)
                 return

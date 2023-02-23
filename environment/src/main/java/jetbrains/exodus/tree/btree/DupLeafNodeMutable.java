@@ -68,7 +68,7 @@ class DupLeafNodeMutable extends BaseLeafNodeMutable {
                 new CompoundByteIterable(new ByteIterable[]{
                         CompressedUnsignedLongByteIterable.getIterable(key.getLength()),
                         key
-                }));
+                }), dupTree.getExpiredLoggables());
         return address;
     }
 
@@ -79,6 +79,6 @@ class DupLeafNodeMutable extends BaseLeafNodeMutable {
 
     @Override
     public String toString() {
-        return "DLN* {key:" + getKey().toString() + "} @ " + getAddress();
+        return "DLN* {key:" + getKey() + "} @ " + getAddress();
     }
 }

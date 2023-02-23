@@ -30,9 +30,6 @@ import java.util.Set;
 
 
 public class BTreeMutable extends BTreeBase implements ITreeMutable {
-
-    private static final int MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE = 100000;
-
     @NotNull
     private BasePageMutable root;
     @NotNull
@@ -219,7 +216,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
                 savedData
         };
 
-        return log.write(type, structureId, new CompoundByteIterable(iterables));
+        return log.write(type, structureId, new CompoundByteIterable(iterables), getExpiredLoggables());
     }
 
     protected void addExpiredLoggable(@NotNull Loggable loggable) {
@@ -249,7 +246,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     public ExpiredLoggableCollection getExpiredLoggables() {
         ExpiredLoggableCollection expiredLoggables = extraBelongings.expiredLoggables;
         if (expiredLoggables == null) {
-            expiredLoggables = new ExpiredLoggableCollection();
+            expiredLoggables = ExpiredLoggableCollection.newInstance(log);
             extraBelongings.expiredLoggables = expiredLoggables;
         }
         return expiredLoggables;
@@ -300,7 +297,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     public boolean reclaim(@NotNull RandomAccessLoggable loggable,
                            @NotNull final Iterator<RandomAccessLoggable> loggables) {
         final BTreeReclaimTraverser context = new BTreeReclaimTraverser(this);
-
+        final long nextFileAddress = log.getFileAddress(loggable.getAddress()) + log.getFileLengthBound();
         loop:
         while (true) {
             final byte type = loggable.getType();
@@ -345,16 +342,13 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             if (!loggables.hasNext()) {
                 break;
             }
-            // if we have reached the end of file and the tree seems to be rather heavyweight then looks like
-            // it was a huge transaction that saved the tree, and it's reasonable to stop here, without
-            // reaching the tree's root, in order to avoid possible OOME (XD-513)
-            final ExpiredLoggableCollection expiredLoggables = extraBelongings.expiredLoggables;
-            if (type == NullLoggable.TYPE &&
-                    expiredLoggables != null && // this check fixes XD-532 & XD-538
-                    expiredLoggables.getSize() > MAX_EXPIRED_LOGGABLES_TO_CONTINUE_RECLAIM_ON_A_NEW_FILE) {
+            if (type == NullLoggable.TYPE) {
                 break;
             }
             loggable = loggables.next();
+            if (loggable.getAddress() >= nextFileAddress) {
+                break;
+            }
         }
 
         while (context.canMoveUp()) {

@@ -137,11 +137,13 @@ public class EnvironmentImpl implements Environment {
             readerWriterProvider.onEnvironmentCreated(this);
 
             final Pair<MetaTreeImpl, Integer> meta;
+            final ExpiredLoggableCollection expired = ExpiredLoggableCollection.newInstance(log);
+
             synchronized (commitLock) {
-                meta = MetaTreeImpl.create(this);
+                meta = MetaTreeImpl.create(this, expired);
             }
             metaTree = meta.getFirst();
-            structureId = new AtomicInteger(meta.getSecond().intValue());
+            structureId = new AtomicInteger(meta.getSecond());
             txns = new TransactionSet();
             txnSafeTasks = new LinkedList<>();
             invalidateStoreGetCache();
@@ -187,6 +189,7 @@ public class EnvironmentImpl implements Environment {
                 syncTask = null;
             }
 
+            gc.fetchExpiredLoggables(expired);
 
             loggerInfo("Exodus environment created: " + logLocation);
 
@@ -426,9 +429,11 @@ public class EnvironmentImpl implements Environment {
                         log.clear();
                         invalidateStoreGetCache();
                         throwableOnCommit = null;
-                        final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this);
+                        final ExpiredLoggableCollection expired = ExpiredLoggableCollection.newInstance(log);
+                        final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this, expired);
                         metaTree = meta.getFirst();
-                        structureId.set(meta.getSecond().intValue());
+                        structureId.set(meta.getSecond());
+                        gc.fetchExpiredLoggables(expired);
                     } finally {
                         metaWriteLock.unlock();
                     }
@@ -439,6 +444,7 @@ public class EnvironmentImpl implements Environment {
         } finally {
             resumeGC();
         }
+
     }
 
     public boolean isReadOnly() {
@@ -787,7 +793,7 @@ public class EnvironmentImpl implements Environment {
                 final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
                 final long updatedHighAddress;
                 try {
-                    expiredLoggables = txn.doCommit(tree);
+                    expiredLoggables = txn.doCommit(tree, log);
                 } finally {
                     log.flush();
                     updatedHighAddress = log.endWrite();

@@ -238,7 +238,7 @@ object Environments {
                 //once we close the log, the rest of the page is padded with null loggables
                 //this free space should be taken into account during next open
                 val paddedSpace = env.log.dataSpaceLeftInPage(rootAddress)
-                val expiredLoggableCollection = ExpiredLoggableCollection()
+                val expiredLoggableCollection = ExpiredLoggableCollection.newInstance(env.log)
 
                 expiredLoggableCollection.add(rootLoggable.end(), paddedSpace)
                 env.gc.utilizationProfile.fetchExpiredLoggables(expiredLoggableCollection)

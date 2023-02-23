@@ -65,7 +65,8 @@ class LeafNodeMutable extends BaseLeafNodeMutable {
         CompressedUnsignedLongByteIterable.fillBytes(keyLength, output);
         ByteIterableBase.fillBytes(key, output);
         ByteIterableBase.fillBytes(value, output);
-        address = tree.getLog().write(mutableTree.getLeafType(), tree.getStructureId(), output.asArrayByteIterable());
+        address = tree.getLog().write(mutableTree.getLeafType(), tree.getStructureId(), output.asArrayByteIterable(),
+                ((BTreeMutable) tree).getExpiredLoggables());
         return address;
     }
 
@@ -76,6 +77,6 @@ class LeafNodeMutable extends BaseLeafNodeMutable {
 
     @Override
     public String toString() {
-        return "LN* {key:" + key.toString() + "} @ " + address;
+        return "LN* {key:" + key + "} @ " + address;
     }
 }

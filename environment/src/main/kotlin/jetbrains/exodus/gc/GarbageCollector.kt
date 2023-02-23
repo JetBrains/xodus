@@ -119,11 +119,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     }
 
     fun fetchExpiredLoggables(loggables: ExpiredLoggableCollection) {
-        if (loggables.fromScratch) {
-            utilizationProfile.computeUtilizationFromScratch()
-        } else {
-            utilizationProfile.fetchExpiredLoggables(loggables)
-        }
+        utilizationProfile.fetchExpiredLoggables(loggables)
     }
 
     fun getFileFreeBytes(fileAddress: Long) = utilizationProfile.getFileFreeBytes(fileAddress)
@@ -180,7 +176,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         for (file in files) {
             utilizationProfile.removeFile(file)
             currentFile[0] = file
-            environment.removeFiles(currentFile, if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete)
+            environment.removeFiles(
+                currentFile,
+                if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
+            )
             aFileWasDeleted = true
         }
         if (aFileWasDeleted) {
@@ -209,7 +208,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 // to underlying storage device before any file is deleted
                 environment.flushAndSync()
                 val filesArray = filesToDelete.toArray()
-                environment.removeFiles(filesArray, if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete)
+                environment.removeFiles(
+                    filesArray,
+                    if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
+                )
                 filesArray.forEach { utilizationProfile.removeFile(it) }
                 utilizationProfile.estimateTotalBytesAndWakeGcIfNecessary()
             }
@@ -314,10 +316,12 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         if (logger.isDebugEnabled) {
             val high = log.highAddress
             val highFile = log.highFileAddress
-            logger.debug(String.format(
+            logger.debug(
+                String.format(
                     "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
                     high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
-            ))
+                )
+            )
         }
         try {
             val nextFileAddress = fileAddress + log.fileLengthBound

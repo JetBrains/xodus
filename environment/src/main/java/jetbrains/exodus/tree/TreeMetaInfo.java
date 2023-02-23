@@ -97,12 +97,9 @@ public abstract class TreeMetaInfo {
 
     @NotNull
     public static ExpiredLoggableCollection getTreeLoggables(@NotNull final ITree tree) {
-        if (tree.getSize() > 100000) {
-            return ExpiredLoggableCollection.getFROM_SCRATCH();
-        }
-        final ExpiredLoggableCollection result = new ExpiredLoggableCollection();
-        final LongIterator it = tree.addressIterator();
         final Log log = tree.getLog();
+        final ExpiredLoggableCollection result = ExpiredLoggableCollection.newInstance(log);
+        final LongIterator it = tree.addressIterator();
         while (it.hasNext()) {
             final long nextAddress = it.next();
             result.add(log.readNotNull(tree.getDataIterator(nextAddress), nextAddress));
