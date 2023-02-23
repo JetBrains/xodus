@@ -15,5 +15,6 @@ class OperationLogRecord {
         this.value = value;
         this.operationType = operationType;
     }
+    // todo add structure
 }
 
