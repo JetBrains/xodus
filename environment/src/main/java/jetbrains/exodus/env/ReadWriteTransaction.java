@@ -21,6 +21,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
+import jetbrains.exodus.log.Log;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.ITreeMutable;
@@ -231,11 +232,11 @@ public class ReadWriteTransaction extends TransactionBase {
         return createdStores.containsKey(name);
     }
 
-    ExpiredLoggableCollection doCommit(@NotNull final MetaTreeImpl.Proto[] out) {
+    ExpiredLoggableCollection doCommit(@NotNull final MetaTreeImpl.Proto[] out, Log log) {
 
         final Long2ObjectMap.FastEntrySet<Pair<String, ITree>> removedEntries = removedStores.long2ObjectEntrySet();
+        ExpiredLoggableCollection expiredLoggables = ExpiredLoggableCollection.newInstance(log);
 
-        ExpiredLoggableCollection expiredLoggables = ExpiredLoggableCollection.getEMPTY();
         final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
             final Pair<String, ITree> value = entry.getValue();

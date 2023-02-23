@@ -137,7 +137,7 @@ public class EnvironmentImpl implements Environment {
             readerWriterProvider.onEnvironmentCreated(this);
 
             final Pair<MetaTreeImpl, Integer> meta;
-            final ExpiredLoggableCollection expired = new ExpiredLoggableCollection();
+            final ExpiredLoggableCollection expired = ExpiredLoggableCollection.newInstance(log);
 
             synchronized (commitLock) {
                 meta = MetaTreeImpl.create(this, expired);
@@ -429,7 +429,7 @@ public class EnvironmentImpl implements Environment {
                         log.clear();
                         invalidateStoreGetCache();
                         throwableOnCommit = null;
-                        final ExpiredLoggableCollection expired = new ExpiredLoggableCollection();
+                        final ExpiredLoggableCollection expired = ExpiredLoggableCollection.newInstance(log);
                         final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this, expired);
                         metaTree = meta.getFirst();
                         structureId.set(meta.getSecond());
@@ -793,7 +793,7 @@ public class EnvironmentImpl implements Environment {
                 final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
                 final long updatedHighAddress;
                 try {
-                    expiredLoggables = txn.doCommit(tree);
+                    expiredLoggables = txn.doCommit(tree, log);
                 } finally {
                     log.flush();
                     updatedHighAddress = log.endWrite();

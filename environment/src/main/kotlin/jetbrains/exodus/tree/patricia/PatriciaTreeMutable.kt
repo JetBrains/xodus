@@ -331,7 +331,7 @@ internal class PatriciaTreeMutable(
         var expiredLoggables = expiredLoggables
 
         if (expiredLoggables == null) {
-            expiredLoggables = ExpiredLoggableCollection()
+            expiredLoggables = ExpiredLoggableCollection.newInstance(log)
             this.expiredLoggables = expiredLoggables
         }
 

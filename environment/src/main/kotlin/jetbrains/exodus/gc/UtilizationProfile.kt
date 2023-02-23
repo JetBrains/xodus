@@ -40,6 +40,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     private val filesUtilization = LongHashMap<MutableLong>() // file address -> number of free bytes
     private var totalBytes: Long = 0
     private var totalFreeBytes: Long = 0
+
     @Volatile
     var isDirty: Boolean = false
 
@@ -77,7 +78,11 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                         }
                     } else {
                         val filesUtilization = LongHashMap<MutableLong>()
-                        val store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn)
+                        val store = env.openStore(
+                            GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
+                            StoreConfig.WITHOUT_DUPLICATES,
+                            txn
+                        )
                         store.openCursor(txn).use { cursor ->
                             while (cursor.next) {
                                 val fileAddress = LongBinding.compressedEntryToLong(cursor.key)
@@ -124,8 +129,10 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      */
     fun save(txn: Transaction) {
         if (isDirty) {
-            val store = env.openStore(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
-                    StoreConfig.WITHOUT_DUPLICATES, txn)
+            val store = env.openStore(
+                GarbageCollector.UTILIZATION_PROFILE_STORE_NAME,
+                StoreConfig.WITHOUT_DUPLICATES, txn
+            )
             // clear entries for already deleted files
             store.openCursor(txn).use { cursor ->
                 while (cursor.next) {
@@ -138,9 +145,11 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             // save profile of up-to-date files
             filesUtilization.synchronized {
                 entries.forEach { entry ->
-                    store.put(txn,
+                    store.put(
+                        txn,
                         LongBinding.longToCompressedEntry(entry.key),
-                        CompressedUnsignedLongByteIterable.getIterable(entry.value.value))
+                        CompressedUnsignedLongByteIterable.getIterable(entry.value.value)
+                    )
                 }
             }
         }
@@ -174,18 +183,15 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         var prevFreeBytes: MutableLong? = null
         val set = PackedLongHashSet()
         filesUtilization.synchronized {
-            var l: ExpiredLoggableCollection? = loggables
-            while (l != null) {
-                l = l.forEach { address, length ->
-                    if (set.add(address)) {
-                        val fileAddress = log.getFileAddress(address)
-                        val freeBytes =
-                                (if (prevFileAddress == fileAddress) prevFreeBytes else this[fileAddress])
-                                        ?: MutableLong(0L).also { this[fileAddress] = it }
-                        freeBytes.value += length.toLong()
-                        prevFreeBytes = freeBytes
-                        prevFileAddress = fileAddress
-                    }
+            loggables.forEach { address, length ->
+                if (set.add(address)) {
+                    val fileAddress = log.getFileAddress(address)
+                    val freeBytes =
+                        (if (prevFileAddress == fileAddress) prevFreeBytes else this[fileAddress])
+                            ?: MutableLong(0L).also { this[fileAddress] = it }
+                    freeBytes.value += length.toLong()
+                    prevFreeBytes = freeBytes
+                    prevFileAddress = fileAddress
                 }
             }
         }
@@ -303,7 +309,9 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     internal fun setUtilization(usedSpace: LongHashMap<Long>) = filesUtilization.synchronized {
         for ((fileAddress, usedBytes) in usedSpace) {
-            (this[fileAddress] ?: MutableLong(0L).also { this[fileAddress] = it }).value += max((usefulFileSize - usedBytes), 0L)
+            (this[fileAddress] ?: MutableLong(0L).also {
+                this[fileAddress] = it
+            }).value += max((usefulFileSize - usedBytes), 0L)
         }
     }
 

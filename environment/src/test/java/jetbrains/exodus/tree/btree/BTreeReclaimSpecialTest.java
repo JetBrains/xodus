@@ -43,7 +43,7 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         final long adjustedFileSize = LogTests.adjustedLogFileSize(fileSize, log.getCachePageSize());
         log.beginWrite();
         for (long l = 1; l < adjustedFileSize; ++l) { // fill all file except for one byte with nulls
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             log.write(NullLoggable.create(), expired);
         }
         log.flush();

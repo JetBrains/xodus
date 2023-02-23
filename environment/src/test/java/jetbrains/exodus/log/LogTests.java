@@ -42,7 +42,7 @@ public class LogTests extends LogTestsBase {
         final long logFileSizeInBytes = adjustedLogFileSize(getLog().getFileLengthBound(), 1024);
         for (int i = 0; i < 100; ++i) {
             log.beginWrite();
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             for (int j = 0; j < logFileSizeInBytes; ++j) {
                 Assert.assertEquals(expectedAddress(3 * (j + i * logFileSizeInBytes), 1024),
                         getLog().write(DUMMY_LOGGABLE, expired));
@@ -61,7 +61,7 @@ public class LogTests extends LogTestsBase {
 
         getLog().beginWrite();
         for (int i = 0; i < 1024; ++i) {
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             getLog().write(emptyLoggable, expired);
         }
         getLog().flush();
@@ -78,7 +78,7 @@ public class LogTests extends LogTestsBase {
 
         getLog().beginWrite();
         for (int j = 0; j < adjustedLogFileSize(111 * 1024, 1024); ++j) {
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             Assert.assertEquals(expectedAddress(3L * j, 1024),
                     (int) getLog().write(DUMMY_LOGGABLE, expired));
         }
@@ -93,7 +93,7 @@ public class LogTests extends LogTestsBase {
         initLog(1, 1024);
         getLog().beginWrite();
         for (int j = 0; j < adjustedLogFileSize(1024, 1024) * 99; ++j) {
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             getLog().write(NullLoggable.create(), expired);
         }
         getLog().flush();
@@ -112,7 +112,7 @@ public class LogTests extends LogTestsBase {
         initLog(1, 1024);
         getLog().beginWrite();
         for (int j = 0; j < adjustedLogFileSize(1024, 1024) * 10; ++j) {
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             getLog().write(NullLoggable.create(), expired);
         }
         getLog().flush();
@@ -125,7 +125,7 @@ public class LogTests extends LogTestsBase {
         initLog(1, 1024);
         getLog().beginWrite();
         for (int j = 0; j < adjustedLogFileSize(1024, 1024) * 10; ++j) {
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             getLog().write(NullLoggable.create(), expired);
         }
         getLog().flush();
@@ -138,7 +138,7 @@ public class LogTests extends LogTestsBase {
         initLog(1, 1024);
         getLog().beginWrite();
         for (int i = 0; i < 100; ++i) {
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             getLog().write(DUMMY_LOGGABLE, expired);
             getLog().doPadWithNulls(expired);
             Assert.assertEquals(i + 1, getLog().getWrittenFilesSize());
@@ -152,7 +152,7 @@ public class LogTests extends LogTestsBase {
         initLog(1, 1024);
         log.beginWrite();
         for (int j = 0; j < adjustedLogFileSize(1024, 1024) * 99; ++j) {
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             getLog().write(NullLoggable.create(), expired);
         }
         getLog().flush();
@@ -165,10 +165,10 @@ public class LogTests extends LogTestsBase {
         initLog(1, 1024);
         log.beginWrite();
         for (int i = 0; i < adjustedLogFileSize(1024, 1024) - 1; ++i) {
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             getLog().write(NullLoggable.create(), expired);
         }
-        var expired = new ExpiredLoggableCollection();
+        var expired = ExpiredLoggableCollection.newInstance(log);
         // here auto-alignment should happen
         final long dummyAddress = getLog().write(DUMMY_LOGGABLE, expired);
         getLog().flush();
@@ -186,7 +186,7 @@ public class LogTests extends LogTestsBase {
         initLog(1, 1024);
         for (int i = 0; i < 100; ++i) {
             getLog().beginWrite();
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             final long dummyAddress = getLog().write(DUMMY_LOGGABLE, expired);
             getLog().flush();
             getLog().endWrite();
@@ -201,7 +201,7 @@ public class LogTests extends LogTestsBase {
         // one kb loggable can't be placed in a single file of one kb size
         TestUtil.runWithExpectedException(() -> {
             log.beginWrite();
-            var expired = new ExpiredLoggableCollection();
+            var expired = ExpiredLoggableCollection.newInstance(log);
             getLog().write(ONE_KB_LOGGABLE, expired);
         }, TooBigLoggableException.class);
     }
@@ -209,7 +209,7 @@ public class LogTests extends LogTestsBase {
     @Test
     public void testReadUnknownLoggableType() {
         getLog().beginWrite();
-        var expired = new ExpiredLoggableCollection();
+        var expired = ExpiredLoggableCollection.newInstance(log);
         getLog().write(DUMMY_LOGGABLE, expired);
         getLog().flush();
         getLog().endWrite();
@@ -300,7 +300,7 @@ public class LogTests extends LogTestsBase {
     }
 
     private long writeData(ByteIterable iterable) {
-        var expired = new ExpiredLoggableCollection();
+        var expired = ExpiredLoggableCollection.newInstance(log);
         return getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, iterable, expired);
     }
 
