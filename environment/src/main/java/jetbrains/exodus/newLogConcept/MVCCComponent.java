@@ -27,11 +27,13 @@ class MVCCDataStructure {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
+    //todo can add references to Transaction class properties via wrapper class
     private static final NonBlockingHashMapLong<TransactionState> transactionsStateMap =
             new NonBlockingHashMapLong<>(); // txID + state
 
+    // todo add table of transactions + CountDownLatch
     private static final AtomicLong address = new AtomicLong();
-    private static final AtomicLong snapshotId = new AtomicLong(1L); //todo initial value?
+    private static final AtomicLong snapshotId = new AtomicLong(1L);
     private static final AtomicLong writeTxSnapshotId = snapshotId;
     private void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
         while(true) {
@@ -109,7 +111,7 @@ class MVCCDataStructure {
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
         var snapshot = snapshotId.get();
         transaction.addOperationLink(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
-        operationLog.put(recordAddress, new OperationLogRecord(key, value, operationType));
+        operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType));
     }
 
 
@@ -134,10 +136,10 @@ class MVCCDataStructure {
             // we add to queue several objects with one txID, the last one re-writes the previous value,
             // so we take the last with target txID
             if (candidateTxId < maxTxId && candidateTxId >= currentMax) {
-                while (linkEntry.state == OperationReferenceState.IN_PROGRESS) {
+                while (transactionsStateMap.get(currentTransaction.snapshotId) == TransactionState.IN_PROGRESS) {
                     Thread.onSpinWait(); // pass to the next thread, not to waste resources
                 }
-                if (linkEntry.state != OperationReferenceState.ABORTED) {
+                if (transactionsStateMap.get(currentTransaction.snapshotId) != TransactionState.REVERTED) {
                     minMaxValue = candidateTxId;
                     targetEntry = linkEntry;
                 }
@@ -149,7 +151,8 @@ class MVCCDataStructure {
             return null;
         }
 
-        OperationLogRecord targetOperationInLog = operationLog.get(targetEntry.operationAddress);
+        TransactionOperationLogRecord targetOperationInLog =
+                (TransactionOperationLogRecord) operationLog.get(targetEntry.operationAddress);
 
         // case for error - smth goes wrong
         if (targetOperationInLog == null){
@@ -162,12 +165,12 @@ class MVCCDataStructure {
 
             ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId = new ArrayList<>();
             mvccRecord.linksToOperationsQueue.forEach(linkEntry -> {
-                waitAndAddLinkEntry(linkEntry, selectionOfLessThanMaxTxId, maxTxId);
+                waitAndAddLinkEntry(linkEntry, currentTransaction, selectionOfLessThanMaxTxId, maxTxId);
             });
 
             selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationReferenceEntry::getTxId).reversed());
             for (OperationReferenceEntry linkEntry: selectionOfLessThanMaxTxId) {
-                targetOperationInLog = operationLog.get(linkEntry.operationAddress);
+                targetOperationInLog = (TransactionOperationLogRecord)operationLog.get(linkEntry.operationAddress);
                 if (targetOperationInLog.key.equals(key)){
                     return targetOperationInLog.value;
                 }
@@ -178,13 +181,14 @@ class MVCCDataStructure {
     }
 
     private void waitAndAddLinkEntry(OperationReferenceEntry linkEntry,
+                                     Transaction transaction,
                                      ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId,
                                      long maxTxId) {
         if (linkEntry.txId < maxTxId) {
-            while (linkEntry.state == OperationReferenceState.IN_PROGRESS){
+            while (transactionsStateMap.get(transaction.snapshotId) == TransactionState.IN_PROGRESS){
                 Thread.onSpinWait();
             }
-            if (linkEntry.state != OperationReferenceState.ABORTED) {
+            if (transactionsStateMap.get(transaction.snapshotId) != TransactionState.REVERTED) {
                 selectionOfLessThanMaxTxId.add(linkEntry);
             }
         }
@@ -198,7 +202,9 @@ class MVCCDataStructure {
                 MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
                 // operation status check
                 if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
-                    operation.state = OperationReferenceState.ABORTED; // later in "read" we ignore this
+                    transactionsStateMap.put(transaction.snapshotId, TransactionState.REVERTED); // later in "read" we ignore this
+                    var recordAddress = address.getAndIncrement(); // put special record to log
+                    operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
                     //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
                     throw new ExodusException(); // rollback
                 }
@@ -209,10 +215,12 @@ class MVCCDataStructure {
                         break;
                     }
                 }
-                operation.state = OperationReferenceState.COMPLETED; // what we inserted "read" can see
                 // advanced approach: state-machine
                 //here we first work with collection, after that increment version, in read vica versa
             }
+            transactionsStateMap.put(transaction.snapshotId, TransactionState.COMMITTED); // what we inserted "read" can see
+            var recordAddress = address.getAndIncrement(); // put special record to log
+            operationLog.put(recordAddress, new TransactionCompletionLogRecord(false));
         }
     }
 
