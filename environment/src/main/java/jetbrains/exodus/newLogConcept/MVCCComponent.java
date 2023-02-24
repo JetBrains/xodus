@@ -27,7 +27,7 @@ class MVCCDataStructure {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
-    //todo can add references to Transaction class properties via wrapper class
+    //todo can add references to Transaction class properties via wrapper class (inside TransactionInformation)
     private static final NonBlockingHashMapLong<TransactionState> transactionsStateMap =
             new NonBlockingHashMapLong<>(); // txID + state
 
@@ -137,6 +137,7 @@ class MVCCDataStructure {
             // so we take the last with target txID
             if (candidateTxId < maxTxId && candidateTxId >= currentMax) {
                 while (transactionsStateMap.get(currentTransaction.snapshotId) == TransactionState.IN_PROGRESS) {
+                    // todo if latch exists, wait for it, if not - Thread.onSpinWait()
                     Thread.onSpinWait(); // pass to the next thread, not to waste resources
                 }
                 if (transactionsStateMap.get(currentTransaction.snapshotId) != TransactionState.REVERTED) {
@@ -186,6 +187,7 @@ class MVCCDataStructure {
                                      long maxTxId) {
         if (linkEntry.txId < maxTxId) {
             while (transactionsStateMap.get(transaction.snapshotId) == TransactionState.IN_PROGRESS){
+                // todo same thing with latch
                 Thread.onSpinWait();
             }
             if (transactionsStateMap.get(transaction.snapshotId) != TransactionState.REVERTED) {
@@ -205,6 +207,7 @@ class MVCCDataStructure {
                     transactionsStateMap.put(transaction.snapshotId, TransactionState.REVERTED); // later in "read" we ignore this
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
+                    // todo null-fy the reference to latch if it exists only
                     //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
                     throw new ExodusException(); // rollback
                 }
@@ -221,6 +224,7 @@ class MVCCDataStructure {
             transactionsStateMap.put(transaction.snapshotId, TransactionState.COMMITTED); // what we inserted "read" can see
             var recordAddress = address.getAndIncrement(); // put special record to log
             operationLog.put(recordAddress, new TransactionCompletionLogRecord(false));
+            // todo null-fy the reference to latch if it exists only
         }
     }
 
