@@ -7,6 +7,7 @@ import net.jpountz.xxhash.XXHash64;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
@@ -27,11 +28,10 @@ class MVCCDataStructure {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
-    //todo can add references to Transaction class properties via wrapper class (inside TransactionInformation)
-    private static final NonBlockingHashMapLong<TransactionState> transactionsStateMap =
+    //todo can add references to Transaction class properties via wrapper class?
+    private static final NonBlockingHashMapLong<TransactionStateWrapper> transactionsStateMap =
             new NonBlockingHashMapLong<>(); // txID + state
 
-    // todo add table of transactions + CountDownLatch
     private static final AtomicLong address = new AtomicLong();
     private static final AtomicLong snapshotId = new AtomicLong(1L);
     private static final AtomicLong writeTxSnapshotId = snapshotId;
@@ -136,11 +136,8 @@ class MVCCDataStructure {
             // we add to queue several objects with one txID, the last one re-writes the previous value,
             // so we take the last with target txID
             if (candidateTxId < maxTxId && candidateTxId >= currentMax) {
-                while (transactionsStateMap.get(currentTransaction.snapshotId) == TransactionState.IN_PROGRESS) {
-                    // todo if latch exists, wait for it, if not - Thread.onSpinWait()
-                    Thread.onSpinWait(); // pass to the next thread, not to waste resources
-                }
-                if (transactionsStateMap.get(currentTransaction.snapshotId) != TransactionState.REVERTED) {
+                onProgressWait(currentTransaction);
+                if (transactionsStateMap.get(currentTransaction.snapshotId).state != TransactionState.REVERTED) {
                     minMaxValue = candidateTxId;
                     targetEntry = linkEntry;
                 }
@@ -186,12 +183,24 @@ class MVCCDataStructure {
                                      ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId,
                                      long maxTxId) {
         if (linkEntry.txId < maxTxId) {
-            while (transactionsStateMap.get(transaction.snapshotId) == TransactionState.IN_PROGRESS){
-                // todo same thing with latch
-                Thread.onSpinWait();
-            }
-            if (transactionsStateMap.get(transaction.snapshotId) != TransactionState.REVERTED) {
+            onProgressWait(transaction);
+            if (transactionsStateMap.get(transaction.snapshotId).state != TransactionState.REVERTED) {
                 selectionOfLessThanMaxTxId.add(linkEntry);
+            }
+        }
+    }
+
+    void onProgressWait(Transaction transaction) {
+        while (transactionsStateMap.get(transaction.snapshotId).state == TransactionState.IN_PROGRESS){
+            CountDownLatch latch = transactionsStateMap.get(transaction.snapshotId).getLatchRef().get();
+            if (latch != null){
+                try {
+                    latch.await();
+                } catch (InterruptedException e){
+                    throw new ExodusException();
+                }
+            } else {
+                Thread.onSpinWait();// pass to the next thread, not to waste resources
             }
         }
     }
@@ -200,14 +209,26 @@ class MVCCDataStructure {
         // if transaction.type is WRITE
         if (!transaction.operationLinkList.isEmpty()){
             var currentSnapId = snapshotId;
+
+            if (transaction.operationLinkList.size() > 10) {
+                transactionsStateMap.get(transaction.snapshotId).initLatch();
+            }
+
             for (var operation: transaction.operationLinkList) {
                 MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
                 // operation status check
                 if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
-                    transactionsStateMap.put(transaction.snapshotId, TransactionState.REVERTED); // later in "read" we ignore this
+                    transactionsStateMap.put(transaction.snapshotId,
+                            new TransactionStateWrapper(TransactionState.REVERTED)); // later in "read" we ignore this
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
-                    // todo null-fy the reference to latch if it exists only
+
+                    var latchRef = transactionsStateMap.get(transaction.snapshotId).getLatchRef();
+                    CountDownLatch latch = latchRef.getAndSet(null);
+                    if (latch != null) {
+                        latch.countDown();
+                    }
+
                     //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
                     throw new ExodusException(); // rollback
                 }
@@ -221,10 +242,17 @@ class MVCCDataStructure {
                 // advanced approach: state-machine
                 //here we first work with collection, after that increment version, in read vica versa
             }
-            transactionsStateMap.put(transaction.snapshotId, TransactionState.COMMITTED); // what we inserted "read" can see
+            transactionsStateMap.put(transaction.snapshotId, new TransactionStateWrapper(TransactionState.COMMITTED));
+
+            var latchRef = transactionsStateMap.get(transaction.snapshotId).getLatchRef();
+            CountDownLatch latch = latchRef.getAndSet(null);
+            if (latch != null) {
+                latch.countDown();
+            }
+
+            // what we inserted "read" can see
             var recordAddress = address.getAndIncrement(); // put special record to log
             operationLog.put(recordAddress, new TransactionCompletionLogRecord(false));
-            // todo null-fy the reference to latch if it exists only
         }
     }
 

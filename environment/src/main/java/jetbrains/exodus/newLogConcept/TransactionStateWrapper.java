@@ -1,13 +1,35 @@
 package jetbrains.exodus.newLogConcept;
+
 import java.util.concurrent.CountDownLatch;
-public class TransactionStateWrapper {
-    TransactionState state; // todo replace to reference to object in hashmap
+import java.util.concurrent.atomic.AtomicReference;
 
-}
 
-class TransactionInformation {
-    TransactionStateWrapper state;
-    CountDownLatch operationsCountLatch; // todo: create only if num of operations is 10+
+class TransactionStateWrapper {
+
+    TransactionState state;
+    private final AtomicReference<CountDownLatch> operationsCountLatchRef = new AtomicReference<>();
+
+
+    public TransactionStateWrapper(TransactionState state) {
+        this.state = state;
+    }
+
+    public void setState(TransactionState state) {
+        this.state = state;
+    }
+
+    void initLatch() {
+        CountDownLatch newLatch = new CountDownLatch(1);
+        if (operationsCountLatchRef.compareAndSet(null, newLatch)) {
+            // the latch was set to a new object
+        } else {
+            // another thread already set the latch to a different object
+            newLatch = null;
+        }
+    }
+    public AtomicReference<CountDownLatch> getLatchRef() {
+        return operationsCountLatchRef;
+    }
 
 }
 
