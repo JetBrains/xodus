@@ -1,20 +1,25 @@
 package jetbrains.exodus.newLogConcept;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 
 class TransactionStateWrapper {
 
-    TransactionState state;
+    AtomicInteger state;
+
     private final AtomicReference<CountDownLatch> operationsCountLatchRef = new AtomicReference<>();
 
-
-    public TransactionStateWrapper(TransactionState state) {
-        this.state = state;
+    public int getState() {
+        return state.get();
     }
 
-    public void setState(TransactionState state) {
+    public void setState(int newState) {
+        state.getAndSet(newState);
+    }
+
+    public TransactionStateWrapper(AtomicInteger state) {
         this.state = state;
     }
 

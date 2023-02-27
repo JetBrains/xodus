@@ -46,6 +46,7 @@ class MVCCDataStructure {
         }
     }
 
+
     // This one is static and non-lambdified to optimize performance
     private static final Function<Long, MVCCRecord> createRecord = new Function<>() {
         @Override
@@ -110,7 +111,7 @@ class MVCCDataStructure {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
         var snapshot = snapshotId.get();
-        transaction.addOperationLink(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
+        transaction.addOperationLink(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode)); // todo: can it also be a multi-threading issue?
         operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType));
     }
 
@@ -137,7 +138,7 @@ class MVCCDataStructure {
             // so we take the last with target txID
             if (candidateTxId < maxTxId && candidateTxId >= currentMax) {
                 onProgressWait(currentTransaction);
-                if (transactionsStateMap.get(currentTransaction.snapshotId).state != TransactionState.REVERTED) {
+                if (transactionsStateMap.get(currentTransaction.snapshotId).state.get() != TransactionState.REVERTED.getInt()) {
                     minMaxValue = candidateTxId;
                     targetEntry = linkEntry;
                 }
@@ -184,14 +185,14 @@ class MVCCDataStructure {
                                      long maxTxId) {
         if (linkEntry.txId < maxTxId) {
             onProgressWait(transaction);
-            if (transactionsStateMap.get(transaction.snapshotId).state != TransactionState.REVERTED) {
+            if (transactionsStateMap.get(transaction.snapshotId).state.get() != TransactionState.REVERTED.getInt()) {
                 selectionOfLessThanMaxTxId.add(linkEntry);
             }
         }
     }
 
     void onProgressWait(Transaction transaction) {
-        while (transactionsStateMap.get(transaction.snapshotId).state == TransactionState.IN_PROGRESS){
+        while (transactionsStateMap.get(transaction.snapshotId).state.get() == TransactionState.IN_PROGRESS.getInt()){
             CountDownLatch latch = transactionsStateMap.get(transaction.snapshotId).getLatchRef().get();
             if (latch != null){
                 try {
@@ -219,7 +220,7 @@ class MVCCDataStructure {
                 // operation status check
                 if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
                     transactionsStateMap.put(transaction.snapshotId,
-                            new TransactionStateWrapper(TransactionState.REVERTED)); // later in "read" we ignore this
+                            new TransactionStateWrapper(TransactionState.REVERTED.getAtomic())); // later in "read" we ignore this
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
 
@@ -242,7 +243,7 @@ class MVCCDataStructure {
                 // advanced approach: state-machine
                 //here we first work with collection, after that increment version, in read vica versa
             }
-            transactionsStateMap.put(transaction.snapshotId, new TransactionStateWrapper(TransactionState.COMMITTED));
+            transactionsStateMap.put(transaction.snapshotId, new TransactionStateWrapper(TransactionState.COMMITTED.getAtomic()));
 
             var latchRef = transactionsStateMap.get(transaction.snapshotId).getLatchRef();
             CountDownLatch latch = latchRef.getAndSet(null);
@@ -260,7 +261,7 @@ class MVCCDataStructure {
         var keyHashCode = operation.keyHashCode;
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         hashMap.putIfAbsent(keyHashCode, mvccRecord);
-        mvccRecord.linksToOperationsQueue.add(operation);
+        mvccRecord.linksToOperationsQueue.add(operation); // todo: can it also be a multi-threading issue?
         return mvccRecord;
     }
 }
