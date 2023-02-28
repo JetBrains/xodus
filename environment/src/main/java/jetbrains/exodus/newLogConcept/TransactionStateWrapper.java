@@ -7,9 +7,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 class TransactionStateWrapper {
 
-    AtomicInteger state;
+    AtomicInteger state; // TODO: convert to volatile int
 
-    private final AtomicReference<CountDownLatch> operationsCountLatchRef = new AtomicReference<>();
+    private final AtomicReference<CountDownLatch> operationsCountLatchRef = new AtomicReference<>(); // TODO: convert to operationsCountLatchRef
 
     public int getState() {
         return state.get();

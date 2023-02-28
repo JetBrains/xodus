@@ -210,17 +210,20 @@ class MVCCDataStructure {
         // if transaction.type is WRITE
         if (!transaction.operationLinkList.isEmpty()){
             var currentSnapId = snapshotId;
+            // put state in PROGRESS
+
+            var wrapper = new TransactionStateWrapper(TransactionState.IN_PROGRESS.getAtomic());
 
             if (transaction.operationLinkList.size() > 10) {
-                transactionsStateMap.get(transaction.snapshotId).initLatch();
+                wrapper.initLatch();
             }
 
             for (var operation: transaction.operationLinkList) {
                 MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
                 // operation status check
                 if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
-                    transactionsStateMap.put(transaction.snapshotId,
-                            new TransactionStateWrapper(TransactionState.REVERTED.getAtomic())); // later in "read" we ignore this
+                    wrapper.state = TransactionState.REVERTED.getAtomic();
+                    transactionsStateMap.put(transaction.snapshotId, wrapper); // later in "read" we ignore this
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
 
@@ -243,7 +246,8 @@ class MVCCDataStructure {
                 // advanced approach: state-machine
                 //here we first work with collection, after that increment version, in read vica versa
             }
-            transactionsStateMap.put(transaction.snapshotId, new TransactionStateWrapper(TransactionState.COMMITTED.getAtomic()));
+            wrapper.state = TransactionState.COMMITTED.getAtomic();
+            transactionsStateMap.put(transaction.snapshotId, wrapper);
 
             var latchRef = transactionsStateMap.get(transaction.snapshotId).getLatchRef();
             CountDownLatch latch = latchRef.getAndSet(null);
