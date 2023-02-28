@@ -94,6 +94,40 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(10, count);
     }
 
+    @TestFor(issue = "XD-902")
+    public void testFindEmptyCached() throws Exception {
+        final StoreTransaction txn = getStoreTransactionSafe();
+        final Entity entity = txn.newEntity("Issue");
+        entity.setProperty("unlike", "...");
+        txn.flush();
+
+        EntityIterable issues = txn.findContaining("Issue", "unlike", "like",
+                false);
+
+        int count = 0;
+        for (final Entity ignored : issues) {
+            count++;
+        }
+
+        Assert.assertEquals(0, count);
+        //sleep to ensure that property iterable was cached
+        Thread.sleep(50);
+        txn.flush();
+
+        entity.delete();
+        txn.flush();
+
+        issues = txn.findContaining("Issue", "unlike", "like",
+                false);
+        count = 0;
+        for (final Entity ignored : issues) {
+            count++;
+        }
+
+        Assert.assertEquals(0, count);
+    }
+
+
     @TestFor(issue = "XD-824")
     public void testFindContainingIgnoreCase() {
         final StoreTransaction txn = getStoreTransactionSafe();

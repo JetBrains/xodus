@@ -18,14 +18,24 @@ package jetbrains.exodus.entitystore.iterate
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.kotlin.notNull
 
-class PropertyContainsValueEntityIterable(txn: PersistentStoreTransaction,
-                                          entityTypeId: Int,
-                                          propertyId: Int,
-                                          private val value: String,
-                                          private val ignoreCase: Boolean) : PropertyRangeOrValueIterableBase(txn, entityTypeId, propertyId) {
+class PropertyContainsValueEntityIterable(
+    txn: PersistentStoreTransaction,
+    entityTypeId: Int,
+    propertyId: Int,
+    private val value: String,
+    private val ignoreCase: Boolean
+) : PropertyRangeOrValueIterableBase(txn, entityTypeId, propertyId) {
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator =
-            PropertyContainsValueIterator(propertyValueIndex.iterator() as PropertyValueIterator)
+    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+        val iterator = propertyValueIndex.iterator()
+
+        return if (iterator.hasNext()) {
+            return PropertyContainsValueIterator(iterator as PropertyValueIterator)
+        } else {
+            EntityIteratorBase.EMPTY
+        }
+    }
+
 
     override fun getHandleImpl(): EntityIterableHandle {
         val entityTypeId = entityTypeId
@@ -57,10 +67,12 @@ class PropertyContainsValueEntityIterable(txn: PersistentStoreTransaction,
 
             override fun getEntityTypeId() = entityTypeId
 
-            override fun isMatchedPropertyChanged(id: EntityId,
-                                                  propId: Int,
-                                                  oldValue: Comparable<*>?,
-                                                  newValue: Comparable<*>?): Boolean {
+            override fun isMatchedPropertyChanged(
+                id: EntityId,
+                propId: Int,
+                oldValue: Comparable<*>?,
+                newValue: Comparable<*>?
+            ): Boolean {
                 return propertyId == propId && entityTypeId == id.typeId &&
                         (isValueMatched(oldValue) || isValueMatched(newValue))
             }
@@ -75,7 +87,8 @@ class PropertyContainsValueEntityIterable(txn: PersistentStoreTransaction,
         return false
     }
 
-    private inner class PropertyContainsValueIterator(private val index: PropertyValueIterator) : EntityIteratorBase(this), PropertyValueIterator {
+    private inner class PropertyContainsValueIterator(private val index: PropertyValueIterator) :
+        EntityIteratorBase(this), PropertyValueIterator {
 
         private var nextId: EntityId? = null
         private var currentValue: String? = null
@@ -117,10 +130,12 @@ class PropertyContainsValueEntityIterable(txn: PersistentStoreTransaction,
 
         init {
             registerType(getType()) { txn, store, parameters ->
-                PropertyContainsValueEntityIterable(txn,
-                        (parameters[0] as String).toInt(),
-                        (parameters[1] as String).toInt(),
-                        parameters[2] as String, true)
+                PropertyContainsValueEntityIterable(
+                    txn,
+                    (parameters[0] as String).toInt(),
+                    (parameters[1] as String).toInt(),
+                    parameters[2] as String, true
+                )
             }
         }
     }
