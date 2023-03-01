@@ -215,11 +215,12 @@ public final class BufferedDataWriter {
 
         assert blockSetMutable != null;
 
-        this.committedHighAddress = currentHighAddress;
         assert currentHighAddress % pageSize == currentPage.writtenCount % pageSize;
 
-        if (needsToBeSynchronized()) {
+        if (doNeedsToBeSynchronized(currentHighAddress)) {
             sync();
+        } else {
+            flush();
         }
 
         if (blockSetWasChanged) {
@@ -229,10 +230,15 @@ public final class BufferedDataWriter {
             blockSetMutable = null;
         }
 
+        this.committedHighAddress = currentHighAddress;
         return currentHighAddress;
     }
 
     public boolean needsToBeSynchronized() {
+        return doNeedsToBeSynchronized(this.committedHighAddress);
+    }
+
+    private boolean doNeedsToBeSynchronized(long committedHighAddress) {
         if (lastSyncedAddress < committedHighAddress) {
             final long now = System.currentTimeMillis();
             return now - lastSyncedTs >= syncPeriod;
@@ -736,18 +742,17 @@ public final class BufferedDataWriter {
             var blockSet = blockSetMutable;
             var lastFile = blockSet.getMaximum();
             if (lastFile != null) {
-                var lastFileAddress = lastFile;
-                var block = blockSet.getBlock(lastFileAddress);
+                var block = blockSet.getBlock(lastFile);
 
                 var refreshed = block.refresh();
                 if (block != refreshed) {
-                    blockSet.add(lastFileAddress, refreshed);
+                    blockSet.add(lastFile, refreshed);
                 }
 
                 var length = refreshed.length();
                 if (length < fileLengthBound) {
                     throw new IllegalStateException(
-                            "File's too short (" + LogUtil.getLogFilename(lastFileAddress)
+                            "File's too short (" + LogUtil.getLogFilename(lastFile)
                                     + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound
                     );
                 }
