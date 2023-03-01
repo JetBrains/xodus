@@ -106,7 +106,7 @@ class SharedLogCache : LogCache {
         }
 
     override fun getPage(
-        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long
+        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long, highAddress: Long
     ): ByteArray {
         val logIdentity = cacheDataProvider.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
@@ -115,7 +115,7 @@ class SharedLogCache : LogCache {
             return cachedValue.page
         }
 
-        val page = cacheDataProvider.readPage(pageAddress, fileStart)
+        val page = cacheDataProvider.readPage(pageAddress, fileStart, highAddress)
         cachePage(key, logIdentity, pageAddress, page)
 
         return page
@@ -134,7 +134,8 @@ class SharedLogCache : LogCache {
     override fun getPageIterable(
         cacheDataProvider: CacheDataProvider,
         pageAddress: Long,
-        formatWithHashCodeIsUsed: Boolean
+        formatWithHashCodeIsUsed: Boolean,
+        highAddress: Long
     ): ArrayByteIterable {
         val logIdentity = cacheDataProvider.identity
         val key = getLogPageFingerPrint(logIdentity, pageAddress)
@@ -149,7 +150,7 @@ class SharedLogCache : LogCache {
             return ArrayByteIterable(cachedValue.page, adjustedPageSize)
         }
 
-        val page = cacheDataProvider.readPage(pageAddress, - 1)
+        val page = cacheDataProvider.readPage(pageAddress, - 1, highAddress)
         cachePage(key, logIdentity, pageAddress, page)
 
         return ArrayByteIterable(page, adjustedPageSize)

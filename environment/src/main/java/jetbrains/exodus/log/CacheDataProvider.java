@@ -18,6 +18,6 @@ package jetbrains.exodus.log;
 public interface CacheDataProvider {
     int getIdentity();
 
-    byte[] readPage(long pageAddress, long fileAddress);
+    byte[] readPage(long pageAddress, long fileAddress, long highAddress);
 
 }

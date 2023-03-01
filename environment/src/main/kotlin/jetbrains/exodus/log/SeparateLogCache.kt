@@ -92,12 +92,14 @@ internal class SeparateLogCache : LogCache {
 
     override fun hitRate() = pagesCache.hitRate()
 
-    override fun cachePage(cacheDataProvider: CacheDataProvider, pageAddress: Long, page: ByteArray) = cachePage(pageAddress, page)
+    override fun cachePage(cacheDataProvider: CacheDataProvider, pageAddress: Long, page: ByteArray) =
+        cachePage(pageAddress, page)
 
     override fun getPageIterable(
         cacheDataProvider: CacheDataProvider,
         pageAddress: Long,
-        formatWithHashCodeIsUsed: Boolean
+        formatWithHashCodeIsUsed: Boolean,
+        highAddress: Long
     ): ArrayByteIterable {
         var page = pagesCache.tryKeyLocked(pageAddress)
 
@@ -110,21 +112,21 @@ internal class SeparateLogCache : LogCache {
             return ArrayByteIterable(page, adjustedPageSize)
         }
 
-        page = cacheDataProvider.readPage(pageAddress, -1)
+        page = cacheDataProvider.readPage(pageAddress, -1, highAddress)
         cachePage(pageAddress, page)
 
         return ArrayByteIterable(page, adjustedPageSize)
     }
 
     override fun getPage(
-        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long
+        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long, highAddress: Long
     ): ByteArray {
         var page = pagesCache.tryKeyLocked(pageAddress)
         if (page != null) {
             return page
         }
 
-        page = cacheDataProvider.readPage(pageAddress, fileStart)
+        page = cacheDataProvider.readPage(pageAddress, fileStart, highAddress)
         cachePage(pageAddress, page)
 
         return page

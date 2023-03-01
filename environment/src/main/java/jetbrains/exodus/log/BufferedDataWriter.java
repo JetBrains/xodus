@@ -358,14 +358,14 @@ public final class BufferedDataWriter {
         return fileAddress == nextFileAddress;
     }
 
-    byte[] readPage(final long pageAddress) {
+    byte[] readPage(final long pageAddress, long highAddress) {
         var holder = writeCache.get(pageAddress);
         if (holder != null) {
             return holder.page;
         }
 
         var page = new byte[pageSize];
-        log.readBytes(page, pageAddress);
+        log.readBytes(page, pageAddress, highAddress);
 
         return page;
     }
@@ -813,7 +813,7 @@ public final class BufferedDataWriter {
         var pageOffset = (int) highAddress & (pageSize - 1);
         var pageAddress = highAddress - pageOffset;
 
-        var page = logCache.getPage(log, pageAddress, -1);
+        var page = logCache.getPage(log, pageAddress, -1, highAddress);
 
         initCurrentPage(blockSet, highAddress, page);
     }

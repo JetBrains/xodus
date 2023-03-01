@@ -331,7 +331,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
 
                 if (currentHighAddress > 0) {
-                    readFromBlock(lastBlock, highPageAddress, highPageContent, currentHighAddress, true)
+                    readFromBlock(lastBlock, highPageAddress, highPageContent, currentHighAddress)
                 }
 
                 page = highPageContent
@@ -903,19 +903,19 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     fun getCachedPage(pageAddress: Long): ByteArray {
-        return cache.getPage(this, pageAddress, -1)
+        return cache.getPage(this, pageAddress, -1, highAddress)
     }
 
     fun getPageIterable(pageAddress: Long): ArrayByteIterable {
-        return cache.getPageIterable(this, pageAddress, formatWithHashCodeIsUsed)
+        return cache.getPageIterable(this, pageAddress, formatWithHashCodeIsUsed, highAddress)
     }
 
     override fun getIdentity(): Int {
         return identity
     }
 
-    override fun readPage(pageAddress: Long, fileAddress: Long): ByteArray {
-        return writer.readPage(pageAddress)
+    override fun readPage(pageAddress: Long, fileAddress: Long, highAddress: Long): ByteArray {
+        return writer.readPage(pageAddress, highAddress)
     }
 
     fun addBlockListener(listener: BlockListener) {
@@ -1251,11 +1251,21 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
-    fun readBytes(output: ByteArray, pageAddress: Long): Int {
-        val fileAddress = getFileAddress(pageAddress)
-        val files = writer.getFilesFrom(fileAddress)
-        val highAddress = writer.highAddress
+    fun readBytes(output: ByteArray, pageAddress: Long, highAddress: Long): Int {
+        if (pageAddress >= highAddress) {
+            BlockNotFoundException.raise(this, pageAddress)
+            return 0
+        }
 
+        if (!rwIsReadonly && highAddress - pageAddress < cachePageSize) {
+            BlockNotFoundException.raise(this, pageAddress)
+            return 0
+        }
+
+
+        val fileAddress = getFileAddress(pageAddress)
+
+        val files = writer.getFilesFrom(fileAddress)
         if (files.hasNext()) {
             val leftBound = files.nextLong()
             val fileSize = getFileSize(leftBound, highAddress)
@@ -1267,7 +1277,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     return 0
                 }
 
-                return readFromBlock(block, pageAddress, output, highAddress, false)
+                return readFromBlock(block, pageAddress, output, highAddress)
             }
             if (fileAddress < (writer.minimumFile ?: -1L)) {
                 BlockNotFoundException.raise(
@@ -1290,8 +1300,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         block: Block,
         pageAddress: Long,
         output: ByteArray,
-        highAddress: Long,
-        checkLastPage: Boolean
+        highAddress: Long
     ): Int {
         val readBytes = block.read(
             output,
@@ -1302,8 +1311,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 ((cachePageSize - 1).inv()).toLong())
         var checkConsistency = config.isCheckPagesAtRuntime &&
                 formatWithHashCodeIsUsed &&
-                (!rwIsReadonly && (pageAddress < lastPage ||
-                        (checkLastPage && pageAddress == lastPage)))
+                (!rwIsReadonly || pageAddress < lastPage)
         checkConsistency = checkConsistency || readBytes == cachePageSize || readBytes == 0
 
         if (checkConsistency) {
