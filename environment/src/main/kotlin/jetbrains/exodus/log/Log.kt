@@ -198,7 +198,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 )
             }
 
-            val blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
+
             var logWasChanged = false
 
             formatWithHashCodeIsUsed = !needToPerformMigration
@@ -224,31 +224,50 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
             }
 
+            var blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
+            val blockIterator = reader.blocks.iterator()
+
+            while (blockIterator.hasNext()) {
+                val block = blockIterator.next()
+                blockSetMutable.add(block.address, block)
+            }
+
+            var incorrectLastSegmentSize = false
+            if (blockSetMutable.size() > 0) {
+                val lastAddress = blockSetMutable.maximum!!
+
+                val lastBlock = blockSetMutable.getBlock(lastAddress)
+                val lastFileLength = lastBlock.length()
+                if (lastFileLength and (cachePageSize - 1).toLong() > 0) {
+                    logger.error(
+                        "Unexpected size of the last segment $lastBlock , " +
+                                "segment size should be quantified by page size. Segment size $lastFileLength. " +
+                                "Page size $cachePageSize"
+                    )
+                    incorrectLastSegmentSize = true
+                }
+            }
 
             if (!rwIsReadonly && reader is MemoryDataReader) {
                 logger.info("Checking data consistency for environment $location ...")
 
+                blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
                 logger.error("Data check is completed for environment $location.")
             } else if (!rwIsReadonly &&
-                (!startupMetadata.isCorrectlyClosed || needToPerformMigration || tmpLeftovers) && reader is FileDataReader
+                (!startupMetadata.isCorrectlyClosed || needToPerformMigration || tmpLeftovers
+                        || incorrectLastSegmentSize) && reader is FileDataReader
             ) {
                 logger.error(
                     "Environment located at $location has been closed incorrectly. " +
                             "Data check routine is started to assess data consistency ..."
                 )
 
+                blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
                 logger.error("Data check is completed for environment $location.")
-            } else {
-                val blockIterator = reader.blocks.iterator()
-
-                while (blockIterator.hasNext()) {
-                    val block = blockIterator.next()
-                    blockSetMutable.add(block.address, block)
-                }
             }
 
             val blockSetImmutable = blockSetMutable.endWrite()
@@ -312,7 +331,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
 
                 if (currentHighAddress > 0) {
-                    readFromBlock(lastBlock, highPageAddress, highPageContent, currentHighAddress)
+                    readFromBlock(lastBlock, highPageAddress, highPageContent, currentHighAddress, true)
                 }
 
                 page = highPageContent
@@ -1250,7 +1269,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     return 0
                 }
 
-                return readFromBlock(block, pageAddress, output, highAddress)
+                return readFromBlock(block, pageAddress, output, highAddress, false)
             }
             if (fileAddress < (writer.minimumFile ?: -1L)) {
                 BlockNotFoundException.raise(
@@ -1273,16 +1292,20 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         block: Block,
         pageAddress: Long,
         output: ByteArray,
-        highAddress: Long
+        highAddress: Long,
+        checkLastPage: Boolean
     ): Int {
         val readBytes = block.read(
             output,
             pageAddress - block.address, 0, output.size
         )
+
+        val lastPage = (highAddress and
+                ((cachePageSize - 1).inv()).toLong())
         val checkConsistency = config.isCheckPagesAtRuntime &&
                 formatWithHashCodeIsUsed &&
-                (!rwIsReadonly || pageAddress < (highAddress and
-                        ((cachePageSize - 1).inv()).toLong()))
+                (!rwIsReadonly || pageAddress < lastPage ||
+                        (checkLastPage && pageAddress == lastPage && !rwIsReadonly))
         if (checkConsistency) {
             if (readBytes < cachePageSize) {
                 DataCorruptionException.raise(
