@@ -217,10 +217,10 @@ public final class BufferedDataWriter {
 
         assert currentHighAddress % pageSize == currentPage.writtenCount % pageSize;
 
+        flush();
+
         if (doNeedsToBeSynchronized(currentHighAddress)) {
             sync();
-        } else {
-            flush();
         }
 
         if (blockSetWasChanged) {
@@ -229,6 +229,11 @@ public final class BufferedDataWriter {
             blockSetWasChanged = false;
             blockSetMutable = null;
         }
+
+        assert currentPage.committedCount == pageSize ||
+                currentPage.pageAddress == (currentHighAddress & (~(long) (pageSize - 1)));
+        assert currentPage.committedCount == pageSize || writeCache.get(currentPage.pageAddress) != null;
+        assert this.committedHighAddress <= currentHighAddress;
 
         this.committedHighAddress = currentHighAddress;
         return currentHighAddress;
