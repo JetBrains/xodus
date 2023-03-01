@@ -419,7 +419,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         beforeWrite()
         try {
             writer.padWholePageWithNulls()
-            writer.flush()
         } finally {
             endWrite()
         }
@@ -430,7 +429,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         beforeWrite()
         try {
             writer.padPageWithNulls()
-            writer.flush()
         } finally {
             endWrite()
         }
@@ -1134,9 +1132,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     fun flush() {
-        writer.flush()
         if (config.isDurableWrite) {
             sync()
+        } else {
+            writer.flush()
         }
     }
 
@@ -1161,7 +1160,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         throw ExodusException("Invalid value of tip of the log $highAddress")
                     }
 
-                    writer.flush()
                     writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
                 } finally {
                     endWrite()
@@ -1302,10 +1300,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
         val lastPage = (highAddress and
                 ((cachePageSize - 1).inv()).toLong())
-        val checkConsistency = config.isCheckPagesAtRuntime &&
+        var checkConsistency = config.isCheckPagesAtRuntime &&
                 formatWithHashCodeIsUsed &&
-                (!rwIsReadonly || pageAddress < lastPage ||
-                        (checkLastPage && pageAddress == lastPage && !rwIsReadonly))
+                (!rwIsReadonly && (pageAddress < lastPage ||
+                        (checkLastPage && pageAddress == lastPage)))
+        checkConsistency = checkConsistency || readBytes == cachePageSize || readBytes == 0
+
         if (checkConsistency) {
             if (readBytes < cachePageSize) {
                 DataCorruptionException.raise(
