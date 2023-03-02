@@ -7,33 +7,17 @@ import java.util.concurrent.atomic.AtomicReference;
 
 class TransactionStateWrapper {
 
-    AtomicInteger state; // TODO: convert to volatile int
+    volatile int state;
 
-    private final AtomicReference<CountDownLatch> operationsCountLatchRef = new AtomicReference<>(); // TODO: convert to operationsCountLatchRef
+    volatile CountDownLatch operationsCountLatchRef;
 
-    public int getState() {
-        return state.get();
-    }
 
-    public void setState(int newState) {
-        state.getAndSet(newState);
-    }
-
-    public TransactionStateWrapper(AtomicInteger state) {
+    public TransactionStateWrapper(int state) {
         this.state = state;
     }
 
     void initLatch() {
         CountDownLatch newLatch = new CountDownLatch(1);
-        if (operationsCountLatchRef.compareAndSet(null, newLatch)) {
-            // the latch was set to a new object
-        } else {
-            // another thread already set the latch to a different object
-            newLatch = null;
-        }
-    }
-    public AtomicReference<CountDownLatch> getLatchRef() {
-        return operationsCountLatchRef;
     }
 
 }

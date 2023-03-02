@@ -138,7 +138,7 @@ class MVCCDataStructure {
             // so we take the last with target txID
             if (candidateTxId < maxTxId && candidateTxId >= currentMax) {
                 onProgressWait(currentTransaction);
-                if (transactionsStateMap.get(currentTransaction.snapshotId).state.get() != TransactionState.REVERTED.getInt()) {
+                if (transactionsStateMap.get(currentTransaction.snapshotId).state != TransactionState.REVERTED.get()) {
                     minMaxValue = candidateTxId;
                     targetEntry = linkEntry;
                 }
@@ -185,15 +185,15 @@ class MVCCDataStructure {
                                      long maxTxId) {
         if (linkEntry.txId < maxTxId) {
             onProgressWait(transaction);
-            if (transactionsStateMap.get(transaction.snapshotId).state.get() != TransactionState.REVERTED.getInt()) {
+            if (transactionsStateMap.get(transaction.snapshotId).state != TransactionState.REVERTED.get()) {
                 selectionOfLessThanMaxTxId.add(linkEntry);
             }
         }
     }
 
     void onProgressWait(Transaction transaction) {
-        while (transactionsStateMap.get(transaction.snapshotId).state.get() == TransactionState.IN_PROGRESS.getInt()){
-            CountDownLatch latch = transactionsStateMap.get(transaction.snapshotId).getLatchRef().get();
+        while (transactionsStateMap.get(transaction.snapshotId).state == TransactionState.IN_PROGRESS.get()){
+            CountDownLatch latch = transactionsStateMap.get(transaction.snapshotId).operationsCountLatchRef;
             if (latch != null){
                 try {
                     latch.await();
@@ -212,7 +212,7 @@ class MVCCDataStructure {
             var currentSnapId = snapshotId;
             // put state in PROGRESS
 
-            var wrapper = new TransactionStateWrapper(TransactionState.IN_PROGRESS.getAtomic());
+            var wrapper = new TransactionStateWrapper(TransactionState.IN_PROGRESS.get());
 
             if (transaction.operationLinkList.size() > 10) {
                 wrapper.initLatch();
@@ -222,15 +222,16 @@ class MVCCDataStructure {
                 MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
                 // operation status check
                 if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
-                    wrapper.state = TransactionState.REVERTED.getAtomic();
+                    wrapper.state = TransactionState.REVERTED.get();
                     transactionsStateMap.put(transaction.snapshotId, wrapper); // later in "read" we ignore this
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
 
-                    var latchRef = transactionsStateMap.get(transaction.snapshotId).getLatchRef();
-                    CountDownLatch latch = latchRef.getAndSet(null);
-                    if (latch != null) {
-                        latch.countDown();
+                    // todo not sure if it's correct
+                    var latchRef = transactionsStateMap.get(transaction.snapshotId).operationsCountLatchRef;
+                    if (latchRef != null) {
+                        latchRef.countDown();
+                        latchRef = null;
                     }
 
                     //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
@@ -246,13 +247,14 @@ class MVCCDataStructure {
                 // advanced approach: state-machine
                 //here we first work with collection, after that increment version, in read vica versa
             }
-            wrapper.state = TransactionState.COMMITTED.getAtomic();
+            wrapper.state = TransactionState.COMMITTED.get();
             transactionsStateMap.put(transaction.snapshotId, wrapper);
 
-            var latchRef = transactionsStateMap.get(transaction.snapshotId).getLatchRef();
-            CountDownLatch latch = latchRef.getAndSet(null);
-            if (latch != null) {
-                latch.countDown();
+            // todo not sure if it's correct
+            var latchRef = transactionsStateMap.get(transaction.snapshotId).operationsCountLatchRef;
+            if (latchRef != null) {
+                latchRef.countDown();
+                latchRef = null;
             }
 
             // what we inserted "read" can see

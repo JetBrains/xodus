@@ -1,23 +1,17 @@
 package jetbrains.exodus.newLogConcept;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 public enum TransactionState {
-    IN_PROGRESS(new AtomicInteger(1)),
-    REVERTED(new AtomicInteger(2)),
-    COMMITTED(new AtomicInteger(3));
+    IN_PROGRESS(1),
+    REVERTED(2),
+    COMMITTED(3);
 
-    private final AtomicInteger intValue;
+    private final int intValue;
 
-    TransactionState(AtomicInteger intValue) {
+    TransactionState(int intValue) {
         this.intValue = intValue;
     }
 
-    public int getInt() {
-        return intValue.get();
-    }
-    public AtomicInteger getAtomic() {
+    public int get() {
         return intValue;
     }
-
 }
