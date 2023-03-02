@@ -25,14 +25,14 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 
 class ScytaleEngine(
-        private val listener: EncryptListener,
-        private val cipherProvider: StreamCipherProvider,
-        private val key: ByteArray,
-        private val basicIV: Long,
-        private val blockAlignment: Int = LogUtil.LOG_BLOCK_ALIGNMENT,
-        bufferSize: Int = 1024 * 1024,  // 1MB
-        inputQueueSize: Int = 40,
-        outputQueueSize: Int = 40
+    private val listener: EncryptListener,
+    private val cipherProvider: StreamCipherProvider,
+    private val key: ByteArray,
+    private val basicIV: Long,
+    private val blockAlignment: Int = LogUtil.LOG_BLOCK_ALIGNMENT,
+    bufferSize: Int = 1024 * 1024,  // 1MB
+    inputQueueSize: Int = 40,
+    outputQueueSize: Int = 40
 ) : Closeable {
     companion object : KLogging() {
         val timeout = 200L
@@ -44,10 +44,13 @@ class ScytaleEngine(
 
     @Volatile
     private var producerFinished = false
+
     @Volatile
     private var consumerFinished = false
+
     @Volatile
     private var cancelled = false
+
     @Volatile
     var error: Throwable? = null
 
@@ -59,27 +62,30 @@ class ScytaleEngine(
         override fun run() {
             try {
                 while (!cancelled && error == null) {
-                    inputQueue.poll(timeout, TimeUnit.MILLISECONDS)?.let {
-                        when (it) {
+                    val item = inputQueue.poll(timeout, TimeUnit.MILLISECONDS)
+
+                    if (item != null) {
+                        when (item) {
                             is FileHeader -> {
                                 offset = 0
-                                iv = basicIV + if (it.chunkedIV) {
-                                    it.handle / blockAlignment
+                                iv = basicIV + if (item.chunkedIV) {
+                                    item.handle / blockAlignment
                                 } else {
-                                    it.handle
+                                    item.handle
                                 }
                                 cipher.init(key, iv.asHashedIV())
                             }
-                            is FileChunk -> encryptChunk(it)
+
+                            is FileChunk -> encryptChunk(item)
                             is EndChunk -> Unit
                             else -> throw IllegalArgumentException()
                         }
-                        while (!outputQueue.offer(it, timeout, TimeUnit.MILLISECONDS)) {
+                        while (!outputQueue.offer(item, timeout, TimeUnit.MILLISECONDS)) {
                             if (cancelled || error != null) {
                                 return
                             }
                         }
-                    } ?: if (producerFinished) {
+                    } else if (producerFinished) {
                         return
                     }
                 }
@@ -123,34 +129,39 @@ class ScytaleEngine(
         try {
             var currentFile: FileHeader? = null
             while (!cancelled && error == null) {
-                outputQueue.poll(timeout, TimeUnit.MILLISECONDS)?.let {
-                    when (it) {
+                val item = outputQueue.poll(timeout, TimeUnit.MILLISECONDS)
+                if (item != null) {
+                    when (item) {
                         is FileHeader -> {
                             currentFile?.let {
                                 listener.onFileEnd(it)
                             }
-                            currentFile = it
-                            listener.onFile(it)
+                            currentFile = item
+                            listener.onFile(item)
                         }
+
                         is FileChunk -> {
                             val current = currentFile
-                            if (current != null && current != it.header) {
-                                throw Throwable("Invalid chunk with header " + it.header.path)
+                            if (current != null && current != item.header) {
+                                throw Throwable("Invalid chunk with header " + item.header.path)
                             } else {
-                                listener.onData(it.header, it.size, it.data)
-                                bufferAllocator.dispose(it.data)
+                                listener.onData(item.header, item.size, item.data)
+                                bufferAllocator.dispose(item.data)
                             }
                         }
+
                         is EndChunk -> {
                             currentFile?.let {
                                 listener.onFileEnd(it)
                             }
                         }
+
                         else -> throw IllegalArgumentException()
                     }
-                } ?: if (consumerFinished) {
+                } else if (consumerFinished) {
                     return@Thread
                 }
+
             }
         } catch (t: Throwable) {
             consumerFinished = true
