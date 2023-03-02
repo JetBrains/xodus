@@ -28,9 +28,6 @@ class MVCCDataStructure {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
-    //todo can add references to Transaction class properties via wrapper class?
-    private static final NonBlockingHashMapLong<TransactionStateWrapper> transactionsStateMap =
-            new NonBlockingHashMapLong<>(); // txID + state
 
     private static final AtomicLong address = new AtomicLong();
     private static final AtomicLong snapshotId = new AtomicLong(1L);
@@ -137,8 +134,8 @@ class MVCCDataStructure {
             // we add to queue several objects with one txID, the last one re-writes the previous value,
             // so we take the last with target txID
             if (candidateTxId < maxTxId && candidateTxId >= currentMax) {
-                onProgressWait(currentTransaction);
-                if (transactionsStateMap.get(currentTransaction.snapshotId).state != TransactionState.REVERTED.get()) {
+                onProgressWait(linkEntry);
+                if (linkEntry.wrapper.state != TransactionState.REVERTED.get()) {
                     minMaxValue = candidateTxId;
                     targetEntry = linkEntry;
                 }
@@ -164,7 +161,7 @@ class MVCCDataStructure {
 
             ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId = new ArrayList<>();
             mvccRecord.linksToOperationsQueue.forEach(linkEntry -> {
-                waitAndAddLinkEntry(linkEntry, currentTransaction, selectionOfLessThanMaxTxId, maxTxId);
+                waitAndAddLinkEntry(linkEntry, selectionOfLessThanMaxTxId, maxTxId);
             });
 
             selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationReferenceEntry::getTxId).reversed());
@@ -180,20 +177,19 @@ class MVCCDataStructure {
     }
 
     private void waitAndAddLinkEntry(OperationReferenceEntry linkEntry,
-                                     Transaction transaction,
                                      ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId,
                                      long maxTxId) {
         if (linkEntry.txId < maxTxId) {
-            onProgressWait(transaction);
-            if (transactionsStateMap.get(transaction.snapshotId).state != TransactionState.REVERTED.get()) {
+            onProgressWait(linkEntry);
+            if (linkEntry.wrapper.state != TransactionState.REVERTED.get()) {
                 selectionOfLessThanMaxTxId.add(linkEntry);
             }
         }
     }
 
-    void onProgressWait(Transaction transaction) {
-        while (transactionsStateMap.get(transaction.snapshotId).state == TransactionState.IN_PROGRESS.get()){
-            CountDownLatch latch = transactionsStateMap.get(transaction.snapshotId).operationsCountLatchRef;
+    void onProgressWait(OperationReferenceEntry referenceEntry) {
+        while (referenceEntry.wrapper.state == TransactionState.IN_PROGRESS.get()){
+            CountDownLatch latch = referenceEntry.wrapper.operationsCountLatchRef;
             if (latch != null){
                 try {
                     latch.await();
@@ -210,8 +206,8 @@ class MVCCDataStructure {
         // if transaction.type is WRITE
         if (!transaction.operationLinkList.isEmpty()){
             var currentSnapId = snapshotId;
-            // put state in PROGRESS
 
+            // put state in PROGRESS
             var wrapper = new TransactionStateWrapper(TransactionState.IN_PROGRESS.get());
 
             if (transaction.operationLinkList.size() > 10) {
@@ -219,19 +215,18 @@ class MVCCDataStructure {
             }
 
             for (var operation: transaction.operationLinkList) {
+                operation.wrapper = wrapper;
                 MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
                 // operation status check
                 if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
                     wrapper.state = TransactionState.REVERTED.get();
-                    transactionsStateMap.put(transaction.snapshotId, wrapper); // later in "read" we ignore this
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
 
-                    // todo not sure if it's correct
-                    var latchRef = transactionsStateMap.get(transaction.snapshotId).operationsCountLatchRef;
+                    var latchRef = wrapper.operationsCountLatchRef;
                     if (latchRef != null) {
                         latchRef.countDown();
-                        latchRef = null;
+                        wrapper.operationsCountLatchRef = null;
                     }
 
                     //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
@@ -248,13 +243,11 @@ class MVCCDataStructure {
                 //here we first work with collection, after that increment version, in read vica versa
             }
             wrapper.state = TransactionState.COMMITTED.get();
-            transactionsStateMap.put(transaction.snapshotId, wrapper);
 
-            // todo not sure if it's correct
-            var latchRef = transactionsStateMap.get(transaction.snapshotId).operationsCountLatchRef;
+            var latchRef = wrapper.operationsCountLatchRef;
             if (latchRef != null) {
                 latchRef.countDown();
-                latchRef = null;
+                wrapper.operationsCountLatchRef = null;
             }
 
             // what we inserted "read" can see

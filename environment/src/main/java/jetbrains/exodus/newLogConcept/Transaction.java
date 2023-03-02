@@ -6,7 +6,6 @@ import java.util.ArrayList;
 public class Transaction {
     final TransactionType type;
     long snapshotId;
-//    TransactionStateWrapper state; //  replace to reference to object in hashmap?
     ArrayList<OperationReferenceEntry> operationLinkList = new ArrayList<>(); // array of links to record in OL
     Transaction(long snapshotId, TransactionType type) {
         this.snapshotId = snapshotId;
