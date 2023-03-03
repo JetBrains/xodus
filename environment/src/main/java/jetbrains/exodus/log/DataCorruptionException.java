@@ -17,8 +17,12 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DataCorruptionException extends ExodusException {
+    private static final Logger logger = LoggerFactory.getLogger(DataCorruptionException.class);
+
 
     DataCorruptionException(@NotNull final String message) {
         super(message);
@@ -31,8 +35,11 @@ public class DataCorruptionException extends ExodusException {
     public static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
         log.switchToReadOnlyMode();
+        var exception = new DataCorruptionException(message, address, log.getFileLengthBound());
 
-        throw new DataCorruptionException(message, address, log.getFileLengthBound());
+        logger.error(message + LogUtil.getWrongAddressErrorMessage(address, log.getFileLengthBound()), exception);
+
+        throw exception;
     }
 
     static void checkLogIsClosing(@NotNull final Log log) {
