@@ -2,6 +2,7 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.StringBinding;
+import jetbrains.exodus.newLogConcept.Transaction;
 import org.junit.Assert;
 import org.junit.Test;
 import jetbrains.exodus.newLogConcept.MVCCDataStructure;
@@ -13,7 +14,6 @@ import static jetbrains.exodus.entitystore.TestBase.logger;
 
 public class MVCCComponentTest {
 
-    // One-thread tests
 
     // Get/put test
     // 1.1  make a loop in which the keys will be inserted and then read. And first one key, then 2,
@@ -22,40 +22,49 @@ public class MVCCComponentTest {
     // 1.1.2 Start a separate thread before the commit and check that it does not see the changes before the commit,
     // and after the commit it sees all the changes.
     @Test
+    // FIXME
     public void testReadCommitted() {
 
         int keyCounter = 1;
         Map<String, String> keyValTransactions = new HashMap<>();
 
         var mvccComponent = new MVCCDataStructure();
-        while (keyCounter < 10) { // todo replace to 64 * 1024
+        while (keyCounter < 1024) { // todo replace to 64 * 1024
             var writeTransaction = mvccComponent.startWriteTransaction();
-            var readTransaction = mvccComponent.startReadTransaction();
-            ByteIterable record;
+
             logger.debug("Put " + keyCounter + " key-value pairs");
-            for (int i = 0; i < keyCounter; i++){
-                String keyString = "key-" + (int)(Math.random() * 100000);
-                String valueString = "value-" + (int)(Math.random() * 100000);
+            for (int i = 0; i < keyCounter; i++) {
+                String keyString = "key-" + (int) (Math.random() * 100000);
+                String valueString = "value-" + (int) (Math.random() * 100000);
                 keyValTransactions.put(keyString, valueString);
                 logger.debug("Put key, value: " + keyString + " " + valueString);
 
                 ByteIterable key = StringBinding.stringToEntry(keyString);
-                ByteIterable value =  StringBinding.stringToEntry(valueString);
+                ByteIterable value = StringBinding.stringToEntry(valueString);
                 mvccComponent.put(writeTransaction, key, value);
 
-                record = mvccComponent.read(readTransaction, key);
-                Assert.assertNull(record);
+                new Thread(() -> {
+                    Transaction readTransaction = mvccComponent.startReadTransaction();
+                    ByteIterable record = mvccComponent.read(readTransaction, key);
+                    Assert.assertNull(record);
+                }).start();
+
             }
 
             mvccComponent.commitTransaction(writeTransaction);
-            readTransaction = mvccComponent.startReadTransaction();
 
-            for (var keyValPair: keyValTransactions.entrySet()){
-                record = mvccComponent.read(readTransaction, StringBinding.stringToEntry(keyValPair.getKey()));
-                logger.debug("Assert key, value: " + keyValPair.getKey() +
-                        " " + keyValPair.getValue());
-                Assert.assertEquals(keyValPair.getValue(), StringBinding.entryToString(record));
-            }
+            new Thread(() -> {
+                Transaction readTransaction = mvccComponent.startReadTransaction();
+                for (var keyValPair : keyValTransactions.entrySet()) {
+                    ByteIterable record = mvccComponent.read(readTransaction,
+                            StringBinding.stringToEntry(keyValPair.getKey()));
+                    logger.debug("Assert key, value: " + keyValPair.getKey() +
+                            " " + keyValPair.getValue());
+                    Assert.assertEquals(keyValPair.getValue(), StringBinding.entryToString(record));
+                }
+            }).start();
+
+
             keyCounter *= 2;
         }
     }
@@ -73,6 +82,7 @@ public class MVCCComponentTest {
     // in a separate thread.
     @Test
     public void putDeleteInAnotherTransactionTest() {
+
 
     }
 
