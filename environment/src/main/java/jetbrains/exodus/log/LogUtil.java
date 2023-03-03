@@ -23,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.PrintWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -160,5 +161,12 @@ public final class LogUtil {
     public static String getWrongAddressErrorMessage(final long address, final long fileLengthBound) {
         final long fileAddress = address - (address % fileLengthBound);
         return ", address = " + address + ", file = " + getLogFilename(fileAddress);
+    }
+
+    public static void printStackTrace(StackTraceElement[] stackTraceElements, PrintWriter printWriter) {
+        printWriter.println();
+        for (StackTraceElement traceElement : stackTraceElements)
+            printWriter.println("\tat " + traceElement);
+
     }
 }
