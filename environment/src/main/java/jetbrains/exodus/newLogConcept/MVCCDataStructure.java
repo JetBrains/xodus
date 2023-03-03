@@ -2,10 +2,10 @@ package jetbrains.exodus.newLogConcept;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
-import org.jctools.queues.MpmcUnboundedXaddArrayQueue;
 import net.jpountz.xxhash.XXHash64;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
@@ -14,17 +14,7 @@ import java.util.function.Function;
 import static jetbrains.exodus.log.BufferedDataWriter.*;
 
 
-class MVCCRecord {
-    final AtomicLong maxTransactionId;
-    final MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> linksToOperationsQueue; // array of links to record in OL
-
-    MVCCRecord(AtomicLong maxTransactionId, MpmcUnboundedXaddArrayQueue<OperationReferenceEntry> linksToOperations) {
-        this.maxTransactionId = maxTransactionId;
-        this.linksToOperationsQueue = linksToOperations;
-    }
-}
-
-class MVCCDataStructure {
+public class MVCCDataStructure {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
@@ -36,7 +26,7 @@ class MVCCDataStructure {
         while(true) {
             long value = mvccRecord.maxTransactionId.get();
             // prohibit any write transaction to spoil situation here
-            if (value < currentTransactionId
+            if (value <= currentTransactionId //todo pay attention to the change here, maybe should be <= for the case when the same transaction reads and writes?
                     && mvccRecord.maxTransactionId.compareAndSet(value, currentTransactionId)) {
                 break;
             }
@@ -48,7 +38,7 @@ class MVCCDataStructure {
     private static final Function<Long, MVCCRecord> createRecord = new Function<>() {
         @Override
         public MVCCRecord apply(Long o) {
-            return new MVCCRecord(new AtomicLong(0), new MpmcUnboundedXaddArrayQueue<>(16));
+            return new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>());
         }
     };
 
@@ -127,17 +117,19 @@ class MVCCDataStructure {
         OperationReferenceEntry targetEntry = null;
 
         var maxTxId = mvccRecord.maxTransactionId.get();
-        for (var linkEntry: mvccRecord.linksToOperationsQueue){
-            var candidateTxId = linkEntry.txId;
-            var currentMax = minMaxValue;
+        if (!mvccRecord.linksToOperationsQueue.isEmpty()) {
+            for (OperationReferenceEntry linkEntry: mvccRecord.linksToOperationsQueue){
+                var candidateTxId = linkEntry.txId;
+                var currentMax = minMaxValue;
 
-            // we add to queue several objects with one txID, the last one re-writes the previous value,
-            // so we take the last with target txID
-            if (candidateTxId < maxTxId && candidateTxId >= currentMax) {
-                onProgressWait(linkEntry);
-                if (linkEntry.wrapper.state != TransactionState.REVERTED.get()) {
-                    minMaxValue = candidateTxId;
-                    targetEntry = linkEntry;
+                // we add to queue several objects with one txID, the last one re-writes the previous value,
+                // so we take the last with target txID
+                if (candidateTxId <= maxTxId && candidateTxId >= currentMax) { // todo change her - ok?
+                    onProgressWait(linkEntry);
+                    if (linkEntry.wrapper.state != TransactionState.REVERTED.get()) {
+                        minMaxValue = candidateTxId;
+                        targetEntry = linkEntry;
+                    }
                 }
             }
         }
@@ -234,7 +226,7 @@ class MVCCDataStructure {
                 }
                 while(true) {
                     var txSnapId = transaction.snapshotId;
-                    if (currentSnapId.get() < txSnapId) {
+                    if (currentSnapId.get() <= txSnapId) { //todo pay attention to the change here, it s it correct?
                         snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
                         break;
                     }
