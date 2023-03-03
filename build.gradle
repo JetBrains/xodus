@@ -43,7 +43,7 @@ static def shouldApplyDokka(project) {
 
 
 wrapper {
-    gradleVersion = '7.6.1'
+    gradleVersion = '8.0.2'
 }
 
 defaultTasks 'assemble'

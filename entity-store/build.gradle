@@ -3,19 +3,3 @@ dependencies {
     testImplementation 'io.github.classgraph:classgraph:4.8.90'
     testImplementation project(':utils').sourceSets.test.output
 }
-
-// do not build tests artifact if there is task 'uploadArchives' (fixes XD-406)
-if (!gradle.startParameter.getTaskNames().contains('uploadArchives')) {
-    task jarTests(type: Jar) {
-        if (version.length() == 0) {
-            classifier = 'tests'
-        } else {
-            classifier = 'tests-' + version
-        }
-        from project.sourceSets.test.output
-    }
-
-    artifacts {
-        archives jarTests
-    }
-}
