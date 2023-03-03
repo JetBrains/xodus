@@ -18,11 +18,16 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.debug.StackTrace;
+import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.List;
 import java.util.Map;
 
@@ -30,9 +35,7 @@ import java.util.Map;
  * Base class for transactions.
  */
 public abstract class TransactionBase implements Transaction {
-
-    @NotNull
-    private static final StackTrace EMPTY_TRACE = new StackTrace(new StackTraceElement[0]);
+    private static final Logger logger = LoggerFactory.getLogger(TransactionBase.class);
 
     @NotNull
     private final EnvironmentImpl env;
@@ -50,7 +53,7 @@ public abstract class TransactionBase implements Transaction {
     private boolean isExclusive;
     private final boolean wasCreatedExclusive;
     @Nullable
-    private StackTrace traceFinish;
+    private StackTraceElement[] traceFinish;
     private boolean disableStoreGetCache;
 
     @Nullable
@@ -143,9 +146,20 @@ public abstract class TransactionBase implements Transaction {
 
     public void checkIsFinished() {
         if (isFinished()) {
-            throw traceFinish == EMPTY_TRACE ?
-                new TransactionFinishedException() :
-                new TransactionFinishedException(traceFinish);
+            if (traceFinish != null && traceFinish.length > 0) {
+                final StringWriter stringWriter = new StringWriter();
+                final PrintWriter printWriter = new PrintWriter(stringWriter);
+
+                printWriter.println("Transaction is expected to be active but already finished at : ");
+                LogUtil.printStackTrace(traceFinish, printWriter);
+
+                printWriter.flush();
+                final String message = stringWriter.toString();
+
+                logger.error(message);
+            }
+
+            throw new TransactionFinishedException();
         }
     }
 
@@ -249,7 +263,8 @@ public abstract class TransactionBase implements Transaction {
             synchronized (userObjects) {
                 userObjects.clear();
             }
-            traceFinish = env.getEnvironmentConfig().isEnvTxnTraceFinish() ? new StackTrace() : EMPTY_TRACE;
+            traceFinish = env.getEnvironmentConfig().isEnvTxnTraceFinish() ?
+                    Thread.currentThread().getStackTrace() : new StackTraceElement[0];
             return true;
         }
         return false;
