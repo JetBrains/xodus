@@ -247,8 +247,12 @@ public class CompressBackupUtil {
             }
 
             final int threadLimit = Math.max(2, Runtime.getRuntime().availableProcessors() / 4);
-            final long memoryLimit = Math.max((long) (Runtime.getRuntime().freeMemory() * 0.1), 64L * 1024 * 1024);
-            final int compressorsLimit = (int) Math.min(threadLimit, memoryLimit / (3 * LZ4_MAX_BLOCK_SIZE));
+//          final long memoryLimit = Math.max((long) (Runtime.getRuntime().freeMemory() * 0.1), 64L * 1024 * 1024);
+            final int compressorsLimit = threadLimit;//(int) Math.min(threadLimit, memoryLimit / (3 * LZ4_MAX_BLOCK_SIZE));
+
+            if (logger.isInfoEnabled()) {
+                logger.info("Amount of threads used for backup is set to " + threadLimit);
+            }
 
             final ExecutorService streamMachinery =
                     Executors.newFixedThreadPool(compressorsLimit, r -> {
