@@ -44,7 +44,8 @@ fun main(args: Array<String>) {
             startRhinoServer(args.skipFirst, ENTITY_STORES).use {
                 ptyShell(it.port)
             }
-
+        "parbackup" -> jetbrains.exodus.parallelbackup.parallelBackup(args.skipFirst)
+        "backuppost" -> jetbrains.exodus.parallelbackup.parallelBackupPostProcessing(args.skipFirst)
         else -> printUsage()
     }
     exitProcess(0)
