@@ -1,5 +1,5 @@
 plugins {
-    id 'com.github.johnrengelman.shadow' version "5.2.0"
+    id 'com.github.johnrengelman.shadow' version "8.1.0"
 }
 
 dependencies {
@@ -7,16 +7,11 @@ dependencies {
     implementation project(':crypto')
     implementation project(':multinode')
     implementation 'com.hierynomus:sshj:0.30.0'
-    implementation 'software.amazon.awssdk:s3:2.0.0-preview-11'
-    implementation 'software.amazon.awssdk:netty-nio-client:2.0.0-preview-11'
 }
 
-//Shadow jar is a self-contained archive with all dependencies packed
-jar.finalizedBy shadowJar
+jar.enabled = false
 
 shadowJar {
-    mustRunAfter jar
-    archiveName = jar.archiveName
     manifest {
         attributes 'Main-Class': 'jetbrains.exodus.MainKt'
     }
