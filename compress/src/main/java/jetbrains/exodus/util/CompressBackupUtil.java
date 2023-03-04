@@ -265,8 +265,9 @@ public class CompressBackupUtil {
                     });
 
             final AtomicBoolean generatorStopped = new AtomicBoolean();
-            final ArrayBlockingQueue<Pair<VirtualFileDescriptor, Long>> descriptors =
-                    new ArrayBlockingQueue<>(compressorsLimit * 1024);
+            final ConcurrentLinkedQueue<Pair<VirtualFileDescriptor, Long>> descriptors =
+                    new ConcurrentLinkedQueue<>();
+            final Semaphore queueSemaphore = new Semaphore(compressorsLimit * 1024);
 
             final ArrayList<Future<Void>> threads = new ArrayList<>();
 
@@ -290,6 +291,7 @@ public class CompressBackupUtil {
                             Pair<VirtualFileDescriptor, Long> pair = descriptors.poll();
 
                             if (pair != null) {
+                                queueSemaphore.release(1);
                                 VirtualFileDescriptor fd = pair.first;
                                 long fileSize = pair.second;
 
@@ -381,7 +383,8 @@ public class CompressBackupUtil {
                 if (fd.hasContent()) {
                     final long fileSize = Math.min(fd.getFileSize(), strategy.acceptFile(fd));
                     if (fileSize > 0) {
-                        descriptors.put(new Pair<>(fd, fileSize));
+                        queueSemaphore.acquire();
+                        descriptors.offer(new Pair<>(fd, fileSize));
                     }
                 }
             }
