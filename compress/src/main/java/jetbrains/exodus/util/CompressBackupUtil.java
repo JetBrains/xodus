@@ -148,6 +148,12 @@ public class CompressBackupUtil {
                 new File(backupBean.getBackupPath()), backupBean.getBackupNamePrefix(), backupBean.getBackupToZip());
     }
 
+    public static File parallelBackup(@NotNull final BackupBean backupBean) throws Exception {
+        backupBean.setBackupStartTicks(System.currentTimeMillis());
+        return parallelBackup(backupBean,
+                new File(backupBean.getBackupPath()), backupBean.getBackupNamePrefix());
+    }
+
     /**
      * For specified {@linkplain Backupable} {@code source} and {@code target} backup file, does backup.
      * Typically, {@code source} is an {@linkplain Environment} or an {@linkplain PersistentEntityStore}
@@ -246,12 +252,19 @@ public class CompressBackupUtil {
                 writeLZ4FrameHeader(backupChannel, hash32, compressedFilePosition);
             }
 
-            final int threadLimit = Math.max(2, Runtime.getRuntime().availableProcessors() / 4);
-//          final long memoryLimit = Math.max((long) (Runtime.getRuntime().freeMemory() * 0.1), 64L * 1024 * 1024);
-            final int compressorsLimit = threadLimit;//(int) Math.min(threadLimit, memoryLimit / (3 * LZ4_MAX_BLOCK_SIZE));
+            final int processors = Runtime.getRuntime().availableProcessors();
+            final int threadLimit = Math.max(2, processors / 4);
+
+            final long freeMemory = Runtime.getRuntime().freeMemory();
+            final long memoryLimit = Math.max(freeMemory / 6, 64L * 1024 * 1024);
+            final int compressorsLimit = (int) Math.min(threadLimit, memoryLimit / LZ4_MAX_BLOCK_SIZE);
 
             if (logger.isInfoEnabled()) {
-                logger.info("Amount of threads used for backup is set to " + threadLimit);
+                logger.info(String.format("%,d Mb of free heap memory was detected into the system, %,d Mb is allowed" +
+                        " to be used for backup.", freeMemory / (1024 * 1024), memoryLimit / (1024 * 1024)));
+                logger.info(String.format("%d processors were detected. %d is allowed to be used for backup.",
+                        processors, threadLimit));
+                logger.info(String.format("Amount of threads used for backup is set to %d.", compressorsLimit));
             }
 
             final ExecutorService streamMachinery =
@@ -267,7 +280,13 @@ public class CompressBackupUtil {
             final AtomicBoolean generatorStopped = new AtomicBoolean();
             final ConcurrentLinkedQueue<Pair<VirtualFileDescriptor, Long>> descriptors =
                     new ConcurrentLinkedQueue<>();
-            final Semaphore queueSemaphore = new Semaphore(compressorsLimit * 1024);
+            final int queueCapacity = (int) Math.min(Integer.MAX_VALUE, Math.max(1024L, (freeMemory / 100) / 512));
+            final Semaphore queueSemaphore = new Semaphore(queueCapacity);
+
+            if (logger.isInfoEnabled()) {
+                logger.info(String.format("Capacity of the backup queue is set to %d files", queueCapacity));
+            }
+
 
             final ArrayList<Future<Void>> threads = new ArrayList<>();
 
@@ -355,8 +374,6 @@ public class CompressBackupUtil {
                                                 }
                                             }
                                         }
-
-
                                     }
                                 }
                             } else if (genStopped) {
