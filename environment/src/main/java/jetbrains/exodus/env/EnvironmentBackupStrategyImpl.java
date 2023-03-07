@@ -186,6 +186,11 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     }
 
     @Override
+    public boolean isEncrypted() {
+        return environment.getEnvironmentConfig().getCipherKey() != null;
+    }
+
+    @Override
     public void afterBackup() {
         environment.resumeGC();
     }
