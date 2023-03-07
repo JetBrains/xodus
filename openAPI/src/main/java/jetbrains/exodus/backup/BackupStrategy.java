@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.Iterator;
 
@@ -123,6 +124,10 @@ public abstract class BackupStrategy {
         return Long.MAX_VALUE;
     }
 
+    public boolean isEncrypted() {
+        return false;
+    }
+
     /**
      * Descriptor of a file to be put into backup file.
      */
@@ -170,7 +175,7 @@ public abstract class BackupStrategy {
         @Override
         @NotNull
         public InputStream getInputStream() throws IOException {
-            return new FileInputStream(file);
+            return Files.newInputStream(file.toPath());
         }
 
         @Override

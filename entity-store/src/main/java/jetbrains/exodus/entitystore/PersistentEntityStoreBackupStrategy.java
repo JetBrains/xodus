@@ -89,6 +89,11 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
     }
 
     @Override
+    public boolean isEncrypted() {
+        return environmentBackupStrategy.isEncrypted();
+    }
+
+    @Override
     public Iterable<VirtualFileDescriptor> getContents() {
         return () -> new Iterator<>() {
 
@@ -158,6 +163,11 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
         @Override
         public void afterBackup() throws Exception {
             decorated.afterBackup();
+        }
+
+        @Override
+        public boolean isEncrypted() {
+            return decorated.isEncrypted();
         }
 
         @Override

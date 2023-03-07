@@ -252,6 +252,12 @@ public class CompressBackupUtil {
                 writeLZ4FrameHeader(backupChannel, hash32, compressedFilePosition);
             }
 
+
+            final boolean zeroCompression = strategy.isEncrypted();
+            if (zeroCompression && logger.isInfoEnabled()) {
+                logger.info("Backup content is encrypted and will not be compressed.");
+            }
+
             final int processors = Runtime.getRuntime().availableProcessors();
             final int threadLimit = Math.max(2, processors / 4);
 
@@ -367,7 +373,8 @@ public class CompressBackupUtil {
                                                 tarPadding(buffer);
                                                 fileIndex++;
                                             } else {
-                                                writeLZ4Block(buffer, compressedBuffer, compressor, hash32);
+                                                writeLZ4Block(buffer, compressedBuffer, compressor, hash32,
+                                                        zeroCompression);
 
                                                 if (compressedBuffer.remaining() < maxCompressedBlockSize) {
                                                     writeChunk(compressedBuffer, compressedFilePosition, backupChannel);
@@ -383,7 +390,7 @@ public class CompressBackupUtil {
 
                         tarPadding(buffer);
 
-                        writeLZ4Block(buffer, compressedBuffer, compressor, hash32);
+                        writeLZ4Block(buffer, compressedBuffer, compressor, hash32, zeroCompression);
                         writeChunk(compressedBuffer, compressedFilePosition, backupChannel);
                     }
 
@@ -421,7 +428,7 @@ public class CompressBackupUtil {
                         compressor.maxCompressedLength(lastBlock.remaining())).order(ByteOrder.LITTLE_ENDIAN);
                 lastBlock.position(lastBlock.remaining());
 
-                writeLZ4Block(lastBlock, compressedBuffer, compressor, hash32);
+                writeLZ4Block(lastBlock, compressedBuffer, compressor, hash32, false);
                 writeChunk(compressedBuffer, compressedFilePosition, backupChannel);
 
                 writeLZ4FrameEndMark(backupChannel);
@@ -504,7 +511,8 @@ public class CompressBackupUtil {
     }
 
     private static void writeLZ4Block(final ByteBuffer buffer, final ByteBuffer compressionBuffer,
-                                      final LZ4Compressor compressor, final XXHash32 hash32) {
+                                      final LZ4Compressor compressor, final XXHash32 hash32,
+                                      final boolean zeroCompression) {
         if (buffer.position() == 0) {
             return;
         }
@@ -514,17 +522,26 @@ public class CompressBackupUtil {
         final int startPosition = compressionBuffer.position();
         compressionBuffer.position(startPosition + Integer.BYTES);
 
-        compressor.compress(buffer, compressionBuffer);
-        final int endPosition = compressionBuffer.position();
-        int len = endPosition - (startPosition + Integer.BYTES);
+        int len;
+        boolean uncompressed;
+        if (!zeroCompression) {
+            compressor.compress(buffer, compressionBuffer);
+            final int endPosition = compressionBuffer.position();
+            len = endPosition - (startPosition + Integer.BYTES);
 
-        boolean uncompressed = false;
-        if (len > LZ4_MAX_BLOCK_SIZE) {
-            compressionBuffer.position(startPosition + Integer.BYTES);
+            uncompressed = false;
+            if (len > LZ4_MAX_BLOCK_SIZE) {
+                compressionBuffer.position(startPosition + Integer.BYTES);
 
-            buffer.flip();
-            compressionBuffer.put(buffer);
+                buffer.flip();
+                compressionBuffer.put(buffer);
+                uncompressed = true;
+
+                len = buffer.limit();
+            }
+        } else {
             uncompressed = true;
+            compressionBuffer.put(buffer);
 
             len = buffer.limit();
         }
