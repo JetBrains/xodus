@@ -221,6 +221,17 @@ public class BackupBean implements Backupable {
             public void onError(Throwable t) {
                 backupException = t;
             }
+
+            @Override
+            public boolean isEncrypted() {
+                for (BackupStrategy strategy : wrapped) {
+                    if (strategy.isEncrypted()) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
         };
     }
 }
