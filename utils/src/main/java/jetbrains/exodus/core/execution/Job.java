@@ -32,6 +32,8 @@ public abstract class Job {
     private Thread executingThread;
     private long startedAt;
 
+    private volatile boolean completed;
+
     protected Job() {
         processor = null;
         wasQueued = false;
@@ -137,10 +139,15 @@ public abstract class Job {
             exception = t;
         } finally {
             JobHandler.invokeHandlers(jobFinishedHandlers, this);
+            completed = true;
         }
         if (exception != null && handler != null) {
             handler.handle(processor, this, exception);
         }
+    }
+
+    public boolean isCompleted() {
+        return completed;
     }
 
     public final boolean equals(Object job) {
