@@ -1,4 +1,4 @@
 dependencies {
     api "org.jetbrains:annotations:$annotationsVersion"
-    api group: 'org.slf4j', name: 'slf4j-api', version: "$slf4jVersion"
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: "$slf4jVersion"
 }
