@@ -16,6 +16,8 @@
 package jetbrains.exodus.env
 
 import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.execution.Job
+import jetbrains.exodus.core.execution.JobHandler
 import jetbrains.exodus.crypto.newCipherProvider
 import jetbrains.exodus.io.DataReaderWriterProvider
 import jetbrains.exodus.io.FileDataWriter
@@ -29,6 +31,7 @@ import jetbrains.exodus.tree.ExpiredLoggableCollection
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.CountDownLatch
 
 object Environments {
 
@@ -248,7 +251,21 @@ object Environments {
                 "Because environment ${env.log.location} was closed incorrectly space utilization " +
                         "will be computed from scratch"
             )
-            env.gc.utilizationProfile.computeUtilizationFromScratch()
+            val job = env.gc.utilizationProfile.computeUtilizationFromScratch()
+            if (job != null) {
+                val latch = CountDownLatch(1)
+
+                job.registerJobFinishedHandler(object : JobHandler() {
+                    override fun handle(job: Job) {
+                        latch.countDown()
+                    }
+                })
+
+                if (!job.isCompleted) {
+                    latch.await()
+                }
+            }
+
             EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.location} is completed")
         }
 

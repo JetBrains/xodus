@@ -19,6 +19,7 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.core.dataStructures.hash.PackedLongHashSet
+import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.StoreConfig
@@ -295,9 +296,9 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     /**
      * Reloads utilization profile.
      */
-    fun computeUtilizationFromScratch() {
+    fun computeUtilizationFromScratch() : Job? {
         GarbageCollector.loggingInfo { "Queueing ComputeUtilizationFromScratchJob" }
-        gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(gc), gc.startTime)
+        return gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(gc), gc.startTime)
     }
 
     internal fun estimateTotalBytesAndWakeGcIfNecessary() {
