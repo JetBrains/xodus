@@ -443,6 +443,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     fun switchToReadOnlyMode() {
+        logger.error("Log $location switched to read only mode", Exception())
+
         rwIsReadonly = true
     }
 

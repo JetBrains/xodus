@@ -202,6 +202,8 @@ public class EnvironmentImpl implements Environment {
                 }
             }
         } catch (Exception e) {
+            logger.error("Error during opening the environment " + log.getLocation(), e);
+
             log.switchToReadOnlyMode();
             log.release();
             throw e;
