@@ -179,6 +179,7 @@ public final class BufferedDataWriter {
                                  final byte[] page) {
         this.currentHighAddress = highAddress;
         this.committedHighAddress = highAddress;
+        this.lastSyncedAddress = 0;
 
         if (pageSize != page.length) {
             throw new InvalidSettingException("Configured page size doesn't match actual page size, pageSize = " +
@@ -220,7 +221,7 @@ public final class BufferedDataWriter {
         flush();
 
         if (doNeedsToBeSynchronized(currentHighAddress)) {
-            sync();
+            doSync(currentHighAddress);
         }
 
         if (blockSetWasChanged) {
@@ -235,7 +236,10 @@ public final class BufferedDataWriter {
         assert currentPage.committedCount == pageSize || writeCache.get(currentPage.pageAddress) != null;
         assert this.committedHighAddress <= currentHighAddress;
 
-        this.committedHighAddress = currentHighAddress;
+        if (this.committedHighAddress < currentHighAddress) {
+            this.committedHighAddress = currentHighAddress;
+        }
+
         return currentHighAddress;
     }
 
@@ -519,6 +523,10 @@ public final class BufferedDataWriter {
     }
 
     void sync() {
+        doSync(this.committedHighAddress);
+    }
+
+    private void doSync(final long committedHighAddress) {
         var currentPage = this.currentPage;
 
         if (currentPage.writtenCount > currentPage.committedCount) {
@@ -532,7 +540,10 @@ public final class BufferedDataWriter {
 
         assert lastSyncedAddress <= committedHighAddress;
 
-        lastSyncedAddress = committedHighAddress;
+        if (this.lastSyncedAddress < committedHighAddress) {
+            lastSyncedAddress = committedHighAddress;
+        }
+
         lastSyncedTs = System.currentTimeMillis();
     }
 
@@ -577,6 +588,7 @@ public final class BufferedDataWriter {
 
         currentHighAddress = 0;
         committedHighAddress = 0;
+        lastSyncedAddress = 0;
 
         if (currentPage != null) {
             currentPage.xxHash64.close();
@@ -809,6 +821,7 @@ public final class BufferedDataWriter {
 
         this.currentHighAddress = highAddress;
         this.committedHighAddress = highAddress;
+        this.lastSyncedAddress = 0;
 
         var pageOffset = (int) highAddress & (pageSize - 1);
         var pageAddress = highAddress - pageOffset;
