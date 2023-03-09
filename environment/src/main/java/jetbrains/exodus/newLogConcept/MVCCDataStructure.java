@@ -1,4 +1,5 @@
 package jetbrains.exodus.newLogConcept;
+
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
@@ -16,18 +17,22 @@ import static jetbrains.exodus.log.BufferedDataWriter.*;
 
 public class MVCCDataStructure {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
-    private static final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
+    private final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
 
     private static final AtomicLong address = new AtomicLong();
-    private static final AtomicLong snapshotId = new AtomicLong(1L);
-    private static final AtomicLong writeTxSnapshotId = snapshotId;
+    private final AtomicLong snapshotId = new AtomicLong(1L);
+    private final AtomicLong writeTxSnapshotId = snapshotId;
+
     private void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
-        while(true) {
+        while (true) {
             long value = mvccRecord.maxTransactionId.get();
             // prohibit any write transaction to spoil situation here
-            if (value <= currentTransactionId //todo pay attention to the change here, maybe should be <= for the case when the same transaction reads and writes?
-                    && mvccRecord.maxTransactionId.compareAndSet(value, currentTransactionId)) {
+            if (value < currentTransactionId) {
+                if (mvccRecord.maxTransactionId.compareAndSet(value, currentTransactionId)) {
+                    break;
+                }
+            } else {
                 break;
             }
         }
@@ -43,7 +48,7 @@ public class MVCCDataStructure {
     };
 
 
-    private ByteIterable searchInBTree(ByteIterable key){
+    private ByteIterable searchInBTree(ByteIterable key) {
         // mock method for the search of the operation in B-tree
         return null;
     }
@@ -71,7 +76,7 @@ public class MVCCDataStructure {
 
     public Transaction startTransaction(TransactionType type) {
         Transaction newTransaction;
-        if (type == TransactionType.READ){
+        if (type == TransactionType.READ) {
             newTransaction = new Transaction(snapshotId.get(), type);
         } else {
             newTransaction = new Transaction(writeTxSnapshotId.incrementAndGet(), type);
@@ -80,21 +85,21 @@ public class MVCCDataStructure {
     }
 
     public void put(Transaction transaction,
-                           ByteIterable key,
-                           ByteIterable value) {
+                    ByteIterable key,
+                    ByteIterable value) {
         addToLog(transaction, key, value, 0);
     }
 
     public void remove(Transaction transaction,
-                              ByteIterable key,
-                              ByteIterable value) {
+                       ByteIterable key,
+                       ByteIterable value) {
         addToLog(transaction, key, value, 1);
     }
 
     public void addToLog(Transaction transaction,
-                                ByteIterable key,
-                                ByteIterable value,
-                                int operationType) {
+                         ByteIterable key,
+                         ByteIterable value,
+                         int operationType) {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
         var snapshot = snapshotId.get();
@@ -118,13 +123,13 @@ public class MVCCDataStructure {
 
         var maxTxId = mvccRecord.maxTransactionId.get();
         if (!mvccRecord.linksToOperationsQueue.isEmpty()) {
-            for (OperationReferenceEntry linkEntry: mvccRecord.linksToOperationsQueue){
+            for (OperationReferenceEntry linkEntry : mvccRecord.linksToOperationsQueue) {
                 var candidateTxId = linkEntry.txId;
                 var currentMax = minMaxValue;
 
                 // we add to queue several objects with one txID, the last one re-writes the previous value,
                 // so we take the last with target txID
-                if (candidateTxId <= maxTxId && candidateTxId >= currentMax) { // todo change her - ok?
+                if (candidateTxId <= maxTxId && candidateTxId >= currentMax) {
                     onProgressWait(linkEntry);
                     if (linkEntry.wrapper.state != TransactionState.REVERTED.get()) {
                         minMaxValue = candidateTxId;
@@ -135,7 +140,7 @@ public class MVCCDataStructure {
         }
 
         // case for REMOVE operation
-        if (targetEntry == null){
+        if (targetEntry == null) {
             return null;
         }
 
@@ -143,11 +148,11 @@ public class MVCCDataStructure {
                 (TransactionOperationLogRecord) operationLog.get(targetEntry.operationAddress);
 
         // case for error - smth goes wrong
-        if (targetOperationInLog == null){
+        if (targetOperationInLog == null) {
             throw new ExodusException();
         }
 
-        if (targetOperationInLog.key.equals(key)){
+        if (targetOperationInLog.key.equals(key)) {
             return targetOperationInLog.value;
         } else {
 
@@ -157,9 +162,9 @@ public class MVCCDataStructure {
             });
 
             selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationReferenceEntry::getTxId).reversed());
-            for (OperationReferenceEntry linkEntry: selectionOfLessThanMaxTxId) {
-                targetOperationInLog = (TransactionOperationLogRecord)operationLog.get(linkEntry.operationAddress);
-                if (targetOperationInLog.key.equals(key)){
+            for (OperationReferenceEntry linkEntry : selectionOfLessThanMaxTxId) {
+                targetOperationInLog = (TransactionOperationLogRecord) operationLog.get(linkEntry.operationAddress);
+                if (targetOperationInLog.key.equals(key)) {
                     return targetOperationInLog.value;
                 }
             }
@@ -180,12 +185,12 @@ public class MVCCDataStructure {
     }
 
     void onProgressWait(OperationReferenceEntry referenceEntry) {
-        while (referenceEntry.wrapper.state == TransactionState.IN_PROGRESS.get()){
+        while (referenceEntry.wrapper.state == TransactionState.IN_PROGRESS.get()) {
             CountDownLatch latch = referenceEntry.wrapper.operationsCountLatchRef;
-            if (latch != null){
+            if (latch != null) {
                 try {
                     latch.await();
-                } catch (InterruptedException e){
+                } catch (InterruptedException e) {
                     throw new ExodusException();
                 }
             } else {
@@ -196,7 +201,7 @@ public class MVCCDataStructure {
 
     public void commitTransaction(Transaction transaction) {
         // if transaction.type is WRITE
-        if (!transaction.operationLinkList.isEmpty()){
+        if (!transaction.operationLinkList.isEmpty()) {
             var currentSnapId = snapshotId;
 
             // put state in PROGRESS
@@ -206,7 +211,7 @@ public class MVCCDataStructure {
                 wrapper.initLatch();
             }
 
-            for (var operation: transaction.operationLinkList) {
+            for (var operation : transaction.operationLinkList) {
                 operation.wrapper = wrapper;
                 MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
                 // operation status check
@@ -224,10 +229,14 @@ public class MVCCDataStructure {
                     //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
                     throw new ExodusException(); // rollback
                 }
-                while(true) {
+
+                while (true) {
                     var txSnapId = transaction.snapshotId;
-                    if (currentSnapId.get() <= txSnapId) { //todo pay attention to the change here, it s it correct?
-                        snapshotId.compareAndSet(currentSnapId.get(), txSnapId);
+                    if (currentSnapId.get() < txSnapId) {
+                        if (snapshotId.compareAndSet(currentSnapId.get(), txSnapId)) {
+                            break;
+                        }
+                    } else {
                         break;
                     }
                 }
@@ -248,7 +257,7 @@ public class MVCCDataStructure {
         }
     }
 
-    private MVCCRecord mvccRecordCreateAndPut(OperationReferenceEntry operation){
+    private MVCCRecord mvccRecordCreateAndPut(OperationReferenceEntry operation) {
         var keyHashCode = operation.keyHashCode;
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         hashMap.putIfAbsent(keyHashCode, mvccRecord);
