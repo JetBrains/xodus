@@ -29,17 +29,23 @@ public class MVCCComponentTest {
         Map<String, String> keyValTransactions = new HashMap<>();
 
         var mvccComponent = new MVCCDataStructure();
-        while (keyCounter <=  64 * 1024) {
-            int localKeyCounter = keyCounter;
-            logger.info("Counter: " + keyCounter + " " + localKeyCounter);
+        while (keyCounter <=   1024) { //todo 64*1024
+            logger.info("Counter: " + keyCounter);
+
+            for (int i = 0; i < keyCounter; i++) {
+                String keyString = "key-" + (int) (Math.random() * 100000);
+                String valueString = "value-" + (int) (Math.random() * 100000);
+                keyValTransactions.put(keyString, valueString);
+            }
+
             new Thread(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
-                logger.info("Put " + localKeyCounter + " key-value pairs");
-                for (int i = 0; i < localKeyCounter; i++) {
-                    putKeyAndCheckReadNull(keyValTransactions, mvccComponent, writeTransaction);
+                for (var entry : keyValTransactions.entrySet()){
+                    putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction);
                 }
                 mvccComponent.commitTransaction(writeTransaction);
             }).start();
+
             checkReadRecordIsNotNull(keyValTransactions, mvccComponent);
             keyCounter *= 2;
         }
@@ -60,28 +66,33 @@ public class MVCCComponentTest {
     public void putDeleteInAnotherTransactionTest() {
 
         int keyCounter = 1;
-        Map<String, String> keyValTransactionsPut = new HashMap<>();
+        final Map<String, String> keyValTransactionsPut = new HashMap<>();
 
         var mvccComponent = new MVCCDataStructure();
         while (keyCounter <=  64 * 1024) {
-            int localKeyCounter = keyCounter;
+
+            logger.info("Counter: " + keyCounter);
+            for (int i = 0; i < keyCounter; i++) {
+                String keyString = "key-" + (int) (Math.random() * 100000);
+                String valueString = "value-" + (int) (Math.random() * 100000);
+                keyValTransactionsPut.put(keyString, valueString);
+                logger.info("Put key/val to the map: " + keyString + " " + valueString);
+            }
+
             new Thread(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
-                logger.info("Put " + localKeyCounter + " key-value pairs");
-                for (int i = 0; i < localKeyCounter; i++) {
-                    putKeyAndCheckReadNull(keyValTransactionsPut, mvccComponent, writeTransaction);
+                for (var entry: keyValTransactionsPut.entrySet()) {
+                    putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction);
                 }
                 mvccComponent.commitTransaction(writeTransaction);
             }).start();
+
             checkReadRecordIsNotNull(keyValTransactionsPut, mvccComponent);
             final Map<String, String> keyValTransactionsDelete = getSubmap(keyValTransactionsPut);
 
             new Thread(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
-                logger.info("Delete " + localKeyCounter / 2 + " key-value pairs");
-                for (int i = 0; i < localKeyCounter / 2; i++) {
-                    deleteKeyAndCheckReadNull(keyValTransactionsDelete, mvccComponent, writeTransaction);
-                }
+                deleteKeyAndCheckReadNull(keyValTransactionsDelete, mvccComponent, writeTransaction);
                 mvccComponent.commitTransaction(writeTransaction);
             }).start();
             for (var keyValPair : keyValTransactionsDelete.entrySet()){
@@ -105,16 +116,13 @@ public class MVCCComponentTest {
         return submap;
     }
 
-    private void putKeyAndCheckReadNull(Map<String, String> keyValTransactions,
-                                                MVCCDataStructure mvccComponent, Transaction writeTransaction) {
-        String keyString = "key-" + (int) (Math.random() * 100000);
-        String valueString = "value-" + (int) (Math.random() * 100000);
-        keyValTransactions.put(keyString, valueString);
+    private void putKeyAndCheckReadNull(Map.Entry<String, String> entry,
+                                        MVCCDataStructure mvccComponent, Transaction writeTransaction) {
 
-        ByteIterable key = StringBinding.stringToEntry(keyString);
-        ByteIterable value = StringBinding.stringToEntry(valueString);
+        ByteIterable key = StringBinding.stringToEntry(entry.getKey());
+        ByteIterable value = StringBinding.stringToEntry(entry.getValue());
 
-        logger.info("Put key, value: " + keyString + " " + valueString); // TODO find a way to put key-vals in this map, now not fully correct
+        logger.info("Put key, value: " + entry.getKey() + " " + entry.getValue() + " to mvcc"); // TODO find a way to put key-vals in this map, now not fully correct
         mvccComponent.put(writeTransaction, key, value);
         checkReadRecordIsNull(mvccComponent, key);
 
