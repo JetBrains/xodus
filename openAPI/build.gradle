@@ -1,4 +1,5 @@
 dependencies {
-    api project(':utils')
+    implementation "org.jetbrains:annotations:$annotationsVersion"
+    implementation project(':utils')
     testImplementation project(':utils').sourceSets.test.output
 }

@@ -3,9 +3,13 @@ plugins {
 }
 
 dependencies {
-    implementation project(':sshd')
     implementation project(':crypto')
-    implementation project(':multinode')
+    implementation project(':environment')
+    implementation project(':entity-store')
+    implementation project(':compress')
+    implementation project(':vfs')
+    api project(':openAPI')
+    implementation project(':utils')
     implementation 'com.hierynomus:sshj:0.30.0'
 }
 

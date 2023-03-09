@@ -1,5 +1,6 @@
 dependencies {
     implementation project(':entity-store')
+    implementation project(':environment')
 }
 
 jar {

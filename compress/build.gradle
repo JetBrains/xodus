@@ -1,4 +1,5 @@
 dependencies {
     api project(':openAPI')
+    implementation project(':utils')
     implementation 'org.lz4:lz4-java:1.8.0'
 }

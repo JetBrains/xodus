@@ -1,6 +1,8 @@
 dependencies {
-    api project(':entity-store')
-    api 'com.github.penemue:keap:0.3.0'
+    implementation project(':entity-store')
+    implementation project(':utils')
+    api project(':openAPI')
+    implementation 'com.github.penemue:keap:0.3.0'
     testImplementation project(':entity-store').sourceSets.test.output
     testImplementation project(':utils').sourceSets.test.output
 }

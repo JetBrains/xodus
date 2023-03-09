@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus
 
-import jetbrains.exodus.javascript.RhinoCommand.Companion.ENTITY_STORES
-import jetbrains.exodus.javascript.RhinoCommand.Companion.ENVIRONMENTS
-import jetbrains.exodus.javascript.ptyShell
-import jetbrains.exodus.javascript.startRhinoServer
+
 import java.util.logging.LogManager
 import kotlin.system.exitProcess
 
@@ -35,15 +32,6 @@ fun main(args: Array<String>) {
         "refactorings" -> jetbrains.exodus.entityStore.main(args.skipFirst)
         "scytale" -> jetbrains.exodus.crypto.main(args.skipFirst)
         "vfs" -> jetbrains.exodus.vfs.main(args.skipFirst)
-        "environmentjsconsole" ->
-            startRhinoServer(args.skipFirst, ENVIRONMENTS).use {
-                ptyShell(it.port)
-            }
-
-        "entitystorejsconsole" ->
-            startRhinoServer(args.skipFirst, ENTITY_STORES).use {
-                ptyShell(it.port)
-            }
         "parbackup" -> jetbrains.exodus.parallelbackup.parallelBackup(args.skipFirst)
         "backuppost" -> jetbrains.exodus.parallelbackup.parallelBackupPostProcessing(args.skipFirst)
         else -> printUsage()

@@ -29,13 +29,16 @@ public final class LoggableIterator implements Iterator<RandomAccessLoggable> {
     @NotNull
     private final ByteIteratorWithAddress it;
 
-    public LoggableIterator(@NotNull final Log log, final long startAddress) {
-        this(log, log.readIteratorFrom(startAddress));
+    private final long highAddress;
+
+    public LoggableIterator(@NotNull final Log log, final long startAddress, final long highAddress) {
+        this(log, log.readIteratorFrom(startAddress), highAddress);
     }
 
-    public LoggableIterator(@NotNull final Log log, @NotNull final ByteIteratorWithAddress it) {
+    public LoggableIterator(@NotNull final Log log, @NotNull final ByteIteratorWithAddress it, final long highAddress) {
         this.log = log;
         this.it = it;
+        this.highAddress = highAddress;
     }
 
     public long getHighAddress() {
@@ -56,7 +59,7 @@ public final class LoggableIterator implements Iterator<RandomAccessLoggable> {
 
     @Override
     public boolean hasNext() {
-        return it.hasNext();
+        return it.hasNext() && it.getAddress() < highAddress;
     }
 
     @Override

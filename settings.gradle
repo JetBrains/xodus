@@ -14,12 +14,10 @@ include 'utils',
         'environment',
         'vfs',
         'lucene-directory',
-        'multinode',
         'entity-store',
         'query',
         'benchmarks',
         'samples',
-        'sshd',
         'tools'
 include 'environment-crash-tests'
 include 'lucene-directory-v2'

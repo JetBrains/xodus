@@ -1006,7 +1006,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     fun getLoggableIterator(startAddress: Long): LoggableIterator {
-        return LoggableIterator(this, startAddress)
+        return LoggableIterator(this, startAddress, highAddress)
     }
 
     fun tryWrite(type: Byte, structureId: Int, data: ByteIterable, expiredLoggables: ExpiredLoggableCollection): Long {

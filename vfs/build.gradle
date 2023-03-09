@@ -1,5 +1,8 @@
 dependencies {
-    api project(':environment')
+    implementation project(':environment')
+    api project(':openAPI')
+    implementation project(':utils')
+    implementation "org.jetbrains:annotations:$annotationsVersion"
     testImplementation project(':environment').sourceSets.test.output
     testImplementation project(':utils').sourceSets.test.output
     testImplementation 'io.airlift:aircompressor:0.21'

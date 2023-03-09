@@ -155,7 +155,7 @@ subprojects {
 
     // configuring projects with Kotlin sources
     dependencies {
-        api "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+        implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
         implementation "io.github.microutils:kotlin-logging:$kotlinLoggingVersion"
     }
     compileKotlin {

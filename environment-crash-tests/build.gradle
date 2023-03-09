@@ -1,5 +1,6 @@
 dependencies {
     testImplementation project(':utils').sourceSets.test.output
+    testImplementation project(':utils')
     testImplementation project(':environment')
 }
 

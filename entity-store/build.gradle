@@ -1,5 +1,9 @@
 dependencies {
-    api project(':vfs')
+    implementation project(':vfs')
+    api project(':openAPI')
+    implementation project(':utils')
+    implementation project(':environment')
+    implementation project(':compress')
     testImplementation 'io.github.classgraph:classgraph:4.8.90'
     testImplementation project(':utils').sourceSets.test.output
 }

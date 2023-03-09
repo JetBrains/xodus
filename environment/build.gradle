@@ -1,4 +1,7 @@
 dependencies {
-    api project(':compress')
+    implementation project(':compress')
+    implementation project(':utils')
+    api project(':openAPI')
+    implementation "org.jetbrains:annotations:$annotationsVersion"
     testImplementation project(':utils').sourceSets.test.output
 }

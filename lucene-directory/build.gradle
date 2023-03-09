@@ -2,7 +2,9 @@ buildscript {
     ext.luceneVersion = '8.10.0'
 }
 dependencies {
-    api project(':vfs')
+    implementation project(':vfs')
+    implementation project(':environment')
+    api project(':openAPI')
     implementation "org.apache.lucene:lucene-core:$luceneVersion"
     implementation "org.apache.lucene:lucene-analyzers-common:$luceneVersion"
     implementation "org.apache.lucene:lucene-queries:$luceneVersion"
