@@ -29,42 +29,18 @@ public class MVCCComponentTest {
         Map<String, String> keyValTransactions = new HashMap<>();
 
         var mvccComponent = new MVCCDataStructure();
-        while (keyCounter < 1024) { // todo replace to 64 * 1024
-            var writeTransaction = mvccComponent.startWriteTransaction();
-
-            logger.debug("Put " + keyCounter + " key-value pairs");
-            for (int i = 0; i < keyCounter; i++) {
-                String keyString = "key-" + (int) (Math.random() * 100000);
-                String valueString = "value-" + (int) (Math.random() * 100000);
-                keyValTransactions.put(keyString, valueString);
-                logger.debug("Put key, value: " + keyString + " " + valueString);
-
-                ByteIterable key = StringBinding.stringToEntry(keyString);
-                ByteIterable value = StringBinding.stringToEntry(valueString);
-                mvccComponent.put(writeTransaction, key, value);
-
-                new Thread(() -> {
-                    Transaction readTransaction = mvccComponent.startReadTransaction();
-                    ByteIterable record = mvccComponent.read(readTransaction, key);
-                    Assert.assertNull(record);
-                }).start();
-
-            }
-
-            mvccComponent.commitTransaction(writeTransaction);
-
+        while (keyCounter <=  64 * 1024) {
+            int localKeyCounter = keyCounter;
+            logger.info("Counter: " + keyCounter + " " + localKeyCounter);
             new Thread(() -> {
-                Transaction readTransaction = mvccComponent.startReadTransaction();
-                for (var keyValPair : keyValTransactions.entrySet()) {
-                    ByteIterable record = mvccComponent.read(readTransaction,
-                            StringBinding.stringToEntry(keyValPair.getKey()));
-                    logger.debug("Assert key, value: " + keyValPair.getKey() +
-                            " " + keyValPair.getValue());
-                    Assert.assertEquals(keyValPair.getValue(), StringBinding.entryToString(record));
+                var writeTransaction = mvccComponent.startWriteTransaction();
+                logger.info("Put " + localKeyCounter + " key-value pairs");
+                for (int i = 0; i < localKeyCounter; i++) {
+                    putKeyAndCheckReadNull(keyValTransactions, mvccComponent, writeTransaction);
                 }
+                mvccComponent.commitTransaction(writeTransaction);
             }).start();
-
-
+            checkReadRecordIsNotNull(keyValTransactions, mvccComponent);
             keyCounter *= 2;
         }
     }
@@ -83,7 +59,100 @@ public class MVCCComponentTest {
     @Test
     public void putDeleteInAnotherTransactionTest() {
 
+        int keyCounter = 1;
+        Map<String, String> keyValTransactionsPut = new HashMap<>();
 
+        var mvccComponent = new MVCCDataStructure();
+        while (keyCounter <=  64 * 1024) {
+            int localKeyCounter = keyCounter;
+            new Thread(() -> {
+                var writeTransaction = mvccComponent.startWriteTransaction();
+                logger.info("Put " + localKeyCounter + " key-value pairs");
+                for (int i = 0; i < localKeyCounter; i++) {
+                    putKeyAndCheckReadNull(keyValTransactionsPut, mvccComponent, writeTransaction);
+                }
+                mvccComponent.commitTransaction(writeTransaction);
+            }).start();
+            checkReadRecordIsNotNull(keyValTransactionsPut, mvccComponent);
+            final Map<String, String> keyValTransactionsDelete = getSubmap(keyValTransactionsPut);
+
+            new Thread(() -> {
+                var writeTransaction = mvccComponent.startWriteTransaction();
+                logger.info("Delete " + localKeyCounter / 2 + " key-value pairs");
+                for (int i = 0; i < localKeyCounter / 2; i++) {
+                    deleteKeyAndCheckReadNull(keyValTransactionsDelete, mvccComponent, writeTransaction);
+                }
+                mvccComponent.commitTransaction(writeTransaction);
+            }).start();
+            for (var keyValPair : keyValTransactionsDelete.entrySet()){
+                checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(keyValPair.getKey()));
+            }
+
+            keyCounter *= 2;
+        }
+
+    }
+
+    private HashMap<String, String> getSubmap(Map<String, String> map ) {
+        HashMap<String, String> submap = new HashMap<>();
+        final int limit = map.size() / 2;
+        for (var keyValPair : map.entrySet()) {
+            submap.put(keyValPair.getKey(), keyValPair.getValue());
+            if (submap.size() == limit) {
+                break;
+            }
+        }
+        return submap;
+    }
+
+    private void putKeyAndCheckReadNull(Map<String, String> keyValTransactions,
+                                                MVCCDataStructure mvccComponent, Transaction writeTransaction) {
+        String keyString = "key-" + (int) (Math.random() * 100000);
+        String valueString = "value-" + (int) (Math.random() * 100000);
+        keyValTransactions.put(keyString, valueString);
+
+        ByteIterable key = StringBinding.stringToEntry(keyString);
+        ByteIterable value = StringBinding.stringToEntry(valueString);
+
+        logger.info("Put key, value: " + keyString + " " + valueString); // TODO find a way to put key-vals in this map, now not fully correct
+        mvccComponent.put(writeTransaction, key, value);
+        checkReadRecordIsNull(mvccComponent, key);
+
+    }
+
+    private void deleteKeyAndCheckReadNull(Map<String, String> keyValTransactions,
+                                        MVCCDataStructure mvccComponent, Transaction writeTransaction) {
+        for (var keyValPair : keyValTransactions.entrySet()) {
+            var key = keyValPair.getKey();
+            var value = keyValPair.getValue();
+            logger.info("Remove key, value: " + keyValPair.getKey() + " " + keyValPair.getValue());
+            mvccComponent.remove(writeTransaction, StringBinding.stringToEntry(key), StringBinding.stringToEntry(value));
+            checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(key));
+        }
+
+    }
+
+    private void checkReadRecordIsNull(MVCCDataStructure mvccComponent, ByteIterable key) {
+        new Thread(() -> {
+            Transaction readTransaction = mvccComponent.startReadTransaction();
+            ByteIterable record = mvccComponent.read(readTransaction, key);
+            logger.info("Assert key " + key + " is null");
+            Assert.assertNull(record);
+        }).start();
+    }
+
+    private void checkReadRecordIsNotNull(Map<String, String> keyValTransactions,
+                                          MVCCDataStructure mvccComponent) {
+        new Thread(() -> {
+            Transaction readTransaction = mvccComponent.startReadTransaction();
+            for (var keyValPair : keyValTransactions.entrySet()) {
+                ByteIterable record = mvccComponent.read(readTransaction,
+                        StringBinding.stringToEntry(keyValPair.getKey()));
+                logger.info("Assert key, value: " + keyValPair.getKey() +
+                        " " + keyValPair.getValue());
+                Assert.assertEquals(keyValPair.getValue(), StringBinding.entryToString(record));
+            }
+        }).start();
     }
 
     // 2.2 Add keys and delete in the same transaction. Check visibility before and after a commit in the current
