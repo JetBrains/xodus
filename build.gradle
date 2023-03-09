@@ -1,7 +1,6 @@
 buildscript {
     ext.kotlinVersion = '1.8.10'
     ext.kotlinLangVersion = '1.8'
-    ext.kotlinCoroutinesVersion = '1.6.4'
     ext.dokkaVersion = '1.6.21'
     ext.kotlinLoggingVersion = '3.0.5'
     ext.annotationsVersion = '24.0.0'
