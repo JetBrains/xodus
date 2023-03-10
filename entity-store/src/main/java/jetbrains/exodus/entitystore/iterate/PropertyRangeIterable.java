@@ -290,7 +290,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                 final Cursor cursor = getCursor();
                 final EntityId result =
                         new PersistentEntityId(getEntityTypeId(), LongBinding.compressedEntryToLong(cursor.getValue()));
-                checkHasNext(cursor.getNext());
+                checkHasNext(cursor.getPrev());
                 return result;
             }
 
