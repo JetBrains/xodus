@@ -134,9 +134,9 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                 builder.append('-');
                 builder.append(propertyId);
                 builder.append('-');
-                builder.append(min.toString());
+                builder.append(min);
                 builder.append('-');
-                builder.append(max.toString());
+                builder.append(max);
             }
 
             @Override
@@ -190,10 +190,10 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
     @Override
     protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
         final Cursor cursor = openCursor(txn);
-        if (cursor == null) {
-            return 0;
-        }
-        try {
+        try (cursor) {
+            if (cursor == null) {
+                return 0;
+            }
             final PropertyValue propertyValue = getStore().getPropertyTypes().dataToPropertyValue(min);
             final ComparableBinding binding = propertyValue.getBinding();
             long result = 0;
@@ -202,9 +202,8 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
                 result += cursor.count();
                 success = cursor.getNextNoDup();
             }
+
             return result;
-        } finally {
-            cursor.close();
         }
     }
 
@@ -276,7 +275,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
         }
 
         private void checkHasNext(final boolean success) {
-            hasNext = success && min.compareTo(binding.entryToObject(getCursor().getKey())) >= 0;
+            hasNext = success && binding.entryToObject(getCursor().getKey()).compareTo(min) >= 0;
         }
 
         @Override
