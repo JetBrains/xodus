@@ -45,17 +45,20 @@ public class MVCCComponentTest {
                 var writeTransaction = mvccComponent.startWriteTransaction();
                 for (var entry : keyValTransactions.entrySet()) {
                     try {
+                        // check record is null before the commit
                         putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                 }
                 mvccComponent.commitTransaction(writeTransaction);
+                // check record is not null after the commit
                 checkReadRecordIsNotNull(keyValTransactions, mvccComponent);
             });
             th.get();
 
             var th2 = service.submit(() -> {
+                // check again that the record is not null after the commit after thread end
                 checkReadRecordIsNotNull(keyValTransactions, mvccComponent);
             });
             th2.get();
@@ -79,128 +82,84 @@ public class MVCCComponentTest {
     public void putDeleteInAnotherTransactionTest() throws ExecutionException, InterruptedException {
 
         int keyCounter = 1;
-        ExecutorService executor = Executors.newCachedThreadPool();
+        ExecutorService service = Executors.newCachedThreadPool();
 
         while (keyCounter <= 64 * 1024) {
-
-            final Map<String, String> keyValTransactionsPut = new HashMap<>();
+            logger.debug("Counter: " + keyCounter);
+            Map<String, String> keyValTransactions = new HashMap<>();
             var mvccComponent = new MVCCDataStructure();
 
-            logger.info("Counter: " + keyCounter);
             for (int i = 0; i < keyCounter; i++) {
                 String keyString = "key-" + (int) (Math.random() * 100000);
                 String valueString = "value-" + (int) (Math.random() * 100000);
-                keyValTransactionsPut.put(keyString, valueString);
-                logger.info("Put key/val to the map: " + keyString + " " + valueString);
+                keyValTransactions.put(keyString, valueString);
             }
 
-            var th1 = executor.submit(() -> {
+            //-----------------start PUT part check--------------------------------------
+
+            var thPut1 = service.submit(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
-                for (var entry : keyValTransactionsPut.entrySet()) {
+                for (var entry : keyValTransactions.entrySet()) {
                     try {
-                        putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, executor);
+                        // check record is null before the commit
+                        putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                 }
                 mvccComponent.commitTransaction(writeTransaction);
-                checkReadRecordIsNotNull(keyValTransactionsPut, mvccComponent);
+                // check record is not null after the commit
+                checkReadRecordIsNotNull(keyValTransactions, mvccComponent);
             });
-            th1.get();
+            thPut1.get();
 
-            var th11 = executor.submit(() -> {
-                checkReadRecordIsNotNull(keyValTransactionsPut, mvccComponent);
+            // check again that the record is not null after the commit after thread end
+            var thPut2 = service.submit(() -> {
+                checkReadRecordIsNotNull(keyValTransactions, mvccComponent);
             });
-            th11.get();
+            thPut2.get();
 
-            final Map<String, String> keyValTransactionsDelete = getSubmap(keyValTransactionsPut);
+            //-----------------end PUT part check--------------------------------------
 
-            var th2 = executor.submit(() -> {
+            //-----------------start DELETE part check---------------------------------
+
+            var thDelete1 = service.submit(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
                 try {
-                    deleteKeyAndCheckReadNull(keyValTransactionsDelete, mvccComponent, writeTransaction, executor);
+                    // check record is not null before the commit
+                    deleteKeyAndCheckReadNotNull(keyValTransactions, mvccComponent, writeTransaction);
                 } catch (ExecutionException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
                 mvccComponent.commitTransaction(writeTransaction);
-
-            });
-            th2.get(); //TODO FIXME
-
-            var th3 = executor.submit(() -> {
-                for (var keyValPair : keyValTransactionsDelete.entrySet()) {
-                    try {
-                        checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(keyValPair.getKey()), executor);
-                    } catch (ExecutionException | InterruptedException e) {
-                        throw new RuntimeException(e);
+                // check record is null after the commit
+                try {
+                    for (var entry : keyValTransactions.entrySet()) {
+                        checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(entry.getKey()), service);
                     }
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
             });
-            th3.get();
+            thDelete1.get();
 
+            // check again that the record is not null after the commit after thread end
+            var thDelete2 = service.submit(() -> {
+                try {
+                    for (var entry : keyValTransactions.entrySet()) {
+                        checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(entry.getKey()), service);
+                    }
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            thDelete2.get();
+            //-----------------end DELETE part check--------------------------------------
             keyCounter *= 2;
         }
 
     }
 
-    private HashMap<String, String> getSubmap(Map<String, String> map) {
-        HashMap<String, String> submap = new HashMap<>();
-        final int limit = map.size() / 2;
-        for (var keyValPair : map.entrySet()) {
-            submap.put(keyValPair.getKey(), keyValPair.getValue());
-            if (submap.size() == limit) {
-                break;
-            }
-        }
-        return submap;
-    }
-
-    private void putKeyAndCheckReadNull(Map.Entry<String, String> entry,
-                                        MVCCDataStructure mvccComponent, Transaction writeTransaction, ExecutorService service) throws ExecutionException, InterruptedException {
-
-        ByteIterable key = StringBinding.stringToEntry(entry.getKey());
-        ByteIterable value = StringBinding.stringToEntry(entry.getValue());
-
-        logger.debug("Put key, value: " + entry.getKey() + " " + entry.getValue() + " to mvcc");
-        mvccComponent.put(writeTransaction, key, value);
-        checkReadRecordIsNull(mvccComponent, key, service);
-
-    }
-
-    private void deleteKeyAndCheckReadNull(Map<String, String> keyValTransactions,
-                                           MVCCDataStructure mvccComponent, Transaction writeTransaction, ExecutorService service) throws ExecutionException, InterruptedException {
-        for (var keyValPair : keyValTransactions.entrySet()) {
-            var key = keyValPair.getKey();
-            var value = keyValPair.getValue();
-            logger.debug("Remove key, value: " + keyValPair.getKey() + " " + keyValPair.getValue());
-            mvccComponent.remove(writeTransaction, StringBinding.stringToEntry(key), StringBinding.stringToEntry(value));
-            checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(key), service);
-        }
-
-    }
-
-    private void checkReadRecordIsNull(MVCCDataStructure mvccComponent, ByteIterable key, ExecutorService service) throws ExecutionException, InterruptedException {
-        var th = service.submit(() -> {
-            Transaction readTransaction = mvccComponent.startReadTransaction();
-            ByteIterable record = mvccComponent.read(readTransaction, key);
-            logger.debug("Assert key " + key + " is null");
-            Assert.assertNull(record);
-        });
-        th.get();
-    }
-
-    private void checkReadRecordIsNotNull(Map<String, String> keyValTransactions,
-                                          MVCCDataStructure mvccComponent) {
-        Transaction readTransaction = mvccComponent.startReadTransaction();
-        for (var keyValPair : keyValTransactions.entrySet()) {
-            ByteIterable record = mvccComponent.read(readTransaction,
-                    StringBinding.stringToEntry(keyValPair.getKey()));
-            logger.debug("Assert key, value: " + keyValPair.getKey() +
-                    " " + keyValPair.getValue());
-            Assert.assertEquals(keyValPair.getValue(), StringBinding.entryToString(record));
-        }
-
-    }
 
     // 2.2 Add keys and delete in the same transaction. Check visibility before and after a commit in the current
     // thread and in a separate thread.
@@ -223,14 +182,22 @@ public class MVCCComponentTest {
 
             var th = service.submit(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
+                //-----------------start PUT part check------------------------------------
+
                 for (var entry : keyValTransactions.entrySet()) {
                     try {
+                        // check record is null before the commit
                         putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                 }
+                //-----------------end PUT part check--------------------------------------
+
+                //-----------------start DELETE part check---------------------------------
+
                 try {
+                    // check record is null before the commit
                     deleteKeyAndCheckReadNull(keyValTransactions, mvccComponent, writeTransaction, service);
                 } catch (ExecutionException | InterruptedException e) {
                     throw new RuntimeException(e);
@@ -238,6 +205,7 @@ public class MVCCComponentTest {
                 mvccComponent.commitTransaction(writeTransaction);
 
                 try {
+                    // check record is null after the commit
                     for (var entry : keyValTransactions.entrySet()) {
                         checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(entry.getKey()), service);
                     }
@@ -249,6 +217,7 @@ public class MVCCComponentTest {
 
             var th2 = service.submit(() -> {
                 try {
+                    // check that the record is null after the commit again after the thread end
                     for (var entry : keyValTransactions.entrySet()) {
                         checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(entry.getKey()), service);
                     }
@@ -257,8 +226,82 @@ public class MVCCComponentTest {
                 }
             });
             th2.get();
+            //-----------------end DELETE part check--------------------------------------
 
             keyCounter *= 2;
         }
+    }
+
+
+    private HashMap<String, String> getSubmap(Map<String, String> map) {
+        HashMap<String, String> submap = new HashMap<>();
+        final int limit = map.size() / 2;
+        for (var keyValPair : map.entrySet()) {
+            submap.put(keyValPair.getKey(), keyValPair.getValue());
+            if (submap.size() == limit) {
+                break;
+            }
+        }
+        return submap;
+    }
+
+    private void putKeyAndCheckReadNull(Map.Entry<String, String> entry, MVCCDataStructure mvccComponent,
+                                        Transaction writeTransaction, ExecutorService service) throws ExecutionException, InterruptedException {
+
+        ByteIterable key = StringBinding.stringToEntry(entry.getKey());
+        ByteIterable value = StringBinding.stringToEntry(entry.getValue());
+
+        logger.debug("Put key, value: " + entry.getKey() + " " + entry.getValue() + " to mvcc");
+        mvccComponent.put(writeTransaction, key, value);
+        checkReadRecordIsNull(mvccComponent, key, service);
+
+    }
+
+    private void deleteKey(Map.Entry<String, String> keyValuePair, MVCCDataStructure mvccComponent,
+                           Transaction writeTransaction) {
+        var key = keyValuePair.getKey();
+        var value = keyValuePair.getValue();
+        logger.debug("Remove key, value: " + keyValuePair.getKey() + " " + keyValuePair.getValue());
+        mvccComponent.remove(writeTransaction, StringBinding.stringToEntry(key), StringBinding.stringToEntry(value));
+    }
+
+    private void deleteKeyAndCheckReadNull(Map<String, String> keyValTransactions, MVCCDataStructure mvccComponent,
+                                           Transaction writeTransaction, ExecutorService service) throws ExecutionException, InterruptedException {
+        for (var keyValPair : keyValTransactions.entrySet()) {
+            deleteKey(keyValPair, mvccComponent, writeTransaction);
+            checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(keyValPair.getKey()), service);
+        }
+    }
+
+    private void deleteKeyAndCheckReadNotNull(Map<String, String> keyValTransactions, MVCCDataStructure mvccComponent,
+                                              Transaction writeTransaction) throws ExecutionException, InterruptedException {
+        for (var keyValPair : keyValTransactions.entrySet()) {
+            deleteKey(keyValPair, mvccComponent, writeTransaction);
+        }
+        checkReadRecordIsNotNull(keyValTransactions, mvccComponent);
+    }
+
+    private void checkReadRecordIsNull(MVCCDataStructure mvccComponent, ByteIterable key,
+                                       ExecutorService service) throws ExecutionException, InterruptedException {
+        var th = service.submit(() -> {
+            Transaction readTransaction = mvccComponent.startReadTransaction();
+            ByteIterable record = mvccComponent.read(readTransaction, key);
+            logger.debug("Assert key " + key + " is null");
+            Assert.assertNull(record);
+        });
+        th.get();
+    }
+
+    private void checkReadRecordIsNotNull(Map<String, String> keyValTransactions,
+                                          MVCCDataStructure mvccComponent) {
+        Transaction readTransaction = mvccComponent.startReadTransaction();
+        for (var keyValPair : keyValTransactions.entrySet()) {
+            ByteIterable record = mvccComponent.read(readTransaction,
+                    StringBinding.stringToEntry(keyValPair.getKey()));
+            logger.debug("Assert key, value: " + keyValPair.getKey() +
+                    " " + keyValPair.getValue());
+            Assert.assertEquals(keyValPair.getValue(), StringBinding.entryToString(record));
+        }
+
     }
 }
