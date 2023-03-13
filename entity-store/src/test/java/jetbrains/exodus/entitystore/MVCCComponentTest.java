@@ -222,10 +222,80 @@ public class MVCCComponentTest {
     }
 
 
-    // The same as testReadCommitted, but not all keys are inserted in one transaction, but only 1/10th part.
+    // The same as testReadCommitted, but not all keys are inserted in one transaction, but only 1/2 part.
     // Also check the visibility of each transaction in another thread.
     @Test
-    public void getPutKeysPartlyTest() {
+    public void getPutKeysPartlyTest() throws ExecutionException, InterruptedException {
+        int keyCounter = 1;
+        ExecutorService service = Executors.newCachedThreadPool();
+
+        while (keyCounter <= 64 * 1024) {
+            logger.debug("Counter: " + keyCounter);
+            Map<String, String> keyValTransactions = new HashMap<>();
+            var mvccComponent = new MVCCDataStructure();
+
+            for (int i = 0; i < keyCounter; i++) {
+                String keyString = "key-" + (int) (Math.random() * 100000);
+                String valueString = "value-" + (int) (Math.random() * 100000);
+                keyValTransactions.put(keyString, valueString);
+            }
+
+            //-----------------start first 1/2 PUT part check--------------------------------------
+            var transactionsSubMap = getSubmap(keyValTransactions);
+
+            var thPut1 = service.submit(() -> {
+                var writeTransaction = mvccComponent.startWriteTransaction();
+                for (var entry : transactionsSubMap.entrySet()) {
+                    try {
+                        // check record is null before the commit
+                        putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
+                    } catch (ExecutionException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                mvccComponent.commitTransaction(writeTransaction);
+                // check record is not null after the commit
+                checkReadAllRecordsInMapAreNotNull(transactionsSubMap, mvccComponent);
+            });
+            thPut1.get();
+
+            // check again that the record is not null after the commit after thread end
+            var thPut2 = service.submit(() -> {
+                checkReadAllRecordsInMapAreNotNull(transactionsSubMap, mvccComponent);
+            });
+            thPut2.get();
+
+            //-----------------end first 1/2 PUT part check--------------------------------------
+
+            //-----------------start second 1/2 PUT part check-----------------------------------
+
+            var thPut3 = service.submit(() -> {
+                var writeTransaction = mvccComponent.startWriteTransaction();
+                for (var entry : keyValTransactions.entrySet()) {
+                    if (!transactionsSubMap.containsKey(entry.getKey())){
+                        try {
+                            // check record is null before the commit
+                            putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
+                        } catch (ExecutionException | InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+                mvccComponent.commitTransaction(writeTransaction);
+            });
+            thPut3.get();
+
+            //-----------------end second 1/2 PUT part check-----------------------------------
+
+            var thPut4 = service.submit(() -> {
+                // check again that the record is not null after the commit after thread end
+                checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
+            });
+            thPut4.get();
+
+            //-----------------end PUT part check---------------------------------------------
+            keyCounter *= 2;
+        }
 
     }
 
