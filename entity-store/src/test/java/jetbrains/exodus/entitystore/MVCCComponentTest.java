@@ -30,7 +30,7 @@ public class MVCCComponentTest {
         int keyCounter = 1;
         ExecutorService service = Executors.newCachedThreadPool();
 
-        while (keyCounter <=  64*1024) { //todo 64*1024
+        while (keyCounter <= 64 * 1024) { //todo 64*1024
             logger.debug("Counter: " + keyCounter);
             Map<String, String> keyValTransactions = new HashMap<>();
             var mvccComponent = new MVCCDataStructure();
@@ -43,7 +43,7 @@ public class MVCCComponentTest {
 
             var th = service.submit(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
-                for (var entry : keyValTransactions.entrySet()){
+                for (var entry : keyValTransactions.entrySet()) {
                     try {
                         putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
                     } catch (ExecutionException | InterruptedException e) {
@@ -81,7 +81,7 @@ public class MVCCComponentTest {
         int keyCounter = 1;
         ExecutorService executor = Executors.newCachedThreadPool();
 
-        while (keyCounter <=  64 * 1024) {
+        while (keyCounter <= 64 * 1024) {
 
             final Map<String, String> keyValTransactionsPut = new HashMap<>();
             var mvccComponent = new MVCCDataStructure();
@@ -96,7 +96,7 @@ public class MVCCComponentTest {
 
             var th1 = executor.submit(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
-                for (var entry: keyValTransactionsPut.entrySet()) {
+                for (var entry : keyValTransactionsPut.entrySet()) {
                     try {
                         putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, executor);
                     } catch (ExecutionException | InterruptedException e) {
@@ -128,7 +128,7 @@ public class MVCCComponentTest {
             th2.get(); //TODO FIXME
 
             var th3 = executor.submit(() -> {
-                for (var keyValPair : keyValTransactionsDelete.entrySet()){
+                for (var keyValPair : keyValTransactionsDelete.entrySet()) {
                     try {
                         checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(keyValPair.getKey()), executor);
                     } catch (ExecutionException | InterruptedException e) {
@@ -143,7 +143,7 @@ public class MVCCComponentTest {
 
     }
 
-    private HashMap<String, String> getSubmap(Map<String, String> map ) {
+    private HashMap<String, String> getSubmap(Map<String, String> map) {
         HashMap<String, String> submap = new HashMap<>();
         final int limit = map.size() / 2;
         for (var keyValPair : map.entrySet()) {
@@ -168,7 +168,7 @@ public class MVCCComponentTest {
     }
 
     private void deleteKeyAndCheckReadNull(Map<String, String> keyValTransactions,
-                                        MVCCDataStructure mvccComponent, Transaction writeTransaction, ExecutorService service) throws ExecutionException, InterruptedException {
+                                           MVCCDataStructure mvccComponent, Transaction writeTransaction, ExecutorService service) throws ExecutionException, InterruptedException {
         for (var keyValPair : keyValTransactions.entrySet()) {
             var key = keyValPair.getKey();
             var value = keyValPair.getValue();
@@ -194,9 +194,9 @@ public class MVCCComponentTest {
         Transaction readTransaction = mvccComponent.startReadTransaction();
         for (var keyValPair : keyValTransactions.entrySet()) {
             ByteIterable record = mvccComponent.read(readTransaction,
-                        StringBinding.stringToEntry(keyValPair.getKey()));
+                    StringBinding.stringToEntry(keyValPair.getKey()));
             logger.debug("Assert key, value: " + keyValPair.getKey() +
-                        " " + keyValPair.getValue());
+                    " " + keyValPair.getValue());
             Assert.assertEquals(keyValPair.getValue(), StringBinding.entryToString(record));
         }
 
@@ -205,7 +205,61 @@ public class MVCCComponentTest {
     // 2.2 Add keys and delete in the same transaction. Check visibility before and after a commit in the current
     // thread and in a separate thread.
     @Test
-    public void putDeleteInSameTransactionTest() {
+    //TODO FIXME
+    public void putDeleteInSameTransactionTest() throws ExecutionException, InterruptedException {
 
+        int keyCounter = 1;
+        ExecutorService service = Executors.newCachedThreadPool();
+
+        while (keyCounter <= 1 ) { //todo 64*1024
+            logger.debug("Counter: " + keyCounter);
+            Map<String, String> keyValTransactions = new HashMap<>();
+            var mvccComponent = new MVCCDataStructure();
+
+            for (int i = 0; i < keyCounter; i++) {
+                String keyString = "key-" + (int) (Math.random() * 100000);
+                String valueString = "value-" + (int) (Math.random() * 100000);
+                keyValTransactions.put(keyString, valueString);
+            }
+
+            var th = service.submit(() -> {
+                var writeTransaction = mvccComponent.startWriteTransaction();
+                for (var entry : keyValTransactions.entrySet()) {
+                    try {
+                        putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
+                    } catch (ExecutionException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                try {
+                    deleteKeyAndCheckReadNull(keyValTransactions, mvccComponent, writeTransaction, service);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                mvccComponent.commitTransaction(writeTransaction);
+
+                try {
+                    for (var entry : keyValTransactions.entrySet()) {
+                        checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(entry.getKey()), service);
+                    }
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            th.get();
+
+            var th2 = service.submit(() -> {
+                try {
+                    for (var entry : keyValTransactions.entrySet()) {
+                        checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(entry.getKey()), service);
+                    }
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            th2.get();
+
+            keyCounter *= 2;
+        }
     }
 }
