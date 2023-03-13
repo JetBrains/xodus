@@ -12,7 +12,7 @@ public class Transaction {
         this.type = type;
     }
 
-    void addOperationLink(OperationReferenceEntry linkEntry){
+    void addOperationReferenceEntry(OperationReferenceEntry linkEntry){
         this.operationLinkList.add(linkEntry);
     }
 

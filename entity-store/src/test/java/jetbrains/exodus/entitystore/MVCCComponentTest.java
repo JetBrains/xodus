@@ -205,13 +205,12 @@ public class MVCCComponentTest {
     // 2.2 Add keys and delete in the same transaction. Check visibility before and after a commit in the current
     // thread and in a separate thread.
     @Test
-    //TODO FIXME
     public void putDeleteInSameTransactionTest() throws ExecutionException, InterruptedException {
 
         int keyCounter = 1;
         ExecutorService service = Executors.newCachedThreadPool();
 
-        while (keyCounter <= 1 ) { //todo 64*1024
+        while (keyCounter <= 64 * 1024) {
             logger.debug("Counter: " + keyCounter);
             Map<String, String> keyValTransactions = new HashMap<>();
             var mvccComponent = new MVCCDataStructure();

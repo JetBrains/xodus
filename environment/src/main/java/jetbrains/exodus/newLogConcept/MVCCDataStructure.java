@@ -103,7 +103,7 @@ public class MVCCDataStructure {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
         var snapshot = snapshotId.get();
-        transaction.addOperationLink(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode)); // todo: can it also be a multi-threading issue?
+        transaction.addOperationReferenceEntry(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode)); // todo: can it also be a multi-threading issue?
         operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType));
     }
 
@@ -150,6 +150,11 @@ public class MVCCDataStructure {
         // case for error - smth goes wrong
         if (targetOperationInLog == null) {
             throw new ExodusException();
+        }
+
+        // case for REMOVE operation
+        if (targetOperationInLog.operationType == 1){
+            return null;
         }
 
         if (targetOperationInLog.key.equals(key)) {
