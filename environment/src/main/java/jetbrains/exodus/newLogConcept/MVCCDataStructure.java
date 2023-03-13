@@ -5,6 +5,7 @@ import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
 import net.jpountz.xxhash.XXHash64;
 
+import java.nio.file.AccessDeniedException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -103,7 +104,7 @@ public class MVCCDataStructure {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
         var snapshot = snapshotId.get();
-        transaction.addOperationReferenceEntry(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode)); // todo: can it also be a multi-threading issue?
+        transaction.addOperationReferenceEntryToList(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
         operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType));
     }
 
@@ -118,21 +119,20 @@ public class MVCCDataStructure {
         compareWithCurrentAndSet(mvccRecord, currentTransaction.snapshotId); //increment version
 
         // advanced approach: state-machine
-        long minMaxValue = 0;
+        long maxMinValue = 0;
         OperationReferenceEntry targetEntry = null;
 
         var maxTxId = mvccRecord.maxTransactionId.get();
         if (!mvccRecord.linksToOperationsQueue.isEmpty()) {
             for (OperationReferenceEntry linkEntry : mvccRecord.linksToOperationsQueue) {
                 var candidateTxId = linkEntry.txId;
-                var currentMax = minMaxValue;
-
+                var currentMax = maxMinValue;
                 // we add to queue several objects with one txID, the last one re-writes the previous value,
                 // so we take the last with target txID
                 if (candidateTxId <= maxTxId && candidateTxId >= currentMax) {
                     onProgressWait(linkEntry);
                     if (linkEntry.wrapper.state != TransactionState.REVERTED.get()) {
-                        minMaxValue = candidateTxId;
+                        maxMinValue = candidateTxId;
                         targetEntry = linkEntry;
                     }
                 }
@@ -266,7 +266,7 @@ public class MVCCDataStructure {
         var keyHashCode = operation.keyHashCode;
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         hashMap.putIfAbsent(keyHashCode, mvccRecord);
-        mvccRecord.linksToOperationsQueue.add(operation); // todo: can it also be a multi-threading issue?
+        mvccRecord.linksToOperationsQueue.add(operation);
         return mvccRecord;
     }
 }
