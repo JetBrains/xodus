@@ -19,8 +19,8 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobHandler
 import jetbrains.exodus.crypto.newCipherProvider
+import jetbrains.exodus.io.AsyncFileDataWriter
 import jetbrains.exodus.io.DataReaderWriterProvider
-import jetbrains.exodus.io.FileDataWriter
 import jetbrains.exodus.io.LockingManager
 import jetbrains.exodus.io.SharedOpenFilesCache
 import jetbrains.exodus.log.Log
@@ -169,13 +169,10 @@ object Environments {
                 env.copyTo(tempDir, false, null) { msg ->
                     EnvironmentImpl.loggerInfo(msg.toString())
                 }
-                val files = env.log.allFileAddresses
                 env.close()
 
-                files.forEach { fileAddress ->
-                    val file = File(location, LogUtil.getLogFilename(fileAddress))
-
-                    if (!FileDataWriter.renameFile(file)) {
+                LogUtil.listFiles(File(location)).forEach { file ->
+                    if (!AsyncFileDataWriter.renameFile(file)) {
                         EnvironmentImpl.loggerError("Failed to rename file: $file")
                         return@let
                     }
@@ -188,7 +185,7 @@ object Environments {
                 if (Files.exists(firstMetadataPath)) {
                     val delFirstMetadataPath = locationPath.resolve(
                         StartupMetadata.FIRST_FILE_NAME +
-                                FileDataWriter.DELETED_FILE_EXTENSION
+                                AsyncFileDataWriter.DELETED_FILE_EXTENSION
                     )
                     Files.move(firstMetadataPath, delFirstMetadataPath)
                 }
@@ -198,9 +195,9 @@ object Environments {
                 if (Files.exists(secondMetadataPath)) {
                     val delSecondMetadataPath = locationPath.resolve(
                         StartupMetadata.SECOND_FILE_NAME +
-                                FileDataWriter.DELETED_FILE_EXTENSION
+                                AsyncFileDataWriter.DELETED_FILE_EXTENSION
                     )
-                    Files.move(firstMetadataPath, delSecondMetadataPath)
+                    Files.move(secondMetadataPath, delSecondMetadataPath)
                 }
 
                 LogUtil.listFiles(tempDir).forEach { file ->

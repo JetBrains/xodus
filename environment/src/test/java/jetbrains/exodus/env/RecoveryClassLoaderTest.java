@@ -16,8 +16,8 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.io.AsyncFileDataWriter;
 import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.Loggable;
@@ -78,7 +78,7 @@ public class RecoveryClassLoaderTest {
 
     private static final Runnable OPEN_ENVIRONMENT = () -> {
         FileDataReader reader = new FileDataReader(testsDirectory[0]);
-        env = Environments.newInstance(cfg = LogConfig.create(reader, new FileDataWriter(reader)));
+        env = Environments.newInstance(cfg = LogConfig.create(reader, new AsyncFileDataWriter(reader)));
     };
 
     private static final Runnable BREAK_ENVIRONMENT = () -> {
@@ -125,7 +125,7 @@ public class RecoveryClassLoaderTest {
             }
             thread.setContextClassLoader(
                     new URLClassLoader(
-                            tokens.toArray(new URL[tokens.size()]),
+                            tokens.toArray(new URL[0]),
                             loader.getParent()
                     ) {
                         @Override

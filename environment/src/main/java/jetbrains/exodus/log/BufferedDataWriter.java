@@ -57,7 +57,6 @@ public final class BufferedDataWriter {
     private final byte[] cipherKey;
     private final long cipherBasicIV;
     private final int pageSize;
-    private final int pageSizeMask;
     private final int adjustedPageSize;
     private @Nullable BlockSet.Mutable blockSetMutable;
 
@@ -110,7 +109,6 @@ public final class BufferedDataWriter {
         cipherBasicIV = log.getConfig().getCipherBasicIV();
         this.syncPeriod = syncPeriod;
 
-        pageSizeMask = (pageSize - 1);
         adjustedPageSize = pageSize - HASH_CODE_SIZE;
 
         this.writeCache = new NonBlockingHashMapLong<>(maxWriteBoundary, false);
@@ -204,11 +202,23 @@ public final class BufferedDataWriter {
             }
         }
 
-        currentPage.firstLoggable =
-                BindingUtils.readInt(page, pageSize - BufferedDataWriter.HASH_CODE_SIZE);
         blockSet = files;
 
-        assert currentHighAddress % pageSize == currentPage.writtenCount % pageSize;
+        var writtenCount = currentPage.writtenCount;
+        if (writtenCount > 0) {
+            var bytes = currentPage.bytes;
+
+            computeWriteCache(writeCache, pageAddress, (pa, holder) -> {
+                if (holder == null) {
+                    return new PageHolder(bytes, writtenCount);
+                }
+
+                holder.page = bytes;
+                return holder;
+            });
+        }
+
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
     }
 
     public long endWrite() {
@@ -299,7 +309,7 @@ public final class BufferedDataWriter {
 
         int delta = 1;
         int writtenCount = currentPage.writtenCount;
-        assert (int) (currentHighAddress & pageSizeMask) == (writtenCount & pageSizeMask);
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
 
         assert writtenCount < adjustedPageSize;
         currentPage.bytes[writtenCount] = b;
@@ -314,7 +324,7 @@ public final class BufferedDataWriter {
 
         currentHighAddress += delta;
 
-        assert (int) (currentHighAddress & pageSizeMask) == (currentPage.writtenCount & pageSizeMask);
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
 
         if (currentPage.writtenCount == pageSize) {
             writePage(currentPage);
@@ -327,7 +337,7 @@ public final class BufferedDataWriter {
         int off = 0;
         int delta = len;
 
-        assert (int) (currentHighAddress & pageSizeMask) == (currentPage.writtenCount & pageSizeMask);
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
 
         while (len > 0) {
             MutablePage currentPage = allocateNewPageIfNeeded();
@@ -351,15 +361,17 @@ public final class BufferedDataWriter {
 
         this.currentHighAddress += delta;
 
-        assert (int) (currentHighAddress & pageSizeMask) == (currentPage.writtenCount & pageSizeMask);
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
     }
 
     boolean fitsIntoSingleFile(long fileLengthBound, int loggableSize) {
-        final long fileAddress = currentHighAddress / fileLengthBound;
-        final long nextFileAddress =
-                (log.adjustLoggableAddress(currentHighAddress, loggableSize) - 1) / fileLengthBound;
+        var currentHighAddress = this.currentHighAddress;
 
-        return fileAddress == nextFileAddress;
+        final long fileReminder = fileLengthBound - (currentHighAddress & (fileLengthBound - 1));
+        final long adjustLoggableSize =
+                log.adjustLoggableAddress(currentHighAddress, loggableSize) - currentHighAddress;
+
+        return adjustLoggableSize <= fileReminder;
     }
 
     byte[] readPage(final long pageAddress, long highAddress) {
@@ -456,12 +468,14 @@ public final class BufferedDataWriter {
         final int written = doPadPageWithNulls();
         this.currentHighAddress += written;
 
-        assert (int) (currentHighAddress & pageSizeMask) == (this.currentPage.writtenCount & pageSizeMask);
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
 
         if (written > 0) {
             assert currentPage.writtenCount == pageSize;
             writePage(currentPage);
         }
+
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
 
         return written;
     }
@@ -469,12 +483,16 @@ public final class BufferedDataWriter {
     void padWholePageWithNulls() {
         checkWriteError();
 
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
         final int written = doPadWholePageWithNulls();
+        this.currentHighAddress += written;
 
         if (written > 0) {
+            assert currentPage.writtenCount == pageSize;
             writePage(currentPage);
-            currentHighAddress += written;
         }
+
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
     }
 
     int padWithNulls(long fileLengthBound, byte[] nullPage) {
@@ -492,7 +510,7 @@ public final class BufferedDataWriter {
         if (spaceWritten == 0) {
             currentHighAddress += written;
 
-            assert (int) (currentHighAddress & pageSizeMask) == (this.currentPage.writtenCount & pageSizeMask);
+            assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
             return written;
         }
 
@@ -509,7 +527,7 @@ public final class BufferedDataWriter {
         }
 
         currentHighAddress += written;
-        assert (int) (currentHighAddress & pageSizeMask) == (this.currentPage.writtenCount & pageSizeMask);
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
         return written;
     }
 
@@ -600,6 +618,8 @@ public final class BufferedDataWriter {
         currentPage.xxHash64 = BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(
                 BufferedDataWriter.XX_HASH_SEED);
         blockSet = new BlockSet.Immutable(log.getFileLengthBound());
+
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
     }
 
     private void ensureWritesAreCompleted() {
@@ -668,8 +688,9 @@ public final class BufferedDataWriter {
             writeBoundarySemaphore.acquireUninterruptibly();
             localWritesSemaphore.acquireUninterruptibly();
 
-            assert writer.position() == currentPage.pageAddress % log.getFileLengthBound()
-                    + currentPage.committedCount;
+            assert writer.position() <= log.getFileLengthBound();
+            assert writer.position() % log.getFileLengthBound() ==
+                    (currentPage.pageAddress + currentPage.committedCount) % log.getFileLengthBound();
 
             Pair<Block, CompletableFuture<LongIntPair>> result;
             if (cipherProvider != null) {
@@ -678,8 +699,9 @@ public final class BufferedDataWriter {
                 result = writer.asyncWrite(bytes, committedCount, len);
             }
 
-            assert writer.position() == currentPage.pageAddress % log.getFileLengthBound()
-                    + currentPage.writtenCount;
+            assert writer.position() <= log.getFileLengthBound();
+            assert writer.position() % log.getFileLengthBound() ==
+                    (currentPage.pageAddress + currentPage.writtenCount) % log.getFileLengthBound();
 
             var block = result.getFirst();
             var blockAddress = block.getAddress();
@@ -744,7 +766,12 @@ public final class BufferedDataWriter {
     }
 
     void closeFileIfNecessary(long fileLengthBound, boolean makeFileReadOnly) {
-        if (writer.position() == fileLengthBound) {
+        var currentPage = this.currentPage;
+        var endPosition = writer.position() + currentPage.writtenCount - currentPage.committedCount;
+
+        assert endPosition <= fileLengthBound;
+
+        if (endPosition == fileLengthBound) {
             sync();
 
             assert lastSyncedAddress <= committedHighAddress;
@@ -829,6 +856,8 @@ public final class BufferedDataWriter {
         var page = logCache.getPage(log, pageAddress, -1, highAddress);
 
         initCurrentPage(blockSet, highAddress, page);
+
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
     }
 
 
@@ -841,8 +870,6 @@ public final class BufferedDataWriter {
             Arrays.fill(currentPage.bytes, writtenInPage, pageSize, (byte) 0x80);
 
             currentPage.writtenCount = pageSize;
-            currentHighAddress += written;
-
             return written;
         }
 
@@ -905,7 +932,6 @@ public final class BufferedDataWriter {
 
         int committedCount;
         int writtenCount;
-        int firstLoggable;
 
         StreamingXXHash64 xxHash64;
 
@@ -914,7 +940,6 @@ public final class BufferedDataWriter {
             this.bytes = page;
             this.pageAddress = pageAddress;
             committedCount = writtenCount = count;
-            this.firstLoggable = -1;
         }
     }
 
@@ -923,8 +948,12 @@ public final class BufferedDataWriter {
         private final AtomicInteger written;
 
         private PageHolder(final byte @NotNull [] page) {
+            this(page, 0);
+        }
+
+        private PageHolder(final byte @NotNull [] page, int written) {
             this.page = page;
-            this.written = new AtomicInteger();
+            this.written = new AtomicInteger(written);
         }
     }
 }
