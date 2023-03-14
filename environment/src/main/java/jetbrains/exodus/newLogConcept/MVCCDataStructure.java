@@ -5,7 +5,6 @@ import jetbrains.exodus.ExodusException;
 import org.jctools.maps.NonBlockingHashMapLong;
 import net.jpountz.xxhash.XXHash64;
 
-import java.nio.file.AccessDeniedException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -23,7 +22,7 @@ public class MVCCDataStructure {
 
     private static final AtomicLong address = new AtomicLong();
     private final AtomicLong snapshotId = new AtomicLong(1L);
-    private final AtomicLong writeTxSnapshotId = snapshotId;
+    private final AtomicLong writeTxSnapshotId = new AtomicLong(snapshotId.get()); // todo test
 
     private void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
         while (true) {
@@ -103,7 +102,7 @@ public class MVCCDataStructure {
                          int operationType) {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-        var snapshot = snapshotId.get();
+        var snapshot = transaction.snapshotId; //todo why tests not failing
         transaction.addOperationReferenceEntryToList(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
         operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType));
     }
@@ -139,9 +138,8 @@ public class MVCCDataStructure {
             }
         }
 
-        // case for REMOVE operation
         if (targetEntry == null) {
-            return null;
+            return searchInBTree(key); // b-tree
         }
 
         TransactionOperationLogRecord targetOperationInLog =
@@ -196,7 +194,7 @@ public class MVCCDataStructure {
                 try {
                     latch.await();
                 } catch (InterruptedException e) {
-                    throw new ExodusException();
+                    throw new ExodusException(e);
                 }
             } else {
                 Thread.onSpinWait();// pass to the next thread, not to waste resources
@@ -207,13 +205,11 @@ public class MVCCDataStructure {
     public void commitTransaction(Transaction transaction) {
         // if transaction.type is WRITE
         if (!transaction.operationLinkList.isEmpty()) {
-            var currentSnapId = snapshotId;
-
             // put state in PROGRESS
             var wrapper = new TransactionStateWrapper(TransactionState.IN_PROGRESS.get());
 
             if (transaction.operationLinkList.size() > 10) {
-                wrapper.initLatch(transaction.operationLinkList.size());
+                wrapper.initLatch(1);
             }
 
             for (var operation : transaction.operationLinkList) {
@@ -237,8 +233,9 @@ public class MVCCDataStructure {
 
                 while (true) {
                     var txSnapId = transaction.snapshotId;
-                    if (currentSnapId.get() < txSnapId) {
-                        if (snapshotId.compareAndSet(currentSnapId.get(), txSnapId)) {
+                    var currentSnapIdFixed = snapshotId.get();
+                    if (currentSnapIdFixed < txSnapId) {
+                        if (snapshotId.compareAndSet(currentSnapIdFixed, txSnapId)) {
                             break;
                         }
                     } else {
