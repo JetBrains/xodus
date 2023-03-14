@@ -356,10 +356,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             )
 
             val writtenInPage = highAddress and (cachePageSize - 1).toLong()
+            nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
+
             if (!rwIsReadonly && writtenInPage > 0) {
                 logger.warn(
                     "Page ${(highAddress and (cachePageSize - 1).toLong())} is not written completely, fixing it. " +
-                            "Environment : $location, file : ${LogUtil.getLogFilename(highAddress)}."
+                            "Environment : $location, file : ${LogUtil.getLogFilename(getFileAddress(highAddress))}."
                 )
 
                 if (needToPerformMigration) {
@@ -370,8 +372,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                 logWasChanged = true
             }
-
-            nullPage = BufferedDataWriter.generateNullPage(cachePageSize)
 
             if (logWasChanged) {
                 logger.info("Log $location content was changed during the initialization, data sync is performed.")
@@ -419,6 +419,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         beforeWrite()
         try {
             writer.padWholePageWithNulls()
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
         } finally {
             endWrite()
         }
@@ -429,6 +430,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         beforeWrite()
         try {
             writer.padPageWithNulls()
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
         } finally {
             endWrite()
         }
@@ -1314,7 +1316,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         var checkConsistency = config.isCheckPagesAtRuntime &&
                 formatWithHashCodeIsUsed &&
                 (!rwIsReadonly || pageAddress < lastPage)
-        checkConsistency = checkConsistency || readBytes == cachePageSize || readBytes == 0
+        checkConsistency = formatWithHashCodeIsUsed &&
+                (checkConsistency || readBytes == cachePageSize || readBytes == 0)
 
         if (checkConsistency) {
             if (readBytes < cachePageSize) {
@@ -1370,7 +1373,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 exceptionMessage.append(
                     "Can't acquire environment lock after "
                 ).append(lockTimeout).append(" ms.\n\n Lock owner info: \n").append(dataWriter.lockInfo())
-                if (dataWriter is FileDataWriter) {
+                if (dataWriter is AsyncFileDataWriter) {
                     exceptionMessage.append("\n Lock file path: ").append(dataWriter.lockFilePath())
                 }
                 throw ExodusException(exceptionMessage.toString())

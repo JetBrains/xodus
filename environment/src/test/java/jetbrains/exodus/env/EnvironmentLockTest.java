@@ -19,8 +19,8 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
+import jetbrains.exodus.io.AsyncFileDataWriter;
 import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.io.FileDataWriter;
 import jetbrains.exodus.log.LogConfig;
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,7 +37,7 @@ public class EnvironmentLockTest extends EnvironmentTestsBase {
         try {
             final File dir = getEnvDirectory();
             FileDataReader reader = new FileDataReader(dir);
-            first = Environments.newInstance(LogConfig.create(reader, new FileDataWriter(reader)), EnvironmentConfig.DEFAULT);
+            first = Environments.newInstance(LogConfig.create(reader, new AsyncFileDataWriter(reader)), EnvironmentConfig.DEFAULT);
         } catch (ExodusException ex) {
             //Environment already created on startup!
             exOnCreate = true;
@@ -86,7 +86,8 @@ public class EnvironmentLockTest extends EnvironmentTestsBase {
                 final File dir = getEnvDirectory();
                 try {
                     FileDataReader reader = new FileDataReader(dir);
-                    env = newEnvironmentInstance(LogConfig.create(reader, new FileDataWriter(reader, LOCK_ID)), new EnvironmentConfig().setLogLockTimeout(5000));
+                    env = newEnvironmentInstance(LogConfig.create(reader, new AsyncFileDataWriter(reader, LOCK_ID)),
+                            new EnvironmentConfig().setLogLockTimeout(5000));
                     wasOpened[0] = true;
                 } catch (ExodusException e) {
                     Assert.assertTrue(e.getMessage().contains(LOCK_ID));

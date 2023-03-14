@@ -21,8 +21,8 @@ import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet
 import jetbrains.exodus.gc.GarbageCollector
+import jetbrains.exodus.io.AsyncFileDataWriter
 import jetbrains.exodus.io.FileDataReader
-import jetbrains.exodus.io.FileDataWriter
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
@@ -32,7 +32,6 @@ import jetbrains.exodus.tree.patricia.PatriciaTreeBase
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
-import kotlin.math.max
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
@@ -204,7 +203,7 @@ class Reflect(directory: File) {
                             cipherKey: String? = null,
                             cipherBasicIV: Long? = null): EnvironmentImpl {
             val reader = FileDataReader(directory)
-            val writer = FileDataWriter(reader)
+            val writer = AsyncFileDataWriter(reader)
             val config = newEnvironmentConfig {
                 isGcEnabled = false
                 envIsReadonly = readonly

@@ -22,10 +22,7 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.execution.locks.Latch;
-import jetbrains.exodus.io.DataReader;
-import jetbrains.exodus.io.DataWriter;
-import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.io.FileDataWriter;
+import jetbrains.exodus.io.*;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.tree.btree.BTreeBase;
@@ -686,7 +683,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             subfolders.put(subfolder, child);
         }
         FileDataReader reader = new FileDataReader(child);
-        return new Pair<>(reader, new FileDataWriter(reader)
+        return new Pair<>(reader, new AsyncFileDataWriter(reader)
         );
     }
 

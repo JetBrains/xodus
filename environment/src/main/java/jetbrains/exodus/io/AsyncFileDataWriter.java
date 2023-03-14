@@ -38,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class AsyncFileDataWriter extends AbstractDataWriter {
+    public static final String DELETED_FILE_EXTENSION = ".del";
     private static final Logger logger = LoggerFactory.getLogger(AsyncFileDataWriter.class);
 
     private AsynchronousFileChannel dirChannel;
@@ -147,7 +148,7 @@ public class AsyncFileDataWriter extends AbstractDataWriter {
     @Override
     protected void closeImpl() {
         try {
-            ensureChannel("Can't close already closed FileDataWriter").close();
+            ensureChannel("Can't close already closed " + AsyncFileDataWriter.class.getName()).close();
             if (dirChannel != null) {
                 dirChannel.force(false);
             }
@@ -211,7 +212,7 @@ public class AsyncFileDataWriter extends AbstractDataWriter {
         if (rbt == RemoveBlockType.Delete) {
             deleted = block.delete();
         } else {
-            deleted = FileDataWriter.Companion.renameFile(block);
+            deleted = renameFile(block);
         }
 
         if (!deleted) {
@@ -219,6 +220,16 @@ public class AsyncFileDataWriter extends AbstractDataWriter {
         } else {
             logger.info("Deleted file " + block.getAbsolutePath());
         }
+    }
+
+    public static boolean renameFile(File file) {
+        var name = file.getName();
+        return file.renameTo(
+                new File(
+                        file.getParentFile(),
+                        name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION
+                )
+        );
     }
 
     @Override
@@ -280,7 +291,7 @@ public class AsyncFileDataWriter extends AbstractDataWriter {
             }
         }
 
-        var position = ((Long) Files.getAttribute(blockPath, "size")).longValue();
+        var position = (Long) Files.getAttribute(blockPath, "size");
 
         if (position != length) {
             throw new ExodusException("Invalid size for the file " + blockPath.toAbsolutePath());
@@ -294,6 +305,11 @@ public class AsyncFileDataWriter extends AbstractDataWriter {
         this.position = position;
 
         return channel;
+    }
+
+    @NotNull
+    public String lockFilePath() {
+        return lockingManager.lockFilePath();
     }
 
     private static final class WriteCompletionHandler implements CompletionHandler<Integer, Void> {
