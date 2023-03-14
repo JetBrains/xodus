@@ -11,13 +11,12 @@ class TransactionStateWrapper {
 
     volatile CountDownLatch operationsCountLatchRef;
 
-
     public TransactionStateWrapper(int state) {
         this.state = state;
     }
 
-    void initLatch() {
-        CountDownLatch newLatch = new CountDownLatch(1);
+    void initLatch(int size) {
+        this.operationsCountLatchRef = new CountDownLatch(size);
     }
 
 }

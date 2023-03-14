@@ -213,7 +213,7 @@ public class MVCCDataStructure {
             var wrapper = new TransactionStateWrapper(TransactionState.IN_PROGRESS.get());
 
             if (transaction.operationLinkList.size() > 10) {
-                wrapper.initLatch();
+                wrapper.initLatch(transaction.operationLinkList.size());
             }
 
             for (var operation : transaction.operationLinkList) {
