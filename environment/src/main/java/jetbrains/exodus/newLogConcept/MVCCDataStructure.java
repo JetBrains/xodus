@@ -102,8 +102,8 @@ public class MVCCDataStructure {
                          int operationType) {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-        var snapshot = transaction.snapshotId; //todo why tests not failing
-        transaction.addOperationReferenceEntryToList(new OperationReferenceEntry(recordAddress, snapshot, keyHashCode));
+        var snapshot = transaction.snapshotId;
+        transaction.addOperationReferenceEntryToList(new OperationReference(recordAddress, snapshot, keyHashCode));
         operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType));
     }
 
@@ -119,11 +119,11 @@ public class MVCCDataStructure {
 
         // advanced approach: state-machine
         long maxMinValue = 0;
-        OperationReferenceEntry targetEntry = null;
+        OperationReference targetEntry = null;
 
         var maxTxId = mvccRecord.maxTransactionId.get();
         if (!mvccRecord.linksToOperationsQueue.isEmpty()) {
-            for (OperationReferenceEntry linkEntry : mvccRecord.linksToOperationsQueue) {
+            for (OperationReference linkEntry : mvccRecord.linksToOperationsQueue) {
                 var candidateTxId = linkEntry.txId;
                 var currentMax = maxMinValue;
                 // we add to queue several objects with one txID, the last one re-writes the previous value,
@@ -159,13 +159,13 @@ public class MVCCDataStructure {
             return targetOperationInLog.value;
         } else {
 
-            ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId = new ArrayList<>();
+            ArrayList<OperationReference> selectionOfLessThanMaxTxId = new ArrayList<>();
             mvccRecord.linksToOperationsQueue.forEach(linkEntry -> {
                 waitAndAddLinkEntry(linkEntry, selectionOfLessThanMaxTxId, maxTxId);
             });
 
-            selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationReferenceEntry::getTxId).reversed());
-            for (OperationReferenceEntry linkEntry : selectionOfLessThanMaxTxId) {
+            selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationReference::getTxId).reversed());
+            for (OperationReference linkEntry : selectionOfLessThanMaxTxId) {
                 targetOperationInLog = (TransactionOperationLogRecord) operationLog.get(linkEntry.operationAddress);
                 if (targetOperationInLog.key.equals(key)) {
                     return targetOperationInLog.value;
@@ -176,8 +176,8 @@ public class MVCCDataStructure {
         return searchInBTree(key);
     }
 
-    private void waitAndAddLinkEntry(OperationReferenceEntry linkEntry,
-                                     ArrayList<OperationReferenceEntry> selectionOfLessThanMaxTxId,
+    private void waitAndAddLinkEntry(OperationReference linkEntry,
+                                     ArrayList<OperationReference> selectionOfLessThanMaxTxId,
                                      long maxTxId) {
         if (linkEntry.txId < maxTxId) {
             onProgressWait(linkEntry);
@@ -187,7 +187,7 @@ public class MVCCDataStructure {
         }
     }
 
-    void onProgressWait(OperationReferenceEntry referenceEntry) {
+    void onProgressWait(OperationReference referenceEntry) {
         while (referenceEntry.wrapper.state == TransactionState.IN_PROGRESS.get()) {
             CountDownLatch latch = referenceEntry.wrapper.operationsCountLatchRef;
             if (latch != null) {
@@ -259,7 +259,7 @@ public class MVCCDataStructure {
         }
     }
 
-    private MVCCRecord mvccRecordCreateAndPut(OperationReferenceEntry operation) {
+    private MVCCRecord mvccRecordCreateAndPut(OperationReference operation) {
         var keyHashCode = operation.keyHashCode;
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
         hashMap.putIfAbsent(keyHashCode, mvccRecord);

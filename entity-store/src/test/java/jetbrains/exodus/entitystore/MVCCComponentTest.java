@@ -64,6 +64,50 @@ public class MVCCComponentTest {
         }
     }
 
+
+    @Test
+    public void testIdsConsistency() throws ExecutionException, InterruptedException {
+
+        int keyCounter = 64;
+        ExecutorService service = Executors.newCachedThreadPool();
+
+        logger.debug("Counter: " + keyCounter);
+        Map<String, String> keyValTransactions = new HashMap<>();
+        var mvccComponent = new MVCCDataStructure();
+
+        for (int i = 0; i < keyCounter; i++) {
+            String keyString = "key-" + (int) (Math.random() * 100000);
+            String valueString = "value-" + (int) (Math.random() * 100000);
+            keyValTransactions.put(keyString, valueString);
+        }
+
+        var th = service.submit(() -> {
+            Transaction writeTransaction = mvccComponent.startWriteTransaction();
+            for (var entry : keyValTransactions.entrySet()) {
+                try {
+                    // check record is null before the commit
+                    putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
+            mvccComponent.commitTransaction(writeTransaction);
+            // check record is not null after the commit
+            checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
+            Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
+        });
+        th.get();
+
+        var th2 = service.submit(() -> {
+            // check again that the record is not null after the commit after thread end
+            checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
+        });
+        th2.get();
+
+    }
+
+
     // Add keys in the same way (first 2, then 4, then 8). But then delete half in a separate transaction and
     // check for the presence of keys before and after the commit. Similarly, check the visibility of the transaction
     // in a separate thread.
@@ -272,7 +316,7 @@ public class MVCCComponentTest {
             var thPut3 = service.submit(() -> {
                 var writeTransaction = mvccComponent.startWriteTransaction();
                 for (var entry : keyValTransactions.entrySet()) {
-                    if (!transactionsSubMap.containsKey(entry.getKey())){
+                    if (!transactionsSubMap.containsKey(entry.getKey())) {
                         try {
                             // check record is null before the commit
                             putKeyAndCheckReadNull(entry, mvccComponent, writeTransaction, service);
@@ -382,7 +426,7 @@ public class MVCCComponentTest {
             var thDelete3 = service.submit(() -> {
                 Transaction readTransaction = mvccComponent.startReadTransaction();
                 for (var entry : keyValTransactions.entrySet()) {
-                    if (!transactionsSubMap.containsKey(entry.getKey())){
+                    if (!transactionsSubMap.containsKey(entry.getKey())) {
                         checkReadARecordIsNotNull(mvccComponent, entry, readTransaction);
                     }
                 }
@@ -441,6 +485,7 @@ public class MVCCComponentTest {
         logger.debug("Remove key, value: " + keyValuePair.getKey() + " " + keyValuePair.getValue());
         mvccComponent.remove(writeTransaction, StringBinding.stringToEntry(key), StringBinding.stringToEntry(value));
     }
+
     private void checkReadRecordIsNull(MVCCDataStructure mvccComponent, ByteIterable key,
                                        ExecutorService service) throws ExecutionException, InterruptedException {
         var th = service.submit(() -> {
@@ -454,7 +499,7 @@ public class MVCCComponentTest {
 
 
     private void checkReadARecordIsNotNull(MVCCDataStructure mvccComponent, Map.Entry<String, String> keyValuePair,
-                                                    Transaction readTransaction) {
+                                           Transaction readTransaction) {
         ByteIterable record = mvccComponent.read(readTransaction,
                 StringBinding.stringToEntry(keyValuePair.getKey()));
         logger.debug("Assert key, value: " + keyValuePair.getKey() +
