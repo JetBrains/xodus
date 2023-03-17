@@ -6,7 +6,7 @@ import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
-class MVCCRecord {
+public class MVCCRecord {
     final AtomicLong maxTransactionId;
 
     // todo for later: optimization - create your own queue
