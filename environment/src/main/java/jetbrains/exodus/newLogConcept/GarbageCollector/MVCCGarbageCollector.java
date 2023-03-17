@@ -17,7 +17,7 @@ public class MVCCGarbageCollector {
                 : transactionsGCMap.headMap(snapshotId, true).entrySet()) {
             Long currentKey = entry.getKey();
             int state = entry.getValue().stateWrapper.state;
-            if (state == TransactionState.COMMITTED.get()) {
+            if (state == TransactionState.COMMITTED.get() || state == TransactionState.REVERTED.get()) {
                 if (prevKey == null || currentKey == prevKey + 1) {
                     prevKey = currentKey;
                     maxMinId = currentKey;
