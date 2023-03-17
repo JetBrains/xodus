@@ -1,8 +1,8 @@
 dependencies {
-    implementation project(':entity-store')
-    implementation project(':utils')
-    api project(':openAPI')
+    implementation project(':xodus-entity-store')
+    implementation project(':xodus-utils')
+    api project(':xodus-openAPI')
     implementation 'com.github.penemue:keap:0.3.0'
-    testImplementation project(':entity-store').sourceSets.test.output
-    testImplementation project(':utils').sourceSets.test.output
+    testImplementation project(':xodus-entity-store').sourceSets.test.output
+    testImplementation project(':xodus-utils').sourceSets.test.output
 }

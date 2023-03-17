@@ -3,13 +3,13 @@ plugins {
 }
 
 dependencies {
-    implementation project(':crypto')
-    implementation project(':environment')
-    implementation project(':entity-store')
-    implementation project(':compress')
-    implementation project(':vfs')
-    api project(':openAPI')
-    implementation project(':utils')
+    implementation project(':xodus-crypto')
+    implementation project(':xodus-environment')
+    implementation project(':xodus-entity-store')
+    implementation project(':xodus-compress')
+    implementation project(':xodus-vfs')
+    api project(':xodus-openAPI')
+    implementation project(':xodus-utils')
     implementation 'com.hierynomus:sshj:0.30.0'
 }
 

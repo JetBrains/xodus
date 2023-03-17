@@ -1,7 +1,7 @@
 dependencies {
-    implementation project(':compress')
-    implementation project(':utils')
-    api project(':openAPI')
+    implementation project(':xodus-compress')
+    implementation project(':xodus-utils')
+    api project(':xodus-openAPI')
     implementation "org.jetbrains:annotations:$annotationsVersion"
-    testImplementation project(':utils').sourceSets.test.output
+    testImplementation project(':xodus-utils').sourceSets.test.output
 }

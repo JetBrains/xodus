@@ -2,9 +2,9 @@ buildscript {
     ext.luceneVersion = '8.10.0'
 }
 dependencies {
-    implementation project(':environment')
-    api project(':openAPI')
-    implementation project(':utils')
+    implementation project(':xodus-environment')
+    api project(':xodus-openAPI')
+    implementation project(':xodus-utils')
     implementation "org.jetbrains:annotations:$annotationsVersion"
 
     implementation "org.apache.lucene:lucene-core:$luceneVersion"
@@ -13,8 +13,8 @@ dependencies {
     implementation "org.apache.lucene:lucene-queryparser:$luceneVersion"
 
     //noinspection DependencyNotationArgument
-    testImplementation project(':environment').sourceSets.test.output
+    testImplementation project(':xodus-environment').sourceSets.test.output
     //noinspection DependencyNotationArgument
-    testImplementation project(':utils').sourceSets.test.output
+    testImplementation project(':xodus-utils').sourceSets.test.output
     testImplementation "org.apache.lucene:lucene-test-framework:$luceneVersion"
 }

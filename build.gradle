@@ -75,7 +75,7 @@ subprojects {
     compileJava.options.encoding = 'UTF-8'
     group = rootProject.group
     version = rootProject.version
-    archivesBaseName = rootProject.name + '-' + project.name
+    archivesBaseName = project.name
 
     license {
         header rootProject.file('license/copyright.ftl')
@@ -117,7 +117,7 @@ subprojects {
             //systemProperty 'exodus.log.readerWriterProvider', 'jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider'
         }
         dependencies {
-            testImplementation project(':crypto')
+            testImplementation project(':xodus-crypto')
         }
     }
 
