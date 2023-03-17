@@ -20,6 +20,8 @@ public class MVCCDataStructure {
     private final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
 
+    private final ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
+
     private static final AtomicLong address = new AtomicLong();
     private final AtomicLong snapshotId = new AtomicLong(1L);
     private final AtomicLong writeTxSnapshotId = new AtomicLong(snapshotId.get()); // todo test
@@ -81,6 +83,7 @@ public class MVCCDataStructure {
         } else {
             newTransaction = new Transaction(writeTxSnapshotId.incrementAndGet(), type);
         }
+        transactionsGCMap.put(newTransaction.snapshotId, new TransactionGCEntry(TransactionState.IN_PROGRESS.get()));
         return newTransaction;
     }
 
@@ -246,6 +249,7 @@ public class MVCCDataStructure {
                 //here we first work with collection, after that increment version, in read vica versa
             }
             wrapper.state = TransactionState.COMMITTED.get();
+            transactionsGCMap.get(transaction.snapshotId).stateWrapper.state = TransactionState.COMMITTED.get();
 
             var latchRef = wrapper.operationsCountLatchRef;
             if (latchRef != null) {
