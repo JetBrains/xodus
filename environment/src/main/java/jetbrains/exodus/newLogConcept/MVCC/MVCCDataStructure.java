@@ -1,7 +1,16 @@
-package jetbrains.exodus.newLogConcept;
+package jetbrains.exodus.newLogConcept.MVCC;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
+import jetbrains.exodus.newLogConcept.OperationLog.OperationLogRecord;
+import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
+import jetbrains.exodus.newLogConcept.OperationLog.TransactionCompletionLogRecord;
+import jetbrains.exodus.newLogConcept.OperationLog.TransactionOperationLogRecord;
+import jetbrains.exodus.newLogConcept.Transaction.Transaction;
+import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.Transaction.TransactionStateWrapper;
+import jetbrains.exodus.newLogConcept.Transaction.TransactionType;
 import org.jctools.maps.NonBlockingHashMapLong;
 import net.jpountz.xxhash.XXHash64;
 
@@ -83,7 +92,7 @@ public class MVCCDataStructure {
         } else {
             newTransaction = new Transaction(writeTxSnapshotId.incrementAndGet(), type);
         }
-        transactionsGCMap.put(newTransaction.snapshotId, new TransactionGCEntry(TransactionState.IN_PROGRESS.get()));
+        transactionsGCMap.put(newTransaction.getSnapshotId(), new TransactionGCEntry(TransactionState.IN_PROGRESS.get()));
         return newTransaction;
     }
 
@@ -105,7 +114,7 @@ public class MVCCDataStructure {
                          int operationType) {
         var recordAddress = address.getAndIncrement();
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
-        var snapshot = transaction.snapshotId;
+        var snapshot = transaction.getSnapshotId();
         transaction.addOperationReferenceEntryToList(new OperationReference(recordAddress, snapshot, keyHashCode));
         operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType));
     }
@@ -118,7 +127,7 @@ public class MVCCDataStructure {
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
 
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
-        compareWithCurrentAndSet(mvccRecord, currentTransaction.snapshotId); //increment version
+        compareWithCurrentAndSet(mvccRecord, currentTransaction.getSnapshotId()); //increment version
 
         // advanced approach: state-machine
         long maxMinValue = 0;
@@ -127,7 +136,7 @@ public class MVCCDataStructure {
         var maxTxId = mvccRecord.maxTransactionId.get();
         if (!mvccRecord.linksToOperationsQueue.isEmpty()) {
             for (OperationReference linkEntry : mvccRecord.linksToOperationsQueue) {
-                var candidateTxId = linkEntry.txId;
+                var candidateTxId = linkEntry.getTxId();
                 var currentMax = maxMinValue;
                 // we add to queue several objects with one txID, the last one re-writes the previous value,
                 // so we take the last with target txID
@@ -146,7 +155,7 @@ public class MVCCDataStructure {
         }
 
         TransactionOperationLogRecord targetOperationInLog =
-                (TransactionOperationLogRecord) operationLog.get(targetEntry.operationAddress);
+                (TransactionOperationLogRecord) operationLog.get(targetEntry.getOperationAddress());
 
         // case for error - smth goes wrong
         if (targetOperationInLog == null) {
@@ -169,7 +178,7 @@ public class MVCCDataStructure {
 
             selectionOfLessThanMaxTxId.sort(Comparator.comparing(OperationReference::getTxId).reversed());
             for (OperationReference linkEntry : selectionOfLessThanMaxTxId) {
-                targetOperationInLog = (TransactionOperationLogRecord) operationLog.get(linkEntry.operationAddress);
+                targetOperationInLog = (TransactionOperationLogRecord) operationLog.get(linkEntry.getOperationAddress());
                 if (targetOperationInLog.key.equals(key)) {
                     return targetOperationInLog.value;
                 }
@@ -182,7 +191,7 @@ public class MVCCDataStructure {
     private void waitAndAddLinkEntry(OperationReference linkEntry,
                                      ArrayList<OperationReference> selectionOfLessThanMaxTxId,
                                      long maxTxId) {
-        if (linkEntry.txId < maxTxId) {
+        if (linkEntry.getTxId() < maxTxId) {
             onProgressWait(linkEntry);
             if (linkEntry.wrapper.state != TransactionState.REVERTED.get()) {
                 selectionOfLessThanMaxTxId.add(linkEntry);
@@ -207,19 +216,19 @@ public class MVCCDataStructure {
 
     public void commitTransaction(Transaction transaction) {
         // if transaction.type is WRITE
-        if (!transaction.operationLinkList.isEmpty()) {
+        if (!transaction.getOperationLinkList().isEmpty()) {
             // put state in PROGRESS
             var wrapper = new TransactionStateWrapper(TransactionState.IN_PROGRESS.get());
 
-            if (transaction.operationLinkList.size() > 10) {
+            if (transaction.getOperationLinkList().size() > 10) {
                 wrapper.initLatch(1);
             }
 
-            for (var operation : transaction.operationLinkList) {
+            for (var operation : transaction.getOperationLinkList()) {
                 operation.wrapper = wrapper;
                 MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
                 // operation status check
-                if (transaction.snapshotId < mvccRecord.maxTransactionId.get()) {
+                if (transaction.getSnapshotId() < mvccRecord.maxTransactionId.get()) {
                     wrapper.state = TransactionState.REVERTED.get();
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
@@ -235,7 +244,7 @@ public class MVCCDataStructure {
                 }
 
                 while (true) {
-                    var txSnapId = transaction.snapshotId;
+                    var txSnapId = transaction.getSnapshotId();
                     var currentSnapIdFixed = snapshotId.get();
                     if (currentSnapIdFixed < txSnapId) {
                         if (snapshotId.compareAndSet(currentSnapIdFixed, txSnapId)) {
@@ -249,7 +258,7 @@ public class MVCCDataStructure {
                 //here we first work with collection, after that increment version, in read vica versa
             }
             wrapper.state = TransactionState.COMMITTED.get();
-            transactionsGCMap.get(transaction.snapshotId).stateWrapper.state = TransactionState.COMMITTED.get();
+            transactionsGCMap.get(transaction.getSnapshotId()).stateWrapper.state = TransactionState.COMMITTED.get();
 
             var latchRef = wrapper.operationsCountLatchRef;
             if (latchRef != null) {

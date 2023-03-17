@@ -2,10 +2,10 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.StringBinding;
-import jetbrains.exodus.newLogConcept.Transaction;
+import jetbrains.exodus.newLogConcept.Transaction.Transaction;
 import org.junit.Assert;
 import org.junit.Test;
-import jetbrains.exodus.newLogConcept.MVCCDataStructure;
+import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
 
 import java.util.HashMap;
 import java.util.Map;

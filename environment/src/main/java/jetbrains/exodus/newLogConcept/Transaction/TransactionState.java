@@ -1,4 +1,4 @@
-package jetbrains.exodus.newLogConcept;
+package jetbrains.exodus.newLogConcept.Transaction;
 
 public enum TransactionState {
     IN_PROGRESS(1),

@@ -1,14 +1,16 @@
-package jetbrains.exodus.newLogConcept;
+package jetbrains.exodus.newLogConcept.OperationLog;
 
+
+import jetbrains.exodus.newLogConcept.Transaction.TransactionStateWrapper;
 
 public class OperationReference {
     final long operationAddress; // not an array as we have multiple entries of OperationsLinksEntry in queue with same txId
     final long txId;
-    final long keyHashCode;
+    public final long keyHashCode;
 
-    TransactionStateWrapper wrapper;
+    public TransactionStateWrapper wrapper;
 
-    OperationReference(long linkToOperation, long txId, long keyHashCode) {
+    public OperationReference(long linkToOperation, long txId, long keyHashCode) {
         this.operationAddress = linkToOperation;
         this.txId = txId;
         this.keyHashCode = keyHashCode;

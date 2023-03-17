@@ -1,5 +1,7 @@
-package jetbrains.exodus.newLogConcept;
+package jetbrains.exodus.newLogConcept.MVCC;
 
+
+import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;

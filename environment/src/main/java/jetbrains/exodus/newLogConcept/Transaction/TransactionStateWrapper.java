@@ -1,21 +1,21 @@
-package jetbrains.exodus.newLogConcept;
+package jetbrains.exodus.newLogConcept.Transaction;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 
-class TransactionStateWrapper {
+public class TransactionStateWrapper {
 
-    volatile int state;
+    public volatile int state;
 
-    volatile CountDownLatch operationsCountLatchRef;
+    public volatile CountDownLatch operationsCountLatchRef;
 
     public TransactionStateWrapper(int state) {
         this.state = state;
     }
 
-    void initLatch(int size) {
+    public void initLatch(int size) {
         this.operationsCountLatchRef = new CountDownLatch(size);
     }
 

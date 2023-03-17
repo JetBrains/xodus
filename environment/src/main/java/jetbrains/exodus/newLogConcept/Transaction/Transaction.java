@@ -1,4 +1,6 @@
-package jetbrains.exodus.newLogConcept;
+package jetbrains.exodus.newLogConcept.Transaction;
+
+import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
 
 import java.util.ArrayList;
 
@@ -9,12 +11,12 @@ public class Transaction {
     long snapshotId;
 
     ArrayList<OperationReference> operationLinkList = new ArrayList<>(); // array of links to record in OL
-    Transaction(long snapshotId, TransactionType type) {
+    public Transaction(long snapshotId, TransactionType type) {
         this.snapshotId = snapshotId;
         this.type = type;
     }
 
-    void addOperationReferenceEntryToList(OperationReference linkEntry){
+    public void addOperationReferenceEntryToList(OperationReference linkEntry){
         this.operationLinkList.add(linkEntry);
     }
 
