@@ -56,7 +56,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings({"UnusedDeclaration", "ThisEscapedInObjectConstruction", "VolatileLongOrDoubleField",
         "ObjectAllocationInLoop", "ReuseOfLocalVariable", "rawtypes"})
@@ -65,9 +64,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     private static final Logger logger = LoggerFactory.getLogger(PersistentEntityStoreImpl.class);
 
     @NonNls
-    private static final String BLOBS_DIR = "blobs";
+    public static final String BLOBS_DIR = "blobs";
     @NonNls
-    static final String BLOBS_EXTENSION = ".blob";
+    public static final String BLOBS_EXTENSION = ".blob";
     @NonNls
     static final String BLOB_HANDLES_SEQUENCE = "blob.handles.sequence";
     @NonNls
@@ -436,7 +435,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             final PersistentSequenceBlobHandleGenerator.PersistentSequenceGetter persistentSequenceGetter =
                     () -> getSequence(getAndCheckCurrentTransaction(), BLOB_HANDLES_SEQUENCE);
             try {
-                blobVault = new FileSystemBlobVault(environment, config, blobPath, BLOBS_EXTENSION,
+                blobVault = new FileSystemBlobVault(config, blobPath, BLOBS_EXTENSION,
                         new PersistentSequenceBlobHandleGenerator(persistentSequenceGetter));
             } catch (UnexpectedBlobVaultVersionException e) {
                 blobVault = null;
