@@ -1,9 +1,5 @@
 dependencies {
     api project(':xodus-openAPI')
     implementation project(':xodus-utils')
-    implementation project(':xodus-entity-store')
-    implementation project(':xodus-crypto')
-    implementation project(':xodus-environment')
     implementation 'org.lz4:lz4-java:1.8.0'
-    implementation 'commons-io:commons-io:2.11.0'
 }
