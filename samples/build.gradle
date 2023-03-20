@@ -1,6 +1,6 @@
 dependencies {
-    implementation project(':entity-store')
-    implementation project(':environment')
+    implementation project(':xodus-entity-store')
+    implementation project(':xodus-environment')
 }
 
 jar {

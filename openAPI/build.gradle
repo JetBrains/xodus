@@ -1,5 +1,5 @@
 dependencies {
     implementation "org.jetbrains:annotations:$annotationsVersion"
-    implementation project(':utils')
-    testImplementation project(':utils').sourceSets.test.output
+    implementation project(':xodus-utils')
+    testImplementation project(':xodus-utils').sourceSets.test.output
 }

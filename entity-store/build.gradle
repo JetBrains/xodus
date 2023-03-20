@@ -1,9 +1,9 @@
 dependencies {
-    implementation project(':vfs')
-    api project(':openAPI')
-    implementation project(':utils')
-    implementation project(':environment')
-    implementation project(':compress')
+    implementation project(':xodus-vfs')
+    api project(':xodus-openAPI')
+    implementation project(':xodus-utils')
+    implementation project(':xodus-environment')
+    implementation project(':xodus-compress')
     testImplementation 'io.github.classgraph:classgraph:4.8.90'
-    testImplementation project(':utils').sourceSets.test.output
+    testImplementation project(':xodus-utils').sourceSets.test.output
 }

@@ -2,10 +2,10 @@ buildscript {
     ext.bouncyCastleVersion = '1.65'
 }
 dependencies {
-    implementation project(':environment')
-    implementation project(':entity-store')
-    implementation project(':utils')
-    api project(':openAPI')
+    implementation project(':xodus-environment')
+    implementation project(':xodus-entity-store')
+    implementation project(':xodus-utils')
+    api project(':xodus-openAPI')
     implementation "org.bouncycastle:bcpg-jdk15on:$bouncyCastleVersion"
-    testImplementation project(':openAPI').sourceSets.test.output
+    testImplementation project(':xodus-openAPI').sourceSets.test.output
 }
