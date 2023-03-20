@@ -1,9 +1,5 @@
 dependencies {
     api project(':openAPI')
     implementation project(':utils')
-    implementation project(':entity-store')
-    implementation project(':crypto')
-    implementation project(':environment')
     implementation 'org.lz4:lz4-java:1.8.0'
-    implementation 'commons-io:commons-io:2.11.0'
 }

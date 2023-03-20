@@ -4,6 +4,7 @@ dependencies {
     implementation project(':utils')
     implementation project(':environment')
     implementation project(':compress')
+    implementation 'commons-io:commons-io:2.11.0'
     testImplementation 'io.github.classgraph:classgraph:4.8.90'
     testImplementation project(':utils').sourceSets.test.output
 }
