@@ -17,8 +17,13 @@ public class MVCCGarbageCollector {
     public Long findMaxMinId(ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap, Long snapshotId) {
         Long maxMinId = null;
         Long prevKey = null;
+        Long head;
+        if (snapshotId <= transactionsGCMap.lastKey())
+            head = snapshotId;
+        else head = transactionsGCMap.lastKey();
+
         for (Map.Entry<Long, TransactionGCEntry> entry
-                : transactionsGCMap.headMap(snapshotId, true).entrySet()) {
+                : transactionsGCMap.headMap(head, true).entrySet()) {
             Long currentKey = entry.getKey();
             int state = entry.getValue().stateWrapper.state;
             if (state == TransactionState.COMMITTED.get() || state == TransactionState.REVERTED.get()) {
@@ -26,8 +31,10 @@ public class MVCCGarbageCollector {
                     prevKey = currentKey;
                     maxMinId = currentKey;
                 } else {
-                    break;
+                    return maxMinId;
                 }
+            } else {
+                return maxMinId;
             }
         }
         return maxMinId;
