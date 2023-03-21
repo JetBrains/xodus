@@ -1,13 +1,12 @@
 package jetbrains.exodus.newLogConcept.GarbageCollector;
 
-import com.sun.source.tree.AssertTree;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
 import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
 import org.jctools.maps.NonBlockingHashMapLong;
 
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -91,31 +90,68 @@ public class MVCCGarbageCollector {
         return true;
     }
 
-    void removeUpToMaxMinId(long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
+
+    public void clean(long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
+                      ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
+
+        Long maxMinId = findMaxMinId(transactionsGCMap, snapshotId);
+        removeUpToMaxMinId(maxMinId, snapshotId, mvccHashMap, transactionsGCMap);
+
+        ConcurrentSkipListSet<Long> activeOrEmptyTransactionsIds =
+                findMissingOrActiveTransactionsIds(maxMinId, 15L, transactionsGCMap);
+        removeBetweenActiveTransactions(maxMinId, activeOrEmptyTransactionsIds, snapshotId,
+                mvccHashMap, transactionsGCMap);
+    }
+
+     //todo define consistent Long type everywhere
+    private void removeUpToMaxMinId(Long maxMinId, long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
                             ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
-        AtomicLong maxMinId = new AtomicLong(findMaxMinId(transactionsGCMap, snapshotId)); //todo define consistent type everywhere
         // todo check multithreading everywhere
-        if (snapshotId < maxMinId.get()) {
+        if (snapshotId < maxMinId) {
             throw new ExodusException();
         }
-        removeTransactionsRange(transactionsGCMap.firstKey(), maxMinId.getAndDecrement(), mvccHashMap,
+        removeTransactionsRange(transactionsGCMap.firstKey(), maxMinId - 1, mvccHashMap,
                 transactionsGCMap, true);
+    }
+    private void removeBetweenActiveTransactions(Long maxMinId, ConcurrentSkipListSet<Long> activeOrEmptyTransactionsIds,
+                                                 long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
+                                                 ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
+
+        // todo check multithreading everywhere
+        if (snapshotId < maxMinId) {
+            throw new ExodusException();
+        }
+
+        Iterator<Long> iterator = activeOrEmptyTransactionsIds.descendingIterator();
+        Long prev = null;
+
+        // prev and curr are active transactions, between them transactions are committed
+        while (iterator.hasNext()) {
+            Long curr = iterator.next();
+            if (prev != null) {
+                removeTransactionsRange(prev + 1, curr - 1, mvccHashMap,
+                        transactionsGCMap, true);
+            }
+            prev = curr;
+        }
     }
 
     void removeTransactionsRange(long transactionIdStart, long transactionIdEnd,
                                  NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
                                  ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap,
                                  boolean isUpToMaxMinId) {
-        for (long id = transactionIdEnd; id > transactionIdStart; id--) {
-            mvccHashMap.remove(id);
-            transactionsGCMap.remove(id);
-        }
-        // if the sequence is up to maxMinId, then we delete the whole sequence, otherwise the first element is not deleted
-        if (isUpToMaxMinId) {
-            mvccHashMap.remove(transactionIdStart);
-            transactionsGCMap.remove(transactionIdStart);
-        } else {
-            transactionsGCMap.get(transactionIdStart).upToId = transactionIdEnd;
+        if (transactionIdStart < transactionIdEnd){
+            for (long id = transactionIdEnd; id > transactionIdStart; id--) {
+                mvccHashMap.remove(id);
+                transactionsGCMap.remove(id);
+            }
+            // if the sequence is up to maxMinId, then we delete the whole sequence, otherwise the first element is not deleted
+            if (isUpToMaxMinId) {
+                mvccHashMap.remove(transactionIdStart);
+                transactionsGCMap.remove(transactionIdStart);
+            } else {
+                transactionsGCMap.get(transactionIdStart).upToId = transactionIdEnd;
+            }
         }
     }
 }

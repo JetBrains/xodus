@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
-public class MVCcTransactionsGCMapAlgorithmTest {
+
+public class MVCCTransactionsGCMapAlgorithmTest {
 
     @Test
     public void testFindMaxMinIdWithMissingIdsOneThread() {
