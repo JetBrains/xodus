@@ -22,6 +22,7 @@ dependencies {
     jmh project(':entity-store')
     jmh project(':query')
     jmh project(':crypto')
+    jmh project(':utils')
     jmh "org.openjdk.jmh:jmh-core:$jmhVersion"
     jmh "org.openjdk.jmh:jmh-generator-annprocess:$jmhVersion"
     jmh group: 'junit', name: 'junit', version: "$junitVersion"

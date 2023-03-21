@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.util;
+package jetbrains.exodus.entitystore.util;
 
 import jetbrains.exodus.bindings.BindingUtils;
 import jetbrains.exodus.crypto.*;
@@ -23,11 +23,12 @@ import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.log.BufferedDataWriter;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.StartupMetadata;
+import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipParameters;
 import org.apache.commons.io.IOUtils;
@@ -38,24 +39,33 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.Enumeration;
 import java.util.concurrent.Executors;
 import java.util.zip.Deflater;
+
 
 public class BackupUtil {
     private static final Logger logger = LoggerFactory.getLogger(BackupUtil.class);
 
-    public static TarArchiveInputStream reEncryptBackup(final ArchiveInputStream archiveStream,
-                                                        final byte[] firstKey, final long firstIv,
-                                                        final byte[] secondKey, final long secondIv,
-                                                        final StreamCipherProvider cipherProvider)
+    public static InputStream reEncryptBackup(final ZipFile zipFile,
+                                              final byte[] firstKey, final long firstIv,
+                                              final byte[] secondKey, final long secondIv,
+                                              final StreamCipherProvider cipherProvider)
+            throws IOException {
+        var zipStream = new ZipFileArchiveInputStream(zipFile);
+        return reEncryptBackup(zipStream, firstKey, firstIv, secondKey, secondIv, cipherProvider);
+    }
+
+
+    public static InputStream reEncryptBackup(final ArchiveInputStream archiveStream,
+                                              final byte[] firstKey, final long firstIv,
+                                              final byte[] secondKey, final long secondIv,
+                                              final StreamCipherProvider cipherProvider)
             throws IOException {
         var pipedInputStream = new PipedInputStream(1024 * 1024);
         var pipedOutputStream = new PipedOutputStream(pipedInputStream);
 
         var errorAwareInputStream = new ErrorAwareInputStream(pipedInputStream);
-        final TarArchiveInputStream userTarArchiveInputStream =
-                new TarArchiveInputStream(new GzipCompressorInputStream(errorAwareInputStream));
-
         var bufferedOutputStream = new BufferedOutputStream(pipedOutputStream, 1024 * 1024);
         final TarArchiveOutputStream tarArchiveOutputStream;
         if (secondKey == null) {
@@ -89,7 +99,13 @@ public class BackupUtil {
 
                 var inputEntry = archiveStream.getNextEntry();
                 while (inputEntry != null) {
+                    //skip directories we are interested only in files
+                    if (inputEntry.isDirectory()) {
+                        inputEntry = archiveStream.getNextEntry();
+                        continue;
+                    }
                     var name = inputEntry.getName();
+
                     var outputArchiveEntry = new TarArchiveEntry(name);
                     var entrySize = inputEntry.getSize();
 
@@ -111,7 +127,7 @@ public class BackupUtil {
                         final Path namePath = Path.of(name);
                         final long fileAddress = LogUtil.getAddress(namePath.getFileName().toString());
 
-                        while (processed <= entrySize) {
+                        while (processed < entrySize) {
                             if (binaryFormatVersion == EnvironmentImpl.CURRENT_FORMAT_VERSION) {
                                 if (fileLengthBound >= 0 && entrySize > fileLengthBound) {
                                     throw new IllegalStateException("Backup is broken, size of the file " + name +
@@ -136,8 +152,8 @@ public class BackupUtil {
                             readBufferOffset = 0;
 
                             if (binaryFormatVersion < 0) {
-                                var versionInformation = detectFormatVersion(cipherProvider, fileAddress,
-                                        readBuffer, bufferSize, pageStep, pageMaxSize, firstKey, firstIv);
+                                var versionInformation = detectFormatVersion(
+                                        readBuffer, bufferSize, pageStep, pageMaxSize);
 
                                 binaryFormatVersion = versionInformation[0];
                                 pageSize = versionInformation[1];
@@ -272,6 +288,7 @@ public class BackupUtil {
                         IOUtils.copyLarge(archiveStream, tarArchiveOutputStream, readBuffer);
                     }
 
+                    tarArchiveOutputStream.closeArchiveEntry();
                     inputEntry = archiveStream.getNextEntry();
                 }
             } catch (final Throwable e) {
@@ -294,7 +311,7 @@ public class BackupUtil {
             }
         });
 
-        return userTarArchiveInputStream;
+        return errorAwareInputStream;
     }
 
     private static void encryptV2FormatPages(byte[] key, long iv,
@@ -311,7 +328,7 @@ public class BackupUtil {
 
     }
 
-    private static File findBlobsVault(final File file) {
+    private static File findBlobsVault(File file) {
 
         while (true) {
             File parent = file.getParentFile();
@@ -322,30 +339,21 @@ public class BackupUtil {
             if (parent.getName().equals(PersistentEntityStoreImpl.BLOBS_DIR)) {
                 return parent;
             }
+
+            file = parent;
         }
 
         throw new IllegalStateException("Can not find blob vault root for file " + file);
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static int[] detectFormatVersion(final StreamCipherProvider cipherProvider,
-                                             final long address, final byte[] buffer,
+    private static int[] detectFormatVersion(final byte[] buffer,
                                              final int bufferSize, final int pageStep,
-                                             final int pageMaxSize, final byte[] key,
-                                             final long iv) {
+                                             final int pageMaxSize) {
         for (int pageSize = pageStep; pageSize <= pageMaxSize && pageSize <= bufferSize; pageSize += pageStep) {
-            final byte[] dataPage;
-
-            if (key != null) {
-                dataPage = EnvKryptKt.cryptBlocksImmutable(cipherProvider, key, iv, address, buffer, 0,
-                        pageSize - BufferedDataWriter.HASH_CODE_SIZE, LogUtil.LOG_BLOCK_ALIGNMENT);
-            } else {
-                dataPage = buffer;
-            }
-
-            final long storedHash = BindingUtils.readLong(dataPage,
+            final long storedHash = BindingUtils.readLong(buffer,
                     pageSize - BufferedDataWriter.HASH_CODE_SIZE);
-            final long calculatedHash = BufferedDataWriter.calculateHash(dataPage, 0,
+            final long calculatedHash = BufferedDataWriter.calculateHash(buffer, 0,
                     pageSize - BufferedDataWriter.HASH_CODE_SIZE);
 
             if (storedHash == calculatedHash) {
@@ -399,4 +407,57 @@ public class BackupUtil {
             checkError();
         }
     }
+
+    private static class ZipFileArchiveInputStream extends ArchiveInputStream {
+        private final ZipFile zipFile;
+        private final Enumeration<ZipArchiveEntry> entries;
+        private InputStream currentEntryInputStream;
+
+        public ZipFileArchiveInputStream(ZipFile zipFile) {
+            this.zipFile = zipFile;
+            this.entries = zipFile.getEntries();
+        }
+
+        @Override
+        public ArchiveEntry getNextEntry() throws IOException {
+            if (!entries.hasMoreElements()) {
+                return null;
+            }
+
+            closeCurrentEntryStream();
+            org.apache.commons.compress.archivers.zip.ZipArchiveEntry entry = entries.nextElement();
+            currentEntryInputStream = zipFile.getInputStream(entry);
+            return entry;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (currentEntryInputStream == null) {
+                throw new IllegalStateException("No entry is open for reading");
+            }
+            return currentEntryInputStream.read();
+        }
+
+        @Override
+        public int read(@NotNull byte[] b, int off, int len) throws IOException {
+            if (currentEntryInputStream == null) {
+                throw new IllegalStateException("No entry is open for reading");
+            }
+            return currentEntryInputStream.read(b, off, len);
+        }
+
+        @Override
+        public void close() throws IOException {
+            closeCurrentEntryStream();
+            zipFile.close();
+        }
+
+        private void closeCurrentEntryStream() throws IOException {
+            if (currentEntryInputStream != null) {
+                currentEntryInputStream.close();
+                currentEntryInputStream = null;
+            }
+        }
+    }
+
 }
