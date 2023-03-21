@@ -18,12 +18,9 @@ public class MVCCGarbageCollector {
         Long maxMinId = null;
         Long prevKey = null;
         Long head;
-        if (snapshotId <= transactionsGCMap.lastKey())
-            head = snapshotId;
-        else head = transactionsGCMap.lastKey();
 
         for (Map.Entry<Long, TransactionGCEntry> entry
-                : transactionsGCMap.headMap(head, true).entrySet()) {
+                : transactionsGCMap.headMap(snapshotId, true).entrySet()) {
             Long currentKey = entry.getKey();
             int state = entry.getValue().stateWrapper.state;
             if (state == TransactionState.COMMITTED.get() || state == TransactionState.REVERTED.get()) {
@@ -44,12 +41,17 @@ public class MVCCGarbageCollector {
     // TODO: take into account merged records!
     public ConcurrentSkipListSet<Long> findMissingOrActiveTransactionsIds(Long maxMinId, Long snapshotId,
                                        ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
-        if (snapshotId < maxMinId){
+        if (maxMinId != null && snapshotId < maxMinId){
             throw new ExodusException();
         }
         ConcurrentSkipListSet<Long> result = new ConcurrentSkipListSet<>();
         Long lastKey = null;
-        for (long i = maxMinId + 1; i < snapshotId; i++) {
+
+        Long firstKey = transactionsGCMap.firstKey();
+        if (maxMinId != null)
+            firstKey = maxMinId + 1;
+
+        for (long i = firstKey; i < snapshotId; i++) {
             if (isKeyMissing(i, transactionsGCMap)) {
                 result.add(i);
             } else {
