@@ -47,43 +47,68 @@ public class MVCCGarbageCollectorTest {
 
     }
 
-//    @Test
-//    public void testFindMaxMinIdWithMergedIdsOneThread() {
-//        ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
-//
-//        for (long i = 1; i < 4; i++){
-//            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
-//
-//        }
-//        TransactionGCEntry entry = new TransactionGCEntry(TransactionState.COMMITTED.get(), 6);
-//        transactionsGCMap.put(4L, entry);
-//
-//        for (long i = 7; i < 8; i++){
-//            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
-//        }
-//        var collector = new MVCCGarbageCollector();
-//        Assert.assertEquals(collector.findMaxMinId(transactionsGCMap, 10L).longValue(), 7L);
-//
-//    }
-//
-//    @Test
-//    public void testFindMaxMinIdWithMergedIdsAndMissedValueOneThread() {
-//        ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
-//
-//        for (long i = 1; i < 4; i++){
-//            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
-//
-//        }
-//        TransactionGCEntry entry = new TransactionGCEntry(TransactionState.COMMITTED.get(), 6);
-//        transactionsGCMap.put(5L, entry);
-//
-//        for (long i = 7; i < 8; i++){
-//            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
-//        }
-//        var collector = new MVCCGarbageCollector();
-//        Assert.assertEquals(collector.findMaxMinId(transactionsGCMap, 10L).longValue(), 3L);
-//
-//    }
+    @Test
+    public void testFindMaxMinIdWithMergedIdsOneThread() {
+        ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
+        NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
+
+        for (long i = 1; i < 4; i++){
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
+        }
+        for (long i = 4; i < 7; i++){
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+        }
+        TransactionGCEntry entry = new TransactionGCEntry(TransactionState.COMMITTED.get(), 6);
+        transactionsGCMap.put(4L, entry);
+
+        for (long i = 7; i < 8; i++){
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+        }
+
+        var collector = new MVCCGarbageCollector();
+        collector.clean(10L, hashMap, transactionsGCMap);
+        for (long i = 1; i < 7; i++){
+            Assert.assertFalse(hashMap.containsKey(i));
+        }
+        Assert.assertTrue(hashMap.containsKey(7L));
+    }
+
+    @Test
+    public void testFindMaxMinIdWithMergedIdsAndMissedValueOneThread() {
+        ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
+        NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
+
+        for (long i = 1; i < 4; i++){
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
+        }
+
+        for (long i = 5; i < 6; i++){
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+        }
+
+        TransactionGCEntry entry = new TransactionGCEntry(TransactionState.COMMITTED.get(), 6);
+        transactionsGCMap.put(5L, entry);
+        for (long i = 7; i < 8; i++){
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+        }
+
+        var collector = new MVCCGarbageCollector();
+        collector.clean(10L, hashMap, transactionsGCMap);
+
+        Assert.assertFalse(hashMap.containsKey(1L));
+        Assert.assertFalse(hashMap.containsKey(2L));
+        Assert.assertTrue(hashMap.containsKey(3L));
+        Assert.assertFalse(hashMap.containsKey(4L));
+        Assert.assertTrue(hashMap.containsKey(5L));
+        Assert.assertFalse(hashMap.containsKey(6L));
+//        Assert.assertFalse(hashMap.containsKey(7L)); // todo: so far in the algorithm we do not take this case for merge - think ab it
+
+        Assert.assertEquals(collector.findMaxMinId(transactionsGCMap, 10L).longValue(), 3L);
+    }
 //
 //
 //    @Test
