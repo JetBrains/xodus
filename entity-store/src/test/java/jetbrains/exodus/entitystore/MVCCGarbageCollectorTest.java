@@ -34,6 +34,7 @@ public class MVCCGarbageCollectorTest {
 
     }
 
+    // todo fixme
     @Test
     public void testFindMaxMinIdWithMergedIdsOneThread() {
         NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
@@ -192,6 +193,47 @@ public class MVCCGarbageCollectorTest {
 
         ConcurrentSkipListSet<Long> correctActiveOrEmptyTransactionsIds =
                 new ConcurrentSkipListSet<>(Arrays.asList(4L, 6L, 7L, 8L, 11L, 12L, 13L, 14L));
+
+        Assert.assertEquals(correctActiveOrEmptyTransactionsIds, activeOrEmptyTransactionsIds);
+    }
+
+    @Test
+    public void getActiveAndMissingTransactionsIdsWithUpToOneThread() {
+        NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
+        ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
+
+        for (long i = 1; i < 3; i++){
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
+        }
+
+        transactionsGCMap.put(3L, new TransactionGCEntry(TransactionState.COMMITTED.get(), 6L));
+        hashMap.put(3L, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+
+        for (long i = 7; i < 8; i++){
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.IN_PROGRESS.get()));
+        }
+        for (long i = 9; i < 11; i++){
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
+        }
+
+        transactionsGCMap.put(12L, new TransactionGCEntry(TransactionState.COMMITTED.get(), 14L));
+        hashMap.put(12L, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+
+        for (long i = 16; i < 20; i++){
+            hashMap.put(i, new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>()));
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.IN_PROGRESS.get()));
+        }
+
+        var collector = new MVCCGarbageCollector();
+        Long maxMinId = collector.findMaxMinId(transactionsGCMap, 18L);
+        ConcurrentSkipListSet<Long> activeOrEmptyTransactionsIds =
+                collector.findMissingOrActiveTransactionsIds(maxMinId, 18L, transactionsGCMap);
+
+        ConcurrentSkipListSet<Long> correctActiveOrEmptyTransactionsIds =
+                new ConcurrentSkipListSet<>(Arrays.asList(7L, 8L, 11L, 15L, 16L, 17L));
 
         Assert.assertEquals(correctActiveOrEmptyTransactionsIds, activeOrEmptyTransactionsIds);
     }

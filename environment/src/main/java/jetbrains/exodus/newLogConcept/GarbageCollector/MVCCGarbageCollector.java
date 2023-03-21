@@ -43,17 +43,28 @@ public class MVCCGarbageCollector {
         ConcurrentSkipListSet<Long> result = new ConcurrentSkipListSet<>();
         Long lastKey = null;
         for (long i = maxMinId + 1; i < snapshotId; i++) {
-            if (!transactionsGCMap.containsKey(i)) {
+            if (isKeyMissing(i, transactionsGCMap)) {
                 result.add(i);
             } else {
-                int state = transactionsGCMap.get(i).stateWrapper.state;
-                if (state == TransactionState.IN_PROGRESS.get() || (lastKey != null && i != lastKey + 1)) {
-                    result.add(i);
+                if (transactionsGCMap.containsKey(i)){
+                    int state = transactionsGCMap.get(i).stateWrapper.state;
+                    if (state == TransactionState.IN_PROGRESS.get() || (lastKey != null && i != lastKey + 1)) {
+                        result.add(i);
+                    }
                 }
             }
             lastKey = i;
         }
         return result;
+    }
+
+    private boolean isKeyMissing(long key, ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
+        for (var element: transactionsGCMap.entrySet()){
+            if (element.getKey() == key || element.getValue().upToId >= key && element.getKey() < key){
+                return false;
+            }
+        }
+        return true;
     }
 
     void removeUpToMaxMinId(long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,

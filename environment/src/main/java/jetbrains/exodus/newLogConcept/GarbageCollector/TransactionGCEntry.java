@@ -10,6 +10,11 @@ public class TransactionGCEntry {
         this.stateWrapper = new TransactionGCEntryStateWrapper(state);
     }
 
+    public TransactionGCEntry(int state, long upTo) {
+        this.stateWrapper = new TransactionGCEntryStateWrapper(state);
+        this.upToId = upTo;
+    }
+
     public void setUpToId(long upToId) {
         this.upToId = upToId;
     }
