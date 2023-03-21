@@ -17,7 +17,6 @@ public class MVCCGarbageCollector {
     public Long findMaxMinId(ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap, Long snapshotId) {
         Long maxMinId = null;
         Long prevKey = null;
-        Long head;
 
         for (Map.Entry<Long, TransactionGCEntry> entry
                 : transactionsGCMap.headMap(snapshotId, true).entrySet()) {
@@ -28,20 +27,36 @@ public class MVCCGarbageCollector {
                     prevKey = currentKey;
                     maxMinId = currentKey;
                 } else {
-                    return maxMinId;
+                    return getMaxFromRecord(transactionsGCMap, snapshotId, maxMinId);
                 }
+            } else {
+                return getMaxFromRecord(transactionsGCMap, snapshotId, maxMinId);
+            }
+        }
+        return getMaxFromRecord(transactionsGCMap, snapshotId, maxMinId);
+    }
+
+    private Long getMaxFromRecord(ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap,
+                                  Long snapshotId, Long maxMinId){
+        if (maxMinId == null)
+            return null;
+        var record = transactionsGCMap.get(maxMinId);
+        if (record.upToId < snapshotId) {
+            if (record.upToId != -1) {
+                return record.upToId;
             } else {
                 return maxMinId;
             }
+        } else {
+            return snapshotId - 1;
         }
-        return maxMinId;
     }
 
+
     // todo multithreading
-    // TODO: take into account merged records!
     public ConcurrentSkipListSet<Long> findMissingOrActiveTransactionsIds(Long maxMinId, Long snapshotId,
-                                       ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
-        if (maxMinId != null && snapshotId < maxMinId){
+                                                                          ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
+        if (maxMinId != null && snapshotId < maxMinId) {
             throw new ExodusException();
         }
         ConcurrentSkipListSet<Long> result = new ConcurrentSkipListSet<>();
@@ -55,7 +70,7 @@ public class MVCCGarbageCollector {
             if (isKeyMissing(i, transactionsGCMap)) {
                 result.add(i);
             } else {
-                if (transactionsGCMap.containsKey(i)){
+                if (transactionsGCMap.containsKey(i)) {
                     int state = transactionsGCMap.get(i).stateWrapper.state;
                     if (state == TransactionState.IN_PROGRESS.get() || (lastKey != null && i != lastKey + 1)) {
                         result.add(i);
@@ -68,8 +83,8 @@ public class MVCCGarbageCollector {
     }
 
     private boolean isKeyMissing(long key, ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
-        for (var element: transactionsGCMap.entrySet()){
-            if (element.getKey() == key || element.getValue().upToId >= key && element.getKey() < key){
+        for (var element : transactionsGCMap.entrySet()) {
+            if (element.getKey() == key || element.getValue().upToId >= key && element.getKey() < key) {
                 return false;
             }
         }
@@ -80,7 +95,7 @@ public class MVCCGarbageCollector {
                             ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
         AtomicLong maxMinId = new AtomicLong(findMaxMinId(transactionsGCMap, snapshotId)); //todo define consistent type everywhere
         // todo check multithreading everywhere
-        if (snapshotId < maxMinId.get()){
+        if (snapshotId < maxMinId.get()) {
             throw new ExodusException();
         }
         removeTransactionsRange(transactionsGCMap.firstKey(), maxMinId.getAndDecrement(), mvccHashMap,
