@@ -22,7 +22,7 @@ dependencies {
     jmh project(':xodus-entity-store')
     jmh project(':xodus-query')
     jmh project(':xodus-crypto')
-
+    jmh project(':xodus-utils')
     jmh "org.openjdk.jmh:jmh-core:$jmhVersion"
     jmh "org.openjdk.jmh:jmh-generator-annprocess:$jmhVersion"
     jmh group: 'junit', name: 'junit', version: "$junitVersion"

@@ -120,9 +120,6 @@ public abstract class BTreeBase implements ITree {
     }
 
     protected final RandomAccessLoggable getLoggable(long address) {
-        if (address == 155869) {
-            System.out.println();
-        }
         return log.readNotNull(getDataIterator(address), address);
     }
 
