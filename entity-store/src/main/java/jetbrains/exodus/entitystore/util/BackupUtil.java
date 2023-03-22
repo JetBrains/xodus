@@ -161,7 +161,7 @@ public class BackupUtil {
                                 assert binaryFormatVersion >= 0;
                             }
 
-                            final byte[] dataToWrite;
+                            byte[] dataToWrite;
                             final int dataToWriteLen;
 
                             if (binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION) {
@@ -187,44 +187,39 @@ public class BackupUtil {
                                 var pages = bufferSize / pageSize;
                                 dataToWriteLen = pages * pageSize;
 
-                                dataToWrite = new byte[dataToWriteLen];
+                                validateBackupContent(readBuffer, pageSize, name, processed, dataToWriteLen);
 
                                 if (firstKey != null) {
                                     assert cipherProvider != null;
 
+                                    dataToWrite = new byte[dataToWriteLen];
                                     encryptV2FormatPages(firstKey, firstIv, cipherProvider,
                                             readBuffer, pageSize, processed, fileAddress, dataToWrite, dataToWriteLen);
+                                } else {
+                                    dataToWrite = readBuffer;
                                 }
 
-                                for (int dataOffset = 0; dataOffset < dataToWriteLen; dataOffset += pageSize) {
-                                    final long calculatedHash = BufferedDataWriter.calculateHash(dataToWrite,
-                                            dataOffset, pageSize - BufferedDataWriter.HASH_CODE_SIZE);
-                                    final long storedHash = BindingUtils.readLong(dataToWrite, dataOffset +
-                                            pageSize - BufferedDataWriter.HASH_CODE_SIZE);
-
-                                    if (storedHash != calculatedHash) {
-                                        throw new IllegalStateException(
-                                                "Page is broken. Expected and calculated hash codes are different." +
-                                                        " File name " + name + ". Page address " +
-                                                        (processed + dataOffset));
-                                    }
-                                }
+                                assert validateBackupContent(dataToWrite, pageSize, name, processed, dataToWriteLen);
 
                                 if (secondKey != null) {
                                     assert cipherProvider != null;
 
                                     encryptV2FormatPages(secondKey, secondIv, cipherProvider,
-                                            readBuffer, pageSize, processed, fileAddress, dataToWrite, dataToWriteLen);
+                                            dataToWrite, pageSize, processed, fileAddress, dataToWrite, dataToWriteLen);
                                 }
 
+                                assert validateBackupContent(dataToWrite, pageSize, name, processed, dataToWriteLen);
+
                                 readBufferOffset = bufferSize - dataToWriteLen;
-                                if (readBufferOffset > 0) {
-                                    System.arraycopy(readBuffer, bufferSize - readBufferOffset, readBuffer, 0, readBufferOffset);
-                                }
                             }
 
                             tarArchiveOutputStream.write(dataToWrite, 0, dataToWriteLen);
                             processed += dataToWriteLen;
+
+                            if (readBufferOffset > 0) {
+                                System.arraycopy(readBuffer, bufferSize - readBufferOffset, readBuffer,
+                                        0, readBufferOffset);
+                            }
                         }
                     } else if (name.endsWith(PersistentEntityStoreImpl.BLOBS_EXTENSION)) {
                         final InputStream entryInputStream;
@@ -314,18 +309,41 @@ public class BackupUtil {
         return errorAwareInputStream;
     }
 
+    private static boolean validateBackupContent(byte[] data, int pageSize,
+                                                 String name, int processed, int dataToWriteLen) {
+        for (int dataOffset = 0; dataOffset < dataToWriteLen; dataOffset += pageSize) {
+            final long calculatedHash = BufferedDataWriter.calculateHash(data,
+                    dataOffset, pageSize - BufferedDataWriter.HASH_CODE_SIZE);
+            final long storedHash = BindingUtils.readLong(data, dataOffset +
+                    pageSize - BufferedDataWriter.HASH_CODE_SIZE);
+
+            if (storedHash != calculatedHash) {
+                throw new IllegalStateException(
+                        "Page is broken. Expected and calculated hash codes are different." +
+                                " File name " + name + ". Page address " +
+                                (processed + dataOffset));
+            }
+        }
+
+        return true;
+    }
+
     private static void encryptV2FormatPages(byte[] key, long iv,
                                              StreamCipherProvider cipherProvider,
-                                             byte[] readBuffer, int pageSize, int processed, long fileAddress,
+                                             byte[] data, int pageSize, int processed, long fileAddress,
                                              byte[] dataToWrite, int dataToWriteLen) {
         for (int dataOffset = 0; dataOffset < dataToWriteLen; dataOffset += pageSize) {
             EnvKryptKt.cryptBlocksMutable(cipherProvider, key, iv,
-                    fileAddress + processed + dataOffset, readBuffer, dataOffset,
+                    fileAddress + processed, data, dataOffset,
                     pageSize - BufferedDataWriter.HASH_CODE_SIZE,
                     LogUtil.LOG_BLOCK_ALIGNMENT);
-            System.arraycopy(readBuffer, dataOffset, dataToWrite, dataOffset, pageSize);
+            BufferedDataWriter.updateHashCode(data, dataOffset,
+                    pageSize - BufferedDataWriter.HASH_CODE_SIZE);
         }
 
+        if (data != dataToWrite) {
+            System.arraycopy(data, 0, dataToWrite, 0, dataToWriteLen);
+        }
     }
 
     private static File findBlobsVault(File file) {
