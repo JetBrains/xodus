@@ -283,11 +283,14 @@ public final class BufferedDataWriter {
         return xxHash.hash(bytes, offset, len, XX_HASH_SEED);
     }
 
-    public static void updateHashCode(final byte @NotNull [] bytes) {
+    public static void updateHashCode(final @NotNull byte[] bytes) {
         final int hashCodeOffset = bytes.length - HASH_CODE_SIZE;
-        final long hash = calculateHash(bytes, 0, hashCodeOffset);
+        updateHashCode(bytes, 0, hashCodeOffset);
+    }
 
-        BindingUtils.writeLong(hash, bytes, hashCodeOffset);
+    public static void updateHashCode(final @NotNull byte[] bytes, int offset, int len) {
+        final long hash = calculateHash(bytes, offset, len);
+        BindingUtils.writeLong(hash, bytes, offset + len);
     }
 
     public static byte[] generateNullPage(int pageSize) {
