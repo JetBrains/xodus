@@ -107,6 +107,9 @@ public class MVCCGarbageCollector {
     private void removeUpToMaxMinId(Long maxMinId, long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
                             ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
         // todo check multithreading everywhere
+        if (maxMinId == null){
+            return;
+        }
         if (snapshotId < maxMinId) {
             throw new ExodusException();
         }
@@ -117,23 +120,28 @@ public class MVCCGarbageCollector {
                                                  long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
                                                  ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
 
+        if (maxMinId == null){
+            return;
+        }
         // todo check multithreading everywhere
         if (snapshotId < maxMinId) {
             throw new ExodusException();
         }
 
-        Iterator<Long> iterator = activeOrEmptyTransactionsIds.descendingIterator();
+        Iterator<Long> iterator = activeOrEmptyTransactionsIds.iterator();
         Long prev = null;
-
+        Long curr = -1L;
         // prev and curr are active transactions, between them transactions are committed
         while (iterator.hasNext()) {
-            Long curr = iterator.next();
+            curr = iterator.next();
             if (prev != null) {
                 removeTransactionsRange(prev + 1, curr - 1, mvccHashMap,
-                        transactionsGCMap, true);
+                        transactionsGCMap, false);
             }
             prev = curr;
         }
+        removeTransactionsRange(curr + 1, maxMinId - 1, mvccHashMap, // todo: experimental, see test !!
+                transactionsGCMap, true);
     }
 
     void removeTransactionsRange(long transactionIdStart, long transactionIdEnd,
