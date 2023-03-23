@@ -26,29 +26,13 @@ public class MVCCGarbageCollector {
                     prevKey = currentKey;
                     maxMinId = currentKey;
                 } else {
-                    return getMaxFromRecord(transactionsGCMap, snapshotId, maxMinId);
+                    return maxMinId;
                 }
-            } else {
-                return getMaxFromRecord(transactionsGCMap, snapshotId, maxMinId);
-            }
-        }
-        return getMaxFromRecord(transactionsGCMap, snapshotId, maxMinId);
-    }
-
-    private Long getMaxFromRecord(ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap,
-                                  Long snapshotId, Long maxMinId){
-        if (maxMinId == null)
-            return null;
-        var record = transactionsGCMap.get(maxMinId);
-        if (record.upToId < snapshotId) {
-            if (record.upToId != -1) {
-                return record.upToId;
             } else {
                 return maxMinId;
             }
-        } else {
-            return snapshotId - 1;
         }
+        return maxMinId;
     }
 
 

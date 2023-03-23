@@ -30,6 +30,18 @@ public class MVCCTransactionsGCMapAlgorithmTest {
     }
 
     @Test
+    public void testFindMaxMinIdWithAllUpToOneThread() {
+        ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
+
+        transactionsGCMap.put(1L, new TransactionGCEntry(TransactionState.COMMITTED.get(), 5L));
+        transactionsGCMap.put(6L, new TransactionGCEntry(TransactionState.COMMITTED.get(), 10L));
+
+        var collector = new MVCCGarbageCollector();
+        Assert.assertEquals(collector.findMaxMinId(transactionsGCMap, 10L).longValue(), 6L);
+
+    }
+
+    @Test
     public void testFindMaxMinIdWithMergedIdsOneThread() {
         ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
 
@@ -336,7 +348,7 @@ public class MVCCTransactionsGCMapAlgorithmTest {
 
         var collector = new MVCCGarbageCollector();
         Long maxMinId = collector.findMaxMinId(transactionsGCMap, 7L);
-        Assert.assertEquals(6L, maxMinId.longValue());
+        Assert.assertEquals(5L, maxMinId.longValue());
 
         ConcurrentSkipListSet<Long> activeOrEmptyTransactionsIds =
                 collector.findMissingOrActiveTransactionsIds(maxMinId, 7L, transactionsGCMap);
@@ -353,7 +365,7 @@ public class MVCCTransactionsGCMapAlgorithmTest {
 
         var collector = new MVCCGarbageCollector();
         Long maxMinId = collector.findMaxMinId(transactionsGCMap, 6L);
-        Assert.assertEquals(5L, maxMinId.longValue());
+        Assert.assertEquals(2L, maxMinId.longValue());
 
         ConcurrentSkipListSet<Long> activeOrEmptyTransactionsIds =
                 collector.findMissingOrActiveTransactionsIds(maxMinId, 6L, transactionsGCMap);
@@ -372,7 +384,7 @@ public class MVCCTransactionsGCMapAlgorithmTest {
 
         var collector = new MVCCGarbageCollector();
         Long maxMinId = collector.findMaxMinId(transactionsGCMap, 9L);
-        Assert.assertEquals(7L, maxMinId.longValue());
+        Assert.assertEquals(2L, maxMinId.longValue());
 
         ConcurrentSkipListSet<Long> activeOrEmptyTransactionsIds =
                 collector.findMissingOrActiveTransactionsIds(maxMinId, 9L, transactionsGCMap);
