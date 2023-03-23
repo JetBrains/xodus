@@ -2,6 +2,7 @@ package jetbrains.exodus.newLogConcept.MVCC;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
 import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
 import jetbrains.exodus.newLogConcept.OperationLog.OperationLogRecord;
 import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
@@ -230,6 +231,7 @@ public class MVCCDataStructure {
                 // operation status check
                 if (transaction.getSnapshotId() < mvccRecord.maxTransactionId.get()) {
                     wrapper.state = TransactionState.REVERTED.get();
+                    transactionsGCMap.get(transaction.getSnapshotId()).stateWrapper.state = TransactionState.REVERTED.get();
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
 
@@ -269,6 +271,10 @@ public class MVCCDataStructure {
             // what we inserted "read" can see
             var recordAddress = address.getAndIncrement(); // put special record to log
             operationLog.put(recordAddress, new TransactionCompletionLogRecord(false));
+
+            // TODO check
+//            var collector = new MVCCGarbageCollector();
+//            collector.clean(snapshotId.get(), hashMap, transactionsGCMap);
         }
     }
 
