@@ -124,7 +124,7 @@ public class MVCCGarbageCollector {
             }
             prev = curr;
         }
-        removeTransactionsRange(curr + 1, maxMinId - 1, mvccHashMap, // todo: experimental, see test !!
+        removeTransactionsRange(curr + 1, maxMinId - 1, mvccHashMap,
                 transactionsGCMap, true);
     }
 

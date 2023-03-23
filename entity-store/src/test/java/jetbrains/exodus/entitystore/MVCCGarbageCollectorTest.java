@@ -452,7 +452,7 @@ public class MVCCGarbageCollectorTest {
     }
 
     @Test
-    public void getActiveOMissingTransactionsWithAllMergedOneThread() {
+    public void testCleanWithAllMergedOneThread() {
         ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
         NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
 
@@ -470,7 +470,7 @@ public class MVCCGarbageCollectorTest {
     }
 
     @Test
-    public void getActiveOMissingTransactionsWithAlmostAllMergedOneThread() {
+    public void testCleanWithAlmostAllMergedOneThread() {
         ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
         NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
 
