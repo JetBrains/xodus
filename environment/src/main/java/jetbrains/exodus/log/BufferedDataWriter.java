@@ -187,10 +187,8 @@ public final class BufferedDataWriter {
         final int pageOffset = (int) highAddress & (pageSize - 1);
         final long pageAddress = highAddress - pageOffset;
 
-        currentPage = new MutablePage(page, pageAddress, pageOffset);
-        var xxHash64 =
-                BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(BufferedDataWriter.XX_HASH_SEED);
-        currentPage.xxHash64 = xxHash64;
+        currentPage = new MutablePage(page, pageAddress, pageOffset, pageOffset);
+        var xxHash64 = currentPage.xxHash64;
 
         if (calculateHashCode && pageOffset < pageSize) {
             if (cipherProvider != null) {
@@ -225,8 +223,7 @@ public final class BufferedDataWriter {
         checkWriteError();
 
         assert blockSetMutable != null;
-
-        assert currentHighAddress % pageSize == currentPage.writtenCount % pageSize;
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
 
         flush();
 
@@ -272,9 +269,7 @@ public final class BufferedDataWriter {
                     + ": , actual : " + bytes.length + "}", log, pageAddress);
         }
 
-        final XXHash64 xxHash = BufferedDataWriter.xxHash;
-        final long calculatedHash = xxHash.hash(bytes, 0,
-                bytes.length - HASH_CODE_SIZE, XX_HASH_SEED);
+        final long calculatedHash = calculateHash(bytes, 0, pageSize - HASH_CODE_SIZE);
         final long storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE);
 
         if (storedHash != calculatedHash) {
@@ -283,13 +278,19 @@ public final class BufferedDataWriter {
         }
     }
 
-    public static void updateHashCode(final byte @NotNull [] bytes) {
-        final int hashCodeOffset = bytes.length - HASH_CODE_SIZE;
-        final long hash =
-                xxHash.hash(bytes, 0, hashCodeOffset,
-                        XX_HASH_SEED);
+    public static long calculateHash(byte @NotNull [] bytes, final int offset, final int len) {
+        final XXHash64 xxHash = BufferedDataWriter.xxHash;
+        return xxHash.hash(bytes, offset, len, XX_HASH_SEED);
+    }
 
-        BindingUtils.writeLong(hash, bytes, hashCodeOffset);
+    public static void updateHashCode(final @NotNull byte[] bytes) {
+        final int hashCodeOffset = bytes.length - HASH_CODE_SIZE;
+        updateHashCode(bytes, 0, hashCodeOffset);
+    }
+
+    public static void updateHashCode(final @NotNull byte[] bytes, int offset, int len) {
+        final long hash = calculateHash(bytes, offset, len);
+        BindingUtils.writeLong(hash, bytes, offset + len);
     }
 
     public static byte[] generateNullPage(int pageSize) {
@@ -498,6 +499,7 @@ public final class BufferedDataWriter {
     int padWithNulls(long fileLengthBound, byte[] nullPage) {
         checkWriteError();
 
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
         assert nullPage.length == pageSize;
         int written = doPadPageWithNulls();
 
@@ -614,9 +616,7 @@ public final class BufferedDataWriter {
 
         blockSetMutable = null;
 
-        currentPage = new MutablePage(new byte[pageSize], 0, 0);
-        currentPage.xxHash64 = BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(
-                BufferedDataWriter.XX_HASH_SEED);
+        currentPage = new MutablePage(new byte[pageSize], 0, 0, 0);
         blockSet = new BlockSet.Immutable(log.getFileLengthBound());
 
         assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
@@ -734,9 +734,7 @@ public final class BufferedDataWriter {
         currentPage.xxHash64.close();
 
         currentPage = this.currentPage = new MutablePage(new byte[pageSize],
-                currentPage.pageAddress + pageSize, 0);
-        currentPage.xxHash64 = XX_HASH_FACTORY.newStreamingHash64(XX_HASH_SEED);
-
+                currentPage.pageAddress + pageSize, 0, 0);
         return currentPage;
     }
 
@@ -746,7 +744,7 @@ public final class BufferedDataWriter {
         currentPage.xxHash64.close();
 
         return this.currentPage = new MutablePage(pageData,
-                currentPage.pageAddress + pageSize, pageData.length);
+                currentPage.pageAddress + pageSize, pageData.length, 0);
     }
 
     long getCurrentHighAddress() {
@@ -933,13 +931,18 @@ public final class BufferedDataWriter {
         int committedCount;
         int writtenCount;
 
-        StreamingXXHash64 xxHash64;
+        final StreamingXXHash64 xxHash64;
 
         MutablePage(final byte @NotNull [] page,
-                    final long pageAddress, final int count) {
+                    final long pageAddress, final int writtenCount, final int committedCount) {
+            assert committedCount <= writtenCount;
             this.bytes = page;
             this.pageAddress = pageAddress;
-            committedCount = writtenCount = count;
+            this.writtenCount = writtenCount;
+            this.committedCount = committedCount;
+
+            xxHash64 = BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(
+                    BufferedDataWriter.XX_HASH_SEED);
         }
     }
 

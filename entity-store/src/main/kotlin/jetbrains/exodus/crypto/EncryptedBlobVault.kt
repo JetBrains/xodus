@@ -24,6 +24,7 @@ import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.env.Transaction
+import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -98,8 +99,8 @@ class EncryptedBlobVault(
                 openFiles = mutableListOf()
                 blobFiles.forEach {
                     streams[it.key] = StreamCipherInputStream(
-                        FileInputStream(it.value.toFile())
-                            .also { file -> openFiles.add(file) }.asBuffered
+                        BufferedInputStream(FileInputStream(it.value.toFile())
+                            .also { file -> openFiles.add(file) })
                     ) {
                         newCipher(it.key)
                     }
@@ -134,5 +135,12 @@ class EncryptedBlobVault(
     }
 
     private fun newCipher(blobHandle: Long) =
-        cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }
+        Companion.newCipher(cipherProvider, blobHandle, cipherKey, cipherBasicIV)
+
+    companion object {
+        @JvmStatic
+        fun newCipher(cipherProvider: StreamCipherProvider, blobHandle: Long, cipherKey: ByteArray, cipherBasicIV: Long) : StreamCipher {
+            return cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }
+        }
+    }
 }

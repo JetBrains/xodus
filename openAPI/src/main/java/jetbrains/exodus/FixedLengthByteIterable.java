@@ -25,8 +25,11 @@ public class FixedLengthByteIterable extends ByteIterableBase {
 
     protected final ByteIterable source;
     protected final int offset;
+    protected int baseOffset;
 
     protected FixedLengthByteIterable(@NotNull final ByteIterable source, final int offset, final int length) {
+        assert source.getLength() >= offset + length;
+
         if (length < 0) {
             throw new ExodusException("ByteIterable length can't be less than zero");
         }
@@ -48,26 +51,25 @@ public class FixedLengthByteIterable extends ByteIterableBase {
     private byte[] doGetBytes() {
         if (bytes == null) {
             final int length = this.length;
-            byte[] bytes = null;
             if (source instanceof ByteIterableBase) {
                 final ByteIterableBase s = (ByteIterableBase) source;
                 final byte[] baseBytes = s.getBaseBytes();
                 final int baseOffset = s.baseOffset();
 
                 if (baseBytes != null) {
-                    bytes = new byte[length];
-                    System.arraycopy(baseBytes, offset + baseOffset, bytes, 0, length);
+                    this.bytes = baseBytes;
+                    this.baseOffset = offset + baseOffset;
+
+                    return this.bytes;
                 }
             }
 
-            if (bytes == null) {
-                bytes = new byte[length];
-                final ByteIterator it = source.iterator();
-                it.skip(offset);
+            byte[] bytes = new byte[length];
+            final ByteIterator it = source.iterator();
+            it.skip(offset);
 
-                for (int i = 0; it.hasNext() && i < length; ++i) {
-                    bytes[i] = it.next();
-                }
+            for (int i = 0; it.hasNext() && i < length; ++i) {
+                bytes[i] = it.next();
             }
 
             this.bytes = bytes;
@@ -75,8 +77,9 @@ public class FixedLengthByteIterable extends ByteIterableBase {
         return bytes;
     }
 
-    public int getOffset() {
-        return offset;
+    @Override
+    public int baseOffset() {
+        return baseOffset;
     }
 
     @Override
@@ -100,6 +103,11 @@ public class FixedLengthByteIterable extends ByteIterableBase {
         if (length == 0) {
             return ByteIterable.EMPTY_ITERATOR;
         }
+
+        if (bytes != null) {
+            return new ArrayByteIterable.Iterator(bytes, baseOffset, length);
+        }
+
         final ByteIterator bi = source.iterator();
         bi.skip(offset);
         return new ByteIterator() {

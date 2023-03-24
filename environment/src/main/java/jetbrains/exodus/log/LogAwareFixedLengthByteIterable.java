@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ByteIterator;
 import jetbrains.exodus.FixedLengthByteIterable;
@@ -51,15 +52,6 @@ class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
     }
 
     @Override
-    public byte byteAt(int offset) {
-        if (offset >= this.length) {
-            throw new IllegalArgumentException();
-        }
-
-        return super.byteAt(offset + this.offset);
-    }
-
-    @Override
     public ByteIterableWithAddress getSource() {
         return (ByteIterableWithAddress) super.getSource();
     }
@@ -69,6 +61,10 @@ class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
         if (length == 0) {
             return ByteIterable.EMPTY_ITERATOR;
         }
+        if (bytes != null) {
+            return new ArrayByteIterable.Iterator(bytes, baseOffset, length);
+        }
+
         final ByteIterator bi = source.iterator();
         bi.skip(offset);
         return new LogAwareFixedLengthByteIterator(bi, length);
