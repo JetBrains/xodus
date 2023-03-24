@@ -53,7 +53,7 @@ public final class StartupMetadata {
     private static final int CORRECTLY_CLOSED_FLAG_OFFSET = FILE_LENGTH_BOUNDARY_OFFSET + FILE_LENGTH_BOUNDARY_BYTES;
     public static final int CLOSED_FLAG_BYTES = Byte.BYTES;
 
-    private static final int FILE_SIZE = CORRECTLY_CLOSED_FLAG_OFFSET + CLOSED_FLAG_BYTES;
+    public static final int FILE_SIZE = CORRECTLY_CLOSED_FLAG_OFFSET + CLOSED_FLAG_BYTES;
 
     public static final String FIRST_FILE_NAME = "startup-metadata-0";
     public static final String SECOND_FILE_NAME = "startup-metadata-1";
@@ -235,7 +235,7 @@ public final class StartupMetadata {
         }
     }
 
-    private static long getFileVersion(ByteBuffer content) {
+    public static long getFileVersion(ByteBuffer content) {
         if (content.remaining() != FILE_SIZE) {
             return -1;
         }
@@ -250,7 +250,7 @@ public final class StartupMetadata {
         return content.getInt(FORMAT_VERSION_OFFSET);
     }
 
-    private static StartupMetadata deserialize(ByteBuffer content, long version, boolean useFirstFile) {
+    public static StartupMetadata deserialize(ByteBuffer content, long version, boolean useFirstFile) {
         final int formatVersion = content.getInt(FORMAT_VERSION_OFFSET);
 
         if (formatVersion != FORMAT_VERSION) {

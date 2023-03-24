@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.env.Environment;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,8 +27,7 @@ public class FileSystemBlobVault extends FileSystemBlobVaultOld {
 
     private static final int EXPECTED_VERSION = 1;
 
-    public FileSystemBlobVault(@NotNull Environment environment,
-                               @NotNull final PersistentEntityStoreConfig config,
+    public FileSystemBlobVault(@NotNull final PersistentEntityStoreConfig config,
                                @NotNull final Path blobsDirectory,
                                @NotNull final String blobExtension,
                                @NotNull final BlobHandleGenerator blobHandleGenerator) throws IOException {
@@ -67,7 +67,7 @@ public class FileSystemBlobVault extends FileSystemBlobVaultOld {
         return result;
     }
 
-    protected long getBlobHandleByFile(@NotNull final File file) {
+    public long getBlobHandleByFile(@NotNull final File file) {
         final String name = file.getName();
         final String blobExtension = getBlobExtension();
         final int blobExtensionStart = name.indexOf(blobExtension);
@@ -93,4 +93,34 @@ public class FileSystemBlobVault extends FileSystemBlobVaultOld {
         }
         throw new EntityStoreException("Not a file of filesystem blob vault: " + file);
     }
+
+    public static long getBlobHandleByFile(@NotNull File file, @NotNull final String blobExtension,
+                                           @Nullable File vaultLocation) {
+        final String name = file.getName();
+        final int blobExtensionStart = name.indexOf(blobExtension);
+        if (name.endsWith(blobExtension) && (blobExtensionStart == 2 || blobExtensionStart == 1)) {
+            try {
+                long result = Integer.parseInt(name.substring(0, blobExtensionStart), 16);
+                File f = file;
+                int shift = 0;
+                while (true) {
+                    f = f.getParentFile();
+
+                    if (f == null) {
+                        break;
+                    }
+                    if (f.equals(vaultLocation)) {
+                        return result;
+                    }
+
+                    shift += Byte.SIZE;
+                    result = result + (((long) Integer.parseInt(f.getName(), 16)) << shift);
+                }
+            } catch (NumberFormatException nfe) {
+                throw new EntityStoreException("Not a file of filesystem blob vault: " + file, nfe);
+            }
+        }
+        throw new EntityStoreException("Not a file of filesystem blob vault: " + file);
+    }
+
 }

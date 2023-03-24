@@ -272,9 +272,7 @@ public final class BufferedDataWriter {
                     + ": , actual : " + bytes.length + "}", log, pageAddress);
         }
 
-        final XXHash64 xxHash = BufferedDataWriter.xxHash;
-        final long calculatedHash = xxHash.hash(bytes, 0,
-                bytes.length - HASH_CODE_SIZE, XX_HASH_SEED);
+        final long calculatedHash = calculateHash(bytes, 0, pageSize - HASH_CODE_SIZE);
         final long storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE);
 
         if (storedHash != calculatedHash) {
@@ -283,11 +281,14 @@ public final class BufferedDataWriter {
         }
     }
 
+    public static long calculateHash(byte @NotNull [] bytes, final int offset, final int len) {
+        final XXHash64 xxHash = BufferedDataWriter.xxHash;
+        return xxHash.hash(bytes, offset, len, XX_HASH_SEED);
+    }
+
     public static void updateHashCode(final byte @NotNull [] bytes) {
         final int hashCodeOffset = bytes.length - HASH_CODE_SIZE;
-        final long hash =
-                xxHash.hash(bytes, 0, hashCodeOffset,
-                        XX_HASH_SEED);
+        final long hash = calculateHash(bytes, 0, hashCodeOffset);
 
         BindingUtils.writeLong(hash, bytes, hashCodeOffset);
     }

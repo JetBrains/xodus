@@ -134,5 +134,12 @@ class EncryptedBlobVault(
     }
 
     private fun newCipher(blobHandle: Long) =
-        cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }
+        Companion.newCipher(cipherProvider, blobHandle, cipherKey, cipherBasicIV)
+
+    companion object {
+        @JvmStatic
+        fun newCipher(cipherProvider: StreamCipherProvider, blobHandle: Long, cipherKey: ByteArray, cipherBasicIV: Long) : StreamCipher {
+            return cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }
+        }
+    }
 }
