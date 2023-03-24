@@ -47,6 +47,11 @@ import java.util.zip.Deflater;
 public class BackupUtil {
     private static final Logger logger = LoggerFactory.getLogger(BackupUtil.class);
 
+    /**
+     * Behavior identical to the
+     * {@link #reEncryptBackup(ArchiveInputStream, byte[], long, byte[], long, StreamCipherProvider)} method except that
+     * accepts a {@link ZipFile} instead of an {@link ArchiveInputStream}.
+     */
     public static InputStream reEncryptBackup(final ZipFile zipFile,
                                               final byte[] firstKey, final long firstIv,
                                               final byte[] secondKey, final long secondIv,
@@ -57,6 +62,27 @@ public class BackupUtil {
     }
 
 
+    /**
+     * Takes a backup archive stream and re-encrypts it with the given keys.
+     * <p/>
+     * Backup archive could contain any amount of databases and additional files.
+     * Only databases are re-encrypted, other files are copied as is.
+     * <p/>
+     * Null values can be passed for keys. In this case it is supposed that the backup archive is not encrypted
+     * or will not be encrypted and stored as is.
+     * <p/>
+     * If database content is encrypted, it is not compressed to avoid compression overhead.
+     * <p/>
+     * Passed in archive stream should not be closed by user, method will close it automatically after re-encryption.
+     *
+     * @param archiveStream  backup archive stream
+     * @param firstKey       key to decrypt the backup archive
+     * @param firstIv        initialization vector to decrypt the backup archive
+     * @param secondKey      key to encrypt the backup archive
+     * @param secondIv       initialization vector to encrypt the backup archive
+     * @param cipherProvider cipher provider
+     * @return re-encrypted backup archive stream in tar.gz format.
+     */
     public static InputStream reEncryptBackup(final ArchiveInputStream archiveStream,
                                               final byte[] firstKey, final long firstIv,
                                               final byte[] secondKey, final long secondIv,
