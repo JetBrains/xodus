@@ -233,7 +233,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
 
             var incorrectLastSegmentSize = false
-            if (blockSetMutable.size() > 0) {
+            if (!needToPerformMigration && blockSetMutable.size() > 0) {
                 val lastAddress = blockSetMutable.maximum!!
 
                 val lastBlock = blockSetMutable.getBlock(lastAddress)
