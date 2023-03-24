@@ -33,11 +33,11 @@ def publishUrl = isDailyBuild ? "https://packages.jetbrains.team/maven/p/xodus/x
 
 
 static def shouldDeploy(project) {
-    return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples'])
+    return project.version.length() > 0 && !(project.name in ['xodus-benchmarks', 'xodus-samples'])
 }
 
 static def shouldApplyDokka(project) {
-    return project.version.length() > 0 && !(project.name in ['benchmarks', 'samples', 'query'])
+    return project.version.length() > 0 && !(project.name in ['xodus-benchmarks', 'xodus-samples', 'xodus-query'])
 }
 
 
@@ -204,7 +204,7 @@ subprojects {
     }
 
     afterEvaluate { project ->
-        if (shouldDeploy(project) && !(isDailyBuild && project.name == 'tools')) {
+        if (shouldDeploy(project) && !(isDailyBuild && project.name == 'xodus-tools')) {
             publishing {
                 repositories {
                     maven {
@@ -217,7 +217,7 @@ subprojects {
                 }
                 publications {
                     mavenJava(MavenPublication) {
-                        artifactId = "xodus-${project.name}"
+                        artifactId = "${project.name}"
                         from components.java
                         pom {
                             name = 'Xodus'
