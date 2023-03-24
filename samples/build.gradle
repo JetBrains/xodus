@@ -1,6 +1,8 @@
 dependencies {
     implementation project(':entity-store')
+    implementation project(':crypto')
     implementation project(':environment')
+    implementation 'org.slf4j:slf4j-jdk14:2.0.7'
 }
 
 jar {
