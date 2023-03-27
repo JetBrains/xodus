@@ -38,7 +38,7 @@ public class StreamCipherInputStream extends FilterInputStream {
 
     @Override
     public int read() throws IOException {
-        var read = super.read();
+        var read = in.read();
         if (read != -1) {
             position++;
 
@@ -51,7 +51,7 @@ public class StreamCipherInputStream extends FilterInputStream {
 
     @Override
     public int read(byte @NotNull [] b) throws IOException {
-        var read = super.read(b);
+        var read = in.read(b);
 
         if (read != -1) {
             for (int i = 0; i < read; ++i) {
@@ -66,7 +66,7 @@ public class StreamCipherInputStream extends FilterInputStream {
 
     @Override
     public int read(byte @NotNull [] b, int off, int len) throws IOException {
-        var read = super.read(b, off, len);
+        var read = in.read(b, off, len);
         if (read != -1) {
             for (int i = 0; i < read; ++i) {
                 b[off + i] = cipher.crypt(b[off + i]);
@@ -80,7 +80,7 @@ public class StreamCipherInputStream extends FilterInputStream {
 
     @Override
     public synchronized void reset() throws IOException {
-        super.reset();
+        in.reset();
         cipher = cipherSupplier.get();
 
         for (int i = 0; i < savedPosition; ++i) {
@@ -92,7 +92,7 @@ public class StreamCipherInputStream extends FilterInputStream {
 
     @Override
     public synchronized void mark(int readlimit) {
-        super.mark(readlimit);
+        in.mark(readlimit);
         savedPosition = position;
     }
 }
