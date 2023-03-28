@@ -1,6 +1,21 @@
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.bindings.StringBinding;
+import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
+import jetbrains.exodus.newLogConcept.Transaction.Transaction;
+import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static jetbrains.exodus.entitystore.TestBase.logger;
 
 public class MVCCComponentMultiThreadTest {
 
@@ -15,12 +30,36 @@ public class MVCCComponentMultiThreadTest {
     }
 
 
-    // 2. Increment the same value by 12 threads. Repeat transactions as needed.
+    // 2. Increment the same value by 120 threads. Repeat transactions as needed.
     // Check that the resulting value is correct.
     @Test
-    public void modifySameValueMultipleThreadsTest() {
+    public void modifySameValueMultipleThreadsTest() throws ExecutionException, InterruptedException {
+        ExecutorService service = Executors.newCachedThreadPool();
+        Map<String, String> keyValTransactions = new HashMap<>();
+        var mvccComponent = new MVCCDataStructure();
 
+        String keyString = "key-" + (int) (Math.random() * 100000);
+        AtomicLong value = new AtomicLong(1000);
+        keyValTransactions.put(keyString, String.valueOf(value));
+
+        for (int i = 0; i < 120; i++) {
+            var th = service.submit(() -> {
+                Transaction writeTransaction = mvccComponent.startWriteTransaction();
+                // check record is null before the commit
+                mvccComponent.put(writeTransaction, StringBinding.stringToEntry(keyString),
+                        StringBinding.stringToEntry(String.valueOf(value)));
+
+                Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
+                mvccComponent.commitTransaction(writeTransaction);
+                value.getAndIncrement();
+
+            });
+            th.get();
+        }
+        Assert.assertEquals(value.get(), 1120);
     }
+
+
 
     // 3. Increment the same value with 12 threads, but create a new transaction 1_000_000 times for each increment
     // in the thread. Check the execution time of all transactions in comparison with the execution time in one thread.
