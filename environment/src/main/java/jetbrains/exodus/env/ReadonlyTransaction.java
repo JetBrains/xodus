@@ -40,19 +40,6 @@ public class ReadonlyTransaction extends TransactionBase {
         env.registerTransaction(this);
     }
 
-    /**
-     * Constructor for creating new read-only transaction for specified high address.
-     * It's actually a snapshot transaction viewing database snapshot with that right bound of the log.
-     */
-    ReadonlyTransaction(@NotNull final EnvironmentImpl env, final long highAddress) {
-        super(env, false);
-        beginHook = () -> {
-            setMetaTree(MetaTreeImpl.create(env, highAddress));
-            env.registerTransaction(this);
-        };
-        env.holdNewestSnapshotBy(this, false);
-    }
-
     @Override
     public void setCommitHook(@Nullable final Runnable hook) {
         throw new ReadonlyTransactionException();

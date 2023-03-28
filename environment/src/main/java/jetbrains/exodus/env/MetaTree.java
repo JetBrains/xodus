@@ -16,5 +16,4 @@
 package jetbrains.exodus.env;
 
 public interface MetaTree extends MetaTreePrototype {
-    long getHighAddress();
 }

@@ -20,6 +20,7 @@ import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.InvalidSettingException
+import jetbrains.exodus.crypto.InvalidCipherParametersException
 import jetbrains.exodus.crypto.cryptBlocksMutable
 import jetbrains.exodus.env.DatabaseRoot
 import jetbrains.exodus.io.*
@@ -445,8 +446,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     fun switchToReadOnlyMode() {
-        logger.error("Log $location switched to read only mode", Exception())
-
         rwIsReadonly = true
     }
 
@@ -736,15 +735,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     }
                 } else {
                     logger.error(
-                        "Data corruption was detected. Reason : ${dataCorruptionException.message} . " +
-                                "Environment $location will be cleared."
+                        "Data corruption was detected. Reason : ${dataCorruptionException.message} . Likely invalid cipher key/iv were used. "
                     )
 
                     blockSetMutable.clear()
-                    dataWriter.clear()
-
-                    rwIsReadonly = false
-                    return -1
+                    throw InvalidCipherParametersException()
                 }
 
                 rwIsReadonly = false
@@ -758,6 +753,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
 
                 return dbRootAddress
+            } catch (e: InvalidCipherParametersException) {
+                throw e
+            } catch (e : DataCorruptionException) {
+               throw e
             } catch (e: Exception) {
                 logger.error("Error during attempt to restore log $location", e)
                 throw ExodusException(dataCorruptionException)
@@ -1041,91 +1040,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             result = writeContinuously(type, structureId, data, expiredLoggables)
             if (result < 0) {
                 throw TooBigLoggableException()
-            }
-        }
-        return result
-    }
-
-    /**
-     * Returns the first loggable in the log of specified type.
-     *
-     * @param type type of loggable.
-     * @return loggable or null if it doesn't exists.
-     */
-    fun getFirstLoggableOfType(type: Int): Loggable? {
-        val files = writer.getFilesFrom(0)
-
-        while (files.hasNext()) {
-            val fileAddress = files.nextLong()
-            val it = getLoggableIterator(fileAddress)
-
-            while (it.hasNext()) {
-                val loggable = it.next()
-
-                if (loggable == null || loggable.address >= fileAddress + fileLengthBound) {
-                    break
-                }
-
-                if (loggable.type.toInt() == type) {
-                    return loggable
-                }
-            }
-        }
-        return null
-    }
-
-    /**
-     * Returns the last loggable in the log of specified type.
-     *
-     * @param type type of loggable.
-     * @return loggable or null if it doesn't exists.
-     */
-    fun getLastLoggableOfType(type: Int): Loggable? {
-        var result: Loggable? = null
-        val files = writer.allFiles()
-
-        for (fileAddress in files) {
-            val it = getLoggableIterator(fileAddress)
-
-            while (it.hasNext()) {
-                val loggable = it.next()
-
-                if (loggable == null || loggable.address >= fileAddress + fileLengthBound) {
-                    break
-                }
-
-                if (loggable.type.toInt() == type) {
-                    result = loggable
-                }
-            }
-        }
-
-        return result
-    }
-
-    /**
-     * Returns the last loggable in the log of specified type which address is less than beforeAddress.
-     *
-     * @param type type of loggable.
-     * @return loggable or null if it doesn't exists.
-     */
-    fun getLastLoggableOfTypeBefore(type: Int, beforeAddress: Long): Loggable? {
-        var result: Loggable? = null
-        for (fileAddress in writer.allFiles()) {
-            if (fileAddress >= beforeAddress) {
-                continue
-            }
-
-            val it = getLoggableIterator(fileAddress)
-            while (it.hasNext()) {
-                val loggable = it.next() ?: break
-                val address = loggable.address
-                if (address >= beforeAddress || address >= fileAddress + fileLengthBound) {
-                    break
-                }
-                if (loggable.type.toInt() == type) {
-                    result = loggable
-                }
             }
         }
         return result

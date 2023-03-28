@@ -89,32 +89,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         assertNotNull(statistics.getStatisticsItem(UTILIZATION_PERCENT));
     }
 
-    @Test
-    public void testFirstLastLoggables() {
-        openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
-        final Log log = getLog();
-        Loggable l = log.getFirstLoggableOfType(BTreeBase.BOTTOM_ROOT);
-        assertNotNull(l);
-        Assert.assertEquals(0L, l.getAddress());
-        l = log.getLastLoggableOfType(BTreeBase.BOTTOM_ROOT);
-        assertNotNull(l);
-        Assert.assertEquals(40L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
-        assertNotNull(l);
-        Assert.assertEquals(12L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
-        assertNotNull(l);
-        Assert.assertEquals(0L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(BTreeBase.BOTTOM_ROOT, l.getAddress());
-        Assert.assertNull(l);
-        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, Long.MAX_VALUE);
-        assertNotNull(l);
-        Assert.assertEquals(48L, l.getAddress());
-        l = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, l.getAddress());
-        assertNotNull(l);
-        l = log.getFirstLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
-        assertNotNull(l);
-    }
 
     @Test
     public void testClear() {
@@ -123,7 +97,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         getEnvironment().clear();
         testEmptyEnvironment();
         getEnvironment().clear();
-        testFirstLastLoggables();
         getEnvironment().clear();
         testEmptyEnvironment();
     }
