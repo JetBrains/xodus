@@ -31,7 +31,7 @@ public class MVCCDataStructure {
     private final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
 
-    private final ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
+    public final ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
 
     private static final AtomicLong address = new AtomicLong();
     private final AtomicLong snapshotId = new AtomicLong(1L);
