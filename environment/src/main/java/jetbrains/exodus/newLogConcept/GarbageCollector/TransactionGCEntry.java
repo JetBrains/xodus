@@ -15,10 +15,6 @@ public class TransactionGCEntry {
         this.upToId = upTo;
     }
 
-    public void setUpToId(long upToId) {
-        this.upToId = upToId;
-    }
-
 }
 
 

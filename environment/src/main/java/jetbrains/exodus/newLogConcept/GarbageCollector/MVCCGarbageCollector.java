@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class MVCCGarbageCollector {
 
@@ -79,10 +78,14 @@ public class MVCCGarbageCollector {
                       ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
 
         Long maxMinId = findMaxMinId(transactionsGCMap, snapshotId);
+        if (maxMinId != null)
+            assert maxMinId < snapshotId;
         removeUpToMaxMinId(maxMinId, snapshotId, mvccHashMap, transactionsGCMap);
 
         ConcurrentSkipListSet<Long> activeOrEmptyTransactionsIds =
                 findMissingOrActiveTransactionsIds(maxMinId, 15L, transactionsGCMap);
+
+//        activeOrEmptyTransactionsIds.forEach(it ->  { assert it <= snapshotId; });
         removeBetweenActiveTransactions(maxMinId, activeOrEmptyTransactionsIds, snapshotId,
                 mvccHashMap, transactionsGCMap);
     }

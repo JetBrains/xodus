@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 import static jetbrains.exodus.log.BufferedDataWriter.*;
@@ -35,6 +36,9 @@ public class MVCCDataStructure {
     private static final AtomicLong address = new AtomicLong();
     private final AtomicLong snapshotId = new AtomicLong(1L);
     private final AtomicLong writeTxSnapshotId = new AtomicLong(snapshotId.get()); // todo test
+
+    // todo think later ab global mem usage
+    private final long transactionsLimit = 1000; // the number of transactions, when reached we run GC
 
     private void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
         while (true) {
@@ -272,9 +276,18 @@ public class MVCCDataStructure {
             var recordAddress = address.getAndIncrement(); // put special record to log
             operationLog.put(recordAddress, new TransactionCompletionLogRecord(false));
 
-            // TODO check
-//            var collector = new MVCCGarbageCollector();
-//            collector.clean(snapshotId.get(), hashMap, transactionsGCMap);
+            // run GC if needed, TODO tests
+            if (transactionsGCMap.size() > transactionsLimit) {
+                ReentrantLock lock = new ReentrantLock();
+                if (lock.tryLock()){
+                    try {
+                        var collector = new MVCCGarbageCollector();
+                        collector.clean(snapshotId.get(), hashMap, transactionsGCMap);
+                    } finally {
+                        lock.unlock();
+                    }
+                }
+            }
         }
     }
 
