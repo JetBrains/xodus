@@ -333,11 +333,6 @@ public class EnvironmentImpl implements Environment {
         };
     }
 
-    public ReadonlyTransaction beginTransactionAt(final long highAddress) {
-        checkIsOperative();
-        return new ReadonlyTransaction(this, highAddress);
-    }
-
     @Override
     public void executeInTransaction(@NotNull final TransactionalExecutable executable) {
         executeInTransaction(executable, beginTransaction());
@@ -748,6 +743,17 @@ public class EnvironmentImpl implements Environment {
         };
     }
 
+    @Nullable
+    BTree loadMetaTree(final long rootAddress) {
+        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
+            @NotNull
+            @Override
+            public DataIterator getDataIterator(long address) {
+                return new DataIterator(log, address);
+            }
+        };
+    }
+
     boolean commitTransaction(@NotNull final ReadWriteTransaction txn) {
         if (flushTransaction(txn, false)) {
             finishTransaction(txn);
@@ -805,7 +811,7 @@ public class EnvironmentImpl implements Environment {
                 metaWriteLock.lock();
                 try {
                     resultingHighAddress = updatedHighAddress;
-                    txn.setMetaTree(metaTree = MetaTreeImpl.create(this, updatedHighAddress, proto));
+                    txn.setMetaTree(metaTree = MetaTreeImpl.create(this, proto));
                     txn.executeCommitHook();
                 } finally {
                     metaWriteLock.unlock();

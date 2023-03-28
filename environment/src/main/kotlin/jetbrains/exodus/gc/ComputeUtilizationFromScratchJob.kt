@@ -34,7 +34,7 @@ internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc
                 env.executeInReadonlyTransaction { txn ->
                     up.clear()
                     // optimistic clearing of files' utilization until no parallel writing transaction happens
-                    if (txn.highAddress == env.computeInReadonlyTransaction { tx -> tx.highAddress }) {
+                    if (txn.snapshotId == env.computeInReadonlyTransaction { tx -> tx.snapshotId }) {
                         val log = env.log
                         for (storeName in env.getAllStoreNames(txn) + GarbageCollector.UTILIZATION_PROFILE_STORE_NAME) {
                             // stop if environment is already closed

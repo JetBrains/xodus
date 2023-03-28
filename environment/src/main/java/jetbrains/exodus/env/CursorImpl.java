@@ -30,14 +30,14 @@ final class CursorImpl implements Cursor {
     private final StoreImpl store;
     @NotNull
     private final TransactionBase txn;
-    private final long txnHighAddress;
+    private final long snapshotId;
     private ITreeCursor treeCursor;
     private boolean isClosed;
 
     CursorImpl(@NotNull final StoreImpl store, @NotNull final TransactionBase txn) {
         this.store = store;
         this.txn = txn;
-        this.txnHighAddress = txn.getHighAddress();
+        this.snapshotId = txn.getSnapshotId();
         treeCursor = null;
         isClosed = false;
     }
@@ -169,7 +169,7 @@ final class CursorImpl implements Cursor {
         if (treeCursor == null) {
             treeCursor = txn.getTree(store).openCursor();
         }
-        if (txnHighAddress != txn.getHighAddress()) {
+        if (snapshotId != txn.getSnapshotId()) {
             throw new ExodusException("Cursor holds an obsolete database snapshot. Check if txn.flush() or txn.commit() is called.");
         }
     }

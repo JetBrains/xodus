@@ -139,17 +139,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    protected PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store,
-                                         final long highAddress) {
-        this.store = store;
-        final PersistentEntityStoreConfig config = store.getConfig();
-        propsCache = createObjectCache(config.getTransactionPropsCacheSize());
-        linksCache = createObjectCache(config.getTransactionLinksCacheSize());
-        blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
-        localCacheAttempts = localCacheHits = 0;
-        txn = ((EnvironmentImpl) store.getEnvironment()).beginTransactionAt(highAddress);
-    }
-
     @Override
     @NotNull
     public PersistentEntityStoreImpl getStore() {
@@ -693,10 +682,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             localCache.cacheObject(handle, cached);
             store.getEntityIterableCache().setCachedCount(handle, cached.size());
         }
-    }
-
-    public long getHighAddress() {
-        return getEnvironmentTransaction().getHighAddress();
     }
 
     @NotNull

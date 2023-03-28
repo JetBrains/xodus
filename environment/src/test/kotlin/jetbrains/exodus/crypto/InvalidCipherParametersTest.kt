@@ -35,7 +35,7 @@ import org.junit.Test
 import java.io.File
 
 private const val ENTRIES = 1000
-private val expectedException = DataCorruptionException::class.java
+private val expectedException = InvalidCipherParametersException::class.java
 
 @Suppress("DEPRECATION")
 class InvalidCipherParametersTest {
@@ -71,6 +71,14 @@ class InvalidCipherParametersTest {
             openEnvironment(
                 dir, CHACHA_CIPHER_ID,
                 "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+                0, DataCorruptionException::class.java
+            )
+        )
+        Assert.assertEquals(
+            highAddress,
+            openEnvironment(
+                dir, CHACHA_CIPHER_ID,
+                "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
                 0, expectedException
             )
         )
@@ -84,7 +92,18 @@ class InvalidCipherParametersTest {
             dir, CHACHA_CIPHER_ID,
             "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0
         )
-        Assert.assertEquals(highAddress, openEnvironment(dir, null, null, null, expectedException))
+        Assert.assertEquals(
+            highAddress, openEnvironment(
+                dir, null, null, null,
+                DataCorruptionException::class.java
+            )
+        )
+        Assert.assertEquals(
+            highAddress, openEnvironment(
+                dir, null, null, null,
+                expectedException
+            )
+        )
         Assert.assertEquals(
             highAddress, openEnvironment(
                 dir, CHACHA_CIPHER_ID,
@@ -99,6 +118,15 @@ class InvalidCipherParametersTest {
         val highAddress = createEnvironment(
             dir, CHACHA_CIPHER_ID,
             "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0
+        )
+        Assert.assertEquals(
+            highAddress, openEnvironment(
+                dir,
+                SALSA20_CIPHER_ID,
+                "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+                0,
+                DataCorruptionException::class.java
+            )
         )
         Assert.assertEquals(
             highAddress, openEnvironment(
@@ -123,6 +151,16 @@ class InvalidCipherParametersTest {
         )
         Assert.assertEquals(
             highAddress, openEnvironment(
+                dir,
+                CHACHA_CIPHER_ID,
+                "010102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+                0,
+                DataCorruptionException::class.java
+            )
+        )
+
+        Assert.assertEquals(
+            highAddress, openEnvironment(
                 dir, CHACHA_CIPHER_ID,
                 "010102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0, expectedException
             )
@@ -141,6 +179,15 @@ class InvalidCipherParametersTest {
         val highAddress = createEnvironment(
             dir, CHACHA_CIPHER_ID,
             "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f", 0
+        )
+        Assert.assertEquals(
+            highAddress, openEnvironment(
+                dir,
+                CHACHA_CIPHER_ID,
+                "010102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+                1,
+                DataCorruptionException::class.java
+            )
         )
         Assert.assertEquals(
             highAddress, openEnvironment(

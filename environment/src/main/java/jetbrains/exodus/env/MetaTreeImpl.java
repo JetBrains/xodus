@@ -21,7 +21,6 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.crypto.InvalidCipherParametersException;
 import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.*;
 import jetbrains.exodus.tree.btree.BTree;
@@ -39,12 +38,10 @@ final class MetaTreeImpl implements MetaTree {
 
     final ITree tree;
     final long root;
-    final long highAddress;
 
-    MetaTreeImpl(final ITree tree, long root, long highAddress) {
+    MetaTreeImpl(final ITree tree, long root) {
         this.tree = tree;
         this.root = root;
-        this.highAddress = highAddress;
     }
 
     static Pair<MetaTreeImpl, Integer> create(@NotNull final EnvironmentImpl env,
@@ -58,104 +55,78 @@ final class MetaTreeImpl implements MetaTree {
             if (rootAddress >= 0) {
                 rootLoggable = log.read(rootAddress);
             } else {
-                rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
+                rootLoggable = null;
             }
 
-            while (rootLoggable != null) {
+            if (rootLoggable != null) {
                 final long root = rootLoggable.getAddress();
-                // work around XD-692: load database root in try-catch block
                 DatabaseRoot dbRoot = null;
                 try {
-                    //noinspection ObjectAllocationInLoop
                     dbRoot = new DatabaseRoot(rootLoggable);
                 } catch (ExodusException e) {
-                    //noinspection ObjectAllocationInLoop
                     EnvironmentImpl.loggerError("Failed to load database root at " + rootLoggable.getAddress(), e);
                 }
                 if (dbRoot != null && dbRoot.isValid()) {
                     try {
-                        final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress(), highAddress);
+                        final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress());
                         if (metaTree != null) {
-                            return new Pair<>(new MetaTreeImpl(metaTree, root, highAddress),
+                            return new Pair<>(new MetaTreeImpl(metaTree, root),
                                     dbRoot.getLastStructureId());
                         }
                     } catch (ExodusException e) {
-                        //noinspection ObjectAllocationInLoop
                         EnvironmentImpl.loggerError("Failed to recover to valid root" +
                                 LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(),
                                         env.getEnvironmentConfig().getLogFileSize() << 10), e);
-                        // XD-449: try next database root if we failed to traverse whole MetaTree
                     }
                 }
-                // continue recovery
-                rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE, root);
             }
-            // "abnormal program termination", "blue screen of doom"
-            // Something quite strange with the database: it is not empty, but no valid
-            // root has found. We can't just reset the database and lose all the contents,
-            // we should have a chance to investigate the case. So failing...
-            //
-            // It's extremely likely the database was ciphered with different/unknown cipher parameters.
-            log.close();
-            throw new InvalidCipherParametersException();
+            try {
+                DataCorruptionException.raise("No valid root has found in the database", log, rootAddress);
+            } finally {
+                log.close();
+            }
         }
         // no roots found: the database is empty
         EnvironmentImpl.loggerDebug("No roots found: the database is empty");
         final ITree resultTree = getEmptyMetaTree(env);
         final long root;
         log.beginWrite();
-        final long createdHighAddress;
         try {
             final long rootAddress = resultTree.getMutableCopy().save();
             root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
                     DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID), expired);
             log.flush();
-            createdHighAddress = log.endWrite();
+            log.endWrite();
         } catch (Throwable t) {
             throw new ExodusException("Can't init meta tree in log", t);
         }
-        return new Pair<>(new MetaTreeImpl(resultTree, root, createdHighAddress),
+        return new Pair<>(new MetaTreeImpl(resultTree, root),
                 EnvironmentImpl.META_TREE_ID);
     }
 
-    static MetaTreeImpl create(@NotNull final EnvironmentImpl env, final long highAddress,
+    static MetaTreeImpl create(@NotNull final EnvironmentImpl env,
                                @NotNull final MetaTreePrototype prototype) {
         return new MetaTreeImpl(
-                env.loadMetaTree(prototype.treeAddress(), highAddress),
-                prototype.rootAddress(),
-                highAddress
+                env.loadMetaTree(prototype.treeAddress()),
+                prototype.rootAddress()
         );
     }
 
-    static MetaTreeImpl create(@NotNull final EnvironmentImpl env, final long highAddress) {
+    static MetaTreeImpl create(@NotNull final EnvironmentImpl env, final long snapshotId) {
         final Log log = env.getLog();
-        final Loggable rootLoggable = log.getLastLoggableOfTypeBefore(DatabaseRoot.DATABASE_ROOT_TYPE,
-                highAddress);
-
-        if (rootLoggable == null) {
-            throw new ExodusException("Failed to find root loggable before address = " + highAddress);
-        }
-        final long root = rootLoggable.getAddress();
-        if (rootLoggable.end() != highAddress) {
-            throw new ExodusException("Database root should be the last loggable before address = " + highAddress);
-        }
+        final Loggable rootLoggable = log.read(snapshotId);
 
         DatabaseRoot dbRoot = null;
         try {
             dbRoot = new DatabaseRoot(rootLoggable);
         } catch (ExodusException e) {
-            EnvironmentImpl.loggerError("Failed to load database root at " + root, e);
+            EnvironmentImpl.loggerError("Failed to load database root at " + snapshotId, e);
         }
         if (dbRoot == null || !dbRoot.isValid()) {
-            throw new ExodusException("Can't load valid database root by address = " + root);
+            throw new ExodusException("Can't load valid database root by address = " + snapshotId);
         }
 
-        return new MetaTreeImpl(env.loadMetaTree(dbRoot.getRootAddress(), highAddress), root, highAddress);
-    }
-
-    @Override
-    public long getHighAddress() {
-        return highAddress;
+        return new MetaTreeImpl(env.loadMetaTree(dbRoot.getRootAddress()), snapshotId);
     }
 
     @Override
@@ -271,7 +242,7 @@ final class MetaTreeImpl implements MetaTree {
     }
 
     MetaTreeImpl getClone() {
-        return new MetaTreeImpl(cloneTree(tree), root, highAddress);
+        return new MetaTreeImpl(cloneTree(tree), root);
     }
 
     static boolean isStringKey(final ArrayByteIterable key) {

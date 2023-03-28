@@ -101,8 +101,8 @@ public abstract class TransactionBase implements Transaction {
     }
 
     @Override
-    public long getHighAddress() {
-        return metaTree.highAddress;
+    public long getSnapshotId() {
+        return metaTree.root;
     }
 
     @Override

@@ -581,35 +581,6 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertEquals("3", issue.getProperty("description"))
     }
 
-    fun testTransactionAt() {
-        val highAddress = entityStore.computeInTransaction { txn ->
-            txn.newEntity("Issue").apply { setProperty("description", "1") }
-            txn.flush()
-            (txn as PersistentStoreTransaction).highAddress
-        }
-        entityStore.computeInTransaction { txn ->
-            txn.newEntity("Issue").apply { setProperty("description", "2") }
-        }
-        entityStore.beginTransactionAt(highAddress).let { txn ->
-            Assert.assertEquals(1L, txn.getAll("Issue").size())
-            val i = txn.getAll("Issue").first
-            Assert.assertNotNull(i)
-            Assert.assertEquals("1", (i as PersistentEntity).getSnapshot(txn).getProperty("description"))
-            txn.abort()
-        }
-    }
-
-    fun testTransactionAtIsIdempotent() {
-        entityStore.executeInTransaction { it.newEntity("Issue") }
-        val highAddress = entityStore.computeInTransaction { txn -> (txn as PersistentStoreTransaction).highAddress }
-        repeat(10) {
-            entityStore.executeInTransaction { it.newEntity("Issue") }
-            Assert.assertEquals(highAddress, entityStore.beginTransactionAt(highAddress).let { txn ->
-                highAddress.also { txn.abort() }
-            })
-        }
-    }
-
     @TestFor(issue = "XD-530")
     fun testEntityStoreClear() {
         val store = entityStore

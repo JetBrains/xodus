@@ -159,9 +159,9 @@ public interface Transaction {
     long getStartTime();
 
     /**
-     * @return the value of Log.getHighAddress() that was actual when the transaction was started.
+     * @return the value of the snapshot id which is used to read data from transaction
      */
-    long getHighAddress();
+    long getSnapshotId();
 
     /**
      * @return true if the transaction is read-only.

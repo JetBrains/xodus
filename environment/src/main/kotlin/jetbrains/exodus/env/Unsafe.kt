@@ -49,7 +49,7 @@ private fun EnvironmentImpl.tryUpdateUnsafe(): Boolean {
             try {
                 log.updateBlockSetHighAddressUnsafe(prevHighAddress, highAddress, files)
                 loadMetaTree(root, highAddress)?.let { metaTree ->
-                    metaTreeInternal = MetaTreeImpl(metaTree, root, highAddress).also {
+                    metaTreeInternal = MetaTreeImpl(metaTree, root).also {
                         MetaTreeImpl.cloneTree(metaTree) // try to traverse meta tree
                     }
                     true
