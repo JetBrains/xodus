@@ -98,10 +98,4 @@ public class MVCCComponentMultiThreadTest {
         Assert.assertEquals(value.get(), 1120);
     }
 
-    // 2.2 Add keys and delete in the same transaction. Check visibility before and after a commit in the current
-    // thread and in a separate thread.
-    @Test
-    public void visibilityOnPutRemoveTest() {
-
-    }
 }
