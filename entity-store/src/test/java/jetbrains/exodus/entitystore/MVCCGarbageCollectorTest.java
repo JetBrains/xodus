@@ -1,19 +1,52 @@
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
 import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
+import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
+import jetbrains.exodus.newLogConcept.Transaction.Transaction;
 import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 
 public class MVCCGarbageCollectorTest {
+
+    // TODO fixme - unlock collector in MVCCComponent and fix assertion error
+    @Test
+    public void modifyValueWith12Threads1_000_100NewTransactionsOnEachIncrementTest() throws ExecutionException, InterruptedException {
+        ExecutorService service = Executors.newCachedThreadPool();
+        Map<String, String> keyValTransactions = new HashMap<>();
+        var mvccComponent = new MVCCDataStructure();
+
+        String keyString = "key-" + (int) (Math.random() * 100000);
+        AtomicLong value = new AtomicLong(1000);
+        keyValTransactions.put(keyString, String.valueOf(value));
+
+        for (int i = 0; i < 120; i++) {
+            for (int j = 0; j < 1_000_000; j++) {
+                var th = service.submit(() -> {
+                    Transaction writeTransaction = mvccComponent.startWriteTransaction();
+                    // check record is null before the commit
+                    mvccComponent.put(writeTransaction, StringBinding.stringToEntry(keyString),
+                            StringBinding.stringToEntry(String.valueOf(value)));
+
+                    Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
+                    mvccComponent.commitTransaction(writeTransaction);
+                });
+                th.get();
+            }
+            value.getAndIncrement();
+        }
+        Assert.assertEquals(value.get(), 1120);
+    }
 
 
     @Test

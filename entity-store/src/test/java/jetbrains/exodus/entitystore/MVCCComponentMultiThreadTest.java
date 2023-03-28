@@ -42,6 +42,9 @@ public class MVCCComponentMultiThreadTest {
         AtomicLong value = new AtomicLong(1000);
         keyValTransactions.put(keyString, String.valueOf(value));
 
+        //measuring elapsed time using System.nanoTime
+        long startTime = System.nanoTime();
+
         for (int i = 0; i < 120; i++) {
             var th = service.submit(() -> {
                 Transaction writeTransaction = mvccComponent.startWriteTransaction();
@@ -51,22 +54,48 @@ public class MVCCComponentMultiThreadTest {
 
                 Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
                 mvccComponent.commitTransaction(writeTransaction);
-                value.getAndIncrement();
-
             });
+            value.getAndIncrement();
             th.get();
         }
+
+        System.out.println("Execution time in millis: " + (System.nanoTime() - startTime));
         Assert.assertEquals(value.get(), 1120);
     }
 
 
 
-    // 3. Increment the same value with 12 threads, but create a new transaction 1_000_000 times for each increment
+    // 3. Increment the same value with 120 threads, but create a new transaction 1_000_000 times for each increment
     // in the thread. Check the execution time of all transactions in comparison with the execution time in one thread.
     @Test
+    public void modifyValueWith12Threads1_000_100NewTransactionsOnEachIncrementTest() throws ExecutionException, InterruptedException {
+        ExecutorService service = Executors.newCachedThreadPool();
+        Map<String, String> keyValTransactions = new HashMap<>();
+        var mvccComponent = new MVCCDataStructure();
 
-    public void modifyValueWith12Threads1_000_100NewTransactionsOnEachIncrementTest() {
+        String keyString = "key-" + (int) (Math.random() * 100000);
+        AtomicLong value = new AtomicLong(1000);
+        keyValTransactions.put(keyString, String.valueOf(value));
 
+        long startTime = System.nanoTime();
+
+        for (int i = 0; i < 120; i++) {
+            for (int j = 0; j < 1_000; j++) { //todo replace with 1_000_000 - unlock GC, for now it's Heap out of space
+                var th = service.submit(() -> {
+                    Transaction writeTransaction = mvccComponent.startWriteTransaction();
+                    // check record is null before the commit
+                    mvccComponent.put(writeTransaction, StringBinding.stringToEntry(keyString),
+                            StringBinding.stringToEntry(String.valueOf(value)));
+
+                    Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
+                    mvccComponent.commitTransaction(writeTransaction);
+                });
+                th.get();
+            }
+            value.getAndIncrement();
+        }
+        System.out.println("Execution time in millis: " + (System.nanoTime() - startTime));
+        Assert.assertEquals(value.get(), 1120);
     }
 
     // 2.2 Add keys and delete in the same transaction. Check visibility before and after a commit in the current
