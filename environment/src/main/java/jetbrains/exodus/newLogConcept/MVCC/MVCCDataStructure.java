@@ -231,11 +231,12 @@ public class MVCCDataStructure {
 
             for (var operation : transaction.getOperationLinkList()) {
                 operation.wrapper = wrapper;
-                MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation);
+                var transactionSnapId = transaction.getSnapshotId();
+                MVCCRecord mvccRecord = mvccRecordCreateAndPut(operation, transactionSnapId);
                 // operation status check
-                if (transaction.getSnapshotId() < mvccRecord.maxTransactionId.get()) {
+                if (transactionSnapId < mvccRecord.maxTransactionId.get()) {
                     wrapper.state = TransactionState.REVERTED.get();
-                    transactionsGCMap.get(transaction.getSnapshotId()).stateWrapper.state = TransactionState.REVERTED.get();
+                    transactionsGCMap.get(transactionSnapId).stateWrapper.state = TransactionState.REVERTED.get();
                     var recordAddress = address.getAndIncrement(); // put special record to log
                     operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
 
@@ -291,9 +292,11 @@ public class MVCCDataStructure {
         }
     }
 
-    private MVCCRecord mvccRecordCreateAndPut(OperationReference operation) {
+    private MVCCRecord mvccRecordCreateAndPut(OperationReference operation, Long snapshotId) {
         var keyHashCode = operation.keyHashCode;
         MVCCRecord mvccRecord = hashMap.computeIfAbsent(keyHashCode, createRecord);
+        compareWithCurrentAndSet(mvccRecord, snapshotId); //increment version
+
         hashMap.putIfAbsent(keyHashCode, mvccRecord);
         mvccRecord.linksToOperationsQueue.add(operation);
         return mvccRecord;

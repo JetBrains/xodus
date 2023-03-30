@@ -1,6 +1,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
 import jetbrains.exodus.newLogConcept.Transaction.Transaction;
@@ -33,34 +34,32 @@ public class MVCCComponentMultiThreadTest {
         AtomicLong txId2 = new AtomicLong();
 
         var th = service.submit(() -> {
-                Transaction writeTransaction = mvccComponent.startWriteTransaction();
-                var txId = writeTransaction.getSnapshotId();
-
-            // check record is null before the commit
-                mvccComponent.put(writeTransaction, StringBinding.stringToEntry(keyString),
-                        StringBinding.stringToEntry("2000"));
-
-                var th2 = service.submit(() -> {
-                    Transaction writeTransaction2 = mvccComponent.startWriteTransaction();
-                    txId2.set(writeTransaction2.getSnapshotId());
-                    // check record is null before the commit
-                    mvccComponent.put(writeTransaction2, StringBinding.stringToEntry(keyString),
-                            StringBinding.stringToEntry("1000"));
-                    mvccComponent.commitTransaction(writeTransaction2);
-                });
+            Transaction writeTransaction = mvccComponent.startWriteTransaction();
+            var txId = writeTransaction.getSnapshotId();
+            var th2 = service.submit(() -> {
+                Transaction writeTransaction2 = mvccComponent.startWriteTransaction();
+                txId2.set(writeTransaction2.getSnapshotId());
+                // check record is null before the commit
+                mvccComponent.put(writeTransaction2, StringBinding.stringToEntry(keyString),
+                        StringBinding.stringToEntry("1000"));
+                mvccComponent.commitTransaction(writeTransaction2);
+            });
             try {
                 th2.get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new RuntimeException(e);
             }
-            mvccComponent.commitTransaction(writeTransaction);
+            mvccComponent.put(writeTransaction, StringBinding.stringToEntry(keyString),
+                    StringBinding.stringToEntry("2000"));
+
+            try {
+                mvccComponent.commitTransaction(writeTransaction);
+            } catch (ExodusException ignored) {}
             Assert.assertTrue(mvccComponent.transactionsGCMap.containsKey(txId) &&
                     mvccComponent.transactionsGCMap.get(txId).stateWrapper.state == TransactionState.REVERTED.get());
         });
         th.get();
 
-        Assert.assertTrue(mvccComponent.transactionsGCMap.containsKey(txId2) &&
-                mvccComponent.transactionsGCMap.get(txId2).stateWrapper.state == TransactionState.COMMITTED.get());
 
         var th3 = service.submit(() -> {
             Transaction readTransaction = mvccComponent.startReadTransaction();

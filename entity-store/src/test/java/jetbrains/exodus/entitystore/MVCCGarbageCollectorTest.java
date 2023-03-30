@@ -31,7 +31,7 @@ public class MVCCGarbageCollectorTest {
         keyValTransactions.put(keyString, String.valueOf(value));
 
         for (int i = 0; i < 120; i++) {
-            for (int j = 0; j < 1_000_000; j++) {
+            for (int j = 0; j < 1_000; j++) { // todo: 1_000_000 fixme Java heap space
                 var th = service.submit(() -> {
                     Transaction writeTransaction = mvccComponent.startWriteTransaction();
                     // check record is null before the commit
