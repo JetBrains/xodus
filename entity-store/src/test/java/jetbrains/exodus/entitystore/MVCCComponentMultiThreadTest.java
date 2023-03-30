@@ -123,7 +123,7 @@ public class MVCCComponentMultiThreadTest {
         long startTime = System.nanoTime();
 
         for (int i = 0; i < 12; i++) {
-            for (int j = 0; j < 1_000_00; j++) { // todo replace with 1_000_000 - unlock GC, for now it's Heap out of space
+            for (int j = 0; j < 1_000; j++) { // todo: replace with 1_000_000, for this first come up with the GC for OL (tested on mock
                 var th = service.submit(() -> {
                     Transaction writeTransaction = mvccComponent.startWriteTransaction();
                     // check record is null before the commit
