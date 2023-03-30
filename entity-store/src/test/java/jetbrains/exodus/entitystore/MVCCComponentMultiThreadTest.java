@@ -111,7 +111,7 @@ public class MVCCComponentMultiThreadTest {
     // 3. Increment the same value with 120 threads, but create a new transaction 1_000_000 times for each increment
     // in the thread. Check the execution time of all transactions in comparison with the execution time in one thread.
     @Test
-    public void modifyValueWith12Threads1_000_100NewTransactionsOnEachIncrementTest() throws ExecutionException, InterruptedException {
+    public void modifyValueWith12Threads1_000_000NewTransactionsOnEachIncrementTest() throws ExecutionException, InterruptedException {
         ExecutorService service = Executors.newCachedThreadPool();
         Map<String, String> keyValTransactions = new HashMap<>();
         var mvccComponent = new MVCCDataStructure();
@@ -122,8 +122,8 @@ public class MVCCComponentMultiThreadTest {
 
         long startTime = System.nanoTime();
 
-        for (int i = 0; i < 120; i++) {
-            for (int j = 0; j < 1_000; j++) { //todo replace with 1_000_000 - unlock GC, for now it's Heap out of space
+        for (int i = 0; i < 12; i++) {
+            for (int j = 0; j < 1_000_00; j++) { // todo replace with 1_000_000 - unlock GC, for now it's Heap out of space
                 var th = service.submit(() -> {
                     Transaction writeTransaction = mvccComponent.startWriteTransaction();
                     // check record is null before the commit
@@ -138,7 +138,7 @@ public class MVCCComponentMultiThreadTest {
             value.getAndIncrement();
         }
         System.out.println("Execution time in millis: " + (System.nanoTime() - startTime));
-        Assert.assertEquals(value.get(), 1120);
+        Assert.assertEquals(value.get(), 1012);
     }
 
 }

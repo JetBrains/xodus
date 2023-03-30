@@ -278,17 +278,17 @@ public class MVCCDataStructure {
             operationLog.put(recordAddress, new TransactionCompletionLogRecord(false));
 
             // run GC if needed, TODO fixme - see performance tests
-//            if (transactionsGCMap.size() > transactionsLimit) {
-//                ReentrantLock lock = new ReentrantLock();
-//                if (lock.tryLock()){
-//                    try {
-//                        var collector = new MVCCGarbageCollector();
-//                        collector.clean(snapshotId.get(), hashMap, transactionsGCMap);
-//                    } finally {
-//                        lock.unlock();
-//                    }
-//                }
-//            }
+            if (transactionsGCMap.size() > transactionsLimit) {
+                ReentrantLock lock = new ReentrantLock();
+                if (lock.tryLock()){
+                    try {
+                        var collector = new MVCCGarbageCollector();
+                        collector.clean(snapshotId.get(), hashMap, transactionsGCMap);
+                    } finally {
+                        lock.unlock();
+                    }
+                }
+            }
         }
     }
 

@@ -21,7 +21,7 @@ public class MVCCGarbageCollectorTest {
 
     // TODO fixme - unlock collector in MVCCComponent and fix assertion error
     @Test
-    public void modifyValueWith12Threads1_000_100NewTransactionsOnEachIncrementTest() throws ExecutionException, InterruptedException {
+    public void performanceGCWith1_000_000NewTransactionsPerIncrementTest() throws ExecutionException, InterruptedException {
         ExecutorService service = Executors.newCachedThreadPool();
         Map<String, String> keyValTransactions = new HashMap<>();
         var mvccComponent = new MVCCDataStructure();
@@ -30,8 +30,8 @@ public class MVCCGarbageCollectorTest {
         AtomicLong value = new AtomicLong(1000);
         keyValTransactions.put(keyString, String.valueOf(value));
 
-        for (int i = 0; i < 120; i++) {
-            for (int j = 0; j < 1_000; j++) { // todo: 1_000_000 fixme Java heap space
+        for (int i = 0; i < 12; i++) {
+            for (int j = 0; j < 800_000; j++) { // todo: replace with 1_000_000, fix Java heap space error
                 var th = service.submit(() -> {
                     Transaction writeTransaction = mvccComponent.startWriteTransaction();
                     // check record is null before the commit
@@ -45,7 +45,7 @@ public class MVCCGarbageCollectorTest {
             }
             value.getAndIncrement();
         }
-        Assert.assertEquals(value.get(), 1120);
+        Assert.assertEquals(1012, value.get());
     }
 
 
