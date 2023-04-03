@@ -225,6 +225,7 @@ object Environments {
 
                 }
 
+                env.flushAndSync()
                 tempDir.delete()
             }
         }
