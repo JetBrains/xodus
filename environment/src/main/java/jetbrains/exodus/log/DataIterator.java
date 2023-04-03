@@ -142,6 +142,10 @@ public final class DataIterator implements ByteIteratorWithAddress {
         final long pageAddress = address & pageAddressMask;
 
         if (this.pageAddress != pageAddress) {
+            if (address >= log.getHighReadAddress()) {
+                BlockNotFoundException.raise(log, address);
+                return;
+            }
             page = log.getCachedPage(pageAddress);
             this.pageAddress = pageAddress;
         }
@@ -184,7 +188,7 @@ public final class DataIterator implements ByteIteratorWithAddress {
             checkPage(address);
             final long pageAddress = address & pageAddressMask;
 
-            chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
+            chunkLength = (int) Math.min(log.getHighReadAddress() - pageAddress,
                     cachePageSize - BufferedDataWriter.HASH_CODE_SIZE);
             if (!formatWithHashCodeIsUsed) {
                 chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
