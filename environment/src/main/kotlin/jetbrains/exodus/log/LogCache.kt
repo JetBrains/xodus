@@ -74,7 +74,7 @@ abstract class LogCache {
     abstract fun cachePage(cacheDataProvider: CacheDataProvider, pageAddress: Long, page: ByteArray)
 
     abstract fun getPage(
-        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long, highAddress: Long
+        cacheDataProvider: CacheDataProvider, pageAddress: Long, fileStart: Long
     ): ByteArray
 
     abstract fun getCachedPage(cacheDataProvider: CacheDataProvider, pageAddress: Long): ByteArray?
@@ -82,8 +82,7 @@ abstract class LogCache {
    abstract fun getPageIterable(
        cacheDataProvider: CacheDataProvider,
        pageAddress: Long,
-       formatWithHashCodeIsUsed: Boolean,
-       highAddress: Long
+       formatWithHashCodeIsUsed: Boolean
    ): ArrayByteIterable
 
     internal abstract fun removePage( cacheDataProvider: CacheDataProvider, pageAddress: Long)

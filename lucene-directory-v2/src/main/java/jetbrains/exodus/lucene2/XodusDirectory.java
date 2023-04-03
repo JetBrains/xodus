@@ -492,7 +492,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
     }
 
     @Override
-    public byte[] readPage(long pageAddress, long fileAddress, long highAddress) {
+    public byte[] readPage(long pageAddress, long fileAddress) {
         var filesCache = SharedOpenFilesCache.getInstance();
         var fileName = DirUtil.getFileNameByAddress(fileAddress);
         var pageOffset = pageAddress - fileAddress;
@@ -825,8 +825,8 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
         private void readPageIfNeeded(long pageAddress) {
             if (this.pageAddress != pageAddress) {
-                this.page = sharedLogCache.getPage(XodusDirectory.this, pageAddress, fileAddress,
-                        -1);
+                this.page = sharedLogCache.getPage(XodusDirectory.this, pageAddress, fileAddress
+                );
                 this.pageAddress = pageAddress;
             }
         }

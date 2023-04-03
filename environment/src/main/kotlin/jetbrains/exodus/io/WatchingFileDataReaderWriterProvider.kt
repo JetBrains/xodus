@@ -19,11 +19,14 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.Pair
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.EnvironmentImpl
+import mu.KLogging
 import java.io.File
 
-class WatchingFileDataReaderWriterProvider : DataReaderWriterProvider() {
+class WatchingFileDataReaderWriterProvider() : DataReaderWriterProvider() {
     private var env: EnvironmentImpl? = null
-
+    init {
+        logger.warn { "WatchingFileDataReaderWriterProvider is deprecated and will be removed at next versions." }
+    }
     override fun isReadonly() = true
 
     fun newFileDataReader(location: String) =
@@ -54,7 +57,7 @@ class WatchingFileDataReaderWriterProvider : DataReaderWriterProvider() {
         }
     }
 
-    companion object {
+    companion object : KLogging() {
         @JvmStatic
         protected fun checkDirectory(location: String): File {
             val directory = File(location)

@@ -63,6 +63,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     private val dataWriter: DataWriter = config.writer
 
     private val writer: BufferedDataWriter
+    private var writeThread: Thread? = null
 
     private val blockListeners = ArrayList<BlockListener>(2)
     private val readBytesListeners = ArrayList<ReadBytesListener>(2)
@@ -106,6 +107,15 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     val writtenHighAddress: Long
         get() = writer.currentHighAddress
+
+    val highReadAddress: Long
+        get() {
+            return if (writeThread != null && writeThread == Thread.currentThread()) {
+                writer.currentHighAddress
+            } else {
+                writer.highAddress
+            }
+        }
 
     val lowFileAddress: Long
         get() {
@@ -755,8 +765,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 return dbRootAddress
             } catch (e: InvalidCipherParametersException) {
                 throw e
-            } catch (e : DataCorruptionException) {
-               throw e
+            } catch (e: DataCorruptionException) {
+                throw e
             } catch (e: Exception) {
                 logger.error("Error during attempt to restore log $location", e)
                 throw ExodusException(dataCorruptionException)
@@ -807,10 +817,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
 
     fun beginWrite(): Long {
+        writeThread = Thread.currentThread()
         return writer.beforeWrite()
     }
 
     fun endWrite(): Long {
+        writeThread = null
         return writer.endWrite()
     }
 
@@ -906,19 +918,19 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     fun getCachedPage(pageAddress: Long): ByteArray {
-        return cache.getPage(this, pageAddress, -1, highAddress)
+        return cache.getPage(this, pageAddress, -1)
     }
 
     fun getPageIterable(pageAddress: Long): ArrayByteIterable {
-        return cache.getPageIterable(this, pageAddress, formatWithHashCodeIsUsed, highAddress)
+        return cache.getPageIterable(this, pageAddress, formatWithHashCodeIsUsed)
     }
 
     override fun getIdentity(): Int {
         return identity
     }
 
-    override fun readPage(pageAddress: Long, fileAddress: Long, highAddress: Long): ByteArray {
-        return writer.readPage(pageAddress, highAddress)
+    override fun readPage(pageAddress: Long, fileAddress: Long): ByteArray {
+        return writer.readPage(pageAddress)
     }
 
     fun addBlockListener(listener: BlockListener) {
@@ -1169,18 +1181,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
-    fun readBytes(output: ByteArray, pageAddress: Long, highAddress: Long): Int {
-        if (pageAddress >= highAddress) {
-            BlockNotFoundException.raise(this, pageAddress)
-            return 0
-        }
-
-        if (!rwIsReadonly && highAddress - pageAddress < cachePageSize) {
-            BlockNotFoundException.raise(this, pageAddress)
-            return 0
-        }
-
-
+    fun readBytes(output: ByteArray, pageAddress: Long): Int {
         val fileAddress = getFileAddress(pageAddress)
 
         val files = writer.getFilesFrom(fileAddress)

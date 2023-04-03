@@ -247,7 +247,7 @@ public final class BufferedDataWriter {
             this.committedHighAddress = currentHighAddress;
         }
 
-        return currentHighAddress;
+        return committedHighAddress;
     }
 
     public boolean needsToBeSynchronized() {
@@ -375,14 +375,18 @@ public final class BufferedDataWriter {
         return adjustLoggableSize <= fileReminder;
     }
 
-    byte[] readPage(final long pageAddress, long highAddress) {
+    byte[] readPage(final long pageAddress) {
+        if (currentPage != null && currentPage.pageAddress == pageAddress) {
+            return currentPage.bytes;
+        }
+
         var holder = writeCache.get(pageAddress);
         if (holder != null) {
             return holder.page;
         }
 
         var page = new byte[pageSize];
-        log.readBytes(page, pageAddress, highAddress);
+        log.readBytes(page, pageAddress);
 
         return page;
     }
@@ -851,7 +855,7 @@ public final class BufferedDataWriter {
         var pageOffset = (int) highAddress & (pageSize - 1);
         var pageAddress = highAddress - pageOffset;
 
-        var page = logCache.getPage(log, pageAddress, -1, highAddress);
+        var page = logCache.getPage(log, pageAddress, -1);
 
         initCurrentPage(blockSet, highAddress, page);
 

@@ -52,6 +52,7 @@ public abstract class DataReaderWriterProvider {
      * Fully-qualified name of read-only watching {@code DataReaderWriteProvider}.
      * @deprecated Will be removed in next version.
      */
+    @Deprecated
     public static final String WATCHING_READER_WRITER_PROVIDER = "jetbrains.exodus.io.WatchingFileDataReaderWriterProvider";
 
     /**
