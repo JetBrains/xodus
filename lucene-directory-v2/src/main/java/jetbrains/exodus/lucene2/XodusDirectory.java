@@ -85,7 +85,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
     private final Random ivRnd = new Random();
 
-    protected XodusDirectory(Environment environment) throws IOException {
+    public XodusDirectory(Environment environment) throws IOException {
         this.environment = (EnvironmentImpl) environment;
         var log = this.environment.getLog();
         var logConfig = log.getConfig();
