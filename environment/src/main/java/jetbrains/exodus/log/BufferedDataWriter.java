@@ -19,7 +19,6 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.bindings.BindingUtils;
 import jetbrains.exodus.core.dataStructures.LongIntPair;
-import jetbrains.exodus.core.dataStructures.LongObjectBifFunction;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.crypto.EnvKryptKt;
@@ -67,8 +66,6 @@ public final class BufferedDataWriter {
     private final Semaphore localWritesSemaphore;
 
     private final BiConsumer<LongIntPair, ? super Throwable> writeCompletionHandler;
-
-    private final LongObjectBifFunction<PageHolder, PageHolder> writeCacheFlushCompute;
 
     private MutablePage currentPage;
 
@@ -145,15 +142,6 @@ public final class BufferedDataWriter {
             writeBoundarySemaphore.release();
             localWritesSemaphore.release();
         };
-
-        this.writeCacheFlushCompute = (pa, holder) -> {
-            if (holder == null) {
-                return new PageHolder(currentPage.bytes);
-            }
-
-            holder.page = currentPage.bytes;
-            return holder;
-        };
     }
 
 
@@ -203,20 +191,24 @@ public final class BufferedDataWriter {
         blockSet = files;
 
         var writtenCount = currentPage.writtenCount;
+        assert writtenCount == currentPage.committedCount;
+
         if (writtenCount > 0) {
             var bytes = currentPage.bytes;
 
-            computeWriteCache(writeCache, pageAddress, (pa, holder) -> {
-                if (holder == null) {
-                    return new PageHolder(bytes, writtenCount);
-                }
-
-                holder.page = bytes;
-                return holder;
-            });
+            addPageToWriteCache(pageAddress, writtenCount, bytes);
         }
 
         assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
+    }
+
+    private void addPageToWriteCache(long pageAddress, int writtenCount, byte @NotNull [] bytes) {
+        var holder = writeCache.get(pageAddress);
+        if (holder == null) {
+            writeCache.put(pageAddress, new PageHolder(bytes, writtenCount));
+        } else {
+            assert holder.page == bytes;
+        }
     }
 
     public long endWrite() {
@@ -283,12 +275,12 @@ public final class BufferedDataWriter {
         return xxHash.hash(bytes, offset, len, XX_HASH_SEED);
     }
 
-    public static void updateHashCode(final @NotNull byte[] bytes) {
+    public static void updateHashCode(final byte @NotNull [] bytes) {
         final int hashCodeOffset = bytes.length - HASH_CODE_SIZE;
         updateHashCode(bytes, 0, hashCodeOffset);
     }
 
-    public static void updateHashCode(final @NotNull byte[] bytes, int offset, int len) {
+    public static void updateHashCode(final byte @NotNull [] bytes, int offset, int len) {
         final long hash = calculateHash(bytes, offset, len);
         BindingUtils.writeLong(hash, bytes, offset + len);
     }
@@ -455,9 +447,8 @@ public final class BufferedDataWriter {
     void flush() {
         checkWriteError();
 
-        if (currentPage.committedCount < pageSize) {
-            logCache.cachePage(log, currentPage.pageAddress, currentPage.bytes);
-            computeWriteCache(writeCache, currentPage.pageAddress, writeCacheFlushCompute);
+        if (currentPage.committedCount < currentPage.writtenCount) {
+            addPageToWriteCache(currentPage.pageAddress, 0, currentPage.bytes);
         }
     }
 
@@ -718,16 +709,9 @@ public final class BufferedDataWriter {
             }
 
 
-            computeWriteCache(writeCache, pageAddress, (pa, holder) -> {
-                if (holder == null) {
-                    return new PageHolder(bytes);
-                }
-
-                holder.page = bytes;
-                return holder;
-            });
-
+            addPageToWriteCache(pageAddress, 0, bytes);
             page.committedCount = page.writtenCount;
+
             result.getSecond().whenComplete(writeCompletionHandler);
         }
     }
@@ -897,37 +881,6 @@ public final class BufferedDataWriter {
         }
     }
 
-    /**
-     * Implementation of compute to avoid boxing/unboxing.
-     */
-    private static void computeWriteCache(NonBlockingHashMapLong<PageHolder> writeCache,
-                                          final long pageAddress,
-                                          final LongObjectBifFunction<PageHolder, PageHolder> remappingFunction) {
-        retry:
-        for (; ; ) {
-            PageHolder oldValue = writeCache.get(pageAddress);
-
-            for (; ; ) {
-                final PageHolder newValue = remappingFunction.apply(pageAddress, oldValue);
-                if (newValue != null) {
-                    if (oldValue != null) {
-                        if (writeCache.replace(pageAddress, oldValue, newValue)) {
-                            return;
-                        }
-                    } else if ((oldValue = writeCache.putIfAbsent(pageAddress, newValue)) == null) {
-                        return;
-                    } else {
-                        continue;
-                    }
-                } else if (oldValue == null || writeCache.remove(pageAddress, oldValue)) {
-                    return;
-                }
-
-                continue retry;
-            }
-        }
-    }
-
     private static class MutablePage {
         private final byte @NotNull [] bytes;
         private final long pageAddress;
@@ -951,12 +904,8 @@ public final class BufferedDataWriter {
     }
 
     private static final class PageHolder {
-        private volatile byte @NotNull [] page;
+        private final byte @NotNull [] page;
         private final AtomicInteger written;
-
-        private PageHolder(final byte @NotNull [] page) {
-            this(page, 0);
-        }
 
         private PageHolder(final byte @NotNull [] page, int written) {
             this.page = page;

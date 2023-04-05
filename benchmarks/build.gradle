@@ -47,7 +47,7 @@ dependencies {
 
 jmh {
     excludes = ['dataStructures|util|chronicle|h2|mapdb|lmdb|persistit|query|crypto']
-    includes = ["env.*WriteBenchmark.*"]
+    includes = ["env.*"]
     jmhVersion = project.jmhVersion
     jvmArgsPrepend = ['-server', '-Xmx1g', '-Xms1g', '-XX:+HeapDumpOnOutOfMemoryError']
     duplicateClassesStrategy = DuplicatesStrategy.WARN

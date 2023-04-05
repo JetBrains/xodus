@@ -56,7 +56,9 @@ open class ConcurrentLongObjectCache<V>
         repeat(numberOfGenerations) {
             val entry = cache[cacheIndex]
             if (entry.key == key) {
-                cache[cacheIndex] = CacheEntry(key, x)
+                if (entry.value !== x) {
+                    cache[cacheIndex] = CacheEntry(key, x)
+                }
                 // in highly concurrent environment we can't definitely know if a value is pushed out from the cache
                 return null
             }
