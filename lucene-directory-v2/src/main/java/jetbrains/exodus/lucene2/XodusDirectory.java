@@ -793,7 +793,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
         private void movePosition(int diff) {
             position += diff;
-            if ((position & (pageSize - 1)) == 0) {
+            if (cipherKey != null && (position & (pageSize - 1)) == 0) {
                 position += Long.BYTES;
             }
         }
@@ -801,7 +801,10 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
         @Override
         public void readBytes(byte[] b, int offset, int len) throws IOException {
-            if (addWithIvSpace(position, len) > end) {
+            var lastPos = addWithIvSpace(position, len);
+            lastPos = correctEndPosition(lastPos);
+
+            if (lastPos > end) {
                 throw new EOFException("Read past EOF. Position: " + position + ", requested bytes : " + len);
             }
 
@@ -821,6 +824,13 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
                 movePosition(bytesToCopy);
             }
+        }
+
+        private long correctEndPosition(long lastPos) {
+            if (lastPos > end && (lastPos & (pageSize - 1)) == Long.BYTES) {
+                lastPos -= Long.BYTES;
+            }
+            return lastPos;
         }
 
         private void readPageIfNeeded(long pageAddress) {
@@ -867,6 +877,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         @Override
         public void seek(long pos) throws IOException {
             pos = addWithIvSpace(basePosition, pos);
+            pos = correctEndPosition(pos);
 
             if (pos > end) {
                 throw new EOFException("Position past the file size was requested. Position : "
@@ -895,8 +906,8 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                         " out of bounds: offset=" + offset + ",length=" + length + ",fileLength=" + this.length() + ": " + this);
             }
 
-            var start = addWithIvSpace(basePosition, offset);
-            var end = addWithIvSpace(start, length);
+            var start = correctEndPosition(addWithIvSpace(basePosition, offset));
+            var end = correctEndPosition(addWithIvSpace(start, length));
 
             return new XodusIndexInput(sliceDescription, fileAddress, start,
                     end);
@@ -1168,7 +1179,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 throw new IllegalArgumentException("numBytes must be >= 0, got " + numBytes);
             }
 
-            var bytesLeft = end - position;
+            var bytesLeft = subtractWithIvSpace(end, position);
             if (bytesLeft < numBytes) {
                 throw new EOFException("Amount of bytes to skip is bigger than file size. Position : " + position +
                         " file size : " + end + ", bytes to skip : " + numBytes);

@@ -27,12 +27,15 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 @ThreadLeakFilters(filters = XodusThreadFilter.class)
-@TestRuleLimitSysouts.Limit(bytes = 20 * 1024)
-public class XodusDirectoryTest extends BaseDirectoryTestCase {
+@TestRuleLimitSysouts.Limit(bytes = 22 * 1024)
+public class XodusDirectoryEncryptedTest extends BaseDirectoryTestCase {
     @Override
     protected Directory getDirectory(Path path) throws IOException {
         final EnvironmentConfig config = new EnvironmentConfig();
         config.setLogCachePageSize(1024);
+        config.setCipherId("jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider");
+        config.setCipherKey("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f");
+        config.setCipherBasicIV(314159262718281828L);
 
         Environment environment = Environments.newInstance(path.toFile(), config);
 
