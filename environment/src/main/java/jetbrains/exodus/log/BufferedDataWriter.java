@@ -207,7 +207,7 @@ public final class BufferedDataWriter {
         if (holder == null) {
             writeCache.put(pageAddress, new PageHolder(bytes, writtenCount));
         } else {
-            assert holder.page == bytes;
+            holder.page = bytes;
         }
     }
 
@@ -448,7 +448,11 @@ public final class BufferedDataWriter {
         checkWriteError();
 
         if (currentPage.committedCount < currentPage.writtenCount) {
-            addPageToWriteCache(currentPage.pageAddress, 0, currentPage.bytes);
+            var pageAddress = currentPage.pageAddress;
+            var bytes = currentPage.bytes;
+
+            addPageToWriteCache(pageAddress, 0, bytes);
+            logCache.cachePage(log, pageAddress, bytes);
         }
     }
 
@@ -678,14 +682,15 @@ public final class BufferedDataWriter {
                 }
             }
 
-            logCache.cachePage(log, pageAddress, bytes);
-
             writeBoundarySemaphore.acquireUninterruptibly();
             localWritesSemaphore.acquireUninterruptibly();
 
             assert writer.position() <= log.getFileLengthBound();
             assert writer.position() % log.getFileLengthBound() ==
                     (currentPage.pageAddress + currentPage.committedCount) % log.getFileLengthBound();
+
+            addPageToWriteCache(pageAddress, 0, bytes);
+            logCache.cachePage(log, pageAddress, bytes);
 
             Pair<Block, CompletableFuture<LongIntPair>> result;
             if (cipherProvider != null) {
@@ -708,10 +713,7 @@ public final class BufferedDataWriter {
                 blockSetWasChanged = false;
             }
 
-
-            addPageToWriteCache(pageAddress, 0, bytes);
             page.committedCount = page.writtenCount;
-
             result.getSecond().whenComplete(writeCompletionHandler);
         }
     }
@@ -904,7 +906,7 @@ public final class BufferedDataWriter {
     }
 
     private static final class PageHolder {
-        private final byte @NotNull [] page;
+        private volatile byte @NotNull [] page;
         private final AtomicInteger written;
 
         private PageHolder(final byte @NotNull [] page, int written) {

@@ -21,8 +21,10 @@ import jetbrains.exodus.core.dataStructures.hash.HashUtil
 import jetbrains.exodus.util.MathUtil
 
 open class ConcurrentLongObjectCache<V>
-@JvmOverloads constructor(size: Int = DEFAULT_SIZE,
-                          private val numberOfGenerations: Int = DEFAULT_NUMBER_OF_GENERATIONS) : LongObjectCacheBase<V>(size) {
+@JvmOverloads constructor(
+    size: Int = DEFAULT_SIZE,
+    private val numberOfGenerations: Int = DEFAULT_NUMBER_OF_GENERATIONS
+) : LongObjectCacheBase<V>(size) {
 
     companion object {
         const val DEFAULT_NUMBER_OF_GENERATIONS = 3
@@ -56,9 +58,7 @@ open class ConcurrentLongObjectCache<V>
         repeat(numberOfGenerations) {
             val entry = cache[cacheIndex]
             if (entry.key == key) {
-                if (entry.value !== x) {
-                    cache[cacheIndex] = CacheEntry(key, x)
-                }
+                cache[cacheIndex] = CacheEntry(key, x)
                 // in highly concurrent environment we can't definitely know if a value is pushed out from the cache
                 return null
             }
