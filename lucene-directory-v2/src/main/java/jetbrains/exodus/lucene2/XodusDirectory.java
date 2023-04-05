@@ -1179,7 +1179,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 throw new IllegalArgumentException("numBytes must be >= 0, got " + numBytes);
             }
 
-            var bytesLeft = subtractWithIvSpace(end, position);
+            var bytesLeft = subtractWithIvSpace(position, end);
             if (bytesLeft < numBytes) {
                 throw new EOFException("Amount of bytes to skip is bigger than file size. Position : " + position +
                         " file size : " + end + ", bytes to skip : " + numBytes);
