@@ -192,15 +192,6 @@ public class EnvironmentImpl implements Environment {
             gc.fetchExpiredLoggables(expired);
 
             loggerInfo("Exodus environment created: " + logLocation);
-
-            if (!log.getFormatWithHashCodeIsUsed()) {
-                if (isReadOnly()) {
-                    throw new ExodusException("Environment " + logLocation +
-                            " uses out of dated binary format but can not be migrated because " +
-                            "is opened in read-only mode.");
-
-                }
-            }
         } catch (Exception e) {
             logger.error("Error during opening the environment " + log.getLocation(), e);
 
