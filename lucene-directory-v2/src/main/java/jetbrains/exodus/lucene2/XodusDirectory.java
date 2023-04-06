@@ -28,11 +28,14 @@ import jetbrains.exodus.io.SharedOpenFilesCache;
 import jetbrains.exodus.log.CacheDataProvider;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.SharedLogCache;
+import jetbrains.exodus.util.IOUtil;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.FutureObjects;
 import org.apache.lucene.util.IOUtils;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.lang.invoke.MethodHandles;
@@ -46,6 +49,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 
 public class XodusDirectory extends Directory implements CacheDataProvider {
+    private static final Logger logger = LoggerFactory.getLogger(XodusDirectory.class);
     private static final VarHandle SHORT_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(short[].class, ByteOrder.BIG_ENDIAN);
     private static final VarHandle INT_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.BIG_ENDIAN);
     private static final VarHandle LONG_VAR_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
@@ -109,12 +113,31 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
         this.identity = Log.Companion.getIdentityGenerator().nextId();
 
-        this.nameToAddressStore = environment.computeInTransaction(txn ->
-                environment.openStore(NAME_TO_ADDRESS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn));
-
         this.luceneOutputPath = path.resolve("luceneOutput");
         this.luceneIndex = path.resolve("luceneIndex");
 
+        if (!environment.computeInTransaction(txn -> environment.storeExists(NAME_TO_ADDRESS_STORE_NAME, txn))) {
+            var removalWarn = false;
+            var removalMessage = NAME_TO_ADDRESS_STORE_NAME +
+                    " store does not exist. All Lucene index files will be removed.";
+
+            if (Files.exists(luceneOutputPath)) {
+                logger.warn(removalMessage);
+                removalWarn = true;
+
+                IOUtil.deleteRecursively(luceneOutputPath.toFile());
+            }
+
+            if (Files.exists(luceneIndex)) {
+                if (!removalWarn) {
+                    logger.warn(removalMessage);
+                }
+                IOUtil.deleteRecursively(luceneIndex.toFile());
+            }
+        }
+
+        this.nameToAddressStore = environment.computeInTransaction(txn ->
+                environment.openStore(NAME_TO_ADDRESS_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES, txn));
 
         if (!Files.exists(luceneOutputPath)) {
             Files.createDirectory(luceneOutputPath);
