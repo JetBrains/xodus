@@ -118,7 +118,8 @@ public final class StartupMetadata {
     public static @Nullable StartupMetadata open(final FileDataReader reader,
                                                  final boolean isReadOnly, final int pageSize,
                                                  final int environmentFormatVersion,
-                                                 final long fileLengthBoundary) throws IOException {
+                                                 final long fileLengthBoundary,
+                                                 final boolean logContainsBlocks) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
         final Path firstFilePath = dbPath.resolve(FIRST_FILE_NAME);
         final Path secondFilePath = dbPath.resolve(SECOND_FILE_NAME);
@@ -189,9 +190,11 @@ public final class StartupMetadata {
         }
 
         if (content == null) {
-            final ByteBuffer updatedMetadata = serialize(1, environmentFormatVersion, -1,
-                    pageSize, fileLengthBoundary, false);
-            store(updatedMetadata, dbPath, useFirstFile);
+            if (!logContainsBlocks) {
+                final ByteBuffer updatedMetadata = serialize(1, environmentFormatVersion, -1,
+                        pageSize, fileLengthBoundary, false);
+                store(updatedMetadata, dbPath, useFirstFile);
+            }
 
             return null;
         }
@@ -224,7 +227,10 @@ public final class StartupMetadata {
 
         try (final FileChannel channel = FileChannel.open(filePath, StandardOpenOption.WRITE,
                 StandardOpenOption.CREATE_NEW)) {
-            channel.write(content);
+            while (content.remaining() > 0) {
+                //noinspection ResultOfMethodCallIgnored
+                channel.write(content);
+            }
             channel.force(true);
         }
 

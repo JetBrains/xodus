@@ -157,8 +157,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             val fileLength = config.fileSize * 1024L
 
+            val logContainsBlocks = reader.blocks.iterator().hasNext()
             val metadata = if (reader is FileDataReader) {
-                StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion, fileLength)
+                StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion,
+                    fileLength, logContainsBlocks)
             } else {
                 StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion, fileLength)
             }
@@ -172,7 +174,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     config.cachePageSize, expectedEnvironmentVersion,
                     fileLength
                 )
-                needToPerformMigration = reader.blocks.iterator().hasNext()
+                needToPerformMigration = logContainsBlocks
             }
 
             if (config.cachePageSize != startupMetadata.pageSize) {
@@ -391,6 +393,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             if (config.isWarmup) {
                 warmup()
+            }
+
+            if(needToPerformMigration) {
+                switchToReadOnlyMode()
             }
         } catch (ex: RuntimeException) {
             release()
