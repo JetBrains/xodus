@@ -857,7 +857,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         }
 
         private void readPageIfNeeded(long pageAddress) {
-            if (this.pageAddress != pageAddress) {
+            if (this.page == null || this.pageAddress != pageAddress) {
                 this.page = sharedLogCache.getPage(XodusDirectory.this, pageAddress, fileAddress
                 );
                 this.pageAddress = pageAddress;
