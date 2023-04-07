@@ -2,7 +2,7 @@ dependencies {
     implementation project(':xodus-environment')
     api project(':xodus-openAPI')
     implementation project(':xodus-utils')
-    implementation "org.jetbrains:annotations:$annotationsVersion"
+    implementation libs.jetbrains.annotations
     testImplementation project(':xodus-environment').sourceSets.test.output
     testImplementation project(':xodus-utils').sourceSets.test.output
     testImplementation 'io.airlift:aircompressor:0.21'
