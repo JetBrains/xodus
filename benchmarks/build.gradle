@@ -25,7 +25,7 @@ dependencies {
     jmh project(':xodus-utils')
     jmh "org.openjdk.jmh:jmh-core:$jmhVersion"
     jmh "org.openjdk.jmh:jmh-generator-annprocess:$jmhVersion"
-    jmh group: 'junit', name: 'junit', version: "$junitVersion"
+    jmh libs.junit
     jmh group: 'org.mapdb', name: 'mapdb', version: '3.0.2'
     jmh group: 'net.openhft', name: 'chronicle-map', version: '3.11.0'
     jmh group: 'com.h2database', name: 'h2-mvstore', version: '1.4.193'

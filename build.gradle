@@ -1,19 +1,8 @@
-buildscript {
-    ext.kotlinVersion = '1.8.10'
-    ext.kotlinLangVersion = '1.8'
-    ext.dokkaVersion = '1.8.10'
-    ext.kotlinLoggingVersion = '3.0.5'
-    ext.licensePluginVersion = '0.16.1'
-    ext.nexusPluginVersion = '0.30.0'
-    ext.junitVersion = '4.13.2'
-    ext.commonsCompressVersion = '1.22'
-}
-
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version "$kotlinVersion"
-    id 'org.jetbrains.dokka' version "$dokkaVersion"
-    id 'com.github.hierynomus.license' version "$licensePluginVersion"
-    id 'io.codearte.nexus-staging' version "$nexusPluginVersion"
+    id 'org.jetbrains.kotlin.jvm'
+    id 'org.jetbrains.dokka'
+    id 'com.github.hierynomus.license'
+    id 'io.codearte.nexus-staging'
 }
 
 group = 'org.jetbrains.xodus'
@@ -88,14 +77,13 @@ subprojects {
     }
 
     dependencies {
-        implementation "org.apache.commons:commons-compress:$commonsCompressVersion"
-        implementation 'org.lz4:lz4-java:1.8.0'
+        implementation libs.commons.compress
+        implementation libs.lz4
         implementation "it.unimi.dsi:fastutil:8.5.9"
         implementation libs.jcTools.core
-        implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+        implementation libs.kotlin.stdlib.jdk8
 
-
-        testImplementation group: 'junit', name: 'junit', version: "$junitVersion"
+        testImplementation libs.junit
         testImplementation libs.slf4j.simple
     }
 
@@ -150,21 +138,21 @@ subprojects {
 
     // configuring projects with Kotlin sources
     dependencies {
-        implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
-        implementation "io.github.microutils:kotlin-logging:$kotlinLoggingVersion"
+        implementation libs.kotlin.stdlib
+        implementation libs.kotlin.logging
     }
     compileKotlin {
         kotlinOptions {
             jvmTarget = '11'
-            languageVersion = "$kotlinLangVersion"
-            apiVersion = "$kotlinLangVersion"
+            languageVersion = libs.versions.kotlin.lang.get()
+            apiVersion = libs.versions.kotlin.lang.get()
         }
     }
     compileTestKotlin {
         kotlinOptions {
             jvmTarget = '11'
-            languageVersion = "$kotlinLangVersion"
-            apiVersion = "$kotlinLangVersion"
+            languageVersion = libs.versions.kotlin.lang.get()
+            apiVersion = libs.versions.kotlin.lang.get()
         }
     }
 

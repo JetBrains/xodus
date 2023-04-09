@@ -1,4 +1,0 @@
-dependencies {
-    implementation libs.jetbrains.annotations
-    implementation libs.slf4j.api
-}
