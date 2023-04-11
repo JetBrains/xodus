@@ -1,5 +1,6 @@
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
 import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
@@ -47,7 +48,11 @@ public class MVCCGarbageCollectorTest {
                             StringBinding.stringToEntry(String.valueOf(value)));
 
                     Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
-                    mvccComponent.commitTransaction(writeTransaction);
+                    try {
+                        mvccComponent.commitTransaction(writeTransaction);
+                    } catch (ExecutionException | InterruptedException e) {
+                        throw new ExodusException(e);
+                    }
                 });
                 th.get();
             }

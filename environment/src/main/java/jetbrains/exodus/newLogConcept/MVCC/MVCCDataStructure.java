@@ -3,6 +3,7 @@ package jetbrains.exodus.newLogConcept.MVCC;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
+import jetbrains.exodus.newLogConcept.GarbageCollector.OperationLogGarbageCollector;
 import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
 import jetbrains.exodus.newLogConcept.OperationLog.OperationLogRecord;
 import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
@@ -16,9 +17,7 @@ import org.jctools.maps.NonBlockingHashMapLong;
 import net.jpountz.xxhash.XXHash64;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -39,6 +38,9 @@ public class MVCCDataStructure {
 
     // todo think later ab global mem usage
     private final long transactionsLimit = 1000; // the number of transactions, when reached we run GC
+    MVCCGarbageCollector mvccGarbageCollector = new MVCCGarbageCollector();
+    OperationLogGarbageCollector logGarbageCollector = new OperationLogGarbageCollector();
+
 
     private void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
         while (true) {
@@ -70,16 +72,16 @@ public class MVCCDataStructure {
     }
 
     // mock method for testing purposes
-    void doSomething() {
-        var transaction = startWriteTransaction();
-        var key = ByteIterable.EMPTY;
-        var value = ByteIterable.EMPTY;
-
-        put(transaction, key, value);
-        remove(transaction, key, value);
-
-        commitTransaction(transaction);
-    }
+//    void doSomething() {
+//        var transaction = startWriteTransaction();
+//        var key = ByteIterable.EMPTY;
+//        var value = ByteIterable.EMPTY;
+//
+//        put(transaction, key, value);
+//        remove(transaction, key, value);
+//
+//        commitTransaction(transaction);
+//    }
 
 
     public Transaction startReadTransaction() {
@@ -219,7 +221,7 @@ public class MVCCDataStructure {
         }
     }
 
-    public void commitTransaction(Transaction transaction) {
+    public void commitTransaction(Transaction transaction) throws ExecutionException, InterruptedException {
         // if transaction.type is WRITE
         if (!transaction.getOperationLinkList().isEmpty()) {
             // put state in PROGRESS
@@ -282,12 +284,23 @@ public class MVCCDataStructure {
                 ReentrantLock lock = new ReentrantLock();
                 if (lock.tryLock()){
                     try {
-                        var collector = new MVCCGarbageCollector();
-                        collector.clean(snapshotId.get(), hashMap, transactionsGCMap);
+                        mvccGarbageCollector.clean(snapshotId.get(), hashMap, transactionsGCMap);
                     } finally {
                         lock.unlock();
                     }
                 }
+            }
+            if (operationLog.size() > transactionsLimit) {
+                ExecutorService service = Executors.newCachedThreadPool();
+                var logGCThread = service.submit(() -> {
+                    logGarbageCollector.clean(operationLog, hashMap, snapshotId.get()); // todo what is target id
+                });
+                logGCThread.get();
+                // return to the MVCC GC to finish cleanup of minMaxId if needed
+                var handleMinMaxThread = service.submit(() -> {
+                    mvccGarbageCollector.handleMaxMinTransactionId(snapshotId.get(), hashMap, transactionsGCMap, operationLog);
+                });
+                handleMinMaxThread.get();
             }
         }
     }

@@ -19,7 +19,7 @@ public class OperationLogGarbageCollector {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
 
     // todo where do we get targetTxId from
-    void clean(Map<Long, OperationLogRecord> operationLog, NonBlockingHashMapLong<MVCCRecord> mvccHashMap, long targetTxId) {
+    public void clean(Map<Long, OperationLogRecord> operationLog, NonBlockingHashMapLong<MVCCRecord> mvccHashMap, long targetTxId) {
         for (var operationRecord : operationLog.entrySet()) {
             if (operationRecord.getValue().getLogRecordType() == LogRecordType.OPERATION) {
                 TransactionOperationLogRecord record = (TransactionOperationLogRecord) operationRecord.getValue();

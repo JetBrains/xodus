@@ -2,7 +2,9 @@ package jetbrains.exodus.newLogConcept.GarbageCollector;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
+import jetbrains.exodus.newLogConcept.OperationLog.OperationLogRecord;
 import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
+import jetbrains.exodus.newLogConcept.OperationLog.TransactionOperationLogRecord;
 import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
 import org.jctools.maps.NonBlockingHashMapLong;
 
@@ -93,8 +95,8 @@ public class MVCCGarbageCollector {
     }
 
     private void removeUpToMaxMinId(Long maxMinId, long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
-                            ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
-        if (maxMinId == null){
+                                    ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
+        if (maxMinId == null) {
             return;
         }
         if (snapshotId < maxMinId) {
@@ -103,11 +105,12 @@ public class MVCCGarbageCollector {
         removeTransactionsRange(transactionsGCMap.firstKey(), maxMinId - 1, mvccHashMap,
                 transactionsGCMap, true);
     }
+
     private void removeBetweenActiveTransactions(Long maxMinId, ConcurrentSkipListSet<Long> activeOrEmptyTransactionsIds,
                                                  long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
                                                  ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
 
-        if (maxMinId == null){
+        if (maxMinId == null) {
             return;
         }
         if (snapshotId < maxMinId) {
@@ -135,7 +138,7 @@ public class MVCCGarbageCollector {
                                  ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap,
                                  boolean isUpToMaxMinId) {
 
-        if (transactionIdStart < transactionIdEnd){
+        if (transactionIdStart < transactionIdEnd) {
             for (long id = transactionIdEnd; id > transactionIdStart; id--) {
                 removeOperationsFromRecords(id, mvccHashMap);
                 transactionsGCMap.remove(id);
@@ -151,7 +154,7 @@ public class MVCCGarbageCollector {
     }
 
     private void removeOperationsFromRecords(long txId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap) {
-        for (var mvccRecord: mvccHashMap.entrySet()) {
+        for (var mvccRecord : mvccHashMap.entrySet()) {
             // remove operations with matching transactions ids from the queue
             for (OperationReference linkEntry : mvccRecord.getValue().linksToOperationsQueue) {
                 if (linkEntry.getTxId() == txId) {
@@ -159,11 +162,47 @@ public class MVCCGarbageCollector {
                 }
             }
             if (mvccRecord.getValue().linksToOperationsQueue.isEmpty()) {
-                mvccHashMap.compute(mvccRecord.getKey(), (key, val) -> {
+                mvccHashMap.computeIfPresent(mvccRecord.getKey(), (key, val) -> {
                     if (val.linksToOperationsQueue.isEmpty()) {
                         return null; // return null to delete the record
                     } else {
                         return val; // return the record itself if it should not be deleted
+                    }
+                });
+            }
+        }
+    }
+
+    public void handleMaxMinTransactionId(long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
+                                   ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap,
+                                   Map<Long, OperationLogRecord> operationLog) {
+        Long maxMinId = findMaxMinId(transactionsGCMap, snapshotId);
+        if (maxMinId != null)
+            if (maxMinId >= snapshotId)
+                throw new ExodusException();
+
+        for (var record : mvccHashMap.entrySet()) {
+            OperationReference targetEntry = null;
+
+            for (OperationReference linkEntry : record.getValue().linksToOperationsQueue) {
+                if (linkEntry.getTxId() == maxMinId) {
+                    targetEntry = linkEntry;
+                }
+            }
+            TransactionOperationLogRecord targetOperationInLog =
+                    (TransactionOperationLogRecord) operationLog.get(targetEntry.getOperationAddress());
+
+            // For maxMinSnapId in this record - if there is no link to it in OL, we can safely remove it
+            if (targetOperationInLog == null) {
+                record.getValue().linksToOperationsQueue.remove(targetEntry);
+                transactionsGCMap.remove(maxMinId);
+            }
+            if (record.getValue().linksToOperationsQueue.isEmpty()) {
+                mvccHashMap.computeIfPresent(record.getKey(), (key, val) -> {
+                    if (val.linksToOperationsQueue.isEmpty()) {
+                        return null; // return null to delete the record
+                    } else {
+                        return val;
                     }
                 });
             }

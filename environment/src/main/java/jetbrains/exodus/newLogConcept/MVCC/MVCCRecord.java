@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class MVCCRecord {
-    final AtomicLong maxTransactionId;
+    public final AtomicLong maxTransactionId;
 
     // todo for later: optimization - create your own queue
     public final ConcurrentLinkedQueue<OperationReference> linksToOperationsQueue; // temporary solution, will use faster queue

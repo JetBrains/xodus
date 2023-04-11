@@ -1,6 +1,7 @@
 package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.newLogConcept.Transaction.Transaction;
 import org.junit.Assert;
@@ -48,7 +49,11 @@ public class MVCCComponentTest {
                         throw new RuntimeException(e);
                     }
                 }
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
                 // check record is not null after the commit
                 checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
             });
@@ -92,7 +97,11 @@ public class MVCCComponentTest {
                 }
             }
             Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
-            mvccComponent.commitTransaction(writeTransaction);
+            try {
+                mvccComponent.commitTransaction(writeTransaction);
+            } catch (ExecutionException | InterruptedException e) {
+                throw new ExodusException(e);
+            }
             // check record is not null after the commit
             checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
             Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
@@ -140,7 +149,11 @@ public class MVCCComponentTest {
                         throw new RuntimeException(e);
                     }
                 }
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
                 // check record is not null after the commit
                 checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
             });
@@ -164,7 +177,11 @@ public class MVCCComponentTest {
                 } catch (ExecutionException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
                 // check record is null after the commit
                 try {
                     for (var entry : keyValTransactions.entrySet()) {
@@ -235,7 +252,11 @@ public class MVCCComponentTest {
                 } catch (ExecutionException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
 
                 try {
                     // check record is null after the commit
@@ -297,7 +318,11 @@ public class MVCCComponentTest {
                         throw new RuntimeException(e);
                     }
                 }
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
                 // check record is not null after the commit
                 checkReadAllRecordsInMapAreNotNull(transactionsSubMap, mvccComponent);
             });
@@ -325,7 +350,11 @@ public class MVCCComponentTest {
                         }
                     }
                 }
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
             });
             thPut3.get();
 
@@ -373,7 +402,11 @@ public class MVCCComponentTest {
                         throw new RuntimeException(e);
                     }
                 }
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
                 // check record is not null after the commit
                 checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
             });
@@ -398,7 +431,11 @@ public class MVCCComponentTest {
                 } catch (ExecutionException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
                 // check record is null after the commit
                 try {
                     for (var entry : transactionsSubMap.entrySet()) {

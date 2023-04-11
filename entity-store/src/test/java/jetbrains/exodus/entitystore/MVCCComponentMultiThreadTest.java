@@ -42,7 +42,11 @@ public class MVCCComponentMultiThreadTest {
                 // check record is null before the commit
                 mvccComponent.put(writeTransaction2, StringBinding.stringToEntry(keyString),
                         StringBinding.stringToEntry("1000"));
-                mvccComponent.commitTransaction(writeTransaction2);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction2);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
             });
             try {
                 th2.get();
@@ -53,7 +57,11 @@ public class MVCCComponentMultiThreadTest {
                     StringBinding.stringToEntry("2000"));
 
             try {
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
             } catch (ExodusException ignored) {}
             Assert.assertTrue(mvccComponent.transactionsGCMap.containsKey(txId) &&
                     mvccComponent.transactionsGCMap.get(txId).stateWrapper.state == TransactionState.REVERTED.get());
@@ -96,7 +104,11 @@ public class MVCCComponentMultiThreadTest {
                         StringBinding.stringToEntry(String.valueOf(value)));
 
                 Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
-                mvccComponent.commitTransaction(writeTransaction);
+                try {
+                    mvccComponent.commitTransaction(writeTransaction);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new ExodusException(e);
+                }
             });
             value.getAndIncrement();
             th.get();
@@ -131,7 +143,11 @@ public class MVCCComponentMultiThreadTest {
                             StringBinding.stringToEntry(String.valueOf(value)));
 
                     Assert.assertEquals(writeTransaction.getSnapshotId(), writeTransaction.getOperationLinkList().get(0).getTxId());
-                    mvccComponent.commitTransaction(writeTransaction);
+                    try {
+                        mvccComponent.commitTransaction(writeTransaction);
+                    } catch (ExecutionException | InterruptedException e) {
+                        throw new ExodusException(e);
+                    }
                 });
                 th.get();
             }
