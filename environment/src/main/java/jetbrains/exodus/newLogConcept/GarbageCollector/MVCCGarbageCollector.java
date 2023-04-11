@@ -2,6 +2,7 @@ package jetbrains.exodus.newLogConcept.GarbageCollector;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
+import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
 import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
 import org.jctools.maps.NonBlockingHashMapLong;
 
@@ -91,10 +92,8 @@ public class MVCCGarbageCollector {
                 mvccHashMap, transactionsGCMap);
     }
 
-     //todo define consistent Long type everywhere
     private void removeUpToMaxMinId(Long maxMinId, long snapshotId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
                             ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap) {
-        // todo check multithreading everywhere
         if (maxMinId == null){
             return;
         }
@@ -111,7 +110,6 @@ public class MVCCGarbageCollector {
         if (maxMinId == null){
             return;
         }
-        // todo check multithreading everywhere
         if (snapshotId < maxMinId) {
             throw new ExodusException();
         }
@@ -136,17 +134,38 @@ public class MVCCGarbageCollector {
                                  NonBlockingHashMapLong<MVCCRecord> mvccHashMap,
                                  ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap,
                                  boolean isUpToMaxMinId) {
+
         if (transactionIdStart < transactionIdEnd){
             for (long id = transactionIdEnd; id > transactionIdStart; id--) {
-                mvccHashMap.remove(id);
+                removeOperationsFromRecords(id, mvccHashMap);
                 transactionsGCMap.remove(id);
             }
             // if the sequence is up to maxMinId, then we delete the whole sequence, otherwise the first element is not deleted
             if (isUpToMaxMinId) {
-                mvccHashMap.remove(transactionIdStart);
+                removeOperationsFromRecords(transactionIdStart, mvccHashMap);
                 transactionsGCMap.remove(transactionIdStart);
             } else {
                 transactionsGCMap.get(transactionIdStart).upToId = transactionIdEnd;
+            }
+        }
+    }
+
+    private void removeOperationsFromRecords(long txId, NonBlockingHashMapLong<MVCCRecord> mvccHashMap) {
+        for (var mvccRecord: mvccHashMap.entrySet()) {
+            // remove operations with matching transactions ids from the queue
+            for (OperationReference linkEntry : mvccRecord.getValue().linksToOperationsQueue) {
+                if (linkEntry.getTxId() == txId) {
+                    mvccRecord.getValue().linksToOperationsQueue.remove(linkEntry);
+                }
+            }
+            if (mvccRecord.getValue().linksToOperationsQueue.isEmpty()) {
+                mvccHashMap.compute(mvccRecord.getKey(), (key, val) -> {
+                    if (val.linksToOperationsQueue.isEmpty()) {
+                        return null; // return null to delete the record
+                    } else {
+                        return val; // return the record itself if it should not be deleted
+                    }
+                });
             }
         }
     }

@@ -5,8 +5,10 @@ import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
 import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
+import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
 import jetbrains.exodus.newLogConcept.Transaction.Transaction;
 import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import net.jpountz.xxhash.XXHash64;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.junit.Assert;
 import org.junit.Test;
@@ -16,8 +18,13 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_FACTORY;
+import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_SEED;
+
 
 public class MVCCGarbageCollectorTest {
+    public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
+
 
     // TODO fixme - unlock collector in MVCCComponent and fix assertion error
     @Test
@@ -48,6 +55,32 @@ public class MVCCGarbageCollectorTest {
         Assert.assertEquals(1012, value.get());
     }
 
+
+    @Test
+    public void testCleanDeleteRecords() {
+        ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
+        NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
+
+        for (long i = 1; i < 4; i++){
+            OperationReference reference1 = new OperationReference(1L, i, 1L);
+            OperationReference reference2 = new OperationReference(1L, i+1, 1L);
+
+            var queue = new ConcurrentLinkedQueue<OperationReference>();
+            queue.add(reference1);
+            queue.add(reference2);
+            hashMap.put(i, new MVCCRecord(new AtomicLong(i), queue));
+
+            transactionsGCMap.put(i, new TransactionGCEntry(TransactionState.COMMITTED.get()));
+        }
+
+        var collector = new MVCCGarbageCollector();
+        collector.clean(5L, hashMap, transactionsGCMap);
+
+        Assert.assertTrue(hashMap.get(3L).linksToOperationsQueue.stream().anyMatch(it -> it.getTxId() == 4L));
+        Assert.assertTrue(hashMap.get(2L).linksToOperationsQueue.stream().anyMatch(it -> it.getTxId() == 3L));
+        Assert.assertFalse(hashMap.containsKey(1L));
+
+    }
 
     @Test
     public void testCleanWithAllCommittedOneThread() {

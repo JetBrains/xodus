@@ -10,7 +10,7 @@ public class MVCCRecord {
     final AtomicLong maxTransactionId;
 
     // todo for later: optimization - create your own queue
-    final ConcurrentLinkedQueue<OperationReference> linksToOperationsQueue; // temporary solution, will use faster queue
+    public final ConcurrentLinkedQueue<OperationReference> linksToOperationsQueue; // temporary solution, will use faster queue
 
     public MVCCRecord(AtomicLong maxTransactionId, ConcurrentLinkedQueue<OperationReference> linksToOperations) {
         this.maxTransactionId = maxTransactionId;
