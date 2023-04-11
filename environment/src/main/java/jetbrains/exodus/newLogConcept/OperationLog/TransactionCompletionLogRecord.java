@@ -6,4 +6,9 @@ public class TransactionCompletionLogRecord implements OperationLogRecord {
     public TransactionCompletionLogRecord(boolean isRollBackFlag) {
         this.isRevertedFlag = isRollBackFlag;
     }
+
+    @Override
+    public LogRecordType getLogRecordType() {
+        return LogRecordType.COMPLETION;
+    }
 }

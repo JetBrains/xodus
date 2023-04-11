@@ -1,4 +1,8 @@
 package jetbrains.exodus.newLogConcept.OperationLog;
 
 // todo later extends Loggable
-public interface OperationLogRecord { }
+public interface OperationLogRecord {
+
+    abstract LogRecordType getLogRecordType();
+}
+

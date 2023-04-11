@@ -22,6 +22,7 @@ import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_FACTORY;
 import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_SEED;
 
 
+// TODO fixme tests - rewrite tests to match the changed logic of the MVCC GC
 public class MVCCGarbageCollectorTest {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
 

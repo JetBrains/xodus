@@ -14,5 +14,10 @@ public class TransactionOperationLogRecord implements OperationLogRecord {
         this.value = value;
         this.operationType = operationType;
     }
+
+    @Override
+    public LogRecordType getLogRecordType() {
+        return LogRecordType.OPERATION;
+    }
 }
 
