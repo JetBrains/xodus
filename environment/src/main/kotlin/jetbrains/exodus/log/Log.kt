@@ -159,8 +159,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             val logContainsBlocks = reader.blocks.iterator().hasNext()
             val metadata = if (reader is FileDataReader) {
-                StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion,
-                    fileLength, logContainsBlocks)
+                StartupMetadata.open(
+                    reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion,
+                    fileLength, logContainsBlocks
+                )
             } else {
                 StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion, fileLength)
             }
@@ -395,7 +397,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 warmup()
             }
 
-            if(needToPerformMigration) {
+            if (needToPerformMigration) {
                 switchToReadOnlyMode()
             }
         } catch (ex: RuntimeException) {
@@ -442,11 +444,28 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
-    private fun padPageWithNulls() {
+    fun padPageWithNulls() {
         beginWrite()
         beforeWrite()
         try {
             writer.padPageWithNulls()
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+        } finally {
+            endWrite()
+        }
+    }
+
+    fun padPageWithNulls(expiredLoggables: ExpiredLoggableCollection) {
+        beginWrite()
+        beforeWrite()
+        try {
+            val currentAddress = writer.currentHighAddress
+            val written = writer.padPageWithNulls()
+
+            if (written > 0) {
+                expiredLoggables.add(currentAddress, written)
+            }
+
             writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
         } finally {
             endWrite()
