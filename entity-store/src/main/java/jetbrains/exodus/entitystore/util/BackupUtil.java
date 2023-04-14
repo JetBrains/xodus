@@ -338,7 +338,7 @@ public class BackupUtil {
     private static boolean validateBackupContent(byte[] data, int pageSize,
                                                  String name, int processed, int dataToWriteLen) {
         for (int dataOffset = 0; dataOffset < dataToWriteLen; dataOffset += pageSize) {
-            final long calculatedHash = BufferedDataWriter.calculateHash(data,
+            final long calculatedHash = BufferedDataWriter.calculatePageHashCode(data,
                     dataOffset, pageSize - BufferedDataWriter.HASH_CODE_SIZE);
             final long storedHash = BindingUtils.readLong(data, dataOffset +
                     pageSize - BufferedDataWriter.HASH_CODE_SIZE);
@@ -363,7 +363,7 @@ public class BackupUtil {
                     fileAddress + processed, data, dataOffset,
                     pageSize - BufferedDataWriter.HASH_CODE_SIZE,
                     LogUtil.LOG_BLOCK_ALIGNMENT);
-            BufferedDataWriter.updateHashCode(data, dataOffset,
+            BufferedDataWriter.updatePageHashCode(data, dataOffset,
                     pageSize - BufferedDataWriter.HASH_CODE_SIZE);
         }
 
@@ -397,7 +397,7 @@ public class BackupUtil {
         for (int pageSize = pageStep; pageSize <= pageMaxSize && pageSize <= bufferSize; pageSize += pageStep) {
             final long storedHash = BindingUtils.readLong(buffer,
                     pageSize - BufferedDataWriter.HASH_CODE_SIZE);
-            final long calculatedHash = BufferedDataWriter.calculateHash(buffer, 0,
+            final long calculatedHash = BufferedDataWriter.calculatePageHashCode(buffer, 0,
                     pageSize - BufferedDataWriter.HASH_CODE_SIZE);
 
             if (storedHash == calculatedHash) {

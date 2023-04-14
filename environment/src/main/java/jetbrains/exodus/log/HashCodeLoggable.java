@@ -27,7 +27,7 @@ public class HashCodeLoggable implements RandomAccessLoggable {
 
     HashCodeLoggable(long address, int pageOffset, byte[] page) {
         this.address = address;
-        this.hashCode = BindingUtils.readLong(page, pageOffset);
+        this.hashCode = BindingUtils.readLong(page, pageOffset + Byte.BYTES);
     }
 
 
@@ -56,7 +56,7 @@ public class HashCodeLoggable implements RandomAccessLoggable {
         final byte[] bytes = new byte[Long.BYTES];
         BindingUtils.writeLong(hashCode, bytes, 0);
 
-        return new ArrayByteIterableWithAddress(address + Long.BYTES, bytes, 0, bytes.length);
+        return new ArrayByteIterableWithAddress(address + Byte.BYTES, bytes, 0, bytes.length);
     }
 
     @Override

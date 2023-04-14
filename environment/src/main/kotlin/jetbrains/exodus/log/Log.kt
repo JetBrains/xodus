@@ -270,9 +270,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
                 logger.error("Data check is completed for environment $location.")
-            } else if (!rwIsReadonly &&
-                (!startupMetadata.isCorrectlyClosed || needToPerformMigration || tmpLeftovers
-                        || incorrectLastSegmentSize) && reader is FileDataReader
+            } else if (!rwIsReadonly && !needToPerformMigration && reader is FileDataReader &&
+                (!startupMetadata.isCorrectlyClosed || tmpLeftovers
+                        || incorrectLastSegmentSize)
             ) {
                 logger.error(
                     "Environment located at $location has been closed incorrectly. " +
@@ -535,14 +535,21 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     )
                 }
 
-                val blockDataIterator = BlockDataIterator(this, block, address, formatWithHashCodeIsUsed)
+                val blockDataIterator = BlockDataIterator(this, block, address, formatWithHashCodeIsUsed, !hasNext)
                 while (blockDataIterator.hasNext()) {
                     val loggableAddress = blockDataIterator.address
                     val loggableType = blockDataIterator.next() xor 0x80.toByte()
 
                     checkLoggableType(loggableType, loggableAddress)
 
-                    if (NullLoggable.isNullLoggable(loggableType) || HashCodeLoggable.isHashCodeLoggable(loggableType)) {
+                    if (NullLoggable.isNullLoggable(loggableType)) {
+                        continue
+                    }
+
+                    if (HashCodeLoggable.isHashCodeLoggable(loggableType)) {
+                        for (i in 0 until Long.SIZE_BYTES) {
+                            blockDataIterator.next()
+                        }
                         continue
                     }
 
@@ -664,7 +671,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                                         it.read(lastPage, 0, endBlockReminder)
                                         Arrays.fill(lastPage, endBlockReminder, lastPage.size, 0x80.toByte())
-                                        BufferedDataWriter.updateHashCode(lastPage)
+                                        BufferedDataWriter.updatePageHashCode(lastPage)
 
                                         it.seek(position)
                                         it.write(lastPage)
@@ -707,7 +714,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                             endBlock.read(lastPage, position, 0, cachePageSize)
                             Arrays.fill(lastPage, endBlockReminder, lastPage.size, 0x80.toByte())
-                            BufferedDataWriter.updateHashCode(lastPage)
+                            BufferedDataWriter.updatePageHashCode(lastPage)
 
                             endBlock.truncate(position.toInt())
                             endBlock.write(lastPage, 0, cachePageSize)

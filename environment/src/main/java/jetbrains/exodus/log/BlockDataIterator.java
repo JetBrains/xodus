@@ -15,15 +15,22 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.crypto.EnvKryptKt;
+import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.Block;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 public class BlockDataIterator implements ByteIteratorWithAddress {
 
     private final Log log;
     private final Block block;
+    private final StreamCipherProvider cipherProvider;
     private long position;
-    private final long end;
+    private long end;
 
     private byte[] currentPage;
 
@@ -35,15 +42,33 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
 
     private final LogConfig config;
 
-    public BlockDataIterator(Log log, Block block, long startAddress, boolean checkPage) {
+    private final boolean lastBlock;
+
+    private final MessageDigest sha256;
+
+    private boolean throwCorruptionException = false;
+
+    public BlockDataIterator(Log log, Block block, long startAddress, boolean checkPage, boolean lastBlock) {
         this.checkPage = checkPage;
         this.log = log;
         this.block = block;
         this.position = startAddress;
         this.end = block.getAddress() + block.length();
         this.pageSize = log.getCachePageSize();
+        this.lastBlock = lastBlock;
 
         config = log.getConfig();
+
+        cipherProvider = config.getCipherProvider();
+        if (cipherProvider != null) {
+            try {
+                sha256 = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new ExodusException("SHA-256 hash function was not found", e);
+            }
+        } else {
+            sha256 = null;
+        }
 
         if (log.getFormatWithHashCodeIsUsed()) {
             chunkSize = pageSize - BufferedDataWriter.HASH_CODE_SIZE;
@@ -54,6 +79,10 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
 
     @Override
     public boolean hasNext() {
+        if (position == end && throwCorruptionException) {
+            DataCorruptionException.raise("Last page was corrupted", log, position);
+        }
+
         return position < end;
     }
 
@@ -85,6 +114,10 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
     }
 
     private void loadPage() {
+        if (throwCorruptionException) {
+            DataCorruptionException.raise("Last page was corrupted", log, position);
+        }
+
         int currentPageSize = (int) Math.min(end - position, pageSize);
         final byte[] result = new byte[currentPageSize];
         final int read = block.read(result, position - block.getAddress(), 0, currentPageSize);
@@ -97,13 +130,29 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
 
         if (checkPage) {
             if (currentPageSize != pageSize) {
-                DataCorruptionException.raise("Incorrect page size -  " + currentPageSize, log, position);
-            }
+                if (!lastBlock) {
+                    DataCorruptionException.raise("Incorrect page size -  " + currentPageSize, log, position);
+                }
 
-            BufferedDataWriter.checkPageConsistency(position, result, pageSize, log);
+                if (cipherProvider != null) {
+                    EnvKryptKt.cryptBlocksMutable(
+                            cipherProvider, config.getCipherKey(), config.getCipherBasicIV(),
+                            position, result, 0, Math.min(chunkSize, currentPageSize), LogUtil.LOG_BLOCK_ALIGNMENT
+                    );
+                }
+
+                final int validPageSize = BufferedDataWriter.checkLastPageConsistency(sha256,
+                        position, result, pageSize, log);
+
+                this.currentPage = Arrays.copyOfRange(result, 0, validPageSize);
+                this.end = position + validPageSize;
+                throwCorruptionException = true;
+                return;
+            } else {
+                BufferedDataWriter.checkPageConsistency(position, result, pageSize, log);
+            }
         }
 
-        var cipherProvider = config.getCipherProvider();
         int encryptedBytes;
         if (cipherProvider != null) {
             if (currentPageSize < pageSize) {
