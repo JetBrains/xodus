@@ -64,12 +64,6 @@ project(":crypto").name = "xodus-crypto"
 include("environment")
 project(":environment").name = "xodus-environment"
 
-include("vfs")
-project(":vfs").name = "xodus-vfs"
-
-include("lucene-directory")
-project(":lucene-directory").name = "xodus-lucene-directory"
-
 include("entity-store")
 project(":entity-store").name = "xodus-entity-store"
 

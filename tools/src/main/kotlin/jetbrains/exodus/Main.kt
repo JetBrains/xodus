@@ -31,7 +31,6 @@ fun main(args: Array<String>) {
         "reflect" -> jetbrains.exodus.env.main(args.skipFirst)
         "refactorings" -> jetbrains.exodus.entityStore.main(args.skipFirst)
         "scytale" -> jetbrains.exodus.crypto.main(args.skipFirst)
-        "vfs" -> jetbrains.exodus.vfs.main(args.skipFirst)
         "parbackup" -> jetbrains.exodus.parallelbackup.parallelBackup(args.skipFirst)
         "backuppost" -> jetbrains.exodus.parallelbackup.parallelBackupPostProcessing(args.skipFirst)
         else -> printUsage()
