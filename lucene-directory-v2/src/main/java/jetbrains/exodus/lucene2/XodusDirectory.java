@@ -490,7 +490,10 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         var cache = SharedOpenFilesCache.getInstance();
         var path = pendingDeletes.get(file);
         try {
-            cache.removeFile(path.toFile());
+            if (cache != null) {
+                cache.removeFile(path.toFile());
+            }
+
             Files.deleteIfExists(path);
 
             if (cipherKey != null) {

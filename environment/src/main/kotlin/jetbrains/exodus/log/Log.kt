@@ -444,11 +444,28 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
-    private fun padPageWithNulls() {
+    fun padPageWithNulls() {
         beginWrite()
         beforeWrite()
         try {
             writer.padPageWithNulls()
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+        } finally {
+            endWrite()
+        }
+    }
+
+    fun padPageWithNulls(expiredLoggables: ExpiredLoggableCollection) {
+        beginWrite()
+        beforeWrite()
+        try {
+            val currentAddress = writer.currentHighAddress
+            val written = writer.padPageWithNulls()
+
+            if (written > 0) {
+                expiredLoggables.add(currentAddress, written)
+            }
+
             writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
         } finally {
             endWrite()

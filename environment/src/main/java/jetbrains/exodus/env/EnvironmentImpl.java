@@ -33,9 +33,7 @@ import jetbrains.exodus.gc.UtilizationProfile;
 import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.io.RemoveBlockType;
 import jetbrains.exodus.io.StorageTypeNotAllowedException;
-import jetbrains.exodus.log.DataIterator;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.LogConfig;
+import jetbrains.exodus.log.*;
 import jetbrains.exodus.tree.ExpiredLoggableCollection;
 import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
@@ -52,6 +50,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -616,6 +615,53 @@ public class EnvironmentImpl implements Environment {
                     log.endWrite();
                 }
             }
+        }
+    }
+
+    public String[] prepareForBackup() {
+        if (isOpen()) {
+            gc.suspend();
+
+            long highAddress;
+            long rootAddress;
+            ExpiredLoggableCollection expiredLoggables;
+
+            synchronized (commitLock) {
+                var log = this.log;
+                expiredLoggables = ExpiredLoggableCollection.newInstance(log);
+
+                log.padPageWithNulls(expiredLoggables);
+
+                log.beginWrite();
+                try {
+                    log.sync();
+                } finally {
+                    log.endWrite();
+                }
+
+                highAddress = log.getHighAddress();
+                rootAddress = metaTree.root;
+            }
+
+            gc.fetchExpiredLoggables(expiredLoggables);
+
+            var fileAddress = log.getFileAddress(highAddress);
+            var fileOffset = highAddress - fileAddress;
+
+            var metadata =
+                    StartupMetadata.serialize(1, EnvironmentImpl.CURRENT_FORMAT_VERSION,
+                            rootAddress, log.getCachePageSize(), log.getFileLengthBound(), true);
+
+            return new String[]{LogUtil.getLogFilename(fileAddress), String.valueOf(fileOffset),
+                    new String(metadata.array(), StandardCharsets.US_ASCII)};
+        }
+
+        throw new IllegalStateException("Environment is closed");
+    }
+
+    public void finishBackup() {
+        if (isOpen()) {
+            gc.resume();
         }
     }
 

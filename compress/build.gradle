@@ -1,5 +1,0 @@
-dependencies {
-    api project(':xodus-openAPI')
-    implementation project(':xodus-utils')
-    implementation 'org.lz4:lz4-java:1.8.0'
-}
