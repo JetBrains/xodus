@@ -9,7 +9,6 @@ dependencies {
     implementation project(':xodus-compress')
     api project(':xodus-openAPI')
     implementation project(':xodus-utils')
-    implementation 'com.hierynomus:sshj:0.30.0'
     implementation 'org.slf4j:slf4j-jdk14:2.0.7'
 }
 
