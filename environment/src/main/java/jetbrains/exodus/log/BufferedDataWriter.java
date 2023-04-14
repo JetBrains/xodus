@@ -34,6 +34,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -81,6 +83,8 @@ public final class BufferedDataWriter {
 
     private final long syncPeriod;
 
+    private final MessageDigest sha256;
+
     private final NonBlockingHashMapLong<PageHolder> writeCache;
 
     BufferedDataWriter(@NotNull final Log log,
@@ -112,6 +116,18 @@ public final class BufferedDataWriter {
 
         this.writeBoundarySemaphore = writeBoundarySemaphore;
         this.localWritesSemaphore = new Semaphore(Integer.MAX_VALUE);
+
+        this.lastSyncedTs = System.currentTimeMillis();
+
+        if (cipherProvider != null) {
+            try {
+                sha256 = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new ExodusException("SHA-256 hash function was not found", e);
+            }
+        } else {
+            sha256 = null;
+        }
 
         initCurrentPage(files, highAddress, page);
 
@@ -261,7 +277,7 @@ public final class BufferedDataWriter {
                     + ": , actual : " + bytes.length + "}", log, pageAddress);
         }
 
-        final long calculatedHash = calculateHash(bytes, 0, pageSize - HASH_CODE_SIZE);
+        final long calculatedHash = calculatePageHashCode(bytes, 0, pageSize - HASH_CODE_SIZE);
         final long storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE);
 
         if (storedHash != calculatedHash) {
@@ -270,18 +286,67 @@ public final class BufferedDataWriter {
         }
     }
 
-    public static long calculateHash(byte @NotNull [] bytes, final int offset, final int len) {
+    public static int checkLastPageConsistency(MessageDigest sha256, long pageAddress, byte @NotNull [] bytes, int pageSize, Log log) {
+        if (pageSize != bytes.length) {
+            int lastHashBlock = -1;
+            for (int i = 0; i <
+                    Math.min(bytes.length - (Byte.BYTES + Long.BYTES),
+                            pageSize - HASH_CODE_SIZE - (Byte.BYTES + Long.BYTES)); i++) {
+                var type = (byte) (((byte) 0x80) ^ bytes[i]);
+                if (HashCodeLoggable.isHashCodeLoggable(type)) {
+                    var loggable = new HashCodeLoggable(pageAddress + i, i, bytes);
+
+                    var hash = calculateHashRecordHashCode(sha256, bytes, 0, i);
+                    if (hash == loggable.getHashCode()) {
+                        lastHashBlock = i;
+                    }
+                }
+            }
+
+            if (lastHashBlock > 0) {
+                return lastHashBlock;
+            }
+
+            DataCorruptionException.raise("Unexpected page size (bytes). {expected " + pageSize
+                    + ": , actual : " + bytes.length + "}", log, pageAddress);
+        }
+
+        final long calculatedHash = calculatePageHashCode(bytes, 0, pageSize - HASH_CODE_SIZE);
+        final long storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE);
+
+        if (storedHash != calculatedHash) {
+            DataCorruptionException.raise("Page is broken. Expected and calculated hash codes are different.",
+                    log, pageAddress);
+        }
+
+        return pageSize;
+    }
+
+    private static long calculateHashRecordHashCode(MessageDigest sha256, byte @NotNull [] bytes, int offset, int len) {
+        long hashCode;
+
+        if (sha256 != null) {
+            sha256.update(bytes, offset, len);
+            hashCode = BindingUtils.readLong(sha256.digest(), 0);
+        } else {
+            hashCode = calculatePageHashCode(bytes, offset, len);
+        }
+
+        return hashCode;
+    }
+
+    public static long calculatePageHashCode(byte @NotNull [] bytes, final int offset, final int len) {
         final XXHash64 xxHash = BufferedDataWriter.xxHash;
         return xxHash.hash(bytes, offset, len, XX_HASH_SEED);
     }
 
-    public static void updateHashCode(final byte @NotNull [] bytes) {
+    public static void updatePageHashCode(final byte @NotNull [] bytes) {
         final int hashCodeOffset = bytes.length - HASH_CODE_SIZE;
-        updateHashCode(bytes, 0, hashCodeOffset);
+        updatePageHashCode(bytes, 0, hashCodeOffset);
     }
 
-    public static void updateHashCode(final byte @NotNull [] bytes, int offset, int len) {
-        final long hash = calculateHash(bytes, offset, len);
+    public static void updatePageHashCode(final byte @NotNull [] bytes, int offset, int len) {
+        final long hash = calculatePageHashCode(bytes, offset, len);
         BindingUtils.writeLong(hash, bytes, offset + len);
     }
 
@@ -548,6 +613,7 @@ public final class BufferedDataWriter {
     private void doSync(final long committedHighAddress) {
         var currentPage = this.currentPage;
 
+        addHashCodeToPage(currentPage);
         if (currentPage.writtenCount > currentPage.committedCount) {
             writePage(currentPage);
         }
@@ -564,6 +630,36 @@ public final class BufferedDataWriter {
         }
 
         lastSyncedTs = System.currentTimeMillis();
+    }
+
+    private void addHashCodeToPage(MutablePage currentPage) {
+        if (currentPage.writtenCount == 0) {
+            assert currentPage.committedCount == 0;
+            return;
+        }
+
+        var lenSpaceLeft = pageSize - currentPage.writtenCount;
+        assert lenSpaceLeft == 0 || lenSpaceLeft > HASH_CODE_SIZE;
+
+        if (lenSpaceLeft <= HASH_CODE_SIZE + Long.BYTES + Byte.BYTES) {
+            final int written = doPadPageWithNulls();
+
+            this.currentHighAddress += written;
+            assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
+
+            assert written == lenSpaceLeft;
+            return;
+        }
+
+        currentPage.bytes[currentPage.writtenCount++] = (byte) (0x80 ^ HashCodeLoggable.TYPE);
+
+        var hashCode = calculateHashRecordHashCode(sha256,
+                currentPage.bytes, 0, currentPage.writtenCount - 1);
+        BindingUtils.writeLong(hashCode, currentPage.bytes, currentPage.writtenCount);
+        currentPage.writtenCount += HASH_CODE_SIZE;
+
+        this.currentHighAddress += HASH_CODE_SIZE + Byte.BYTES;
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
     }
 
     void close(boolean sync) {

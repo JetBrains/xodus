@@ -17,7 +17,7 @@ package jetbrains.exodus.log;
 
 import org.jetbrains.annotations.NotNull;
 
-final class SinglePageLoggable implements RandomAccessLoggable {
+class SinglePageLoggable implements RandomAccessLoggable {
 
     private final long address;
     private final long end;

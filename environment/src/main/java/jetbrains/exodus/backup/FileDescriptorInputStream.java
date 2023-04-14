@@ -177,7 +177,7 @@ public class FileDescriptorInputStream extends InputStream {
                         LogUtil.LOG_BLOCK_ALIGNMENT);
             }
 
-            BufferedDataWriter.updateHashCode(page);
+            BufferedDataWriter.updatePageHashCode(page);
         }
 
         BufferedDataWriter.checkPageConsistency(pageAddress, page, pageSize, log);
