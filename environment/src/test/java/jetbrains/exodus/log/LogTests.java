@@ -293,7 +293,7 @@ public class LogTests extends LogTestsBase {
             assert l != null;
 
             Assert.assertEquals(4 * i++, l.getAddress());
-            Assert.assertEquals(127, l.getType());
+            Assert.assertEquals(126, l.getType());
             Assert.assertEquals(1, l.getDataLength());
         }
         Assert.assertEquals(count, i);
@@ -301,7 +301,7 @@ public class LogTests extends LogTestsBase {
 
     private long writeData(ByteIterable iterable) {
         var expired = ExpiredLoggableCollection.newInstance(log);
-        return getLog().write((byte) 127, Loggable.NO_STRUCTURE_ID, iterable, expired);
+        return getLog().write((byte) 126, Loggable.NO_STRUCTURE_ID, iterable, expired);
     }
 
     @Test
@@ -320,7 +320,7 @@ public class LogTests extends LogTestsBase {
             Loggable l = it.next();
             assert l != null;
             Assert.assertEquals(4 * i++, l.getAddress());
-            Assert.assertEquals(127, l.getType());
+            Assert.assertEquals(126, l.getType());
             Assert.assertEquals(1, l.getDataLength());
         }
         Assert.assertEquals(count, i);

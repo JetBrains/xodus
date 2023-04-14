@@ -271,7 +271,7 @@ internal class PatriciaTreeMutable(
         while (true) {
             val type = l.type
             if (type < NODE_WO_KEY_WO_VALUE_WO_CHILDREN || type > MAX_VALID_LOGGABLE_TYPE) {
-                if (type != NullLoggable.TYPE) { // skip null loggable
+                if (type != NullLoggable.TYPE && type != HashCodeLoggable.TYPE) { // skip null loggable
                     throw ExodusException("Unexpected loggable type " + l.type)
                 }
             } else {

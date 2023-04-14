@@ -113,7 +113,7 @@ private fun tryUpdate(
             }
             if (loggable.type == rootType) {
                 lastRoot = DatabaseRoot(loggable, loggables.iterator)
-            } else if (!NullLoggable.isNullLoggable(loggable)) {
+            } else if (!NullLoggable.isNullLoggable(loggable) && !HashCodeLoggable.isHashCodeLoggable(loggable)) {
                 // don't skip DatabaseRoot content
                 val expectedDataLength = loggable.dataLength.toLong()
                 if (loggables.iterator.skip(expectedDataLength) < expectedDataLength) {

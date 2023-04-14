@@ -26,6 +26,7 @@ import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.core.execution.locks.Latch;
 import jetbrains.exodus.io.*;
+import jetbrains.exodus.log.HashCodeLoggable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
 import jetbrains.exodus.log.RandomAccessLoggable;
@@ -231,10 +232,25 @@ public class EnvironmentTestsBase {
             if (++i > max) {
                 break;
             }
-            Assert.assertTrue(it.hasNext());
-            Assert.assertEquals(type, it.next().getType());
+
+            while (true) {
+                Assert.assertTrue(it.hasNext());
+                var loggable = it.next();
+                if (loggable.getType() == HashCodeLoggable.TYPE) {
+                    continue;
+                }
+                Assert.assertEquals(type, loggable.getType());
+                break;
+            }
         }
-        Assert.assertFalse(it.hasNext());
+
+        while (it.hasNext()) {
+            var loggable = it.next();
+            if (loggable.getType() == HashCodeLoggable.TYPE) {
+                continue;
+            }
+            Assert.fail();
+        }
     }
 
     protected void assertNotNullStringValue(final Store store,

@@ -51,9 +51,10 @@ public final class LoggableIterator implements Iterator<RandomAccessLoggable> {
             return null;
         }
         final RandomAccessLoggable result = log.read(it);
-        if (!NullLoggable.isNullLoggable(result)) {
+        if (!NullLoggable.isNullLoggable(result) || !HashCodeLoggable.isHashCodeLoggable(result)) {
             it.skip(result.getDataLength());
         }
+
         return result;
     }
 

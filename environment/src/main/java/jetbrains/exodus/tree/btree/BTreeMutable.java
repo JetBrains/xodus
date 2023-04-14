@@ -303,6 +303,7 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
             final byte type = loggable.getType();
             switch (type) {
                 case NullLoggable.TYPE:
+                case HashCodeLoggable.TYPE:
                     break;
                 case LEAF_DUP_BOTTOM_ROOT:
                 case LEAF_DUP_INTERNAL_ROOT:

@@ -23,6 +23,7 @@ import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet
 import jetbrains.exodus.gc.GarbageCollector
 import jetbrains.exodus.io.AsyncFileDataWriter
 import jetbrains.exodus.io.FileDataReader
+import jetbrains.exodus.log.HashCodeLoggable
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
@@ -256,6 +257,7 @@ class Reflect(directory: File) {
         val types = IntHashMap<Int>()
         var totalLoggables = 0L
         var nullLoggables = 0L
+        var hashCodeLoggables= 0L
         val fileAddresses = log.allFileAddresses
         val fileCount = fileAddresses.size
         fileAddresses.reversed().forEachIndexed { i, address ->
@@ -269,6 +271,8 @@ class Reflect(directory: File) {
                 ++totalLoggables
                 if (NullLoggable.isNullLoggable(it)) {
                     ++nullLoggables
+                } else if(HashCodeLoggable.isHashCodeLoggable(it))  {
+                    ++hashCodeLoggables
                 } else {
                     inc(dataLengths, it.dataLength)
                     inc(structureIds, it.structureId)
@@ -278,6 +282,7 @@ class Reflect(directory: File) {
         }
         println("\n\nTotal loggables: $totalLoggables")
         println("Null loggables: $nullLoggables")
+        println("Hash code loggables: $hashCodeLoggables")
         dumpLengths("Data lengths:", dataLengths)
         dumpCounts("Structure ids:", structureIds)
         dumpCounts("Loggable types:", types)

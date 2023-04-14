@@ -201,6 +201,7 @@ class LeafNodeDup extends LeafNode {
         while (true) {
             switch (loggable.getType()) {
                 case NullLoggable.TYPE:
+                case HashCodeLoggable.TYPE:
                     break;
                 case BTreeBase.LEAF_DUP_BOTTOM_ROOT:
                 case BTreeBase.LEAF_DUP_INTERNAL_ROOT:

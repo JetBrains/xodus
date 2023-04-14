@@ -159,8 +159,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             val logContainsBlocks = reader.blocks.iterator().hasNext()
             val metadata = if (reader is FileDataReader) {
-                StartupMetadata.open(reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion,
-                    fileLength, logContainsBlocks)
+                StartupMetadata.open(
+                    reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion,
+                    fileLength, logContainsBlocks
+                )
             } else {
                 StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion, fileLength)
             }
@@ -395,7 +397,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 warmup()
             }
 
-            if(needToPerformMigration) {
+            if (needToPerformMigration) {
                 switchToReadOnlyMode()
             }
         } catch (ex: RuntimeException) {
@@ -540,7 +542,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                     checkLoggableType(loggableType, loggableAddress)
 
-                    if (NullLoggable.isNullLoggable(loggableType)) {
+                    if (NullLoggable.isNullLoggable(loggableType) || HashCodeLoggable.isHashCodeLoggable(loggableType)) {
                         continue
                     }
 
@@ -983,7 +985,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         val type = it.next() xor 0x80.toByte()
         return if (NullLoggable.isNullLoggable(type)) {
             NullLoggable.create(address, adjustLoggableAddress(address, 1))
-        } else read(type, it, address)
+        } else if (HashCodeLoggable.isHashCodeLoggable(type)) {
+            HashCodeLoggable(address, it.offset, it.currentPage)
+        } else {
+            read(type, it, address)
+        }
     }
 
     /**

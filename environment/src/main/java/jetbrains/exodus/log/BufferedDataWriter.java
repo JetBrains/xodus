@@ -113,6 +113,8 @@ public final class BufferedDataWriter {
         this.writeBoundarySemaphore = writeBoundarySemaphore;
         this.localWritesSemaphore = new Semaphore(Integer.MAX_VALUE);
 
+        this.lastSyncedTs = System.currentTimeMillis();
+
         initCurrentPage(files, highAddress, page);
 
         this.writeCompletionHandler = (positionWrittenPair, err) -> {
@@ -548,6 +550,7 @@ public final class BufferedDataWriter {
     private void doSync(final long committedHighAddress) {
         var currentPage = this.currentPage;
 
+        addHashCodeToPage(currentPage);
         if (currentPage.writtenCount > currentPage.committedCount) {
             writePage(currentPage);
         }
@@ -564,6 +567,33 @@ public final class BufferedDataWriter {
         }
 
         lastSyncedTs = System.currentTimeMillis();
+    }
+
+    private void addHashCodeToPage(MutablePage currentPage) {
+        if (currentPage.writtenCount == 0) {
+            assert currentPage.committedCount == 0;
+            return;
+        }
+
+        var lenSpaceLeft = pageSize - currentPage.writtenCount;
+        assert lenSpaceLeft == 0 || lenSpaceLeft > HASH_CODE_SIZE;
+
+        if (lenSpaceLeft <= HASH_CODE_SIZE + Long.BYTES + Byte.BYTES) {
+            final int written = doPadPageWithNulls();
+
+            this.currentHighAddress += written;
+            assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
+
+            assert written == lenSpaceLeft;
+            return;
+        }
+
+        currentPage.bytes[currentPage.writtenCount++] = (byte) (0x80 ^ HashCodeLoggable.TYPE);
+        BindingUtils.writeLong(currentPage.xxHash64.getValue(), currentPage.bytes, currentPage.writtenCount);
+        currentPage.writtenCount += HASH_CODE_SIZE;
+
+        this.currentHighAddress += HASH_CODE_SIZE + Byte.BYTES;
+        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
     }
 
     void close(boolean sync) {
