@@ -90,7 +90,7 @@ class LeafNodeDup extends LeafNode {
 
     @Override
     public String toString() {
-        return "LND {key:" + getKey().toString() + '}';
+        return "LND {key:" + getKey() + '}';
     }
 
     @Override

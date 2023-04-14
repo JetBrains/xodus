@@ -141,7 +141,6 @@ class Reflect(directory: File) {
 
     companion object {
 
-        private val DEFAULT_PAGE_SIZE = EnvironmentConfig.DEFAULT.logCachePageSize
         private const val MAX_VALID_LOGGABLE_TYPE = PatriciaTreeBase.MAX_VALID_LOGGABLE_TYPE.toInt()
 
         private fun inc(counts: IntHashMap<Int>, key: Int) {
