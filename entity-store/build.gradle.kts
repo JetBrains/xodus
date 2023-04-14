@@ -1,5 +1,4 @@
 dependencies {
-    implementation(project(":xodus-vfs"))
     api(project(":xodus-openAPI"))
     implementation(project(":xodus-utils"))
     implementation(project(":xodus-environment"))

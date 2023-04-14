@@ -397,9 +397,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
                 Settings.set(internalSettings, "Link null-indices present", "y");
             }
-            if (blobVault instanceof VFSBlobVault && new File(location, BLOBS_DIR).exists()) {
-                throw new ExodusException("Conversion from disk based storage to the file system storage is prohibited.");
-            }
             if (blobVault instanceof DiskBasedBlobVault) {
                 if (fromScratch || Settings.get(internalSettings, "refactorBlobFileLengths() applied") == null) {
                     if (!fromScratch) {
