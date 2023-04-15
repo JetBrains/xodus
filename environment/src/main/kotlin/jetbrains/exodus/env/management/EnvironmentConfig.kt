@@ -47,9 +47,6 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
     override val logCacheOpenFilesCount: Int
         get() = config.logCacheOpenFilesCount
 
-    override val logCacheUseNio: Boolean
-        get() = config.logCacheUseNio
-
     override val logCacheFreePhysicalMemoryThreshold: Long
         get() = config.logCacheFreePhysicalMemoryThreshold
 
@@ -210,12 +207,6 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
         get() = config.gcFileMinAge
         set(minAge) {
             config.gcFileMinAge = minAge
-        }
-
-    override var gcFilesInterval: Int
-        get() = config.gcFilesInterval
-        set(files) {
-            config.gcFilesInterval = files
         }
 
     override var gcRunPeriod: Int

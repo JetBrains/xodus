@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 dependencies {
     implementation(project(":xodus-compress"))
     implementation(project(":xodus-utils"))
@@ -13,7 +15,19 @@ tasks {
         archiveClassifier.set("test")
         from(sourceSets.test.get().output)
     }
+
     artifacts {
         add("testArtifacts", jarTest)
+    }
+
+    named("compileJava", JavaCompile::class) {
+        options.isWarnings = true
+        options.compilerArgs.add("-Werror")
+    }
+
+    named("compileKotlin", KotlinCompile::class) {
+        kotlinOptions {
+            allWarningsAsErrors = true
+        }
     }
 }

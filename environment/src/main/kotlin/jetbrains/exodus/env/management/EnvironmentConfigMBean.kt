@@ -25,7 +25,6 @@ interface EnvironmentConfigMBean {
     val logLockTimeout: Long
     val logCachePageSize: Int
     val logCacheOpenFilesCount: Int
-    val logCacheUseNio: Boolean
     val logCacheFreePhysicalMemoryThreshold: Long
     val isLogCacheShared: Boolean
     val isLogCacheNonBlocking: Boolean
@@ -61,7 +60,6 @@ interface EnvironmentConfigMBean {
     var gcMinUtilization: Int
     var gcRenameFiles: Boolean
     var gcFileMinAge: Int
-    var gcFilesInterval: Int
     var gcRunPeriod: Int
     var gcUtilizationFromScratch: Boolean
     var gcUtilizationFromFile: String?
