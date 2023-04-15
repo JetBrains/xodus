@@ -1,6 +1,6 @@
 pluginManagement {
     plugins {
-        id("org.jetbrains.kotlin.jvm") version("1.8.10")
+        id("org.jetbrains.kotlin.jvm") version("1.8.20")
         id("org.jetbrains.dokka") version("1.8.10")
         id("com.github.hierynomus.license") version("0.16.1")
         id("io.codearte.nexus-staging") version("0.30.0")
@@ -25,7 +25,7 @@ dependencyResolutionManagement {
             library("junit", "junit", "junit").versionRef("junit")
             version("commons-compress", "1.22")
             library("commons-compress", "org.apache.commons", "commons-compress").versionRef("commons-compress")
-            version("kotlin", "1.8.10")
+            version("kotlin", "1.8.20")
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").versionRef("kotlin")
             library("kotlin-stdlib-jdk8", "org.jetbrains.kotlin", "kotlin-stdlib-jdk8").versionRef("kotlin")
             version("kotlin-logging", "3.0.5")
