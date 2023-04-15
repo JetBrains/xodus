@@ -123,7 +123,7 @@ public class MVCCDataStructure {
         final long keyHashCode = xxHash.hash(key.getBaseBytes(), key.baseOffset(), key.getLength(), XX_HASH_SEED);
         var snapshot = transaction.getSnapshotId();
         transaction.addOperationReferenceEntryToList(new OperationReference(recordAddress, snapshot, keyHashCode));
-        operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType));
+        operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType, snapshot));
     }
 
 
@@ -240,7 +240,7 @@ public class MVCCDataStructure {
                     wrapper.state = TransactionState.REVERTED.get();
                     transactionsGCMap.get(transactionSnapId).stateWrapper.state = TransactionState.REVERTED.get();
                     var recordAddress = address.getAndIncrement(); // put special record to log
-                    operationLog.put(recordAddress, new TransactionCompletionLogRecord(true));
+                    operationLog.put(recordAddress, new TransactionCompletionLogRecord(true, snapshotId.get()));
 
                     var latchRef = wrapper.operationsCountLatchRef;
                     if (latchRef != null) {
@@ -277,7 +277,7 @@ public class MVCCDataStructure {
 
             // what we inserted "read" can see
             var recordAddress = address.getAndIncrement(); // put special record to log
-            operationLog.put(recordAddress, new TransactionCompletionLogRecord(false));
+            operationLog.put(recordAddress, new TransactionCompletionLogRecord(false, snapshotId.get()));
 
             // run GC if needed, TODO fixme - see performance tests
             if (transactionsGCMap.size() > transactionsLimit) {
