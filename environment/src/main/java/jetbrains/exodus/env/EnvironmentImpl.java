@@ -457,7 +457,8 @@ public class EnvironmentImpl implements Environment {
         if (metaServer != null) {
             metaServer.stop(this);
         }
-        backupController.close();
+
+        backupController.unregister();
 
         if (configMBean != null) {
             configMBean.unregister();
