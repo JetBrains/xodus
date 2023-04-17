@@ -70,9 +70,10 @@ internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
     private fun Int.forEachExpiredTransaction(callback: (TransactionBase) -> Unit) {
         if (this != 0) {
             val timeBound = System.currentTimeMillis() - this
+
             env?.forEachActiveTransaction {
                 val txn = it as TransactionBase
-                if (txn.startTime < timeBound) {
+                if (!txn.isGCTransaction && txn.startTime < timeBound) {
                     callback(it)
                 }
             }
