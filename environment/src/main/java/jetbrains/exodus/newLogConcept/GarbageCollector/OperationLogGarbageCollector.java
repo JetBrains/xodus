@@ -90,6 +90,8 @@ public class OperationLogGarbageCollector {
     // todo is that exactly last committed? check
     private OperationReference findLastCommitted(MVCCRecord mvccRecord, long keyHashCode) {
         OperationReference lastCommittedOperationReference = null;
+        // we add to queue several objects with one txID, the last one re-writes the previous value,
+        // so we take the last with COMMITTED state
         for (var operationRef : mvccRecord.linksToOperationsQueue) {
             if (operationRef.keyHashCode == keyHashCode &&
                     operationRef.wrapper.state == TransactionState.COMMITTED.get()) {
