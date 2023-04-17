@@ -10,7 +10,10 @@ public class TransactionOperationLogRecord implements OperationLogRecord {
     public final int operationType; // 0 - PUT, 1 - REMOVE
     final long transactionId;
 
-
+    @Override
+    public long getTransactionId() {
+        return transactionId;
+    }
     public TransactionOperationLogRecord(ByteIterable key, ByteIterable value, int operationType, long transactionId) {
         this.key = key;
         this.value = value;
