@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.lucene2;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.bindings.StringBinding;
@@ -147,13 +149,56 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             Files.createDirectory(luceneIndex);
         }
 
+        var isClosedCorrectly = log.isClosedCorrectly();
+        LongOpenHashSet storedFiles = new LongOpenHashSet();
+
+        if (!isClosedCorrectly) {
+            logger.warn("Log " + log.getLocation() + " was not closed correctly. " +
+                    "Clearing broken links between files and indexes.");
+
+            var namesToDelete = environment.computeInReadonlyTransaction(txn -> {
+                var toDelete = new ArrayList<ByteIterable>();
+
+                try (var cursor = nameToAddressStore.openCursor(txn)) {
+                    while (cursor.getNext()) {
+                        final var address = LongBinding.entryToLong(cursor.getValue());
+                        final var indexFileName = DirUtil.getFileNameByAddress(address);
+
+                        storedFiles.add(address);
+
+                        if (!Files.exists(luceneIndex.resolve(indexFileName))) {
+                            var key = cursor.getKey();
+                            logger.info("File " + StringBinding.entryToString(key) + " is absent and will be removed from index.");
+
+                            toDelete.add(key);
+                        }
+                    }
+                }
+
+                return toDelete;
+            });
+
+            environment.executeInTransaction(txn -> {
+                for (var name : namesToDelete) {
+                    nameToAddressStore.delete(txn, name);
+                }
+            });
+        }
+
         long[] maxAddressLengthIv = new long[]{-1, -1, -1};
         var fetchIvs = cipherKey != null;
 
+        LongOpenHashSet filesToDelete = new LongOpenHashSet();
         try (var fileStream = DirUtil.listLuceneFiles(path)) {
             fileStream.forEach(p -> {
                         var indexFile = p.getFileName().toString();
                         var address = DirUtil.getFileAddress(indexFile);
+
+                        if (!isClosedCorrectly && !storedFiles.contains(address)) {
+                            logger.info("File " + indexFile + " is absent in index and will be removed.");
+                            filesToDelete.add(address);
+                            return;
+                        }
 
                         if (address > maxAddressLengthIv[0]) {
                             maxAddressLengthIv[0] = address;
@@ -184,6 +229,26 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                         }
                     }
             );
+        }
+
+        if (!filesToDelete.isEmpty()) {
+            var addressIterator = filesToDelete.longIterator();
+
+            while (addressIterator.hasNext()) {
+                var address = addressIterator.nextLong();
+                var indexFileName = DirUtil.getFileNameByAddress(address);
+                var indexFile = luceneIndex.resolve(indexFileName);
+
+                var ivFileName = DirUtil.getIvFileName(indexFileName);
+                var ivFile = luceneIndex.resolve(ivFileName);
+
+                try {
+                    Files.deleteIfExists(indexFile);
+                    Files.deleteIfExists(ivFile);
+                } catch (IOException e) {
+                    throw new ExodusException("Can not delete file " + indexFile, e);
+                }
+            }
         }
 
         this.pageSize = log.getCachePageSize();
