@@ -31,6 +31,7 @@ public class OperationLogGarbageCollector {
         NonBlockingHashMapLong<SpecialRecordData> committedAndAbortedRecordsMap = new NonBlockingHashMapLong();
         // first run - find all special records and create map of committed and aborted ids
         findAllCommittedAndAborted(operationLog, committedAndAbortedRecordsMap);
+        // second run - remove/move all committed and aborted records and remove corresponding special records
         moveAndRemoveRecordsFromLog(operationLog, mvccHashMap, committedAndAbortedRecordsMap);
     }
 
@@ -39,12 +40,11 @@ public class OperationLogGarbageCollector {
                                             NonBlockingHashMapLong<SpecialRecordData> committedAndAbortedRecordsMap) {
         for (var operationRecord : operationLog.entrySet()) {
             if (operationRecord.getValue().getLogRecordType() == LogRecordType.OPERATION) {
-
                 var committedOrAbortedRecord = committedAndAbortedRecordsMap.get(operationRecord.getValue().getTransactionId());
-                if (committedOrAbortedRecord.state == TransactionState.REVERTED) {
-                    operationLog.remove(operationRecord.getKey());
-                    operationLog.remove(committedOrAbortedRecord.address);
-                } else if (committedOrAbortedRecord.state == TransactionState.COMMITTED) {
+
+                if (committedOrAbortedRecord != null && committedOrAbortedRecord.state == TransactionState.REVERTED) {
+                    logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);
+                } else if (committedOrAbortedRecord != null && committedOrAbortedRecord.state == TransactionState.COMMITTED) {
                     TransactionOperationLogRecord record = (TransactionOperationLogRecord) operationRecord.getValue();
                     final long keyHashCode = xxHash.hash(record.key.getBaseBytes(), record.key.baseOffset(),
                             record.key.getLength(), XX_HASH_SEED);
@@ -52,26 +52,12 @@ public class OperationLogGarbageCollector {
                     if (mvccRecord == null) {
                         throw new ExodusException();
                     }
-                    // todo is that exactly last committed? check
-                    OperationReference lastCommittedOperationReference = null;
-                    for (var operationRef : mvccRecord.linksToOperationsQueue) {
-                        if (operationRef.keyHashCode == keyHashCode && operationRef.wrapper.state == TransactionState.COMMITTED.get()) {
-                            lastCommittedOperationReference = operationRef;
-                        }
-                    }
+                    var lastCommittedOperationReference = findLastCommitted(mvccRecord, keyHashCode);
                     assert lastCommittedOperationReference != null;
-                    var lastCommittedTxId = lastCommittedOperationReference.getTxId();
                     var targetTxId = operationRecord.getValue().getTransactionId();
-                    if (lastCommittedOperationReference.getTxId() == targetTxId) {
-                        moveToBTree();
-                        operationLog.remove(operationRecord.getKey());
-                        operationLog.remove(committedOrAbortedRecord.address);
-                    } else if (lastCommittedTxId > targetTxId) {
-                        operationLog.remove(operationRecord.getKey());
-                        operationLog.remove(committedOrAbortedRecord.address);
-                    } else if (lastCommittedTxId < targetTxId) {
-                        throw new ExodusException();
-                    }
+
+                    removeCommittedRecord(lastCommittedOperationReference, targetTxId, operationRecord,
+                            committedOrAbortedRecord, operationLog);
                 }
             }
         }
@@ -79,5 +65,37 @@ public class OperationLogGarbageCollector {
 
     private void moveToBTree() {
         // todo not yet implemented
+    }
+
+    private void logRemove(Map<Long, OperationLogRecord> operationLog, long keyOperationRecord, long keySpecialRecord) {
+        operationLog.remove(keyOperationRecord);
+        operationLog.remove(keySpecialRecord);
+    }
+
+    private void removeCommittedRecord(OperationReference lastCommitted, long targetTxId,
+                                       Map.Entry<Long, OperationLogRecord> operationRecord,
+                                       SpecialRecordData committedOrAbortedRecord,
+                                       Map<Long, OperationLogRecord> operationLog) {
+        var lastCommittedTxId = lastCommitted.getTxId();
+        if (lastCommitted.getTxId() == targetTxId) {
+            moveToBTree();
+            logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);
+        } else if (lastCommittedTxId > targetTxId) {
+            logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);
+        } else if (lastCommittedTxId < targetTxId) {
+            throw new ExodusException();
+        }
+    }
+
+    // todo is that exactly last committed? check
+    private OperationReference findLastCommitted(MVCCRecord mvccRecord, long keyHashCode) {
+        OperationReference lastCommittedOperationReference = null;
+        for (var operationRef : mvccRecord.linksToOperationsQueue) {
+            if (operationRef.keyHashCode == keyHashCode &&
+                    operationRef.wrapper.state == TransactionState.COMMITTED.get()) {
+                lastCommittedOperationReference = operationRef;
+            }
+        }
+        return lastCommittedOperationReference;
     }
 }
