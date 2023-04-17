@@ -26,6 +26,7 @@ import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.debug.StackTrace;
 import jetbrains.exodus.debug.TxnProfiler;
 import jetbrains.exodus.entitystore.MetaServer;
+import jetbrains.exodus.env.management.BackupController;
 import jetbrains.exodus.env.management.DatabaseProfiler;
 import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
 import jetbrains.exodus.gc.GarbageCollector;
@@ -99,6 +100,9 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     private final DatabaseProfiler profilerMBean;
 
+    @NotNull
+    private final BackupController backupController;
+
     /**
      * Reference to the task which periodically ensures that stored data are synced to the disk.
      */
@@ -171,6 +175,8 @@ public class EnvironmentImpl implements Environment {
                 statisticsMBean = null;
                 profilerMBean = null;
             }
+
+            backupController = new BackupController(this);
 
             throwableOnCommit = null;
             throwableOnClose = null;
@@ -446,10 +452,13 @@ public class EnvironmentImpl implements Environment {
                 return;
             }
         }
+
         final MetaServer metaServer = ec.getMetaServer();
         if (metaServer != null) {
             metaServer.stop(this);
         }
+        backupController.close();
+
         if (configMBean != null) {
             configMBean.unregister();
         }
