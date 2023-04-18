@@ -293,7 +293,7 @@ public class MVCCDataStructure {
             if (operationLog.size() > transactionsLimit) {
                 ExecutorService service = Executors.newCachedThreadPool();
                 var logGCThread = service.submit(() -> {
-                    logGarbageCollector.clean(operationLog, hashMap); // todo what is target id
+                    logGarbageCollector.clean(operationLog, hashMap);
                 });
                 logGCThread.get();
                 // return to the MVCC GC to finish cleanup of minMaxId if needed
