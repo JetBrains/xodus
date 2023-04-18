@@ -406,6 +406,30 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
+    fun getLastLoggableOfType(type: Int): Loggable? {
+        var result: Loggable? = null
+        val approvedHighAddress = highAddress
+        for (fileAddress in writer.allFiles()) {
+            if (result != null) {
+                break
+            }
+            val it = getLoggableIterator(fileAddress)
+            while (it.hasNext()) {
+                val loggable = it.next()
+                if (loggable == null || loggable.address >= fileAddress + fileLengthBound) {
+                    break
+                }
+                if (loggable.type.toInt() == type) {
+                    result = loggable
+                }
+                if (loggable.address + loggable.length() == approvedHighAddress) {
+                    break
+                }
+            }
+        }
+        return result
+    }
+
     private fun checkLogConsistencyAndUpdateRootAddress(
         blockSetMutable: BlockSet.Mutable,
     ): Boolean {
@@ -817,14 +841,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     private fun checkDataLength(dataLength: Int, loggableAddress: Long) {
-        if (dataLength < 0) {
+        if (dataLength < 0 && formatWithHashCodeIsUsed) {
             DataCorruptionException.raise(
                 "Loggable with negative length was encountered",
                 this, loggableAddress
             )
         }
 
-        if (dataLength > fileLengthBound) {
+        if (dataLength > fileLengthBound && formatWithHashCodeIsUsed) {
             DataCorruptionException.raise(
                 "Loggable with length bigger than allowed value was discovered.",
                 this, loggableAddress
@@ -833,7 +857,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     private fun checkStructureId(structureId: Int, loggableAddress: Long) {
-        if (structureId < 0) {
+        if (structureId < 0 && formatWithHashCodeIsUsed) {
             DataCorruptionException.raise(
                 "Loggable with negative structure id was encountered",
                 this, loggableAddress
@@ -842,7 +866,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     private fun checkLoggableType(loggableType: Byte, loggableAddress: Long) {
-        if (loggableType < 0) {
+        if (loggableType < 0 && formatWithHashCodeIsUsed) {
             DataCorruptionException.raise("Loggable with negative type", this, loggableAddress)
         }
     }

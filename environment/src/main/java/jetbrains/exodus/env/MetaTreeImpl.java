@@ -55,7 +55,7 @@ final class MetaTreeImpl implements MetaTree {
             if (rootAddress >= 0) {
                 rootLoggable = log.read(rootAddress);
             } else {
-                rootLoggable = null;
+                rootLoggable = log.getLastLoggableOfType(DatabaseRoot.DATABASE_ROOT_TYPE);
             }
 
             if (rootLoggable != null) {
@@ -110,23 +110,6 @@ final class MetaTreeImpl implements MetaTree {
                 env.loadMetaTree(prototype.treeAddress()),
                 prototype.rootAddress()
         );
-    }
-
-    static MetaTreeImpl create(@NotNull final EnvironmentImpl env, final long snapshotId) {
-        final Log log = env.getLog();
-        final Loggable rootLoggable = log.read(snapshotId);
-
-        DatabaseRoot dbRoot = null;
-        try {
-            dbRoot = new DatabaseRoot(rootLoggable);
-        } catch (ExodusException e) {
-            EnvironmentImpl.loggerError("Failed to load database root at " + snapshotId, e);
-        }
-        if (dbRoot == null || !dbRoot.isValid()) {
-            throw new ExodusException("Can't load valid database root by address = " + snapshotId);
-        }
-
-        return new MetaTreeImpl(env.loadMetaTree(dbRoot.getRootAddress()), snapshotId);
     }
 
     @Override
