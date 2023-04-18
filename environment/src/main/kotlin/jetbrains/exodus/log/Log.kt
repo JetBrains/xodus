@@ -269,12 +269,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
-                logger.error("Data check is completed for environment $location.")
+                logger.info("Data check is completed for environment $location.")
             } else if (!rwIsReadonly && !needToPerformMigration && reader is FileDataReader &&
                 (!startupMetadata.isCorrectlyClosed || tmpLeftovers
                         || incorrectLastSegmentSize)
             ) {
-                logger.error(
+                logger.warn (
                     "Environment located at $location has been closed incorrectly. " +
                             "Data check routine is started to assess data consistency ..."
                 )
@@ -282,7 +282,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
-                logger.error("Data check is completed for environment $location.")
+                logger.info ("Data check is completed for environment $location.")
             }
 
             val blockSetImmutable = blockSetMutable.endWrite()
