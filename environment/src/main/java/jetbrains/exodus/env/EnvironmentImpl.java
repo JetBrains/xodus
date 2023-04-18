@@ -50,7 +50,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -123,6 +127,8 @@ public class EnvironmentImpl implements Environment {
     private final StreamCipherProvider streamCipherProvider;
     private final byte @Nullable [] cipherKey;
     private final long cipherBasicIV;
+
+    private boolean checkBlobs = false;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
@@ -203,6 +209,14 @@ public class EnvironmentImpl implements Environment {
             log.release();
             throw e;
         }
+    }
+
+    public void setCheckBlobs(boolean checkBlobs) {
+        this.checkBlobs = checkBlobs;
+    }
+
+    public boolean getCheckBlobs() {
+        return checkBlobs;
     }
 
     @Override
@@ -667,6 +681,68 @@ public class EnvironmentImpl implements Environment {
 
         throw new IllegalStateException("Environment is closed");
     }
+
+    @SuppressWarnings("unused")
+    public void prepareForBackup1() {
+        if (isOpen()) {
+            gc.suspend();
+
+            long highAddress;
+            long rootAddress;
+            ExpiredLoggableCollection expiredLoggables;
+
+            synchronized (commitLock) {
+                var log = this.log;
+                expiredLoggables = ExpiredLoggableCollection.newInstance(log);
+
+                log.padPageWithNulls(expiredLoggables);
+
+                log.beginWrite();
+                try {
+                    log.sync();
+                } finally {
+                    log.endWrite();
+                }
+
+                highAddress = log.getHighAddress();
+                rootAddress = metaTree.root;
+            }
+
+            gc.fetchExpiredLoggables(expiredLoggables);
+
+            var fileAddress = log.getFileAddress(highAddress);
+            var fileOffset = highAddress - fileAddress;
+
+            var metadata =
+                    BackupMetadata.serialize(1, EnvironmentImpl.CURRENT_FORMAT_VERSION,
+                            rootAddress, log.getCachePageSize(), log.getFileLengthBound(),
+                            true, fileAddress, fileOffset);
+
+
+            var backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME);
+            try {
+                Files.deleteIfExists(backupMetadata);
+            } catch (IOException e) {
+                throw new ExodusException("Error deletion of previous backup metadata", e);
+            }
+
+            try (var channel = FileChannel.open(
+                    Paths.get(log.getLocation()).resolve("backup.metadata"), StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE)) {
+                while (metadata.remaining() > 0) {
+                    //noinspection ResultOfMethodCallIgnored
+                    channel.write(metadata);
+                }
+            } catch (IOException e) {
+                throw new ExodusException("Error during generation of backup metadata", e);
+            }
+
+            return;
+        }
+
+        throw new IllegalStateException("Environment is closed");
+    }
+
 
     public void finishBackup() {
         if (isOpen()) {

@@ -220,6 +220,8 @@ object Environments {
                 }
 
                 env.flushAndSync()
+                env.checkBlobs = true
+
                 tempDir.delete()
             }
         }
@@ -257,6 +259,8 @@ object Environments {
                     latch.await()
                 }
             }
+
+            env.checkBlobs = true
 
             EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.location} is completed")
         }

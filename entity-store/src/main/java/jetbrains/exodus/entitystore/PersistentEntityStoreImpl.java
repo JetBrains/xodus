@@ -258,8 +258,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 internalSettings = settings;
             }
 
-            if (!environment.getLog().isClosedCorrectly()) {
-                logger.warn("Database was not closed correctly. Checking BLOBs consistency.");
+            if (environment.getCheckBlobs()) {
+                logger.warn("Checking BLOBs consistency.");
 
                 var blobsToRemove = ensureBlobsConsistency(txn, false);
                 if (!blobsToRemove.isEmpty()) {

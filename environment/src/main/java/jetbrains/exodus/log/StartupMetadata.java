@@ -28,29 +28,29 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
-public final class StartupMetadata {
-    private static final int HASHCODE_OFFSET = 0;
-    private static final int HASH_CODE_SIZE = Long.BYTES;
+public class StartupMetadata {
+    static final int HASHCODE_OFFSET = 0;
+    static final int HASH_CODE_SIZE = Long.BYTES;
 
-    private static final int FILE_VERSION_OFFSET = HASHCODE_OFFSET + HASH_CODE_SIZE;
-    private static final int FILE_VERSION_BYTES = Long.BYTES;
+    static final int FILE_VERSION_OFFSET = HASHCODE_OFFSET + HASH_CODE_SIZE;
+    static final int FILE_VERSION_BYTES = Long.BYTES;
 
-    private static final int FORMAT_VERSION_OFFSET = FILE_VERSION_OFFSET + FILE_VERSION_BYTES;
-    private static final int FORMAT_VERSION_BYTES = Integer.BYTES;
+    static final int FORMAT_VERSION_OFFSET = FILE_VERSION_OFFSET + FILE_VERSION_BYTES;
+    static final int FORMAT_VERSION_BYTES = Integer.BYTES;
 
-    private static final int ENVIRONMENT_FORMAT_VERSION_OFFSET = FORMAT_VERSION_OFFSET + FORMAT_VERSION_BYTES;
-    private static final int ENVIRONMENT_FORMAT_VERSION_BYTES = Integer.BYTES;
+    static final int ENVIRONMENT_FORMAT_VERSION_OFFSET = FORMAT_VERSION_OFFSET + FORMAT_VERSION_BYTES;
+    static final int ENVIRONMENT_FORMAT_VERSION_BYTES = Integer.BYTES;
 
-    private static final int DB_ROOT_ADDRESS_OFFSET = ENVIRONMENT_FORMAT_VERSION_OFFSET + ENVIRONMENT_FORMAT_VERSION_BYTES;
-    private static final int DB_ROOT_BYTES = Long.BYTES;
+    static final int DB_ROOT_ADDRESS_OFFSET = ENVIRONMENT_FORMAT_VERSION_OFFSET + ENVIRONMENT_FORMAT_VERSION_BYTES;
+    static final int DB_ROOT_BYTES = Long.BYTES;
 
-    private static final int PAGE_SIZE_OFFSET = DB_ROOT_ADDRESS_OFFSET + DB_ROOT_BYTES;
-    private static final int PAGE_SIZE_BYTES = Integer.BYTES;
+    static final int PAGE_SIZE_OFFSET = DB_ROOT_ADDRESS_OFFSET + DB_ROOT_BYTES;
+    static final int PAGE_SIZE_BYTES = Integer.BYTES;
 
-    private static final int FILE_LENGTH_BOUNDARY_OFFSET = PAGE_SIZE_OFFSET + PAGE_SIZE_BYTES;
-    private static final int FILE_LENGTH_BOUNDARY_BYTES = Long.BYTES;
+    static final int FILE_LENGTH_BOUNDARY_OFFSET = PAGE_SIZE_OFFSET + PAGE_SIZE_BYTES;
+    static final int FILE_LENGTH_BOUNDARY_BYTES = Long.BYTES;
 
-    private static final int CORRECTLY_CLOSED_FLAG_OFFSET = FILE_LENGTH_BOUNDARY_OFFSET + FILE_LENGTH_BOUNDARY_BYTES;
+    static final int CORRECTLY_CLOSED_FLAG_OFFSET = FILE_LENGTH_BOUNDARY_OFFSET + FILE_LENGTH_BOUNDARY_BYTES;
     public static final int CLOSED_FLAG_BYTES = Byte.BYTES;
 
     public static final int FILE_SIZE = CORRECTLY_CLOSED_FLAG_OFFSET + CLOSED_FLAG_BYTES;
@@ -71,7 +71,7 @@ public final class StartupMetadata {
     private final int environmentFormatVersion;
     private final long fileLengthBoundary;
 
-    private StartupMetadata(final boolean useFirstFile, final long rootAddress,
+    protected StartupMetadata(final boolean useFirstFile, final long rootAddress,
                             final boolean isCorrectlyClosed, int pageSize, long currentVersion,
                             int environmentFormatVersion,
                             long fileLengthBoundary) {
