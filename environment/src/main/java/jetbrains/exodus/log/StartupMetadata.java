@@ -210,8 +210,10 @@ public final class StartupMetadata {
         return result;
     }
 
-    public static StartupMetadata createStub(int pageSize, final int environmentFormatVersion, final long fileLengthBoundary) {
-        return new StartupMetadata(false, -1, true, pageSize, 1,
+    public static StartupMetadata createStub(int pageSize, final boolean isCorrectlyClosed,
+                                             final int environmentFormatVersion, final long fileLengthBoundary) {
+        return new StartupMetadata(false, -1, isCorrectlyClosed,
+                pageSize, 1,
                 environmentFormatVersion, fileLengthBoundary);
     }
 

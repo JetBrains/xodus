@@ -36,15 +36,12 @@ import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.env.replication.EnvironmentReplicationDelta;
 import jetbrains.exodus.io.DataReaderWriterProvider;
-import jetbrains.exodus.io.WatchingFileDataReader;
-import jetbrains.exodus.io.WatchingFileDataReaderWriterProvider;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
-import kotlin.Unit;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -88,7 +85,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private final String name;
     @NotNull
-    private final Environment environment;
+    private final EnvironmentImpl environment;
     private boolean closeEnvironment;
     @NotNull
     private final DataReaderWriterProvider readerWriterProvider;
@@ -166,7 +163,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                      @NotNull final String name) {
         hashCode = System.identityHashCode(this);
         this.config = config;
-        this.environment = environment;
+        this.environment = (EnvironmentImpl) environment;
         closeEnvironment = false;
         this.blobVault = blobVault;
         PersistentEntityStores.adjustEnvironmentConfigForEntityStore(environment.getEnvironmentConfig());
@@ -179,10 +176,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (readerWriterProvider.isInMemory()) {
             config.setMaxInPlaceBlobSize(Integer.MAX_VALUE);
         }
-        // if database is read-only turn caching off since cached results cannot be invalidated
-        if (readerWriterProvider.isReadonly()) {
-            config.setCachingDisabled(true);
-        }
 
         namingRulez = new StoreNamingRules(name);
         iterableCache = new EntityIterableCache(this);
@@ -194,24 +187,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         entitiesSequences = new IntHashMap<>();
         propertyTypes = new PropertyTypes();
 
-        final PersistentEntityStoreReplicator replicator = config.getStoreReplicator();
-        if (replicator != null) {
-            replicate(replicator, blobVault);
-        }
-
         init();
-
-        if (readerWriterProvider instanceof WatchingFileDataReaderWriterProvider) {
-            ((WatchingFileDataReader) ((EnvironmentImpl) environment).getLog().getConfig().getReader()).addNewDataListener((aLong, aLong2) -> {
-                environment.executeInReadonlyTransaction(txn -> {
-                    entityTypes.invalidate(txn);
-                    propertyIds.invalidate(txn);
-                    linkIds.invalidate(txn);
-                    propertyCustomTypeIds.invalidate(txn);
-                });
-                return Unit.INSTANCE;
-            });
-        }
 
         statistics = new PersistentEntityStoreStatistics(this);
         if (config.isManagementEnabled()) {
@@ -280,6 +256,19 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                         internalSettingsName, StoreConfig.WITHOUT_DUPLICATES, envTxn, true);
             } else {
                 internalSettings = settings;
+            }
+
+            if (!environment.getLog().isClosedCorrectly()) {
+                logger.warn("Database was not closed correctly. Checking BLOBs consistency.");
+
+                var blobsToRemove = ensureBlobsConsistency(txn, false);
+                if (!blobsToRemove.isEmpty()) {
+                    logger.warn("Database was not closed correctly. Found " + blobsToRemove.size() + " orphaned BLOBs. Removing them.");
+
+                    blobsToRemove.forEach(blob -> deleteBlob(txn, new PersistentEntity(this, new PersistentEntityId((int) blob[0], blob[1])),
+                            (int) blob[2]));
+                }
+
             }
             return result;
         });
@@ -604,7 +593,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         txn.closeCaches();
     }
 
-    public void ensureBlobsConsistency(final PersistentStoreTransaction txn) {
+    public ArrayList<long[]> ensureBlobsConsistency(final PersistentStoreTransaction txn, boolean force) {
+        final ArrayList<long[]> result = new ArrayList<>();
+
         try (Cursor entityTypesCursor = entityTypes.getTable().getSecondIndexCursor(txn.getEnvironmentTransaction())) {
             while (entityTypesCursor.getNext()) {
                 final int entityTypeId = IntegerBinding.compressedEntryToInt(entityTypesCursor.getKey());
@@ -646,9 +637,15 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                     break;
                                 }
 
-                                counter++;
-                                //noinspection BusyWait
-                                Thread.sleep(sleepInterval);
+                                if (force) {
+                                    counter++;
+                                    //noinspection BusyWait
+                                    Thread.sleep(sleepInterval);
+                                } else {
+                                    var propertyKey = PropertyKey.entryToPropertyKey(blobCursor.getKey());
+                                    result.add(new long[]{entityTypeId, propertyKey.getEntityLocalId(), propertyKey.getPropertyId()});
+                                    break;
+                                }
                             }
                         }
                     }
@@ -657,6 +654,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
             }
         }
+
+        return result;
     }
 
     @Override
@@ -1155,9 +1154,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
         }
 
-        if (result == null && !readerWriterProvider.isReadonly()) {
-            loggerWarn("Blob not found: " + blobVault.getBlobLocation(blobHandle), new FileNotFoundException());
-        }
         return result;
     }
 
@@ -1555,19 +1551,27 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     public boolean deleteBlob(@NotNull final PersistentStoreTransaction txn, @NotNull final PersistentEntity entity, @NotNull final String blobName) {
-        final Transaction envTxn = txn.getEnvironmentTransaction();
+
         final int blobId = getPropertyId(txn, blobName, false);
         if (blobId < 0) {
             return false;
         }
+        return deleteBlob(txn, entity, blobId);
+    }
+
+    private boolean deleteBlob(@NotNull PersistentStoreTransaction txn, @NotNull PersistentEntity entity, int blobId) {
+        final Transaction envTxn = txn.getEnvironmentTransaction();
+
         txn.invalidateCachedBlobString(entity, blobId);
         final EntityId id = entity.getId();
         final long entityLocalId = id.getLocalId();
         final BlobsTable blobs = getBlobsTable(txn, id.getTypeId());
         final ByteIterable value = blobs.get(envTxn, entityLocalId, blobId);
+
         if (value == null) {
             return false;
         }
+
         blobs.delete(envTxn, entityLocalId, blobId);
         deleteObsoleteBlobHandle(entryToBlobHandle(value), txn);
         return true;

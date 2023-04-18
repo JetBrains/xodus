@@ -15,18 +15,21 @@
  */
 package jetbrains.exodus.io;
 
+import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.EnvironmentImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
+
 public class AsyncFileDataReaderWriterProvider extends DataReaderWriterProvider {
     private @Nullable EnvironmentImpl env;
 
     @Override
     public Pair<DataReader, DataWriter> newReaderWriter(@NotNull String location) {
-        var reader = new FileDataReader(WatchingFileDataReaderWriterProvider.checkDirectory(location));
+        var reader = new FileDataReader(checkDirectory(location));
         String lockId = null;
 
         if (env != null) {
@@ -40,5 +43,18 @@ public class AsyncFileDataReaderWriterProvider extends DataReaderWriterProvider 
     public void onEnvironmentCreated(@NotNull Environment environment) {
         this.env = (EnvironmentImpl) environment;
         super.onEnvironmentCreated(environment);
+    }
+
+    private static File checkDirectory(String location) {
+        var directory = new File(location);
+
+        if (directory.isFile()) {
+            throw new ExodusException("A directory is required: " + directory);
+        }
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new ExodusException("Failed to create directory: " + directory);
+        }
+
+        return directory;
     }
 }

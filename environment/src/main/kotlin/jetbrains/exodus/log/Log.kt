@@ -153,7 +153,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     init {
         tryLock()
         try {
-            rwIsReadonly = config.readerWriterProvider?.isReadonly ?: false
+            rwIsReadonly = false
 
             val fileLength = config.fileSize * 1024L
 
@@ -164,7 +164,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     fileLength, logContainsBlocks
                 )
             } else {
-                StartupMetadata.createStub(config.cachePageSize, expectedEnvironmentVersion, fileLength)
+                StartupMetadata.createStub(
+                    config.cachePageSize, !logContainsBlocks,
+                    expectedEnvironmentVersion, fileLength
+                )
             }
 
             var needToPerformMigration = false
@@ -173,7 +176,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 startupMetadata = metadata
             } else {
                 startupMetadata = StartupMetadata.createStub(
-                    config.cachePageSize, expectedEnvironmentVersion,
+                    config.cachePageSize, !logContainsBlocks, expectedEnvironmentVersion,
                     fileLength
                 )
                 needToPerformMigration = logContainsBlocks
@@ -274,7 +277,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 (!startupMetadata.isCorrectlyClosed || tmpLeftovers
                         || incorrectLastSegmentSize)
             ) {
-                logger.warn (
+                logger.warn(
                     "Environment located at $location has been closed incorrectly. " +
                             "Data check routine is started to assess data consistency ..."
                 )
@@ -282,7 +285,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
-                logger.info ("Data check is completed for environment $location.")
+                logger.info("Data check is completed for environment $location.")
             }
 
             val blockSetImmutable = blockSetMutable.endWrite()

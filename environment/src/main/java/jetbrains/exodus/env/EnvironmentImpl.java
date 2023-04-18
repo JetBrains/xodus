@@ -17,7 +17,6 @@ package jetbrains.exodus.env;
 
 import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
 import jetbrains.exodus.core.dataStructures.Pair;
@@ -1290,9 +1289,6 @@ public class EnvironmentImpl implements Environment {
         @Override
         public void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
             if (key.equals(EnvironmentConfig.ENV_IS_READONLY)) {
-                if (log.getConfig().isReadonlyReaderWriterProvider()) {
-                    throw new InvalidSettingException("Can't modify read-only state in run time since DataReaderWriterProvider is read-only");
-                }
                 if (Boolean.TRUE.equals(value)) {
                     suspendGC();
                     final TransactionBase txn = beginTransaction();

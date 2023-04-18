@@ -49,13 +49,6 @@ public abstract class DataReaderWriterProvider {
     public static final String DEFAULT_READER_WRITER_PROVIDER = "jetbrains.exodus.io.AsyncFileDataReaderWriterProvider";
 
     /**
-     * Fully-qualified name of read-only watching {@code DataReaderWriteProvider}.
-     * @deprecated Will be removed in next version.
-     */
-    @Deprecated
-    public static final String WATCHING_READER_WRITER_PROVIDER = "jetbrains.exodus.io.WatchingFileDataReaderWriterProvider";
-
-    /**
      * Fully-qualified name of in-memory {@code DataReaderWriteProvider}.
      */
     public static final String IN_MEMORY_READER_WRITER_PROVIDER = "jetbrains.exodus.io.MemoryDataReaderWriterProvider";
@@ -77,15 +70,6 @@ public abstract class DataReaderWriterProvider {
      * @return {@code true} if the {@code DataReaderWriterProvider} creates in-memory {@linkplain DataReader} and {@linkplain DataWriter}
      */
     public boolean isInMemory() {
-        return false;
-    }
-
-    /**
-     * Returns {@code true} if the {@code DataReaderWriterProvider} creates read-only {@linkplain DataWriter}.
-     *
-     * @return {@code true} if the {@code DataReaderWriterProvider} creates read-only {@linkplain DataWriter}
-     */
-    public boolean isReadonly() {
         return false;
     }
 

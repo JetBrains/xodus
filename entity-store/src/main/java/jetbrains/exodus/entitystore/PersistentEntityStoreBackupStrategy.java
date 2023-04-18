@@ -78,7 +78,7 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
             if (blobVault instanceof FileSystemBlobVault) {
                 lastUsedHandle = store.getSequence(txn,
                         PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn);
-                store.ensureBlobsConsistency(txn);
+                store.ensureBlobsConsistency(txn, true);
             }
 
         } finally {

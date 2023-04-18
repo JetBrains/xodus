@@ -337,9 +337,6 @@ public class LogConfig {
                     case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER:
                         readerWriterProviderInstance = new AsyncFileDataReaderWriterProvider();
                         break;
-                    case DataReaderWriterProvider.WATCHING_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new WatchingFileDataReaderWriterProvider();
-                        break;
                     case DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER:
                         readerWriterProviderInstance = new MemoryDataReaderWriterProvider();
                         break;
@@ -349,11 +346,6 @@ public class LogConfig {
             }
         }
         return readerWriterProviderInstance;
-    }
-
-    public boolean isReadonlyReaderWriterProvider() {
-        final DataReaderWriterProvider provider = getReaderWriterProvider();
-        return provider != null && provider.isReadonly();
     }
 
     public void setUseV1Format(boolean useV1Format) {

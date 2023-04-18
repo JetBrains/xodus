@@ -15,9 +15,13 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ByteIterable;
 import org.jetbrains.annotations.NotNull;
 
 class SinglePageLoggable implements RandomAccessLoggable {
+    public static final SinglePageLoggable NULL_PROTOTYPE = new SinglePageLoggable(Loggable.NULL_ADDRESS,
+            Loggable.NULL_ADDRESS, (byte) 0, Loggable.NO_STRUCTURE_ID, Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES,
+            0, 0);
 
     private final long address;
     private final long end;

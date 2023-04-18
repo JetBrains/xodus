@@ -248,7 +248,8 @@ public final class BufferedDataWriter {
 
         assert currentPage.committedCount == pageSize ||
                 currentPage.pageAddress == (currentHighAddress & (~(long) (pageSize - 1)));
-        assert currentPage.committedCount == pageSize || writeCache.get(currentPage.pageAddress) != null;
+        assert currentPage.committedCount == 0 ||
+                currentPage.committedCount == pageSize || writeCache.get(currentPage.pageAddress) != null;
         assert this.committedHighAddress <= currentHighAddress;
 
         if (this.committedHighAddress < currentHighAddress) {

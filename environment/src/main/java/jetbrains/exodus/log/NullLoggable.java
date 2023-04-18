@@ -20,9 +20,6 @@ import org.jetbrains.annotations.NotNull;
 
 public final class NullLoggable {
     public static final byte TYPE = 0;
-    private static final SinglePageLoggable PROTOTYPE = new SinglePageLoggable(Loggable.NULL_ADDRESS,
-            Loggable.NULL_ADDRESS, TYPE, Loggable.NO_STRUCTURE_ID, Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES,
-            0, 0);
 
     public static SinglePageLoggable create(final long startAddress, final long endAddress) {
         return new SinglePageLoggable(startAddress, endAddress, TYPE, Loggable.NO_STRUCTURE_ID,
@@ -30,7 +27,7 @@ public final class NullLoggable {
     }
 
     public static SinglePageLoggable create() {
-        return PROTOTYPE;
+        return SinglePageLoggable.NULL_PROTOTYPE;
     }
 
     public static boolean isNullLoggable(final byte type) {

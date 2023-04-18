@@ -104,12 +104,6 @@ object Environments {
                 memoryUsagePercentage = ec.memoryUsagePercentage
             }
             setReaderWriterProvider(ec.logDataReaderWriterProvider)
-            if (isReadonlyReaderWriterProvider) {
-                ec.envIsReadonly = true
-                ec.envFailFastInReadonly = true
-                ec.isGcEnabled = false
-                isLockIgnored = true
-            }
 
             fileSize = ec.logFileSize
             lockTimeout = ec.logLockTimeout
