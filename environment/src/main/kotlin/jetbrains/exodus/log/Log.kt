@@ -231,8 +231,41 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                 SharedOpenFilesCache.invalidate()
                                 dataWriter.close()
 
+                                val blocks = TreeMap<Long, FileDataReader.FileBlock>()
+                                val blockIterator = reader.blocks.iterator()
+                                while (blockIterator.hasNext()) {
+                                    val block = blockIterator.next()
+                                    blocks[block.address] = block as FileDataReader.FileBlock
+                                }
+
+                                val blockAddressIterator = blocks.keys.iterator()
+                                while (blockAddressIterator.hasNext()) {
+                                    val address = blockAddressIterator.next()
+                                    logger.info(LogUtil.getLogFilename(address))
+                                }
+
+                                val blocksToTruncateIterator = blocks.tailMap(
+                                    backupMetadata.lastFileAddress,
+                                    false
+                                ).values.iterator()
 
                                 truncateFile(lastSegmentFile.toFile(), 0, backupMetadata.lastFileOffset)
+
+                                if (blocksToTruncateIterator.hasNext()) {
+                                    val blockToDelete = blocksToTruncateIterator.next()
+                                    logger.info("File ${LogUtil.getLogFilename(blockToDelete.address)} will be deleted.")
+
+
+                                    if (!blockToDelete.canWrite()) {
+                                        if (!blockToDelete.setWritable(true)) {
+                                            throw ExodusException(
+                                                "Can not write into file " + blockToDelete.absolutePath
+                                            )
+                                        }
+                                    }
+
+                                    Files.deleteIfExists(Path.of(blockToDelete.toURI()))
+                                }
 
                                 startupMetadata = backupMetadata
                                 restoredFromBackup = true
