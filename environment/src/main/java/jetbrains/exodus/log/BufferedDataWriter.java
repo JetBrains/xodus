@@ -246,6 +246,7 @@ public final class BufferedDataWriter {
             blockSetMutable = null;
         }
 
+        assert currentPage.committedCount <= currentPage.writtenCount;
         assert currentPage.committedCount == pageSize ||
                 currentPage.pageAddress == (currentHighAddress & (~(long) (pageSize - 1)));
         assert currentPage.committedCount == 0 ||

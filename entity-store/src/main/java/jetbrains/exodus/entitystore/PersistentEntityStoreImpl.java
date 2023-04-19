@@ -268,7 +268,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     blobsToRemove.forEach(blob -> deleteBlob(txn, new PersistentEntity(this, new PersistentEntityId((int) blob[0], blob[1])),
                             (int) blob[2]));
                 }
-
             }
             return result;
         });
@@ -616,8 +615,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
                             while (true) {
                                 var blobLocation = blobVault.getBlobLocation(blobHandle);
-                                if (blobLocation.exists() && blobLocation.length() ==
-                                        getBlobFileLength(blobHandle, envTransaction).longValue()) {
+                                var blobLength = getBlobFileLength(blobHandle, envTransaction);
+                                if (blobLength == null || blobLocation.exists() && blobLocation.length() == blobLength) {
                                     break;
                                 }
 
