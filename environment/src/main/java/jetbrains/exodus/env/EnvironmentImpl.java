@@ -658,37 +658,14 @@ public class EnvironmentImpl implements Environment {
         if (isOpen()) {
             gc.suspend();
 
-            long highAddress;
-            long rootAddress;
-            ExpiredLoggableCollection expiredLoggables;
-
-            synchronized (commitLock) {
-                var log = this.log;
-                expiredLoggables = ExpiredLoggableCollection.newInstance(log);
-
-                log.padPageWithNulls(expiredLoggables);
-
-                log.beginWrite();
-                try {
-                    log.sync();
-                } finally {
-                    log.endWrite();
-                }
-
-                highAddress = log.getHighAddress();
-                rootAddress = metaTree.root;
-            }
-
-            gc.fetchExpiredLoggables(expiredLoggables);
-
-            var fileAddress = log.getFileAddress(highAddress);
-            var fileOffset = highAddress - fileAddress;
+            var highAddressAndRoot = flushSyncAndFillPagesWithNulls();
+            var fileAddress = log.getFileAddress(highAddressAndRoot[0]);
+            var fileOffset = highAddressAndRoot[0] - fileAddress;
 
             var metadata =
                     BackupMetadata.serialize(1, EnvironmentImpl.CURRENT_FORMAT_VERSION,
-                            rootAddress, log.getCachePageSize(), log.getFileLengthBound(),
+                            highAddressAndRoot[1], log.getCachePageSize(), log.getFileLengthBound(),
                             true, fileAddress, fileOffset);
-
 
             var backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME);
             try {
@@ -712,6 +689,32 @@ public class EnvironmentImpl implements Environment {
         }
 
         throw new IllegalStateException("Environment is closed");
+    }
+
+    private long[] flushSyncAndFillPagesWithNulls() {
+        long highAddress;
+        long rootAddress;
+
+        ExpiredLoggableCollection expiredLoggables;
+        synchronized (commitLock) {
+            var log = this.log;
+            expiredLoggables = ExpiredLoggableCollection.newInstance(log);
+
+            log.padPageWithNulls(expiredLoggables);
+
+            log.beginWrite();
+            try {
+                log.sync();
+            } finally {
+                log.endWrite();
+            }
+
+            highAddress = log.getHighAddress();
+            rootAddress = metaTree.root;
+        }
+
+        gc.fetchExpiredLoggables(expiredLoggables);
+        return new long[]{highAddress, rootAddress};
     }
 
 
@@ -1354,7 +1357,7 @@ public class EnvironmentImpl implements Environment {
                     }
                     if (!log.isReadOnly()) {
                         log.updateStartUpDbRoot(metaTree.root);
-                        flushAndSync();
+                        flushSyncAndFillPagesWithNulls();
                     }
                 }
             }

@@ -85,6 +85,14 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
         processor.finish()
     }
 
+    fun deletePendingFiles() {
+        backgroundCleaningJob.synchronized {
+            if (!isSuspended) {
+                gc.doDeletePendingFiles()
+            }
+        }
+    }
+
     fun suspend() = backgroundCleaningJob.synchronized {
         if (!isSuspended) {
             isSuspended = true

@@ -191,30 +191,35 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     internal fun deletePendingFiles() {
         if (!cleaner.isCurrentThread) {
             getCleanerJobProcessor().queue(GcJob(this) {
-                deletePendingFiles()
+                cleaner.deletePendingFiles()
             })
         } else {
-            val filesToDelete = LongArrayList()
-            while (true) {
-                (deletionQueue.poll() ?: break).apply {
-                    if (pendingFilesToDelete.remove(this)) {
-                        filesToDelete.add(this)
-                    }
+            cleaner.deletePendingFiles()
+        }
+    }
+
+    fun doDeletePendingFiles() {
+        val filesToDelete = LongArrayList()
+        while (true) {
+            (deletionQueue.poll() ?: break).apply {
+                if (pendingFilesToDelete.remove(this)) {
+                    filesToDelete.add(this)
                 }
             }
-            if (!filesToDelete.isEmpty) {
-                // force flush and fsync in order to fix XD-249
-                // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
-                // to underlying storage device before any file is deleted
-                environment.flushAndSync()
-                val filesArray = filesToDelete.toArray()
-                environment.removeFiles(
-                    filesArray,
-                    if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
-                )
-                filesArray.forEach { utilizationProfile.removeFile(it) }
-                utilizationProfile.estimateTotalBytesAndWakeGcIfNecessary()
-            }
+        }
+
+        if (!filesToDelete.isEmpty) {
+            // force flush and fsync in order to fix XD-249
+            // in order to avoid data loss, it's necessary to make sure that any GC transaction is flushed
+            // to underlying storage device before any file is deleted
+            environment.flushAndSync()
+            val filesArray = filesToDelete.toArray()
+            environment.removeFiles(
+                filesArray,
+                if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
+            )
+            filesArray.forEach { utilizationProfile.removeFile(it) }
+            utilizationProfile.estimateTotalBytesAndWakeGcIfNecessary()
         }
     }
 

@@ -45,7 +45,7 @@ class BackupController(private val env: EnvironmentImpl) : MBeanBase(getObjectNa
         backupTransactionLock.lock()
         try {
             if (backupTransaction == null) {
-                throw IllegalStateException("Backup is not in progress")
+                return
             }
 
             backupTransaction!!.abort()
