@@ -51,7 +51,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -129,6 +128,8 @@ public class EnvironmentImpl implements Environment {
     private final long cipherBasicIV;
 
     private boolean checkBlobs = false;
+
+    private boolean checkLuceneDirectory = false;
 
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
@@ -219,6 +220,14 @@ public class EnvironmentImpl implements Environment {
         return checkBlobs;
     }
 
+    public boolean isCheckLuceneDirectory() {
+        return checkLuceneDirectory;
+    }
+
+    public void setCheckLuceneDirectory(boolean checkLuceneDirectory) {
+        this.checkLuceneDirectory = checkLuceneDirectory;
+    }
+
     @Override
     public long getCreated() {
         return log.getCreated();
@@ -260,6 +269,10 @@ public class EnvironmentImpl implements Environment {
     @SuppressWarnings("MethodMayBeStatic")
     public int getCurrentFormatVersion() {
         return CURRENT_FORMAT_VERSION;
+    }
+
+    public @NotNull BackupController getBackupController() {
+        return backupController;
     }
 
     @Nullable
@@ -641,49 +654,7 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    public String[] prepareForBackup() {
-        if (isOpen()) {
-            gc.suspend();
-
-            long highAddress;
-            long rootAddress;
-            ExpiredLoggableCollection expiredLoggables;
-
-            synchronized (commitLock) {
-                var log = this.log;
-                expiredLoggables = ExpiredLoggableCollection.newInstance(log);
-
-                log.padPageWithNulls(expiredLoggables);
-
-                log.beginWrite();
-                try {
-                    log.sync();
-                } finally {
-                    log.endWrite();
-                }
-
-                highAddress = log.getHighAddress();
-                rootAddress = metaTree.root;
-            }
-
-            gc.fetchExpiredLoggables(expiredLoggables);
-
-            var fileAddress = log.getFileAddress(highAddress);
-            var fileOffset = highAddress - fileAddress;
-
-            var metadata =
-                    StartupMetadata.serialize(1, EnvironmentImpl.CURRENT_FORMAT_VERSION,
-                            rootAddress, log.getCachePageSize(), log.getFileLengthBound(), true);
-
-            return new String[]{LogUtil.getLogFilename(fileAddress), String.valueOf(fileOffset),
-                    new String(metadata.array(), StandardCharsets.US_ASCII)};
-        }
-
-        throw new IllegalStateException("Environment is closed");
-    }
-
-    @SuppressWarnings("unused")
-    public void prepareForBackup1() {
+    public void prepareForBackup() {
         if (isOpen()) {
             gc.suspend();
 
@@ -727,7 +698,7 @@ public class EnvironmentImpl implements Environment {
             }
 
             try (var channel = FileChannel.open(
-                    Paths.get(log.getLocation()).resolve("backup.metadata"), StandardOpenOption.CREATE,
+                    backupMetadata, StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE)) {
                 while (metadata.remaining() > 0) {
                     //noinspection ResultOfMethodCallIgnored

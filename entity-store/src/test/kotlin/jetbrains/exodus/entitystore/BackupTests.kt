@@ -22,6 +22,7 @@ import jetbrains.exodus.backup.VirtualFileDescriptor
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.core.execution.JobProcessorExceptionHandler
 import jetbrains.exodus.core.execution.ThreadJobProcessor
+import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.util.CompressBackupUtil
 import jetbrains.exodus.util.IOUtil
@@ -30,6 +31,11 @@ import junit.framework.TestCase
 import org.apache.commons.compress.archivers.zip.ZipFile
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.file.*
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.function.Predicate
+
 
 class BackupTests : EntityStoreTestBase() {
     override fun needsImplicitTxn(): Boolean {
@@ -66,6 +72,118 @@ class BackupTests : EntityStoreTestBase() {
             }
         } finally {
             IOUtil.deleteRecursively(backupDir)
+        }
+    }
+
+    fun testSingularDynamic() {
+        val store = entityStore
+        store.config.maxInPlaceBlobSize = 0 // no in-place blobs
+        val randomDescription = arrayOfNulls<String>(1)
+        store.executeInTransaction { txn ->
+            val issue = txn.newEntity("Issue")
+            randomDescription[0] = Math.random().toString()
+            issue.setBlobString("description", randomDescription[0].notNull)
+        }
+
+        val backupDir = TestUtil.createTempDir()
+        val location = Path.of(store.environment.location)
+        val backupController = (store.getEnvironment() as EnvironmentImpl).backupController
+        backupController.prepareBackup()
+        try {
+            recursiveCopy(location, backupDir.toPath()) {
+                it != "xd.lck"
+            }
+        } finally {
+            backupController.finishBackup()
+        }
+        try {
+            val newStore = PersistentEntityStores.newInstance(backupDir)
+            newStore.use {
+                newStore.executeInReadonlyTransaction { txn ->
+                    assertEquals(1, txn.getAll("Issue").size())
+                    val issue = txn.getAll("Issue").first
+                    assertNotNull(issue)
+                    assertEquals(randomDescription[0], issue?.getBlobString("description"))
+                }
+            }
+        } finally {
+            IOUtil.deleteRecursively(backupDir)
+        }
+    }
+
+
+    @Throws(Exception::class)
+    fun testStressDynamic() {
+        val store = entityStore
+        store.config.maxInPlaceBlobSize = 0 // no in-place blobs
+        val issueCount = 1000
+        store.executeInTransaction { txn ->
+            for (i in 0 until issueCount) {
+                val issue = txn.newEntity("Issue")
+                issue.setBlobString("description", Math.random().toString())
+            }
+        }
+        val rnd = Random()
+        val finish = booleanArrayOf(false)
+        val backgroundChanges = intArrayOf(0)
+        val threadCount = 4
+        val threads = arrayOfNulls<ThreadJobProcessor>(threadCount)
+        for (i in threads.indices) {
+            threads[i] = ThreadJobProcessor("BackupTest Job Processor $i").apply {
+                start()
+                exceptionHandler = JobProcessorExceptionHandler { _, _, t -> println(t.toString()) }
+                queue(object : Job() {
+                    @Throws(Throwable::class)
+                    override fun execute() {
+                        while (!finish[0]) {
+                            store.executeInTransaction { txn ->
+                                val issue = txn.getAll("Issue").skip(rnd.nextInt(issueCount - 1)).first
+                                TestCase.assertNotNull(issue)
+                                issue?.setBlobString("description", Math.random().toString())
+                                print("\r" + ++backgroundChanges[0])
+                            }
+                        }
+                    }
+                })
+            }
+        }
+        Thread.sleep(1000)
+        val backupDir = TestUtil.createTempDir()
+        try {
+            val location = Path.of(store.environment.location)
+            val backupController = (store.getEnvironment() as EnvironmentImpl).backupController
+
+            backupController.prepareBackup()
+            try {
+                recursiveCopy(location, backupDir.toPath()) {
+                    it != "xd.lck"
+                }
+            } finally {
+                backupController.finishBackup()
+            }
+
+            finish[0] = true
+
+            val newStore = PersistentEntityStores.newInstance(backupDir)
+            newStore.use {
+                val lastUsedBlobHandle = longArrayOf(-1L)
+                newStore.executeInReadonlyTransaction { t ->
+                    val txn = t as PersistentStoreTransaction
+                    TestCase.assertEquals(issueCount.toLong(), txn.getAll("Issue").size())
+                    lastUsedBlobHandle[0] =
+                        newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
+                    for (issue in txn.getAll("Issue")) {
+                        val description = issue.getBlobString("description")
+                        TestCase.assertNotNull(description)
+                        TestCase.assertFalse(description.isNullOrEmpty())
+                    }
+                }
+            }
+        } finally {
+            IOUtil.deleteRecursively(backupDir)
+        }
+        for (thread in threads) {
+            thread?.finish()
         }
     }
 
@@ -154,8 +272,10 @@ class BackupTests : EntityStoreTestBase() {
         Thread.sleep(1000)
         val backupDir = TestUtil.createTempDir()
         try {
-            val backup = CompressBackupUtil.backup(if (useBackupBean) BackupBean(store) else store,
-                    backupDir, null, true)
+            val backup = CompressBackupUtil.backup(
+                if (useBackupBean) BackupBean(store) else store,
+                backupDir, null, true
+            )
             finish[0] = true
             val restoreDir = TestUtil.createTempDir()
             try {
@@ -167,7 +287,7 @@ class BackupTests : EntityStoreTestBase() {
                         val txn = t as PersistentStoreTransaction
                         TestCase.assertEquals(issueCount.toLong(), txn.getAll("Issue").size())
                         lastUsedBlobHandle[0] =
-                                newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
+                            newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
                         for (issue in txn.getAll("Issue")) {
                             val description = issue.getBlobString("description")
                             TestCase.assertNotNull(description)
@@ -178,8 +298,10 @@ class BackupTests : EntityStoreTestBase() {
                     for (fd in blobVault.backupStrategy.contents) {
                         (fd as BackupStrategy.FileDescriptor).file.let { file ->
                             if (file.isFile && file.name != FileSystemBlobVaultOld.VERSION_FILE) {
-                                TestCase.assertTrue("" + blobVault.getBlobHandleByFile(file) + " > " + lastUsedBlobHandle[0],
-                                        blobVault.getBlobHandleByFile(file) <= lastUsedBlobHandle[0])
+                                TestCase.assertTrue(
+                                    "" + blobVault.getBlobHandleByFile(file) + " > " + lastUsedBlobHandle[0],
+                                    blobVault.getBlobHandleByFile(file) <= lastUsedBlobHandle[0]
+                                )
                             }
                         }
                     }
@@ -207,10 +329,44 @@ class BackupTests : EntityStoreTestBase() {
                         entryFile.mkdirs()
                     } else {
                         entryFile.parentFile.mkdirs()
-                        FileOutputStream(entryFile).use { target -> zipFile.getInputStream(zipEntry).use { `in` -> IOUtil.copyStreams(`in`, target, IOUtil.BUFFER_ALLOCATOR) } }
+                        FileOutputStream(entryFile).use { target ->
+                            zipFile.getInputStream(zipEntry)
+                                .use { `in` -> IOUtil.copyStreams(`in`, target, IOUtil.BUFFER_ALLOCATOR) }
+                        }
                     }
                 }
             }
+        }
+
+        @Throws(IOException::class)
+        private fun recursiveCopy(sourceDir: Path, targetDir: Path, fileFilter: Predicate<String>) {
+            if (!Files.exists(targetDir)) {
+                Files.createDirectories(targetDir)
+            }
+            Files.walkFileTree(sourceDir, object : SimpleFileVisitor<Path>() {
+                @Throws(IOException::class)
+                override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    val targetSubdir = targetDir.resolve(sourceDir.relativize(dir))
+                    if (!Files.exists(targetSubdir)) {
+                        Files.createDirectory(targetSubdir)
+                    }
+                    return FileVisitResult.CONTINUE
+                }
+
+                @Throws(IOException::class)
+                override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    if (fileFilter.test(file.fileName.toString())) {
+                        val targetFile = targetDir.resolve(sourceDir.relativize(file))
+                        try {
+                            Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING)
+                        } catch (ex: NoSuchFileException) {
+                            // ignore
+                        }
+
+                    }
+                    return FileVisitResult.CONTINUE
+                }
+            })
         }
     }
 

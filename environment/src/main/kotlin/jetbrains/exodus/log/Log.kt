@@ -34,10 +34,13 @@ import java.io.Closeable
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.util.Arrays
 import java.util.TreeMap
 import java.util.concurrent.Semaphore
@@ -72,6 +75,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     val isClosedCorrectly: Boolean
         get() = startupMetadata.isCorrectlyClosed
+
+    var restoredFromBackup: Boolean = false
+        private set
 
     /** Size of single page in log cache. */
     var cachePageSize: Int
@@ -180,6 +186,62 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     fileLength
                 )
                 needToPerformMigration = logContainsBlocks
+            }
+
+            if (!needToPerformMigration && !startupMetadata.isCorrectlyClosed) {
+                val backupLocation = Path.of(location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
+                if (Files.exists(backupLocation)) {
+                    logger.info("Database $location : trying to restore from dynamic backup...")
+                    val backupMetadataBuffer = ByteBuffer.allocate(BackupMetadata.FILE_SIZE)
+                    FileChannel.open(backupLocation, StandardOpenOption.READ).use { channel ->
+                        while (backupMetadataBuffer.remaining() > 0) {
+                            val r = channel.read(backupMetadataBuffer)
+                            if (r == -1) {
+                                throw IOException("Unexpected end of file")
+                            }
+                        }
+                    }
+
+                    backupMetadataBuffer.rewind()
+                    val backupMetadata = BackupMetadata.deserialize(
+                        backupMetadataBuffer,
+                        startupMetadata.currentVersion, startupMetadata.isUseFirstFile
+                    )
+                    Files.deleteIfExists(backupLocation)
+
+                    if (backupMetadata == null || backupMetadata.rootAddress < 0 ||
+                        (backupMetadata.lastFileOffset % backupMetadata.pageSize.toLong()) != 0L
+                    ) {
+                        logger.warn("Dynamic backup is not stored correctly for database $location.")
+                    } else {
+                        val lastFileName = LogUtil.getLogFilename(backupMetadata.lastFileAddress)
+                        val lastSegmentFile = Path.of(location).resolve(lastFileName)
+
+                        if (!Files.exists(lastSegmentFile)) {
+                            logger.warn("Dynamic backup is not stored correctly for database $location.")
+                        } else {
+                            logger.info(
+                                "Found dynamic backup. " +
+                                        "Database $location will be restored till file $lastFileName, " +
+                                        "last file length ${backupMetadata.lastFileOffset}. DB root address ${backupMetadata.rootAddress}"
+                            )
+
+                            SharedOpenFilesCache.invalidate()
+                            try {
+                                SharedOpenFilesCache.invalidate()
+                                dataWriter.close()
+
+
+                                truncateFile(lastSegmentFile.toFile(), 0, backupMetadata.lastFileOffset)
+
+                                startupMetadata = backupMetadata
+                                restoredFromBackup = true
+                            } catch (ex: Exception) {
+                                logger.error("Failed to restore database $location from dynamic backup. ", ex)
+                            }
+                        }
+                    }
+                }
             }
 
             if (config.cachePageSize != startupMetadata.pageSize) {
@@ -342,6 +404,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             } else {
                 blockSetMutable.getBlock(lastFileAddress)
                 val lastBlock = blockSetMutable.getBlock(lastFileAddress)
+
+                if (!dataWriter.isOpen) {
+                    dataWriter.openOrCreateBlock(lastFileAddress, lastBlock.length())
+                }
+
                 val lastFileLength = lastBlock.length()
                 val currentHighAddress = lastFileAddress + lastFileLength
                 val highPageAddress = getHighPageAddress(currentHighAddress)
@@ -691,60 +758,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         is FileDataReader -> {
                             @Suppress("NAME_SHADOWING")
                             val endBlock = endBlock as FileDataReader.FileBlock
-
-                            val endBlockBackupPath =
-                                Path.of(location).resolve(
-                                    endBlock.name.substring(
-                                        0,
-                                        endBlock.name.length - LogUtil.LOG_FILE_EXTENSION_LENGTH
-                                    ) +
-                                            LogUtil.TMP_TRUNCATION_FILE_EXTENSION
-                                )
-
                             try {
-                                Files.copy(
-                                    Path.of(endBlock.toURI()),
-                                    endBlockBackupPath,
-                                    StandardCopyOption.REPLACE_EXISTING
-                                )
-
-                                RandomAccessFile(endBlockBackupPath.toFile(), "rw").use {
-                                    if (endBlockReminder > 0) {
-                                        val lastPage = ByteArray(cachePageSize)
-                                        it.seek(position)
-
-                                        it.read(lastPage, 0, endBlockReminder)
-                                        Arrays.fill(lastPage, endBlockReminder, lastPage.size, 0x80.toByte())
-                                        BufferedDataWriter.updatePageHashCode(lastPage)
-
-                                        it.seek(position)
-                                        it.write(lastPage)
-                                    }
-
-                                    it.setLength(position + cachePageSize)
-                                    it.fd.sync()
-                                }
-
-                                try {
-                                    Files.move(
-                                        endBlockBackupPath, Path.of(endBlock.toURI()),
-                                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE
-                                    )
-                                } catch (moveNotSupported: AtomicMoveNotSupportedException) {
-                                    logger.warn(
-                                        "Environment: $location. " +
-                                                "Atomic move is not supported by the file system and can not be used during " +
-                                                "log restore. Falling back to the non-atomic move."
-                                    )
-                                    Files.move(
-                                        endBlockBackupPath, Path.of(endBlock.toURI()),
-                                        StandardCopyOption.REPLACE_EXISTING
-                                    )
-                                }
-
-                                RandomAccessFile(endBlock, "rw").use {
-                                    it.fd.sync()
-                                }
+                                truncateFile(endBlock, endBlockReminder, position)
                             } catch (e: IOException) {
                                 logger.error("Error during truncation of file $endBlock", e)
                                 throw ExodusException("Can not restore log corruption", dataCorruptionException)
@@ -841,6 +856,70 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
 
         return Long.MIN_VALUE
+    }
+
+    private fun truncateFile(
+        endBlock: File,
+        endBlockReminder: Int,
+        position: Long
+    ) {
+        val endBlockBackupPath =
+            Path.of(location).resolve(
+                endBlock.name.substring(
+                    0,
+                    endBlock.name.length - LogUtil.LOG_FILE_EXTENSION_LENGTH
+                ) +
+                        LogUtil.TMP_TRUNCATION_FILE_EXTENSION
+            )
+
+
+        Files.copy(
+            Path.of(endBlock.toURI()),
+            endBlockBackupPath,
+            StandardCopyOption.REPLACE_EXISTING
+        )
+
+        RandomAccessFile(endBlockBackupPath.toFile(), "rw").use {
+            if (endBlockReminder > 0) {
+                val lastPage = ByteArray(cachePageSize)
+                it.seek(position)
+
+                it.read(lastPage, 0, endBlockReminder)
+                Arrays.fill(lastPage, endBlockReminder, lastPage.size, 0x80.toByte())
+                BufferedDataWriter.updatePageHashCode(lastPage)
+
+                it.seek(position)
+                it.write(lastPage)
+
+                it.setLength(position + cachePageSize)
+            } else {
+                it.setLength(position)
+            }
+
+            it.fd.sync()
+        }
+
+        try {
+            Files.move(
+                endBlockBackupPath, Path.of(endBlock.toURI()),
+                StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE
+            )
+        } catch (moveNotSupported: AtomicMoveNotSupportedException) {
+            logger.warn(
+                "Environment: $location. " +
+                        "Atomic move is not supported by the file system and can not be used during " +
+                        "log restore. Falling back to the non-atomic move."
+            )
+            Files.move(
+                endBlockBackupPath, Path.of(endBlock.toURI()),
+                StandardCopyOption.REPLACE_EXISTING
+            )
+        }
+
+        RandomAccessFile(endBlock, "rw").use {
+            it.fd.sync()
+        }
+
     }
 
     private fun checkDataLength(dataLength: Int, loggableAddress: Long) {

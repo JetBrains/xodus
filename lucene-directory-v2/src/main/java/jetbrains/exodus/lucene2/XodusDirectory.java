@@ -118,22 +118,16 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         this.luceneOutputPath = path.resolve("luceneOutput");
         this.luceneIndex = path.resolve("luceneIndex");
 
+        if (Files.exists(luceneOutputPath)) {
+            IOUtil.deleteRecursively(luceneOutputPath.toFile());
+        }
+
         if (!environment.computeInTransaction(txn -> environment.storeExists(NAME_TO_ADDRESS_STORE_NAME, txn))) {
-            var removalWarn = false;
             var removalMessage = NAME_TO_ADDRESS_STORE_NAME +
                     " store does not exist. All Lucene index files will be removed.";
 
-            if (Files.exists(luceneOutputPath)) {
-                logger.warn(removalMessage);
-                removalWarn = true;
-
-                IOUtil.deleteRecursively(luceneOutputPath.toFile());
-            }
-
             if (Files.exists(luceneIndex)) {
-                if (!removalWarn) {
-                    logger.warn(removalMessage);
-                }
+                logger.warn(removalMessage);
                 IOUtil.deleteRecursively(luceneIndex.toFile());
             }
         }
@@ -149,12 +143,11 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             Files.createDirectory(luceneIndex);
         }
 
-        var isClosedCorrectly = log.isClosedCorrectly();
+        var runCheck = ((EnvironmentImpl) environment).isCheckLuceneDirectory();
         LongOpenHashSet storedFiles = new LongOpenHashSet();
 
-        if (!isClosedCorrectly) {
-            logger.warn("Log " + log.getLocation() + " was not closed correctly. " +
-                    "Clearing broken links between files and indexes.");
+        if (runCheck) {
+            logger.warn("Xodus directory " + log.getLocation() + " : clearing broken links between files and indexes.");
 
             var namesToDelete = environment.computeInReadonlyTransaction(txn -> {
                 var toDelete = new ArrayList<ByteIterable>();
@@ -168,7 +161,8 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
                         if (!Files.exists(luceneIndex.resolve(indexFileName))) {
                             var key = cursor.getKey();
-                            logger.info("File " + StringBinding.entryToString(key) + " is absent and will be removed from index.");
+                            logger.info("File " + StringBinding.entryToString(key) +
+                                    " is absent and will be removed from index.");
 
                             toDelete.add(key);
                         }
@@ -194,7 +188,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                         var indexFile = p.getFileName().toString();
                         var address = DirUtil.getFileAddress(indexFile);
 
-                        if (!isClosedCorrectly && !storedFiles.contains(address)) {
+                        if (runCheck && !storedFiles.contains(address)) {
                             logger.info("File " + indexFile + " is absent in index and will be removed.");
                             filesToDelete.add(address);
                             return;

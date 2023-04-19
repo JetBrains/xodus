@@ -40,6 +40,14 @@ public class BackupMetadata extends StartupMetadata {
         this.lastFileOffset = fileOffset;
     }
 
+    public long getLastFileAddress() {
+        return lastFileAddress;
+    }
+
+    public long getLastFileOffset() {
+        return lastFileOffset;
+    }
+
     public static ByteBuffer serialize(final long version, final int environmentFormatVersion,
                                        final long rootAddress, final int pageSize,
                                        final long fileLengthBoundary,
@@ -65,7 +73,7 @@ public class BackupMetadata extends StartupMetadata {
     }
 
 
-    public static StartupMetadata deserialize(ByteBuffer content, long version, boolean useFirstFile) {
+    public static BackupMetadata deserialize(ByteBuffer content, long version, boolean useFirstFile) {
         final int formatVersion = content.getInt(FORMAT_VERSION_OFFSET);
 
         if (formatVersion != FORMAT_VERSION) {
@@ -81,7 +89,16 @@ public class BackupMetadata extends StartupMetadata {
         final long lastFileAddress = content.getLong(LAST_FILE_ADDRESS);
         final long lastFileOffset = content.getLong(LAST_FILE_OFFSET);
 
+        final long hash = BufferedDataWriter.xxHash.hash(content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
+                BufferedDataWriter.XX_HASH_SEED);
+
+        if (hash != content.getLong(HASHCODE_OFFSET)) {
+            return null;
+        }
+
         return new BackupMetadata(useFirstFile, dbRootAddress, closedFlag, pageSize, version,
                 environmentFormatVersion, fileLengthBoundary, lastFileAddress, lastFileOffset);
     }
+
+
 }

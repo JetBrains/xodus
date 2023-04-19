@@ -108,6 +108,14 @@ public class StartupMetadata {
         return pageSize;
     }
 
+    public long getCurrentVersion() {
+        return currentVersion;
+    }
+
+    public boolean isUseFirstFile() {
+        return useFirstFile;
+    }
+
     public void closeAndUpdate(final FileDataReader reader) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
         final ByteBuffer content = serialize(currentVersion, environmentFormatVersion, rootAddress,

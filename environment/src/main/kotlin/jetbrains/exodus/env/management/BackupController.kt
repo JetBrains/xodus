@@ -27,7 +27,7 @@ class BackupController(private val env: EnvironmentImpl) : MBeanBase(getObjectNa
     private var backupTransaction: Transaction? = null
     private val backupTransactionLock = ReentrantLock()
 
-    override fun prepareBackup(): Array<String> {
+    override fun prepareBackup()  {
         backupTransactionLock.lock()
         try {
             if (backupTransaction != null) {

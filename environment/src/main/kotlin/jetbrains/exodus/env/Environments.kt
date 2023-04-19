@@ -220,7 +220,9 @@ object Environments {
                 }
 
                 env.flushAndSync()
+
                 env.checkBlobs = true
+                env.isCheckLuceneDirectory = true
 
                 tempDir.delete()
             }
@@ -239,6 +241,11 @@ object Environments {
 
                 expiredLoggableCollection.add(rootLoggable.end(), paddedSpace)
                 env.gc.utilizationProfile.fetchExpiredLoggables(expiredLoggableCollection)
+            }
+
+            if (env.log.restoredFromBackup) {
+                env.checkBlobs = true
+                env.isCheckLuceneDirectory = true
             }
         } else {
             EnvironmentImpl.loggerInfo(
@@ -261,6 +268,7 @@ object Environments {
             }
 
             env.checkBlobs = true
+            env.isCheckLuceneDirectory = true
 
             EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.location} is completed")
         }
