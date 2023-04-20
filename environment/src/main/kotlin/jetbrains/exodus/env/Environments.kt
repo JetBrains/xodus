@@ -149,6 +149,10 @@ object Environments {
                 )
             }
 
+            if (ec.envIsReadonly) {
+                throw ExodusException("Can't compact readonly environment: ${env.log.location}")
+            }
+
             val location = env.location
             File(location, "compactTemp${System.currentTimeMillis()}").let { tempDir ->
                 if (!tempDir.mkdir()) {
@@ -252,6 +256,9 @@ object Environments {
                 "Because environment ${env.log.location} was closed incorrectly space utilization " +
                         "will be computed from scratch"
             )
+            if (env.environmentConfig.isGcEnabled) {
+                env.gc.suspend()
+            }
             val job = env.gc.utilizationProfile.computeUtilizationFromScratch()
             if (job != null) {
                 val latch = CountDownLatch(1)
@@ -265,6 +272,9 @@ object Environments {
                 if (!job.isCompleted) {
                     latch.await()
                 }
+            }
+            if (env.environmentConfig.isGcEnabled) {
+                env.gc.resume()
             }
 
             env.checkBlobs = true
