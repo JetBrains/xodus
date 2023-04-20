@@ -119,7 +119,7 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
         }
 
         int currentPageSize = (int) Math.min(end - position, pageSize);
-        byte[] result = new byte[currentPageSize];
+        final byte[] result = new byte[currentPageSize];
         final int read = block.read(result, position - block.getAddress(), 0, currentPageSize);
 
         if (read != currentPageSize) {
@@ -141,15 +141,10 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
                     );
                 }
 
-//                final int validPageSize = BufferedDataWriter.checkLastPageConsistency(sha256,
-//                        position, result, pageSize, log);
+                final int validPageSize = BufferedDataWriter.checkLastPageConsistency(sha256,
+                        position, result, pageSize, log);
 
-                var validPageSize = Math.min(currentPageSize, chunkSize);
-                var validPage = new byte[pageSize];
-                System.arraycopy(result, 0, validPage, 0, validPageSize);
-                Arrays.fill(validPage, validPageSize, pageSize, (byte) 0x80);
-
-                this.currentPage = validPage;
+                this.currentPage = Arrays.copyOfRange(result, 0, validPageSize);
                 this.end = position + validPageSize;
                 throwCorruptionException = true;
                 return;
