@@ -654,6 +654,35 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
+
+    private long[] flushSyncAndFillPagesWithNulls() {
+        long highAddress;
+        long rootAddress;
+
+        ExpiredLoggableCollection expiredLoggables;
+        synchronized (commitLock) {
+            var log = this.log;
+            expiredLoggables = ExpiredLoggableCollection.newInstance(log);
+
+            log.padPageWithNulls(expiredLoggables);
+
+            log.beginWrite();
+            try {
+                log.sync();
+            } finally {
+                log.endWrite();
+            }
+
+            highAddress = log.getHighAddress();
+            rootAddress = metaTree.root;
+        }
+
+        gc.fetchExpiredLoggables(expiredLoggables);
+        return new long[]{highAddress, rootAddress};
+    }
+
+
+
     public void prepareForBackup() {
         if (isOpen()) {
             gc.suspend();
@@ -691,36 +720,15 @@ public class EnvironmentImpl implements Environment {
         throw new IllegalStateException("Environment is closed");
     }
 
-    private long[] flushSyncAndFillPagesWithNulls() {
-        long highAddress;
-        long rootAddress;
-
-        ExpiredLoggableCollection expiredLoggables;
-        synchronized (commitLock) {
-            var log = this.log;
-            expiredLoggables = ExpiredLoggableCollection.newInstance(log);
-
-            log.padPageWithNulls(expiredLoggables);
-
-            log.beginWrite();
-            try {
-                log.sync();
-            } finally {
-                log.endWrite();
-            }
-
-            highAddress = log.getHighAddress();
-            rootAddress = metaTree.root;
-        }
-
-        gc.fetchExpiredLoggables(expiredLoggables);
-        return new long[]{highAddress, rootAddress};
-    }
-
-
     public void finishBackup() {
         if (isOpen()) {
             gc.resume();
+        }
+        var backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME);
+        try {
+            Files.deleteIfExists(backupMetadata);
+        } catch (IOException e) {
+            throw new ExodusException("Error deletion of previous backup metadata", e);
         }
     }
 
