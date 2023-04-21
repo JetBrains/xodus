@@ -249,7 +249,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     false
                                 ).values.iterator()
 
-                                truncateFile(lastSegmentFile.toFile(), 0, backupMetadata.lastFileOffset)
+                                truncateFile(lastSegmentFile.toFile(), backupMetadata.lastFileOffset, null)
 
                                 if (blocksToTruncateIterator.hasNext()) {
                                     val blockToDelete = blocksToTruncateIterator.next()
@@ -751,6 +751,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val endBlockLength = dbRootEndAddress % fileLengthBound
                     val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
 
+
                     if (endBlock is FileDataReader.FileBlock && !endBlock.canWrite()) {
                         if (!endBlock.setWritable(true)) {
                             throw ExodusException(
@@ -761,6 +762,25 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     }
 
                     val position = dbRootEndAddress % fileLengthBound - endBlockReminder
+                    val lastPage = if (endBlockReminder > 0) {
+                        ByteArray(cachePageSize).also {
+                            val read = endBlock.read(it, position, 0, endBlockReminder)
+                            Arrays.fill(it, read, it.size, 0x80.toByte())
+                            val cipherProvider = config.cipherProvider
+                            if (cipherProvider != null) {
+                                cryptBlocksMutable(
+                                    cipherProvider, config.cipherKey, config.cipherBasicIV,
+                                    endBlock.address + position, it, read, it.size - read,
+                                    LogUtil.LOG_BLOCK_ALIGNMENT
+                                )
+                            }
+                            BufferedDataWriter.updatePageHashCode(it)
+                            SharedOpenFilesCache.invalidate()
+                        }
+                    } else {
+                        null
+                    }
+
                     logger.warn("File ${LogUtil.getLogFilename(endBlock.address)} is going to be truncated till length ${position + cachePageSize}")
 
                     when (reader) {
@@ -768,7 +788,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             @Suppress("NAME_SHADOWING")
                             val endBlock = endBlock as FileDataReader.FileBlock
                             try {
-                                truncateFile(endBlock, endBlockReminder, position)
+                                truncateFile(endBlock, position, lastPage)
                             } catch (e: IOException) {
                                 logger.error("Error during truncation of file $endBlock", e)
                                 throw ExodusException("Can not restore log corruption", dataCorruptionException)
@@ -778,14 +798,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         is MemoryDataReader -> {
                             @Suppress("NAME_SHADOWING")
                             val endBlock = endBlock as MemoryDataReader.MemoryBlock
-                            val lastPage = ByteArray(cachePageSize)
-
-                            endBlock.read(lastPage, position, 0, cachePageSize)
-                            Arrays.fill(lastPage, endBlockReminder, lastPage.size, 0x80.toByte())
-                            BufferedDataWriter.updatePageHashCode(lastPage)
 
                             endBlock.truncate(position.toInt())
-                            endBlock.write(lastPage, 0, cachePageSize)
+                            if (lastPage != null) {
+                                endBlock.write(lastPage, 0, cachePageSize)
+                            }
                         }
 
                         else -> {
@@ -869,8 +886,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     private fun truncateFile(
         endBlock: File,
-        endBlockReminder: Int,
-        position: Long
+        position: Long,
+        lastPage: ByteArray?
     ) {
         val endBlockBackupPath =
             Path.of(location).resolve(
@@ -889,17 +906,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         )
 
         RandomAccessFile(endBlockBackupPath.toFile(), "rw").use {
-            if (endBlockReminder > 0) {
-                val lastPage = ByteArray(cachePageSize)
-                it.seek(position)
-
-                it.read(lastPage, 0, endBlockReminder)
-                Arrays.fill(lastPage, endBlockReminder, lastPage.size, 0x80.toByte())
-                BufferedDataWriter.updatePageHashCode(lastPage)
-
+            if (lastPage != null) {
                 it.seek(position)
                 it.write(lastPage)
-
                 it.setLength(position + cachePageSize)
             } else {
                 it.setLength(position)
