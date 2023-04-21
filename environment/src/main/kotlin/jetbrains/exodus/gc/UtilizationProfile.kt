@@ -207,7 +207,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         val filesCount = fileAddresses.size
         val minFileAge = gc.minFileAge
         val totalFreeBytes: Long = filesUtilization.synchronized {
-            (minFileAge until filesCount).fold(0L) { sum, i ->
+            (0 until filesCount - minFileAge).fold(0L) { sum, i ->
                 sum + (this[fileAddresses[i]]?.value ?: usefulFileSize)
             }
         }
@@ -230,7 +230,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         var totalCleanableBytes = 0L
         var totalFreeBytes = 0L
         filesUtilization.synchronized {
-            (gc.minFileAge until fileAddresses.size).forEach { i ->
+            (0 until fileAddresses.size - gc.minFileAge).forEach { i ->
                 val file = fileAddresses[i]
                 if (file < highFile && !gc.isFileCleaned(file)) {
                     totalCleanableBytes += usefulFileSize

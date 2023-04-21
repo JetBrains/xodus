@@ -29,7 +29,7 @@ internal fun Log.warmup() {
     processor.queue(RunnableJob {
         // number of files to walk through at maximum
         val maxFiles = cache.memoryUsage / fileLengthBound
-        val files = allFileAddresses.take(max(1, maxFiles.toInt())).reversed()
+        val files = allFileAddresses.takeLast(max(1, maxFiles.toInt()))
         val size = files.size
         val it = DataIterator(this)
         val pageSize = config.cachePageSize

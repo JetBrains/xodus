@@ -259,7 +259,7 @@ class Reflect(directory: File) {
         var hashCodeLoggables= 0L
         val fileAddresses = log.allFileAddresses
         val fileCount = fileAddresses.size
-        fileAddresses.reversed().forEachIndexed { i, address ->
+        fileAddresses.forEachIndexed { i, address ->
             print("\rCollecting log statistics, reading file ${i + 1} of $fileCount, ${i * 100 / fileCount}% complete")
             val nextFileAddress = address + log.fileLengthBound
             log.getLoggableIterator(address).forEach {
@@ -338,7 +338,7 @@ class Reflect(directory: File) {
 
     fun spaceInfoFromUtilization() {
         val storedSpace = TreeMap<Long, Long?>()
-        log.allFileAddresses.reversed().forEach { address ->
+        log.allFileAddresses.forEach { address ->
             val freeBytes = env.gc.getFileFreeBytes(address)
             storedSpace[address] = if (freeBytes == Long.MAX_VALUE) null else log.getFileSize(address) - freeBytes
         }
