@@ -346,6 +346,10 @@ class BackupTests : EntityStoreTestBase() {
             Files.walkFileTree(sourceDir, object : SimpleFileVisitor<Path>() {
                 @Throws(IOException::class)
                 override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    if (dir.last().toString() == "blob-tmp-dir") {
+                        return FileVisitResult.SKIP_SUBTREE
+                    }
+
                     val targetSubdir = targetDir.resolve(sourceDir.relativize(dir))
                     if (!Files.exists(targetSubdir)) {
                         Files.createDirectory(targetSubdir)
