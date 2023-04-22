@@ -765,6 +765,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val lastPage = if (endBlockReminder > 0) {
                         ByteArray(cachePageSize).also {
                             val read = endBlock.read(it, position, 0, endBlockReminder)
+                            if (read != endBlockReminder) {
+                                throw ExodusException(
+                                    "Can not read segment ${LogUtil.getLogFilename(endBlock.address)}",
+                                    dataCorruptionException
+                                )
+                            }
+
                             Arrays.fill(it, read, it.size, 0x80.toByte())
                             val cipherProvider = config.cipherProvider
                             if (cipherProvider != null) {
