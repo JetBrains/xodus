@@ -8,7 +8,7 @@ dependencies {
     testImplementation(project(":xodus-utils", "testArtifacts"))
 }
 
-val testArtifacts by configurations.creating
+val testArtifacts: Configuration by configurations.creating
 
 tasks {
     val jarTest by creating(Jar::class) {

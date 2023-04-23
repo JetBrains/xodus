@@ -22,7 +22,7 @@ import jetbrains.exodus.core.dataStructures.hash.HashSet
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.*
 import jetbrains.exodus.tree.*
-import jetbrains.exodus.tree.ExpiredLoggableCollection.Companion.EMPTY
+import jetbrains.exodus.tree.ExpiredLoggableCollection.EMPTY
 import java.util.*
 
 internal class PatriciaTreeMutable(

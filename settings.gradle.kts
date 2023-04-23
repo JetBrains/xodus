@@ -4,6 +4,7 @@ pluginManagement {
         id("org.jetbrains.dokka") version("1.8.10")
         id("com.github.hierynomus.license") version("0.16.1")
         id("io.codearte.nexus-staging") version("0.30.0")
+        id("com.github.johnrengelman.shadow") version("8.1.1")
     }
     repositories {
         maven(url = "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
