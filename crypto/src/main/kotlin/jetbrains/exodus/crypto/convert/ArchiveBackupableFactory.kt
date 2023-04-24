@@ -18,6 +18,7 @@ package jetbrains.exodus.crypto.convert
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.backup.Backupable
 import jetbrains.exodus.backup.VirtualFileDescriptor
+import jetbrains.exodus.log.StartupMetadata
 import mu.KLogging
 import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.ArchiveInputStream
@@ -99,7 +100,7 @@ object ArchiveBackupableFactory : KLogging() {
                                              val _path: String,
                                              val _name: String,
                                              val size: Long = entry.size) : VirtualFileDescriptor {
-        private val canBeEncrypted = "version" != _name && "xd.lck" != _name
+        private val canBeEncrypted = "version" != _name && "xd.lck" != _name && _name != StartupMetadata.FIRST_FILE_NAME && _name != StartupMetadata.SECOND_FILE_NAME
 
         override fun getPath() = _path
 
