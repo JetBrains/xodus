@@ -212,6 +212,7 @@ subprojects {
                 publications {
                     create<MavenPublication>("mavenJava") {
                         artifactId = name
+                        groupId = group.toString()
                         from(components["java"])
                         pom {
                             name.set("Xodus")
