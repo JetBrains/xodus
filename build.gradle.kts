@@ -1,10 +1,10 @@
-import org.jetbrains.dokka.gradle.DokkaTask
+//import org.jetbrains.dokka.gradle.DokkaTask
 import org.jetbrains.kotlin.gradle.plugin.extraProperties
 import java.util.Calendar
 
 plugins {
     kotlin("jvm")
-    id("org.jetbrains.dokka")
+    //id("org.jetbrains.dokka")
     id("com.github.hierynomus.license")
     id("io.codearte.nexus-staging")
 }
@@ -70,7 +70,7 @@ subprojects {
     apply(plugin = "java")
     apply(plugin = "kotlin")
     apply(plugin = "signing")
-    apply(plugin = "org.jetbrains.dokka")
+    //apply(plugin = "org.jetbrains.dokka")
     apply(plugin = "maven-publish")
 
     tasks.withType<JavaCompile> {
@@ -177,20 +177,20 @@ subprojects {
         }
     }
 
-    if (shouldApplyDokka(this)) {
-        tasks.named<DokkaTask>("dokkaJavadoc") {
-            dokkaSourceSets {
-                configureEach {
-                    reportUndocumented.set(false)
-                }
-            }
-        }
-        tasks.named<Jar>("javadocJar") {
-            dependsOn("dokkaJavadoc")
-            from(tasks.named<DokkaTask>("dokkaJavadoc").get().outputDirectory)
-            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        }
-    }
+//    if (shouldApplyDokka(this)) {
+//        tasks.named<DokkaTask>("dokkaJavadoc") {
+//            dokkaSourceSets {
+//                configureEach {
+//                    reportUndocumented.set(false)
+//                }
+//            }
+//        }
+//        tasks.named<Jar>("javadocJar") {
+//            dependsOn("dokkaJavadoc")
+//            from(tasks.named<DokkaTask>("dokkaJavadoc").get().outputDirectory)
+//            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+//        }
+//    }
 
     if (!isSnapshot && providedSigningKeyId.isNotEmpty()) {
         extra["signing.keyId"] = providedSigningKeyId
