@@ -655,7 +655,7 @@ public class EnvironmentImpl implements Environment {
     }
 
 
-    private long[] flushSyncAndFillPagesWithNulls() {
+    public long[] flushSyncAndFillPagesWithNulls() {
         long highAddress;
         long rootAddress;
 

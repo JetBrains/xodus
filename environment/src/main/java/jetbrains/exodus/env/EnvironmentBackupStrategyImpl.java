@@ -20,7 +20,6 @@ import jetbrains.exodus.backup.FileDescriptorInputStream;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
 import jetbrains.exodus.log.DataCorruptionException;
 import jetbrains.exodus.log.LogUtil;
-import jetbrains.exodus.log.Loggable;
 import jetbrains.exodus.log.StartupMetadata;
 import jetbrains.exodus.util.IOUtil;
 import org.jetbrains.annotations.NotNull;
@@ -34,7 +33,7 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     @NotNull
     private final EnvironmentImpl environment;
 
-    private long rootEndAddress;
+    private long highAddress;
     private long fileLastAddress;
     private long fileLengthBound;
     private long rootAddress;
@@ -51,20 +50,13 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
     public void beforeBackup() {
         environment.suspendGC();
 
-        final long[] roots = environment.computeInReadonlyTransaction(txn -> {
-            final long address = ((TransactionBase) txn).getRoot();
-            final Loggable loggable = environment.getLog().read(address);
+        final long[] highAndRootAddress = environment.flushSyncAndFillPagesWithNulls();
 
-            return new long[]{address, loggable.end()};
-        });
-
-        rootAddress = roots[0];
-        rootEndAddress = roots[1];
+        highAddress = highAndRootAddress[0];
+        rootAddress = highAndRootAddress[1];
 
         fileLengthBound = environment.getLog().getFileLengthBound();
-        fileLastAddress = (rootEndAddress / fileLengthBound) * fileLengthBound;
-
-        environment.flushAndSync();
+        fileLastAddress = (highAddress / fileLengthBound) * fileLengthBound;
     }
 
     @Override
@@ -106,15 +98,13 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                                                 environment.getLog(), fileAddress);
                                     }
 
-                                    long updatedFileSize = Math.min(fileSize, rootEndAddress - fileAddress);
-                                    updatedFileSize = ((updatedFileSize + pageSize - 1) / pageSize) * pageSize;
-
+                                    final long updatedFileSize = Math.min(fileSize, highAddress - fileAddress);
                                     next = new FileDescriptor(file, "", updatedFileSize) {
                                         @Override
                                         public @NotNull InputStream getInputStream() throws IOException {
                                             return new FileDescriptorInputStream(new FileInputStream(file),
                                                     fileAddress, pageSize, getFileSize(),
-                                                    rootEndAddress - fileAddress,
+                                                    highAddress - fileAddress,
                                                     environment.getLog(), environment.getCipherProvider(),
                                                     environment.getCipherKey(), environment.getCipherBasicIV());
                                         }
