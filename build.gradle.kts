@@ -33,7 +33,8 @@ val group = "org.jetbrains.xodus"
 val version = xodusVersion
 
 fun shouldDeploy(project: Project): Boolean {
-    return project.version.toString().isNotEmpty() && project.name !in listOf("xodus-benchmarks", "xodus-samples")
+    return project.version.toString().isNotEmpty() && project.name !in listOf("xodus-benchmarks", "xodus-samples",
+        "xodus-environment-crash-tests")
 }
 
 fun shouldApplyDokka(project: Project): Boolean {
@@ -212,7 +213,7 @@ subprojects {
                 publications {
                     create<MavenPublication>("mavenJava") {
                         artifactId = name
-                        groupId = group.toString()
+                        groupId = rootProject.group.toString()
                         from(components["java"])
                         pom {
                             name.set("Xodus")
