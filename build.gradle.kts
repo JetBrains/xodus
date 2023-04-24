@@ -10,7 +10,7 @@ plugins {
 }
 
 val xodusVersion: String? by project
-val dailyBuild: Boolean? by project
+val dailyBuild: String? by project
 val mavenPublishUrl: String? by project
 val mavenPublishUsername: String? by project
 val mavenPublishPassword: String? by project
@@ -19,7 +19,7 @@ val signingPassword: String? by project
 val signingSecretKeyRingFile: String? by project
 
 val isSnapshot: Boolean = xodusVersion?.endsWith("SNAPSHOT") ?: true
-val isDailyBuild: Boolean = dailyBuild ?: false
+val isDailyBuild: Boolean = dailyBuild?.toBoolean() ?: false
 val providedPublishUrl = mavenPublishUrl ?: ""
 val providedPublishUsername = mavenPublishUsername ?: ""
 val providedPublishPassword = mavenPublishPassword ?: ""
