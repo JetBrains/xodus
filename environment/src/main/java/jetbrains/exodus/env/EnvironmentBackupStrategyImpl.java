@@ -63,6 +63,8 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
 
         fileLengthBound = environment.getLog().getFileLengthBound();
         fileLastAddress = (rootEndAddress / fileLengthBound) * fileLengthBound;
+
+        environment.flushAndSync();
     }
 
     @Override
