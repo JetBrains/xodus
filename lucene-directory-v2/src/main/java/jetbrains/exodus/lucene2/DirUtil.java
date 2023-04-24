@@ -51,11 +51,12 @@ public final class DirUtil {
     }
 
     private static final Predicate<Path> LUCENE_FILE_FILTER = path -> {
-        try {
-            return Files.isRegularFile(path) && Files.size(path) == LUCENE_FILE_NAME_WITH_EXT_LENGTH && path.endsWith(LUCENE_FILE_EXTENSION);
-        } catch (IOException e) {
-            throw new ExodusException("Can not retrieve size of the file " + path, e);
+        if (Files.isRegularFile(path)) {
+            var fileName = path.getFileName().toString();
+            return fileName.length() == LUCENE_FILE_NAME_WITH_EXT_LENGTH && fileName.endsWith(LUCENE_FILE_EXTENSION);
         }
+
+        return false;
     };
 
 

@@ -59,6 +59,8 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
     private static final String NAME_TO_ADDRESS_STORE_NAME = "xodus.lucene.v2.nameToAddressStore";
 
+    private static final AtomicLong ticks = new AtomicLong(System.nanoTime());
+
     private final SharedLogCache sharedLogCache;
     private final StreamCipherProvider cipherProvider;
 
@@ -82,7 +84,6 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
     private final AtomicLong outputIndex = new AtomicLong();
 
-    private final AtomicLong ticks = new AtomicLong(System.nanoTime());
     private final Path path;
 
     private final int pageSize;
@@ -183,7 +184,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         var fetchIvs = cipherKey != null;
 
         LongOpenHashSet filesToDelete = new LongOpenHashSet();
-        try (var fileStream = DirUtil.listLuceneFiles(path)) {
+        try (var fileStream = DirUtil.listLuceneFiles(luceneIndex)) {
             fileStream.forEach(p -> {
                         var indexFile = p.getFileName().toString();
                         var address = DirUtil.getFileAddress(indexFile);
