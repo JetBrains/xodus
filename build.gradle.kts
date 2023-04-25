@@ -30,7 +30,7 @@ val publishUrl: String =
     if (isDailyBuild) "https://packages.jetbrains.team/maven/p/xodus/xodus-daily" else providedPublishUrl
 
 group = "org.jetbrains.xodus"
-val version = xodusVersion
+version = xodusVersion ?: ""
 
 fun shouldDeploy(project: Project): Boolean {
     return project.version.toString().isNotEmpty() && project.name !in listOf(
@@ -218,6 +218,7 @@ subprojects {
                     create<MavenPublication>("mavenJava") {
                         artifactId = name
                         groupId = rootProject.group.toString()
+                        version = rootProject.version.toString()
                         from(components["java"])
                         pom {
                             name.set("Xodus")
