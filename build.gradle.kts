@@ -104,7 +104,7 @@ subprojects {
     dependencies {
         implementation(rootProject.libs.commons.compress)
         implementation(rootProject.libs.lz4)
-        implementation("it.unimi.dsi:fastutil:8.5.9")
+        implementation(rootProject.libs.fastutil)
         implementation(rootProject.libs.jcTools.core)
         implementation(rootProject.libs.kotlin.stdlib.jdk8)
 
