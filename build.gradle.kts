@@ -149,7 +149,7 @@ subprojects {
     tasks.javadoc {
         isFailOnError = false
         options.quiet()
-        (options as CoreJavadocOptions).addStringOption("Xdoclint:none")
+        (options as CoreJavadocOptions).addStringOption("Xdoclint:none", "-quiet")
     }
 
     dependencies {
