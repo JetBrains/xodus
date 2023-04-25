@@ -64,15 +64,11 @@ public class BackupUtil {
 
     /**
      * Takes a backup archive stream and re-encrypts it with the given keys.
-     * <p/>
      * Backup archive could contain any amount of databases and additional files.
      * Only databases are re-encrypted, other files are copied as is.
-     * <p/>
      * Null values can be passed for keys. In this case it is supposed that the backup archive is not encrypted
      * or will not be encrypted and stored as is.
-     * <p/>
      * If database content is encrypted, it is not compressed to avoid compression overhead.
-     * <p/>
      * Passed in archive stream should not be closed by user, method will close it automatically after re-encryption.
      *
      * @param archiveStream  backup archive stream

@@ -20,7 +20,6 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * For writing a loggable to log, instance should provide only type, data and its length.
- * <p/>
  * If the instance is read from log, then all its methods return actual data.
  */
 public interface Loggable {

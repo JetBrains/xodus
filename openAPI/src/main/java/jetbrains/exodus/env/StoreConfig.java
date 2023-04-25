@@ -24,9 +24,9 @@ package jetbrains.exodus.env;
  * physical space of the database if the keys tend to have common prefixes. Also these types of search tree differ in
  * performance characteristics: stores with key prefixing has better random key access, whereas stores without key
  * prefixing are preferable for sequential access in order of keys.
- *
+ * <p>
  * <table border=1>
- * <tr><td/><th>With duplicates</th><th>Without duplicates</th></tr>
+ * <tr><th>With duplicates</th><th>Without duplicates</th></tr>
  * <tr><th>With key prefixing</th><td>{@link #WITH_DUPLICATES_WITH_PREFIXING}</td><td>{@link #WITH_DUPLICATES_WITH_PREFIXING}</td></tr>
  * <tr><th>Without key prefixing</th><td>{@link #WITH_DUPLICATES}</td><td>{@link #WITHOUT_DUPLICATES}</td></tr>
  * </table>
@@ -83,7 +83,7 @@ public enum StoreConfig {
 
     /**
      * Returns {@code StoreConfig} value corresponding to the specified {@linkplain Store} attributes.
-     *
+     * <
      * <table border=1>
      * <tr><td/><th>With duplicates</th><th>Without duplicates</th></tr>
      * <tr><th>With key prefixing</th><td>{@link #WITH_DUPLICATES_WITH_PREFIXING}</td><td>{@link #WITH_DUPLICATES_WITH_PREFIXING}</td></tr>
