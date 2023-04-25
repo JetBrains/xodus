@@ -40,6 +40,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.concurrent.Executors;
 import java.util.zip.Deflater;
 
@@ -111,13 +112,9 @@ public class BackupUtil {
         executor.submit(() -> {
             try {
                 final byte[] readBuffer = new byte[1024 * 1024];
-
-                int binaryFormatVersion = -1;
-                int pageSize = -1;
-                long fileLengthBound = -1;
-
                 final int pageStep = 4 * 1024;
                 final int pageMaxSize = 256 * 1024;
+                var metadataMap = new HashMap<String, DbMetadata>();
 
                 var inputEntry = archiveStream.getNextEntry();
                 while (inputEntry != null) {
@@ -142,30 +139,40 @@ public class BackupUtil {
                     tarArchiveOutputStream.putArchiveEntry(outputArchiveEntry);
 
 
+                    final Path namePath = Path.of(name);
+
                     if (name.endsWith(LogUtil.LOG_FILE_EXTENSION)) {
                         int processed = 0;
                         int readBufferOffset = 0;
 
-                        final Path namePath = Path.of(name);
+                        final String rootName;
+                        if (namePath .getNameCount() == 1) {
+                            rootName = "";
+                        } else {
+                            rootName = namePath.subpath(0, 1).toString();
+                        }
+                        DbMetadata dbMetadata = metadataMap.get(rootName);
+
                         final long fileAddress = LogUtil.getAddress(namePath.getFileName().toString());
 
                         while (processed < entrySize) {
-                            if (binaryFormatVersion == EnvironmentImpl.CURRENT_FORMAT_VERSION) {
-                                if (fileLengthBound >= 0 && entrySize > fileLengthBound) {
+                            if (dbMetadata != null && dbMetadata.binaryFormatVersion == EnvironmentImpl.CURRENT_FORMAT_VERSION) {
+                                if (dbMetadata.fileLengthBound >= 0 && entrySize > dbMetadata.fileLengthBound) {
                                     throw new IllegalStateException("Backup is broken, size of the file " + name +
-                                            " should not exceed " + fileLengthBound);
+                                            " should not exceed " + dbMetadata.fileLengthBound);
                                 }
 
-                                if ((entrySize & (pageSize - 1)) != 0) {
+                                if ((entrySize & (dbMetadata.pageSize - 1)) != 0) {
                                     throw new IllegalStateException("Backup is broken, size of the file " + name +
-                                            " should be quantified by " + pageSize + " size of the file is "
-                                            + fileLengthBound);
+                                            " should be quantified by " + dbMetadata.pageSize + " size of the file is "
+                                            + dbMetadata.fileLengthBound);
                                 }
                             }
 
                             final int readSize = (int) Math.min(entrySize - processed, readBuffer.length - readBufferOffset);
-                            assert binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION ||
-                                    ((readSize + readBufferOffset) & (pageSize - 1)) == 0;
+                            assert dbMetadata == null ||
+                                    dbMetadata.binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION ||
+                                    ((readSize + readBufferOffset) & (dbMetadata.pageSize - 1)) == 0;
 
 
                             IOUtils.readFully(archiveStream, readBuffer, readBufferOffset, readSize);
@@ -173,20 +180,23 @@ public class BackupUtil {
 
                             readBufferOffset = 0;
 
-                            if (binaryFormatVersion < 0) {
+                            if (dbMetadata == null) {
                                 var versionInformation = detectFormatVersion(
                                         readBuffer, bufferSize, pageStep, pageMaxSize);
 
-                                binaryFormatVersion = versionInformation[0];
-                                pageSize = versionInformation[1];
+                                dbMetadata = new DbMetadata();
+                                dbMetadata.binaryFormatVersion = versionInformation[0];
+                                dbMetadata.pageSize = versionInformation[1];
 
-                                assert binaryFormatVersion >= 0;
+                                metadataMap.put(rootName, dbMetadata);
+
+                                assert dbMetadata.binaryFormatVersion >= 0;
                             }
 
                             byte[] dataToWrite;
                             final int dataToWriteLen;
 
-                            if (binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION) {
+                            if (dbMetadata.binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION) {
                                 dataToWrite = readBuffer;
                                 dataToWriteLen = bufferSize;
 
@@ -206,31 +216,35 @@ public class BackupUtil {
                                             LogUtil.LOG_BLOCK_ALIGNMENT);
                                 }
                             } else {
-                                var pages = bufferSize / pageSize;
-                                dataToWriteLen = pages * pageSize;
+                                var pages = bufferSize / dbMetadata.pageSize;
+                                dataToWriteLen = pages * dbMetadata.pageSize;
 
-                                validateBackupContent(readBuffer, pageSize, name, processed, dataToWriteLen);
+                                validateBackupContent(readBuffer, dbMetadata.pageSize, name, processed, dataToWriteLen);
 
                                 if (firstKey != null) {
                                     assert cipherProvider != null;
 
                                     dataToWrite = new byte[dataToWriteLen];
                                     encryptV2FormatPages(firstKey, firstIv, cipherProvider,
-                                            readBuffer, pageSize, processed, fileAddress, dataToWrite, dataToWriteLen);
+                                            readBuffer, dbMetadata.pageSize,
+                                            processed, fileAddress, dataToWrite, dataToWriteLen);
                                 } else {
                                     dataToWrite = readBuffer;
                                 }
 
-                                assert validateBackupContent(dataToWrite, pageSize, name, processed, dataToWriteLen);
+                                assert validateBackupContent(dataToWrite,
+                                        dbMetadata.pageSize, name, processed, dataToWriteLen);
 
                                 if (secondKey != null) {
                                     assert cipherProvider != null;
 
                                     encryptV2FormatPages(secondKey, secondIv, cipherProvider,
-                                            dataToWrite, pageSize, processed, fileAddress, dataToWrite, dataToWriteLen);
+                                            dataToWrite,
+                                            dbMetadata.pageSize, processed, fileAddress, dataToWrite, dataToWriteLen);
                                 }
 
-                                assert validateBackupContent(dataToWrite, pageSize, name, processed, dataToWriteLen);
+                                assert validateBackupContent(dataToWrite,
+                                        dbMetadata.pageSize, name, processed, dataToWriteLen);
 
                                 readBufferOffset = bufferSize - dataToWriteLen;
                             }
@@ -276,7 +290,15 @@ public class BackupUtil {
                             name.endsWith("/" + StartupMetadata.FIRST_FILE_NAME) || name.equals(StartupMetadata.SECOND_FILE_NAME)
                             || name.endsWith("/" + StartupMetadata.SECOND_FILE_NAME)) {
 
-                        if (binaryFormatVersion >= 0 && binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION) {
+                        final String rootName;
+                        if (namePath .getNameCount() == 1) {
+                            rootName = "";
+                        } else {
+                            rootName = namePath.subpath(0, 1).toString();
+                        }
+                        DbMetadata dbMetadata = metadataMap.get(rootName);
+
+                        if (dbMetadata != null && dbMetadata.binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION) {
                             throw new IllegalStateException("Backup is broken please fix backup consistency by " +
                                     "opening it in database and correctly closing database. " +
                                     "Database will restore data automatically.");
@@ -288,16 +310,21 @@ public class BackupUtil {
 
                         if (StartupMetadata.getFileVersion(buffer) >= 0) {
                             var startupMetadata = StartupMetadata.deserialize(buffer, 0, false);
-                            binaryFormatVersion = EnvironmentImpl.CURRENT_FORMAT_VERSION;
 
-                            if (pageSize > 0 && pageSize != startupMetadata.getPageSize()) {
+                            if (dbMetadata == null) {
+                                dbMetadata = new DbMetadata();
+                                dbMetadata.binaryFormatVersion = EnvironmentImpl.CURRENT_FORMAT_VERSION;
+
+                                dbMetadata.pageSize = startupMetadata.getPageSize();
+                                dbMetadata.fileLengthBound = startupMetadata.getFileLengthBoundary();
+                                metadataMap.put(rootName, dbMetadata);
+                            }
+
+                            if (dbMetadata.pageSize != startupMetadata.getPageSize()) {
                                 throw new IllegalStateException("Backup is broken please fix backup consistency by " +
                                         "opening it in database and correctly closing database. " +
                                         "Database will restore data automatically.");
                             }
-
-                            pageSize = startupMetadata.getPageSize();
-                            fileLengthBound = startupMetadata.getFileLengthBoundary();
                         }
 
                         tarArchiveOutputStream.write(readBuffer, 0, StartupMetadata.FILE_SIZE);
@@ -498,6 +525,12 @@ public class BackupUtil {
                 currentEntryInputStream = null;
             }
         }
+    }
+
+    private static final class DbMetadata {
+        private int binaryFormatVersion = -1;
+        private int pageSize = -1;
+        private long fileLengthBound = -1;
     }
 
 }

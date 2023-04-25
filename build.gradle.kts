@@ -29,7 +29,7 @@ val providedSigningSecretKeyRingFile = signingSecretKeyRingFile ?: "../key.gpg"
 val publishUrl: String =
     if (isDailyBuild) "https://packages.jetbrains.team/maven/p/xodus/xodus-daily" else providedPublishUrl
 
-val group = "org.jetbrains.xodus"
+group = "org.jetbrains.xodus"
 val version = xodusVersion
 
 fun shouldDeploy(project: Project): Boolean {
