@@ -17,11 +17,10 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             version("kotlin-lang", "1.8")
-            version("kotlin", "1.8.20")
-            version("lz4", "1.8.0")
+            version("kotlin", "1.8.21")
 
             version("kotlin-logging", "3.0.5")
-
+            version("lz4", "1.8.0")
             version("slf4j", "2.0.7")
             version("jetbrains-annotations", "24.0.0")
             version("jcTools", "4.0.1")
@@ -31,8 +30,6 @@ dependencyResolutionManagement {
             version("commons-io", "2.11.0")
             version("lucene", "8.10.0")
             version("fastutil", "8.5.9")
-
-
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")

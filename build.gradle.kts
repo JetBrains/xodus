@@ -1,4 +1,4 @@
-//import org.jetbrains.dokka.gradle.DokkaTask
+import org.jetbrains.dokka.gradle.DokkaTask
 import org.jetbrains.kotlin.gradle.plugin.extraProperties
 import java.util.Calendar
 
@@ -39,13 +39,14 @@ fun shouldDeploy(project: Project): Boolean {
     )
 }
 
-//fun shouldApplyDokka(project: Project): Boolean {
-//    return project.version.toString().isNotEmpty() && project.name !in listOf(
-//        "xodus-benchmarks",
-//        "xodus-samples",
-//        "xodus-query"
-//    )
-//}
+fun shouldApplyDokka(project: Project): Boolean {
+    return project.version.toString().isNotEmpty() && project.name !in listOf(
+        "xodus-benchmarks",
+        "xodus-samples",
+        "xodus-query",
+        "xodus-environment-crash-tests"
+    )
+}
 
 tasks.wrapper {
     gradleVersion = "8.1.1"
@@ -181,20 +182,20 @@ subprojects {
         }
     }
 
-//    if (shouldApplyDokka(this)) {
-//        tasks.named<DokkaTask>("dokkaJavadoc") {
-//            dokkaSourceSets {
-//                configureEach {
-//                    reportUndocumented.set(false)
-//                }
-//            }
-//        }
-//        tasks.named<Jar>("javadocJar") {
-//            dependsOn("dokkaJavadoc")
-//            from(tasks.named<DokkaTask>("dokkaJavadoc").get().outputDirectory)
-//            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-//        }
-//    }
+    if (shouldApplyDokka(this)) {
+        tasks.named<DokkaTask>("dokkaJavadoc") {
+            dokkaSourceSets {
+                configureEach {
+                    reportUndocumented.set(false)
+                }
+            }
+        }
+        tasks.named<Jar>("javadocJar") {
+            dependsOn("dokkaJavadoc")
+            from(tasks.named<DokkaTask>("dokkaJavadoc").get().outputDirectory)
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        }
+    }
 
     if (!isSnapshot && providedSigningKeyId.isNotEmpty()) {
         extra["signing.keyId"] = providedSigningKeyId
