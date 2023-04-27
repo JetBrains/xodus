@@ -13,93 +13,81 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.RandomAccessLoggable;
-import jetbrains.exodus.tree.ITreeCursor;
-import jetbrains.exodus.tree.TreeMetaInfo;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.log.RandomAccessLoggable
+import jetbrains.exodus.tree.ITreeCursor
+import jetbrains.exodus.tree.TreeMetaInfo
 
-import java.util.Iterator;
-
-class TemporaryEmptyStore extends StoreImpl {
-
-    TemporaryEmptyStore(@NotNull final EnvironmentImpl env, @NotNull final String name) {
-        super(env, name, TreeMetaInfo.EMPTY.clone(-1));
+internal class TemporaryEmptyStore @JvmOverloads constructor(
+    env: EnvironmentImpl,
+    name: String = "Temporary Empty Store"
+) : StoreImpl(env, name, TreeMetaInfo.EMPTY.clone(-1)) {
+    override fun getConfig(): StoreConfig {
+        return StoreConfig.TEMPORARY_EMPTY
     }
 
-    @NotNull
-    @Override
-    public StoreConfig getConfig() {
-        return StoreConfig.TEMPORARY_EMPTY;
+    override fun get(txn: Transaction, key: ByteIterable): ByteIterable? {
+        return null
     }
 
-    TemporaryEmptyStore(@NotNull final EnvironmentImpl env) {
-        this(env, "Temporary Empty Store");
+    override fun exists(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ): Boolean {
+        return false
     }
 
-    @Override
-    @Nullable
-    public ByteIterable get(@NotNull final Transaction txn, @NotNull final ByteIterable key) {
-        return null;
+    override fun put(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ): Boolean {
+        return throwCantModify(txn)
     }
 
-    @Override
-    public boolean exists(@NotNull final Transaction txn,
-                          @NotNull final ByteIterable key,
-                          @NotNull final ByteIterable value) {
-        return false;
+    override fun putRight(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ) {
+        throwCantModify(txn)
     }
 
-    @Override
-    public boolean put(@NotNull final Transaction txn,
-                       @NotNull final ByteIterable key,
-                       @NotNull final ByteIterable value) {
-        return throwCantModify(txn);
+    override fun add(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ): Boolean {
+        return throwCantModify(txn)
     }
 
-    @Override
-    public void putRight(@NotNull final Transaction txn,
-                         @NotNull final ByteIterable key,
-                         @NotNull final ByteIterable value) {
-        throwCantModify(txn);
+    override fun delete(txn: Transaction, key: ByteIterable): Boolean {
+        return throwCantModify(txn)
     }
 
-    @Override
-    public boolean add(@NotNull final Transaction txn,
-                       @NotNull final ByteIterable key,
-                       @NotNull final ByteIterable value) {
-        return throwCantModify(txn);
+    override fun count(txn: Transaction): Long {
+        return 0
     }
 
-    @Override
-    public boolean delete(@NotNull final Transaction txn, @NotNull final ByteIterable key) {
-        return throwCantModify(txn);
+    override fun openCursor(txn: Transaction): Cursor {
+        return ITreeCursor.EMPTY_CURSOR
     }
 
-    @Override
-    public long count(@NotNull final Transaction txn) {
-        return 0;
-    }
-
-    @Override
-    public Cursor openCursor(@NotNull final Transaction txn) {
-        return ITreeCursor.EMPTY_CURSOR;
-    }
-
-    @Override
-    public void reclaim(@NotNull final Transaction transaction,
-                        @NotNull final RandomAccessLoggable loggable,
-                        @NotNull final Iterator<RandomAccessLoggable> loggables) {
+    override fun reclaim(
+        transaction: Transaction,
+        loggable: RandomAccessLoggable,
+        loggables: Iterator<RandomAccessLoggable?>
+    ) {
         // nothing to reclaim
     }
 
-    private boolean throwCantModify(Transaction txn) {
-        if (txn.isReadonly()) {
-            throw new ReadonlyTransactionException();
+    private fun throwCantModify(txn: Transaction): Boolean {
+        if (txn.isReadonly) {
+            throw ReadonlyTransactionException()
         }
-        throw new UnsupportedOperationException("Can't modify temporary empty store");
+        throw UnsupportedOperationException("Can't modify temporary empty store")
     }
 }

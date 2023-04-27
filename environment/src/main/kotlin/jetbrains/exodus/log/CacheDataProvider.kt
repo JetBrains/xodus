@@ -13,11 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-public interface CacheDataProvider {
-    int getIdentity();
-
-    byte[] readPage(long pageAddress, long fileAddress);
-
+interface CacheDataProvider {
+    val identity: Int
+    fun readPage(pageAddress: Long, fileAddress: Long): ByteArray
 }

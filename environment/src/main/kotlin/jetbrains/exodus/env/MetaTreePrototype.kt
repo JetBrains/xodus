@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-public interface MetaTreePrototype {
-    long treeAddress();
-    long rootAddress();
+interface MetaTreePrototype {
+    fun treeAddress(): Long
+    fun rootAddress(): Long
 }

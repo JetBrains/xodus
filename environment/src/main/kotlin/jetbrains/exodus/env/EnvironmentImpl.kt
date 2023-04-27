@@ -13,102 +13,83 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ConfigSettingChangeListener;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.backup.BackupStrategy;
-import jetbrains.exodus.core.dataStructures.ObjectCacheBase;
-import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.execution.SharedTimer;
-import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.debug.StackTrace;
-import jetbrains.exodus.debug.TxnProfiler;
-import jetbrains.exodus.entitystore.MetaServer;
-import jetbrains.exodus.env.management.BackupController;
-import jetbrains.exodus.env.management.DatabaseProfiler;
-import jetbrains.exodus.env.management.EnvironmentConfigWithOperations;
-import jetbrains.exodus.gc.GarbageCollector;
-import jetbrains.exodus.gc.UtilizationProfile;
-import jetbrains.exodus.io.DataReaderWriterProvider;
-import jetbrains.exodus.io.RemoveBlockType;
-import jetbrains.exodus.io.StorageTypeNotAllowedException;
-import jetbrains.exodus.log.*;
-import jetbrains.exodus.tree.ExpiredLoggableCollection;
-import jetbrains.exodus.tree.TreeMetaInfo;
-import jetbrains.exodus.tree.btree.BTree;
-import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
-import jetbrains.exodus.util.DeferredIO;
-import jetbrains.exodus.util.IOUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jetbrains.exodus.ConfigSettingChangeListener
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.backup.BackupStrategy
+import jetbrains.exodus.core.dataStructures.ObjectCacheBase
+import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.core.execution.SharedTimer.ensureIdle
+import jetbrains.exodus.crypto.StreamCipherProvider
+import jetbrains.exodus.debug.TxnProfiler
+import jetbrains.exodus.env.MetaTreeImpl.Proto
+import jetbrains.exodus.env.management.BackupController
+import jetbrains.exodus.env.management.DatabaseProfiler
+import jetbrains.exodus.env.management.EnvironmentConfigWithOperations
+import jetbrains.exodus.gc.GarbageCollector
+import jetbrains.exodus.io.DataReaderWriterProvider
+import jetbrains.exodus.io.RemoveBlockType
+import jetbrains.exodus.io.StorageTypeNotAllowedException
+import jetbrains.exodus.log.*
+import jetbrains.exodus.tree.ExpiredLoggableCollection
+import jetbrains.exodus.tree.TreeMetaInfo
+import jetbrains.exodus.tree.btree.BTree
+import jetbrains.exodus.tree.btree.BTreeBalancePolicy
+import jetbrains.exodus.util.DeferredIO
+import jetbrains.exodus.util.IOUtil.isRamDiskFile
+import jetbrains.exodus.util.IOUtil.isRemoteFile
+import jetbrains.exodus.util.IOUtil.isRemovableFile
+import org.slf4j.LoggerFactory
+import java.io.File
+import java.io.FileInputStream
+import java.io.IOException
+import java.nio.channels.FileChannel
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
+import java.util.*
+import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock
+import javax.management.InstanceAlreadyExistsException
 
-import javax.management.InstanceAlreadyExistsException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig) : Environment {
+    @JvmField
+    val log: Log
+    private val ec: EnvironmentConfig
+    private var balancePolicy: BTreeBalancePolicy? = null
 
-import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
+    internal var metaTreeInternal: MetaTreeImpl
+    private val structureId: AtomicInteger
+    private val txns: TransactionSet
+    private val txnSafeTasks: LinkedList<RunnableWithTxnRoot>
+    var storeGetCache: StoreGetCache? = null
+        private set
+    private var envSettingsListener: EnvironmentSettingsListener? = null
+    var gc: GarbageCollector
+    val commitLock = Any()
+    private val metaReadLock: ReadLock
+    val metaWriteLock: WriteLock
+    private val txnDispatcher: ReentrantTransactionDispatcher
+    private var statistics: EnvironmentStatistics
+    var txnProfiler: TxnProfiler? = null
+    private var configMBean: jetbrains.exodus.env.management.EnvironmentConfig? = null
+    private var statisticsMBean: jetbrains.exodus.env.management.EnvironmentStatistics? = null
+    private var profilerMBean: DatabaseProfiler? = null
+    val backupController: BackupController
 
-public class EnvironmentImpl implements Environment {
-
-    public static final int META_TREE_ID = 1;
-
-    private static final Logger logger = LoggerFactory.getLogger(EnvironmentImpl.class);
-
-    public static final int CURRENT_FORMAT_VERSION = 2;
-
-    private static final String ENVIRONMENT_PROPERTIES_FILE = "exodus.properties";
-
-    @NotNull
-    private final Log log;
-    @NotNull
-    private final EnvironmentConfig ec;
-    private BTreeBalancePolicy balancePolicy;
-    private MetaTreeImpl metaTree;
-    private final AtomicInteger structureId;
-    @NotNull
-    private final TransactionSet txns;
-    private final LinkedList<RunnableWithTxnRoot> txnSafeTasks;
-    @Nullable
-    private StoreGetCache storeGetCache;
-    private final EnvironmentSettingsListener envSettingsListener;
-    private final GarbageCollector gc;
-    final Object commitLock = new Object();
-    private final ReentrantReadWriteLock.ReadLock metaReadLock;
-    final ReentrantReadWriteLock.WriteLock metaWriteLock;
-    private final ReentrantTransactionDispatcher txnDispatcher;
-    @NotNull
-    private final EnvironmentStatistics statistics;
-    @Nullable
-    private final TxnProfiler txnProfiler;
-    @Nullable
-    private final jetbrains.exodus.env.management.EnvironmentConfig configMBean;
-    @Nullable
-    private final jetbrains.exodus.env.management.EnvironmentStatistics statisticsMBean;
-    @Nullable
-    private final DatabaseProfiler profilerMBean;
-
-    @NotNull
-    private final BackupController backupController;
+    val metaTree: MetaTree
+        get() = metaTreeInternal
 
     /**
      * Reference to the task which periodically ensures that stored data are synced to the disk.
      */
-    private final @Nullable ScheduledFuture<?> syncTask;
+    private var syncTask: ScheduledFuture<*>? = null
 
     /**
      * Throwable caught during commit after which rollback of highAddress failed.
@@ -116,873 +97,700 @@ public class EnvironmentImpl implements Environment {
      * no transaction can be started or committed in that state. Once environment became inoperative,
      * it will remain inoperative forever.
      */
-    volatile Throwable throwableOnCommit;
-    private Throwable throwableOnClose;
+    @Volatile
+    var throwableOnCommit: Throwable? = null
+    private var throwableOnClose: Throwable? = null
+    private var stuckTxnMonitor: StuckTransactionMonitor? = null
+    private var streamCipherProvider: StreamCipherProvider? = null
+    private val cipherKey: ByteArray?
+    private var cipherBasicIV: Long = 0
 
-    @Nullable
-    private final StuckTransactionMonitor stuckTxnMonitor;
+    @JvmField
+    var checkBlobs = false
+    var isCheckLuceneDirectory = false
 
-    @Nullable
-    private final StreamCipherProvider streamCipherProvider;
-    private final byte @Nullable [] cipherKey;
-    private final long cipherBasicIV;
-
-    private boolean checkBlobs = false;
-
-    private boolean checkLuceneDirectory = false;
-
-    @SuppressWarnings({"ThisEscapedInObjectConstruction"})
-    EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
+    init {
         try {
-            this.log = log;
-            this.ec = ec;
-            final String logLocation = log.getLocation();
-            applyEnvironmentSettings(logLocation, ec);
-
-            checkStorageType(logLocation, ec);
-
-            final DataReaderWriterProvider readerWriterProvider = log.getConfig().getReaderWriterProvider();
-            assert readerWriterProvider != null;
-            readerWriterProvider.onEnvironmentCreated(this);
-
-            final Pair<MetaTreeImpl, Integer> meta;
-            final ExpiredLoggableCollection expired = ExpiredLoggableCollection.newInstance(log);
-
-            synchronized (commitLock) {
-                meta = MetaTreeImpl.create(this, expired);
-            }
-            metaTree = meta.getFirst();
-            structureId = new AtomicInteger(meta.getSecond());
-            txns = new TransactionSet();
-            txnSafeTasks = new LinkedList<>();
-            invalidateStoreGetCache();
-            envSettingsListener = new EnvironmentSettingsListener();
-            ec.addChangedSettingsListener(envSettingsListener);
-
-            gc = new GarbageCollector(this);
-
-            ReentrantReadWriteLock metaLock = new ReentrantReadWriteLock();
-            metaReadLock = metaLock.readLock();
-            metaWriteLock = metaLock.writeLock();
-
-            txnDispatcher = new ReentrantTransactionDispatcher(ec.getEnvMaxParallelTxns());
-
-            statistics = new EnvironmentStatistics(this);
-            txnProfiler = ec.getProfilerEnabled() ? new TxnProfiler() : null;
-            final jetbrains.exodus.env.management.EnvironmentConfig configMBean =
-                    ec.isManagementEnabled() ? createConfigMBean(this) : null;
+            this.log = log
+            this.ec = ec
+            val logLocation = log.location
+            applyEnvironmentSettings(logLocation, ec)
+            checkStorageType(logLocation, ec)
+            val readerWriterProvider = log.config.getReaderWriterProvider()
+            @Suppress("LeakingThis")
+            readerWriterProvider.onEnvironmentCreated(this)
+            val meta: Pair<MetaTreeImpl, Int>
+            val expired = ExpiredLoggableCollection.newInstance(log)
+            synchronized(commitLock) { meta = MetaTreeImpl.create(this, expired) }
+            metaTreeInternal = meta.getFirst()
+            structureId = AtomicInteger(meta.getSecond())
+            txns = TransactionSet()
+            txnSafeTasks = LinkedList()
+            invalidateStoreGetCache()
+            envSettingsListener = EnvironmentSettingsListener()
+            ec.addChangedSettingsListener(envSettingsListener!!)
+            @Suppress("LeakingThis")
+            gc = GarbageCollector(this)
+            val metaLock = ReentrantReadWriteLock()
+            metaReadLock = metaLock.readLock()
+            metaWriteLock = metaLock.writeLock()
+            txnDispatcher = ReentrantTransactionDispatcher(ec.envMaxParallelTxns)
+            @Suppress("LeakingThis")
+            statistics = EnvironmentStatistics(this)
+            txnProfiler = if (ec.profilerEnabled) TxnProfiler() else null
+            @Suppress("LeakingThis")
+            val configMBean = if (ec.isManagementEnabled) createConfigMBean(this) else null
             if (configMBean != null) {
-                this.configMBean = configMBean;
+                this.configMBean = configMBean
                 // if we don't gather statistics then we should not expose corresponding managed bean
-                statisticsMBean = ec.getEnvGatherStatistics() ? new jetbrains.exodus.env.management.EnvironmentStatistics(this) : null;
-                profilerMBean = txnProfiler == null ? null : new DatabaseProfiler(this);
+                @Suppress("LeakingThis")
+                statisticsMBean =
+                    if (ec.envGatherStatistics) jetbrains.exodus.env.management.EnvironmentStatistics(this) else null
+                @Suppress("LeakingThis")
+                profilerMBean = if (txnProfiler == null) null else DatabaseProfiler(this)
             } else {
-                this.configMBean = null;
-                statisticsMBean = null;
-                profilerMBean = null;
+                this.configMBean = null
+                statisticsMBean = null
+                profilerMBean = null
             }
-
-            backupController = new BackupController(this);
-
-            throwableOnCommit = null;
-            throwableOnClose = null;
-
-            stuckTxnMonitor = (transactionTimeout() > 0 || transactionExpirationTimeout() > 0) ? new StuckTransactionMonitor(this) : null;
-
-            final LogConfig logConfig = log.getConfig();
-            streamCipherProvider = logConfig.getCipherProvider();
-            cipherKey = logConfig.getCipherKey();
-            cipherBasicIV = logConfig.getCipherBasicIV();
-
-            if (!isReadOnly()) {
-                syncTask = SyncIO.scheduleSyncLoop(this);
+            @Suppress("LeakingThis")
+            backupController = BackupController(this)
+            throwableOnCommit = null
+            throwableOnClose = null
+            @Suppress("LeakingThis")
+            stuckTxnMonitor =
+                if (transactionTimeout() > 0 || transactionExpirationTimeout() > 0) StuckTransactionMonitor(this) else null
+            val logConfig = log.config
+            streamCipherProvider = logConfig.streamCipherProvider
+            cipherKey = logConfig.cipherKey
+            cipherBasicIV = logConfig.cipherBasicIV
+            syncTask = if (!isReadOnly) {
+                @Suppress("LeakingThis")
+                SyncIO.scheduleSyncLoop(this)
             } else {
-                syncTask = null;
+                null
             }
-
-            gc.fetchExpiredLoggables(expired);
-
-            loggerInfo("Exodus environment created: " + logLocation);
-        } catch (Exception e) {
-            logger.error("Error during opening the environment " + log.getLocation(), e);
-
-            log.switchToReadOnlyMode();
-            log.release();
-            throw e;
+            gc.fetchExpiredLoggables(expired)
+            loggerInfo("Exodus environment created: $logLocation")
+        } catch (e: Exception) {
+            logger.error("Error during opening the environment " + log.location, e)
+            log.switchToReadOnlyMode()
+            log.release()
+            throw e
         }
     }
 
-    public void setCheckBlobs(boolean checkBlobs) {
-        this.checkBlobs = checkBlobs;
+    override fun getCreated(): Long {
+        return log.created
     }
 
-    public boolean getCheckBlobs() {
-        return checkBlobs;
+    override fun getLocation(): String {
+        return log.location
     }
 
-    public boolean isCheckLuceneDirectory() {
-        return checkLuceneDirectory;
-    }
-
-    public void setCheckLuceneDirectory(boolean checkLuceneDirectory) {
-        this.checkLuceneDirectory = checkLuceneDirectory;
-    }
-
-    @Override
-    public long getCreated() {
-        return log.getCreated();
-    }
-
-    @Override
-    @NotNull
-    public String getLocation() {
-        return log.getLocation();
-    }
-
-    @Override
-    public @NotNull BitmapImpl openBitmap(@NotNull String name,
-                                          @NotNull final StoreConfig config,
-                                          @NotNull Transaction transaction) {
+    override fun openBitmap(
+        name: String,
+        config: StoreConfig,
+        transaction: Transaction
+    ): BitmapImpl {
         if (config.duplicates) {
-            throw new ExodusException("Bitmap can't be opened at top of the store with duplicates");
+            throw ExodusException("Bitmap can't be opened at top of the store with duplicates")
         }
-        final StoreImpl store = openStore(name.concat("#bitmap"), config, transaction);
-        return new BitmapImpl(store);
+        val store = openStore("$name#bitmap", config, transaction)
+        return BitmapImpl(store)
     }
 
-    @Override
-    @NotNull
-    public EnvironmentConfig getEnvironmentConfig() {
-        return ec;
+    override fun getEnvironmentConfig(): EnvironmentConfig {
+        return ec
     }
 
-    @Override
-    @NotNull
-    public EnvironmentStatistics getStatistics() {
-        return statistics;
+    override fun getStatistics(): EnvironmentStatistics {
+        return statistics
     }
 
-    public GarbageCollector getGC() {
-        return gc;
+    override fun openStore(
+        name: String,
+        config: StoreConfig,
+        transaction: Transaction
+    ): StoreImpl {
+        val txn = transaction as TransactionBase
+        return openStoreImpl(name, config, txn, txn.getTreeMetaInfo(name))
     }
 
-    @SuppressWarnings("MethodMayBeStatic")
-    public int getCurrentFormatVersion() {
-        return CURRENT_FORMAT_VERSION;
+    override fun openStore(
+        name: String,
+        config: StoreConfig,
+        transaction: Transaction,
+        creationRequired: Boolean
+    ): StoreImpl? {
+        val txn = transaction as TransactionBase
+        val metaInfo = txn.getTreeMetaInfo(name)
+        return if (metaInfo == null && !creationRequired) {
+            null
+        } else openStoreImpl(name, config, txn, metaInfo)
     }
 
-    public @NotNull BackupController getBackupController() {
-        return backupController;
+    override fun beginTransaction(): TransactionBase {
+        return beginTransaction(null, exclusive = false, cloneMeta = false)
     }
 
-    @Nullable
-    public TxnProfiler getTxnProfiler() {
-        return txnProfiler;
+    override fun beginTransaction(beginHook: Runnable?): TransactionBase {
+        return beginTransaction(beginHook, exclusive = false, cloneMeta = false)
     }
 
-    @Override
-    @NotNull
-    public StoreImpl openStore(@NotNull final String name,
-                               @NotNull final StoreConfig config,
-                               @NotNull final Transaction transaction) {
-        final TransactionBase txn = (TransactionBase) transaction;
-        return openStoreImpl(name, config, txn, txn.getTreeMetaInfo(name));
+    override fun beginExclusiveTransaction(): Transaction {
+        return beginTransaction(null, exclusive = true, cloneMeta = false)
     }
 
-    @Override
-    @Nullable
-    public StoreImpl openStore(@NotNull final String name,
-                               @NotNull final StoreConfig config,
-                               @NotNull final Transaction transaction,
-                               final boolean creationRequired) {
-        final TransactionBase txn = (TransactionBase) transaction;
-        final TreeMetaInfo metaInfo = txn.getTreeMetaInfo(name);
-        if (metaInfo == null && !creationRequired) {
-            return null;
+    override fun beginExclusiveTransaction(beginHook: Runnable): Transaction {
+        return beginTransaction(beginHook, exclusive = true, cloneMeta = false)
+    }
+
+    override fun beginReadonlyTransaction(): Transaction {
+        return beginReadonlyTransaction(null)
+    }
+
+    override fun beginReadonlyTransaction(beginHook: Runnable?): TransactionBase {
+        checkIsOperative()
+        return ReadonlyTransaction(this, false, beginHook)
+    }
+
+    open fun beginGCTransaction(): ReadWriteTransaction {
+        if (isReadOnly) {
+            throw ReadonlyTransactionException("Can't start GC transaction on read-only Environment")
         }
-        return openStoreImpl(name, config, txn, metaInfo);
-    }
-
-    @Override
-    @NotNull
-    public TransactionBase beginTransaction() {
-        return beginTransaction(null, false, false);
-    }
-
-    @Override
-    @NotNull
-    public TransactionBase beginTransaction(final Runnable beginHook) {
-        return beginTransaction(beginHook, false, false);
-    }
-
-    @NotNull
-    @Override
-    public Transaction beginExclusiveTransaction() {
-        return beginTransaction(null, true, false);
-    }
-
-    @NotNull
-    @Override
-    public Transaction beginExclusiveTransaction(Runnable beginHook) {
-        return beginTransaction(beginHook, true, false);
-    }
-
-    @NotNull
-    @Override
-    public Transaction beginReadonlyTransaction() {
-        return beginReadonlyTransaction(null);
-    }
-
-    @NotNull
-    @Override
-    public TransactionBase beginReadonlyTransaction(final Runnable beginHook) {
-        checkIsOperative();
-        return new ReadonlyTransaction(this, false, beginHook);
-    }
-
-    @NotNull
-    public ReadWriteTransaction beginGCTransaction() {
-        if (isReadOnly()) {
-            throw new ReadonlyTransactionException("Can't start GC transaction on read-only Environment");
+        return object : ReadWriteTransaction(this@EnvironmentImpl, null, ec.gcUseExclusiveTransaction, true) {
+            override val isGCTransaction: Boolean
+                get() = true
         }
-
-        return new ReadWriteTransaction(this, null, ec.getGcUseExclusiveTransaction(), true) {
-
-            @Override
-            boolean isGCTransaction() {
-                return true;
-            }
-        };
     }
 
-    @Override
-    public void executeInTransaction(@NotNull final TransactionalExecutable executable) {
-        executeInTransaction(executable, beginTransaction());
+    override fun executeInTransaction(executable: TransactionalExecutable) {
+        executeInTransaction(executable, beginTransaction())
     }
 
-    @Override
-    public void executeInExclusiveTransaction(@NotNull final TransactionalExecutable executable) {
-        executeInTransaction(executable, beginExclusiveTransaction());
+    override fun executeInExclusiveTransaction(executable: TransactionalExecutable) {
+        executeInTransaction(executable, beginExclusiveTransaction())
     }
 
-    @Override
-    public void executeInReadonlyTransaction(@NotNull TransactionalExecutable executable) {
-        final Transaction txn = beginReadonlyTransaction();
+    override fun executeInReadonlyTransaction(executable: TransactionalExecutable) {
+        val txn = beginReadonlyTransaction()
         try {
-            executable.execute(txn);
+            executable.execute(txn)
         } finally {
-            abortIfNotFinished(txn);
+            abortIfNotFinished(txn)
         }
     }
 
-    @Override
-    public <T> T computeInTransaction(@NotNull TransactionalComputable<T> computable) {
-        return computeInTransaction(computable, beginTransaction());
+    override fun <T> computeInTransaction(computable: TransactionalComputable<T>): T {
+        return computeInTransaction(computable, beginTransaction())
     }
 
-    @Override
-    public <T> T computeInExclusiveTransaction(@NotNull TransactionalComputable<T> computable) {
-        return computeInTransaction(computable, beginExclusiveTransaction());
+    override fun <T> computeInExclusiveTransaction(computable: TransactionalComputable<T>): T {
+        return computeInTransaction(computable, beginExclusiveTransaction())
     }
 
-    @Override
-    public <T> T computeInReadonlyTransaction(@NotNull TransactionalComputable<T> computable) {
-        final Transaction txn = beginReadonlyTransaction();
-        try {
-            return computable.compute(txn);
+    override fun <T> computeInReadonlyTransaction(computable: TransactionalComputable<T>): T {
+        val txn = beginReadonlyTransaction()
+        return try {
+            computable.compute(txn)
         } finally {
-            abortIfNotFinished(txn);
+            abortIfNotFinished(txn)
         }
     }
 
-    @Override
-    public void executeTransactionSafeTask(@NotNull final Runnable task) {
-        final long newestTxnRoot = txns.getNewestTxnRootAddress();
+    override fun executeTransactionSafeTask(task: Runnable) {
+        val newestTxnRoot = txns.newestTxnRootAddress
         if (newestTxnRoot == Long.MIN_VALUE) {
-            task.run();
+            task.run()
         } else {
-            synchronized (txnSafeTasks) {
-                txnSafeTasks.addLast(new RunnableWithTxnRoot(task, newestTxnRoot));
-            }
+            synchronized(txnSafeTasks) { txnSafeTasks.addLast(RunnableWithTxnRoot(task, newestTxnRoot)) }
         }
     }
 
-    public int getStuckTransactionCount() {
-        return stuckTxnMonitor == null ? 0 : stuckTxnMonitor.getStuckTxnCount();
+    val stuckTransactionCount: Int
+        get() {
+            val stuckTxnMonitor = this.stuckTxnMonitor
+            return stuckTxnMonitor?.stuckTxnCount ?: 0
+        }
+
+    override fun getCipherProvider(): StreamCipherProvider? {
+        return streamCipherProvider
     }
 
-    @Override
-    @Nullable
-    public StreamCipherProvider getCipherProvider() {
-        return streamCipherProvider;
+    override fun getCipherKey(): ByteArray? {
+        return cipherKey
     }
 
-    @Override
-    public byte @Nullable [] getCipherKey() {
-        return cipherKey;
+    override fun getCipherBasicIV(): Long {
+        return cipherBasicIV
     }
 
-    @Override
-    public long getCipherBasicIV() {
-        return cipherBasicIV;
-    }
-
-    @Override
-    public void clear() {
-        final Thread currentThread = Thread.currentThread();
+    override fun clear() {
+        val currentThread = Thread.currentThread()
         if (txnDispatcher.getThreadPermits(currentThread) != 0) {
-            throw new ExodusException("Environment.clear() can't proceed if there is a transaction in current thread");
+            throw ExodusException("Environment.clear() can't proceed if there is a transaction in current thread")
         }
-        runAllTransactionSafeTasks();
-        synchronized (txnSafeTasks) {
-            txnSafeTasks.clear();
-        }
-        suspendGC();
+        runAllTransactionSafeTasks()
+        synchronized(txnSafeTasks) { txnSafeTasks.clear() }
+        suspendGC()
         try {
-            final int permits = txnDispatcher.acquireExclusiveTransaction(currentThread);// wait for and stop all writing transactions
+            val permits =
+                txnDispatcher.acquireExclusiveTransaction(currentThread) // wait for and stop all writing transactions
             try {
-                synchronized (commitLock) {
-                    metaWriteLock.lock();
+                synchronized(commitLock) {
+                    metaWriteLock.lock()
                     try {
-                        gc.clear();
-                        log.clear();
-                        invalidateStoreGetCache();
-                        throwableOnCommit = null;
-                        final ExpiredLoggableCollection expired = ExpiredLoggableCollection.newInstance(log);
-                        final Pair<MetaTreeImpl, Integer> meta = MetaTreeImpl.create(this, expired);
-                        metaTree = meta.getFirst();
-                        structureId.set(meta.getSecond());
-                        gc.fetchExpiredLoggables(expired);
+                        gc.clear()
+                        log.clear()
+                        invalidateStoreGetCache()
+                        throwableOnCommit = null
+                        val expired = ExpiredLoggableCollection.newInstance(log)
+                        val meta: Pair<MetaTreeImpl, Int> = MetaTreeImpl.create(this, expired)
+                        metaTreeInternal = meta.getFirst()
+                        structureId.set(meta.getSecond())
+                        gc.fetchExpiredLoggables(expired)
                     } finally {
-                        metaWriteLock.unlock();
+                        metaWriteLock.unlock()
                     }
                 }
             } finally {
-                txnDispatcher.releaseTransaction(currentThread, permits);
+                txnDispatcher.releaseTransaction(currentThread, permits)
             }
         } finally {
-            resumeGC();
+            resumeGC()
         }
-
     }
 
-    public boolean isReadOnly() {
-        return ec.getEnvIsReadonly() || log.isReadOnly();
+    override fun isReadOnly(): Boolean {
+        return ec.envIsReadonly || log.isReadOnly
     }
 
-    @Override
-    public void close() {
+    override fun close() {
         // if this is already closed do nothing
-        synchronized (commitLock) {
-            if (!isOpen()) {
-                return;
+        synchronized(commitLock) {
+            if (!isOpen) {
+                return
             }
         }
-
-        final MetaServer metaServer = ec.getMetaServer();
-        if (metaServer != null) {
-            metaServer.stop(this);
-        }
-
-        backupController.unregister();
-
-        if (configMBean != null) {
-            configMBean.unregister();
-        }
+        val metaServer = ec.metaServer
+        metaServer?.stop(this)
+        backupController.unregister()
+        configMBean?.unregister()
         if (statisticsMBean != null) {
-            statisticsMBean.unregister();
+            statisticsMBean!!.unregister()
         }
         if (profilerMBean != null) {
-            profilerMBean.unregister();
+            profilerMBean!!.unregister()
         }
-        runAllTransactionSafeTasks();
+        runAllTransactionSafeTasks()
         // in order to avoid deadlock, do not finish gc inside lock
         // it is safe to invoke gc.finish() several times
-        gc.finish();
-        final float logCacheHitRate;
-        final float storeGetCacheHitRate;
-        synchronized (commitLock) {
+        gc.finish()
+        val logCacheHitRate: Float
+        val storeGetCacheHitRate: Float
+        synchronized(commitLock) {
+
             // concurrent close() detected
             if (throwableOnClose != null) {
-                throw new EnvironmentClosedException(throwableOnClose); // add combined stack trace information
+                throw EnvironmentClosedException(throwableOnClose) // add combined stack trace information
             }
-            final boolean closeForcedly = ec.getEnvCloseForcedly();
-            checkInactive(closeForcedly);
+            val closeForcedly = ec.envCloseForcedly
+            checkInactive(closeForcedly)
             try {
-                if (!closeForcedly && !isReadOnly() && ec.isGcEnabled()) {
-                    executeInTransaction(txn -> gc.getUtilizationProfile().forceSave(txn));
-                }
-                ec.removeChangedSettingsListener(envSettingsListener);
-                logCacheHitRate = log.getCacheHitRate();
-
-                if (!isReadOnly()) {
-                    metaReadLock.lock();
-                    try {
-                        log.updateStartUpDbRoot(metaTree.rootAddress());
-                    } finally {
-                        metaReadLock.unlock();
+                if (!closeForcedly && !isReadOnly && ec.isGcEnabled) {
+                    executeInTransaction { txn: Transaction? ->
+                        gc.utilizationProfile.forceSave(
+                            txn!!
+                        )
                     }
                 }
-
-                if (syncTask != null) {
-                    syncTask.cancel(false);
+                ec.removeChangedSettingsListener(envSettingsListener!!)
+                logCacheHitRate = log.cacheHitRate
+                if (!isReadOnly) {
+                    metaReadLock.lock()
+                    try {
+                        log.updateStartUpDbRoot(metaTreeInternal.rootAddress())
+                    } finally {
+                        metaReadLock.unlock()
+                    }
                 }
-
-                log.close();
+                if (syncTask != null) {
+                    syncTask!!.cancel(false)
+                }
+                log.close()
             } finally {
-                log.release();
+                log.release()
             }
             if (storeGetCache == null) {
-                storeGetCacheHitRate = 0;
+                storeGetCacheHitRate = 0f
             } else {
-                storeGetCacheHitRate = storeGetCache.hitRate();
-                storeGetCache.close();
+                storeGetCacheHitRate = storeGetCache!!.hitRate()
+                storeGetCache!!.close()
             }
             if (txnProfiler != null) {
-                txnProfiler.dump();
+                txnProfiler!!.dump()
             }
-            throwableOnClose = new EnvironmentClosedException();
-            throwableOnCommit = throwableOnClose;
+            throwableOnClose = EnvironmentClosedException()
+            throwableOnCommit = throwableOnClose
         }
-        loggerDebug("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate));
-        loggerDebug("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate));
+        loggerDebug("Store get cache hit rate: " + ObjectCacheBase.formatHitRate(storeGetCacheHitRate))
+        loggerDebug("Exodus log cache hit rate: " + ObjectCacheBase.formatHitRate(logCacheHitRate))
     }
 
-    @Override
-    public boolean isOpen() {
-        return throwableOnClose == null;
+    override fun isOpen(): Boolean {
+        return throwableOnClose == null
     }
 
-    @NotNull
-    @Override
-    public BackupStrategy getBackupStrategy() {
-        return new EnvironmentBackupStrategyImpl(this);
+    override fun getBackupStrategy(): BackupStrategy {
+        return EnvironmentBackupStrategyImpl(this)
     }
 
-    @Override
-    public void truncateStore(@NotNull final String storeName, @NotNull final Transaction txn) {
-        final ReadWriteTransaction t = throwIfReadonly(txn, "Can't truncate a store in read-only transaction");
-        StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, t, false);
-        if (store == null) {
-            throw new ExodusException("Attempt to truncate unknown store '" + storeName + '\'');
+    override fun truncateStore(storeName: String, txn: Transaction) {
+        val t = throwIfReadonly(txn, "Can't truncate a store in read-only transaction")
+        var store = openStore(storeName, StoreConfig.USE_EXISTING, t, false)
+            ?: throw ExodusException("Attempt to truncate unknown store '$storeName'")
+        t.storeRemoved(store)
+        val metaInfoCloned = store.metaInfo.clone(allocateStructureId())
+        store = StoreImpl(this, storeName, metaInfoCloned)
+        t.storeCreated(store)
+    }
+
+    override fun removeStore(storeName: String, txn: Transaction) {
+        val t = throwIfReadonly(txn, "Can't remove a store in read-only transaction")
+        val store = openStore(storeName, StoreConfig.USE_EXISTING, t, false)
+            ?: throw ExodusException("Attempt to remove unknown store '$storeName'")
+        t.storeRemoved(store)
+    }
+
+    val allStoreCount: Long
+        get() {
+            metaReadLock.lock()
+            return try {
+                metaTreeInternal.allStoreCount
+            } finally {
+                metaReadLock.unlock()
+            }
         }
-        t.storeRemoved(store);
-        final TreeMetaInfo metaInfoCloned = store.getMetaInfo().clone(allocateStructureId());
-        store = new StoreImpl(this, storeName, metaInfoCloned);
-        t.storeCreated(store);
+
+    override fun getAllStoreNames(txn: Transaction): List<String> {
+        checkIfTransactionCreatedAgainstThis(txn)
+        return (txn as TransactionBase).allStoreNames
     }
 
-    @Override
-    public void removeStore(@NotNull final String storeName, @NotNull final Transaction txn) {
-        final ReadWriteTransaction t = throwIfReadonly(txn, "Can't remove a store in read-only transaction");
-        final StoreImpl store = openStore(storeName, StoreConfig.USE_EXISTING, t, false);
-        if (store == null) {
-            throw new ExodusException("Attempt to remove unknown store '" + storeName + '\'');
+    override fun storeExists(storeName: String, txn: Transaction): Boolean {
+        return (txn as TransactionBase).getTreeMetaInfo(storeName) != null
+    }
+
+    override fun gc() {
+        gc.wake(true)
+    }
+
+    override fun suspendGC() {
+        gc.suspend()
+    }
+
+    override fun resumeGC() {
+        gc.resume()
+    }
+
+    override fun executeBeforeGc(action: Runnable) {
+        gc.addBeforeGcAction(action)
+    }
+
+    val bTreeBalancePolicy: BTreeBalancePolicy
+        get() {
+            // we don't care of possible race condition here
+            if (balancePolicy == null) {
+                balancePolicy = BTreeBalancePolicy(ec.treeMaxPageSize, ec.treeDupMaxPageSize)
+            }
+            return balancePolicy!!
         }
-        t.storeRemoved(store);
-    }
-
-    public long getAllStoreCount() {
-        metaReadLock.lock();
-        try {
-            return metaTree.getAllStoreCount();
-        } finally {
-            metaReadLock.unlock();
-        }
-    }
-
-    @Override
-    @NotNull
-    public List<String> getAllStoreNames(@NotNull final Transaction txn) {
-        checkIfTransactionCreatedAgainstThis(txn);
-        return ((TransactionBase) txn).getAllStoreNames();
-    }
-
-    public boolean storeExists(@NotNull final String storeName, @NotNull final Transaction txn) {
-        return ((TransactionBase) txn).getTreeMetaInfo(storeName) != null;
-    }
-
-    @NotNull
-    public Log getLog() {
-        return log;
-    }
-
-    @Override
-    public void gc() {
-        gc.wake(true);
-    }
-
-    @Override
-    public void suspendGC() {
-        gc.suspend();
-    }
-
-    @Override
-    public void resumeGC() {
-        gc.resume();
-    }
-
-    @Override
-    public void executeBeforeGc(Runnable action) {
-        gc.addBeforeGcAction(action);
-    }
-
-    public BTreeBalancePolicy getBTreeBalancePolicy() {
-        // we don't care of possible race condition here
-        if (balancePolicy == null) {
-            balancePolicy = new BTreeBalancePolicy(ec.getTreeMaxPageSize(), ec.getTreeDupMaxPageSize());
-        }
-        return balancePolicy;
-    }
 
     /**
      * Flushes Log's data writer exclusively in commit lock. This guarantees that the data writer is in committed state.
      * Also performs syncing cached by OS data to storage device.
      */
-    public void flushAndSync() {
-        synchronized (commitLock) {
-            if (isOpen()) {
-                var log = this.log;
-
-                log.beginWrite();
+    fun flushAndSync() {
+        synchronized(commitLock) {
+            if (isOpen) {
+                val log = log
+                log.beginWrite()
                 try {
-                    log.sync();
+                    log.sync()
                 } finally {
-                    log.endWrite();
+                    log.endWrite()
                 }
             }
         }
     }
 
-
-    public long[] flushSyncAndFillPagesWithNulls() {
-        long highAddress;
-        long rootAddress;
-
-        ExpiredLoggableCollection expiredLoggables;
-        synchronized (commitLock) {
-            var log = this.log;
-            expiredLoggables = ExpiredLoggableCollection.newInstance(log);
-
-            log.padPageWithNulls(expiredLoggables);
-
-            log.beginWrite();
+    fun flushSyncAndFillPagesWithNulls(): LongArray {
+        var highAddress: Long
+        var rootAddress: Long
+        var expiredLoggables: ExpiredLoggableCollection
+        synchronized(commitLock) {
+            val log = log
+            expiredLoggables = ExpiredLoggableCollection.newInstance(log)
+            log.padPageWithNulls(expiredLoggables)
+            log.beginWrite()
             try {
-                log.sync();
+                log.sync()
             } finally {
-                log.endWrite();
+                log.endWrite()
             }
-
-            highAddress = log.getHighAddress();
-            rootAddress = metaTree.root;
+            highAddress = log.highAddress
+            rootAddress = metaTreeInternal.root
         }
-
-        gc.fetchExpiredLoggables(expiredLoggables);
-        return new long[]{highAddress, rootAddress};
+        gc.fetchExpiredLoggables(expiredLoggables)
+        return longArrayOf(highAddress, rootAddress)
     }
 
-
-
-    public void prepareForBackup() {
-        if (isOpen()) {
-            gc.suspend();
-
-            var highAddressAndRoot = flushSyncAndFillPagesWithNulls();
-            var fileAddress = log.getFileAddress(highAddressAndRoot[0]);
-            var fileOffset = highAddressAndRoot[0] - fileAddress;
-
-            var metadata =
-                    BackupMetadata.serialize(1, EnvironmentImpl.CURRENT_FORMAT_VERSION,
-                            highAddressAndRoot[1], log.getCachePageSize(), log.getFileLengthBound(),
-                            true, fileAddress, fileOffset);
-
-            var backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME);
+    fun prepareForBackup() {
+        if (isOpen) {
+            gc.suspend()
+            val highAddressAndRoot = flushSyncAndFillPagesWithNulls()
+            val fileAddress = log.getFileAddress(highAddressAndRoot[0])
+            val fileOffset = highAddressAndRoot[0] - fileAddress
+            val metadata = BackupMetadata.serialize(
+                1, CURRENT_FORMAT_VERSION,
+                highAddressAndRoot[1], log.cachePageSize, log.fileLengthBound,
+                true, fileAddress, fileOffset
+            )
+            val backupMetadata = Paths.get(log.location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
             try {
-                Files.deleteIfExists(backupMetadata);
-            } catch (IOException e) {
-                throw new ExodusException("Error deletion of previous backup metadata", e);
+                Files.deleteIfExists(backupMetadata)
+            } catch (e: IOException) {
+                throw ExodusException("Error deletion of previous backup metadata", e)
             }
-
-            try (var channel = FileChannel.open(
+            try {
+                FileChannel.open(
                     backupMetadata, StandardOpenOption.CREATE_NEW,
-                    StandardOpenOption.WRITE)) {
-                while (metadata.remaining() > 0) {
-                    //noinspection ResultOfMethodCallIgnored
-                    channel.write(metadata);
+                    StandardOpenOption.WRITE
+                ).use { channel ->
+                    while (metadata.remaining() > 0) {
+                        channel.write(metadata)
+                    }
                 }
-            } catch (IOException e) {
-                throw new ExodusException("Error during generation of backup metadata", e);
+            } catch (e: IOException) {
+                throw ExodusException("Error during generation of backup metadata", e)
             }
-
-            return;
+            return
         }
-
-        throw new IllegalStateException("Environment is closed");
+        throw IllegalStateException("Environment is closed")
     }
 
-    public void finishBackup() {
-        if (isOpen()) {
-            gc.resume();
+    fun finishBackup() {
+        if (isOpen) {
+            gc.resume()
         }
-        var backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME);
+        val backupMetadata = Paths.get(log.location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
         try {
-            Files.deleteIfExists(backupMetadata);
-        } catch (IOException e) {
-            throw new ExodusException("Error deletion of previous backup metadata", e);
+            Files.deleteIfExists(backupMetadata)
+        } catch (e: IOException) {
+            throw ExodusException("Error deletion of previous backup metadata", e)
         }
     }
 
-    public void removeFiles(final long[] files, @NotNull final RemoveBlockType rbt) {
-        synchronized (commitLock) {
-            log.beginWrite();
+    fun removeFiles(files: LongArray, rbt: RemoveBlockType) {
+        synchronized(commitLock) {
+            log.beginWrite()
             try {
-                log.forgetFiles(files);
-                log.endWrite();
-            } catch (Throwable t) {
-                throw ExodusException.toExodusException(t, "Failed to forget files in log");
+                log.forgetFiles(files)
+                log.endWrite()
+            } catch (t: Throwable) {
+                throw ExodusException.toExodusException(t, "Failed to forget files in log")
             }
         }
-        for (long file : files) {
-            log.removeFile(file, rbt);
+        for (file in files) {
+            log.removeFile(file, rbt)
         }
     }
 
-    public float getStoreGetCacheHitRate() {
-        return storeGetCache == null ? 0 : storeGetCache.hitRate();
+    val storeGetCacheHitRate: Float
+        get() = if (storeGetCache == null) 0.0f else storeGetCache!!.hitRate()
+
+    protected open fun createStore(name: String, metaInfo: TreeMetaInfo): StoreImpl {
+        return StoreImpl(this, name, metaInfo)
     }
 
-    protected StoreImpl createStore(@NotNull final String name, @NotNull final TreeMetaInfo metaInfo) {
-        return new StoreImpl(this, name, metaInfo);
-    }
-
-    protected void finishTransaction(@NotNull final TransactionBase txn) {
-        if (!txn.isReadonly()) {
-            releaseTransaction(txn);
+    open fun finishTransaction(txn: TransactionBase) {
+        if (!txn.isReadonly) {
+            releaseTransaction(txn)
         }
-        txns.remove(txn);
-        txn.setIsFinished();
-        final long duration = System.currentTimeMillis() - txn.getCreated();
-        if (txn.isReadonly()) {
-            statistics.getStatisticsItem(READONLY_TRANSACTIONS).incTotal();
-            statistics.getStatisticsItem(READONLY_TRANSACTIONS_DURATION).addTotal(duration);
-        } else if (txn.isGCTransaction()) {
-            statistics.getStatisticsItem(GC_TRANSACTIONS).incTotal();
-            statistics.getStatisticsItem(GC_TRANSACTIONS_DURATION).addTotal(duration);
+        txns.remove(txn)
+        txn.setIsFinished()
+        val duration = System.currentTimeMillis() - txn.created
+        if (txn.isReadonly) {
+            statistics.getStatisticsItem(EnvironmentStatistics.Type.READONLY_TRANSACTIONS).incTotal()
+            statistics.getStatisticsItem(EnvironmentStatistics.Type.READONLY_TRANSACTIONS_DURATION).addTotal(duration)
+        } else if (txn.isGCTransaction) {
+            statistics.getStatisticsItem(EnvironmentStatistics.Type.GC_TRANSACTIONS).incTotal()
+            statistics.getStatisticsItem(EnvironmentStatistics.Type.GC_TRANSACTIONS_DURATION).addTotal(duration)
         } else {
-            statistics.getStatisticsItem(TRANSACTIONS).incTotal();
-            statistics.getStatisticsItem(TRANSACTIONS_DURATION).addTotal(duration);
+            statistics.getStatisticsItem(EnvironmentStatistics.Type.TRANSACTIONS).incTotal()
+            statistics.getStatisticsItem(EnvironmentStatistics.Type.TRANSACTIONS_DURATION).addTotal(duration)
         }
-        runTransactionSafeTasks();
+        runTransactionSafeTasks()
     }
 
-    @NotNull
-    protected TransactionBase beginTransaction(Runnable beginHook, boolean exclusive, boolean cloneMeta) {
-        checkIsOperative();
-        return isReadOnly() && ec.getEnvFailFastInReadonly() ?
-                new ReadonlyTransaction(this, exclusive, beginHook) :
-                new ReadWriteTransaction(this, beginHook, exclusive, cloneMeta);
+    protected open fun beginTransaction(beginHook: Runnable?, exclusive: Boolean, cloneMeta: Boolean): TransactionBase {
+        checkIsOperative()
+        return if (isReadOnly && ec.envFailFastInReadonly) ReadonlyTransaction(
+            this,
+            exclusive,
+            beginHook
+        ) else ReadWriteTransaction(this, beginHook, exclusive, cloneMeta)
     }
 
-    @Nullable
-    StoreGetCache getStoreGetCache() {
-        return storeGetCache;
+    val diskUsage: Long
+        get() = log.diskUsage
+
+    fun acquireTransaction(txn: TransactionBase) {
+        checkIfTransactionCreatedAgainstThis(txn)
+        txnDispatcher.acquireTransaction(
+            throwIfReadonly(
+                txn, "TxnDispatcher can't acquire permits for read-only transaction"
+            ), this
+        )
     }
 
-    long getDiskUsage() {
-        return log.getDiskUsage();
+    fun releaseTransaction(txn: TransactionBase) {
+        checkIfTransactionCreatedAgainstThis(txn)
+        txnDispatcher.releaseTransaction(
+            throwIfReadonly(
+                txn, "TxnDispatcher can't release permits for read-only transaction"
+            )
+        )
     }
 
-    void acquireTransaction(@NotNull final TransactionBase txn) {
-        checkIfTransactionCreatedAgainstThis(txn);
-        txnDispatcher.acquireTransaction(throwIfReadonly(
-                txn, "TxnDispatcher can't acquire permits for read-only transaction"), this);
+    fun downgradeTransaction(txn: TransactionBase) {
+        txnDispatcher.downgradeTransaction(
+            throwIfReadonly(
+                txn, "TxnDispatcher can't downgrade read-only transaction"
+            )
+        )
     }
 
-    void releaseTransaction(@NotNull final TransactionBase txn) {
-        checkIfTransactionCreatedAgainstThis(txn);
-        txnDispatcher.releaseTransaction(throwIfReadonly(
-                txn, "TxnDispatcher can't release permits for read-only transaction"));
-    }
-
-    void downgradeTransaction(@NotNull final TransactionBase txn) {
-        txnDispatcher.downgradeTransaction(throwIfReadonly(
-                txn, "TxnDispatcher can't downgrade read-only transaction"));
-    }
-
-    boolean shouldTransactionBeExclusive(@NotNull final ReadWriteTransaction txn) {
-        final int replayCount = txn.getReplayCount();
-        return replayCount >= ec.getEnvTxnReplayMaxCount() ||
-                System.currentTimeMillis() - txn.getCreated() >= ec.getEnvTxnReplayTimeout();
+    fun shouldTransactionBeExclusive(txn: ReadWriteTransaction): Boolean {
+        val replayCount = txn.replayCount
+        return replayCount >= ec.envTxnReplayMaxCount ||
+                System.currentTimeMillis() - txn.created >= ec.envTxnReplayTimeout
     }
 
     /**
      * @return timeout for a transaction in milliseconds, or 0 if no timeout is configured
      */
-    int transactionTimeout() {
-        return ec.getEnvMonitorTxnsTimeout();
+    fun transactionTimeout(): Int {
+        return ec.envMonitorTxnsTimeout
     }
 
     /**
      * @return expiration timeout for a transaction in milliseconds, or 0 if no timeout is configured
      */
-    int transactionExpirationTimeout() {
-        return ec.getEnvMonitorTxnsExpirationTimeout();
+    fun transactionExpirationTimeout(): Int {
+        return ec.envMonitorTxnsExpirationTimeout
     }
 
-    /**
-     * Tries to load meta tree located at specified rootAddress.
-     *
-     * @param rootAddress tree root address.
-     * @return tree instance or null if the address is not valid.
-     */
-    @Nullable
-    BTree loadMetaTree(final long rootAddress, final long highAddress) {
-        if (rootAddress < 0 || rootAddress >= highAddress) return null;
-        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
-            @NotNull
-            @Override
-            public DataIterator getDataIterator(long address) {
-                return new DataIterator(log, address);
+    fun loadMetaTree(rootAddress: Long): BTree {
+        return object : BTree(log, bTreeBalancePolicy, rootAddress, false, META_TREE_ID) {
+            override fun getDataIterator(address: Long): DataIterator {
+                return DataIterator(log, address)
             }
-        };
+        }
     }
 
-    @Nullable
-    BTree loadMetaTree(final long rootAddress) {
-        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
-            @NotNull
-            @Override
-            public DataIterator getDataIterator(long address) {
-                return new DataIterator(log, address);
-            }
-        };
-    }
-
-    boolean commitTransaction(@NotNull final ReadWriteTransaction txn) {
+    fun commitTransaction(txn: ReadWriteTransaction): Boolean {
         if (flushTransaction(txn, false)) {
-            finishTransaction(txn);
-            return true;
+            finishTransaction(txn)
+            return true
         }
-        return false;
+        return false
     }
 
-    boolean flushTransaction(@NotNull final ReadWriteTransaction txn, final boolean forceCommit) {
-        checkIfTransactionCreatedAgainstThis(txn);
-
-        if (!forceCommit && txn.isIdempotent()) {
-            return true;
+    fun flushTransaction(txn: ReadWriteTransaction, forceCommit: Boolean): Boolean {
+        checkIfTransactionCreatedAgainstThis(txn)
+        if (!forceCommit && txn.isIdempotent) {
+            return true
         }
-
-        final ExpiredLoggableCollection expiredLoggables;
-        final long initialHighAddress;
-        final long resultingHighAddress;
-        final boolean isGcTransaction = txn.isGCTransaction();
-
-        boolean wasUpSaved = false;
-        final UtilizationProfile up = gc.getUtilizationProfile();
-        if (!isGcTransaction && up.isDirty()) {
-            up.save(txn);
-            wasUpSaved = true;
+        val expiredLoggables: ExpiredLoggableCollection?
+        val initialHighAddress: Long
+        val resultingHighAddress: Long
+        val isGcTransaction = txn.isGCTransaction
+        var wasUpSaved = false
+        val up = gc.utilizationProfile
+        if (!isGcTransaction && up.isDirty) {
+            up.save(txn)
+            wasUpSaved = true
         }
-
-        synchronized (commitLock) {
-            if (isReadOnly()) {
-                throw new ReadonlyTransactionException();
+        synchronized(commitLock) {
+            if (isReadOnly) {
+                throw ReadonlyTransactionException()
             }
-            checkIsOperative();
-            if (txn.invalidVersion(metaTree.root)) {
+            checkIsOperative()
+            if (txn.invalidVersion(metaTreeInternal.root)) {
                 // meta lock not needed 'cause write can only occur in another commit lock
-                return false;
+                return false
             }
-
-            txn.executeBeforeTransactionFlushAction();
-
+            txn.executeBeforeTransactionFlushAction()
             if (wasUpSaved) {
-                up.setDirty(false);
+                up.isDirty = false
             }
-            initialHighAddress = log.beginWrite();
+            initialHighAddress = log.beginWrite()
             try {
-                final MetaTreeImpl.Proto[] tree = new MetaTreeImpl.Proto[1];
-                final long updatedHighAddress;
-                try {
-                    expiredLoggables = txn.doCommit(tree, log);
+                val tree = arrayOfNulls<Proto>(1)
+                val updatedHighAddress: Long
+                expiredLoggables = try {
+                    txn.doCommit(tree, log)
                 } finally {
-                    log.flush();
-                    updatedHighAddress = log.endWrite();
+                    log.flush()
+                    updatedHighAddress = log.endWrite()
                 }
-
-                final MetaTreeImpl.Proto proto = tree[0];
-                metaWriteLock.lock();
+                val proto = tree[0]
+                metaWriteLock.lock()
                 try {
-                    resultingHighAddress = updatedHighAddress;
-                    txn.setMetaTree(metaTree = MetaTreeImpl.create(this, proto));
-                    txn.executeCommitHook();
+                    resultingHighAddress = updatedHighAddress
+                    txn.metaTree = MetaTreeImpl.create(this, proto!!).also { metaTreeInternal = it }
+                    txn.executeCommitHook()
                 } finally {
-                    metaWriteLock.unlock();
+                    metaWriteLock.unlock()
                 }
                 // update txn profiler within commitLock
-                updateTxnProfiler(txn, initialHighAddress, resultingHighAddress);
-            } catch (final Throwable t) {
-                final String errorMessage = "Failed to flush transaction. Please close and open environment " +
-                        "to trigger environment recovery routine";
-
-                loggerError(errorMessage, t);
-
-                log.switchToReadOnlyMode();
-                throwableOnCommit = t;
-
-                throw ExodusException.toExodusException(t, errorMessage);
+                updateTxnProfiler(txn, initialHighAddress, resultingHighAddress)
+            } catch (t: Throwable) {
+                val errorMessage = "Failed to flush transaction. Please close and open environment " +
+                        "to trigger environment recovery routine"
+                loggerError(errorMessage, t)
+                log.switchToReadOnlyMode()
+                throwableOnCommit = t
+                throw ExodusException.toExodusException(t, errorMessage)
             }
         }
-        gc.fetchExpiredLoggables(expiredLoggables);
+        gc.fetchExpiredLoggables(expiredLoggables!!)
 
         // update statistics
-        statistics.getStatisticsItem(BYTES_WRITTEN).setTotal(resultingHighAddress);
+        statistics.getStatisticsItem(EnvironmentStatistics.Type.BYTES_WRITTEN).total = resultingHighAddress
         if (isGcTransaction) {
-            statistics.getStatisticsItem(BYTES_MOVED_BY_GC).addTotal(resultingHighAddress - initialHighAddress);
+            statistics.getStatisticsItem(EnvironmentStatistics.Type.BYTES_MOVED_BY_GC)
+                .addTotal(resultingHighAddress - initialHighAddress)
         }
-        statistics.getStatisticsItem(FLUSHED_TRANSACTIONS).incTotal();
-
-        return true;
+        statistics.getStatisticsItem(EnvironmentStatistics.Type.FLUSHED_TRANSACTIONS).incTotal()
+        return true
     }
 
-    @SuppressWarnings("UnusedReturnValue")
-    MetaTreeImpl holdNewestSnapshotBy(@NotNull final TransactionBase txn) {
-        return holdNewestSnapshotBy(txn, true);
-    }
-
-    MetaTreeImpl holdNewestSnapshotBy(@NotNull final TransactionBase txn, final boolean acquireTxn) {
+    @JvmOverloads
+    fun holdNewestSnapshotBy(txn: TransactionBase, acquireTxn: Boolean = true): MetaTreeImpl? {
         if (acquireTxn) {
-            acquireTransaction(txn);
+            acquireTransaction(txn)
         }
-        final Runnable beginHook = txn.getBeginHook();
-        metaReadLock.lock();
-        try {
-            if (beginHook != null) {
-                beginHook.run();
-            }
-            return metaTree;
+        val beginHook = txn.beginHook
+        metaReadLock.lock()
+        return try {
+            beginHook?.run()
+            metaTreeInternal
         } finally {
-            metaReadLock.unlock();
+            metaReadLock.unlock()
         }
-    }
-
-    public MetaTree getMetaTree() {
-        metaReadLock.lock();
-        try {
-            return metaTree;
-        } finally {
-            metaReadLock.unlock();
-        }
-    }
-
-    MetaTreeImpl getMetaTreeInternal() {
-        return metaTree;
-    }
-
-    // unsafe
-    void setMetaTreeInternal(MetaTreeImpl metaTree) {
-        this.metaTree = metaTree;
     }
 
     /**
@@ -995,230 +803,191 @@ public class EnvironmentImpl implements Environment {
      * @param metaInfo target meta information
      * @return store object
      */
-    @SuppressWarnings({"AssignmentToMethodParameter"})
-    @NotNull
-    StoreImpl openStoreImpl(@NotNull final String name,
-                            @NotNull StoreConfig config,
-                            @NotNull final TransactionBase txn,
-                            @Nullable TreeMetaInfo metaInfo) {
-        checkIfTransactionCreatedAgainstThis(txn);
-        if (config.useExisting) { // this parameter requires to recalculate
-            if (metaInfo == null) {
-                throw new ExodusException("Can't restore meta information for store " + name);
+    fun openStoreImpl(
+        name: String,
+        config: StoreConfig,
+        txn: TransactionBase,
+        metaInfo: TreeMetaInfo?
+    ): StoreImpl {
+        var resultConfig = config
+        var resultMetaInfo = metaInfo
+        checkIfTransactionCreatedAgainstThis(txn)
+        if (resultConfig.useExisting) { // this parameter requires to recalculate
+            resultConfig = if (resultMetaInfo == null) {
+                throw ExodusException("Can't restore meta information for store $name")
             } else {
-                config = TreeMetaInfo.toConfig(metaInfo);
+                TreeMetaInfo.toConfig(resultMetaInfo)
             }
         }
-        final StoreImpl result;
-        if (metaInfo == null) {
-            if (txn.isReadonly() && ec.getEnvReadonlyEmptyStores()) {
-                return createTemporaryEmptyStore(name);
+        val result: StoreImpl
+        if (resultMetaInfo == null) {
+            if (txn.isReadonly && ec.envReadonlyEmptyStores) {
+                return createTemporaryEmptyStore(name)
             }
-            final int structureId = allocateStructureId();
-            metaInfo = TreeMetaInfo.load(this, config.duplicates, config.prefixing, structureId);
-            result = createStore(name, metaInfo);
-            final ReadWriteTransaction tx = throwIfReadonly(txn, "Can't create a store in read-only transaction");
-            tx.getMutableTree(result);
-            tx.storeCreated(result);
+            val structureId = allocateStructureId()
+            resultMetaInfo = TreeMetaInfo.load(this, resultConfig.duplicates, resultConfig.prefixing, structureId)
+            result = createStore(name, resultMetaInfo)
+            val tx = throwIfReadonly(txn, "Can't create a store in read-only transaction")
+            tx.getMutableTree(result)
+            tx.storeCreated(result)
         } else {
-            final boolean hasDuplicates = metaInfo.hasDuplicates();
-            if (hasDuplicates != config.duplicates) {
-                throw new ExodusException("Attempt to open store '" + name + "' with duplicates = " +
-                        config.duplicates + " while it was created with duplicates =" + hasDuplicates);
+            val hasDuplicates = resultMetaInfo.hasDuplicates()
+            if (hasDuplicates != resultConfig.duplicates) {
+                throw ExodusException(
+                    "Attempt to open store '" + name + "' with duplicates = " +
+                            resultConfig.duplicates + " while it was created with duplicates =" + hasDuplicates
+                )
             }
-            if (metaInfo.isKeyPrefixing() != config.prefixing) {
-                if (!config.prefixing) {
-                    throw new ExodusException("Attempt to open store '" + name +
-                            "' with prefixing = false while it was created with prefixing = true");
+            if (resultMetaInfo.isKeyPrefixing != resultConfig.prefixing) {
+                if (!resultConfig.prefixing) {
+                    throw ExodusException(
+                        "Attempt to open store '" + name +
+                                "' with prefixing = false while it was created with prefixing = true"
+                    )
                 }
                 // if we're trying to open existing store with prefixing which actually wasn't created as store
                 // with prefixing due to lack of the PatriciaTree feature, then open store with existing config
-                metaInfo = TreeMetaInfo.load(this, hasDuplicates, false, metaInfo.getStructureId());
+                resultMetaInfo = TreeMetaInfo.load(this, hasDuplicates, false, resultMetaInfo.getStructureId())
             }
-            result = createStore(name, metaInfo);
+            result = createStore(name, resultMetaInfo!!)
             // XD-774: if the store was just removed in the same txn forget the removal
-            if (txn instanceof ReadWriteTransaction) {
-                ((ReadWriteTransaction) txn).storeOpened(result);
+            if (txn is ReadWriteTransaction) {
+                txn.storeOpened(result)
             }
         }
-        return result;
+        return result
     }
 
-    int getLastStructureId() {
-        return structureId.get();
-    }
+    val lastStructureId: Int
+        get() = structureId.get()
 
-    void registerTransaction(@NotNull final TransactionBase txn) {
-        checkIfTransactionCreatedAgainstThis(txn);
+    fun registerTransaction(txn: TransactionBase) {
+        checkIfTransactionCreatedAgainstThis(txn)
         // N.B! due to TransactionImpl.revert(), there can appear a txn which is already in the transaction set
         // any implementation of transaction set should process this well
-        txns.add(txn);
+        txns.add(txn)
     }
 
-    boolean isRegistered(@NotNull final ReadWriteTransaction txn) {
-        checkIfTransactionCreatedAgainstThis(txn);
-        return txns.contains(txn);
+    fun isRegistered(txn: ReadWriteTransaction): Boolean {
+        checkIfTransactionCreatedAgainstThis(txn)
+        return txns.contains(txn)
     }
 
-    int activeTransactions() {
-        return txns.size();
+    fun activeTransactions(): Int {
+        return txns.size()
     }
 
-    void runTransactionSafeTasks() {
+    fun runTransactionSafeTasks() {
         if (throwableOnCommit == null) {
-            List<Runnable> tasksToRun = null;
-            final long oldestTxnRoot = txns.getOldestTxnRootAddress();
-            synchronized (txnSafeTasks) {
+            var tasksToRun: MutableList<Runnable>? = null
+            val oldestTxnRoot = txns.oldestTxnRootAddress
+            synchronized(txnSafeTasks) {
                 while (true) {
                     if (!txnSafeTasks.isEmpty()) {
-                        final RunnableWithTxnRoot r = txnSafeTasks.getFirst();
+                        val r = txnSafeTasks.first
                         if (r.txnRoot < oldestTxnRoot) {
-                            txnSafeTasks.removeFirst();
+                            txnSafeTasks.removeFirst()
                             if (tasksToRun == null) {
-                                tasksToRun = new ArrayList<>(4);
+                                tasksToRun = ArrayList(4)
                             }
-                            tasksToRun.add(r.runnable);
-                            continue;
+                            tasksToRun!!.add(r.runnable)
+                            continue
                         }
                     }
-                    break;
+                    break
                 }
             }
             if (tasksToRun != null) {
-                for (final Runnable task : tasksToRun) {
-                    task.run();
+                for (task in tasksToRun!!) {
+                    task.run()
                 }
             }
         }
     }
 
-    void forEachActiveTransaction(@NotNull final TransactionalExecutable executable) {
-        txns.forEach(executable);
+    fun forEachActiveTransaction(executable: TransactionalExecutable) {
+        txns.forEach(executable)
     }
 
-    protected StoreImpl createTemporaryEmptyStore(String name) {
-        return new TemporaryEmptyStore(this, name);
+    protected open fun createTemporaryEmptyStore(name: String): StoreImpl {
+        return TemporaryEmptyStore(this, name)
     }
 
-    static boolean isUtilizationProfile(@NotNull final String storeName) {
-        return GarbageCollector.isUtilizationProfile(storeName);
-    }
-
-    static ReadWriteTransaction throwIfReadonly(@NotNull final Transaction txn, @NotNull final String exceptionMessage) {
-        if (txn.isReadonly()) {
-            throw new ReadonlyTransactionException(exceptionMessage);
-        }
-        return (ReadWriteTransaction) txn;
-    }
-
-    static void loggerError(@NotNull final String errorMessage) {
-        loggerError(errorMessage, null);
-    }
-
-    static void loggerError(@NotNull final String errorMessage, @Nullable final Throwable t) {
-        if (t == null) {
-            logger.error(errorMessage);
-        } else {
-            logger.error(errorMessage, t);
-        }
-    }
-
-    static void loggerInfo(@NotNull final String message) {
-        if (logger.isInfoEnabled()) {
-            logger.info(message);
-        }
-    }
-
-    static void loggerDebug(@NotNull final String message) {
-        loggerDebug(message, null);
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    static void loggerDebug(@NotNull final String message, @Nullable final Throwable t) {
-        if (logger.isDebugEnabled()) {
-            if (t == null) {
-                logger.debug(message);
-            } else {
-                logger.debug(message, t);
-            }
-        }
-    }
-
-    private void runAllTransactionSafeTasks() {
+    private fun runAllTransactionSafeTasks() {
         if (throwableOnCommit == null) {
-            synchronized (txnSafeTasks) {
-                for (final RunnableWithTxnRoot r : txnSafeTasks) {
-                    r.runnable.run();
+            synchronized(txnSafeTasks) {
+                for (r in txnSafeTasks) {
+                    r.runnable.run()
                 }
             }
-            DeferredIO.getJobProcessor().waitForJobs(100);
+            DeferredIO.getJobProcessor().waitForJobs(100)
         }
     }
 
-    private void checkIfTransactionCreatedAgainstThis(@NotNull final Transaction txn) {
-        if (txn.getEnvironment() != this) {
-            throw new ExodusException("Transaction is created against another Environment");
+    private fun checkIfTransactionCreatedAgainstThis(txn: Transaction) {
+        if (txn.environment !== this) {
+            throw ExodusException("Transaction is created against another Environment")
         }
     }
 
-    private void checkInactive(boolean exceptionSafe) {
-        int txnCount = txns.size();
+    private fun checkInactive(exceptionSafe: Boolean) {
+        var txnCount = txns.size()
         if (!exceptionSafe && txnCount > 0) {
-            SharedTimer.ensureIdle();
-            txnCount = txns.size();
+            ensureIdle()
+            txnCount = txns.size()
         }
         if (txnCount > 0) {
-            final String errorString = "Environment[" + getLocation() + "] is active: " + txnCount + " transaction(s) not finished";
+            val errorString = "Environment[$location] is active: $txnCount transaction(s) not finished"
             if (!exceptionSafe) {
-                loggerError(errorString);
+                loggerError(errorString)
             } else {
-                loggerInfo(errorString);
+                loggerInfo(errorString)
             }
             if (!exceptionSafe) {
-                reportAliveTransactions(false);
-            } else if (logger.isDebugEnabled()) {
-                reportAliveTransactions(true);
+                reportAliveTransactions(false)
+            } else if (logger.isDebugEnabled) {
+                reportAliveTransactions(true)
             }
         }
         if (!exceptionSafe) {
             if (txnCount > 0) {
-                throw new ExodusException("Finish all transactions before closing database environment");
+                throw ExodusException("Finish all transactions before closing database environment")
             }
         }
     }
 
-    private void reportAliveTransactions(final boolean debug) {
+    private fun reportAliveTransactions(debug: Boolean) {
         if (transactionTimeout() == 0) {
-            String stacksUnavailable = "Transactions stack traces are not available, " +
-                    "set '" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0'";
+            val stacksUnavailable = "Transactions stack traces are not available, " +
+                    "set '" + EnvironmentConfig.ENV_MONITOR_TXNS_TIMEOUT + " > 0'"
             if (debug) {
-                loggerDebug(stacksUnavailable);
+                loggerDebug(stacksUnavailable)
             } else {
-                loggerError(stacksUnavailable);
+                loggerError(stacksUnavailable)
             }
         } else {
-            forEachActiveTransaction(txn -> {
-                final StackTrace trace = ((TransactionBase) txn).getTrace();
+            forEachActiveTransaction { txn: Transaction ->
+                val trace = (txn as TransactionBase).trace
                 if (debug) {
-                    loggerDebug("Alive transaction:\n" + trace);
+                    loggerDebug("Alive transaction:\n$trace")
                 } else {
-                    loggerError("Alive transaction:\n" + trace);
+                    loggerError("Alive transaction:\n$trace")
                 }
-            });
-        }
-    }
-
-    private void checkIsOperative() {
-        final Throwable t = throwableOnCommit;
-        if (t != null) {
-            if (t instanceof EnvironmentClosedException) {
-                throw new ExodusException("Environment is inoperative", t);
             }
-            throw ExodusException.toExodusException(t, "Environment is inoperative");
         }
     }
 
-    private int allocateStructureId() {
+    private fun checkIsOperative() {
+        val t = throwableOnCommit
+        if (t != null) {
+            if (t is EnvironmentClosedException) {
+                throw ExodusException("Environment is inoperative", t)
+            }
+            throw ExodusException.toExodusException(t, "Environment is inoperative")
+        }
+    }
+
+    private fun allocateStructureId(): Int {
         /*
          * <TRICK>
          * Allocates structure id so that 256 doesn't factor it. This ensures that corresponding byte iterable
@@ -1227,242 +996,286 @@ public class EnvironmentImpl implements Environment {
          * </TRICK>
          */
         while (true) {
-            final int result = structureId.incrementAndGet();
-            if ((result & 0xff) != 0) {
-                return result;
+            val result = structureId.incrementAndGet()
+            if (result and 0xff != 0) {
+                return result
             }
         }
     }
 
-    private void invalidateStoreGetCache() {
-        final int storeGetCacheSize = ec.getEnvStoreGetCacheSize();
-        storeGetCache = storeGetCacheSize == 0 ? null :
-                new StoreGetCache(storeGetCacheSize, ec.getEnvStoreGetCacheMinTreeSize(), ec.getEnvStoreGetCacheMaxValueSize());
+    private fun invalidateStoreGetCache() {
+        val storeGetCacheSize = ec.envStoreGetCacheSize
+        storeGetCache = if (storeGetCacheSize == 0) null else StoreGetCache(
+            storeGetCacheSize,
+            ec.envStoreGetCacheMinTreeSize,
+            ec.envStoreGetCacheMaxValueSize
+        )
     }
 
-    private void updateTxnProfiler(TransactionBase txn, long initialHighAddress, long resultingHighAddress) {
+    private fun updateTxnProfiler(txn: TransactionBase, initialHighAddress: Long, resultingHighAddress: Long) {
+        val txnProfiler = this.txnProfiler
         if (txnProfiler != null) {
-            final long writtenBytes = resultingHighAddress - initialHighAddress;
-            if (txn.isGCTransaction()) {
-                txnProfiler.incGcTransaction();
-                txnProfiler.addGcMovedBytes(writtenBytes);
-            } else if (txn.isReadonly()) {
-                txnProfiler.addReadonlyTxn(txn);
+            val writtenBytes = resultingHighAddress - initialHighAddress
+            if (txn.isGCTransaction) {
+                txnProfiler.incGcTransaction()
+                txnProfiler.addGcMovedBytes(writtenBytes)
+            } else if (txn.isReadonly) {
+                txnProfiler.addReadonlyTxn(txn)
             } else {
-                txnProfiler.addTxn(txn, writtenBytes);
+                txnProfiler.addTxn(txn, writtenBytes)
             }
         }
     }
 
-    private static void applyEnvironmentSettings(@NotNull final String location,
-                                                 @NotNull final EnvironmentConfig ec) {
-        final File propsFile = new File(location, ENVIRONMENT_PROPERTIES_FILE);
-        if (propsFile.exists() && propsFile.isFile()) {
-            try {
-                try (InputStream propsStream = new FileInputStream(propsFile)) {
-                    final Properties envProps = new Properties();
-                    envProps.load(propsStream);
-                    for (final Map.Entry<Object, Object> entry : envProps.entrySet()) {
-                        ec.setSetting(entry.getKey().toString(), entry.getValue());
-                    }
-                }
-            } catch (IOException e) {
-                throw ExodusException.toExodusException(e);
-            }
-        }
-    }
-
-    private static void checkStorageType(@NotNull final String location, @NotNull final EnvironmentConfig ec) {
-        var provider = ec.getLogDataReaderWriterProvider();
-        if (provider.equals(DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER)) {
-            final File databaseDir = new File(location);
-            if (!ec.isLogAllowRemovable() && IOUtil.isRemovableFile(databaseDir)) {
-                throw new StorageTypeNotAllowedException("Database on removable storage is not allowed");
-            }
-            if (!ec.isLogAllowRemote() && IOUtil.isRemoteFile(databaseDir)) {
-                throw new StorageTypeNotAllowedException("Database on remote storage is not allowed");
-            }
-            if (!ec.isLogAllowRamDisk() && IOUtil.isRamDiskFile(databaseDir)) {
-                throw new StorageTypeNotAllowedException("Database on RAM disk is not allowed");
-            }
-        }
-    }
-
-    @Nullable
-    private static jetbrains.exodus.env.management.EnvironmentConfig createConfigMBean(@NotNull final EnvironmentImpl e) {
-        try {
-            return e.ec.getManagementOperationsRestricted() ?
-                    new jetbrains.exodus.env.management.EnvironmentConfig(e) :
-                    new EnvironmentConfigWithOperations(e);
-        } catch (RuntimeException ex) {
-            if (ex.getCause() instanceof InstanceAlreadyExistsException) {
-                return null;
-            }
-            throw ex;
-        }
-    }
-
-    private static void executeInTransaction(@NotNull final TransactionalExecutable executable,
-                                             @NotNull final Transaction txn) {
-        try {
-            while (true) {
-                executable.execute(txn);
-                if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within executable
-                        txn.flush()) {
-                    break;
-                }
-                txn.revert();
-            }
-        } finally {
-            abortIfNotFinished(txn);
-        }
-    }
-
-    private static <T> T computeInTransaction(@NotNull final TransactionalComputable<T> computable,
-                                              @NotNull final Transaction txn) {
-        try {
-            while (true) {
-                final T result = computable.compute(txn);
-                if (txn.isReadonly() || // txn can be read-only if Environment is in read-only mode
-                        txn.isFinished() || // txn can be finished if, e.g., it was aborted within computable
-                        txn.flush()) {
-                    return result;
-                }
-                txn.revert();
-            }
-        } finally {
-            abortIfNotFinished(txn);
-        }
-    }
-
-    private static void abortIfNotFinished(@NotNull final Transaction txn) {
-        if (!txn.isFinished()) {
-            txn.abort();
-        }
-    }
-
-    private class EnvironmentSettingsListener implements ConfigSettingChangeListener {
-
-        @Override
-        public void beforeSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
-            if (key.equals(EnvironmentConfig.ENV_IS_READONLY)) {
-                if (Boolean.TRUE.equals(value)) {
-                    suspendGC();
-                    final TransactionBase txn = beginTransaction();
+    private inner class EnvironmentSettingsListener : ConfigSettingChangeListener {
+        override fun beforeSettingChanged(key: String, value: Any, context: Map<String, Any>) {
+            if (key == EnvironmentConfig.ENV_IS_READONLY) {
+                if (java.lang.Boolean.TRUE == value) {
+                    suspendGC()
+                    val txn = beginTransaction()
                     try {
-                        if (!txn.isReadonly()) {
-                            gc.getUtilizationProfile().forceSave(txn);
-                            txn.setCommitHook(() -> {
-                                EnvironmentConfig.suppressConfigChangeListenersForThread();
-                                ec.setEnvIsReadonly(true);
-                                EnvironmentConfig.resumeConfigChangeListenersForThread();
-                            });
-                            ((ReadWriteTransaction) txn).forceFlush();
+                        if (!txn.isReadonly) {
+                            gc.utilizationProfile.forceSave(txn)
+                            txn.setCommitHook {
+                                EnvironmentConfig.suppressConfigChangeListenersForThread()
+                                ec.setEnvIsReadonly(true)
+                                EnvironmentConfig.resumeConfigChangeListenersForThread()
+                            }
+                            (txn as ReadWriteTransaction).forceFlush()
                         }
                     } finally {
-                        txn.abort();
+                        txn.abort()
                     }
-                    if (!log.isReadOnly()) {
-                        log.updateStartUpDbRoot(metaTree.root);
-                        flushSyncAndFillPagesWithNulls();
+                    if (!log.isReadOnly) {
+                        log.updateStartUpDbRoot(metaTreeInternal.root)
+                        flushSyncAndFillPagesWithNulls()
                     }
                 }
             }
         }
 
-        @Override
-        public void afterSettingChanged(@NotNull String key, @NotNull Object value, @NotNull Map<String, Object> context) {
-            if (key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_SIZE) ||
-                    key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_MIN_TREE_SIZE) ||
-                    key.equals(EnvironmentConfig.ENV_STOREGET_CACHE_MAX_VALUE_SIZE)) {
-                invalidateStoreGetCache();
-            } else if (key.equals(EnvironmentConfig.LOG_SYNC_PERIOD)) {
-                log.getConfig().setSyncPeriod(ec.getLogSyncPeriod());
-            } else if (key.equals(EnvironmentConfig.LOG_DURABLE_WRITE)) {
-                log.getConfig().setDurableWrite(ec.getLogDurableWrite());
-            } else if (key.equals(EnvironmentConfig.ENV_IS_READONLY) && !isReadOnly()) {
-                resumeGC();
-            } else if (key.equals(EnvironmentConfig.GC_UTILIZATION_FROM_SCRATCH) && ec.getGcUtilizationFromScratch()) {
-                gc.getUtilizationProfile().computeUtilizationFromScratch();
-            } else if (key.equals(EnvironmentConfig.GC_UTILIZATION_FROM_FILE)) {
-                gc.getUtilizationProfile().loadUtilizationFromFile((String) value);
-            } else if (key.equals(EnvironmentConfig.TREE_MAX_PAGE_SIZE)) {
-                balancePolicy = null;
-            } else if (key.equals(EnvironmentConfig.TREE_DUP_MAX_PAGE_SIZE)) {
-                balancePolicy = null;
-            } else if (key.equals(EnvironmentConfig.LOG_CACHE_READ_AHEAD_MULTIPLE)) {
-                log.getConfig().setCacheReadAheadMultiple(ec.getLogCacheReadAheadMultiple());
+        override fun afterSettingChanged(key: String, value: Any, context: Map<String, Any>) {
+            if (key == EnvironmentConfig.ENV_STOREGET_CACHE_SIZE || key == EnvironmentConfig.ENV_STOREGET_CACHE_MIN_TREE_SIZE || key == EnvironmentConfig.ENV_STOREGET_CACHE_MAX_VALUE_SIZE) {
+                invalidateStoreGetCache()
+            } else if (key == EnvironmentConfig.LOG_SYNC_PERIOD) {
+                log.config.setSyncPeriod(ec.logSyncPeriod)
+            } else if (key == EnvironmentConfig.LOG_DURABLE_WRITE) {
+                log.config.setDurableWrite(ec.logDurableWrite)
+            } else if (key == EnvironmentConfig.ENV_IS_READONLY && !isReadOnly) {
+                resumeGC()
+            } else if (key == EnvironmentConfig.GC_UTILIZATION_FROM_SCRATCH && ec.gcUtilizationFromScratch) {
+                gc.utilizationProfile.computeUtilizationFromScratch()
+            } else if (key == EnvironmentConfig.GC_UTILIZATION_FROM_FILE) {
+                gc.utilizationProfile.loadUtilizationFromFile((value as String))
+            } else if (key == EnvironmentConfig.TREE_MAX_PAGE_SIZE) {
+                balancePolicy = null
+            } else if (key == EnvironmentConfig.TREE_DUP_MAX_PAGE_SIZE) {
+                balancePolicy = null
+            } else if (key == EnvironmentConfig.LOG_CACHE_READ_AHEAD_MULTIPLE) {
+                log.config.cacheReadAheadMultiple = ec.logCacheReadAheadMultiple
             }
         }
     }
 
-    private static class RunnableWithTxnRoot {
-
-        private final Runnable runnable;
-        private final long txnRoot;
-
-        private RunnableWithTxnRoot(Runnable runnable, long txnRoot) {
-            this.runnable = runnable;
-            this.txnRoot = txnRoot;
-        }
-    }
-
-    private static final class SyncIO {
-        private static volatile ScheduledExecutorService syncExecutor;
-        private static final ReentrantLock lock = new ReentrantLock();
-
-        private static ScheduledExecutorService getSyncExecutor() {
-            if (syncExecutor == null) {
-                lock.lock();
-                try {
-                    if (syncExecutor == null) {
-                        syncExecutor = Executors.newScheduledThreadPool(1, new SyncIOThreadFactory());
+    private class RunnableWithTxnRoot(val runnable: Runnable, val txnRoot: Long)
+    private object SyncIO {
+        @Volatile
+        private var syncExecutor: ScheduledExecutorService? = null
+            get() {
+                if (field == null) {
+                    lock.lock()
+                    try {
+                        if (field == null) {
+                            field = Executors.newScheduledThreadPool(1, SyncIOThreadFactory())
+                        }
+                    } finally {
+                        lock.unlock()
                     }
-                } finally {
-                    lock.unlock();
                 }
+                return field
             }
-
-            return syncExecutor;
-        }
-
-        public static ScheduledFuture<?> scheduleSyncLoop(final EnvironmentImpl environment) {
-            var executor = getSyncExecutor();
-            var syncPeriod = environment.ec.getLogSyncPeriod();
-
-            return executor.scheduleWithFixedDelay(() -> {
+        private val lock = ReentrantLock()
+        fun scheduleSyncLoop(environment: EnvironmentImpl): ScheduledFuture<*> {
+            val executor = syncExecutor
+            val syncPeriod = environment.ec.logSyncPeriod
+            return executor!!.scheduleWithFixedDelay({
                 try {
                     if (environment.log.needsToBeSynchronized()) {
-                        synchronized (environment.commitLock) {
-                            if (environment.isOpen()) {
+                        synchronized(environment.commitLock) {
+                            if (environment.isOpen) {
                                 if (environment.log.needsToBeSynchronized()) {
-                                    environment.flushAndSync();
+                                    environment.flushAndSync()
                                 }
                             } else if (environment.syncTask != null) {
-                                environment.syncTask.cancel(false);
+                                environment.syncTask!!.cancel(false)
                             }
                         }
                     }
-                } catch (final Throwable t) {
-                    logger.error("Error during synchronization of content of log " +
-                            environment.log.getLocation(), t);
-                    environment.throwableOnCommit = t;
+                } catch (t: Throwable) {
+                    logger.error(
+                        "Error during synchronization of content of log " +
+                                environment.log.location, t
+                    )
+                    environment.throwableOnCommit = t
                 }
-            }, syncPeriod, Math.min(syncPeriod / 10, 1_000), TimeUnit.MILLISECONDS);
+            }, syncPeriod, (syncPeriod / 10).coerceAtMost(1000), TimeUnit.MILLISECONDS)
         }
     }
 
-    private static final class SyncIOThreadFactory implements ThreadFactory {
-        private static final AtomicLong idGen = new AtomicLong();
+    private class SyncIOThreadFactory : ThreadFactory {
+        override fun newThread(r: Runnable): Thread {
+            val thread = Thread(r)
+            thread.name = "Scheduled Xodus data sync thread #" + idGen.getAndIncrement()
+            thread.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { t: Thread, e: Throwable? ->
+                logger.error(
+                    "Uncaught exception in thread$t", e
+                )
+            }
+            thread.isDaemon = true
+            return thread
+        }
 
-        @Override
-        public Thread newThread(@NotNull Runnable r) {
-            var thread = new Thread(r);
-            thread.setName("Scheduled Xodus data sync thread #" + idGen.getAndIncrement());
-            thread.setUncaughtExceptionHandler((t, e) -> logger.error("Uncaught exception in thread" + t, e));
-            thread.setDaemon(true);
-            return thread;
+        companion object {
+            private val idGen = AtomicLong()
+        }
+    }
+
+    companion object {
+        const val META_TREE_ID = 1
+        private val logger = LoggerFactory.getLogger(EnvironmentImpl::class.java)
+
+        const val CURRENT_FORMAT_VERSION = 2
+        private const val ENVIRONMENT_PROPERTIES_FILE = "exodus.properties"
+        fun isUtilizationProfile(storeName: String): Boolean {
+            return GarbageCollector.isUtilizationProfile(storeName)
+        }
+
+        fun throwIfReadonly(txn: Transaction, exceptionMessage: String): ReadWriteTransaction {
+            if (txn.isReadonly) {
+                throw ReadonlyTransactionException(exceptionMessage)
+            }
+            return txn as ReadWriteTransaction
+        }
+
+        @JvmOverloads
+        fun loggerError(errorMessage: String, t: Throwable? = null) {
+            if (t == null) {
+                logger.error(errorMessage)
+            } else {
+                logger.error(errorMessage, t)
+            }
+        }
+
+        fun loggerInfo(message: String) {
+            if (logger.isInfoEnabled) {
+                logger.info(message)
+            }
+        }
+
+        @JvmOverloads
+        fun loggerDebug(message: String, t: Throwable? = null) {
+            if (logger.isDebugEnabled) {
+                if (t == null) {
+                    logger.debug(message)
+                } else {
+                    logger.debug(message, t)
+                }
+            }
+        }
+
+        private fun applyEnvironmentSettings(
+            location: String,
+            ec: EnvironmentConfig
+        ) {
+            val propsFile = File(location, ENVIRONMENT_PROPERTIES_FILE)
+            if (propsFile.exists() && propsFile.isFile) {
+                try {
+                    FileInputStream(propsFile).use { propsStream ->
+                        val envProps = Properties()
+                        envProps.load(propsStream)
+                        for ((key, value) in envProps) {
+                            ec.setSetting(key.toString(), value!!)
+                        }
+                    }
+                } catch (e: IOException) {
+                    throw ExodusException.toExodusException(e)
+                }
+            }
+        }
+
+        private fun checkStorageType(location: String, ec: EnvironmentConfig) {
+            val provider = ec.logDataReaderWriterProvider
+            if (provider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER) {
+                val databaseDir = File(location)
+                if (!ec.isLogAllowRemovable && isRemovableFile(databaseDir)) {
+                    throw StorageTypeNotAllowedException("Database on removable storage is not allowed")
+                }
+                if (!ec.isLogAllowRemote && isRemoteFile(databaseDir)) {
+                    throw StorageTypeNotAllowedException("Database on remote storage is not allowed")
+                }
+                if (!ec.isLogAllowRamDisk && isRamDiskFile(databaseDir)) {
+                    throw StorageTypeNotAllowedException("Database on RAM disk is not allowed")
+                }
+            }
+        }
+
+        private fun createConfigMBean(e: EnvironmentImpl): jetbrains.exodus.env.management.EnvironmentConfig? {
+            return try {
+                if (e.ec.managementOperationsRestricted) jetbrains.exodus.env.management.EnvironmentConfig(e) else EnvironmentConfigWithOperations(
+                    e
+                )
+            } catch (ex: RuntimeException) {
+                if (ex.cause is InstanceAlreadyExistsException) {
+                    return null
+                }
+                throw ex
+            }
+        }
+
+        private fun executeInTransaction(
+            executable: TransactionalExecutable,
+            txn: Transaction
+        ) {
+            try {
+                while (true) {
+                    executable.execute(txn)
+                    if (txn.isReadonly ||  // txn can be read-only if Environment is in read-only mode
+                        txn.isFinished ||  // txn can be finished if, e.g., it was aborted within executable
+                        txn.flush()
+                    ) {
+                        break
+                    }
+                    txn.revert()
+                }
+            } finally {
+                abortIfNotFinished(txn)
+            }
+        }
+
+        private fun <T> computeInTransaction(
+            computable: TransactionalComputable<T>,
+            txn: Transaction
+        ): T {
+            try {
+                while (true) {
+                    val result = computable.compute(txn)
+                    if (txn.isReadonly ||  // txn can be read-only if Environment is in read-only mode
+                        txn.isFinished ||  // txn can be finished if, e.g., it was aborted within computable
+                        txn.flush()
+                    ) {
+                        return result
+                    }
+                    txn.revert()
+                }
+            } finally {
+                abortIfNotFinished(txn)
+            }
+        }
+
+        private fun abortIfNotFinished(txn: Transaction) {
+            if (!txn.isFinished) {
+                txn.abort()
+            }
         }
     }
 }

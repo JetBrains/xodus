@@ -92,7 +92,7 @@ abstract class BaseLeafNode implements ILeafNode {
 
     @Override
     public String toString() {
-        return "LN {key:" + getKey().toString() + "} @ " + getAddress();
+        return "LN {key:" + getKey() + "} @ " + getAddress();
     }
 
     @Override

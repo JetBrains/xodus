@@ -13,160 +13,141 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.LongArrayList;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.util.IOUtil;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.LongArrayList
+import jetbrains.exodus.core.dataStructures.hash.IntHashMap
+import jetbrains.exodus.util.IOUtil.listFiles
+import java.io.File
+import java.io.FilenameFilter
+import java.io.IOException
+import java.io.PrintWriter
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.function.Predicate
+import java.util.stream.Stream
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.PrintWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
-@SuppressWarnings("WeakerAccess")
-public final class LogUtil {
-
-    public static final int LOG_BLOCK_ALIGNMENT = 1024; // log files are aligned by kilobytes
-    public static final int LOG_FILE_NAME_LENGTH = 11;
-    public static final int LOG_FILE_EXTENSION_LENGTH = 3;
-    public static final int LOG_FILE_NAME_WITH_EXT_LENGTH = LOG_FILE_NAME_LENGTH + LOG_FILE_EXTENSION_LENGTH;
-    public static final String LOG_FILE_EXTENSION = ".xd";
-
-    public static final String TMP_TRUNCATION_FILE_EXTENSION = ".tnc";
-    public static final int TMP_TRUNCATION_FILE_WITH_EXT_LENGTH = LOG_FILE_EXTENSION_LENGTH +
-            TMP_TRUNCATION_FILE_EXTENSION.length();
-
-
-    public static final FilenameFilter LOG_FILE_NAME_FILTER = (dir, name) -> name.length() == LogUtil.LOG_FILE_NAME_WITH_EXT_LENGTH &&
-            name.endsWith(LogUtil.LOG_FILE_EXTENSION);
-
-    public static final Predicate<Path> TMP_TRUNCATION_FILE_NAME_FILTER =
-            path -> path.getFileName().toString().length() == LogUtil.TMP_TRUNCATION_FILE_WITH_EXT_LENGTH &&
-                    path.endsWith(LogUtil.TMP_TRUNCATION_FILE_EXTENSION);
-
-    public static final FilenameFilter LOG_METADATA_FILE_NAME_FILTER = (dir, name) ->
-            name.equals(StartupMetadata.FIRST_FILE_NAME) || name.equals(StartupMetadata.SECOND_FILE_NAME);
-
-
-    private static final char[] LOG_FILE_EXTENSION_CHARS = LOG_FILE_EXTENSION.toCharArray();
-    private static final char[] LOG_FILE_NAME_ALPHABET = "0123456789abcdefghijklmnopqrstuv".toCharArray();
-    private static final IntHashMap<Integer> ALPHA_INDEXES;
-
-    private LogUtil() {
+object LogUtil {
+    const val LOG_BLOCK_ALIGNMENT = 1024 // log files are aligned by kilobytes
+    private const val LOG_FILE_NAME_LENGTH = 11
+    const val LOG_FILE_EXTENSION_LENGTH = 3
+    const val LOG_FILE_NAME_WITH_EXT_LENGTH = LOG_FILE_NAME_LENGTH + LOG_FILE_EXTENSION_LENGTH
+    const val LOG_FILE_EXTENSION = ".xd"
+    const val TMP_TRUNCATION_FILE_EXTENSION = ".tnc"
+    private const val TMP_TRUNCATION_FILE_WITH_EXT_LENGTH = LOG_FILE_EXTENSION_LENGTH +
+            TMP_TRUNCATION_FILE_EXTENSION.length
+    private val LOG_FILE_NAME_FILTER = FilenameFilter { _: File?, name: String ->
+        name.length == LOG_FILE_NAME_WITH_EXT_LENGTH &&
+                name.endsWith(LOG_FILE_EXTENSION)
     }
+    private val TMP_TRUNCATION_FILE_NAME_FILTER = Predicate { path: Path ->
+        path.fileName.toString().length == TMP_TRUNCATION_FILE_WITH_EXT_LENGTH &&
+                path.endsWith(TMP_TRUNCATION_FILE_EXTENSION)
+    }
+    private val LOG_METADATA_FILE_NAME_FILTER =
+        FilenameFilter { _: File?, name: String -> name == StartupMetadata.FIRST_FILE_NAME || name == StartupMetadata.SECOND_FILE_NAME }
+    private val LOG_FILE_EXTENSION_CHARS = LOG_FILE_EXTENSION.toCharArray()
+    private val LOG_FILE_NAME_ALPHABET = "0123456789abcdefghijklmnopqrstuv".toCharArray()
+    private val ALPHA_INDEXES: IntHashMap<Int> = IntHashMap()
 
-    static {
-        ALPHA_INDEXES = new IntHashMap<>();
-        final char[] alphabet = LOG_FILE_NAME_ALPHABET;
-        for (int i = 0; i < alphabet.length; ++i) {
-            ALPHA_INDEXES.put(alphabet[i], Integer.valueOf(i));
+    init {
+        val alphabet = LOG_FILE_NAME_ALPHABET
+        for (i in alphabet.indices) {
+            ALPHA_INDEXES.put(alphabet[i].code, Integer.valueOf(i))
         }
     }
 
-    public static String getLogFilename(long address) {
-        if (address < 0) {
-            throw new ExodusException("Starting address of a log file is negative: " + address);
+    @JvmStatic
+    fun getLogFilename(address: Long): String {
+        var input = address
+        if (input < 0) {
+            throw ExodusException("Starting address of a log file is negative: $input")
         }
-        if (address % LOG_BLOCK_ALIGNMENT != 0) {
-            throw new ExodusException("Starting address of a log file is badly aligned: " + address);
+        if (input % LOG_BLOCK_ALIGNMENT != 0L) {
+            throw ExodusException("Starting address of a log file is badly aligned: $input")
         }
-        address /= LOG_BLOCK_ALIGNMENT;
-        char[] name = new char[LOG_FILE_NAME_WITH_EXT_LENGTH];
-        for (int i = 1; i <= LOG_FILE_NAME_LENGTH; i++) {
-            name[LOG_FILE_NAME_LENGTH - i] = LOG_FILE_NAME_ALPHABET[(int) (address & 0x1f)];
-            address >>= 5;
+        input /= LOG_BLOCK_ALIGNMENT.toLong()
+        val name = CharArray(LOG_FILE_NAME_WITH_EXT_LENGTH)
+        for (i in 1..LOG_FILE_NAME_LENGTH) {
+            name[LOG_FILE_NAME_LENGTH - i] = LOG_FILE_NAME_ALPHABET[(input and 0x1fL).toInt()]
+            input = input shr 5
         }
-        System.arraycopy(LOG_FILE_EXTENSION_CHARS, 0, name, LOG_FILE_NAME_LENGTH, LOG_FILE_EXTENSION_LENGTH);
-        return new String(name);
+        System.arraycopy(LOG_FILE_EXTENSION_CHARS, 0, name, LOG_FILE_NAME_LENGTH, LOG_FILE_EXTENSION_LENGTH)
+        return String(name)
     }
 
-    public static long getAddress(final String logFilename) {
-        final int length = logFilename.length();
+    @JvmStatic
+    fun getAddress(logFilename: String): Long {
+        val length = logFilename.length
         if (length != LOG_FILE_NAME_WITH_EXT_LENGTH || !logFilename.endsWith(LOG_FILE_EXTENSION)) {
-            throw new ExodusException("Invalid log file name: " + logFilename);
+            throw ExodusException("Invalid log file name: $logFilename")
         }
-        long address = 0;
-        for (int i = 0; i < LOG_FILE_NAME_LENGTH; ++i) {
-            final char c = logFilename.charAt(i);
-            final Integer integer = ALPHA_INDEXES.get(c);
-            if (integer == null) {
-                throw new ExodusException("Invalid log file name: " + logFilename);
-            }
-            address = (address << 5) + integer.longValue();
+        var address: Long = 0
+        for (i in 0 until LOG_FILE_NAME_LENGTH) {
+            val c = logFilename[i]
+            val integer = ALPHA_INDEXES[c.code] ?: throw ExodusException("Invalid log file name: $logFilename")
+            address = (address shl 5) + integer.toLong()
         }
-        return address * LOG_BLOCK_ALIGNMENT;
+        return address * LOG_BLOCK_ALIGNMENT
     }
 
-    @SuppressWarnings("unused")
-    public static boolean isLogFile(@NotNull final File file) {
-        return isLogFileName(file.getName());
+    @Suppress("unused")
+    fun isLogFile(file: File): Boolean {
+        return isLogFileName(file.name)
     }
 
-    public static boolean isLogFileName(@NotNull final String name) {
-        try {
-            getAddress(name);
-            return true;
-        } catch (ExodusException e) {
-            return false;
+    @JvmStatic
+    fun isLogFileName(name: String): Boolean {
+        return try {
+            getAddress(name)
+            true
+        } catch (e: ExodusException) {
+            false
         }
     }
 
-    @NotNull
-    public static File[] listFiles(@NotNull final File directory) {
-        return IOUtil.listFiles(directory, LOG_FILE_NAME_FILTER);
+    fun listFiles(directory: File): Array<File> {
+        return listFiles(directory, LOG_FILE_NAME_FILTER)
     }
 
-    @NotNull
-    public static Stream<Path> listTlcFiles(@NotNull final File directory) throws IOException  {
-        //noinspection resource
-        return Files.list(Path.of(directory.toURI())).filter(TMP_TRUNCATION_FILE_NAME_FILTER);
+    @Throws(IOException::class)
+    fun listTlcFiles(directory: File): Stream<Path> {
+        return Files.list(Path.of(directory.toURI())).filter(TMP_TRUNCATION_FILE_NAME_FILTER)
     }
 
-    @NotNull
-    public static File[] listMetadataFiles(@NotNull final File directory) {
-        return IOUtil.listFiles(directory, LOG_METADATA_FILE_NAME_FILTER);
+    fun listMetadataFiles(directory: File): Array<File> {
+        return listFiles(directory, LOG_METADATA_FILE_NAME_FILTER)
     }
 
-
-    @NotNull
-    public static LongArrayList listFileAddresses(@NotNull final File directory) {
-        final File[] files = listFiles(directory);
-        final LongArrayList result = new LongArrayList(files.length);
-        for (final File file : files) {
-            result.add(getAddress(file.getName()));
+    fun listFileAddresses(directory: File): LongArrayList {
+        val files = listFiles(directory)
+        val result = LongArrayList(files.size)
+        for (file in files) {
+            result.add(getAddress(file.name))
         }
-        return result;
+        return result
     }
 
-    @NotNull
-    public static LongArrayList listFileAddresses(final long fromAddress, @NotNull final File directory) {
-        final File[] files = listFiles(directory);
-        final LongArrayList result = new LongArrayList();
-        for (final File file : files) {
-            final long address = getAddress(file.getName());
+    fun listFileAddresses(fromAddress: Long, directory: File): LongArrayList {
+        val files = listFiles(directory)
+        val result = LongArrayList()
+        for (file in files) {
+            val address = getAddress(file.name)
             if (address >= fromAddress) {
-                result.add(address);
+                result.add(address)
             }
         }
-        return result;
+        return result
     }
 
-    public static String getWrongAddressErrorMessage(final long address, final long fileLengthBound) {
-        final long fileAddress = address - (address % fileLengthBound);
-        return ", address = " + address + ", file = " + getLogFilename(fileAddress);
+    fun getWrongAddressErrorMessage(address: Long, fileLengthBound: Long): String {
+        val fileAddress = address - address % fileLengthBound
+        return ", address = " + address + ", file = " + getLogFilename(fileAddress)
     }
 
-    public static void printStackTrace(StackTraceElement[] stackTraceElements, PrintWriter printWriter) {
-        printWriter.println();
-        for (StackTraceElement traceElement : stackTraceElements)
-            printWriter.println("\tat " + traceElement);
-
+    fun printStackTrace(stackTraceElements: Array<StackTraceElement>, printWriter: PrintWriter) {
+        printWriter.println()
+        for (traceElement in stackTraceElements) printWriter.println("\tat $traceElement")
     }
 }

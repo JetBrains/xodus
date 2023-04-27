@@ -13,263 +13,253 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.bindings.StringBinding;
-import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.log.*;
-import jetbrains.exodus.tree.*;
-import jetbrains.exodus.tree.btree.BTree;
-import jetbrains.exodus.tree.btree.BTreeEmpty;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.StringBinding
+import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.log.*
+import jetbrains.exodus.tree.*
+import jetbrains.exodus.tree.LongIterator
+import jetbrains.exodus.tree.btree.BTreeEmpty
+import mu.KLogging
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
+    val tree: ITree
+    val root: Long
 
-final class MetaTreeImpl implements MetaTree {
-
-    private static final int EMPTY_LOG_BOUND = 5;
-
-    final ITree tree;
-    final long root;
-
-    MetaTreeImpl(final ITree tree, long root) {
-        this.tree = tree;
-        this.root = root;
+    init {
+        this.tree = tree!!
+        this.root = root
     }
 
-    static Pair<MetaTreeImpl, Integer> create(@NotNull final EnvironmentImpl env,
-                                              @NotNull ExpiredLoggableCollection expired) {
-        final Log log = env.getLog();
-        final long highAddress = log.getHighAddress();
-        if (highAddress > EMPTY_LOG_BOUND) {
-            Loggable rootLoggable;
-            final long rootAddress = log.getStartUpDbRoot();
+    override fun treeAddress(): Long {
+        return tree.rootAddress
+    }
 
-            if (rootAddress >= 0) {
-                rootLoggable = log.read(rootAddress);
-            } else {
-                rootLoggable = null;
+    override fun rootAddress(): Long {
+        return root
+    }
+
+    fun addressIterator(): LongIterator {
+        return tree.addressIterator()
+    }
+
+    fun getMetaInfo(storeName: String, env: EnvironmentImpl): TreeMetaInfo? {
+        val value = tree[StringBinding.stringToEntry(storeName)] ?: return null
+        return TreeMetaInfo.load(env, value)
+    }
+
+    fun getRootAddress(structureId: Int): Long {
+        val value = tree[LongBinding.longToCompressedEntry(structureId.toLong())]
+        return if (value == null) Loggable.NULL_ADDRESS else CompressedUnsignedLongByteIterable.getLong(value)
+    }
+
+    val allStoreCount: Long
+        get() {
+            val size = tree.size
+            if (size % 2L != 0L) {
+                logger.error("MetaTree size is not even")
             }
-
-            if (rootLoggable != null) {
-                final long root = rootLoggable.getAddress();
-                DatabaseRoot dbRoot = null;
-                try {
-                    dbRoot = new DatabaseRoot(rootLoggable);
-                } catch (ExodusException e) {
-                    EnvironmentImpl.loggerError("Failed to load database root at " + rootLoggable.getAddress(), e);
-                }
-                if (dbRoot != null && dbRoot.isValid()) {
-                    try {
-                        final BTree metaTree = env.loadMetaTree(dbRoot.getRootAddress());
-                        if (metaTree != null) {
-                            return new Pair<>(new MetaTreeImpl(metaTree, root),
-                                    dbRoot.getLastStructureId());
+            return size / 2
+        }
+    val allStoreNames: List<String>
+        get() {
+            val tree = tree
+            if (tree.size == 0L) {
+                return emptyList()
+            }
+            val result: MutableList<String> = ArrayList()
+            tree.openCursor().use { cursor ->
+                while (cursor.next) {
+                    val key = ArrayByteIterable(cursor.key)
+                    if (isStringKey(key)) {
+                        val storeName = StringBinding.entryToString(key)
+                        if (!EnvironmentImpl.isUtilizationProfile(storeName)) {
+                            result.add(storeName)
                         }
-                    } catch (ExodusException e) {
-                        EnvironmentImpl.loggerError("Failed to recover to valid root" +
-                                LogUtil.getWrongAddressErrorMessage(dbRoot.getAddress(),
-                                        env.getEnvironmentConfig().getLogFileSize() << 10), e);
                     }
                 }
             }
-            try {
-                DataCorruptionException.raise("No valid root has found in the database", log, rootAddress);
-            } finally {
-                log.close();
+            return result
+        }
+
+    fun getStoreNameByStructureId(structureId: Int, env: EnvironmentImpl): String? {
+        tree.openCursor().use { cursor ->
+            while (cursor.next) {
+                val key = cursor.key
+                if (isStringKey(ArrayByteIterable(key))) {
+                    if (TreeMetaInfo.load(env, cursor.value).getStructureId() == structureId) {
+                        return StringBinding.entryToString(key)
+                    }
+                }
             }
         }
-        // no roots found: the database is empty
-        EnvironmentImpl.loggerDebug("No roots found: the database is empty");
-        final ITree resultTree = getEmptyMetaTree(env);
-        final long root;
-        log.beginWrite();
-        try {
-            final long rootAddress = resultTree.getMutableCopy().save();
-            root = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-                    DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID), expired);
-            log.flush();
-            log.endWrite();
-        } catch (Throwable t) {
-            throw new ExodusException("Can't init meta tree in log", t);
-        }
-        return new Pair<>(new MetaTreeImpl(resultTree, root),
-                EnvironmentImpl.META_TREE_ID);
+        return null
     }
 
-    static MetaTreeImpl create(@NotNull final EnvironmentImpl env,
-                               @NotNull final MetaTreePrototype prototype) {
-        return new MetaTreeImpl(
+    val clone: MetaTreeImpl
+        get() = MetaTreeImpl(cloneTree(tree), root)
+
+    class Proto(val address: Long, val root: Long) : MetaTreePrototype {
+        override fun treeAddress(): Long {
+            return address
+        }
+
+        override fun rootAddress(): Long {
+            return root
+        }
+    }
+
+    companion object : KLogging() {
+        private const val EMPTY_LOG_BOUND = 5
+        fun create(
+            env: EnvironmentImpl,
+            expired: ExpiredLoggableCollection
+        ): Pair<MetaTreeImpl, Int> {
+            val log = env.log
+            val highAddress = log.highAddress
+            if (highAddress > EMPTY_LOG_BOUND) {
+                val rootLoggable: Loggable?
+                val rootAddress = log.getStartUpDbRoot()
+                rootLoggable = if (rootAddress >= 0) {
+                    log.read(rootAddress)
+                } else {
+                    null
+                }
+                if (rootLoggable != null) {
+                    val root = rootLoggable.address
+                    var dbRoot: DatabaseRoot? = null
+                    try {
+                        dbRoot = DatabaseRoot(rootLoggable)
+                    } catch (e: ExodusException) {
+                        EnvironmentImpl.loggerError(
+                            "Failed to load database root at " + rootLoggable.address,
+                            e
+                        )
+                    }
+                    if (dbRoot != null && dbRoot.isValid) {
+                        try {
+                            val metaTree = env.loadMetaTree(dbRoot.rootAddress)
+                            return Pair(
+                                MetaTreeImpl(metaTree, root),
+                                dbRoot.lastStructureId
+                            )
+                        } catch (e: ExodusException) {
+                            EnvironmentImpl.loggerError(
+                                "Failed to recover to valid root" +
+                                        LogUtil.getWrongAddressErrorMessage(
+                                            dbRoot.address,
+                                            env.environmentConfig.logFileSize shl 10
+                                        ), e
+                            )
+                        }
+                    }
+                }
+                log.use {
+                    DataCorruptionException.raise("No valid root has found in the database", it, rootAddress)
+                }
+            }
+            // no roots found: the database is empty
+            logger.debug("No roots found: the database is empty")
+            val resultTree = getEmptyMetaTree(env)
+            val root: Long
+            log.beginWrite()
+            try {
+                val rootAddress = resultTree.mutableCopy.save()
+                root = log.write(
+                    DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
+                    DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID), expired
+                )
+                log.flush()
+                log.endWrite()
+            } catch (t: Throwable) {
+                throw ExodusException("Can't init meta tree in log", t)
+            }
+            return Pair<MetaTreeImpl, Int>(
+                MetaTreeImpl(resultTree, root),
+                EnvironmentImpl.META_TREE_ID
+            )
+        }
+
+        fun create(
+            env: EnvironmentImpl,
+            prototype: MetaTreePrototype
+        ): MetaTreeImpl {
+            return MetaTreeImpl(
                 env.loadMetaTree(prototype.treeAddress()),
                 prototype.rootAddress()
-        );
-    }
-
-    @Override
-    public long treeAddress() {
-        return tree.getRootAddress();
-    }
-
-    @Override
-    public long rootAddress() {
-        return root;
-    }
-
-    LongIterator addressIterator() {
-        return tree.addressIterator();
-    }
-
-    @Nullable
-    TreeMetaInfo getMetaInfo(@NotNull final String storeName, @NotNull final EnvironmentImpl env) {
-        final ByteIterable value = tree.get(StringBinding.stringToEntry(storeName));
-        if (value == null) {
-            return null;
+            )
         }
-        return TreeMetaInfo.load(env, value);
-    }
 
-    long getRootAddress(final int structureId) {
-        final ByteIterable value = tree.get(LongBinding.longToCompressedEntry(structureId));
-        return value == null ? Loggable.NULL_ADDRESS : CompressedUnsignedLongByteIterable.getLong(value);
-    }
-
-    static void removeStore(@NotNull final ITreeMutable out, @NotNull final String storeName, final long id) {
-        out.delete(StringBinding.stringToEntry(storeName));
-        out.delete(LongBinding.longToCompressedEntry(id));
-    }
-
-    static void addStore(@NotNull final ITreeMutable out, @NotNull final String storeName, @NotNull final TreeMetaInfo metaInfo) {
-        out.put(StringBinding.stringToEntry(storeName), metaInfo.toByteIterable());
-    }
-
-    static void saveTree(@NotNull final ITreeMutable out,
-                         @NotNull final ITreeMutable treeMutable) {
-        final long treeRootAddress = treeMutable.save();
-        final int structureId = treeMutable.getStructureId();
-        out.put(LongBinding.longToCompressedEntry(structureId),
-                CompressedUnsignedLongByteIterable.getIterable(treeRootAddress));
-    }
-
-    /**
-     * Saves meta tree, writes database root and flushes the log.
-     *
-     * @param metaTree mutable meta tree
-     * @param env      enclosing environment
-     * @param expired  expired loggables (database root to be added)
-     * @return database root loggable which is read again from the log.
-     */
-    @NotNull
-    static MetaTreeImpl.Proto saveMetaTree(@NotNull final ITreeMutable metaTree,
-                                           @NotNull final EnvironmentImpl env,
-                                           @NotNull final ExpiredLoggableCollection expired) {
-        final long newMetaTreeAddress = metaTree.save();
-        final Log log = env.getLog();
-        final int lastStructureId = env.getLastStructureId();
-        final long dbRootAddress = log.write(DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
-                DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId), expired);
-        expired.add(dbRootAddress, (int) (log.getWrittenHighAddress() - dbRootAddress));
-        return new MetaTreeImpl.Proto(newMetaTreeAddress, dbRootAddress);
-    }
-
-    long getAllStoreCount() {
-        long size = tree.getSize();
-        if (size % 2L != 0) {
-            EnvironmentImpl.loggerError("MetaTree size is not even");
+        fun removeStore(out: ITreeMutable, storeName: String, id: Long) {
+            out.delete(StringBinding.stringToEntry(storeName))
+            out.delete(LongBinding.longToCompressedEntry(id))
         }
-        return size / 2;
-    }
 
-    @NotNull
-    List<String> getAllStoreNames() {
-        final ITree tree = this.tree;
-        if (tree.getSize() == 0) {
-            return Collections.emptyList();
+        fun addStore(out: ITreeMutable, storeName: String, metaInfo: TreeMetaInfo) {
+            out.put(StringBinding.stringToEntry(storeName), metaInfo.toByteIterable())
         }
-        final List<String> result = new ArrayList<>();
-        try (ITreeCursor cursor = tree.openCursor()) {
-            //noinspection MethodCallInLoopCondition
-            while (cursor.getNext()) {
-                @SuppressWarnings("ObjectAllocationInLoop") final ArrayByteIterable key = new ArrayByteIterable(cursor.getKey());
-                if (isStringKey(key)) {
-                    final String storeName = StringBinding.entryToString(key);
-                    if (!EnvironmentImpl.isUtilizationProfile(storeName)) {
-                        result.add(storeName);
-                    }
+
+        fun saveTree(
+            out: ITreeMutable,
+            treeMutable: ITreeMutable
+        ) {
+            val treeRootAddress = treeMutable.save()
+            val structureId = treeMutable.structureId
+            out.put(
+                LongBinding.longToCompressedEntry(structureId.toLong()),
+                CompressedUnsignedLongByteIterable.getIterable(treeRootAddress)
+            )
+        }
+
+        /**
+         * Saves meta tree, writes database root and flushes the log.
+         *
+         * @param metaTree mutable meta tree
+         * @param env      enclosing environment
+         * @param expired  expired loggables (database root to be added)
+         * @return database root loggable which is read again from the log.
+         */
+        fun saveMetaTree(
+            metaTree: ITreeMutable,
+            env: EnvironmentImpl,
+            expired: ExpiredLoggableCollection
+        ): Proto {
+            val newMetaTreeAddress = metaTree.save()
+            val log = env.log
+            val lastStructureId = env.lastStructureId
+            val dbRootAddress = log.write(
+                DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
+                DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId), expired
+            )
+            expired.add(dbRootAddress, (log.writtenHighAddress - dbRootAddress).toInt())
+            return Proto(newMetaTreeAddress, dbRootAddress)
+        }
+
+        fun isStringKey(key: ArrayByteIterable): Boolean {
+            // last byte of string is zero
+            return key.byteAt(key.length - 1).toInt() == 0
+        }
+
+        fun cloneTree(tree: ITree): ITreeMutable {
+            tree.openCursor().use { cursor ->
+                val result = tree.mutableCopy
+                while (cursor.next) {
+                    result.put(cursor.key, cursor.value)
+                }
+                return result
+            }
+        }
+
+        private fun getEmptyMetaTree(env: EnvironmentImpl): ITree {
+            return object : BTreeEmpty(env.log, env.bTreeBalancePolicy, false, EnvironmentImpl.META_TREE_ID) {
+                override fun getDataIterator(address: Long): DataIterator {
+                    return DataIterator(log, address)
                 }
             }
-        }
-        return result;
-    }
-
-    @Nullable
-    String getStoreNameByStructureId(final int structureId, @NotNull final EnvironmentImpl env) {
-        try (ITreeCursor cursor = tree.openCursor()) {
-            while (cursor.getNext()) {
-                final ByteIterable key = cursor.getKey();
-                //noinspection ObjectAllocationInLoop
-                if (isStringKey(new ArrayByteIterable(key))) {
-                    if (TreeMetaInfo.load(env, cursor.getValue()).getStructureId() == structureId) {
-                        return StringBinding.entryToString(key);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    MetaTreeImpl getClone() {
-        return new MetaTreeImpl(cloneTree(tree), root);
-    }
-
-    static boolean isStringKey(final ArrayByteIterable key) {
-        // last byte of string is zero
-        return key.byteAt(key.getLength() - 1) == 0;
-    }
-
-    static ITreeMutable cloneTree(@NotNull final ITree tree) {
-        try (ITreeCursor cursor = tree.openCursor()) {
-            final ITreeMutable result = tree.getMutableCopy();
-            while (cursor.getNext()) {
-                result.put(cursor.getKey(), cursor.getValue());
-            }
-            return result;
-        }
-    }
-
-    private static ITree getEmptyMetaTree(@NotNull final EnvironmentImpl env) {
-        return new BTreeEmpty(env.getLog(), env.getBTreeBalancePolicy(), false, EnvironmentImpl.META_TREE_ID) {
-            @NotNull
-            @Override
-            public DataIterator getDataIterator(long address) {
-                return new DataIterator(log, address);
-            }
-        };
-    }
-
-    static class Proto implements MetaTreePrototype {
-        final long address;
-        final long root;
-
-        Proto(long address, long root) {
-            this.address = address;
-            this.root = root;
-        }
-
-        @Override
-        public long treeAddress() {
-            return address;
-        }
-
-        @Override
-        public long rootAddress() {
-            return root;
         }
     }
 }

@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-public interface ReadBytesListener {
-
-    void bytesRead(final byte[] bytes, final int count);
+fun interface ReadBytesListener {
+    fun bytesRead(bytes: ByteArray, count: Int)
 }

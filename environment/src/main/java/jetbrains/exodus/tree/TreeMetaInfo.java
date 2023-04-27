@@ -79,7 +79,7 @@ public abstract class TreeMetaInfo {
                                     final boolean keyPrefixing,
                                     final int structureId) {
         if (keyPrefixing) {
-            return new PatriciaMetaInfo(environment.getLog(), duplicates, structureId);
+            return new PatriciaMetaInfo(environment.log, duplicates, structureId);
         } else {
             return new BTreeMetaInfo(environment, duplicates, structureId);
         }

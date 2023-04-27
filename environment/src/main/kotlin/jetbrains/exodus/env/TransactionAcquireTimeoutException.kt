@@ -13,13 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.ExodusException
 
-public class TransactionAcquireTimeoutException extends ExodusException {
-
-    TransactionAcquireTimeoutException(final int millis) {
-        super("Failed to acquire transaction within " + millis + " milliseconds");
-    }
-}
+class TransactionAcquireTimeoutException internal constructor(millis: Int) :
+    ExodusException("Failed to acquire transaction within $millis milliseconds")

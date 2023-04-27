@@ -98,31 +98,33 @@ object Environments {
     fun newLogInstance(config: LogConfig, ec: EnvironmentConfig): Log {
         return newLogInstance(config.apply {
             val maxMemory = ec.memoryUsage
+
             if (maxMemory != null) {
-                memoryUsage = maxMemory
+                setMemoryUsage(maxMemory)
             } else {
-                memoryUsagePercentage = ec.memoryUsagePercentage
+                setMemoryUsagePercentage(ec.memoryUsagePercentage)
             }
+
             setReaderWriterProvider(ec.logDataReaderWriterProvider)
 
-            fileSize = ec.logFileSize
-            lockTimeout = ec.logLockTimeout
-            cachePageSize = ec.logCachePageSize
-            cacheOpenFilesCount = ec.logCacheOpenFilesCount
-            isDurableWrite = ec.logDurableWrite
-            isSharedCache = ec.isLogCacheShared
-            isNonBlockingCache = ec.isLogCacheNonBlocking
-            cacheUseSoftReferences = ec.logCacheUseSoftReferences
-            cacheGenerationCount = ec.logCacheGenerationCount
-            isCleanDirectoryExpected = ec.isLogCleanDirectoryExpected
-            isClearInvalidLog = ec.isLogClearInvalid
-            isWarmup = ec.logCacheWarmup
-            syncPeriod = ec.logSyncPeriod
-            isFullFileReadonly = ec.isLogFullFileReadonly
-            cipherProvider = ec.cipherId?.let { cipherId -> newCipherProvider(cipherId) }
-            cipherKey = ec.cipherKey
-            cipherBasicIV = ec.cipherBasicIV
-            isCheckPagesAtRuntime = ec.checkPagesAtRuntime
+            setFileSize(ec.logFileSize)
+            setLockTimeout(ec.logLockTimeout)
+            setCachePageSize(ec.logCachePageSize)
+            setCacheOpenFilesCount(ec.logCacheOpenFilesCount)
+            setDurableWrite(ec.logDurableWrite)
+            setSharedCache(ec.isLogCacheShared)
+            setNonBlockingCache(ec.isLogCacheNonBlocking)
+            setCacheUseSoftReferences(ec.logCacheUseSoftReferences)
+            setCacheGenerationCount(ec.logCacheGenerationCount)
+            setCleanDirectoryExpected(ec.isLogCleanDirectoryExpected)
+            setClearInvalidLog(ec.isLogClearInvalid)
+            setWarmup(ec.logCacheWarmup)
+            setSyncPeriod(ec.logSyncPeriod)
+            setFullFileReadonly(ec.isLogFullFileReadonly)
+            setCipherProvider(ec.cipherId?.let { cipherId -> newCipherProvider(cipherId) })
+            setCipherKey(ec.cipherKey)
+            setCipherBasicIV(ec.cipherBasicIV)
+            checkPagesAtRuntime = ec.checkPagesAtRuntime
 
             setUseV1Format(ec.useVersion1Format)
         })

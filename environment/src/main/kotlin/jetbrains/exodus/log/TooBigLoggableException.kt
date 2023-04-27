@@ -13,19 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.ExodusException
 
-public class TooBigLoggableException extends ExodusException {
-
-    private static final String DEFAULT_MESSAGE = "Can't write a loggable which size is greater than file size.";
-
-    public TooBigLoggableException() {
-        this(DEFAULT_MESSAGE);
-    }
-
-    public TooBigLoggableException(final String message) {
-        super(message);
+class TooBigLoggableException @JvmOverloads constructor(message: String? = DEFAULT_MESSAGE) : ExodusException(message) {
+    companion object {
+        private const val DEFAULT_MESSAGE = "Can't write a loggable which size is greater than file size."
     }
 }

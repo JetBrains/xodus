@@ -32,7 +32,7 @@ internal fun Log.warmup() {
         val files = allFileAddresses.takeLast(max(1, maxFiles.toInt()))
         val size = files.size
         val it = DataIterator(this)
-        val pageSize = config.cachePageSize
+        val pageSize = config.getCachePageSize()
         Log.logger.info("Warming LogCache up with newest $size ${if (size > 1) "files" else "file"} at $location")
         processor.executeIterable(files) { address ->
             Log.logger.info("Warming up ${LogUtil.getLogFilename(address)}")

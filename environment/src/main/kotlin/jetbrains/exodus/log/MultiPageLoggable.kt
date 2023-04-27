@@ -13,74 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import org.jetbrains.annotations.NotNull;
-
-public final class MultiPageLoggable implements RandomAccessLoggable {
-
-    private final byte type;
-    @NotNull
-    private final MultiPageByteIterableWithAddress data;
-    private final int structureId;
-    private final int dataLength;
-    private final long address;
-    private final Log log;
-
-    public MultiPageLoggable(final long address,
-                             final byte type,
-                             @NotNull final MultiPageByteIterableWithAddress data,
-                             final int dataLength,
-                             final int structureId,
-                             final Log log) {
-        this.address = address;
-        this.type = type;
-        this.data = data;
-        this.structureId = structureId;
-        this.dataLength = dataLength;
-        this.log = log;
+class MultiPageLoggable(
+    override val address: Long,
+    override val type: Byte,
+    override val data: MultiPageByteIterableWithAddress,
+    override val dataLength: Int,
+    override val structureId: Int,
+    private val log: Log?
+) : RandomAccessLoggable {
+    override fun length(): Int {
+        assert(log != null)
+        return dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId.toLong()) +
+                CompressedUnsignedLongByteIterable.getCompressedSize(dataLength.toLong()) + 1
     }
 
-    @Override
-    public long getAddress() {
-        return address;
+    override fun end(): Long {
+        assert(log != null)
+        return log!!.adjustLoggableAddress(data.dataAddress, dataLength.toLong())
     }
 
-    @Override
-    public byte getType() {
-        return type;
-    }
-
-    @Override
-    public int length() {
-        assert log != null;
-        return dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId) +
-                CompressedUnsignedLongByteIterable.getCompressedSize(dataLength) + 1;
-    }
-
-    @Override
-    public long end() {
-        assert log != null;
-        return log.adjustLoggableAddress(data.getDataAddress(), dataLength);
-    }
-
-    @NotNull
-    @Override
-    public MultiPageByteIterableWithAddress getData() {
-        return data;
-    }
-
-    public int getDataLength() {
-        return dataLength;
-    }
-
-    @Override
-    public int getStructureId() {
-        return structureId;
-    }
-
-    @Override
-    public boolean isDataInsideSinglePage() {
-        return false;
-    }
+    override val isDataInsideSinglePage: Boolean
+        get() = false
 }

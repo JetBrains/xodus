@@ -42,6 +42,6 @@ public class PatriciaMetaInfo extends TreeMetaInfo {
         final boolean duplicates = (flagsByte & DUPLICATES_BIT) != 0;
         CompressedUnsignedLongByteIterable.getInt(it); // legacy format
         final int structureId = CompressedUnsignedLongByteIterable.getInt(it);
-        return new PatriciaMetaInfo(env.getLog(), duplicates, structureId);
+        return new PatriciaMetaInfo(env.log, duplicates, structureId);
     }
 }

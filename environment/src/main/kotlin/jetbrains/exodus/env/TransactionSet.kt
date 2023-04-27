@@ -13,165 +13,126 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.core.dataStructures.persistent.PersistentHashSet;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.core.dataStructures.persistent.PersistentHashSet
+import java.util.concurrent.atomic.AtomicReference
 
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
+internal class TransactionSet {
+    private val snapshots: AtomicReference<MinMaxAwareSnapshotSet> = AtomicReference(MinMaxAwareSnapshotSet())
 
-final class TransactionSet {
-
-    private final AtomicReference<MinMaxAwareSnapshotSet> snapshots;
-
-    TransactionSet() {
-        snapshots = new AtomicReference<>(new MinMaxAwareSnapshotSet());
-    }
-
-    void forEach(@NotNull final TransactionalExecutable executable) {
-        for (final Snapshot snapshot : getCurrent()) {
-            executable.execute(snapshot.txn);
+    fun forEach(executable: TransactionalExecutable) {
+        for (snapshot in current) {
+            executable.execute(snapshot.txn)
         }
     }
 
-    void add(@NotNull final TransactionBase txn) {
-        final Snapshot snapshot = new Snapshot(txn, txn.getRoot());
-        for (; ; ) {
-            final MinMaxAwareSnapshotSet prevSet = snapshots.get();
-            final PersistentHashSet<Snapshot> newSet = prevSet.set.getClone();
+    fun add(txn: TransactionBase) {
+        val snapshot = Snapshot(txn, txn.root)
+        while (true) {
+            val prevSet = snapshots.get()
+            val newSet = prevSet.set.clone
             if (!newSet.contains(snapshot)) {
-                final PersistentHashSet.MutablePersistentHashSet<Snapshot> mutableSet = newSet.beginWrite();
-                mutableSet.add(snapshot);
-                mutableSet.endWrite();
+                val mutableSet = newSet.beginWrite()
+                mutableSet.add(snapshot)
+                mutableSet.endWrite()
             }
-            final Snapshot prevMin = prevSet.min;
-            final Snapshot prevMax = prevSet.max;
-            final Snapshot newMin = prevMin != null && prevMin.root > snapshot.root ? snapshot : prevMin;
-            final Snapshot newMax = prevMax != null && prevMax.root < snapshot.root ? snapshot : prevMax;
-            if (this.snapshots.compareAndSet(prevSet, new MinMaxAwareSnapshotSet(newSet, newMin, newMax))) {
-                break;
+            val prevMin = prevSet.min
+            val prevMax = prevSet.max
+            val newMin = if (prevMin != null && prevMin.root > snapshot.root) snapshot else prevMin
+            val newMax = if (prevMax != null && prevMax.root < snapshot.root) snapshot else prevMax
+            if (snapshots.compareAndSet(prevSet, MinMaxAwareSnapshotSet(newSet, newMin, newMax))) {
+                break
             }
         }
     }
 
-    boolean contains(@NotNull final TransactionBase txn) {
-        return getCurrent().contains(new Snapshot(txn, 0));
+    operator fun contains(txn: TransactionBase): Boolean {
+        return current.contains(Snapshot(txn, 0))
     }
 
-    void remove(@NotNull final TransactionBase txn) {
-        final Snapshot snapshot = new Snapshot(txn, 0);
-        for (; ; ) {
-            final MinMaxAwareSnapshotSet prevSet = snapshots.get();
-            final PersistentHashSet<Snapshot> newSet = prevSet.set.getClone();
-            final PersistentHashSet.MutablePersistentHashSet<Snapshot> mutableSet = newSet.beginWrite();
+    fun remove(txn: TransactionBase) {
+        val snapshot = Snapshot(txn, 0)
+        while (true) {
+            val prevSet = snapshots.get()
+            val newSet = prevSet.set.clone
+            val mutableSet = newSet.beginWrite()
             if (!mutableSet.remove(snapshot)) {
-                break;
+                break
             }
-            mutableSet.endWrite();
+            mutableSet.endWrite()
             // update min & max
-            final Snapshot prevMin = prevSet.min;
-            final Snapshot prevMax = prevSet.max;
-            final Snapshot newMin = Objects.equals(prevMin, snapshot) ? null : prevMin;
-            final Snapshot newMax = Objects.equals(prevMax, snapshot) ? null : prevMax;
-            if (this.snapshots.compareAndSet(prevSet, new MinMaxAwareSnapshotSet(newSet, newMin, newMax))) {
-                break;
+            val prevMin = prevSet.min
+            val prevMax = prevSet.max
+            val newMin = if (prevMin == snapshot) null else prevMin
+            val newMax = if (prevMax == snapshot) null else prevMax
+            if (snapshots.compareAndSet(prevSet, MinMaxAwareSnapshotSet(newSet, newMin, newMax))) {
+                break
             }
         }
     }
 
-    boolean isEmpty() {
-        return getCurrent().isEmpty();
+    val isEmpty: Boolean
+        get() = current.isEmpty
+
+    fun size(): Int {
+        return current.size()
     }
 
-    int size() {
-        return getCurrent().size();
-    }
-
-    long getOldestTxnRootAddress() {
-        final Snapshot oldestSnapshot = snapshots.get().getMin();
-        return oldestSnapshot == null ? Long.MAX_VALUE : oldestSnapshot.root;
-    }
-
-    long getNewestTxnRootAddress() {
-        final Snapshot newestSnapshot = snapshots.get().getMax();
-        return newestSnapshot == null ? Long.MIN_VALUE : newestSnapshot.root;
-    }
-
-    @NotNull
-    private PersistentHashSet<Snapshot> getCurrent() {
-        return snapshots.get().set;
-    }
-
-    private static class MinMaxAwareSnapshotSet {
-
-        @NotNull
-        final PersistentHashSet<Snapshot> set;
-        @Nullable
-        volatile Snapshot min;
-        @Nullable
-        volatile Snapshot max;
-
-        MinMaxAwareSnapshotSet(@NotNull final PersistentHashSet<Snapshot> set,
-                               @Nullable final Snapshot min, @Nullable final Snapshot max) {
-            this.set = set;
-            this.min = min;
-            this.max = max;
+    val oldestTxnRootAddress: Long
+        get() {
+            val oldestSnapshot = snapshots.get().min
+            return oldestSnapshot?.root ?: Long.MAX_VALUE
         }
-
-        MinMaxAwareSnapshotSet() {
-            this(new PersistentHashSet<>(), null, null);
+    val newestTxnRootAddress: Long
+        get() {
+            val newestSnapshot = snapshots.get().max
+            return newestSnapshot?.root ?: Long.MIN_VALUE
         }
+    private val current: PersistentHashSet<Snapshot>
+        get() = snapshots.get().set
 
-        @Nullable
-        Snapshot getMin() {
-            if (min == null) {
-                Snapshot min = null;
-                for (final Snapshot snapshot : set) {
-                    if (min == null || snapshot.root < min.root) {
-                        min = snapshot;
+    private class MinMaxAwareSnapshotSet @JvmOverloads constructor(
+        val set: PersistentHashSet<Snapshot> = PersistentHashSet(),
+        @field:Volatile private var _min: Snapshot? = null, @field:Volatile private var _max: Snapshot? = null
+    ) {
+
+        val min: Snapshot?
+            get() {
+                if (_min == null) {
+                    var min: Snapshot? = null
+                    for (snapshot in set) {
+                        if (min == null || snapshot.root < min.root) {
+                            min = snapshot
+                        }
                     }
+                    _min = min
                 }
-                this.min = min;
+                return _min
             }
-            return min;
-        }
 
-        @Nullable
-        Snapshot getMax() {
-            if (max == null) {
-                Snapshot max = null;
-                for (final Snapshot snapshot : set) {
-                    if (max == null || snapshot.root > max.root) {
-                        max = snapshot;
+        val max: Snapshot?
+            get() {
+                if (_max == null) {
+                    var max: Snapshot? = null
+                    for (snapshot in set) {
+                        if (max == null || snapshot.root > max.root) {
+                            max = snapshot
+                        }
                     }
+                    _max = max
                 }
-                this.max = max;
+                return _max
             }
-            return max;
-        }
     }
 
-    private static class Snapshot {
-
-        @NotNull
-        final Transaction txn;
-        final long root;
-
-        Snapshot(@NotNull Transaction txn, long root) {
-            this.txn = txn;
-            this.root = root;
+    private class Snapshot(val txn: Transaction, val root: Long) {
+        override fun equals(other: Any?): Boolean {
+            return this === other || other is Snapshot && txn == other.txn
         }
 
-        @Override
-        public boolean equals(Object other) {
-            return this == other || other instanceof Snapshot && txn.equals(((Snapshot)other).txn);
-        }
-
-        @Override
-        public int hashCode() {
-            return txn.hashCode();
+        override fun hashCode(): Int {
+            return txn.hashCode()
         }
     }
 }

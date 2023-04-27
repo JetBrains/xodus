@@ -249,7 +249,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         final LogTestConfig testConfig = new LogTestConfig();
         testConfig.setMaxHighAddress(10470);
         //noinspection deprecation
-        env.getLog().setLogTestConfig(testConfig);
+        env.log.setLogTestConfig(testConfig);
         try {
             for (int i = 0; i < 23; ++i) {
                 env.executeInTransaction(txn -> {
@@ -274,7 +274,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 }
             }), ExodusException.class);
             //noinspection deprecation
-            env.getLog().setLogTestConfig(null);
+            env.log.setLogTestConfig(null);
             AbstractConfig.suppressConfigChangeListenersForThread();
             try {
                 reopenEnvironment();
@@ -284,7 +284,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             env.executeInTransaction(txn -> env.getAllStoreNames(txn));
         } finally {
             //noinspection deprecation
-            env.getLog().setLogTestConfig(null);
+            env.log.setLogTestConfig(null);
         }
     }
 
@@ -406,7 +406,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
         env.getEnvironmentConfig().setEnvCloseForcedly(true);
         //noinspection deprecation
-        env.getLog().clearCache();
+        env.log.clearCache();
 
         env.executeInReadonlyTransaction(txn -> {
             try (Cursor cursor = store.openCursor(txn)) {

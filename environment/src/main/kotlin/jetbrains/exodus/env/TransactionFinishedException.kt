@@ -13,28 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.debug.StackTrace;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.ExodusException
 
-public class TransactionFinishedException extends ExodusException {
-
-    @Nullable
-    private final StackTrace trace;
-
-    TransactionFinishedException() {
-        this(null);
-    }
-
-    TransactionFinishedException(@Nullable StackTrace trace) {
-        super("Transaction is already finished");
-        this.trace = trace;
-    }
-
-    @Nullable
-    public StackTrace getTrace() {
-        return trace;
-    }
-}
+class TransactionFinishedException internal constructor() :
+    ExodusException("Transaction is already finished")

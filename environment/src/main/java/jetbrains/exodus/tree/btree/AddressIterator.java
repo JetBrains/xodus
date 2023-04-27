@@ -87,10 +87,6 @@ public class AddressIterator implements LongIterator {
         return traverser;
     }
 
-    public void skipSubTree() {
-        // TODO: implement (for Reflect utility only)
-    }
-
     protected boolean advance() {
         while (traverser.canMoveUp()) {
             if (traverser.canMoveRight()) {

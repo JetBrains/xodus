@@ -13,26 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteIterable
 
-public class SingleByteIterable {
-
-    private static final ByteIterable[] ITERABLES;
-
-    private SingleByteIterable() {
+object SingleByteIterable {
+    private val ITERABLES: Array<ByteIterable> = Array(256) {
+        ArrayByteIterable(byteArrayOf(it.toByte()))
     }
 
-    static {
-        ITERABLES = new ByteIterable[256];
-        for (int i = 0; i < ITERABLES.length; i++) {
-            ITERABLES[i] = new ArrayByteIterable(new byte[]{(byte) i});
-        }
-    }
-
-    public static ByteIterable getIterable(final byte b) {
-        return ITERABLES[b & 0xff];
+    @JvmStatic
+    fun getIterable(b: Byte): ByteIterable {
+        return ITERABLES[b.toInt() and 0xff]
     }
 }

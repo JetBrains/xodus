@@ -13,30 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.*
 
-public interface ByteIterableWithAddress extends ByteIterable {
+interface ByteIterableWithAddress : ByteIterable {
+    val dataAddress: Long
+    fun nextLong(offset: Int, length: Int): Long
+    val compressedUnsignedInt: Int
+    override fun iterator(): ByteIteratorWithAddress
+    fun iterator(offset: Int): ByteIteratorWithAddress
+    fun cloneWithOffset(offset: Int): ByteIterableWithAddress
+    fun cloneWithAddressAndLength(address: Long, length: Int): ByteIterableWithAddress
 
-    ByteIterableWithAddress EMPTY = getEmpty(Loggable.NULL_ADDRESS);
+    companion object {
+        private fun getEmpty(): ByteIterableWithAddress {
+            return ArrayByteIterableWithAddress(Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES, 0, 0)
+        }
 
-    long getDataAddress();
-
-    long nextLong(final int offset, final int length);
-
-    int getCompressedUnsignedInt();
-
-    @Override
-    ByteIteratorWithAddress iterator();
-
-    ByteIteratorWithAddress iterator(final int offset);
-
-    ByteIterableWithAddress cloneWithOffset(final int offset);
-
-    ByteIterableWithAddress cloneWithAddressAndLength(final long address, final int length);
-
-    static ByteIterableWithAddress getEmpty(final long address) {
-        return new ArrayByteIterableWithAddress(address, ByteIterable.EMPTY_BYTES, 0, 0);
+        @JvmField
+        val EMPTY = getEmpty()
     }
 }

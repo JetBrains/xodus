@@ -13,94 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache;
-import jetbrains.exodus.core.dataStructures.SoftConcurrentLongObjectCache;
-import jetbrains.exodus.core.execution.SharedTimer;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.core.dataStructures.ConcurrentLongObjectCache
+import jetbrains.exodus.core.dataStructures.SoftConcurrentLongObjectCache
+import jetbrains.exodus.core.execution.SharedTimer.ExpirablePeriodicTask
 
 /**
  * Caches Store.get() results retrieved from immutable trees.
  * For each key and tree address (KeyEntry), value is immutable, so lock-free caching is ok.
  */
-class StoreGetCache {
+class StoreGetCache(cacheSize: Int, val minTreeSize: Int, val maxValueSize: Int) {
+    private val cache: SoftConcurrentLongObjectCache<ValueEntry>
 
-    private static final int SINGLE_CHUNK_GENERATIONS = 4;
-
-    private final SoftConcurrentLongObjectCache<ValueEntry> cache;
-    private final int minTreeSize;
-    private final int maxValueSize;
-
-    StoreGetCache(final int cacheSize, final int minTreeSize, final int maxValueSize) {
-        cache = new SoftConcurrentLongObjectCache<ValueEntry>(cacheSize) {
-            @NotNull
-            @Override
-            protected ConcurrentLongObjectCache<ValueEntry> newChunk(int chunkSize) {
-                return new ConcurrentLongObjectCache<ValueEntry>(chunkSize, SINGLE_CHUNK_GENERATIONS) {
-                    @Nullable
-                    @Override
-                    protected SharedTimer.ExpirablePeriodicTask getCacheAdjuster() {
-                        return null;
+    init {
+        cache = object : SoftConcurrentLongObjectCache<ValueEntry>(cacheSize) {
+            override fun newChunk(chunkSize: Int): ConcurrentLongObjectCache<ValueEntry?> {
+                return object : ConcurrentLongObjectCache<ValueEntry?>(chunkSize, SINGLE_CHUNK_GENERATIONS) {
+                    override fun getCacheAdjuster(): ExpirablePeriodicTask? {
+                        return null
                     }
-                };
+                }
             }
-        };
-        this.minTreeSize = minTreeSize;
-        this.maxValueSize = maxValueSize;
-    }
-
-    int getMinTreeSize() {
-        return minTreeSize;
-    }
-
-    int getMaxValueSize() {
-        return maxValueSize;
-    }
-
-    void close() {
-        cache.close();
-    }
-
-    @Nullable
-    ByteIterable tryKey(final long treeRootAddress, @NotNull final ByteIterable key) {
-        final int keyHashCode = key.hashCode();
-        final ValueEntry ve = cache.tryKey(treeRootAddress ^ keyHashCode);
-        return ve == null || ve.treeRootAddress != treeRootAddress ||
-            ve.keyHashCode != keyHashCode || !ve.key.equals(key) ? null : ve.value;
-    }
-
-    void cacheObject(final long treeRootAddress, @NotNull final ByteIterable key, @NotNull final ArrayByteIterable value) {
-        final ArrayByteIterable keyCopy = key instanceof ArrayByteIterable ? (ArrayByteIterable) key : new ArrayByteIterable(key);
-        final int keyHashCode = keyCopy.hashCode();
-        cache.cacheObject(treeRootAddress ^ keyHashCode, new ValueEntry(treeRootAddress, keyHashCode, keyCopy, value));
-    }
-
-    float hitRate() {
-        return cache.hitRate();
-    }
-
-
-    private static class ValueEntry {
-
-        private final long treeRootAddress;
-        private final int keyHashCode;
-        @NotNull
-        private final ArrayByteIterable key;
-        @NotNull
-        private final ArrayByteIterable value;
-
-        ValueEntry(final long treeRootAddress,
-                   final int keyHashCode,
-                   @NotNull final ArrayByteIterable key,
-                   @NotNull final ArrayByteIterable value) {
-            this.treeRootAddress = treeRootAddress;
-            this.keyHashCode = keyHashCode;
-            this.key = key;
-            this.value = value;
         }
+    }
+
+    fun close() {
+        cache.close()
+    }
+
+    fun tryKey(treeRootAddress: Long, key: ByteIterable): ByteIterable? {
+        val keyHashCode = key.hashCode()
+        val ve = cache.tryKey(treeRootAddress xor keyHashCode.toLong())
+        return if (ve == null || ve.treeRootAddress != treeRootAddress || ve.keyHashCode != keyHashCode || ve.key != key) null else ve.value
+    }
+
+    fun cacheObject(treeRootAddress: Long, key: ByteIterable, value: ArrayByteIterable) {
+        val keyCopy = if (key is ArrayByteIterable) key else ArrayByteIterable(key)
+        val keyHashCode = keyCopy.hashCode()
+        cache.cacheObject(
+            treeRootAddress xor keyHashCode.toLong(),
+            ValueEntry(treeRootAddress, keyHashCode, keyCopy, value)
+        )
+    }
+
+    fun hitRate(): Float {
+        return cache.hitRate()
+    }
+
+    private class ValueEntry(
+        val treeRootAddress: Long,
+        val keyHashCode: Int,
+        val key: ArrayByteIterable,
+        val value: ArrayByteIterable
+    )
+
+    companion object {
+        private const val SINGLE_CHUNK_GENERATIONS = 4
     }
 }

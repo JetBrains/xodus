@@ -13,104 +13,77 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.FixedLengthByteIterable;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.ByteIterator
+import jetbrains.exodus.FixedLengthByteIterable
 
-class LogAwareFixedLengthByteIterable extends FixedLengthByteIterable {
-
-    LogAwareFixedLengthByteIterable(@NotNull final ByteIterableWithAddress source,
-                                    final int offset, final int length) {
-        super(source, offset, length);
+internal class LogAwareFixedLengthByteIterable(
+    source: ByteIterableWithAddress,
+    offset: Int, length: Int
+) : FixedLengthByteIterable(source, offset, length) {
+    override fun compareTo(other: ByteIterable): Int {
+        return getSource().compareTo(offset, length, other, 0, other.length)
     }
 
-    @Override
-    public int compareTo(final @NotNull ByteIterable right) {
-        return getSource().compareTo(offset, length, right, 0, right.getLength());
+    override fun compareTo(length: Int, right: ByteIterable, rightLength: Int): Int {
+        require(length <= this.length)
+        return getSource().compareTo(offset, length, right, 0, rightLength)
     }
 
-    @Override
-    public int compareTo(int length, ByteIterable right, int rightLength) {
-        if (length > this.length) {
-            throw new IllegalArgumentException();
-        }
-
-        return getSource().compareTo(offset, length, right, 0, rightLength);
+    override fun compareTo(from: Int, length: Int, right: ByteIterable, rightFrom: Int, rightLength: Int): Int {
+        require(length <= this.length - from)
+        return getSource().compareTo(offset + from, length, right, rightFrom, rightLength)
     }
 
-    @Override
-    public int compareTo(int from, int length, ByteIterable right, int rightFrom, int rightLength) {
-        if (length > this.length - from) {
-            throw new IllegalArgumentException();
-        }
-
-        return getSource().compareTo(offset + from, length, right, rightFrom, rightLength);
+    override fun getSource(): ByteIterableWithAddress {
+        return super.getSource() as ByteIterableWithAddress
     }
 
-    @Override
-    public ByteIterableWithAddress getSource() {
-        return (ByteIterableWithAddress) super.getSource();
-    }
-
-    @Override
-    protected ByteIterator getIterator() {
+    override fun getIterator(): ByteIterator {
         if (length == 0) {
-            return ByteIterable.EMPTY_ITERATOR;
+            return EMPTY_ITERATOR
         }
         if (bytes != null) {
-            return new ArrayByteIterable.Iterator(bytes, baseOffset, length);
+            return ArrayByteIterable.Iterator(bytes, baseOffset, length)
         }
-
-        final ByteIterator bi = source.iterator();
-        bi.skip(offset);
-        return new LogAwareFixedLengthByteIterator(bi, length);
+        val bi = source.iterator()
+        bi.skip(offset.toLong())
+        return LogAwareFixedLengthByteIterator(bi, length)
     }
 
-    private static class LogAwareFixedLengthByteIterator implements ByteIterator, BlockByteIterator {
-
-        private final ByteIterator si;
-        private int bytesToRead;
-
-        LogAwareFixedLengthByteIterator(@NotNull final ByteIterator si, final int length) {
-            this.si = si;
-            bytesToRead = length;
+    private class LogAwareFixedLengthByteIterator(
+        private val si: ByteIterator,
+        private var bytesToRead: Int
+    ) : ByteIterator, BlockByteIterator {
+        override fun hasNext(): Boolean {
+            return bytesToRead > 0 && si.hasNext()
         }
 
-        @Override
-        public boolean hasNext() {
-            return bytesToRead > 0 && si.hasNext();
+        override fun next(): Byte {
+            bytesToRead--
+            return si.next()
         }
 
-        @Override
-        public byte next() {
-            bytesToRead--;
-            return si.next();
+        override fun skip(bytes: Long): Long {
+            val result = si.skip(Math.min(bytes, bytesToRead.toLong()))
+            bytesToRead -= result.toInt()
+            return result
         }
 
-        @Override
-        public long skip(long bytes) {
-            long result = si.skip(Math.min(bytes, bytesToRead));
-            bytesToRead -= (int) result;
-            return result;
-        }
-
-        @Override
-        public int nextBytes(byte[] array, int off, int len) {
-            final int bytesToRead = Math.min(len, this.bytesToRead);
-
-            if (si instanceof BlockByteIterator) {
-                final int result = ((BlockByteIterator) si).nextBytes(array, off, bytesToRead);
-                this.bytesToRead -= result;
-                return result;
+        override fun nextBytes(array: ByteArray, off: Int, len: Int): Int {
+            val bytesToRead = Math.min(len, bytesToRead)
+            if (si is BlockByteIterator) {
+                val result = (si as BlockByteIterator).nextBytes(array, off, bytesToRead)
+                this.bytesToRead -= result
+                return result
             }
-            for (int i = 0; i < bytesToRead; ++i) {
-                array[off + i] = next();
+            for (i in 0 until bytesToRead) {
+                array[off + i] = next()
             }
-            return bytesToRead;
+            return bytesToRead
         }
     }
 }

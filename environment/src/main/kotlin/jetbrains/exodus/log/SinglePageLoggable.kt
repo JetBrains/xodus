@@ -13,86 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ByteIterable;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.*
 
-class SinglePageLoggable implements RandomAccessLoggable {
-    public static final SinglePageLoggable NULL_PROTOTYPE = new SinglePageLoggable(Loggable.NULL_ADDRESS,
-            Loggable.NULL_ADDRESS, (byte) 0, Loggable.NO_STRUCTURE_ID, Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES,
-            0, 0);
+class SinglePageLoggable(
+    address: Long,
+    end: Long,
+    type: Byte,
+    structureId: Int,
+    dataAddress: Long,
+    bytes: ByteArray,
+    start: Int,
+    dataLength: Int
+) : RandomAccessLoggable {
+    override val address: Long
+    private val end: Long
+    override val structureId: Int
+    override val type: Byte
+    private var length = -1
+    override val data: ArrayByteIterableWithAddress
 
-    private final long address;
-    private final long end;
-    private final int structureId;
-    private final byte type;
-
-    private int length = -1;
-
-    private final ArrayByteIterableWithAddress data;
-
-    SinglePageLoggable(final long address,
-                       final long end,
-                       final byte type,
-                       final int structureId,
-                       final long dataAddress,
-                       final byte @NotNull [] bytes,
-                       final int start,
-                       final int dataLength) {
-        this.data = new ArrayByteIterableWithAddress(dataAddress, bytes, start, dataLength);
-        this.structureId = structureId;
-        this.type = type;
-        this.address = address;
-        this.end = end;
+    init {
+        data = ArrayByteIterableWithAddress(dataAddress, bytes, start, dataLength)
+        this.structureId = structureId
+        this.type = type
+        this.address = address
+        this.end = end
     }
 
-    @Override
-    public long getAddress() {
-        return address;
-    }
-
-    @Override
-    public byte getType() {
-        return type;
-    }
-
-    @Override
-    public int length() {
+    override fun length(): Int {
         if (length >= 0) {
-            return length;
+            return length
         }
-
-        var dataLength = getDataLength();
-        length = dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId) +
-                CompressedUnsignedLongByteIterable.getCompressedSize(dataLength) + 1;
-
-        return length;
+        val dataLength = dataLength
+        length = dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId.toLong()) +
+                CompressedUnsignedLongByteIterable.getCompressedSize(dataLength.toLong()) + 1
+        return length
     }
 
-    @Override
-    public long end() {
-        return end;
+    override fun end(): Long {
+        return end
     }
 
-    @NotNull
-    @Override
-    public ArrayByteIterableWithAddress getData() {
-        return data;
-    }
+    override val dataLength: Int
+        get() = data.length
+    override val isDataInsideSinglePage: Boolean
+        get() = true
 
-    @Override
-    public int getDataLength() {
-        return data.getLength();
-    }
-
-    @Override
-    public int getStructureId() {
-        return structureId;
-    }
-
-    @Override
-    public boolean isDataInsideSinglePage() {
-        return true;
+    companion object {
+        val NULL_PROTOTYPE = SinglePageLoggable(
+            Loggable.NULL_ADDRESS,
+            Loggable.NULL_ADDRESS,
+            0.toByte(),
+            Loggable.NO_STRUCTURE_ID,
+            Loggable.NULL_ADDRESS,
+            ByteIterable.EMPTY_BYTES,
+            0,
+            0
+        )
     }
 }

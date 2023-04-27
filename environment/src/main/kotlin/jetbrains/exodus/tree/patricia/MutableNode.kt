@@ -21,8 +21,6 @@ import jetbrains.exodus.bindings.CompressedUnsignedLongArrayByteIterable
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable.fillBytes
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable.getCompressedSize
 import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.log.SingleByteIterable
 import jetbrains.exodus.log.TooBigLoggableException
@@ -221,11 +219,11 @@ internal open class MutableNode : NodeBase {
         val nodeStream = context.newNodeStream()
         // save key and value
         if (hasKey()) {
-            fillBytes(keySequence.length.toLong(), nodeStream)
+            CompressedUnsignedLongByteIterable.fillBytes(keySequence.length.toLong(), nodeStream)
             ByteIterableBase.fillBytes(keySequence, nodeStream)
         }
         value?.let { value ->
-            fillBytes(value.length.toLong(), nodeStream)
+            CompressedUnsignedLongByteIterable.fillBytes(value.length.toLong(), nodeStream)
             ByteIterableBase.fillBytes(value, nodeStream)
         }
         val childrenCount = childrenCount
@@ -333,7 +331,7 @@ internal open class MutableNode : NodeBase {
 
     private fun saveChildrenV1(childrenCount: Int, nodeStream: LightOutputStream) {
         val bytesPerAddress = children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
-        fillBytes(((childrenCount shl 3) + bytesPerAddress - 1).toLong(), nodeStream)
+        CompressedUnsignedLongByteIterable.fillBytes(((childrenCount shl 3) + bytesPerAddress - 1).toLong(), nodeStream)
         for (ref in children) {
             nodeStream.write(ref.firstByte.toInt())
             LongBinding.writeUnsignedLong(ref.suffixAddress, bytesPerAddress, nodeStream)
@@ -350,14 +348,18 @@ internal open class MutableNode : NodeBase {
             val bytesPerAddressV1 =
                 children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
             if (bytesPerAddress == bytesPerAddressV1 ||
-                (bytesPerAddressV1 - bytesPerAddress) * childrenCount <= getCompressedSize(baseAddress) + 1
+                (bytesPerAddressV1 - bytesPerAddress) * childrenCount <=
+                CompressedUnsignedLongByteIterable.getCompressedSize(baseAddress) + 1
             ) {
                 saveChildrenV1(childrenCount, nodeStream)
                 return
             }
         }
-        fillBytes((((childrenCount + VERSION2_CHILDREN_COUNT_BOUND) shl 3) + bytesPerAddress - 1).toLong(), nodeStream)
-        fillBytes(baseAddress, nodeStream)
+        CompressedUnsignedLongByteIterable.fillBytes(
+            (((childrenCount + VERSION2_CHILDREN_COUNT_BOUND) shl 3) +
+                    bytesPerAddress - 1).toLong(), nodeStream
+        )
+        CompressedUnsignedLongByteIterable.fillBytes(baseAddress, nodeStream)
         if (childrenCount < 256) {
             if (childrenCount <= 32) {
                 for (ref in children) {

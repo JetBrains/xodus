@@ -13,34 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ExodusException;
-import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jetbrains.exodus.ExodusException
 
-public class DataCorruptionException extends ExodusException {
+open class DataCorruptionException internal constructor(message: String) : ExodusException(message) {
+    private constructor(
+        message: String,
+        address: Long,
+        fileLengthBound: Long
+    ) : this(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound))
 
+    companion object {
+        @JvmStatic
+        fun raise(message: String, log: Log, address: Long) {
+            checkLogIsClosing(log)
+            log.switchToReadOnlyMode()
+            throw DataCorruptionException(message, address, log.fileLengthBound)
+        }
 
-    DataCorruptionException(@NotNull final String message) {
-        super(message);
-    }
-
-    private DataCorruptionException(@NotNull final String message, final long address, final long fileLengthBound) {
-        this(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
-    }
-
-    public static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
-        checkLogIsClosing(log);
-        log.switchToReadOnlyMode();
-
-        throw new DataCorruptionException(message, address, log.getFileLengthBound());
-    }
-
-    static void checkLogIsClosing(@NotNull final Log log) {
-        if (log.isClosing()) {
-            throw new IllegalStateException("Attempt to read closed log");
+        fun checkLogIsClosing(log: Log) {
+            check(!log.isClosing) { "Attempt to read closed log" }
         }
     }
 }

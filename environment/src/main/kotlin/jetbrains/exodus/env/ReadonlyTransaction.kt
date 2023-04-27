@@ -13,80 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+class ReadonlyTransaction : TransactionBase {
+    override val beginHook: Runnable?
 
-public class ReadonlyTransaction extends TransactionBase {
-
-    @Nullable
-    private final Runnable beginHook;
-
-    public ReadonlyTransaction(@NotNull final EnvironmentImpl env, final boolean exclusive, @Nullable final Runnable beginHook) {
-        super(env, exclusive);
-        this.beginHook = getWrappedBeginHook(beginHook);
-        env.holdNewestSnapshotBy(this, false);
+    constructor(env: EnvironmentImpl, exclusive: Boolean, beginHook: Runnable?) : super(env, exclusive) {
+        this.beginHook = getWrappedBeginHook(beginHook)
+        env.holdNewestSnapshotBy(this, false)
     }
 
     /**
      * Constructor for creating new snapshot transaction.
      */
-    ReadonlyTransaction(@NotNull final TransactionBase origin) {
-        super(origin.getEnvironment(), false);
-        beginHook = null;
-        setMetaTree(origin.getMetaTree());
-        final EnvironmentImpl env = getEnvironment();
-        env.registerTransaction(this);
+    internal constructor(origin: TransactionBase) : super(origin.environment, false) {
+        beginHook = null
+        metaTree = origin.metaTree
+        val env = environment
+        env.registerTransaction(this)
     }
 
-    @Override
-    public void setCommitHook(@Nullable final Runnable hook) {
-        throw new ReadonlyTransactionException();
+    override fun setCommitHook(hook: Runnable?) {
+        throw ReadonlyTransactionException()
     }
 
-    @Override
-    void storeRemoved(@NotNull final StoreImpl store) {
-        throw new ReadonlyTransactionException();
+    override fun storeRemoved(store: StoreImpl) {
+        throw ReadonlyTransactionException()
     }
 
-    @Override
-    public boolean isIdempotent() {
-        return true;
+    override fun isIdempotent(): Boolean {
+        return true
     }
 
-    @Override
-    public void abort() {
-        checkIsFinished();
-        getEnvironment().finishTransaction(this);
+    override fun abort() {
+        checkIsFinished()
+        environment.finishTransaction(this)
     }
 
-    @Override
-    public boolean commit() {
-        if (!isExclusive()) {
-            throw new ReadonlyTransactionException();
+    override fun commit(): Boolean {
+        if (!isExclusive) {
+            throw ReadonlyTransactionException()
         }
-        return true;
+        return true
     }
 
-    @Override
-    public boolean flush() {
-        throw new ReadonlyTransactionException();
+    override fun flush(): Boolean {
+        throw ReadonlyTransactionException()
     }
 
-    @Override
-    public void revert() {
-        throw new ReadonlyTransactionException();
+    override fun revert() {
+        throw ReadonlyTransactionException()
     }
 
-    @Override
-    public boolean isReadonly() {
-        return true;
-    }
-
-    @Nullable
-    @Override
-    Runnable getBeginHook() {
-        return beginHook;
+    override fun isReadonly(): Boolean {
+        return true
     }
 }

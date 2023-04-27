@@ -13,22 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import org.jetbrains.annotations.NotNull;
+internal class BlockNotFoundException private constructor(message: String, address: Long, fileLengthBound: Long) :
+    DataCorruptionException(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound)) {
+    companion object {
+        fun raise(message: String, log: Log, address: Long) {
+            checkLogIsClosing(log)
+            throw BlockNotFoundException(message, address, log.fileLengthBound)
+        }
 
-class BlockNotFoundException extends DataCorruptionException {
-
-    private BlockNotFoundException(final String message, final long address, final long fileLengthBound) {
-        super(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
-    }
-
-    public static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
-        checkLogIsClosing(log);
-        throw new BlockNotFoundException(message, address, log.getFileLengthBound());
-    }
-
-    static void raise(@NotNull final Log log, final long address) {
-        raise("File not found", log, address);
+        fun raise(log: Log, address: Long) {
+            raise("File not found", log, address)
+        }
     }
 }

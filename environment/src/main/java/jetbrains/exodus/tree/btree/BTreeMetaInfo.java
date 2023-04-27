@@ -35,7 +35,7 @@ public class BTreeMetaInfo extends TreeMetaInfo {
     }
 
     public BTreeMetaInfo(@NotNull final EnvironmentImpl env, final boolean duplicates, final int structureId) {
-        this(env.getLog(), env.getBTreeBalancePolicy(), duplicates, structureId);
+        this(env.log, env.getBTreeBalancePolicy(), duplicates, structureId);
     }
 
     @Override

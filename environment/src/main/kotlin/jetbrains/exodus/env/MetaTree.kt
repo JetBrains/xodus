@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-public interface MetaTree extends MetaTreePrototype {
-}
+interface MetaTree : MetaTreePrototype

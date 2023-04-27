@@ -13,164 +13,159 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.*;
-import jetbrains.exodus.util.LightOutputStream;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.*
+import jetbrains.exodus.ByteIterator
+import jetbrains.exodus.util.LightOutputStream
 
 /**
  * This ByteIterable cannot be used for representing comparable or signed longs.
  */
-public final class CompressedUnsignedLongByteIterable extends ByteIterableBase {
+class CompressedUnsignedLongByteIterable private constructor(l: Long) : ByteIterableBase() {
+    private val l: Long
 
-    private static final int ITERABLES_CACHE_SIZE = 65536;
-    private static final ByteIterable[] ITERABLES_CACHE;
-
-    static {
-        ITERABLES_CACHE = new ByteIterable[ITERABLES_CACHE_SIZE];
-        for (int i = 0; i < ITERABLES_CACHE_SIZE; ++i) {
-            //noinspection ObjectAllocationInLoop
-            ITERABLES_CACHE[i] = new ArrayByteIterable(new CompressedUnsignedLongByteIterable(i));
-        }
+    init {
+        require(l >= 0) { l.toString() }
+        this.l = l
     }
 
-    private final long l;
-
-    private CompressedUnsignedLongByteIterable(long l) {
-        if (l < 0) {
-            throw new IllegalArgumentException(String.valueOf(l));
-        }
-        this.l = l;
-    }
-
-    public static ByteIterable getIterable(long l) {
-        if (l < ITERABLES_CACHE_SIZE) {
-            return ITERABLES_CACHE[((int) l)];
-        }
-        return new CompressedUnsignedLongByteIterable(l);
-    }
-
-    public static void fillBytes(long l, final LightOutputStream output) {
-        if (l < 0) {
-            throw new IllegalArgumentException(String.valueOf(l));
-        }
-        while (true) {
-            final byte b = (byte) (l & 0x7f);
-            if ((l >>= 7) == 0) {
-                output.write(b | 0x80);
-                break;
-            }
-            output.write(b);
-        }
-    }
-
-    public static long getLong(final ByteIterable iterable) {
-        return getLong(iterable.iterator());
-    }
-
-    public static long getLong(ByteIterator iterator) {
-        long result = 0;
-        int shift = 0;
-        do {
-            final byte b = iterator.next();
-            result += (long) (b & 0x7f) << shift;
-            if ((b & 0x80) != 0) {
-                return result;
-            }
-            shift += 7;
-        } while (iterator.hasNext());
-        return throwBadCompressedNumber();
-    }
-
-    public static int getInt(final ByteIterable iterable) {
-        return getInt(iterable.iterator());
-    }
-
-    public static int getInt(ByteIterator iterator) {
-        int result = 0;
-        int shift = 0;
-        do {
-            final byte b = iterator.next();
-            result += (b & 0x7f) << shift;
-            if ((b & 0x80) != 0) {
-                return result;
-            }
-            shift += 7;
-        } while (iterator.hasNext());
-        return throwBadCompressedNumber();
-    }
-
-    public static int getInt(@NotNull final DataIterator iterator) {
-        byte b = iterator.next();
-        if ((b & 0x80) != 0) {
-            return b & 0x7f;
-        }
-        int result = b & 0x7f;
-        int shift = 7;
-        while (true) {
-            b = iterator.next();
-            result += (b & 0x7f) << shift;
-            if ((b & 0x80) != 0) {
-                return result;
-            }
-            shift += 7;
-        }
-    }
-
-    public static int getCompressedSize(long l) {
-        if (l < 128) {
-            return 1;
-        }
-        if (l < 16384) {
-            return 2;
-        }
-        l >>= 21;
-        int result = 3;
-        while (l > 0) {
-            ++result;
-            l >>= 7;
-        }
-        return result;
-    }
-
-    @Override
-    protected ByteIterator getIterator() {
-        return new ByteIterator() {
-            private boolean goon = true;
-            private long l = CompressedUnsignedLongByteIterable.this.l;
-
-            @Override
-            public boolean hasNext() {
-                return goon;
+    override fun getIterator(): ByteIterator {
+        return object : ByteIterator {
+            private var goon = true
+            private var l = this@CompressedUnsignedLongByteIterable.l
+            override fun hasNext(): Boolean {
+                return goon
             }
 
-            @Override
-            public byte next() {
-                byte b = (byte) (l & 0x7f);
-                l >>= 7;
-                if (!(goon = l > 0)) {
-                    b |= 0x80;
+            override fun next(): Byte {
+                var b = (l and 0x7fL).toByte()
+                l = l shr 7
+                if (!(l > 0).also { goon = it }) {
+                    b = (b.toInt() or 0x80).toByte()
                 }
-                return b;
+                return b
             }
 
-            @Override
-            public long skip(final long bytes) {
-                for (long i = 0; i < bytes; i++) {
+            override fun skip(bytes: Long): Long {
+                for (i in 0 until bytes) {
                     if (goon) {
-                        l >>= 7;
-                        goon = l > 0;
+                        l = l shr 7
+                        goon = l > 0
                     } else {
-                        return i;
+                        return i
                     }
                 }
-                return bytes;
+                return bytes
             }
-        };
+        }
     }
 
-    private static int throwBadCompressedNumber() {
-        throw new ExodusException("Bad compressed number");
+    companion object {
+        private const val ITERABLES_CACHE_SIZE = 65536
+        private val ITERABLES_CACHE: Array<ByteIterable> = Array(ITERABLES_CACHE_SIZE) {
+            CompressedUnsignedLongByteIterable(it.toLong())
+        }
+
+        @JvmStatic
+        fun getIterable(l: Long): ByteIterable {
+            return if (l < ITERABLES_CACHE_SIZE) {
+                ITERABLES_CACHE[l.toInt()]
+            } else CompressedUnsignedLongByteIterable(l)
+        }
+
+        @JvmStatic
+        fun fillBytes(l: Long, output: LightOutputStream) {
+            var input = l
+            require(input >= 0) { input.toString() }
+            while (true) {
+                val b = (input and 0x7fL).toByte()
+                if (7.let { input = input shr it; input } == 0L) {
+                    output.write(b.toInt() or 0x80)
+                    break
+                }
+                output.write(b.toInt())
+            }
+        }
+
+        @JvmStatic
+        fun getLong(iterable: ByteIterable): Long {
+            return getLong(iterable.iterator())
+        }
+
+        @JvmStatic
+        fun getLong(iterator: ByteIterator): Long {
+            var result: Long = 0
+            var shift = 0
+            do {
+                val b = iterator.next()
+                result += (b.toInt() and 0x7f).toLong() shl shift
+                if (b.toInt() and 0x80 != 0) {
+                    return result
+                }
+                shift += 7
+            } while (iterator.hasNext())
+            return throwBadCompressedNumber().toLong()
+        }
+
+        @JvmStatic
+        fun getInt(iterable: ByteIterable): Int {
+            return getInt(iterable.iterator())
+        }
+
+        @JvmStatic
+        fun getInt(iterator: ByteIterator): Int {
+            var result = 0
+            var shift = 0
+            do {
+                val b = iterator.next()
+                result += b.toInt() and 0x7f shl shift
+                if (b.toInt() and 0x80 != 0) {
+                    return result
+                }
+                shift += 7
+            } while (iterator.hasNext())
+            return throwBadCompressedNumber()
+        }
+
+        @JvmStatic
+        fun getInt(iterator: DataIterator): Int {
+            var b = iterator.next()
+            if (b.toInt() and 0x80 != 0) {
+                return b.toInt() and 0x7f
+            }
+            var result = b.toInt() and 0x7f
+            var shift = 7
+            while (true) {
+                b = iterator.next()
+                result += b.toInt() and 0x7f shl shift
+                if (b.toInt() and 0x80 != 0) {
+                    return result
+                }
+                shift += 7
+            }
+        }
+
+        @JvmStatic
+        fun getCompressedSize(l: Long): Int {
+            var input = l
+            if (input < 128) {
+                return 1
+            }
+            if (input < 16384) {
+                return 2
+            }
+            input = input shr 21
+            var result = 3
+            while (input > 0) {
+                ++result
+                input = input shr 7
+            }
+            return result
+        }
+
+        private fun throwBadCompressedNumber(): Int {
+            throw ExodusException("Bad compressed number")
+        }
     }
 }

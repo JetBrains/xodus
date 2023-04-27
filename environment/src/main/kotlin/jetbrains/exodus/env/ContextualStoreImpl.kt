@@ -13,59 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.tree.TreeMetaInfo;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.tree.TreeMetaInfo
 
-public class ContextualStoreImpl extends StoreImpl implements ContextualStore {
-
-    @NotNull
-    private final ContextualEnvironmentImpl environment;
-
-    public ContextualStoreImpl(@NotNull ContextualEnvironmentImpl env, @NotNull String name, @NotNull TreeMetaInfo metaInfo) {
-        super(env, name, metaInfo);
-        this.environment = env;
+open class ContextualStoreImpl(private val environment: ContextualEnvironmentImpl, name: String, metaInfo: TreeMetaInfo) :
+    StoreImpl(
+        environment, name, metaInfo
+    ), ContextualStore {
+    override fun getEnvironment(): ContextualEnvironmentImpl {
+        return environment
     }
 
-    @NotNull
-    @Override
-    public ContextualEnvironmentImpl getEnvironment() {
-        return environment;
+    override fun get(key: ByteIterable): ByteIterable? {
+        return get(environment.getAndCheckCurrentTransaction(), key)
     }
 
-    @Nullable
-    public ByteIterable get(@NotNull final ByteIterable key) {
-        return get(environment.getAndCheckCurrentTransaction(), key);
+    override fun exists(key: ByteIterable, value: ByteIterable): Boolean {
+        return exists(environment.getAndCheckCurrentTransaction(), key, value)
     }
 
-    public boolean exists(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        return exists(environment.getAndCheckCurrentTransaction(), key, value);
+    override fun put(key: ByteIterable, value: ByteIterable): Boolean {
+        return put(environment.getAndCheckCurrentTransaction(), key, value)
     }
 
-    public boolean put(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        return put(environment.getAndCheckCurrentTransaction(), key, value);
+    override fun putRight(key: ByteIterable, value: ByteIterable) {
+        putRight(environment.getAndCheckCurrentTransaction(), key, value)
     }
 
-    public void putRight(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        putRight(environment.getAndCheckCurrentTransaction(), key, value);
+    override fun add(key: ByteIterable, value: ByteIterable): Boolean {
+        return add(environment.getAndCheckCurrentTransaction(), key, value)
     }
 
-    public boolean add(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        return add(environment.getAndCheckCurrentTransaction(), key, value);
+    override fun delete(key: ByteIterable): Boolean {
+        return delete(environment.getAndCheckCurrentTransaction(), key)
     }
 
-    public boolean delete(@NotNull final ByteIterable key) {
-        return delete(environment.getAndCheckCurrentTransaction(), key);
+    override fun count(): Long {
+        return count(environment.getAndCheckCurrentTransaction())
     }
 
-    public long count() {
-        return count(environment.getAndCheckCurrentTransaction());
-    }
-
-    public Cursor openCursor() {
-        return openCursor(environment.getAndCheckCurrentTransaction());
+    override fun openCursor(): Cursor {
+        return openCursor(environment.getAndCheckCurrentTransaction())
     }
 }

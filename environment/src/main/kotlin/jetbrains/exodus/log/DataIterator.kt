@@ -13,205 +13,152 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.bindings.LongBinding;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.bindings.LongBinding
 
-public final class DataIterator implements ByteIteratorWithAddress {
+class DataIterator @JvmOverloads constructor(
+    private val log: Log,
+    startAddress: Long = -1L,
+    private var length: Long = Long.MAX_VALUE
+) : ByteIteratorWithAddress {
+    private val cachePageSize: Int = log.cachePageSize
+    private val pageAddressMask: Long = (cachePageSize - 1).toLong().inv()
+    private var pageAddress: Long
+    override var currentPage: ByteArray? = null
+    override var offset = 0
+        private set
+    private var chunkLength = 0
+    private val formatWithHashCodeIsUsed: Boolean
 
-    @NotNull
-    private final Log log;
-    private final int cachePageSize;
-    private final long pageAddressMask;
-    private long pageAddress;
-    private byte[] page;
-    private int pageOffset;
-    private int chunkLength;
-    private long length;
-    private final boolean formatWithHashCodeIsUsed;
-
-    public DataIterator(@NotNull final Log log) {
-        this(log, -1L);
-    }
-
-    public DataIterator(@NotNull final Log log, final long startAddress) {
-        this(log, startAddress, Long.MAX_VALUE);
-    }
-
-    public DataIterator(@NotNull final Log log, final long startAddress, final long length) {
-        this.log = log;
-        this.length = length;
-
-        cachePageSize = log.getCachePageSize();
-        pageAddressMask = ~((long) (cachePageSize - 1));
-        pageAddress = -1L;
-        formatWithHashCodeIsUsed = log.getFormatWithHashCodeIsUsed();
-
+    init {
+        pageAddress = -1L
+        formatWithHashCodeIsUsed = log.formatWithHashCodeIsUsed
         if (startAddress >= 0) {
-            checkPageSafe(startAddress);
+            checkPageSafe(startAddress)
         }
     }
 
-    @Override
-    public boolean hasNext() {
-        assert length >= 0;
-
-        if (page == null || length == 0) {
-            return false;
+    override fun hasNext(): Boolean {
+        assert(length >= 0)
+        if (currentPage == null || length == 0L) {
+            return false
         }
-
-        if (pageOffset >= chunkLength) {
-            checkPageSafe(getAddress());
-            return hasNext();
+        if (offset >= chunkLength) {
+            checkPageSafe(address)
+            return hasNext()
         }
-
-        return true;
+        return true
     }
 
-    @Override
-    public byte next() {
+    override fun next(): Byte {
         if (!hasNext()) {
             DataCorruptionException.raise(
-                    "DataIterator: no more bytes available", log, getAddress());
+                "DataIterator: no more bytes available", log, address
+            )
         }
-
-        assert length > 0;
-        var current = pageOffset;
-        pageOffset++;
-        length--;
-
-        assert pageOffset <= chunkLength;
-
-        return page[current];
+        assert(length > 0)
+        val current = offset
+        offset++
+        length--
+        assert(offset <= chunkLength)
+        return currentPage!![current]
     }
 
-    @Override
-    public long skip(final long bytes) {
+    override fun skip(bytes: Long): Long {
         if (bytes <= 0) {
-            return 0;
+            return 0
         }
-
-        final long bytesToSkip = Math.min(bytes, length);
-        final long pageBytesToSkip = Math.min(bytesToSkip, chunkLength - pageOffset);
-        pageOffset += pageBytesToSkip;
-
+        val bytesToSkip = bytes.coerceAtMost(length)
+        val pageBytesToSkip = bytesToSkip.coerceAtMost((chunkLength - offset).toLong())
+        offset += pageBytesToSkip.toInt()
         if (bytesToSkip > pageBytesToSkip) {
-            long chunkSize = cachePageSize - BufferedDataWriter.HASH_CODE_SIZE;
-
+            var chunkSize: Long = (cachePageSize - BufferedDataWriter.HASH_CODE_SIZE).toLong()
             if (!formatWithHashCodeIsUsed) {
-                chunkSize = cachePageSize;
+                chunkSize = cachePageSize.toLong()
             }
-
-            final long rest = bytesToSkip - pageBytesToSkip;
-
-            final long pagesToSkip = rest / chunkSize;
-            final long pageSkip = pagesToSkip * cachePageSize;
-            final long offsetSkip = pagesToSkip * chunkSize;
-
-
-            final int pageOffset = (int) (rest - offsetSkip);
-            final long addressDiff = pageSkip + pageOffset;
-
-            checkPageSafe(getAddress() + addressDiff);
+            val rest = bytesToSkip - pageBytesToSkip
+            val pagesToSkip = rest / chunkSize
+            val pageSkip = pagesToSkip * cachePageSize
+            val offsetSkip = pagesToSkip * chunkSize
+            val pageOffset = (rest - offsetSkip).toInt()
+            val addressDiff = pageSkip + pageOffset
+            checkPageSafe(address + addressDiff)
         }
-
-        length -= bytesToSkip;
-        return bytesToSkip;
+        length -= bytesToSkip
+        return bytesToSkip
     }
 
-    @Override
-    public long nextLong(final int length) {
+    override fun nextLong(length: Int): Long {
         if (this.length < length) {
             DataCorruptionException.raise(
-                    "DataIterator: no more bytes available", log, getAddress());
+                "DataIterator: no more bytes available", log, address
+            )
         }
-
-        if (page == null || this.chunkLength - pageOffset < length) {
-            return LongBinding.entryToUnsignedLong(this, length);
+        if (currentPage == null || chunkLength - offset < length) {
+            return LongBinding.entryToUnsignedLong(this, length)
         }
-        final long result = LongBinding.entryToUnsignedLong(page, pageOffset, length);
-
-        pageOffset += length;
-        this.length -= length;
-
-        return result;
+        val result = LongBinding.entryToUnsignedLong(currentPage, offset, length)
+        offset += length
+        this.length -= length.toLong()
+        return result
     }
 
-    public void checkPage(long address) {
-        final long pageAddress = address & pageAddressMask;
-
+    fun checkPage(address: Long) {
+        val pageAddress = address and pageAddressMask
         if (this.pageAddress != pageAddress) {
-            if (address >= log.getHighReadAddress()) {
-                BlockNotFoundException.raise(log, address);
-                return;
+            if (address >= log.highReadAddress) {
+                BlockNotFoundException.raise(log, address)
+                return
             }
-            page = log.getCachedPage(pageAddress);
-            this.pageAddress = pageAddress;
+            currentPage = log.getCachedPage(pageAddress)
+            this.pageAddress = pageAddress
         }
-
-        chunkLength = cachePageSize - BufferedDataWriter.HASH_CODE_SIZE;
+        chunkLength = cachePageSize - BufferedDataWriter.HASH_CODE_SIZE
         if (!formatWithHashCodeIsUsed) {
-            chunkLength = cachePageSize;
+            chunkLength = cachePageSize
+        }
+        offset = (address - pageAddress).toInt()
+    }
+
+    override fun available(): Int {
+        if (length > Int.MAX_VALUE) {
+            throw UnsupportedOperationException()
+        }
+        return length.toInt()
+    }
+
+    override val address: Long
+        get() {
+            assert(offset <= chunkLength)
+            return if (offset < chunkLength) {
+                pageAddress + offset
+            } else pageAddress + cachePageSize
         }
 
-        pageOffset = (int) (address - pageAddress);
-    }
-
-    @Override
-    public int available() {
-        if (length > Integer.MAX_VALUE) {
-            throw new UnsupportedOperationException();
-        }
-
-        return (int) length;
-    }
-
-    @Override
-    public long getAddress() {
-        assert pageOffset <= chunkLength;
-
-        if (pageOffset < chunkLength) {
-            return pageAddress + pageOffset;
-        }
-
-        //current page is exhausted and we point to the next page
-        return pageAddress + cachePageSize;
-    }
-
-    public int getOffset() {
-        return pageOffset;
-    }
-
-    private void checkPageSafe(final long address) {
+    private fun checkPageSafe(address: Long) {
         try {
-            checkPage(address);
-            final long pageAddress = address & pageAddressMask;
-
-            chunkLength = (int) Math.min(log.getHighReadAddress() - pageAddress,
-                    cachePageSize - BufferedDataWriter.HASH_CODE_SIZE);
+            checkPage(address)
+            val pageAddress = address and pageAddressMask
+            chunkLength = (log.highReadAddress - pageAddress).coerceAtMost(
+                (
+                        cachePageSize - BufferedDataWriter.HASH_CODE_SIZE).toLong()
+            ).toInt()
             if (!formatWithHashCodeIsUsed) {
-                chunkLength = (int) Math.min(log.getHighAddress() - pageAddress,
-                        cachePageSize);
+                chunkLength = (log.highAddress - pageAddress).coerceAtMost(cachePageSize.toLong()).toInt()
             }
-
-            if (chunkLength > pageOffset) {
-                return;
+            if (chunkLength > offset) {
+                return
             }
-        } catch (BlockNotFoundException ignore) {
+        } catch (ignore: BlockNotFoundException) {
         }
-
-        pageAddress = -1L;
-        page = null;
-        chunkLength = 0;
-        pageOffset = 0;
+        pageAddress = -1L
+        currentPage = null
+        chunkLength = 0
+        offset = 0
     }
 
-    public byte[] getCurrentPage() {
-        return page;
-    }
-
-    public boolean availableInCurrentPage(final int bytes) {
-        return chunkLength - pageOffset >= bytes;
+    override fun availableInCurrentPage(bytes: Int): Boolean {
+        return chunkLength - offset >= bytes
     }
 }

@@ -13,192 +13,150 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterableBase;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.*
 
-final class MultiPageByteIterableWithAddress implements ByteIterableWithAddress {
-
-    private final long address;
-    @NotNull
-    private final Log log;
-    private final int length;
-    private byte[] bytes = null;
-
-
-    public MultiPageByteIterableWithAddress(final long address, final int length, @NotNull final Log log) {
-        this.address = address;
-
-        this.log = log;
-        this.length = length;
+class MultiPageByteIterableWithAddress(override val dataAddress: Long, private val length: Int, private val log: Log) :
+    ByteIterableWithAddress {
+    private var bytes: ByteArray? = null
+    override fun getLength(): Int {
+        return length
     }
 
-    @Override
-    public int getLength() {
-        return length;
+    override fun getBytesUnsafe(): ByteArray {
+        return doBytesUnsafe()!!
     }
 
-    @Override
-    public byte[] getBytesUnsafe() {
-        return doBytesUnsafe();
-    }
-
-    private byte[] doBytesUnsafe() {
+    private fun doBytesUnsafe(): ByteArray? {
         if (bytes != null) {
-            return bytes;
+            return bytes
         }
-
-        if (length == 0) {
-            bytes = EMPTY_BYTES;
-        } else if (length == 1) {
-            var iterator = iterator();
-            bytes = ByteIterableBase.SINGLE_BYTES[0xFF & iterator.next()];
-        } else {
-            var iterator = iterator();
-            bytes = new byte[length];
-
-            for (int i = 0; i < length; i++) {
-                bytes[i] = iterator.next();
+        when (length) {
+            0 -> {
+                bytes = ByteIterable.EMPTY_BYTES
             }
-        }
-
-        return bytes;
-    }
-
-    @Override
-    public int baseOffset() {
-        return 0;
-    }
-
-    @Override
-    public byte[] getBaseBytes() {
-        return doBytesUnsafe();
-    }
-
-    @Override
-    public ByteIteratorWithAddress iterator() {
-        return new DataIterator(log, address, length);
-    }
-
-    public ByteIteratorWithAddress iterator(final int offset) {
-        if (offset == 0) {
-            return new DataIterator(log, address, length);
-        }
-
-        return new DataIterator(log, log.adjustLoggableAddress(address, offset), length);
-    }
-
-
-    @Override
-    public long getDataAddress() {
-        return address;
-    }
-
-    @Override
-    public byte byteAt(int offset) {
-        return iterator(offset).next();
-    }
-
-    @Override
-    public long nextLong(int offset, int length) {
-        return iterator(offset).nextLong(length);
-    }
-
-    @Override
-    public int getCompressedUnsignedInt() {
-        return CompressedUnsignedLongByteIterable.getInt(this);
-    }
-
-
-    @Override
-    public int compareTo(@NotNull ByteIterable right) {
-        return compare(0, address, length, right, 0, right.getLength(), log);
-    }
-
-    @Override
-    public int compareTo(int length, ByteIterable right, int rightLength) {
-        return compare(0, address, length, right, 0, rightLength, log);
-    }
-
-    @Override
-    public int compareTo(int from, int length, ByteIterable right, int rightFrom, int rightLength) {
-        return compare(from, address, length, right, rightFrom, rightLength, log);
-    }
-
-    @Override
-    public ByteIterableWithAddress cloneWithOffset(int offset) {
-        if (offset > length) {
-            throw new IllegalArgumentException("Provided offset is " + offset +
-                    " but maximum allowed offset (length) is " + length);
-        }
-
-        var newAddress = log.adjustLoggableAddress(this.address, offset);
-        return new MultiPageByteIterableWithAddress(newAddress, length - offset, log);
-    }
-
-    @Override
-    public ByteIterableWithAddress cloneWithAddressAndLength(long address, int length) {
-        return new MultiPageByteIterableWithAddress(address, length, log);
-    }
-
-    @Override
-    public @NotNull ByteIterable subIterable(int offset, int length) {
-        return new LogAwareFixedLengthByteIterable(this, offset, length);
-    }
-
-    private static int compare(final int leftOffset, final long leftAddress, final int len,
-                               final ByteIterable right, int rightOffset, final int rightLen,
-                               final Log log) {
-        final int pageSize = log.getCachePageSize();
-        final int mask = pageSize - 1;
-
-        long alignedAddress = log.adjustLoggableAddress(leftAddress, leftOffset);
-        long endAddress = log.adjustLoggableAddress(alignedAddress, len);
-
-        endAddress -= ((int) endAddress) & mask;
-
-        int leftStep = ((int) alignedAddress) & mask;
-
-        alignedAddress -= leftStep;
-        ArrayByteIterable leftPage = log.getPageIterable(alignedAddress);
-
-        final int leftPageLen = leftPage.getLength();
-        if (leftPageLen <= leftStep) { // alignment is >= 0 for sure
-            BlockNotFoundException.raise(log, alignedAddress);
-        }
-
-        byte[] leftBaseArray = leftPage.getBaseBytes();
-        int leftBaseOffset = leftPage.baseOffset();
-
-        final byte[] rightBaseArray = right.getBaseBytes();
-        final int rightBaseLen = Math.min(right.getLength(), rightLen);
-        final int rightBaseOffset = rightOffset + right.baseOffset();
-
-        int rightStep = 0;
-        int limit = Math.min(len, Math.min(leftPageLen - leftStep, rightBaseLen));
-
-        while (true) {
-            while (rightStep < limit) {
-                byte b1 = leftBaseArray[leftBaseOffset + leftStep++];
-                byte b2 = rightBaseArray[rightBaseOffset + rightStep++];
-                if (b1 != b2) {
-                    return (b1 & 0xff) - (b2 & 0xff);
+            1 -> {
+                val iterator = iterator()
+                bytes = ByteIterableBase.SINGLE_BYTES[0xFF and iterator.next().toInt()]
+            }
+            else -> {
+                val iterator = iterator()
+                bytes = ByteArray(length)
+                for (i in 0 until length) {
+                    bytes!![i] = iterator.next()
                 }
             }
-            if (rightStep == rightBaseLen || alignedAddress >= endAddress) {
-                return len - rightBaseLen;
-            }
-            // move left array to next cache page
-            alignedAddress += pageSize;
-            leftPage = log.getPageIterable(alignedAddress);
-            leftBaseArray = leftPage.getBaseBytes();
-            leftBaseOffset = leftPage.baseOffset();
+        }
+        return bytes
+    }
 
-            leftStep = 0;
-            limit = Math.min(len, Math.min(leftPage.getLength() + rightStep, rightBaseLen));
+    override fun baseOffset(): Int {
+        return 0
+    }
+
+    override fun getBaseBytes(): ByteArray {
+        return doBytesUnsafe()!!
+    }
+
+    override fun iterator(): ByteIteratorWithAddress {
+        return DataIterator(log, dataAddress, length.toLong())
+    }
+
+    override fun iterator(offset: Int): ByteIteratorWithAddress {
+        return if (offset == 0) {
+            DataIterator(log, dataAddress, length.toLong())
+        } else DataIterator(
+            log,
+            log.adjustLoggableAddress(dataAddress, offset.toLong()),
+            length.toLong()
+        )
+    }
+
+    override fun byteAt(offset: Int): Byte {
+        return iterator(offset).next()
+    }
+
+    override fun nextLong(offset: Int, length: Int): Long {
+        return iterator(offset).nextLong(length)
+    }
+
+    override val compressedUnsignedInt: Int
+        get() = CompressedUnsignedLongByteIterable.getInt(this)
+
+    override fun compareTo(other: ByteIterable): Int {
+        return compare(0, dataAddress, length, other, 0, other.length, log)
+    }
+
+    override fun compareTo(length: Int, right: ByteIterable, rightLength: Int): Int {
+        return compare(0, dataAddress, length, right, 0, rightLength, log)
+    }
+
+    override fun compareTo(from: Int, length: Int, right: ByteIterable, rightFrom: Int, rightLength: Int): Int {
+        return compare(from, dataAddress, length, right, rightFrom, rightLength, log)
+    }
+
+    override fun cloneWithOffset(offset: Int): ByteIterableWithAddress {
+        require(offset <= length) {
+            "Provided offset is " + offset +
+                    " but maximum allowed offset (length) is " + length
+        }
+        val newAddress = log.adjustLoggableAddress(dataAddress, offset.toLong())
+        return MultiPageByteIterableWithAddress(newAddress, length - offset, log)
+    }
+
+    override fun cloneWithAddressAndLength(address: Long, length: Int): ByteIterableWithAddress {
+        return MultiPageByteIterableWithAddress(address, length, log)
+    }
+
+    override fun subIterable(offset: Int, length: Int): ByteIterable {
+        return LogAwareFixedLengthByteIterable(this, offset, length)
+    }
+
+    companion object {
+        private fun compare(
+            leftOffset: Int, leftAddress: Long, len: Int,
+            right: ByteIterable, rightOffset: Int, rightLen: Int,
+            log: Log
+        ): Int {
+            val pageSize = log.cachePageSize
+            val mask = pageSize - 1
+            var alignedAddress = log.adjustLoggableAddress(leftAddress, leftOffset.toLong())
+            var endAddress = log.adjustLoggableAddress(alignedAddress, len.toLong())
+            endAddress -= (endAddress.toInt() and mask).toLong()
+            var leftStep = alignedAddress.toInt() and mask
+            alignedAddress -= leftStep.toLong()
+            var leftPage = log.getPageIterable(alignedAddress)
+            val leftPageLen = leftPage.length
+            if (leftPageLen <= leftStep) { // alignment is >= 0 for sure
+                BlockNotFoundException.raise(log, alignedAddress)
+            }
+            var leftBaseArray = leftPage.baseBytes
+            var leftBaseOffset = leftPage.baseOffset()
+            val rightBaseArray = right.baseBytes
+            val rightBaseLen = right.length.coerceAtMost(rightLen)
+            val rightBaseOffset = rightOffset + right.baseOffset()
+            var rightStep = 0
+            var limit = len.coerceAtMost((leftPageLen - leftStep).coerceAtMost(rightBaseLen))
+            while (true) {
+                while (rightStep < limit) {
+                    val b1 = leftBaseArray[leftBaseOffset + leftStep++]
+                    val b2 = rightBaseArray[rightBaseOffset + rightStep++]
+                    if (b1 != b2) {
+                        return (b1.toInt() and 0xff) - (b2.toInt() and 0xff)
+                    }
+                }
+                if (rightStep == rightBaseLen || alignedAddress >= endAddress) {
+                    return len - rightBaseLen
+                }
+                // move left array to next cache page
+                alignedAddress += pageSize.toLong()
+                leftPage = log.getPageIterable(alignedAddress)
+                leftBaseArray = leftPage.baseBytes
+                leftBaseOffset = leftPage.baseOffset()
+                leftStep = 0
+                limit = len.coerceAtMost((leftPage.length + rightStep).coerceAtMost(rightBaseLen))
+            }
         }
     }
 }

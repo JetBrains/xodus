@@ -137,7 +137,7 @@ public class EnvironmentTestsBase {
     }
 
     protected Log getLog() {
-        return env.getLog();
+        return env.log;
     }
 
     protected Pair<DataReader, DataWriter> createRW() throws IOException {
@@ -345,7 +345,6 @@ public class EnvironmentTestsBase {
         Log.invalidateSharedCache();
         try {
             SharedOpenFilesCache.invalidate();
-            SharedMappedFilesCache.invalidate();
         } catch (IOException ignore) {
         }
     }

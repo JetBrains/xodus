@@ -13,1003 +13,814 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.InvalidSettingException;
-import jetbrains.exodus.bindings.BindingUtils;
-import jetbrains.exodus.core.dataStructures.LongIntPair;
-import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.dataStructures.hash.LongIterator;
-import jetbrains.exodus.crypto.EnvKryptKt;
-import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.io.*;
-import net.jpountz.xxhash.StreamingXXHash64;
-import net.jpountz.xxhash.XXHash64;
-import net.jpountz.xxhash.XXHashFactory;
-import org.jctools.maps.NonBlockingHashMapLong;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.InvalidSettingException
+import jetbrains.exodus.bindings.BindingUtils
+import jetbrains.exodus.core.dataStructures.LongIntPair
+import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.core.dataStructures.hash.LongIterator
+import jetbrains.exodus.crypto.StreamCipherProvider
+import jetbrains.exodus.crypto.cryptBlocksImmutable
+import jetbrains.exodus.io.*
+import net.jpountz.xxhash.StreamingXXHash64
+import net.jpountz.xxhash.XXHash64
+import net.jpountz.xxhash.XXHashFactory
+import org.jctools.maps.NonBlockingHashMapLong
+import org.slf4j.LoggerFactory
+import java.io.File
+import java.security.MessageDigest
+import java.security.NoSuchAlgorithmException
+import java.util.*
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.BiConsumer
 
-import java.io.File;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
+class BufferedDataWriter internal constructor(
+    private val log: Log,
+    private val writer: DataWriter,
+    private val calculateHashCode: Boolean,
+    writeBoundarySemaphore: Semaphore,
+    maxWriteBoundary: Int,
+    files: BlockSet.Immutable,
+    highAddress: Long,
+    page: ByteArray,
+    private val syncPeriod: Long
+) {
+    private val logCache: LogCache = log.cache
+    private val cipherProvider: StreamCipherProvider? = log.config.streamCipherProvider
+    private val cipherKey: ByteArray? = log.config.cipherKey
+    private val cipherBasicIV: Long = log.config.cipherBasicIV
+    private val pageSize: Int = log.cachePageSize
+    private val adjustedPageSize: Int = pageSize - HASH_CODE_SIZE
+    private var blockSetMutable: BlockSet.Mutable? = null
+    private var blockSetWasChanged = false
+    private val writeBoundarySemaphore: Semaphore
+    private val localWritesSemaphore: Semaphore
+    private val writeCompletionHandler: BiConsumer<LongIntPair, in Throwable>
+    private var currentPage: MutablePage? = null
+    var currentHighAddress: Long = 0
+        private set
 
-public final class BufferedDataWriter {
-    private static final Logger logger = LoggerFactory.getLogger(BufferedDataWriter.class);
+    @Volatile
+    var highAddress: Long = 0
+        private set
 
-    public static final long XX_HASH_SEED = 0xADEF1279AL;
-    public static final XXHashFactory XX_HASH_FACTORY = XXHashFactory.fastestJavaInstance();
-    public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
-    public static final int HASH_CODE_SIZE = Long.BYTES;
-    @NotNull
-    private final Log log;
-    @NotNull
-    private final LogCache logCache;
-    private final DataWriter writer;
-    @Nullable
-    private final StreamCipherProvider cipherProvider;
-    private final byte[] cipherKey;
-    private final long cipherBasicIV;
-    private final int pageSize;
-    private final int adjustedPageSize;
-    private @Nullable BlockSet.Mutable blockSetMutable;
+    @Volatile
+    private var blockSet: BlockSet.Immutable? = null
 
-    private boolean blockSetWasChanged;
+    @Volatile
+    private var writeError: Throwable? = null
 
-    private final boolean calculateHashCode;
-    private final Semaphore writeBoundarySemaphore;
-    private final Semaphore localWritesSemaphore;
+    @Volatile
+    private var lastSyncedAddress: Long = 0
 
-    private final BiConsumer<LongIntPair, ? super Throwable> writeCompletionHandler;
+    @Volatile
+    private var lastSyncedTs: Long
+    private var sha256: MessageDigest? = null
+    private val writeCache: NonBlockingHashMapLong<PageHolder?>
 
-    private MutablePage currentPage;
-
-    private long currentHighAddress;
-
-    private volatile long committedHighAddress;
-    private volatile BlockSet.Immutable blockSet;
-
-    private volatile Throwable writeError;
-
-    private volatile long lastSyncedAddress;
-    private volatile long lastSyncedTs;
-
-    private final long syncPeriod;
-
-    private final MessageDigest sha256;
-
-    private final NonBlockingHashMapLong<PageHolder> writeCache;
-
-    BufferedDataWriter(@NotNull final Log log,
-                       @NotNull final DataWriter writer,
-                       final boolean calculateHashCode,
-                       final Semaphore writeBoundarySemaphore,
-                       final int maxWriteBoundary,
-                       final BlockSet.Immutable files,
-                       final long highAddress,
-                       final byte[] page,
-                       final long syncPeriod) {
-        this.log = log;
-        this.writer = writer;
-
-        logCache = log.cache;
-        this.calculateHashCode = calculateHashCode;
-
-        pageSize = log.getCachePageSize();
-
-
-        cipherProvider = log.getConfig().getCipherProvider();
-        cipherKey = log.getConfig().getCipherKey();
-        cipherBasicIV = log.getConfig().getCipherBasicIV();
-        this.syncPeriod = syncPeriod;
-
-        adjustedPageSize = pageSize - HASH_CODE_SIZE;
-
-        this.writeCache = new NonBlockingHashMapLong<>(maxWriteBoundary, false);
-
-        this.writeBoundarySemaphore = writeBoundarySemaphore;
-        this.localWritesSemaphore = new Semaphore(Integer.MAX_VALUE);
-
-        this.lastSyncedTs = System.currentTimeMillis();
-
-        if (cipherProvider != null) {
+    init {
+        writeCache = NonBlockingHashMapLong(maxWriteBoundary, false)
+        this.writeBoundarySemaphore = writeBoundarySemaphore
+        localWritesSemaphore = Semaphore(Int.MAX_VALUE)
+        lastSyncedTs = System.currentTimeMillis()
+        sha256 = if (cipherProvider != null) {
             try {
-                sha256 = MessageDigest.getInstance("SHA-256");
-            } catch (NoSuchAlgorithmException e) {
-                throw new ExodusException("SHA-256 hash function was not found", e);
+                MessageDigest.getInstance("SHA-256")
+            } catch (e: NoSuchAlgorithmException) {
+                throw ExodusException("SHA-256 hash function was not found", e)
             }
         } else {
-            sha256 = null;
+            null
         }
-
-        initCurrentPage(files, highAddress, page);
-
-        this.writeCompletionHandler = (positionWrittenPair, err) -> {
-            var position = positionWrittenPair.first;
-            var written = positionWrittenPair.second;
-
-            var pageOffset = position & (pageSize - 1);
-            var pageAddress = position - pageOffset;
-
-            var pageHolder = writeCache.get(pageAddress);
-            assert pageHolder != null;
-
-            var writtenInPage = pageHolder.written;
-            var result = writtenInPage.addAndGet(written);
-
+        initCurrentPage(files, highAddress, page)
+        writeCompletionHandler = BiConsumer { positionWrittenPair: LongIntPair, err: Throwable? ->
+            val position = positionWrittenPair.first
+            val written = positionWrittenPair.second
+            val pageOffset = position and (pageSize - 1).toLong()
+            val pageAddress = position - pageOffset
+            val pageHolder = writeCache[pageAddress]!!
+            val writtenInPage = pageHolder.written
+            val result = writtenInPage.addAndGet(written)
             if (result == pageSize) {
-                writeCache.remove(pageAddress);
+                writeCache.remove(pageAddress)
             }
-
             if (err != null) {
-                writeError = err;
-                logger.error("Error during writing of data to the file for the log " +
-                                log.getLocation(),
-                        err);
+                writeError = err
+                logger.error(
+                    "Error during writing of data to the file for the log " +
+                            log.location,
+                    err
+                )
             }
-
-            writeBoundarySemaphore.release();
-            localWritesSemaphore.release();
-        };
+            writeBoundarySemaphore.release()
+            localWritesSemaphore.release()
+        }
     }
 
-
-    public long beforeWrite() {
-        checkWriteError();
-
+    fun beforeWrite(): Long {
+        checkWriteError()
         if (currentPage == null) {
-            throw new ExodusException("Current page is not initialized in the buffered writer.");
+            throw ExodusException("Current page is not initialized in the buffered writer.")
         }
-
-        blockSetMutable = blockSet.beginWrite();
-        blockSetWasChanged = false;
-
-        assert currentHighAddress == committedHighAddress;
-        assert currentHighAddress % pageSize == currentPage.writtenCount % pageSize;
-        return currentHighAddress;
+        blockSetMutable = blockSet!!.beginWrite()
+        blockSetWasChanged = false
+        assert(currentHighAddress == highAddress)
+        assert(currentHighAddress % pageSize == (currentPage!!.writtenCount % pageSize).toLong())
+        return currentHighAddress
     }
 
-    private void initCurrentPage(final BlockSet.Immutable files,
-                                 final long highAddress,
-                                 final byte[] page) {
-        this.currentHighAddress = highAddress;
-        this.committedHighAddress = highAddress;
-        this.lastSyncedAddress = 0;
-
-        if (pageSize != page.length) {
-            throw new InvalidSettingException("Configured page size doesn't match actual page size, pageSize = " +
-                    pageSize + ", actual page size = " + page.length);
+    private fun initCurrentPage(
+        files: BlockSet.Immutable,
+        highAddress: Long,
+        page: ByteArray
+    ) {
+        currentHighAddress = highAddress
+        this.highAddress = highAddress
+        lastSyncedAddress = 0
+        if (pageSize != page.size) {
+            throw InvalidSettingException(
+                "Configured page size doesn't match actual page size, pageSize = " +
+                        pageSize + ", actual page size = " + page.size
+            )
         }
-
-        final int pageOffset = (int) highAddress & (pageSize - 1);
-        final long pageAddress = highAddress - pageOffset;
-
-        currentPage = new MutablePage(page, pageAddress, pageOffset, pageOffset);
-        var xxHash64 = currentPage.xxHash64;
-
+        val pageOffset = highAddress.toInt() and pageSize - 1
+        val pageAddress = highAddress - pageOffset
+        currentPage = MutablePage(page, pageAddress, pageOffset, pageOffset)
+        val xxHash64 = currentPage!!.xxHash64
         if (calculateHashCode && pageOffset < pageSize) {
             if (cipherProvider != null) {
-                byte[] encryptedBytes = EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey,
-                        cipherBasicIV, pageAddress, page, 0, pageOffset, LogUtil.LOG_BLOCK_ALIGNMENT);
-                xxHash64.update(encryptedBytes, 0, encryptedBytes.length);
+                val encryptedBytes = cryptBlocksImmutable(
+                    cipherProvider, cipherKey!!,
+                    cipherBasicIV, pageAddress, page, 0, pageOffset, LogUtil.LOG_BLOCK_ALIGNMENT
+                )
+                xxHash64.update(encryptedBytes, 0, encryptedBytes.size)
             } else {
-                xxHash64.update(page, 0, pageOffset);
+                xxHash64.update(page, 0, pageOffset)
             }
         }
-
-        blockSet = files;
-
-        var writtenCount = currentPage.writtenCount;
-        assert writtenCount == currentPage.committedCount;
-
+        blockSet = files
+        val writtenCount = currentPage!!.writtenCount
+        assert(writtenCount == currentPage!!.committedCount)
         if (writtenCount > 0) {
-            var bytes = currentPage.bytes;
-
-            addPageToWriteCache(pageAddress, writtenCount, bytes);
+            val bytes = currentPage!!.bytes
+            addPageToWriteCache(pageAddress, writtenCount, bytes)
         }
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
     }
 
-    private void addPageToWriteCache(long pageAddress, int writtenCount, byte @NotNull [] bytes) {
-        var holder = writeCache.get(pageAddress);
+    private fun addPageToWriteCache(pageAddress: Long, writtenCount: Int, bytes: ByteArray) {
+        val holder = writeCache[pageAddress]
         if (holder == null) {
-            writeCache.put(pageAddress, new PageHolder(bytes, writtenCount));
+            writeCache.put(pageAddress, PageHolder(bytes, writtenCount))
         } else {
-            holder.page = bytes;
+            holder.page = bytes
         }
     }
 
-    public long endWrite() {
-        checkWriteError();
-
-        assert blockSetMutable != null;
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-
-        flush();
-
+    fun endWrite(): Long {
+        checkWriteError()
+        assert(blockSetMutable != null)
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
+        flush()
         if (doNeedsToBeSynchronized(currentHighAddress)) {
-            doSync(currentHighAddress);
+            doSync(currentHighAddress)
         }
-
         if (blockSetWasChanged) {
-            blockSet = blockSetMutable.endWrite();
-
-            blockSetWasChanged = false;
-            blockSetMutable = null;
+            blockSet = blockSetMutable!!.endWrite()
+            blockSetWasChanged = false
+            blockSetMutable = null
         }
-
-        assert currentPage.committedCount <= currentPage.writtenCount;
-        assert currentPage.committedCount == pageSize ||
-                currentPage.pageAddress == (currentHighAddress & (~(long) (pageSize - 1)));
-        assert currentPage.committedCount == 0 ||
-                currentPage.committedCount == pageSize || writeCache.get(currentPage.pageAddress) != null;
-        assert this.committedHighAddress <= currentHighAddress;
-
-        if (this.committedHighAddress < currentHighAddress) {
-            this.committedHighAddress = currentHighAddress;
+        assert(currentPage!!.committedCount <= currentPage!!.writtenCount)
+        assert(
+            currentPage!!.committedCount == pageSize ||
+                    currentPage!!.pageAddress == currentHighAddress and (pageSize - 1).toLong().inv()
+        )
+        assert(currentPage!!.committedCount == 0 || currentPage!!.committedCount == pageSize || writeCache[currentPage!!.pageAddress] != null)
+        assert(highAddress <= currentHighAddress)
+        if (highAddress < currentHighAddress) {
+            highAddress = currentHighAddress
         }
-
-        return committedHighAddress;
+        return highAddress
     }
 
-    public boolean needsToBeSynchronized() {
-        return doNeedsToBeSynchronized(this.committedHighAddress);
+    fun needsToBeSynchronized(): Boolean {
+        return doNeedsToBeSynchronized(highAddress)
     }
 
-    private boolean doNeedsToBeSynchronized(long committedHighAddress) {
+    private fun doNeedsToBeSynchronized(committedHighAddress: Long): Boolean {
         if (lastSyncedAddress < committedHighAddress) {
-            final long now = System.currentTimeMillis();
-            return now - lastSyncedTs >= syncPeriod;
+            val now = System.currentTimeMillis()
+            return now - lastSyncedTs >= syncPeriod
         }
-
-        return false;
+        return false
     }
 
-    public static void checkPageConsistency(long pageAddress, byte @NotNull [] bytes, int pageSize, Log log) {
-        if (pageSize != bytes.length) {
-            DataCorruptionException.raise("Unexpected page size (bytes). {expected " + pageSize
-                    + ": , actual : " + bytes.length + "}", log, pageAddress);
-        }
-
-        final long calculatedHash = calculatePageHashCode(bytes, 0, pageSize - HASH_CODE_SIZE);
-        final long storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE);
-
-        if (storedHash != calculatedHash) {
-            DataCorruptionException.raise("Page is broken. Expected and calculated hash codes are different.",
-                    log, pageAddress);
-        }
-    }
-
-    public static int checkLastPageConsistency(MessageDigest sha256, long pageAddress, byte @NotNull [] bytes, int pageSize, Log log) {
-        if (pageSize != bytes.length) {
-            int lastHashBlock = -1;
-            for (int i = 0; i <
-                    Math.min(bytes.length - (Byte.BYTES + Long.BYTES),
-                            pageSize - HASH_CODE_SIZE - (Byte.BYTES + Long.BYTES)); i++) {
-                var type = (byte) (((byte) 0x80) ^ bytes[i]);
-                if (HashCodeLoggable.isHashCodeLoggable(type)) {
-                    var loggable = new HashCodeLoggable(pageAddress + i, i, bytes);
-
-                    var hash = calculateHashRecordHashCode(sha256, bytes, 0, i);
-                    if (hash == loggable.getHashCode()) {
-                        lastHashBlock = i;
-                    }
-                }
-            }
-
-            if (lastHashBlock > 0) {
-                return lastHashBlock;
-            }
-
-            DataCorruptionException.raise("Unexpected page size (bytes). {expected " + pageSize
-                    + ": , actual : " + bytes.length + "}", log, pageAddress);
-        }
-
-        final long calculatedHash = calculatePageHashCode(bytes, 0, pageSize - HASH_CODE_SIZE);
-        final long storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE);
-
-        if (storedHash != calculatedHash) {
-            DataCorruptionException.raise("Page is broken. Expected and calculated hash codes are different.",
-                    log, pageAddress);
-        }
-
-        return pageSize;
-    }
-
-    private static long calculateHashRecordHashCode(MessageDigest sha256, byte @NotNull [] bytes, int offset, int len) {
-        long hashCode;
-
-        if (sha256 != null) {
-            sha256.update(bytes, offset, len);
-            hashCode = BindingUtils.readLong(sha256.digest(), 0);
-        } else {
-            hashCode = calculatePageHashCode(bytes, offset, len);
-        }
-
-        return hashCode;
-    }
-
-    public static long calculatePageHashCode(byte @NotNull [] bytes, final int offset, final int len) {
-        final XXHash64 xxHash = BufferedDataWriter.xxHash;
-        return xxHash.hash(bytes, offset, len, XX_HASH_SEED);
-    }
-
-    public static void updatePageHashCode(final byte @NotNull [] bytes) {
-        final int hashCodeOffset = bytes.length - HASH_CODE_SIZE;
-        updatePageHashCode(bytes, 0, hashCodeOffset);
-    }
-
-    public static void updatePageHashCode(final byte @NotNull [] bytes, int offset, int len) {
-        final long hash = calculatePageHashCode(bytes, offset, len);
-        BindingUtils.writeLong(hash, bytes, offset + len);
-    }
-
-    public static byte[] generateNullPage(int pageSize) {
-        final byte[] data = new byte[pageSize];
-        Arrays.fill(data, 0, pageSize - HASH_CODE_SIZE, (byte) 0x80);
-
-        final long hash = xxHash.hash(data, 0, pageSize - HASH_CODE_SIZE, XX_HASH_SEED);
-        BindingUtils.writeLong(hash, data, pageSize - HASH_CODE_SIZE);
-
-        return data;
-    }
-
-    void write(byte b) {
-        checkWriteError();
-
-        MutablePage currentPage = allocateNewPageIfNeeded();
-
-        int delta = 1;
-        int writtenCount = currentPage.writtenCount;
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-
-        assert writtenCount < adjustedPageSize;
-        currentPage.bytes[writtenCount] = b;
-
-        writtenCount++;
-        currentPage.writtenCount = writtenCount;
-
+    fun write(b: Byte) {
+        checkWriteError()
+        val currentPage = allocateNewPageIfNeeded()
+        var delta = 1
+        var writtenCount = currentPage!!.writtenCount
+        assert(currentHighAddress == currentPage.pageAddress + currentPage.writtenCount)
+        assert(writtenCount < adjustedPageSize)
+        currentPage.bytes[writtenCount] = b
+        writtenCount++
+        currentPage.writtenCount = writtenCount
         if (writtenCount == adjustedPageSize) {
-            currentPage.writtenCount = pageSize;
-            delta += HASH_CODE_SIZE;
+            currentPage.writtenCount = pageSize
+            delta += HASH_CODE_SIZE
         }
-
-        currentHighAddress += delta;
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-
+        currentHighAddress += delta.toLong()
+        assert(currentHighAddress == currentPage.pageAddress + currentPage.writtenCount)
         if (currentPage.writtenCount == pageSize) {
-            writePage(currentPage);
+            writePage(currentPage)
         }
     }
 
-    void write(byte[] b, int offset, int len) {
-        checkWriteError();
-
-        int off = 0;
-        int delta = len;
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-
-        while (len > 0) {
-            MutablePage currentPage = allocateNewPageIfNeeded();
-            final int bytesToWrite = Math.min(adjustedPageSize - currentPage.writtenCount, len);
-
-            System.arraycopy(b, offset + off, currentPage.bytes,
-                    currentPage.writtenCount, bytesToWrite);
-
-            currentPage.writtenCount += bytesToWrite;
-
+    fun write(b: ByteArray, offset: Int, len: Int) {
+        var resultLen = len
+        checkWriteError()
+        var off = 0
+        var delta = resultLen
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
+        while (resultLen > 0) {
+            val currentPage = allocateNewPageIfNeeded()
+            val bytesToWrite = (adjustedPageSize - currentPage!!.writtenCount).coerceAtMost(resultLen)
+            System.arraycopy(
+                b, offset + off, currentPage.bytes,
+                currentPage.writtenCount, bytesToWrite
+            )
+            currentPage.writtenCount += bytesToWrite
             if (currentPage.writtenCount == adjustedPageSize) {
-                currentPage.writtenCount = pageSize;
-                delta += HASH_CODE_SIZE;
-
-                writePage(currentPage);
+                currentPage.writtenCount = pageSize
+                delta += HASH_CODE_SIZE
+                writePage(currentPage)
             }
-
-            len -= bytesToWrite;
-            off += bytesToWrite;
+            resultLen -= bytesToWrite
+            off += bytesToWrite
         }
-
-        this.currentHighAddress += delta;
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
+        currentHighAddress += delta.toLong()
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
     }
 
-    boolean fitsIntoSingleFile(long fileLengthBound, int loggableSize) {
-        var currentHighAddress = this.currentHighAddress;
-
-        final long fileReminder = fileLengthBound - (currentHighAddress & (fileLengthBound - 1));
-        final long adjustLoggableSize =
-                log.adjustLoggableAddress(currentHighAddress, loggableSize) - currentHighAddress;
-
-        return adjustLoggableSize <= fileReminder;
+    fun fitsIntoSingleFile(fileLengthBound: Long, loggableSize: Int): Boolean {
+        val currentHighAddress = currentHighAddress
+        val fileReminder = fileLengthBound - (currentHighAddress and fileLengthBound - 1)
+        val adjustLoggableSize =
+            log.adjustLoggableAddress(currentHighAddress, loggableSize.toLong()) - currentHighAddress
+        return adjustLoggableSize <= fileReminder
     }
 
-    byte[] readPage(final long pageAddress) {
-        if (currentPage != null && currentPage.pageAddress == pageAddress) {
-            return currentPage.bytes;
+    fun readPage(pageAddress: Long): ByteArray {
+        if (currentPage != null && currentPage!!.pageAddress == pageAddress) {
+            return currentPage!!.bytes
         }
-
-        var holder = writeCache.get(pageAddress);
+        val holder = writeCache[pageAddress]
         if (holder != null) {
-            return holder.page;
+            return holder.page
         }
-
-        var page = new byte[pageSize];
-        log.readBytes(page, pageAddress);
-
-        return page;
+        val page = ByteArray(pageSize)
+        log.readBytes(page, pageAddress)
+        return page
     }
 
-    byte[] getCurrentlyWritten(final long pageAddress) {
-        if (currentPage.pageAddress == pageAddress) {
-            return currentPage.bytes;
-        }
-
-        return null;
+    fun getCurrentlyWritten(pageAddress: Long): ByteArray? {
+        return if (currentPage!!.pageAddress == pageAddress) {
+            currentPage!!.bytes
+        } else null
     }
 
-    void removeBlock(final long blockAddress, final RemoveBlockType rbt) {
-        var block = blockSet.getBlock(blockAddress);
-
-        log.notifyBeforeBlockDeleted(block);
+    fun removeBlock(blockAddress: Long, rbt: RemoveBlockType?) {
+        val block = blockSet!!.getBlock(blockAddress)
+        log.notifyBeforeBlockDeleted(block)
         try {
-            writer.removeBlock(blockAddress, rbt);
-            log.clearFileFromLogCache(blockAddress, 0);
+            writer.removeBlock(blockAddress, rbt!!)
+            log.clearFileFromLogCache(blockAddress, 0)
         } finally {
-            log.notifyAfterBlockDeleted(blockAddress);
+            log.notifyAfterBlockDeleted(blockAddress)
         }
     }
 
-    Block getBlock(long blockAddress) {
-        return blockSet.getBlock(blockAddress);
+    fun getBlock(blockAddress: Long): Block {
+        return blockSet!!.getBlock(blockAddress)
     }
 
-    void forgetFiles(final long[] files, long fileBoundary) {
-        assert blockSetMutable != null;
-
-        boolean waitForCompletion = false;
-        for (final long file : files) {
-            blockSetMutable.remove(file);
-            blockSetWasChanged = true;
-
+    fun forgetFiles(files: LongArray, fileBoundary: Long) {
+        assert(blockSetMutable != null)
+        var waitForCompletion = false
+        for (file in files) {
+            blockSetMutable!!.remove(file)
+            blockSetWasChanged = true
             if (!waitForCompletion) {
-                final long fileEnd = file + fileBoundary;
-                for (long pageAddress = file; pageAddress < fileEnd; pageAddress += pageSize) {
+                val fileEnd = file + fileBoundary
+                var pageAddress = file
+                while (pageAddress < fileEnd) {
                     if (writeCache.containsKey(pageAddress)) {
-                        waitForCompletion = true;
-                        break;
+                        waitForCompletion = true
+                        break
                     }
+                    pageAddress += pageSize.toLong()
                 }
             }
         }
-
         if (waitForCompletion) {
-            ensureWritesAreCompleted();
+            ensureWritesAreCompleted()
         }
     }
 
-    long[] allFiles() {
-        return blockSet.getFiles();
+    fun allFiles(): LongArray {
+        return blockSet!!.getFiles()
     }
 
-    Long getMinimumFile() {
-        return blockSet.getMinimum();
-    }
+    val minimumFile: Long?
+        get() = blockSet!!.minimum
+    val maximumFile: Long?
+        get() = blockSet!!.maximum
 
-    Long getMaximumFile() {
-        return blockSet.getMaximum();
-    }
-
-
-    void flush() {
-        checkWriteError();
-
-        if (currentPage.committedCount < currentPage.writtenCount) {
-            var pageAddress = currentPage.pageAddress;
-            var bytes = currentPage.bytes;
-
-            addPageToWriteCache(pageAddress, 0, bytes);
-            logCache.cachePage(log, pageAddress, bytes);
+    fun flush() {
+        checkWriteError()
+        if (currentPage!!.committedCount < currentPage!!.writtenCount) {
+            val pageAddress = currentPage!!.pageAddress
+            val bytes = currentPage!!.bytes
+            addPageToWriteCache(pageAddress, 0, bytes)
+            logCache.cachePage(log, pageAddress, bytes)
         }
     }
 
-    private void checkWriteError() {
+    private fun checkWriteError() {
         if (writeError != null) {
-            throw ExodusException.toExodusException(writeError);
+            throw ExodusException.toExodusException(writeError)
         }
     }
 
-    int padPageWithNulls() {
-        checkWriteError();
-
-        final int written = doPadPageWithNulls();
-        this.currentHighAddress += written;
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-
+    fun padPageWithNulls(): Int {
+        checkWriteError()
+        val written = doPadPageWithNulls()
+        currentHighAddress += written.toLong()
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
         if (written > 0) {
-            assert currentPage.writtenCount == pageSize;
-            writePage(currentPage);
+            assert(currentPage!!.writtenCount == pageSize)
+            writePage(currentPage)
         }
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-
-        return written;
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
+        return written
     }
 
-    void padWholePageWithNulls() {
-        checkWriteError();
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-        final int written = doPadWholePageWithNulls();
-        this.currentHighAddress += written;
-
+    fun padWholePageWithNulls() {
+        checkWriteError()
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
+        val written = doPadWholePageWithNulls()
+        currentHighAddress += written.toLong()
         if (written > 0) {
-            assert currentPage.writtenCount == pageSize;
-            writePage(currentPage);
+            assert(currentPage!!.writtenCount == pageSize)
+            writePage(currentPage)
         }
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
     }
 
-    int padWithNulls(long fileLengthBound, byte[] nullPage) {
-        checkWriteError();
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-        assert nullPage.length == pageSize;
-        int written = doPadPageWithNulls();
-
+    fun padWithNulls(fileLengthBound: Long, nullPage: ByteArray): Int {
+        checkWriteError()
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
+        assert(nullPage.size == pageSize)
+        var written = doPadPageWithNulls()
         if (written > 0) {
-            assert currentPage.writtenCount == pageSize;
-            writePage(currentPage);
+            assert(currentPage!!.writtenCount == pageSize)
+            writePage(currentPage)
         }
-
-        final long spaceWritten = ((currentHighAddress + written) % fileLengthBound);
-        if (spaceWritten == 0) {
-            currentHighAddress += written;
-
-            assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-            return written;
+        val spaceWritten = (currentHighAddress + written) % fileLengthBound
+        if (spaceWritten == 0L) {
+            currentHighAddress += written.toLong()
+            assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
+            return written
         }
-
-        final long reminder = fileLengthBound - spaceWritten;
-        final long pages = reminder / pageSize;
-
-        assert reminder % pageSize == 0;
-
-        for (int i = 0; i < pages; i++) {
-            var currentPage = allocNewPage(nullPage);
-            writePage(currentPage);
-
-            written += pageSize;
+        val reminder = fileLengthBound - spaceWritten
+        val pages = reminder / pageSize
+        assert(reminder % pageSize == 0L)
+        for (i in 0 until pages) {
+            val currentPage = allocNewPage(nullPage)
+            writePage(currentPage)
+            written += pageSize
         }
-
-        currentHighAddress += written;
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-        return written;
+        currentHighAddress += written.toLong()
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
+        return written
     }
 
-    private MutablePage allocateNewPageIfNeeded() {
-        var currentPage = this.currentPage;
-        if (currentPage.writtenCount == pageSize) {
-            return allocNewPage();
-        }
-
-        return currentPage;
+    private fun allocateNewPageIfNeeded(): MutablePage? {
+        val currentPage = currentPage
+        return if (currentPage!!.writtenCount == pageSize) {
+            allocNewPage()
+        } else currentPage
     }
 
-    void sync() {
-        doSync(this.committedHighAddress);
+    fun sync() {
+        doSync(highAddress)
     }
 
-    private void doSync(final long committedHighAddress) {
-        var currentPage = this.currentPage;
-
-        addHashCodeToPage(currentPage);
-        if (currentPage.writtenCount > currentPage.committedCount) {
-            writePage(currentPage);
+    private fun doSync(committedHighAddress: Long) {
+        val currentPage = currentPage
+        addHashCodeToPage(currentPage)
+        if (currentPage!!.writtenCount > currentPage.committedCount) {
+            writePage(currentPage)
         }
-
-        ensureWritesAreCompleted();
-        checkWriteError();
-
-        writer.sync();
-
-        assert lastSyncedAddress <= committedHighAddress;
-
-        if (this.lastSyncedAddress < committedHighAddress) {
-            lastSyncedAddress = committedHighAddress;
+        ensureWritesAreCompleted()
+        checkWriteError()
+        writer.sync()
+        assert(lastSyncedAddress <= committedHighAddress)
+        if (lastSyncedAddress < committedHighAddress) {
+            lastSyncedAddress = committedHighAddress
         }
-
-        lastSyncedTs = System.currentTimeMillis();
+        lastSyncedTs = System.currentTimeMillis()
     }
 
-    private void addHashCodeToPage(MutablePage currentPage) {
-        if (currentPage.writtenCount == 0) {
-            assert currentPage.committedCount == 0;
-            return;
+    private fun addHashCodeToPage(currentPage: MutablePage?) {
+        if (currentPage!!.writtenCount == 0) {
+            assert(currentPage.committedCount == 0)
+            return
         }
-
-        var lenSpaceLeft = pageSize - currentPage.writtenCount;
-        assert lenSpaceLeft == 0 || lenSpaceLeft > HASH_CODE_SIZE;
-
-        if (lenSpaceLeft <= HASH_CODE_SIZE + Long.BYTES + Byte.BYTES) {
-            final int written = doPadPageWithNulls();
-
-            this.currentHighAddress += written;
-            assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-
-            assert written == lenSpaceLeft;
-            return;
+        val lenSpaceLeft = pageSize - currentPage.writtenCount
+        assert(lenSpaceLeft == 0 || lenSpaceLeft > HASH_CODE_SIZE)
+        if (lenSpaceLeft <= HASH_CODE_SIZE + java.lang.Long.BYTES + java.lang.Byte.BYTES) {
+            val written = doPadPageWithNulls()
+            currentHighAddress += written.toLong()
+            assert(currentHighAddress == currentPage.pageAddress + currentPage.writtenCount)
+            assert(written == lenSpaceLeft)
+            return
         }
-
-        currentPage.bytes[currentPage.writtenCount++] = (byte) (0x80 ^ HashCodeLoggable.TYPE);
-
-        var hashCode = calculateHashRecordHashCode(sha256,
-                currentPage.bytes, 0, currentPage.writtenCount - 1);
-        BindingUtils.writeLong(hashCode, currentPage.bytes, currentPage.writtenCount);
-        currentPage.writtenCount += HASH_CODE_SIZE;
-
-        this.currentHighAddress += HASH_CODE_SIZE + Byte.BYTES;
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
+        currentPage.bytes[currentPage.writtenCount++] = (0x80 xor HashCodeLoggable.TYPE.toInt()).toByte()
+        val hashCode = calculateHashRecordHashCode(
+            sha256,
+            currentPage.bytes, currentPage.writtenCount - 1
+        )
+        BindingUtils.writeLong(hashCode, currentPage.bytes, currentPage.writtenCount)
+        currentPage.writtenCount += HASH_CODE_SIZE
+        currentHighAddress += (HASH_CODE_SIZE + java.lang.Byte.BYTES).toLong()
+        assert(currentHighAddress == currentPage.pageAddress + currentPage.writtenCount)
     }
 
-    void close(boolean sync) {
+    fun close(sync: Boolean) {
         if (sync) {
-            sync();
+            sync()
         } else {
-            ensureWritesAreCompleted();
+            ensureWritesAreCompleted()
         }
-
-        writer.close();
-
-        writeCache.clear();
-
+        writer.close()
+        writeCache.clear()
         if (currentPage != null) {
-            currentPage.xxHash64.close();
-            currentPage = null;
+            currentPage!!.xxHash64.close()
+            currentPage = null
         }
-
         if (blockSetMutable != null) {
-            blockSetMutable.clear();
-            blockSet = blockSetMutable.endWrite();
-            blockSetMutable = null;
+            blockSetMutable!!.clear()
+            blockSet = blockSetMutable!!.endWrite()
+            blockSetMutable = null
+        }
+        lastSyncedTs = Long.MAX_VALUE
+        lastSyncedAddress = Long.MAX_VALUE
+    }
+
+    val filesSize: Int
+        get() {
+            assert(blockSetMutable != null)
+            return blockSetMutable!!.size()
         }
 
-
-        lastSyncedTs = Long.MAX_VALUE;
-        lastSyncedAddress = Long.MAX_VALUE;
-    }
-
-    int getFilesSize() {
-        assert blockSetMutable != null;
-
-        return blockSetMutable.size();
-    }
-
-    void clear() {
-        ensureWritesAreCompleted();
-
-        writeCache.clear();
-        writer.clear();
-
-        currentHighAddress = 0;
-        committedHighAddress = 0;
-        lastSyncedAddress = 0;
-
+    fun clear() {
+        ensureWritesAreCompleted()
+        writeCache.clear()
+        writer.clear()
+        currentHighAddress = 0
+        highAddress = 0
+        lastSyncedAddress = 0
         if (currentPage != null) {
-            currentPage.xxHash64.close();
+            currentPage!!.xxHash64.close()
         }
-
-        blockSetMutable = null;
-
-        currentPage = new MutablePage(new byte[pageSize], 0, 0, 0);
-        blockSet = new BlockSet.Immutable(log.getFileLengthBound());
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
+        blockSetMutable = null
+        currentPage = MutablePage(ByteArray(pageSize), 0, 0, 0)
+        blockSet = BlockSet.Immutable(log.fileLengthBound)
+        assert(currentHighAddress == currentPage!!.pageAddress + currentPage!!.writtenCount)
     }
 
-    private void ensureWritesAreCompleted() {
-        localWritesSemaphore.acquireUninterruptibly(Integer.MAX_VALUE);
-        localWritesSemaphore.release(Integer.MAX_VALUE);
-
-        assert assertWriteCompletedWriteCache();
+    private fun ensureWritesAreCompleted() {
+        localWritesSemaphore.acquireUninterruptibly(Int.MAX_VALUE)
+        localWritesSemaphore.release(Int.MAX_VALUE)
+        assert(assertWriteCompletedWriteCache())
     }
 
-    private boolean assertWriteCompletedWriteCache() {
-        assert writeCache.size() <= 1;
-
-        if (writeCache.size() == 1) {
-            var entry = writeCache.entrySet().iterator().next();
-            assert entry.getKey() == currentPage.pageAddress;
-            assert entry.getValue().written.get() < pageSize;
+    private fun assertWriteCompletedWriteCache(): Boolean {
+        assert(writeCache.size <= 1)
+        if (writeCache.size == 1) {
+            val (key, value) = writeCache.entries.iterator().next()
+            assert(key == currentPage!!.pageAddress)
+            assert(value!!.written.get() < pageSize)
         }
-
-        return true;
+        return true
     }
 
-    private void writePage(MutablePage page) {
-        byte[] bytes = page.bytes;
-
-        final StreamingXXHash64 xxHash64 = page.xxHash64;
-        final long pageAddress = page.pageAddress;
-
-        final int writtenCount = page.writtenCount;
-        final int committedCount = page.committedCount;
-
-        final int len = writtenCount - committedCount;
-
+    private fun writePage(page: MutablePage?) {
+        val bytes = page!!.bytes
+        val xxHash64 = page.xxHash64
+        val pageAddress = page.pageAddress
+        val writtenCount = page.writtenCount
+        val committedCount = page.committedCount
+        val len = writtenCount - committedCount
         if (len > 0) {
-            final int contentLen;
-            if (writtenCount < pageSize) {
-                contentLen = len;
+            val contentLen: Int = if (writtenCount < pageSize) {
+                len
             } else {
-                contentLen = len - HASH_CODE_SIZE;
+                len - HASH_CODE_SIZE
             }
-
-            byte[] encryptedBytes = null;
+            var encryptedBytes: ByteArray? = null
             if (cipherProvider == null) {
                 if (calculateHashCode) {
-                    xxHash64.update(bytes, committedCount, contentLen);
-
+                    xxHash64.update(bytes, committedCount, contentLen)
                     if (writtenCount == pageSize) {
-                        BindingUtils.writeLong(xxHash64.getValue(), bytes,
-                                adjustedPageSize);
+                        BindingUtils.writeLong(
+                            xxHash64.value, bytes,
+                            adjustedPageSize
+                        )
                     }
                 }
             } else {
-                encryptedBytes = EnvKryptKt.cryptBlocksImmutable(cipherProvider, cipherKey,
-                        cipherBasicIV, pageAddress, bytes, committedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT);
-
+                encryptedBytes = cryptBlocksImmutable(
+                    cipherProvider, cipherKey!!,
+                    cipherBasicIV, pageAddress, bytes, committedCount, len, LogUtil.LOG_BLOCK_ALIGNMENT
+                )
                 if (calculateHashCode) {
-                    xxHash64.update(encryptedBytes, 0, contentLen);
-
+                    xxHash64.update(encryptedBytes, 0, contentLen)
                     if (writtenCount == pageSize) {
-                        BindingUtils.writeLong(xxHash64.getValue(), encryptedBytes, contentLen);
+                        BindingUtils.writeLong(xxHash64.value, encryptedBytes, contentLen)
                     }
                 }
             }
-
-            writeBoundarySemaphore.acquireUninterruptibly();
-            localWritesSemaphore.acquireUninterruptibly();
-
-            assert writer.position() <= log.getFileLengthBound();
-            assert writer.position() % log.getFileLengthBound() ==
-                    (currentPage.pageAddress + currentPage.committedCount) % log.getFileLengthBound();
-
-            addPageToWriteCache(pageAddress, 0, bytes);
-            logCache.cachePage(log, pageAddress, bytes);
-
-            Pair<Block, CompletableFuture<LongIntPair>> result;
-            if (cipherProvider != null) {
-                result = writer.asyncWrite(encryptedBytes, 0, len);
+            writeBoundarySemaphore.acquireUninterruptibly()
+            localWritesSemaphore.acquireUninterruptibly()
+            assert(writer.position() <= log.fileLengthBound)
+            assert(
+                writer.position() % log.fileLengthBound ==
+                        (currentPage!!.pageAddress + currentPage!!.committedCount) % log.fileLengthBound
+            )
+            addPageToWriteCache(pageAddress, 0, bytes)
+            logCache.cachePage(log, pageAddress, bytes)
+            val result: Pair<Block, CompletableFuture<LongIntPair>>
+            (if (cipherProvider != null) {
+                writer.asyncWrite(encryptedBytes, 0, len)
             } else {
-                result = writer.asyncWrite(bytes, committedCount, len);
+                writer.asyncWrite(bytes, committedCount, len)
+            }).also { result = it }
+            assert(writer.position() <= log.fileLengthBound)
+            assert(
+                writer.position() % log.fileLengthBound ==
+                        (currentPage!!.pageAddress + currentPage!!.writtenCount) % log.fileLengthBound
+            )
+            val block = result.getFirst()
+            val blockAddress = block.address
+            assert(blockSetMutable != null)
+            if (!blockSetMutable!!.contains(blockAddress)) {
+                blockSetMutable!!.add(block.address, block)
+                blockSetWasChanged = false
             }
-
-            assert writer.position() <= log.getFileLengthBound();
-            assert writer.position() % log.getFileLengthBound() ==
-                    (currentPage.pageAddress + currentPage.writtenCount) % log.getFileLengthBound();
-
-            var block = result.getFirst();
-            var blockAddress = block.getAddress();
-
-            assert blockSetMutable != null;
-
-            if (!blockSetMutable.contains(blockAddress)) {
-                blockSetMutable.add(block.getAddress(), block);
-                blockSetWasChanged = false;
-            }
-
-            page.committedCount = page.writtenCount;
-            result.getSecond().whenComplete(writeCompletionHandler);
+            page.committedCount = page.writtenCount
+            result.getSecond().whenComplete(writeCompletionHandler)
         }
     }
 
-
-    private MutablePage allocNewPage() {
-        MutablePage currentPage = this.currentPage;
-        currentPage.xxHash64.close();
-
-        currentPage = this.currentPage = new MutablePage(new byte[pageSize],
-                currentPage.pageAddress + pageSize, 0, 0);
-        return currentPage;
+    private fun allocNewPage(): MutablePage? {
+        var currentPage = currentPage
+        currentPage!!.xxHash64.close()
+        this.currentPage = MutablePage(
+            ByteArray(pageSize),
+            currentPage.pageAddress + pageSize, 0, 0
+        )
+        currentPage = this.currentPage
+        return currentPage
     }
 
-    private MutablePage allocNewPage(byte[] pageData) {
-        assert pageData.length == pageSize;
-        MutablePage currentPage = this.currentPage;
-        currentPage.xxHash64.close();
-
-        return this.currentPage = new MutablePage(pageData,
-                currentPage.pageAddress + pageSize, pageData.length, 0);
+    private fun allocNewPage(pageData: ByteArray): MutablePage {
+        assert(pageData.size == pageSize)
+        val currentPage = currentPage
+        currentPage!!.xxHash64.close()
+        return MutablePage(
+            pageData,
+            currentPage.pageAddress + pageSize, pageData.size, 0
+        ).also { this.currentPage = it }
     }
 
-    long getCurrentHighAddress() {
-        return currentHighAddress;
+    fun numberOfFiles(): Int {
+        return blockSet!!.size()
     }
 
-    long getHighAddress() {
-        return committedHighAddress;
+    fun getFilesFrom(address: Long): LongIterator {
+        return blockSet!!.getFilesFrom(address)
     }
 
-    int numberOfFiles() {
-        return blockSet.size();
-    }
-
-    LongIterator getFilesFrom(final long address) {
-        return blockSet.getFilesFrom(address);
-    }
-
-    void closeFileIfNecessary(long fileLengthBound, boolean makeFileReadOnly) {
-        var currentPage = this.currentPage;
-        var endPosition = writer.position() + currentPage.writtenCount - currentPage.committedCount;
-
-        assert endPosition <= fileLengthBound;
-
+    fun closeFileIfNecessary(fileLengthBound: Long, makeFileReadOnly: Boolean) {
+        val currentPage = currentPage
+        val endPosition = writer.position() + currentPage!!.writtenCount - currentPage.committedCount
+        assert(endPosition <= fileLengthBound)
         if (endPosition == fileLengthBound) {
-            sync();
-
-            assert lastSyncedAddress <= committedHighAddress;
-
-            lastSyncedAddress = committedHighAddress;
-            lastSyncedTs = System.currentTimeMillis();
-
-            writer.close();
-
-            assert blockSetMutable != null;
-
-            var blockSet = blockSetMutable;
-            var lastFile = blockSet.getMaximum();
+            sync()
+            assert(lastSyncedAddress <= highAddress)
+            lastSyncedAddress = highAddress
+            lastSyncedTs = System.currentTimeMillis()
+            writer.close()
+            assert(blockSetMutable != null)
+            val blockSet = blockSetMutable
+            val lastFile = blockSet!!.maximum
             if (lastFile != null) {
-                var block = blockSet.getBlock(lastFile);
-
-                var refreshed = block.refresh();
-                if (block != refreshed) {
-                    blockSet.add(lastFile, refreshed);
+                val block = blockSet.getBlock(lastFile)
+                val refreshed = block.refresh()
+                if (block !== refreshed) {
+                    blockSet.add(lastFile, refreshed)
                 }
-
-                var length = refreshed.length();
-                if (length < fileLengthBound) {
-                    throw new IllegalStateException(
-                            "File's too short (" + LogUtil.getLogFilename(lastFile)
-                                    + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound
-                    );
+                val length = refreshed.length()
+                check(length >= fileLengthBound) {
+                    ("File's too short (" + LogUtil.getLogFilename(lastFile)
+                            + "), block.length() = " + length + ", fileLengthBound = " + fileLengthBound)
                 }
-
-                if (makeFileReadOnly && block instanceof File) {
-                    //noinspection ResultOfMethodCallIgnored
-                    ((File) block).setReadOnly();
+                if (makeFileReadOnly && block is File) {
+                    (block as File).setReadOnly()
                 }
             }
         }
     }
 
-    void openNewFileIfNeeded(long fileLengthBound, Log log) {
-        assert blockSetMutable != null;
-
-        if (!this.writer.isOpen()) {
-            var fileAddress = currentHighAddress - currentHighAddress % fileLengthBound;
-            var block = writer.openOrCreateBlock(fileAddress, currentHighAddress % fileLengthBound);
-
-            boolean fileCreated = !blockSetMutable.contains(fileAddress);
+    fun openNewFileIfNeeded(fileLengthBound: Long, log: Log) {
+        assert(blockSetMutable != null)
+        if (!writer.isOpen) {
+            val fileAddress = currentHighAddress - currentHighAddress % fileLengthBound
+            val block = writer.openOrCreateBlock(fileAddress, currentHighAddress % fileLengthBound)
+            val fileCreated = !blockSetMutable!!.contains(fileAddress)
             if (fileCreated) {
-                blockSetMutable.add(fileAddress, block);
-                blockSetWasChanged = true;
+                blockSetMutable!!.add(fileAddress, block)
+                blockSetWasChanged = true
 
                 // fsync the directory to ensure we will find the log file in the directory after system crash
-                writer.syncDirectory();
-                log.notifyBlockCreated(block);
+                writer.syncDirectory()
+                log.notifyBlockCreated(block)
             } else {
-                log.notifyBlockModified(block);
+                log.notifyBlockModified(block)
             }
         }
     }
 
-    BlockSet.Mutable mutableBlocksUnsafe() {
-        return blockSet.beginWrite();
-    }
-
-    void updateBlockSetHighAddressUnsafe(final long prevHighAddress, final long highAddress, final BlockSet.Immutable blockSet) {
-        ensureWritesAreCompleted();
-
-        if (currentHighAddress != committedHighAddress || blockSetMutable != null ||
-                currentPage.committedCount < currentPage.writtenCount) {
-            throw new ExodusException("Can not update high address and block set once they are changing");
-        }
-
-        if (currentHighAddress != prevHighAddress) {
-            throw new ExodusException("High address was changed and can not be updated");
-        }
-
-        this.currentHighAddress = highAddress;
-        this.committedHighAddress = highAddress;
-        this.lastSyncedAddress = 0;
-
-        var pageOffset = (int) highAddress & (pageSize - 1);
-        var pageAddress = highAddress - pageOffset;
-
-        var page = logCache.getPage(log, pageAddress, -1);
-
-        initCurrentPage(blockSet, highAddress, page);
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-    }
-
-
-    private int doPadWholePageWithNulls() {
-        final int writtenInPage = currentPage.writtenCount;
-
+    private fun doPadWholePageWithNulls(): Int {
+        val writtenInPage = currentPage!!.writtenCount
         if (writtenInPage > 0) {
-            final int written = pageSize - writtenInPage;
-
-            Arrays.fill(currentPage.bytes, writtenInPage, pageSize, (byte) 0x80);
-
-            currentPage.writtenCount = pageSize;
-            return written;
+            val written = pageSize - writtenInPage
+            Arrays.fill(currentPage!!.bytes, writtenInPage, pageSize, 0x80.toByte())
+            currentPage!!.writtenCount = pageSize
+            return written
         }
-
-        return 0;
+        return 0
     }
 
-    private int doPadPageWithNulls() {
-        final int writtenInPage = currentPage.writtenCount;
-        if (writtenInPage > 0) {
-            final int pageDelta = adjustedPageSize - writtenInPage;
-
-            int written = 0;
+    private fun doPadPageWithNulls(): Int {
+        val writtenInPage = currentPage!!.writtenCount
+        return if (writtenInPage > 0) {
+            val pageDelta = adjustedPageSize - writtenInPage
+            var written = 0
             if (pageDelta > 0) {
-                Arrays.fill(currentPage.bytes, writtenInPage, adjustedPageSize, (byte) 0x80);
-                currentPage.writtenCount = pageSize;
+                Arrays.fill(currentPage!!.bytes, writtenInPage, adjustedPageSize, 0x80.toByte())
+                currentPage!!.writtenCount = pageSize
+                written = pageDelta + HASH_CODE_SIZE
+            }
+            written
+        } else {
+            0
+        }
+    }
 
-                written = pageDelta + BufferedDataWriter.HASH_CODE_SIZE;
+    private class MutablePage(
+        page: ByteArray,
+        pageAddress: Long, writtenCount: Int, committedCount: Int
+    ) {
+        val bytes: ByteArray
+        val pageAddress: Long
+        var committedCount: Int
+        var writtenCount: Int
+        val xxHash64: StreamingXXHash64
+
+        init {
+            assert(committedCount <= writtenCount)
+            bytes = page
+            this.pageAddress = pageAddress
+            this.writtenCount = writtenCount
+            this.committedCount = committedCount
+            xxHash64 = XX_HASH_FACTORY.newStreamingHash64(
+                XX_HASH_SEED
+            )
+        }
+    }
+
+    private class PageHolder(@field:Volatile var page: ByteArray, written: Int) {
+        val written: AtomicInteger
+
+        init {
+            this.written = AtomicInteger(written)
+        }
+    }
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(BufferedDataWriter::class.java)
+        const val XX_HASH_SEED = 0xADEF1279AL
+        val XX_HASH_FACTORY: XXHashFactory = XXHashFactory.fastestJavaInstance()
+        val xxHash: XXHash64 = XX_HASH_FACTORY.hash64()
+        const val HASH_CODE_SIZE = java.lang.Long.BYTES
+        fun checkPageConsistency(pageAddress: Long, bytes: ByteArray, pageSize: Int, log: Log) {
+            if (pageSize != bytes.size) {
+                DataCorruptionException.raise(
+                    "Unexpected page size (bytes). {expected " + pageSize
+                            + ": , actual : " + bytes.size + "}", log, pageAddress
+                )
+            }
+            val calculatedHash = calculatePageHashCode(bytes, 0, pageSize - HASH_CODE_SIZE)
+            val storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE)
+            if (storedHash != calculatedHash) {
+                DataCorruptionException.raise(
+                    "Page is broken. Expected and calculated hash codes are different.",
+                    log, pageAddress
+                )
+            }
+        }
+
+        fun checkLastPageConsistency(
+            sha256: MessageDigest?,
+            pageAddress: Long,
+            bytes: ByteArray,
+            pageSize: Int,
+            log: Log
+        ): Int {
+            if (pageSize != bytes.size) {
+                var lastHashBlock = -1
+                for (i in 0 until
+                        (bytes.size - (java.lang.Byte.BYTES + java.lang.Long.BYTES))
+                            .coerceAtMost(pageSize - HASH_CODE_SIZE - (java.lang.Byte.BYTES + java.lang.Long.BYTES))) {
+                    val type = (0x80.toByte().toInt() xor bytes[i].toInt()).toByte()
+                    if (HashCodeLoggable.isHashCodeLoggable(type)) {
+                        val loggable = HashCodeLoggable(pageAddress + i, i, bytes)
+                        val hash = calculateHashRecordHashCode(sha256, bytes, i)
+                        if (hash == loggable.hashCode) {
+                            lastHashBlock = i
+                        }
+                    }
+                }
+                if (lastHashBlock > 0) {
+                    return lastHashBlock
+                }
+                DataCorruptionException.raise(
+                    "Unexpected page size (bytes). {expected " + pageSize
+                            + ": , actual : " + bytes.size + "}", log, pageAddress
+                )
+            }
+            val calculatedHash = calculatePageHashCode(bytes, 0, pageSize - HASH_CODE_SIZE)
+            val storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE)
+            if (storedHash != calculatedHash) {
+                DataCorruptionException.raise(
+                    "Page is broken. Expected and calculated hash codes are different.",
+                    log, pageAddress
+                )
+            }
+            return pageSize
+        }
+
+        private fun calculateHashRecordHashCode(sha256: MessageDigest?, bytes: ByteArray, len: Int): Long {
+            val hashCode: Long = if (sha256 != null) {
+                sha256.update(bytes, 0, len)
+                BindingUtils.readLong(sha256.digest(), 0)
+            } else {
+                calculatePageHashCode(bytes, 0, len)
             }
 
-            return written;
-        } else {
-            return 0;
+            return hashCode
         }
-    }
 
-    private static class MutablePage {
-        private final byte @NotNull [] bytes;
-        private final long pageAddress;
-
-        int committedCount;
-        int writtenCount;
-
-        final StreamingXXHash64 xxHash64;
-
-        MutablePage(final byte @NotNull [] page,
-                    final long pageAddress, final int writtenCount, final int committedCount) {
-            assert committedCount <= writtenCount;
-            this.bytes = page;
-            this.pageAddress = pageAddress;
-            this.writtenCount = writtenCount;
-            this.committedCount = committedCount;
-
-            xxHash64 = BufferedDataWriter.XX_HASH_FACTORY.newStreamingHash64(
-                    BufferedDataWriter.XX_HASH_SEED);
+        @JvmStatic
+        fun calculatePageHashCode(bytes: ByteArray, offset: Int, len: Int): Long {
+            val xxHash = xxHash
+            return xxHash.hash(bytes, offset, len, XX_HASH_SEED)
         }
-    }
 
-    private static final class PageHolder {
-        private volatile byte @NotNull [] page;
-        private final AtomicInteger written;
+        fun updatePageHashCode(bytes: ByteArray) {
+            val hashCodeOffset = bytes.size - HASH_CODE_SIZE
+            updatePageHashCode(bytes, 0, hashCodeOffset)
+        }
 
-        private PageHolder(final byte @NotNull [] page, int written) {
-            this.page = page;
-            this.written = new AtomicInteger(written);
+        @JvmStatic
+        fun updatePageHashCode(bytes: ByteArray, offset: Int, len: Int) {
+            val hash = calculatePageHashCode(bytes, offset, len)
+            BindingUtils.writeLong(hash, bytes, len)
+        }
+
+        fun generateNullPage(pageSize: Int): ByteArray {
+            val data = ByteArray(pageSize)
+            Arrays.fill(data, 0, pageSize - HASH_CODE_SIZE, 0x80.toByte())
+            val hash = xxHash.hash(data, 0, pageSize - HASH_CODE_SIZE, XX_HASH_SEED)
+            BindingUtils.writeLong(hash, data, pageSize - HASH_CODE_SIZE)
+            return data
         }
     }
 }

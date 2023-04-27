@@ -13,371 +13,308 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.InvalidSettingException;
-import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.env.EnvironmentConfig;
-import jetbrains.exodus.io.*;
-import jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.InvalidSettingException
+import jetbrains.exodus.crypto.StreamCipherProvider
+import jetbrains.exodus.env.EnvironmentConfig
+import jetbrains.exodus.io.AsyncFileDataReaderWriterProvider
+import jetbrains.exodus.io.DataReader
+import jetbrains.exodus.io.DataReaderWriterProvider
+import jetbrains.exodus.io.DataWriter
+import jetbrains.exodus.io.inMemory.MemoryDataReaderWriterProvider
 
-public class LogConfig {
-
-    private static final int DEFAULT_FILE_SIZE = 1024; // in kilobytes
-
-    private String location;
-    private String readerWriterProvider;
-    private DataReaderWriterProvider readerWriterProviderInstance;
-    private long fileSize;
-    private long lockTimeout;
-    private long memoryUsage;
-    private int memoryUsagePercentage;
-    private DataReader reader;
-    private DataWriter writer;
-    private boolean isDurableWrite;
-    private boolean sharedCache;
-    private boolean nonBlockingCache;
-    private boolean cacheUseSoftReferences;
-    private int cacheGenerationCount;
-    private int cacheReadAheadMultiple;
-    private int cachePageSize;
-    private int cacheOpenFilesCount;
-    private boolean cleanDirectoryExpected;
-    private boolean clearInvalidLog;
-    private boolean warmup;
-    private long syncPeriod;
-    private boolean fullFileReadonly;
-    private StreamCipherProvider cipherProvider;
-    private byte[] cipherKey;
-    private long cipherBasicIV;
-    private boolean lockIgnored;
-    private boolean useV1Format;
-
-    private boolean checkPagesAtRuntime;
-
-    public LogConfig() {
-        useV1Format = EnvironmentConfig.DEFAULT.getUseVersion1Format();
-        checkPagesAtRuntime = EnvironmentConfig.DEFAULT.getCheckPagesAtRuntime();
-    }
-
-    public LogConfig setLocation(@NotNull final String location) {
-        this.location = location;
-        return this;
-    }
-
-    public LogConfig setReaderWriterProvider(@NotNull final String provider) {
-        readerWriterProvider = provider;
-        return this;
-    }
-
-    public long getFileSize() {
-        if (fileSize == 0) {
-            fileSize = DEFAULT_FILE_SIZE;
+class LogConfig {
+    private var location: String? = null
+    private var readerWriterProvider: String? = null
+    private var readerWriterProviderInstance: DataReaderWriterProvider? = null
+    var fileSize: Long = 0
+        private set
+        get() {
+            if (field == 0L) {
+                field = DEFAULT_FILE_SIZE.toLong()
+            }
+            return field
         }
-        return fileSize;
+
+    var lockTimeout: Long = 0
+        private set
+    var memoryUsage: Long = 0
+        private set
+    private var memoryUsagePercentage = 0
+    private var reader: DataReader? = null
+    private var writer: DataWriter? = null
+    var isDurableWrite = false
+        private set
+    var isSharedCache = false
+        private set
+    var isNonBlockingCache = false
+        private set
+    var cacheUseSoftReferences = false
+        private set
+    private var cacheGenerationCount = 0
+
+    @get:Suppress("unused")
+    var cacheReadAheadMultiple = 0
+        get() {
+            if (field == 0) {
+                field = EnvironmentConfig.DEFAULT.logCacheReadAheadMultiple
+            }
+            return field
+        }
+
+    private var cachePageSize = 0
+    var cacheOpenFilesCount = 0
+        private set
+        get() {
+            if (field == 0) {
+                field = EnvironmentConfig.DEFAULT.logCacheOpenFilesCount
+            }
+            return field
+        }
+    var isCleanDirectoryExpected = false
+        private set
+    var isClearInvalidLog = false
+        private set
+    var isWarmup = false
+        private set
+    private var syncPeriod: Long = 0
+    var isFullFileReadonly = false
+        private set
+    var streamCipherProvider: StreamCipherProvider? = null
+        private set
+    var cipherKey: ByteArray? = null
+        private set
+    var cipherBasicIV: Long = 0
+        private set
+
+    var lockIgnored = false
+
+    private var useV1Format: Boolean
+    var checkPagesAtRuntime: Boolean
+
+    init {
+        useV1Format = EnvironmentConfig.DEFAULT.useVersion1Format
+        checkPagesAtRuntime = EnvironmentConfig.DEFAULT.checkPagesAtRuntime
     }
 
-    public LogConfig setFileSize(final long fileSize) {
-        this.fileSize = fileSize;
-        return this;
+    fun setLocation(location: String): LogConfig {
+        this.location = location
+        return this
     }
 
-    public long getLockTimeout() {
-        return lockTimeout;
+    fun setReaderWriterProvider(provider: String): LogConfig {
+        readerWriterProvider = provider
+        return this
     }
 
-    @SuppressWarnings("unused")
-    public LogConfig setLockTimeout(long lockTimeout) {
-        this.lockTimeout = lockTimeout;
-        return this;
+    fun setFileSize(fileSize: Long): LogConfig {
+        this.fileSize = fileSize
+        return this
     }
 
-    public boolean isLockIgnored() {
-        return lockIgnored;
+    @Suppress("unused")
+    fun setLockTimeout(lockTimeout: Long): LogConfig {
+        this.lockTimeout = lockTimeout
+        return this
     }
 
-    public void setLockIgnored(boolean lockIgnored) {
-        this.lockIgnored = lockIgnored;
+    @Suppress("unused")
+    fun setMemoryUsage(memUsage: Long): LogConfig {
+        memoryUsage = memUsage
+        return this
     }
 
-    public long getMemoryUsage() {
-        return memoryUsage;
-    }
-
-    @SuppressWarnings("unused")
-    public LogConfig setMemoryUsage(final long memUsage) {
-        memoryUsage = memUsage;
-        return this;
-    }
-
-    public int getMemoryUsagePercentage() {
+    fun getMemoryUsagePercentage(): Int {
         if (memoryUsagePercentage == 0) {
-            memoryUsagePercentage = 50;
+            memoryUsagePercentage = 50
         }
-        return memoryUsagePercentage;
+        return memoryUsagePercentage
     }
 
-    @SuppressWarnings("unused")
-    public LogConfig setMemoryUsagePercentage(final int memoryUsagePercentage) {
-        this.memoryUsagePercentage = memoryUsagePercentage;
-        return this;
+    @Suppress("unused")
+    fun setMemoryUsagePercentage(memoryUsagePercentage: Int): LogConfig {
+        this.memoryUsagePercentage = memoryUsagePercentage
+        return this
     }
 
-    public DataReader getReader() {
+    fun getReader(): DataReader? {
         if (reader == null) {
-            createReaderWriter();
+            createReaderWriter()
         }
-        return reader;
+        return reader
     }
 
-    @Deprecated
-    public LogConfig setReader(@NotNull final DataReader reader) {
-        this.reader = reader;
-        return this;
+    @Deprecated("")
+    fun setReader(reader: DataReader): LogConfig {
+        this.reader = reader
+        return this
     }
 
-    public DataWriter getWriter() {
+    fun getWriter(): DataWriter? {
         if (writer == null) {
-            createReaderWriter();
+            createReaderWriter()
         }
-        return writer;
+        return writer
     }
 
-    @Deprecated
-    public LogConfig setWriter(@NotNull final DataWriter writer) {
-        this.writer = writer;
-        return this;
+    @Deprecated("")
+    fun setWriter(writer: DataWriter): LogConfig {
+        this.writer = writer
+        return this
     }
 
-    public LogConfig setReaderWriter(@NotNull final DataReader reader,
-                                     @NotNull final DataWriter writer) {
-        this.reader = reader;
-        this.writer = writer;
-        return this;
+    fun setReaderWriter(
+        reader: DataReader,
+        writer: DataWriter
+    ): LogConfig {
+        this.reader = reader
+        this.writer = writer
+        return this
     }
 
-    public boolean isDurableWrite() {
-        return isDurableWrite;
+    fun setDurableWrite(durableWrite: Boolean): LogConfig {
+        isDurableWrite = durableWrite
+        return this
     }
 
-    @SuppressWarnings("UnusedReturnValue")
-    public LogConfig setDurableWrite(boolean durableWrite) {
-        isDurableWrite = durableWrite;
-        return this;
+    @Suppress("unused")
+    fun setSharedCache(sharedCache: Boolean): LogConfig {
+        isSharedCache = sharedCache
+        return this
     }
 
-    public boolean isSharedCache() {
-        return sharedCache;
+    fun setNonBlockingCache(nonBlockingCache: Boolean): LogConfig {
+        isNonBlockingCache = nonBlockingCache
+        return this
     }
 
-    @SuppressWarnings("unused")
-    public LogConfig setSharedCache(boolean sharedCache) {
-        this.sharedCache = sharedCache;
-        return this;
+    @Suppress("unused")
+    fun setCacheUseSoftReferences(cacheUseSoftReferences: Boolean): LogConfig {
+        this.cacheUseSoftReferences = cacheUseSoftReferences
+        return this
     }
 
-    public boolean isNonBlockingCache() {
-        return nonBlockingCache;
-    }
-
-    public LogConfig setNonBlockingCache(boolean nonBlockingCache) {
-        this.nonBlockingCache = nonBlockingCache;
-        return this;
-    }
-
-    public boolean getCacheUseSoftReferences() {
-        return cacheUseSoftReferences;
-    }
-
-    @SuppressWarnings("unused")
-    public LogConfig setCacheUseSoftReferences(boolean cacheUseSoftReferences) {
-        this.cacheUseSoftReferences = cacheUseSoftReferences;
-        return this;
-    }
-
-    public int getCacheGenerationCount() {
+    fun getCacheGenerationCount(): Int {
         if (cacheGenerationCount == 0) {
-            cacheGenerationCount = EnvironmentConfig.DEFAULT.getLogCacheGenerationCount();
+            cacheGenerationCount = EnvironmentConfig.DEFAULT.logCacheGenerationCount
         }
-        return cacheGenerationCount;
+        return cacheGenerationCount
     }
 
-    @SuppressWarnings("unused")
-    public LogConfig setCacheGenerationCount(int cacheGenerationCount) {
-        this.cacheGenerationCount = cacheGenerationCount;
-        return this;
+    @Suppress("unused")
+    fun setCacheGenerationCount(cacheGenerationCount: Int): LogConfig {
+        this.cacheGenerationCount = cacheGenerationCount
+        return this
     }
 
-    @SuppressWarnings("unused")
-    public int getCacheReadAheadMultiple() {
-        if (cacheReadAheadMultiple == 0) {
-            cacheReadAheadMultiple = EnvironmentConfig.DEFAULT.getLogCacheReadAheadMultiple();
-        }
-        return cacheReadAheadMultiple;
-    }
-
-    public void setCacheReadAheadMultiple(int cacheReadAheadMultiple) {
-        this.cacheReadAheadMultiple = cacheReadAheadMultiple;
-    }
-
-    public int getCachePageSize() {
+    fun getCachePageSize(): Int {
         if (cachePageSize == 0) {
-            cachePageSize = LogCache.MINIMUM_PAGE_SIZE;
+            cachePageSize = LogCache.MINIMUM_PAGE_SIZE
         }
-        return cachePageSize;
+        return cachePageSize
     }
 
-    public LogConfig setCachePageSize(int cachePageSize) {
-        this.cachePageSize = cachePageSize;
-        return this;
+    fun setCachePageSize(cachePageSize: Int): LogConfig {
+        this.cachePageSize = cachePageSize
+        return this
     }
 
-    public int getCacheOpenFilesCount() {
-        if (cacheOpenFilesCount == 0) {
-            cacheOpenFilesCount = LogCache.DEFAULT_OPEN_FILES_COUNT;
+
+    @Suppress("unused")
+    fun setCacheOpenFilesCount(cacheOpenFilesCount: Int): LogConfig {
+        this.cacheOpenFilesCount = cacheOpenFilesCount
+        return this
+    }
+
+    @Suppress("unused")
+    fun setCleanDirectoryExpected(cleanDirectoryExpected: Boolean): LogConfig {
+        isCleanDirectoryExpected = cleanDirectoryExpected
+        return this
+    }
+
+    @Suppress("unused")
+    fun setClearInvalidLog(clearInvalidLog: Boolean): LogConfig {
+        isClearInvalidLog = clearInvalidLog
+        return this
+    }
+
+    fun setWarmup(warmup: Boolean): LogConfig {
+        isWarmup = warmup
+        return this
+    }
+
+    fun getSyncPeriod(): Long {
+        if (syncPeriod == 0L) {
+            syncPeriod = EnvironmentConfig.DEFAULT.logSyncPeriod
         }
-        return cacheOpenFilesCount;
+        return syncPeriod
     }
 
-    @SuppressWarnings("unused")
-    public LogConfig setCacheOpenFilesCount(int cacheOpenFilesCount) {
-        this.cacheOpenFilesCount = cacheOpenFilesCount;
-        return this;
+    fun setSyncPeriod(syncPeriod: Long): LogConfig {
+        this.syncPeriod = syncPeriod
+        return this
     }
 
-    public boolean isCleanDirectoryExpected() {
-        return cleanDirectoryExpected;
+    @Suppress("unused")
+    fun setFullFileReadonly(fullFileReadonly: Boolean): LogConfig {
+        isFullFileReadonly = fullFileReadonly
+        return this
     }
 
-    @SuppressWarnings("unused")
-    public LogConfig setCleanDirectoryExpected(boolean cleanDirectoryExpected) {
-        this.cleanDirectoryExpected = cleanDirectoryExpected;
-        return this;
+    @Suppress("unused")
+    fun setCipherProvider(cipherProvider: StreamCipherProvider?): LogConfig {
+        this.streamCipherProvider = cipherProvider
+        return this
     }
 
-    public boolean isClearInvalidLog() {
-        return clearInvalidLog;
+    fun setCipherKey(cipherKey: ByteArray?): LogConfig {
+        this.cipherKey = cipherKey
+        return this
     }
 
-    @SuppressWarnings("unused")
-    public LogConfig setClearInvalidLog(boolean clearInvalidLog) {
-        this.clearInvalidLog = clearInvalidLog;
-        return this;
+    fun setCipherBasicIV(basicIV: Long): LogConfig {
+        cipherBasicIV = basicIV
+        return this
     }
 
-    public boolean isWarmup() {
-        return warmup;
-    }
-
-    public LogConfig setWarmup(boolean warmup) {
-        this.warmup = warmup;
-        return this;
-    }
-
-    public long getSyncPeriod() {
-        if (syncPeriod == 0) {
-            syncPeriod = EnvironmentConfig.DEFAULT.getLogSyncPeriod();
-        }
-        return syncPeriod;
-    }
-
-    @SuppressWarnings("UnusedReturnValue")
-    public LogConfig setSyncPeriod(long syncPeriod) {
-        this.syncPeriod = syncPeriod;
-        return this;
-    }
-
-    public boolean isFullFileReadonly() {
-        return fullFileReadonly;
-    }
-
-    @SuppressWarnings("unused")
-    public LogConfig setFullFileReadonly(boolean fullFileReadonly) {
-        this.fullFileReadonly = fullFileReadonly;
-        return this;
-    }
-
-    public StreamCipherProvider getCipherProvider() {
-        return cipherProvider;
-    }
-
-    @SuppressWarnings("unused")
-    public LogConfig setCipherProvider(StreamCipherProvider cipherProvider) {
-        this.cipherProvider = cipherProvider;
-        return this;
-    }
-
-    public byte[] getCipherKey() {
-        return cipherKey;
-    }
-
-    public LogConfig setCipherKey(byte[] cipherKey) {
-        this.cipherKey = cipherKey;
-        return this;
-    }
-
-    public long getCipherBasicIV() {
-        return cipherBasicIV;
-    }
-
-    public LogConfig setCipherBasicIV(long basicIV) {
-        this.cipherBasicIV = basicIV;
-        return this;
-    }
-
-    @Nullable
-    public DataReaderWriterProvider getReaderWriterProvider() {
+    fun getReaderWriterProvider(): DataReaderWriterProvider {
         if (readerWriterProviderInstance == null && readerWriterProvider != null) {
-            readerWriterProviderInstance = DataReaderWriterProvider.getProvider(readerWriterProvider);
+            readerWriterProviderInstance = DataReaderWriterProvider.getProvider(readerWriterProvider!!)
             if (readerWriterProviderInstance == null) {
-                switch (readerWriterProvider) {
-                    case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new AsyncFileDataReaderWriterProvider();
-                        break;
-                    case DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new MemoryDataReaderWriterProvider();
-                        break;
-                    default:
-                        throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
-                }
+                readerWriterProviderInstance =
+                    when (readerWriterProvider) {
+                        DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER -> AsyncFileDataReaderWriterProvider()
+                        DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER -> MemoryDataReaderWriterProvider()
+                        else -> throw InvalidSettingException("Unknown DataReaderWriterProvider: $readerWriterProvider")
+                    }
             }
         }
-        return readerWriterProviderInstance;
+        return readerWriterProviderInstance!!
     }
 
-    public void setUseV1Format(boolean useV1Format) {
-        this.useV1Format = useV1Format;
+    fun setUseV1Format(useV1Format: Boolean) {
+        this.useV1Format = useV1Format
     }
 
-    public boolean useV1Format() {
-        return useV1Format;
+    fun useV1Format(): Boolean {
+        return useV1Format
     }
 
-    public boolean isCheckPagesAtRuntime() {
-        return checkPagesAtRuntime;
+    private fun createReaderWriter() {
+        val location = location
+            ?: throw InvalidSettingException("Location for DataReader and DataWriter is not specified")
+        val provider = getReaderWriterProvider()
+        val readerWriter = provider.newReaderWriter(location)
+        reader = readerWriter.getFirst()
+        writer = readerWriter.getSecond()
     }
 
-    public void setCheckPagesAtRuntime(boolean checkPagesAtRuntime) {
-        this.checkPagesAtRuntime = checkPagesAtRuntime;
-    }
-
-    public static LogConfig create(@NotNull final DataReader reader, @NotNull final DataWriter writer) {
-        return new LogConfig().setReaderWriter(reader, writer);
-    }
-
-    private void createReaderWriter() {
-        final String location = this.location;
-        if (location == null) {
-            throw new InvalidSettingException("Location for DataReader and DataWriter is not specified");
+    companion object {
+        private const val DEFAULT_FILE_SIZE = 1024 // in kilobytes
+        @JvmStatic
+        fun create(reader: DataReader, writer: DataWriter): LogConfig {
+            return LogConfig().setReaderWriter(reader, writer)
         }
-
-        var provider = getReaderWriterProvider();
-        assert provider != null;
-        final Pair<DataReader, DataWriter> readerWriter = provider.newReaderWriter(location);
-        reader = readerWriter.getFirst();
-        writer = readerWriter.getSecond();
     }
 }

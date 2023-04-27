@@ -13,201 +13,155 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.crypto.EnvKryptKt;
-import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.io.Block;
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.crypto.StreamCipherProvider
+import jetbrains.exodus.crypto.cryptBlocksMutable
+import jetbrains.exodus.io.*
+import java.security.MessageDigest
+import java.security.NoSuchAlgorithmException
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 
-public class BlockDataIterator implements ByteIteratorWithAddress {
+class BlockDataIterator(
+    private val log: Log,
+    private val block: Block,
+    override var address: Long,
+    private val checkPage: Boolean,
+    private val lastBlock: Boolean
+) : ByteIteratorWithAddress {
+    private val cipherProvider: StreamCipherProvider?
+    private var end: Long
+    override var currentPage: ByteArray? = null
+    private val pageSize: Int
+    private var chunkSize = 0
+    private val config: LogConfig
+    private var sha256: MessageDigest? = null
+    private var throwCorruptionException = false
 
-    private final Log log;
-    private final Block block;
-    private final StreamCipherProvider cipherProvider;
-    private long position;
-    private long end;
-
-    private byte[] currentPage;
-
-    private final int pageSize;
-
-    private final int chunkSize;
-
-    private final boolean checkPage;
-
-    private final LogConfig config;
-
-    private final boolean lastBlock;
-
-    private final MessageDigest sha256;
-
-    private boolean throwCorruptionException = false;
-
-    public BlockDataIterator(Log log, Block block, long startAddress, boolean checkPage, boolean lastBlock) {
-        this.checkPage = checkPage;
-        this.log = log;
-        this.block = block;
-        this.position = startAddress;
-        this.end = block.getAddress() + block.length();
-        this.pageSize = log.getCachePageSize();
-        this.lastBlock = lastBlock;
-
-        config = log.getConfig();
-
-        cipherProvider = config.getCipherProvider();
-        if (cipherProvider != null) {
+    init {
+        end = block.address + block.length()
+        pageSize = log.cachePageSize
+        config = log.config
+        cipherProvider = config.streamCipherProvider
+        sha256 = if (cipherProvider != null) {
             try {
-                sha256 = MessageDigest.getInstance("SHA-256");
-            } catch (NoSuchAlgorithmException e) {
-                throw new ExodusException("SHA-256 hash function was not found", e);
+                MessageDigest.getInstance("SHA-256")
+            } catch (e: NoSuchAlgorithmException) {
+                throw ExodusException("SHA-256 hash function was not found", e)
             }
         } else {
-            sha256 = null;
+            null
         }
-
-        if (log.getFormatWithHashCodeIsUsed()) {
-            chunkSize = pageSize - BufferedDataWriter.HASH_CODE_SIZE;
+        chunkSize = if (log.formatWithHashCodeIsUsed) {
+            pageSize - BufferedDataWriter.HASH_CODE_SIZE
         } else {
-            chunkSize = pageSize;
+            pageSize
         }
     }
 
-    @Override
-    public boolean hasNext() {
-        if (position == end && throwCorruptionException) {
-            DataCorruptionException.raise("Last page was corrupted", log, position);
+    override fun hasNext(): Boolean {
+        if (address == end && throwCorruptionException) {
+            DataCorruptionException.raise("Last page was corrupted", log, address)
         }
-
-        return position < end;
+        return address < end
     }
 
-    @Override
-    public byte next() {
-        if (position >= end) {
+    override fun next(): Byte {
+        if (address >= end) {
             DataCorruptionException.raise(
-                    "DataIterator: no more bytes available", log, position);
+                "DataIterator: no more bytes available", log, address
+            )
         }
-
         if (currentPage != null) {
-            var pageOffset = (int) position & (pageSize - 1);
-
-            assert pageOffset <= pageSize;
-
-            var result = currentPage[pageOffset];
-            position++;
-
+            val pageOffset = address.toInt() and pageSize - 1
+            assert(pageOffset <= pageSize)
+            val result = currentPage!![pageOffset]
+            address++
             if (pageOffset + 1 == chunkSize) {
-                position = position - pageOffset - 1 + pageSize;
-                currentPage = null;
+                address = address - pageOffset - 1 + pageSize
+                currentPage = null
             }
-
-            return result;
+            return result
         }
-
-        loadPage();
-        return next();
+        loadPage()
+        return next()
     }
 
-    private void loadPage() {
+    private fun loadPage() {
         if (throwCorruptionException) {
-            DataCorruptionException.raise("Last page was corrupted", log, position);
+            DataCorruptionException.raise("Last page was corrupted", log, address)
         }
-
-        int currentPageSize = (int) Math.min(end - position, pageSize);
-        final byte[] result = new byte[currentPageSize];
-        final int read = block.read(result, position - block.getAddress(), 0, currentPageSize);
-
+        val currentPageSize = (end - address).coerceAtMost(pageSize.toLong()).toInt()
+        val result = ByteArray(currentPageSize)
+        val read = block.read(result, address - block.address, 0, currentPageSize)
         if (read != currentPageSize) {
-            DataCorruptionException.raise("Incorrect amount of bytes was read, expected " +
-                            currentPageSize + " but was " + read,
-                    log, position);
+            DataCorruptionException.raise(
+                "Incorrect amount of bytes was read, expected " +
+                        currentPageSize + " but was " + read,
+                log, address
+            )
         }
-
         if (checkPage) {
             if (currentPageSize != pageSize) {
                 if (!lastBlock) {
-                    DataCorruptionException.raise("Incorrect page size -  " + currentPageSize, log, position);
+                    DataCorruptionException.raise("Incorrect page size -  $currentPageSize", log, address)
                 }
-
                 if (cipherProvider != null) {
-                    EnvKryptKt.cryptBlocksMutable(
-                            cipherProvider, config.getCipherKey(), config.getCipherBasicIV(),
-                            position, result, 0, Math.min(chunkSize, currentPageSize), LogUtil.LOG_BLOCK_ALIGNMENT
-                    );
+                    cryptBlocksMutable(
+                        cipherProvider, config.cipherKey!!, config.cipherBasicIV,
+                        address, result, 0, chunkSize.coerceAtMost(currentPageSize), LogUtil.LOG_BLOCK_ALIGNMENT
+                    )
                 }
-
-                final int validPageSize = BufferedDataWriter.checkLastPageConsistency(sha256,
-                        position, result, pageSize, log);
-
-                this.currentPage = Arrays.copyOfRange(result, 0, validPageSize);
-                this.end = position + validPageSize;
-                throwCorruptionException = true;
-                return;
+                val validPageSize: Int = BufferedDataWriter.checkLastPageConsistency(
+                    sha256,
+                    address, result, pageSize, log
+                )
+                currentPage = result.copyOfRange(0, validPageSize)
+                end = address + validPageSize
+                throwCorruptionException = true
+                return
             } else {
-                BufferedDataWriter.checkPageConsistency(position, result, pageSize, log);
+                BufferedDataWriter.checkPageConsistency(address, result, pageSize, log)
             }
         }
-
-        int encryptedBytes;
+        val encryptedBytes: Int
         if (cipherProvider != null) {
-            if (currentPageSize < pageSize) {
-                encryptedBytes = currentPageSize;
+            encryptedBytes = if (currentPageSize < pageSize) {
+                currentPageSize
             } else {
-                encryptedBytes = chunkSize;
+                chunkSize
             }
-
-            EnvKryptKt.cryptBlocksMutable(
-                    cipherProvider, config.getCipherKey(), config.getCipherBasicIV(),
-                    position, result, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
-            );
+            cryptBlocksMutable(
+                cipherProvider, config.cipherKey!!, config.cipherBasicIV,
+                address, result, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
+            )
         }
-
-        this.currentPage = result;
+        currentPage = result
     }
 
-    @Override
-    public long skip(long bytes) {
-        final long bytesToSkip = Math.min(bytes, position - end);
-        var currentPageOffset = (int) position & (pageSize - 1);
-
-        final long pageBytesToSkip = Math.min(bytesToSkip, chunkSize - currentPageOffset);
-        position += pageBytesToSkip;
-
+    override fun skip(bytes: Long): Long {
+        val bytesToSkip = bytes.coerceAtMost(address - end)
+        val currentPageOffset = address.toInt() and pageSize - 1
+        val pageBytesToSkip = bytesToSkip.coerceAtMost((chunkSize - currentPageOffset).toLong())
+        address += pageBytesToSkip
         if (bytesToSkip > pageBytesToSkip) {
-            final long rest = bytesToSkip - pageBytesToSkip;
-
-            final long pagesToSkip = rest / chunkSize;
-            final long pageSkip = pagesToSkip * pageSize;
-            final long offsetSkip = pagesToSkip * chunkSize;
-
-
-            final int pageOffset = (int) (rest - offsetSkip);
-            final long addressDiff = pageSkip + pageOffset;
-
-            position += addressDiff;
-            currentPage = null;
+            val rest = bytesToSkip - pageBytesToSkip
+            val pagesToSkip = rest / chunkSize
+            val pageSkip = pagesToSkip * pageSize
+            val offsetSkip = pagesToSkip * chunkSize
+            val pageOffset = (rest - offsetSkip).toInt()
+            val addressDiff = pageSkip + pageOffset
+            address += addressDiff
+            currentPage = null
         }
-
-        return bytesToSkip;
+        return bytesToSkip
     }
 
-    @Override
-    public long getAddress() {
-        return position;
-    }
+    override val offset: Int
+        get() = (address - block.address).toInt()
 
-    @Override
-    public int getOffset() {
-        return (int) (position - block.getAddress());
-    }
-
-    @Override
-    public int available() {
-        throw new UnsupportedOperationException();
+    override fun available(): Int {
+        throw UnsupportedOperationException()
     }
 }

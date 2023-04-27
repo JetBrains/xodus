@@ -13,50 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.hash.HashMap;
-import jetbrains.exodus.core.execution.locks.CriticalSection;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.hash.HashMap
+import jetbrains.exodus.core.execution.locks.CriticalSection
+import java.util.*
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.Condition
 
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
+internal class ReentrantTransactionDispatcher(maxSimultaneousTransactions: Int) {
+    private val availablePermits: Int
+    private val threadPermits: MutableMap<Thread, Int>
+    private val regularQueue: NavigableMap<Long, Condition>
+    private val nestedQueue: NavigableMap<Long, Condition>
+    private val criticalSection: CriticalSection
+    private var acquireOrder: Long
+    private var acquiredPermits: Int
 
-final class ReentrantTransactionDispatcher {
-
-    private final int availablePermits;
-    @NotNull
-    private final Map<Thread, Integer> threadPermits;
-    @NotNull
-    private final NavigableMap<Long, Condition> regularQueue;
-    @NotNull
-    private final NavigableMap<Long, Condition> nestedQueue;
-    @NotNull
-    private final CriticalSection criticalSection;
-    private long acquireOrder;
-    private int acquiredPermits;
-
-    ReentrantTransactionDispatcher(final int maxSimultaneousTransactions) {
-        if (maxSimultaneousTransactions < 1) {
-            throw new IllegalArgumentException("maxSimultaneousTransactions < 1");
-        }
-        availablePermits = maxSimultaneousTransactions;
-        threadPermits = new HashMap<>();
-        regularQueue = new TreeMap<>();
-        nestedQueue = new TreeMap<>();
-        criticalSection = new CriticalSection(false /* we explicitly don't need fairness here */);
-        acquireOrder = 0;
-        acquiredPermits = 0;
+    init {
+        require(maxSimultaneousTransactions >= 1) { "maxSimultaneousTransactions < 1" }
+        availablePermits = maxSimultaneousTransactions
+        threadPermits = HashMap()
+        regularQueue = TreeMap()
+        nestedQueue = TreeMap()
+        criticalSection = CriticalSection(false /* we explicitly don't need fairness here */)
+        acquireOrder = 0
+        acquiredPermits = 0
     }
 
-    int getAvailablePermits() {
-        try (CriticalSection ignored = criticalSection.enter()) {
-            return availablePermits - acquiredPermits;
-        }
+    fun getAvailablePermits(): Int {
+        criticalSection.enter().use { return availablePermits - acquiredPermits }
     }
 
     /**
@@ -65,12 +52,12 @@ final class ReentrantTransactionDispatcher {
      *
      * @return the number of acquired permits, identically equal to 1.
      */
-    int acquireTransaction(@NotNull final Thread thread) {
-        try (CriticalSection ignored = criticalSection.enter()) {
-            final int currentThreadPermits = getThreadPermitsToAcquire(thread);
-            waitForPermits(thread, currentThreadPermits > 0 ? nestedQueue : regularQueue, 1, currentThreadPermits);
+    fun acquireTransaction(thread: Thread): Int {
+        criticalSection.enter().use {
+            val currentThreadPermits = getThreadPermitsToAcquire(thread)
+            waitForPermits(thread, if (currentThreadPermits > 0) nestedQueue else regularQueue, 1, currentThreadPermits)
         }
-        return 1;
+        return 1
     }
 
     /**
@@ -80,108 +67,110 @@ final class ReentrantTransactionDispatcher {
      *
      * @return the number of acquired permits.
      */
-    int acquireExclusiveTransaction(@NotNull final Thread thread) {
-        try (CriticalSection ignored = criticalSection.enter()) {
-            final int currentThreadPermits = getThreadPermitsToAcquire(thread);
+    fun acquireExclusiveTransaction(thread: Thread): Int {
+        criticalSection.enter().use {
+            val currentThreadPermits = getThreadPermitsToAcquire(thread)
             // if there are no permits acquired in the thread then we can acquire exclusive txn, i.e. all available permits
             if (currentThreadPermits == 0) {
-                waitForPermits(thread, regularQueue, availablePermits, 0);
-                return availablePermits;
+                waitForPermits(thread, regularQueue, availablePermits, 0)
+                return availablePermits
             }
-            waitForPermits(thread, nestedQueue, 1, currentThreadPermits);
+            waitForPermits(thread, nestedQueue, 1, currentThreadPermits)
         }
-        return 1;
+        return 1
     }
 
-    void acquireTransaction(@NotNull final ReadWriteTransaction txn, @NotNull final Environment env) {
-        final Thread creatingThread = txn.getCreatingThread();
-        int acquiredPermits;
-        if (txn.isExclusive()) {
-            if (txn.isGCTransaction()) {
-                final int gcTransactionAcquireTimeout = env.getEnvironmentConfig().getGcTransactionAcquireTimeout();
-                acquiredPermits = tryAcquireExclusiveTransaction(creatingThread, gcTransactionAcquireTimeout);
+    fun acquireTransaction(txn: ReadWriteTransaction, env: Environment) {
+        val creatingThread = txn.creatingThread
+        val acquiredPermits: Int
+        if (txn.isExclusive) {
+            if (txn.isGCTransaction) {
+                val gcTransactionAcquireTimeout = env.environmentConfig.gcTransactionAcquireTimeout
+                acquiredPermits = tryAcquireExclusiveTransaction(creatingThread, gcTransactionAcquireTimeout)
                 if (acquiredPermits == 0) {
-                    throw new TransactionAcquireTimeoutException(gcTransactionAcquireTimeout);
+                    throw TransactionAcquireTimeoutException(gcTransactionAcquireTimeout)
                 }
             } else {
-                acquiredPermits = acquireExclusiveTransaction(creatingThread);
+                acquiredPermits = acquireExclusiveTransaction(creatingThread)
             }
             if (acquiredPermits == 1) {
-                txn.setExclusive(false);
+                txn.isExclusive = false
             }
         } else {
-            acquiredPermits = acquireTransaction(creatingThread);
+            acquiredPermits = acquireTransaction(creatingThread)
         }
-        txn.setAcquiredPermits(acquiredPermits);
+        txn.acquiredPermits = acquiredPermits
     }
 
     /**
      * Release transaction that was acquired in a thread with specified permits.
      */
-    void releaseTransaction(@NotNull final Thread thread, final int permits) {
-        try (CriticalSection ignored = criticalSection.enter()) {
-            int currentThreadPermits = getThreadPermits(thread);
+    fun releaseTransaction(thread: Thread, permits: Int) {
+        criticalSection.enter().use {
+            var currentThreadPermits = getThreadPermits(thread)
             if (permits > currentThreadPermits) {
-                throw new ExodusException("Can't release more permits than it was acquired");
+                throw ExodusException("Can't release more permits than it was acquired")
             }
-            acquiredPermits -= permits;
-            currentThreadPermits -= permits;
+            acquiredPermits -= permits
+            currentThreadPermits -= permits
             if (currentThreadPermits == 0) {
-                threadPermits.remove(thread);
+                threadPermits.remove(thread)
             } else {
-                threadPermits.put(thread, currentThreadPermits);
+                threadPermits[thread] = currentThreadPermits
             }
-            notifyNextWaiters();
+            notifyNextWaiters()
         }
     }
 
-    void releaseTransaction(@NotNull final ReadWriteTransaction txn) {
-        releaseTransaction(txn.getCreatingThread(), txn.getAcquiredPermits());
+    fun releaseTransaction(txn: ReadWriteTransaction) {
+        releaseTransaction(txn.creatingThread, txn.acquiredPermits)
     }
 
     /**
      * Downgrade transaction (making it holding only 1 permit) that was acquired in a thread with specified permits.
      */
-    void downgradeTransaction(@NotNull final Thread thread, final int permits) {
+    fun downgradeTransaction(thread: Thread, permits: Int) {
         if (permits > 1) {
-            try (CriticalSection ignored = criticalSection.enter()) {
-                int currentThreadPermits = getThreadPermits(thread);
+            criticalSection.enter().use {
+                var currentThreadPermits = getThreadPermits(thread)
                 if (permits > currentThreadPermits) {
-                    throw new ExodusException("Can't release more permits than it was acquired");
+                    throw ExodusException("Can't release more permits than it was acquired")
                 }
-                acquiredPermits -= (permits - 1);
-                currentThreadPermits -= (permits - 1);
-                threadPermits.put(thread, currentThreadPermits);
-                notifyNextWaiters();
+                acquiredPermits -= permits - 1
+                currentThreadPermits -= permits - 1
+                threadPermits[thread] = currentThreadPermits
+                notifyNextWaiters()
             }
         }
     }
 
-    void downgradeTransaction(@NotNull final ReadWriteTransaction txn) {
-        downgradeTransaction(txn.getCreatingThread(), txn.getAcquiredPermits());
-        txn.setAcquiredPermits(1);
+    fun downgradeTransaction(txn: ReadWriteTransaction) {
+        downgradeTransaction(txn.creatingThread, txn.acquiredPermits)
+        txn.acquiredPermits = 1
     }
 
-    int getThreadPermits(@NotNull final Thread thread) {
-        final Integer result = threadPermits.get(thread);
-        return result == null ? 0 : result;
+    fun getThreadPermits(thread: Thread): Int {
+        val result = threadPermits[thread]
+        return result ?: 0
     }
 
-    private void waitForPermits(@NotNull final Thread thread,
-                                @NotNull final NavigableMap<Long, Condition> queue,
-                                final int permits,
-                                final int currentThreadPermits) {
-        final Condition condition = criticalSection.newCondition();
-        final long currentOrder = acquireOrder++;
-        queue.put(currentOrder, condition);
+    private fun waitForPermits(
+        thread: Thread,
+        queue: NavigableMap<Long, Condition>,
+        permits: Int,
+        currentThreadPermits: Int
+    ) {
+        val condition = criticalSection.newCondition()
+        val currentOrder = acquireOrder++
+        queue[currentOrder] = condition
         while (acquiredPermits > availablePermits - permits || queue.firstKey() != currentOrder) {
-            condition.awaitUninterruptibly();
+            condition.awaitUninterruptibly()
         }
-        queue.pollFirstEntry();
-        acquiredPermits += permits;
-        threadPermits.put(thread, currentThreadPermits + permits);
+        queue.pollFirstEntry()
+        acquiredPermits += permits
+        threadPermits[thread] = currentThreadPermits + permits
         if (acquiredPermits < availablePermits) {
-            notifyNextWaiters();
+            notifyNextWaiters()
         }
     }
 
@@ -190,57 +179,59 @@ final class ReentrantTransactionDispatcher {
      *
      * @return number of acquired permits if > 0
      */
-    private int tryAcquireExclusiveTransaction(@NotNull final Thread thread, final int timeout) {
-        long nanos = TimeUnit.MILLISECONDS.toNanos(timeout);
-        try (CriticalSection ignored = criticalSection.enter()) {
+    private fun tryAcquireExclusiveTransaction(thread: Thread, timeout: Int): Int {
+        var nanos = TimeUnit.MILLISECONDS.toNanos(timeout.toLong())
+        criticalSection.enter().use {
             if (getThreadPermits(thread) > 0) {
-                throw new ExodusException("Exclusive transaction can't be nested");
+                throw ExodusException("Exclusive transaction can't be nested")
             }
-            final Condition condition = criticalSection.newCondition();
-            final long currentOrder = acquireOrder++;
-            regularQueue.put(currentOrder, condition);
+            val condition = criticalSection.newCondition()
+            val currentOrder = acquireOrder++
+            regularQueue[currentOrder] = condition
             while (acquiredPermits > 0 || regularQueue.firstKey() != currentOrder) {
                 try {
-                    nanos = condition.awaitNanos(nanos);
+                    nanos = condition.awaitNanos(nanos)
                     if (nanos < 0) {
-                        break;
+                        break
                     }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    break
                 }
             }
             if (acquiredPermits == 0 && regularQueue.firstKey() == currentOrder) {
-                regularQueue.pollFirstEntry();
-                acquiredPermits = availablePermits;
-                threadPermits.put(thread, availablePermits);
-                return availablePermits;
+                regularQueue.pollFirstEntry()
+                acquiredPermits = availablePermits
+                threadPermits[thread] = availablePermits
+                return availablePermits
             }
-            regularQueue.remove(currentOrder);
-            notifyNextWaiters();
+            regularQueue.remove(currentOrder)
+            notifyNextWaiters()
         }
-        return 0;
+        return 0
     }
 
-    private void notifyNextWaiters() {
+    private fun notifyNextWaiters() {
         if (!notifyNextWaiter(nestedQueue)) {
-            notifyNextWaiter(regularQueue);
+            notifyNextWaiter(regularQueue)
         }
     }
 
-    private int getThreadPermitsToAcquire(@NotNull Thread thread) {
-        final int currentThreadPermits = getThreadPermits(thread);
+    private fun getThreadPermitsToAcquire(thread: Thread): Int {
+        val currentThreadPermits = getThreadPermits(thread)
         if (currentThreadPermits == availablePermits) {
-            throw new ExodusException("No more permits are available to acquire a transaction");
+            throw ExodusException("No more permits are available to acquire a transaction")
         }
-        return currentThreadPermits;
+        return currentThreadPermits
     }
 
-    private static boolean notifyNextWaiter(@NotNull final NavigableMap<Long, Condition> queue) {
-        if (!queue.isEmpty()) {
-            queue.firstEntry().getValue().signal();
-            return true;
+    companion object {
+        private fun notifyNextWaiter(queue: NavigableMap<Long, Condition>): Boolean {
+            if (!queue.isEmpty()) {
+                queue.firstEntry().value.signal()
+                return true
+            }
+            return false
         }
-        return false;
     }
 }

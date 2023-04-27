@@ -22,7 +22,7 @@ import jetbrains.exodus.util.MathUtil
 abstract class LogCache {
 
     internal val memoryUsage: Long
-    protected val memoryUsagePercentage: Int
+    private val memoryUsagePercentage: Int
     internal val pageSize: Int
 
     /**
@@ -89,8 +89,7 @@ abstract class LogCache {
 
     companion object {
 
-        protected const val MINIMUM_PAGE_SIZE = LogUtil.LOG_BLOCK_ALIGNMENT
-        protected const val DEFAULT_OPEN_FILES_COUNT = 16
+        const val MINIMUM_PAGE_SIZE = LogUtil.LOG_BLOCK_ALIGNMENT
         protected const val MINIMUM_MEM_USAGE_PERCENT = 5
         protected const val MAXIMUM_MEM_USAGE_PERCENT = 95
 

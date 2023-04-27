@@ -13,31 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ByteIterator;
+import jetbrains.exodus.ByteIterator
 
-public interface ByteIteratorWithAddress extends ByteIterator {
-
-    long getAddress();
-
-    int getOffset();
-
-    int available();
-
-    default boolean availableInCurrentPage(final int bytes) {
-        return false;
+interface ByteIteratorWithAddress : ByteIterator {
+    val address: Long
+    val offset: Int
+    fun available(): Int
+    fun availableInCurrentPage(bytes: Int): Boolean {
+        return false
     }
 
-    default byte[] getCurrentPage() {
-        throw new UnsupportedOperationException();
-    }
-
-    default int getCompressedUnsignedInt() {
-        return CompressedUnsignedLongByteIterable.getInt(this);
-    }
-
-    default long getCompressedUnsignedLong() {
-        return CompressedUnsignedLongByteIterable.getLong(this);
-    }
+    val currentPage: ByteArray?
+        get() {
+            throw UnsupportedOperationException()
+        }
+    val compressedUnsignedInt: Int
+        get() = CompressedUnsignedLongByteIterable.getInt(this)
+    val compressedUnsignedLong: Long
+        get() = CompressedUnsignedLongByteIterable.getLong(this)
 }

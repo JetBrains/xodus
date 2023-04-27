@@ -13,76 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.bindings.BindingUtils;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.bindings.BindingUtils
 
-public class HashCodeLoggable implements RandomAccessLoggable {
-    public static final byte TYPE = 0x7F;
+class HashCodeLoggable internal constructor(override val address: Long, pageOffset: Int, page: ByteArray?) :
+    RandomAccessLoggable {
+    val hashCode: Long
 
-    private final long address;
-
-    private final long hashCode;
-
-    HashCodeLoggable(long address, int pageOffset, byte[] page) {
-        this.address = address;
-        this.hashCode = BindingUtils.readLong(page, pageOffset + Byte.BYTES);
+    init {
+        hashCode = BindingUtils.readLong(page, pageOffset + java.lang.Byte.BYTES)
     }
 
-
-    @Override
-    public long getAddress() {
-        return address;
+    override fun length(): Int {
+        return java.lang.Long.BYTES + 1
     }
 
-    @Override
-    public byte getType() {
-        return TYPE;
+    override fun end(): Long {
+        return address + length()
     }
 
-    @Override
-    public int length() {
-        return Long.BYTES + 1;
-    }
+    override val data: ByteIterableWithAddress
+        get() {
+            val bytes = ByteArray(java.lang.Long.BYTES)
+            BindingUtils.writeLong(hashCode, bytes, 0)
+            return ArrayByteIterableWithAddress(address + java.lang.Byte.BYTES, bytes, 0, bytes.size)
+        }
+    override val dataLength: Int
+        get() = java.lang.Long.BYTES
+    override val structureId: Int
+        get() = Loggable.NO_STRUCTURE_ID
+    override val isDataInsideSinglePage: Boolean
+        get() = true
 
-    @Override
-    public long end() {
-        return address + length();
-    }
+    override val type: Byte
+        get() = TYPE
+    companion object {
+        const val TYPE: Byte = 0x7F
+        fun isHashCodeLoggable(type: Byte): Boolean {
+            return type == TYPE
+        }
 
-    @Override
-    public @NotNull ByteIterableWithAddress getData() {
-        final byte[] bytes = new byte[Long.BYTES];
-        BindingUtils.writeLong(hashCode, bytes, 0);
-
-        return new ArrayByteIterableWithAddress(address + Byte.BYTES, bytes, 0, bytes.length);
-    }
-
-    @Override
-    public int getDataLength() {
-        return Long.BYTES;
-    }
-
-    public long getHashCode() {
-        return hashCode;
-    }
-
-    @Override
-    public int getStructureId() {
-        return NO_STRUCTURE_ID;
-    }
-
-    @Override
-    public boolean isDataInsideSinglePage() {
-        return true;
-    }
-
-    public static boolean isHashCodeLoggable(final byte type) {
-        return type == TYPE;
-    }
-
-    public static boolean isHashCodeLoggable(final Loggable loggable) {
-        return loggable.getType() == TYPE;
+        fun isHashCodeLoggable(loggable: Loggable): Boolean {
+            return loggable.type == TYPE
+        }
     }
 }

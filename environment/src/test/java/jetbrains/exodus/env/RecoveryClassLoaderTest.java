@@ -97,7 +97,7 @@ public class RecoveryClassLoaderTest {
 
     private static final Runnable CHECK_ENVIRONMENT = () -> {
         EnvironmentImpl env = (EnvironmentImpl) RecoveryClassLoaderTest.env;
-        Log log = env.getLog();
+        Log log = env.log;
 
         // only 'max' first loggables should remain
         // assertLoggableTypes(max, log.getLoggablesIterator(0), SEQ);

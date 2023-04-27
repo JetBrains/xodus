@@ -13,220 +13,217 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.log.RandomAccessLoggable;
-import jetbrains.exodus.tree.ITree;
-import jetbrains.exodus.tree.ITreeMutable;
-import jetbrains.exodus.tree.TreeCursorMutable;
-import jetbrains.exodus.tree.TreeMetaInfo;
-import jetbrains.exodus.tree.btree.BTree;
-import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
-import jetbrains.exodus.tree.btree.BTreeEmpty;
-import jetbrains.exodus.tree.patricia.PatriciaTree;
-import jetbrains.exodus.tree.patricia.PatriciaTreeEmpty;
-import jetbrains.exodus.tree.patricia.PatriciaTreeWithDuplicates;
-import jetbrains.exodus.util.StringInterner;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.log.Loggable
+import jetbrains.exodus.log.RandomAccessLoggable
+import jetbrains.exodus.tree.ITree
+import jetbrains.exodus.tree.ITreeMutable
+import jetbrains.exodus.tree.TreeCursorMutable
+import jetbrains.exodus.tree.TreeMetaInfo
+import jetbrains.exodus.tree.btree.BTree
+import jetbrains.exodus.tree.btree.BTreeEmpty
+import jetbrains.exodus.tree.patricia.PatriciaTree
+import jetbrains.exodus.tree.patricia.PatriciaTreeEmpty
+import jetbrains.exodus.tree.patricia.PatriciaTreeWithDuplicates
+import jetbrains.exodus.util.StringInterner.Companion.intern
 
-import java.util.Iterator;
+open class StoreImpl internal constructor(
+    private val environment: EnvironmentImpl,
+    name: String,
+    val metaInfo: TreeMetaInfo
+) : Store {
+    private val name: String
 
-public class StoreImpl implements Store {
-
-    @NotNull
-    private static final ArrayByteIterable NULL_CACHED_VALUE = new ArrayByteIterable(ByteIterable.EMPTY);
-
-    @NotNull
-    private final EnvironmentImpl environment;
-    @NotNull
-    private final String name;
-    @NotNull
-    private final TreeMetaInfo metaInfo;
-
-    StoreImpl(@NotNull final EnvironmentImpl env, @NotNull final String name, @NotNull final TreeMetaInfo metaInfo) {
-        this.environment = env;
-        //noinspection ConstantConditions
-        this.name = StringInterner.intern(name);
-        this.metaInfo = metaInfo;
+    init {
+        this.name = intern(name)!!
     }
 
-    @NotNull
-    @Override
-    public EnvironmentImpl getEnvironment() {
-        return environment;
+    override fun getEnvironment(): EnvironmentImpl {
+        return environment
     }
 
-    @Override
-    @Nullable
-    public ByteIterable get(@NotNull final Transaction txn, @NotNull final ByteIterable key) {
-        final TransactionBase tx = (TransactionBase) txn;
-        final ITree tree = tx.getTree(this);
-        if (!tx.isDisableStoreGetCache()) {
-            final StoreGetCache storeGetCache = environment.getStoreGetCache();
+    override fun get(txn: Transaction, key: ByteIterable): ByteIterable? {
+        val tx = txn as TransactionBase
+        val tree = tx.getTree(this)
+        if (!tx.isDisableStoreGetCache) {
+            val storeGetCache = environment.storeGetCache
             if (storeGetCache != null) {
-                final long treeRootAddress = tree.getRootAddress();
-                final boolean useStoreGetCache = treeRootAddress != Loggable.NULL_ADDRESS && tree.getSize() >= storeGetCache.getMinTreeSize();
+                val treeRootAddress = tree.rootAddress
+                val useStoreGetCache =
+                    treeRootAddress != Loggable.NULL_ADDRESS && tree.size >= storeGetCache.minTreeSize
                 // if neither tree is empty nor mutable
                 if (useStoreGetCache) {
-                    ByteIterable result = storeGetCache.tryKey(treeRootAddress, key);
+                    var result = storeGetCache.tryKey(treeRootAddress, key)
                     if (result != null) {
-                        return result == NULL_CACHED_VALUE ? null : result;
+                        return if (result === NULL_CACHED_VALUE) null else result
                     }
-                    result = tree.get(key);
-                    final ArrayByteIterable cachedValue;
-                    if (result == null) {
-                        cachedValue = NULL_CACHED_VALUE;
-                    } else if (result instanceof ArrayByteIterable) {
-                        cachedValue = (ArrayByteIterable) result;
-                    } else {
-                        cachedValue = new ArrayByteIterable(result);
+                    result = tree[key]
+                    val cachedValue: ArrayByteIterable = when (result) {
+                        null -> {
+                            NULL_CACHED_VALUE
+                        }
+                        is ArrayByteIterable -> {
+                            result
+                        }
+
+                        else -> {
+                            ArrayByteIterable(result)
+                        }
                     }
-                    if (cachedValue.getLength() <= storeGetCache.getMaxValueSize()) {
-                        storeGetCache.cacheObject(treeRootAddress, key, cachedValue);
+                    if (cachedValue.length <= storeGetCache.maxValueSize) {
+                        storeGetCache.cacheObject(treeRootAddress, key, cachedValue)
                     }
-                    return result;
+                    return result
                 }
             }
         }
-        return tree.get(key);
+        return tree[key]
     }
 
-    @Override
-    public boolean exists(@NotNull final Transaction txn,
-                          @NotNull final ByteIterable key,
-                          @NotNull final ByteIterable value) {
-        return ((TransactionBase) txn).getTree(this).hasPair(key, value);
+    override fun exists(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ): Boolean {
+        return (txn as TransactionBase).getTree(this).hasPair(key, value)
     }
 
-    @Override
-    public boolean put(@NotNull final Transaction txn,
-                       @NotNull final ByteIterable key,
-                       @NotNull final ByteIterable value) {
-        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this);
+    override fun put(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ): Boolean {
+        val mutableTree: ITreeMutable =
+            EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this)
         if (mutableTree.put(key, value)) {
-            TreeCursorMutable.notifyCursors(mutableTree);
-            return true;
+            TreeCursorMutable.notifyCursors(mutableTree)
+            return true
         }
-        return false;
+        return false
     }
 
-    public boolean putNotifyNoCursors(@NotNull final Transaction txn,
-                                      @NotNull final ByteIterable key,
-                                      @NotNull final ByteIterable value) {
-        return EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this).put(key, value);
+    fun putNotifyNoCursors(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ): Boolean {
+        return EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this)
+            .put(key, value)
     }
 
-    @Override
-    public void putRight(@NotNull final Transaction txn,
-                         @NotNull final ByteIterable key,
-                         @NotNull final ByteIterable value) {
-        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this);
-        mutableTree.putRight(key, value);
-        TreeCursorMutable.notifyCursors(mutableTree);
+    override fun putRight(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ) {
+        val mutableTree: ITreeMutable =
+            EnvironmentImpl.throwIfReadonly(txn, "Can't put in read-only transaction").getMutableTree(this)
+        mutableTree.putRight(key, value)
+        TreeCursorMutable.notifyCursors(mutableTree)
     }
 
-    @Override
-    public boolean add(@NotNull final Transaction txn,
-                       @NotNull final ByteIterable key,
-                       @NotNull final ByteIterable value) {
-        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't add in read-only transaction").getMutableTree(this);
+    override fun add(
+        txn: Transaction,
+        key: ByteIterable,
+        value: ByteIterable
+    ): Boolean {
+        val mutableTree: ITreeMutable =
+            EnvironmentImpl.throwIfReadonly(txn, "Can't add in read-only transaction").getMutableTree(this)
         if (mutableTree.add(key, value)) {
-            TreeCursorMutable.notifyCursors(mutableTree);
-            return true;
+            TreeCursorMutable.notifyCursors(mutableTree)
+            return true
         }
-        return false;
+        return false
     }
 
-    @Override
-    public long count(@NotNull Transaction txn) {
-        return ((TransactionBase) txn).getTree(this).getSize();
+    override fun count(txn: Transaction): Long {
+        return (txn as TransactionBase).getTree(this).size
     }
 
-    @Override
-    public Cursor openCursor(@NotNull final Transaction txn) {
-        return new CursorImpl(this, (TransactionBase) txn);
+    override fun openCursor(txn: Transaction): Cursor {
+        return CursorImpl(this, txn as TransactionBase)
     }
 
-    @Override
-    public boolean delete(@NotNull final Transaction txn,
-                          @NotNull final ByteIterable key) {
-        final ITreeMutable mutableTree = EnvironmentImpl.throwIfReadonly(txn, "Can't delete in read-only transaction").getMutableTree(this);
+    override fun delete(
+        txn: Transaction,
+        key: ByteIterable
+    ): Boolean {
+        val mutableTree: ITreeMutable =
+            EnvironmentImpl.throwIfReadonly(txn, "Can't delete in read-only transaction").getMutableTree(this)
         if (mutableTree.delete(key)) {
-            TreeCursorMutable.notifyCursors(mutableTree);
-            return true;
+            TreeCursorMutable.notifyCursors(mutableTree)
+            return true
         }
-        return false;
+        return false
     }
 
-    @Override
-    @NotNull
-    public String getName() {
-        return name;
+    override fun getName(): String {
+        return name
     }
 
-    @Override
-    public void close() {
+    @Deprecated("Deprecated in Java")
+    override fun close() {}
+    override fun getConfig(): StoreConfig {
+        return TreeMetaInfo.toConfig(metaInfo)
     }
 
-    @Override
-    @NotNull
-    public StoreConfig getConfig() {
-        return TreeMetaInfo.toConfig(metaInfo);
+    fun isNew(txn: Transaction): Boolean {
+        return !txn.isReadonly && (txn as ReadWriteTransaction).isStoreNew(name)
     }
 
-    public boolean isNew(@NotNull final Transaction txn) {
-        return !txn.isReadonly() && ((ReadWriteTransaction) txn).isStoreNew(name);
+    fun persistCreation(txn: Transaction) {
+        EnvironmentImpl.throwIfReadonly(txn, "Read-only transaction is not enough").storeCreated(this)
     }
 
-    public void persistCreation(@NotNull final Transaction txn) {
-        EnvironmentImpl.throwIfReadonly(txn, "Read-only transaction is not enough").storeCreated(this);
-    }
-
-    @NotNull
-    TreeMetaInfo getMetaInfo() {
-        return metaInfo;
-    }
-
-    public void reclaim(@NotNull final Transaction transaction,
-                        @NotNull final RandomAccessLoggable loggable,
-                        @NotNull final Iterator<RandomAccessLoggable> loggables) {
-        final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
-        final boolean hadTreeMutated = txn.hasTreeMutable(this);
+    open fun reclaim(
+        transaction: Transaction,
+        loggable: RandomAccessLoggable,
+        loggables: Iterator<RandomAccessLoggable?>
+    ) {
+        val txn: ReadWriteTransaction =
+            EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction")
+        val hadTreeMutated = txn.hasTreeMutable(this)
         if (!txn.getMutableTree(this).reclaim(loggable, loggables) && !hadTreeMutated) {
-            txn.removeTreeMutable(this);
+            txn.removeTreeMutable(this)
         }
     }
 
-    ITree openImmutableTree(@NotNull final MetaTreeImpl metaTree) {
-        final int structureId = getStructureId();
-        final long upToDateRootAddress = metaTree.getRootAddress(structureId);
-        final boolean hasDuplicates = metaInfo.hasDuplicates();
-        final boolean treeIsEmpty = upToDateRootAddress == Loggable.NULL_ADDRESS;
-        final Log log = environment.getLog();
-        final ITree result;
-        if (!metaInfo.isKeyPrefixing()) {
-            final BTreeBalancePolicy balancePolicy = environment.getBTreeBalancePolicy();
-            result = treeIsEmpty ?
-                new BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) :
-                new BTree(log, balancePolicy, upToDateRootAddress, hasDuplicates, structureId);
+    fun openImmutableTree(metaTree: MetaTreeImpl): ITree {
+        val structureId = structureId
+        val upToDateRootAddress = metaTree.getRootAddress(structureId)
+        val hasDuplicates = metaInfo.hasDuplicates()
+        val treeIsEmpty = upToDateRootAddress == Loggable.NULL_ADDRESS
+        val log = environment.log
+        val result: ITree = if (!metaInfo.isKeyPrefixing) {
+            val balancePolicy = environment.bTreeBalancePolicy
+            if (treeIsEmpty) BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) else BTree(
+                log,
+                balancePolicy,
+                upToDateRootAddress,
+                hasDuplicates,
+                structureId
+            )
         } else {
             if (treeIsEmpty) {
-                result = new PatriciaTreeEmpty(log, structureId, hasDuplicates);
+                PatriciaTreeEmpty(log, structureId, hasDuplicates)
             } else {
-                result = hasDuplicates ?
-                    new PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId) :
-                    new PatriciaTree(log, upToDateRootAddress, structureId);
+                if (hasDuplicates) PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId) else PatriciaTree(
+                    log,
+                    upToDateRootAddress,
+                    structureId
+                )
             }
         }
-        return result;
+        return result
     }
 
-    int getStructureId() {
-        return metaInfo.getStructureId();
+    val structureId: Int
+        get() = metaInfo.getStructureId()
+
+    companion object {
+        private val NULL_CACHED_VALUE = ArrayByteIterable(ByteIterable.EMPTY)
     }
 }

@@ -171,7 +171,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         location = environment.getLocation();
 
         readerWriterProvider =
-                Objects.requireNonNull(((EnvironmentImpl) environment).getLog().getConfig().getReaderWriterProvider());
+                Objects.requireNonNull(((EnvironmentImpl) environment).log.getConfig().getReaderWriterProvider());
         // if database is in-memory then never create blobs in BlobVault
         if (readerWriterProvider.isInMemory()) {
             config.setMaxInPlaceBlobSize(Integer.MAX_VALUE);
@@ -258,7 +258,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 internalSettings = settings;
             }
 
-            if (environment.getCheckBlobs()) {
+            if (environment.checkBlobs) {
                 logger.warn("Checking BLOBs consistency.");
 
                 var blobsToRemove = ensureBlobsConsistency(txn, false);

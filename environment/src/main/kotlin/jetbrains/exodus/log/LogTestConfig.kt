@@ -13,20 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-public class LogTestConfig {
-
-    private long maxHighAddress;
-
+class LogTestConfig {
     /**
      * If maxHighAddress is set to a non-negative value, no loggable with address GE to it will be written.
      */
-    public long getMaxHighAddress() {
-        return maxHighAddress;
-    }
-
-    public void setMaxHighAddress(final long maxHighAddress) {
-        this.maxHighAddress = maxHighAddress;
-    }
+    var maxHighAddress: Long = 0
 }

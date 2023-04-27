@@ -13,323 +13,277 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
-import jetbrains.exodus.log.Log;
-import jetbrains.exodus.tree.ExpiredLoggableCollection;
-import jetbrains.exodus.tree.ITree;
-import jetbrains.exodus.tree.ITreeMutable;
-import jetbrains.exodus.tree.TreeMetaInfo;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.core.dataStructures.Pair
+import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator
+import jetbrains.exodus.env.MetaTreeImpl.Proto
+import jetbrains.exodus.log.*
+import jetbrains.exodus.tree.ExpiredLoggableCollection
+import jetbrains.exodus.tree.ITree
+import jetbrains.exodus.tree.ITreeMutable
+import jetbrains.exodus.tree.TreeMetaInfo
+import java.util.*
 
-import java.util.*;
+open class ReadWriteTransaction : TransactionBase {
+    private val mutableTrees: Int2ObjectOpenHashMap<ITreeMutable>
+    private val removedStores: Long2ObjectOpenHashMap<Pair<String, ITree?>>
+    private val createdStores: MutableMap<String, TreeMetaInfo>
+    final override val beginHook: Runnable?
+    private var commitHook: Runnable? = null
+    var replayCount: Int
+        private set
+    var acquiredPermits = 0
 
-public class ReadWriteTransaction extends TransactionBase {
-
-    @NotNull
-    private final Int2ObjectOpenHashMap<ITreeMutable> mutableTrees;
-    @NotNull
-    private final Long2ObjectOpenHashMap<Pair<String, ITree>> removedStores;
-    @NotNull
-    private final Map<String, TreeMetaInfo> createdStores;
-    @Nullable
-    private final Runnable beginHook;
-    @Nullable
-    private Runnable commitHook;
-    private int replayCount;
-    private int acquiredPermits;
-
-    ReadWriteTransaction(@NotNull final EnvironmentImpl env,
-                         @Nullable final Runnable beginHook,
-                         final boolean isExclusive,
-                         final boolean cloneMeta) {
-        super(env, isExclusive);
-        mutableTrees = new Int2ObjectOpenHashMap<>();
-        removedStores = new Long2ObjectOpenHashMap<>();
-
-        createdStores = new HashMapDecorator<>();
-        this.beginHook = () -> {
-            final MetaTreeImpl currentMetaTree = env.getMetaTreeInternal();
-            setMetaTree(cloneMeta ? currentMetaTree.getClone() : currentMetaTree);
-            env.registerTransaction(ReadWriteTransaction.this);
-            if (beginHook != null) {
-                beginHook.run();
-            }
-        };
-        replayCount = 0;
-        setExclusive(isExclusive() | env.shouldTransactionBeExclusive(this));
-        env.holdNewestSnapshotBy(this);
+    internal constructor(
+        env: EnvironmentImpl,
+        beginHook: Runnable?,
+        isExclusive: Boolean,
+        cloneMeta: Boolean
+    ) : super(env, isExclusive) {
+        mutableTrees = Int2ObjectOpenHashMap()
+        removedStores = Long2ObjectOpenHashMap()
+        createdStores = HashMapDecorator()
+        this.beginHook = Runnable {
+            val currentMetaTree = env.metaTree as MetaTreeImpl
+            metaTree = (if (cloneMeta) currentMetaTree.clone else currentMetaTree)
+            env.registerTransaction(this@ReadWriteTransaction)
+            beginHook?.run()
+        }
+        replayCount = 0
+        @Suppress("LeakingThis")
+        setExclusive(isExclusive() or env.shouldTransactionBeExclusive(this))
+        @Suppress("LeakingThis")
+        env.holdNewestSnapshotBy(this)
     }
 
-    ReadWriteTransaction(@NotNull final TransactionBase origin, @Nullable final Runnable beginHook) {
-        super(origin.getEnvironment(), false);
-        mutableTrees = new Int2ObjectOpenHashMap<>();
-        removedStores = new Long2ObjectOpenHashMap<>();
-        createdStores = new HashMapDecorator<>();
-        final EnvironmentImpl env = getEnvironment();
-        this.beginHook = getWrappedBeginHook(beginHook);
-        replayCount = 0;
-        setMetaTree(origin.getMetaTree());
-        setExclusive(env.shouldTransactionBeExclusive(this));
-        env.acquireTransaction(this);
-        env.registerTransaction(this);
+    internal constructor(origin: TransactionBase, beginHook: Runnable?) : super(origin.environment, false) {
+        mutableTrees = Int2ObjectOpenHashMap()
+        removedStores = Long2ObjectOpenHashMap()
+        createdStores = HashMapDecorator()
+        val env = environment
+        this.beginHook = getWrappedBeginHook(beginHook)
+        replayCount = 0
+        metaTree = origin.metaTree
+        @Suppress("LeakingThis")
+        isExclusive = env.shouldTransactionBeExclusive(this)
+        @Suppress("LeakingThis")
+        env.acquireTransaction(this)
+        @Suppress("LeakingThis")
+        env.registerTransaction(this)
     }
 
-    public boolean isIdempotent() {
-        return mutableTrees.isEmpty() && removedStores.isEmpty() && createdStores.isEmpty();
+    override fun isIdempotent(): Boolean {
+        return mutableTrees.isEmpty() && removedStores.isEmpty() && createdStores.isEmpty()
     }
 
-    @Override
-    public void abort() {
-        checkIsFinished();
-        clearImmutableTrees();
-        doRevert();
-        getEnvironment().finishTransaction(this);
+    override fun abort() {
+        checkIsFinished()
+        clearImmutableTrees()
+        doRevert()
+        environment.finishTransaction(this)
     }
 
-    @Override
-    public boolean commit() {
-        checkIsFinished();
-        return getEnvironment().commitTransaction(this);
+    override fun commit(): Boolean {
+        checkIsFinished()
+        return environment.commitTransaction(this)
     }
 
-    @Override
-    public boolean flush() {
-        checkIsFinished();
-        final EnvironmentImpl env = getEnvironment();
-        final boolean result = env.flushTransaction(this, false);
+    override fun flush(): Boolean {
+        checkIsFinished()
+        val env = environment
+        val result = env.flushTransaction(this, false)
         if (result) {
             // if the transaction was upgraded to exclusive during re-playing
             // then it should be downgraded back after successful flush().
-            if (!wasCreatedExclusive() && isExclusive() && env.getEnvironmentConfig().getEnvTxnDowngradeAfterFlush()) {
-                env.downgradeTransaction(this);
-                setExclusive(false);
+            if (!wasCreatedExclusive() && isExclusive && env.environmentConfig.envTxnDowngradeAfterFlush) {
+                env.downgradeTransaction(this)
+                isExclusive = false
             }
-            setStarted(System.currentTimeMillis());
+            setStarted(System.currentTimeMillis())
         } else {
-            incReplayCount();
+            incReplayCount()
         }
-        return result;
+        return result
     }
 
-    @Override
-    public void revert() {
-        checkIsFinished();
-        if (isReadonly()) {
-            throw new ExodusException("Attempt to revert read-only transaction");
+    override fun revert() {
+        checkIsFinished()
+        if (isReadonly) {
+            throw ExodusException("Attempt to revert read-only transaction")
         }
-        final long oldRoot = getMetaTree().root;
-        final boolean wasExclusive = isExclusive();
-        final EnvironmentImpl env = getEnvironment();
-        if (isIdempotent()) {
-            env.holdNewestSnapshotBy(this, false);
+        val oldRoot = _metaTree!!.root
+        val wasExclusive = isExclusive
+        val env = environment
+        if (isIdempotent) {
+            env.holdNewestSnapshotBy(this, false)
         } else {
-            doRevert();
+            doRevert()
             if (wasExclusive || !env.shouldTransactionBeExclusive(this)) {
-                env.holdNewestSnapshotBy(this, false);
+                env.holdNewestSnapshotBy(this, false)
             } else {
-                env.releaseTransaction(this);
-                setExclusive(true);
-                env.holdNewestSnapshotBy(this);
+                env.releaseTransaction(this)
+                isExclusive = true
+                env.holdNewestSnapshotBy(this)
             }
         }
         if (!env.isRegistered(this)) {
-            throw new ExodusException("Transaction should remain registered after revert");
+            throw ExodusException("Transaction should remain registered after revert")
         }
         if (invalidVersion(oldRoot)) {
-            clearImmutableTrees();
-            env.runTransactionSafeTasks();
+            clearImmutableTrees()
+            env.runTransactionSafeTasks()
         }
-        setStarted(System.currentTimeMillis());
+        setStarted(System.currentTimeMillis())
     }
 
-    @Override
-    public void setCommitHook(@Nullable final Runnable hook) {
-        commitHook = hook;
+    override fun setCommitHook(hook: Runnable?) {
+        commitHook = hook
     }
 
-    @Override
-    public boolean isReadonly() {
-        return false;
+    override fun isReadonly(): Boolean {
+        return false
     }
 
-    public boolean forceFlush() {
-        checkIsFinished();
-        return getEnvironment().flushTransaction(this, true);
+    fun forceFlush(): Boolean {
+        checkIsFinished()
+        return environment.flushTransaction(this, true)
     }
 
-    @NotNull
-    public StoreImpl openStoreByStructureId(final int structureId) {
-        checkIsFinished();
-        final EnvironmentImpl env = getEnvironment();
-        final String storeName = getMetaTree().getStoreNameByStructureId(structureId, env);
-        return storeName == null ?
-                new TemporaryEmptyStore(env) :
-                env.openStoreImpl(storeName, StoreConfig.USE_EXISTING, this, getTreeMetaInfo(storeName));
+    fun openStoreByStructureId(structureId: Int): StoreImpl {
+        checkIsFinished()
+        val env = environment
+        val storeName = _metaTree!!.getStoreNameByStructureId(structureId, env)
+        return if (storeName == null) TemporaryEmptyStore(env) else env.openStoreImpl(
+            storeName,
+            StoreConfig.USE_EXISTING,
+            this,
+            getTreeMetaInfo(storeName)
+        )
     }
 
-    @NotNull
-    @Override
-    public ITree getTree(@NotNull final StoreImpl store) {
-        checkIsFinished();
-        final ITreeMutable result = mutableTrees.get(store.getStructureId());
-        if (result == null) {
-            return super.getTree(store);
+    override fun getTree(store: StoreImpl): ITree {
+        checkIsFinished()
+        return mutableTrees[store.structureId] ?: return super.getTree(store)
+    }
+
+    override fun getTreeMetaInfo(name: String): TreeMetaInfo? {
+        checkIsFinished()
+        val result = createdStores[name]
+        return result ?: super.getTreeMetaInfo(name)
+    }
+
+    override fun storeRemoved(store: StoreImpl) {
+        checkIsFinished()
+        super.storeRemoved(store)
+        val structureId = store.structureId
+        val tree = store.openImmutableTree(_metaTree!!)
+        removedStores.put(structureId.toLong(), Pair(store.name, tree))
+        mutableTrees.remove(structureId)
+    }
+
+    fun storeOpened(store: StoreImpl) {
+        removedStores.remove(store.structureId.toLong())
+    }
+
+    fun storeCreated(store: StoreImpl) {
+        getMutableTree(store)
+        createdStores[store.name] = store.metaInfo
+    }
+
+    private fun incReplayCount() {
+        ++replayCount
+    }
+
+    fun isStoreNew(name: String): Boolean {
+        return createdStores.containsKey(name)
+    }
+
+    fun doCommit(out: Array<Proto?>, log: Log?): ExpiredLoggableCollection {
+        val removedEntries = removedStores.long2ObjectEntrySet()
+        var expiredLoggables = ExpiredLoggableCollection.newInstance(log)
+        val metaTreeMutable = _metaTree!!.tree.mutableCopy
+        for ((key, value) in removedEntries) {
+            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), key)
+            expiredLoggables = expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()!!).trimToSize())
         }
-        return result;
-    }
-
-    @Nullable
-    @Override
-    TreeMetaInfo getTreeMetaInfo(@NotNull final String name) {
-        checkIsFinished();
-        final TreeMetaInfo result = createdStores.get(name);
-        return result == null ? super.getTreeMetaInfo(name) : result;
-    }
-
-    void storeRemoved(@NotNull final StoreImpl store) {
-        checkIsFinished();
-        super.storeRemoved(store);
-        final int structureId = store.getStructureId();
-        final ITree tree = store.openImmutableTree(getMetaTree());
-        removedStores.put(structureId, new Pair<>(store.getName(), tree));
-        mutableTrees.remove(structureId);
-    }
-
-    void storeOpened(@NotNull final StoreImpl store) {
-        removedStores.remove(store.getStructureId());
-    }
-
-    void storeCreated(@NotNull final StoreImpl store) {
-        getMutableTree(store);
-        createdStores.put(store.getName(), store.getMetaInfo());
-    }
-
-    int getReplayCount() {
-        return replayCount;
-    }
-
-    void incReplayCount() {
-        ++replayCount;
-    }
-
-    int getAcquiredPermits() {
-        return acquiredPermits;
-    }
-
-    void setAcquiredPermits(final int acquiredPermits) {
-        this.acquiredPermits = acquiredPermits;
-    }
-
-    boolean isStoreNew(@NotNull final String name) {
-        return createdStores.containsKey(name);
-    }
-
-    ExpiredLoggableCollection doCommit(@NotNull final MetaTreeImpl.Proto[] out, Log log) {
-
-        final Long2ObjectMap.FastEntrySet<Pair<String, ITree>> removedEntries = removedStores.long2ObjectEntrySet();
-        ExpiredLoggableCollection expiredLoggables = ExpiredLoggableCollection.newInstance(log);
-
-        final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
-        for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
-            final Pair<String, ITree> value = entry.getValue();
-            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey().longValue());
-            expiredLoggables = expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()).trimToSize());
+        removedStores.clear()
+        for ((key, value) in createdStores) {
+            MetaTreeImpl.addStore(metaTreeMutable, key, value)
         }
-        removedStores.clear();
-
-        for (final Map.Entry<String, TreeMetaInfo> entry : createdStores.entrySet()) {
-            MetaTreeImpl.addStore(metaTreeMutable, entry.getKey(), entry.getValue());
+        createdStores.clear()
+        for (treeMutable in mutableTrees.values) {
+            expiredLoggables = expiredLoggables.mergeWith(treeMutable.expiredLoggables.trimToSize())
+            MetaTreeImpl.saveTree(metaTreeMutable, treeMutable)
         }
-        createdStores.clear();
-
-        for (final ITreeMutable treeMutable : mutableTrees.values()) {
-            expiredLoggables = expiredLoggables.mergeWith(treeMutable.getExpiredLoggables().trimToSize());
-            MetaTreeImpl.saveTree(metaTreeMutable, treeMutable);
-        }
-
-        clearImmutableTrees();
-        mutableTrees.clear();
-        expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.getExpiredLoggables().trimToSize());
-        out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, getEnvironment(), expiredLoggables);
-        return expiredLoggables;
+        clearImmutableTrees()
+        mutableTrees.clear()
+        expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.expiredLoggables.trimToSize())
+        out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, environment, expiredLoggables)
+        return expiredLoggables
     }
 
-    void executeCommitHook() {
+    fun executeCommitHook() {
         if (commitHook != null) {
-            commitHook.run();
+            commitHook!!.run()
         }
     }
 
-    @NotNull
-    ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
-        checkIsFinished();
-        if (getEnvironment().getEnvironmentConfig().getEnvTxnSingleThreadWrites()) {
-            final Thread creatingThread = getCreatingThread();
-            if (!creatingThread.equals(Thread.currentThread())) {
-                throw new ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in");
+    fun getMutableTree(store: StoreImpl): ITreeMutable {
+        checkIsFinished()
+        if (environment.environmentConfig.envTxnSingleThreadWrites) {
+            val creatingThread = creatingThread
+            if (creatingThread != Thread.currentThread()) {
+                throw ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in")
             }
         }
-        final int structureId = store.getStructureId();
-
-        ITreeMutable result = mutableTrees.get(structureId);
+        val structureId = store.structureId
+        var result = mutableTrees[structureId]
         if (result == null) {
-            result = getTree(store).getMutableCopy();
-            mutableTrees.put(structureId, result);
+            result = getTree(store).mutableCopy
+            mutableTrees.put(structureId, result)
         }
-        return result;
+        return result
     }
 
     /**
      * @param store opened store.
      * @return whether a mutable tree is created for specified store.
      */
-    boolean hasTreeMutable(@NotNull final StoreImpl store) {
-        return mutableTrees.containsKey(store.getStructureId());
+    fun hasTreeMutable(store: StoreImpl): Boolean {
+        return mutableTrees.containsKey(store.structureId)
     }
 
-    void removeTreeMutable(@NotNull final StoreImpl store) {
-        mutableTrees.remove(store.getStructureId());
+    fun removeTreeMutable(store: StoreImpl) {
+        mutableTrees.remove(store.structureId)
     }
 
-    @NotNull
-    @Override
-    List<String> getAllStoreNames() {
-        List<String> result = super.getAllStoreNames();
-        if (createdStores.isEmpty()) return result;
-        if (result.isEmpty()) {
-            result = new ArrayList<>();
+    override val allStoreNames: List<String>
+        get() {
+            var result = super.allStoreNames.toMutableList()
+            if (createdStores.isEmpty()) return result
+            if (result.isEmpty()) {
+                result = ArrayList()
+            }
+            result.addAll(createdStores.keys)
+            result.sort()
+            return result
         }
-        result.addAll(createdStores.keySet());
-        Collections.sort(result);
-        return result;
-    }
 
-    @Nullable
-    @Override
-    Runnable getBeginHook() {
-        return beginHook;
-    }
-
-    @Override
-    protected boolean setIsFinished() {
+    override fun setIsFinished(): Boolean {
         if (super.setIsFinished()) {
-            mutableTrees.clear();
-            return true;
+            mutableTrees.clear()
+            return true
         }
-        return false;
+        return false
     }
 
-    private void doRevert() {
-        mutableTrees.clear();
-        removedStores.clear();
-        createdStores.clear();
+    private fun doRevert() {
+        mutableTrees.clear()
+        removedStores.clear()
+        createdStores.clear()
     }
 }

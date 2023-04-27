@@ -13,271 +13,193 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.debug.StackTrace;
-import jetbrains.exodus.log.LogUtil;
-import jetbrains.exodus.tree.ITree;
-import jetbrains.exodus.tree.TreeMetaInfo;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.List;
-import java.util.Map;
+import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator
+import jetbrains.exodus.core.dataStructures.hash.IntHashMap
+import jetbrains.exodus.debug.StackTrace
+import jetbrains.exodus.log.LogUtil
+import jetbrains.exodus.tree.ITree
+import jetbrains.exodus.tree.TreeMetaInfo
+import org.slf4j.LoggerFactory
+import java.io.PrintWriter
+import java.io.StringWriter
 
 /**
  * Base class for transactions.
  */
-public abstract class TransactionBase implements Transaction {
-    private static final Logger logger = LoggerFactory.getLogger(TransactionBase.class);
+abstract class TransactionBase(private val env: EnvironmentImpl, private var isExclusive: Boolean) : Transaction {
+    val creatingThread: Thread = Thread.currentThread()
 
-    @NotNull
-    private final EnvironmentImpl env;
-    @NotNull
-    private final Thread creatingThread;
-    private MetaTreeImpl metaTree;
-    @NotNull
-    private final IntHashMap<ITree> immutableTrees;
-    @NotNull
-    private final Map<Object, Object> userObjects;
-    @Nullable
-    private final StackTrace trace;
-    private final long created; // created is the ticks when the txn was actually created (constructed)
-    private long started;       // started is the ticks when the txn held its current snapshot
-    private boolean isExclusive;
-    private final boolean wasCreatedExclusive;
-    @Nullable
-    private StackTraceElement[] traceFinish;
-    private boolean disableStoreGetCache;
-
-    @Nullable
-    private Runnable beforeTransactionFlushAction;
-
-    public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
-        this.env = env;
-        this.creatingThread = Thread.currentThread();
-        this.isExclusive = isExclusive;
-        wasCreatedExclusive = isExclusive;
-        immutableTrees = new IntHashMap<>();
-        userObjects = new HashMapDecorator<>();
-        trace = env.transactionTimeout() > 0 || env.getEnvironmentConfig().getProfilerEnabled() ? new StackTrace() : null;
-        created = System.currentTimeMillis();
-        started = created;
-        traceFinish = null;
-    }
-
-    @Override
-    public Transaction getSnapshot() {
-        return getSnapshot(null);
-    }
-
-    @Override
-    public Transaction getSnapshot(@Nullable final Runnable beginHook) {
-        checkIsFinished();
-        return new ReadWriteTransaction(this, beginHook);
-    }
-
-    @Override
-    public Transaction getReadonlySnapshot() {
-        checkIsFinished();
-        return new ReadonlyTransaction(this);
-    }
-
-    @Override
-    @NotNull
-    public EnvironmentImpl getEnvironment() {
-        return env;
-    }
-
-    @Override
-    public long getStartTime() {
-        return started;
-    }
-
-    @Override
-    public long getSnapshotId() {
-        return metaTree.root;
-    }
-
-    @Override
-    public boolean isExclusive() {
-        return isExclusive;
-    }
-
-    @Override
-    public boolean isFinished() {
-        return traceFinish != null;
-    }
-
-    @Override
-    @Nullable
-    public Object getUserObject(@NotNull final Object key) {
-        synchronized (userObjects) {
-            return userObjects.get(key);
+    protected var _metaTree: MetaTreeImpl? = null
+    internal var metaTree: MetaTree?
+        get() = _metaTree
+        set(value) {
+            checkIsFinished()
+            _metaTree = value as MetaTreeImpl
         }
+
+    private val immutableTrees: IntHashMap<ITree> = IntHashMap()
+    private val userObjects: MutableMap<Any, Any>
+    val trace: StackTrace?
+    val created // created is the ticks when the txn was actually created (constructed)
+            : Long
+    private var started // started is the ticks when the txn held its current snapshot
+            : Long
+    private val wasCreatedExclusive: Boolean = isExclusive
+    private var traceFinish: Array<StackTraceElement>?
+    var isDisableStoreGetCache = false
+    private var beforeTransactionFlushAction: Runnable? = null
+
+    init {
+        userObjects = HashMapDecorator()
+        trace = if (env.transactionTimeout() > 0 || env.environmentConfig.profilerEnabled) StackTrace() else null
+        created = System.currentTimeMillis()
+        started = created
+        traceFinish = null
     }
 
-    @Override
-    public void setUserObject(@NotNull final Object key, @NotNull final Object value) {
-        synchronized (userObjects) {
-            userObjects.put(key, value);
-        }
+    override fun getSnapshot(): Transaction {
+        return getSnapshot(null)
     }
 
-    @NotNull
-    public ITree getTree(@NotNull final StoreImpl store) {
-        checkIsFinished();
-        final int structureId = store.getStructureId();
-        ITree result = immutableTrees.get(structureId);
+    override fun getSnapshot(beginHook: Runnable?): Transaction {
+        checkIsFinished()
+        return ReadWriteTransaction(this, beginHook)
+    }
+
+    override fun getReadonlySnapshot(): Transaction {
+        checkIsFinished()
+        return ReadonlyTransaction(this)
+    }
+
+    override fun getEnvironment(): EnvironmentImpl {
+        return env
+    }
+
+    override fun getStartTime(): Long {
+        return started
+    }
+
+    override fun getSnapshotId(): Long {
+        return _metaTree!!.root
+    }
+
+    final override fun isExclusive(): Boolean {
+        return isExclusive
+    }
+
+    override fun isFinished(): Boolean {
+        return traceFinish != null
+    }
+
+    override fun getUserObject(key: Any): Any? {
+        synchronized(userObjects) { return userObjects[key] }
+    }
+
+    override fun setUserObject(key: Any, value: Any) {
+        synchronized(userObjects) { userObjects.put(key, value) }
+    }
+
+    open fun getTree(store: StoreImpl): ITree {
+        checkIsFinished()
+        val structureId = store.structureId
+        var result = immutableTrees[structureId]
         if (result == null) {
-            result = store.openImmutableTree(getMetaTree());
-            synchronized (immutableTrees) {
-                immutableTrees.put(structureId, result);
+            result = store.openImmutableTree(_metaTree!!)
+            synchronized(immutableTrees) { immutableTrees.put(structureId, result) }
+        }
+        return result
+    }
+
+    fun checkIsFinished() {
+        if (isFinished) {
+            if (traceFinish != null && traceFinish!!.isNotEmpty()) {
+                val stringWriter = StringWriter()
+                val printWriter = PrintWriter(stringWriter)
+                printWriter.println("Transaction is expected to be active but already finished at : ")
+                LogUtil.printStackTrace(traceFinish!!, printWriter)
+                printWriter.flush()
+                val message = stringWriter.toString()
+                logger.error(message)
             }
-        }
-        return result;
-    }
-
-    public void checkIsFinished() {
-        if (isFinished()) {
-            if (traceFinish != null && traceFinish.length > 0) {
-                final StringWriter stringWriter = new StringWriter();
-                final PrintWriter printWriter = new PrintWriter(stringWriter);
-
-                printWriter.println("Transaction is expected to be active but already finished at : ");
-                LogUtil.printStackTrace(traceFinish, printWriter);
-
-                printWriter.flush();
-                final String message = stringWriter.toString();
-
-                logger.error(message);
-            }
-
-            throw new TransactionFinishedException();
+            throw TransactionFinishedException()
         }
     }
 
-    public boolean isDisableStoreGetCache() {
-        return disableStoreGetCache;
+    val root: Long
+        get() = _metaTree!!.root
+
+    fun invalidVersion(root: Long): Boolean {
+        return _metaTree == null || _metaTree!!.root != root
     }
 
-    public void setDisableStoreGetCache(boolean disableStoreGetCache) {
-        this.disableStoreGetCache = disableStoreGetCache;
+    fun setStarted(started: Long) {
+        this.started = started
     }
 
-    @NotNull
-    Thread getCreatingThread() {
-        return creatingThread;
+    fun wasCreatedExclusive(): Boolean {
+        return wasCreatedExclusive
     }
 
-    @NotNull
-    MetaTreeImpl getMetaTree() {
-        return metaTree;
+    open val isGCTransaction: Boolean
+        get() = false
+
+    open fun getTreeMetaInfo(name: String): TreeMetaInfo? {
+        checkIsFinished()
+        return _metaTree!!.getMetaInfo(name, env)
     }
 
-    void setMetaTree(@NotNull final MetaTreeImpl metaTree) {
-        checkIsFinished();
-        this.metaTree = metaTree;
+    open fun storeRemoved(store: StoreImpl) {
+        checkIsFinished()
+        synchronized(immutableTrees) { immutableTrees.remove(store.structureId) }
     }
 
-    long getRoot() {
-        return getMetaTree().root;
-    }
-
-    boolean invalidVersion(final long root) {
-        return metaTree.root != root;
-    }
-
-    @Nullable
-    public StackTrace getTrace() {
-        return trace;
-    }
-
-    long getCreated() {
-        return created;
-    }
-
-    void setStarted(final long started) {
-        this.started = started;
-    }
-
-    boolean wasCreatedExclusive() {
-        return wasCreatedExclusive;
-    }
-
-    boolean isGCTransaction() {
-        return false;
-    }
-
-    @Nullable
-    TreeMetaInfo getTreeMetaInfo(@NotNull final String name) {
-        checkIsFinished();
-        return metaTree.getMetaInfo(name, env);
-    }
-
-    void storeRemoved(@NotNull final StoreImpl store) {
-        checkIsFinished();
-        synchronized (immutableTrees) {
-            immutableTrees.remove(store.getStructureId());
+    open val allStoreNames: List<String>
+        get() {
+            checkIsFinished()
+            return _metaTree!!.allStoreNames
         }
+    abstract val beginHook: Runnable?
+    protected fun clearImmutableTrees() {
+        synchronized(immutableTrees) { immutableTrees.clear() }
     }
 
-    @NotNull
-    List<String> getAllStoreNames() {
-        checkIsFinished();
-        return getMetaTree().getAllStoreNames();
+    fun setBeforeTransactionFlushAction(exec: Runnable) {
+        beforeTransactionFlushAction = exec
     }
 
-    @Nullable
-    abstract Runnable getBeginHook();
-
-    protected void clearImmutableTrees() {
-        synchronized (immutableTrees) {
-            immutableTrees.clear();
-        }
-    }
-
-    public void setBeforeTransactionFlushAction(@NotNull Runnable exec) {
-        this.beforeTransactionFlushAction = exec;
-    }
-
-    void executeBeforeTransactionFlushAction() {
+    fun executeBeforeTransactionFlushAction() {
         if (beforeTransactionFlushAction != null) {
-            beforeTransactionFlushAction.run();
+            beforeTransactionFlushAction!!.run()
         }
     }
 
-    protected void setExclusive(final boolean isExclusive) {
-        this.isExclusive = isExclusive;
+    fun setExclusive(isExclusive: Boolean) {
+        this.isExclusive = isExclusive
     }
 
-    protected boolean setIsFinished() {
+    open fun setIsFinished(): Boolean {
         if (traceFinish == null) {
-            clearImmutableTrees();
-            synchronized (userObjects) {
-                userObjects.clear();
-            }
-            traceFinish = env.getEnvironmentConfig().isEnvTxnTraceFinish() ?
-                    Thread.currentThread().getStackTrace() : new StackTraceElement[0];
-            return true;
+            clearImmutableTrees()
+            synchronized(userObjects) { userObjects.clear() }
+            traceFinish =
+                if (env.environmentConfig.isEnvTxnTraceFinish) Thread.currentThread().stackTrace else emptyArray()
+            return true
         }
-        return false;
+        return false
     }
 
-    protected Runnable getWrappedBeginHook(@Nullable final Runnable beginHook) {
-        return () -> {
-            final EnvironmentImpl env = getEnvironment();
-            setMetaTree(env.getMetaTreeInternal());
-            env.registerTransaction(TransactionBase.this);
-            if (beginHook != null) {
-                beginHook.run();
-            }
-        };
+    protected fun getWrappedBeginHook(beginHook: Runnable?): Runnable {
+        return Runnable {
+            val env = environment
+            metaTree = env.metaTree as MetaTreeImpl
+            env.registerTransaction(this@TransactionBase)
+            beginHook?.run()
+        }
+    }
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(TransactionBase::class.java)
     }
 }

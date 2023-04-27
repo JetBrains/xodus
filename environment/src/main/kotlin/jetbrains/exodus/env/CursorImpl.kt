@@ -13,164 +13,133 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.tree.ITreeCursor;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.tree.ITreeCursor
 
-import java.util.ConcurrentModificationException;
+internal class CursorImpl(private val store: StoreImpl, private val txn: TransactionBase) : Cursor {
+    private val snapshotId: Long = txn.snapshotId
+    private var treeCursor: ITreeCursor? = null
+    private var isClosed = false
 
-final class CursorImpl implements Cursor {
-
-    private static final String CANT_DELETE_MODIFIED_MSG = "Can't delete (pair not found in mutable tree)";
-
-    @NotNull
-    private final StoreImpl store;
-    @NotNull
-    private final TransactionBase txn;
-    private final long snapshotId;
-    private ITreeCursor treeCursor;
-    private boolean isClosed;
-
-    CursorImpl(@NotNull final StoreImpl store, @NotNull final TransactionBase txn) {
-        this.store = store;
-        this.txn = txn;
-        this.snapshotId = txn.getSnapshotId();
-        treeCursor = null;
-        isClosed = false;
+    override fun getNext(): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.next
     }
 
-    @Override
-    public boolean getNext() {
-        checkTreeCursor();
-        return treeCursor.getNext();
+    override fun getNextDup(): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.nextDup
     }
 
-    @Override
-    public boolean getNextDup() {
-        checkTreeCursor();
-        return treeCursor.getNextDup();
+    override fun getNextNoDup(): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.nextNoDup
     }
 
-    @Override
-    public boolean getNextNoDup() {
-        checkTreeCursor();
-        return treeCursor.getNextNoDup();
+    override fun getPrev(): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.prev
     }
 
-    @Override
-    public boolean getPrev() {
-        checkTreeCursor();
-        return treeCursor.getPrev();
+    override fun getPrevDup(): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.prevDup
     }
 
-    @Override
-    public boolean getPrevDup() {
-        checkTreeCursor();
-        return treeCursor.getPrevDup();
+    override fun getPrevNoDup(): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.prevNoDup
     }
 
-    @Override
-    public boolean getPrevNoDup() {
-        checkTreeCursor();
-        return treeCursor.getPrevNoDup();
+    override fun getLast(): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.last
     }
 
-    @Override
-    public boolean getLast() {
-        checkTreeCursor();
-        return treeCursor.getLast();
+    override fun getKey(): ByteIterable {
+        checkTreeCursor()
+        return treeCursor!!.key
     }
 
-    @Override
-    @NotNull
-    public ByteIterable getKey() {
-        checkTreeCursor();
-        return treeCursor.getKey();
+    override fun getValue(): ByteIterable {
+        checkTreeCursor()
+        return treeCursor!!.value
     }
 
-    @Override
-    @NotNull
-    public ByteIterable getValue() {
-        checkTreeCursor();
-        return treeCursor.getValue();
+    override fun getSearchKey(key: ByteIterable): ByteIterable? {
+        checkTreeCursor()
+        return treeCursor!!.getSearchKey(key)
     }
 
-    @Override
-    public ByteIterable getSearchKey(@NotNull final ByteIterable key) {
-        checkTreeCursor();
-        return treeCursor.getSearchKey(key);
+    override fun getSearchKeyRange(key: ByteIterable): ByteIterable? {
+        checkTreeCursor()
+        return treeCursor!!.getSearchKeyRange(key)
     }
 
-    @Override
-    public ByteIterable getSearchKeyRange(@NotNull final ByteIterable key) {
-        checkTreeCursor();
-        return treeCursor.getSearchKeyRange(key);
+    override fun getSearchBoth(key: ByteIterable, value: ByteIterable): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.getSearchBoth(key, value)
     }
 
-    @Override
-    public boolean getSearchBoth(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        checkTreeCursor();
-        return treeCursor.getSearchBoth(key, value);
+    override fun getSearchBothRange(key: ByteIterable, value: ByteIterable): ByteIterable? {
+        checkTreeCursor()
+        return treeCursor!!.getSearchBothRange(key, value)
     }
 
-    @Override
-    public ByteIterable getSearchBothRange(@NotNull final ByteIterable key, @NotNull final ByteIterable value) {
-        checkTreeCursor();
-        return treeCursor.getSearchBothRange(key, value);
+    override fun count(): Int {
+        checkTreeCursor()
+        return treeCursor!!.count()
     }
 
-    @Override
-    public int count() {
-        checkTreeCursor();
-        return treeCursor.count();
+    override fun isMutable(): Boolean {
+        checkTreeCursor()
+        return treeCursor!!.isMutable
     }
 
-    @Override
-    public boolean isMutable() {
-        checkTreeCursor();
-        return treeCursor.isMutable();
-    }
-
-    @Override
-    public void close() {
+    override fun close() {
         if (!isClosed) {
-            isClosed = true;
+            isClosed = true
             if (treeCursor != null) {
-                treeCursor.close();
+                treeCursor!!.close()
             }
         }
     }
 
-    @Override
-    public boolean deleteCurrent() {
-        final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(this.txn,
-            "Can't delete a key/value pair of cursor in read-only transaction");
+    override fun deleteCurrent(): Boolean {
+        val txn: ReadWriteTransaction = EnvironmentImpl.throwIfReadonly(
+            txn,
+            "Can't delete a key/value pair of cursor in read-only transaction"
+        )
         if (treeCursor == null) {
-            treeCursor = txn.getMutableTree(store).openCursor();
+            treeCursor = txn.getMutableTree(store).openCursor()
         } else {
-            if (!treeCursor.isMutable()) {
-                final ByteIterable key = treeCursor.getKey();
-                final ByteIterable value = treeCursor.getValue();
-                final ITreeCursor newCursor = txn.getMutableTree(store).openCursor();
-                if (newCursor.getSearchBoth(key, value)) {
-                    treeCursor = newCursor; // navigated to same pair, ready to delete
+            if (!treeCursor!!.isMutable) {
+                val key = treeCursor!!.key
+                val value = treeCursor!!.value
+                val newCursor = txn.getMutableTree(store).openCursor()
+                treeCursor = if (newCursor.getSearchBoth(key, value)) {
+                    newCursor // navigated to same pair, ready to delete
                 } else {
-                    throw new ConcurrentModificationException(CANT_DELETE_MODIFIED_MSG);
+                    throw ConcurrentModificationException(CANT_DELETE_MODIFIED_MSG)
                 }
             }
         }
-        return treeCursor.deleteCurrent();
+        return treeCursor!!.deleteCurrent()
     }
 
-    private void checkTreeCursor() {
+    private fun checkTreeCursor() {
         if (treeCursor == null) {
-            treeCursor = txn.getTree(store).openCursor();
+            treeCursor = txn.getTree(store).openCursor()
         }
-        if (snapshotId != txn.getSnapshotId()) {
-            throw new ExodusException("Cursor holds an obsolete database snapshot. Check if txn.flush() or txn.commit() is called.");
+        if (snapshotId != txn.snapshotId) {
+            throw ExodusException("Cursor holds an obsolete database snapshot. Check if txn.flush() or txn.commit() is called.")
         }
+    }
+
+    companion object {
+        private const val CANT_DELETE_MODIFIED_MSG = "Can't delete (pair not found in mutable tree)"
     }
 }

@@ -19,7 +19,6 @@ import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.*
-import jetbrains.exodus.log.Loggable.NULL_ADDRESS
 import java.util.*
 
 internal val Byte.unsigned: Int get() = this.toInt() and 0xff
@@ -59,7 +58,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
         this.log = log
         this.loggable = loggable
 
-        var baseAddress = NULL_ADDRESS
+        var baseAddress = Loggable.NULL_ADDRESS
         if (PatriciaTreeBase.nodeHasChildren(type)) {
             val i = it.compressedUnsignedInt
             val childrenCount = i ushr 3
@@ -266,7 +265,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
         }
     }
 
-    private val v2Format: Boolean get() = baseAddress != NULL_ADDRESS
+    private val v2Format: Boolean get() = baseAddress != Loggable.NULL_ADDRESS
 
     // if specified byte is found the returns index of child, offset of suffixAddress and type of children format
     private fun getV2Child(b: Byte): SearchResult? {

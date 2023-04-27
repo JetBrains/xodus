@@ -13,60 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.ByteIterator;
-import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
-import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.util.LightOutputStream;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.ByteIterator
+import jetbrains.exodus.log.CompressedUnsignedLongByteIterable
+import jetbrains.exodus.log.Loggable
+import jetbrains.exodus.util.LightOutputStream
 
-public final class DatabaseRoot {
+class DatabaseRoot internal constructor(private val loggable: Loggable, it: ByteIterator) {
+    val rootAddress: Long
+    val lastStructureId: Int
+    val isValid: Boolean
 
-    public static final byte DATABASE_ROOT_TYPE = 1;
+    constructor(loggable: Loggable) : this(loggable, loggable.data.iterator())
 
-    private static final long MAGIC_DIFF = 199L;
-
-    @NotNull
-    private final Loggable loggable;
-    private final long rootAddress;
-    private final int lastStructureId;
-    private final boolean isValid;
-
-    public DatabaseRoot(@NotNull final Loggable loggable) {
-        this(loggable, loggable.getData().iterator());
-    }
-
-    DatabaseRoot(@NotNull final Loggable loggable, final ByteIterator it) {
-        this.loggable = loggable;
-        rootAddress = CompressedUnsignedLongByteIterable.getLong(it);
-        lastStructureId = CompressedUnsignedLongByteIterable.getInt(it);
+    init {
+        rootAddress = CompressedUnsignedLongByteIterable.getLong(it)
+        lastStructureId = CompressedUnsignedLongByteIterable.getInt(it)
         isValid = rootAddress ==
-                CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF;
+                CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF
     }
 
-    public long getAddress() {
-        return loggable.getAddress();
-    }
+    val address: Long
+        get() = loggable.address
 
-    long getRootAddress() {
-        return rootAddress;
-    }
-
-    int getLastStructureId() {
-        return lastStructureId;
-    }
-
-    public boolean isValid() {
-        return isValid;
-    }
-
-    static ByteIterable asByteIterable(final long rootAddress, final int lastStructureId) {
-        final LightOutputStream output = new LightOutputStream(20);
-        CompressedUnsignedLongByteIterable.fillBytes(rootAddress, output);
-        CompressedUnsignedLongByteIterable.fillBytes(lastStructureId, output);
-        CompressedUnsignedLongByteIterable.fillBytes(rootAddress + lastStructureId + MAGIC_DIFF, output);
-        return output.asArrayByteIterable();
+    companion object {
+        const val DATABASE_ROOT_TYPE: Byte = 1
+        private const val MAGIC_DIFF = 199L
+        fun asByteIterable(rootAddress: Long, lastStructureId: Int): ByteIterable {
+            val output = LightOutputStream(20)
+            CompressedUnsignedLongByteIterable.fillBytes(rootAddress, output)
+            CompressedUnsignedLongByteIterable.fillBytes(lastStructureId.toLong(), output)
+            CompressedUnsignedLongByteIterable.fillBytes(rootAddress + lastStructureId + MAGIC_DIFF, output)
+            return output.asArrayByteIterable()
+        }
     }
 }

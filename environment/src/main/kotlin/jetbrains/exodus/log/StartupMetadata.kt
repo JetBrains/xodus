@@ -13,300 +13,237 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.io.FileDataReader;
-import jetbrains.exodus.util.IOUtil;
-import org.jetbrains.annotations.Nullable;
+import jetbrains.exodus.ExodusException
+import jetbrains.exodus.io.FileDataReader
+import jetbrains.exodus.util.IOUtil.readFully
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+open class StartupMetadata protected constructor(
+    val isUseFirstFile: Boolean, @field:Volatile var rootAddress: Long,
+    val isCorrectlyClosed: Boolean, val pageSize: Int, val currentVersion: Long,
+    val environmentFormatVersion: Int,
+    val fileLengthBoundary: Long
+) {
 
-public class StartupMetadata {
-    static final int HASHCODE_OFFSET = 0;
-    static final int HASH_CODE_SIZE = Long.BYTES;
-
-    static final int FILE_VERSION_OFFSET = HASHCODE_OFFSET + HASH_CODE_SIZE;
-    static final int FILE_VERSION_BYTES = Long.BYTES;
-
-    static final int FORMAT_VERSION_OFFSET = FILE_VERSION_OFFSET + FILE_VERSION_BYTES;
-    static final int FORMAT_VERSION_BYTES = Integer.BYTES;
-
-    static final int ENVIRONMENT_FORMAT_VERSION_OFFSET = FORMAT_VERSION_OFFSET + FORMAT_VERSION_BYTES;
-    static final int ENVIRONMENT_FORMAT_VERSION_BYTES = Integer.BYTES;
-
-    static final int DB_ROOT_ADDRESS_OFFSET = ENVIRONMENT_FORMAT_VERSION_OFFSET + ENVIRONMENT_FORMAT_VERSION_BYTES;
-    static final int DB_ROOT_BYTES = Long.BYTES;
-
-    static final int PAGE_SIZE_OFFSET = DB_ROOT_ADDRESS_OFFSET + DB_ROOT_BYTES;
-    static final int PAGE_SIZE_BYTES = Integer.BYTES;
-
-    static final int FILE_LENGTH_BOUNDARY_OFFSET = PAGE_SIZE_OFFSET + PAGE_SIZE_BYTES;
-    static final int FILE_LENGTH_BOUNDARY_BYTES = Long.BYTES;
-
-    static final int CORRECTLY_CLOSED_FLAG_OFFSET = FILE_LENGTH_BOUNDARY_OFFSET + FILE_LENGTH_BOUNDARY_BYTES;
-    public static final int CLOSED_FLAG_BYTES = Byte.BYTES;
-
-    public static final int FILE_SIZE = CORRECTLY_CLOSED_FLAG_OFFSET + CLOSED_FLAG_BYTES;
-
-    public static final String FIRST_FILE_NAME = "startup-metadata-0";
-    public static final String SECOND_FILE_NAME = "startup-metadata-1";
-
-
-    static final int FORMAT_VERSION = 1;
-
-    private final boolean useFirstFile;
-
-    private volatile long rootAddress;
-    private final boolean isCorrectlyClosed;
-    private final int pageSize;
-    private final long currentVersion;
-
-    private final int environmentFormatVersion;
-    private final long fileLengthBoundary;
-
-    protected StartupMetadata(final boolean useFirstFile, final long rootAddress,
-                            final boolean isCorrectlyClosed, int pageSize, long currentVersion,
-                            int environmentFormatVersion,
-                            long fileLengthBoundary) {
-        this.useFirstFile = useFirstFile;
-        this.rootAddress = rootAddress;
-        this.isCorrectlyClosed = isCorrectlyClosed;
-        this.pageSize = pageSize;
-        this.currentVersion = currentVersion;
-        this.environmentFormatVersion = environmentFormatVersion;
-        this.fileLengthBoundary = fileLengthBoundary;
+    @Throws(IOException::class)
+    fun closeAndUpdate(reader: FileDataReader) {
+        val dbPath = Paths.get(reader.location)
+        val content = serialize(
+            currentVersion, environmentFormatVersion, rootAddress,
+            pageSize, fileLengthBoundary, true
+        )
+        store(content, dbPath, isUseFirstFile)
     }
 
-    public int getEnvironmentFormatVersion() {
-        return environmentFormatVersion;
-    }
+    companion object {
+        const val HASHCODE_OFFSET = 0
+        const val HASH_CODE_SIZE = java.lang.Long.BYTES
+        const val FILE_VERSION_OFFSET = HASHCODE_OFFSET + HASH_CODE_SIZE
+        private const val FILE_VERSION_BYTES = java.lang.Long.BYTES
+        const val FORMAT_VERSION_OFFSET = FILE_VERSION_OFFSET + FILE_VERSION_BYTES
+        private const val FORMAT_VERSION_BYTES = Integer.BYTES
+        const val ENVIRONMENT_FORMAT_VERSION_OFFSET = FORMAT_VERSION_OFFSET + FORMAT_VERSION_BYTES
+        private const val ENVIRONMENT_FORMAT_VERSION_BYTES = Integer.BYTES
+        const val DB_ROOT_ADDRESS_OFFSET = ENVIRONMENT_FORMAT_VERSION_OFFSET + ENVIRONMENT_FORMAT_VERSION_BYTES
+        private const val DB_ROOT_BYTES = java.lang.Long.BYTES
+        const val PAGE_SIZE_OFFSET = DB_ROOT_ADDRESS_OFFSET + DB_ROOT_BYTES
+        private const val PAGE_SIZE_BYTES = Integer.BYTES
+        const val FILE_LENGTH_BOUNDARY_OFFSET = PAGE_SIZE_OFFSET + PAGE_SIZE_BYTES
+        private const val FILE_LENGTH_BOUNDARY_BYTES = java.lang.Long.BYTES
+        const val CORRECTLY_CLOSED_FLAG_OFFSET = FILE_LENGTH_BOUNDARY_OFFSET + FILE_LENGTH_BOUNDARY_BYTES
+        private const val CLOSED_FLAG_BYTES = java.lang.Byte.BYTES
+        const val FILE_SIZE = CORRECTLY_CLOSED_FLAG_OFFSET + CLOSED_FLAG_BYTES
+        const val FIRST_FILE_NAME = "startup-metadata-0"
+        const val SECOND_FILE_NAME = "startup-metadata-1"
+        const val FORMAT_VERSION = 1
 
-    public long getFileLengthBoundary() {
-        return fileLengthBoundary;
-    }
-
-    public long getRootAddress() {
-        return rootAddress;
-    }
-
-    public void setRootAddress(long rootAddress) {
-        this.rootAddress = rootAddress;
-    }
-
-    public boolean isCorrectlyClosed() {
-        return isCorrectlyClosed;
-    }
-
-    public int getPageSize() {
-        return pageSize;
-    }
-
-    public long getCurrentVersion() {
-        return currentVersion;
-    }
-
-    public boolean isUseFirstFile() {
-        return useFirstFile;
-    }
-
-    public void closeAndUpdate(final FileDataReader reader) throws IOException {
-        final Path dbPath = Paths.get(reader.getLocation());
-        final ByteBuffer content = serialize(currentVersion, environmentFormatVersion, rootAddress,
-                pageSize, fileLengthBoundary, true);
-        store(content, dbPath, useFirstFile);
-    }
-
-    public static @Nullable StartupMetadata open(final FileDataReader reader,
-                                                 final boolean isReadOnly, final int pageSize,
-                                                 final int environmentFormatVersion,
-                                                 final long fileLengthBoundary,
-                                                 final boolean logContainsBlocks) throws IOException {
-        final Path dbPath = Paths.get(reader.getLocation());
-        final Path firstFilePath = dbPath.resolve(FIRST_FILE_NAME);
-        final Path secondFilePath = dbPath.resolve(SECOND_FILE_NAME);
-
-        long firstFileVersion;
-        long secondFileVersion;
-
-        final ByteBuffer firstFileContent;
-        final ByteBuffer secondFileContent;
-
-        @SuppressWarnings("DuplicatedCode") final boolean firstFileExist = Files.exists(firstFilePath);
-
-        if (firstFileExist) {
-            try (final FileChannel channel = FileChannel.open(firstFilePath, StandardOpenOption.READ)) {
-                firstFileContent = IOUtil.readFully(channel);
+        @Throws(IOException::class)
+        fun open(
+            reader: FileDataReader,
+            isReadOnly: Boolean, pageSize: Int,
+            environmentFormatVersion: Int,
+            fileLengthBoundary: Long,
+            logContainsBlocks: Boolean
+        ): StartupMetadata? {
+            val dbPath = Paths.get(reader.location)
+            val firstFilePath = dbPath.resolve(FIRST_FILE_NAME)
+            val secondFilePath = dbPath.resolve(SECOND_FILE_NAME)
+            val firstFileVersion: Long
+            val secondFileVersion: Long
+            val firstFileContent: ByteBuffer?
+            val secondFileContent: ByteBuffer?
+            val firstFileExist = Files.exists(firstFilePath)
+            if (firstFileExist) {
+                FileChannel.open(firstFilePath, StandardOpenOption.READ)
+                    .use { channel -> firstFileContent = readFully(channel) }
+                firstFileVersion = getFileVersion(firstFileContent)
+            } else {
+                firstFileVersion = -1
+                firstFileContent = null
             }
-
-            firstFileVersion = getFileVersion(firstFileContent);
-        } else {
-            firstFileVersion = -1;
-            firstFileContent = null;
-        }
-
-        final boolean secondFileExist = Files.exists(secondFilePath);
-        if (secondFileExist) {
-            try (final FileChannel channel = FileChannel.open(secondFilePath, StandardOpenOption.READ)) {
-                secondFileContent = IOUtil.readFully(channel);
+            val secondFileExist = Files.exists(secondFilePath)
+            if (secondFileExist) {
+                FileChannel.open(secondFilePath, StandardOpenOption.READ)
+                    .use { channel -> secondFileContent = readFully(channel) }
+                secondFileVersion = getFileVersion(secondFileContent)
+            } else {
+                secondFileVersion = -1
+                secondFileContent = null
             }
-
-            secondFileVersion = getFileVersion(secondFileContent);
-        } else {
-            secondFileVersion = -1;
-            secondFileContent = null;
-        }
-
-        if (firstFileVersion < 0 && firstFileExist && !isReadOnly) {
-            Files.deleteIfExists(firstFilePath);
-        }
-
-        if (secondFileVersion < 0 && secondFileExist && !isReadOnly) {
-            Files.deleteIfExists(secondFilePath);
-        }
-
-        final ByteBuffer content;
-        final long nextVersion;
-        final boolean useFirstFile;
-
-        if (firstFileVersion < secondFileVersion) {
-            if (firstFileExist && !isReadOnly) {
-                Files.deleteIfExists(firstFilePath);
+            if (firstFileVersion < 0 && firstFileExist && !isReadOnly) {
+                Files.deleteIfExists(firstFilePath)
             }
-
-            nextVersion = secondFileVersion + 1;
-            content = secondFileContent;
-            useFirstFile = true;
-        } else if (secondFileVersion < firstFileVersion) {
-            if (secondFileExist && !isReadOnly) {
-                Files.deleteIfExists(secondFilePath);
+            if (secondFileVersion < 0 && secondFileExist && !isReadOnly) {
+                Files.deleteIfExists(secondFilePath)
             }
-
-            nextVersion = firstFileVersion + 1;
-            content = firstFileContent;
-            useFirstFile = false;
-        } else {
-            content = null;
-            nextVersion = 0;
-            useFirstFile = true;
-        }
-
-        if (content == null) {
-            if (!logContainsBlocks) {
-                final ByteBuffer updatedMetadata = serialize(1, environmentFormatVersion, -1,
-                        pageSize, fileLengthBoundary, false);
-                store(updatedMetadata, dbPath, useFirstFile);
+            val content: ByteBuffer?
+            val nextVersion: Long
+            val useFirstFile: Boolean
+            if (firstFileVersion < secondFileVersion) {
+                if (firstFileExist && !isReadOnly) {
+                    Files.deleteIfExists(firstFilePath)
+                }
+                nextVersion = secondFileVersion + 1
+                content = secondFileContent
+                useFirstFile = true
+            } else if (secondFileVersion < firstFileVersion) {
+                if (secondFileExist && !isReadOnly) {
+                    Files.deleteIfExists(secondFilePath)
+                }
+                nextVersion = firstFileVersion + 1
+                content = firstFileContent
+                useFirstFile = false
+            } else {
+                content = null
+                nextVersion = 0
+                useFirstFile = true
             }
-
-            return null;
+            if (content == null) {
+                if (!logContainsBlocks) {
+                    val updatedMetadata = serialize(
+                        1, environmentFormatVersion, -1,
+                        pageSize, fileLengthBoundary, false
+                    )
+                    store(updatedMetadata, dbPath, useFirstFile)
+                }
+                return null
+            }
+            val result = deserialize(content, nextVersion + 1, !useFirstFile)
+            if (!isReadOnly) {
+                val updatedMetadata = serialize(
+                    nextVersion, result.environmentFormatVersion, -1,
+                    result.pageSize, result.fileLengthBoundary, false
+                )
+                store(updatedMetadata, dbPath, useFirstFile)
+            }
+            return result
         }
 
-        final StartupMetadata result = deserialize(content, nextVersion + 1, !useFirstFile);
-
-        if (!isReadOnly) {
-            final ByteBuffer updatedMetadata = serialize(nextVersion, result.environmentFormatVersion, -1,
-                    result.pageSize, result.fileLengthBoundary, false);
-            store(updatedMetadata, dbPath, useFirstFile);
-        }
-
-        return result;
-    }
-
-    public static StartupMetadata createStub(int pageSize, final boolean isCorrectlyClosed,
-                                             final int environmentFormatVersion, final long fileLengthBoundary) {
-        return new StartupMetadata(false, -1, isCorrectlyClosed,
+        fun createStub(
+            pageSize: Int, isCorrectlyClosed: Boolean,
+            environmentFormatVersion: Int, fileLengthBoundary: Long
+        ): StartupMetadata {
+            return StartupMetadata(
+                false, -1, isCorrectlyClosed,
                 pageSize, 1,
-                environmentFormatVersion, fileLengthBoundary);
-    }
-
-
-    private static void store(ByteBuffer content, final Path dbPath, final boolean useFirstFile) throws IOException {
-        final Path filePath;
-
-        if (useFirstFile) {
-            filePath = dbPath.resolve(FIRST_FILE_NAME);
-        } else {
-            filePath = dbPath.resolve(SECOND_FILE_NAME);
+                environmentFormatVersion, fileLengthBoundary
+            )
         }
 
-        try (final FileChannel channel = FileChannel.open(filePath, StandardOpenOption.WRITE,
-                StandardOpenOption.CREATE_NEW)) {
-            while (content.remaining() > 0) {
-                //noinspection ResultOfMethodCallIgnored
-                channel.write(content);
+        @Throws(IOException::class)
+        private fun store(content: ByteBuffer, dbPath: Path, useFirstFile: Boolean) {
+            val filePath: Path = if (useFirstFile) {
+                dbPath.resolve(FIRST_FILE_NAME)
+            } else {
+                dbPath.resolve(SECOND_FILE_NAME)
             }
-            channel.force(true);
+            FileChannel.open(
+                filePath, StandardOpenOption.WRITE,
+                StandardOpenOption.CREATE_NEW
+            ).use { channel ->
+                while (content.remaining() > 0) {
+                    channel.write(content)
+                }
+                channel.force(true)
+            }
+            if (useFirstFile) {
+                Files.deleteIfExists(dbPath.resolve(SECOND_FILE_NAME))
+            } else {
+                Files.deleteIfExists(dbPath.resolve(FIRST_FILE_NAME))
+            }
         }
 
-        if (useFirstFile) {
-            Files.deleteIfExists(dbPath.resolve(SECOND_FILE_NAME));
-        } else {
-            Files.deleteIfExists(dbPath.resolve(FIRST_FILE_NAME));
-        }
-    }
 
-    public static long getFileVersion(ByteBuffer content) {
-        if (content.remaining() != FILE_SIZE) {
-            return -1;
-        }
-
-        final long hash = BufferedDataWriter.xxHash.hash(content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
-                BufferedDataWriter.XX_HASH_SEED);
-
-        if (hash != content.getLong(HASHCODE_OFFSET)) {
-            return -1;
+        @JvmStatic
+        fun getFileVersion(content: ByteBuffer?): Long {
+            if (content!!.remaining() != FILE_SIZE) {
+                return -1
+            }
+            val hash: Long = BufferedDataWriter.xxHash.hash(
+                content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
+                BufferedDataWriter.XX_HASH_SEED
+            )
+            return if (hash != content.getLong(HASHCODE_OFFSET)) {
+                -1
+            } else content.getInt(FORMAT_VERSION_OFFSET).toLong()
         }
 
-        return content.getInt(FORMAT_VERSION_OFFSET);
-    }
 
-    public static StartupMetadata deserialize(ByteBuffer content, long version, boolean useFirstFile) {
-        final int formatVersion = content.getInt(FORMAT_VERSION_OFFSET);
-
-        if (formatVersion != FORMAT_VERSION) {
-            throw new ExodusException("Invalid format of startup metadata. { expected : " + FORMAT_VERSION +
-                    ", actual: " + formatVersion + "}");
+        fun serialize(
+            version: Long, environmentFormatVersion: Int,
+            rootAddress: Long, pageSize: Int,
+            fileLengthBoundary: Long,
+            correctlyClosedFlag: Boolean
+        ): ByteBuffer {
+            val content = ByteBuffer.allocate(FILE_SIZE)
+            content.putLong(FILE_VERSION_OFFSET, version)
+            content.putInt(FORMAT_VERSION_OFFSET, FORMAT_VERSION)
+            content.putInt(ENVIRONMENT_FORMAT_VERSION_OFFSET, environmentFormatVersion)
+            content.putLong(DB_ROOT_ADDRESS_OFFSET, rootAddress)
+            content.putInt(PAGE_SIZE_OFFSET, pageSize)
+            content.putLong(FILE_LENGTH_BOUNDARY_OFFSET, fileLengthBoundary)
+            content.put(CORRECTLY_CLOSED_FLAG_OFFSET, if (correctlyClosedFlag) 1.toByte() else 0)
+            val hash: Long = BufferedDataWriter.xxHash.hash(
+                content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
+                BufferedDataWriter.XX_HASH_SEED
+            )
+            content.putLong(HASHCODE_OFFSET, hash)
+            return content
         }
 
-        final int environmentFormatVersion = content.getInt(ENVIRONMENT_FORMAT_VERSION_OFFSET);
-        final long dbRootAddress = content.getLong(DB_ROOT_ADDRESS_OFFSET);
-        final int pageSize = content.getInt(PAGE_SIZE_OFFSET);
-        final long fileLengthBoundary = content.getLong(FILE_LENGTH_BOUNDARY_OFFSET);
-        final boolean closedFlag = content.get(CORRECTLY_CLOSED_FLAG_OFFSET) > 0;
-
-        return new StartupMetadata(useFirstFile, dbRootAddress, closedFlag, pageSize, version,
+        @JvmStatic
+        fun deserialize(content: ByteBuffer, version: Long, useFirstFile: Boolean): StartupMetadata {
+            val formatVersion = content.getInt(FORMAT_VERSION_OFFSET)
+            if (formatVersion != FORMAT_VERSION) {
+                throw ExodusException(
+                    "Invalid format of startup metadata. { expected : " + FORMAT_VERSION +
+                            ", actual: " + formatVersion + "}"
+                )
+            }
+            val environmentFormatVersion = content.getInt(ENVIRONMENT_FORMAT_VERSION_OFFSET)
+            val dbRootAddress = content.getLong(DB_ROOT_ADDRESS_OFFSET)
+            val pageSize = content.getInt(PAGE_SIZE_OFFSET)
+            val fileLengthBoundary = content.getLong(FILE_LENGTH_BOUNDARY_OFFSET)
+            val closedFlag = content[CORRECTLY_CLOSED_FLAG_OFFSET] > 0
+            return StartupMetadata(
+                useFirstFile, dbRootAddress, closedFlag, pageSize, version,
                 environmentFormatVersion,
-                fileLengthBoundary);
-    }
+                fileLengthBoundary
+            )
+        }
 
-    public static ByteBuffer serialize(final long version, final int environmentFormatVersion,
-                                       final long rootAddress, final int pageSize,
-                                       final long fileLengthBoundary,
-                                       final boolean correctlyClosedFlag) {
-        final ByteBuffer content = ByteBuffer.allocate(FILE_SIZE);
-
-        content.putLong(FILE_VERSION_OFFSET, version);
-        content.putInt(FORMAT_VERSION_OFFSET, FORMAT_VERSION);
-        content.putInt(ENVIRONMENT_FORMAT_VERSION_OFFSET, environmentFormatVersion);
-        content.putLong(DB_ROOT_ADDRESS_OFFSET, rootAddress);
-        content.putInt(PAGE_SIZE_OFFSET, pageSize);
-        content.putLong(FILE_LENGTH_BOUNDARY_OFFSET, fileLengthBoundary);
-        content.put(CORRECTLY_CLOSED_FLAG_OFFSET, correctlyClosedFlag ? (byte) 1 : 0);
-
-        final long hash = BufferedDataWriter.xxHash.hash(content, FILE_VERSION_OFFSET, FILE_SIZE - HASH_CODE_SIZE,
-                BufferedDataWriter.XX_HASH_SEED);
-        content.putLong(HASHCODE_OFFSET, hash);
-
-        return content;
-    }
-
-    public static boolean isStartupFileName(String name) {
-        return FIRST_FILE_NAME.equals(name) || SECOND_FILE_NAME.equals(name);
+        @JvmStatic
+        fun isStartupFileName(name: String): Boolean {
+            return FIRST_FILE_NAME == name || SECOND_FILE_NAME == name
+        }
     }
 }
+

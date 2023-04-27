@@ -13,177 +13,142 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env;
+package jetbrains.exodus.env
 
-import jetbrains.exodus.backup.BackupStrategy;
-import jetbrains.exodus.backup.FileDescriptorInputStream;
-import jetbrains.exodus.backup.VirtualFileDescriptor;
-import jetbrains.exodus.log.DataCorruptionException;
-import jetbrains.exodus.log.LogUtil;
-import jetbrains.exodus.log.StartupMetadata;
-import jetbrains.exodus.util.IOUtil;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.backup.BackupStrategy
+import jetbrains.exodus.backup.FileDescriptorInputStream
+import jetbrains.exodus.backup.VirtualFileDescriptor
+import jetbrains.exodus.log.DataCorruptionException
+import jetbrains.exodus.log.LogUtil
+import jetbrains.exodus.log.StartupMetadata
+import jetbrains.exodus.util.IOUtil.listFiles
+import java.io.*
 
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+internal class EnvironmentBackupStrategyImpl(private val environment: EnvironmentImpl) : BackupStrategy() {
+    private var highAddress: Long = 0
+    private var fileLastAddress: Long = 0
+    private var fileLengthBound: Long = 0
+    private var rootAddress: Long = 0
+    private val pageSize = environment.environmentConfig.logCachePageSize
+    private var startupMetadataWasSent = false
 
-class EnvironmentBackupStrategyImpl extends BackupStrategy {
-    @NotNull
-    private final EnvironmentImpl environment;
-
-    private long highAddress;
-    private long fileLastAddress;
-    private long fileLengthBound;
-    private long rootAddress;
-    private final int pageSize;
-    private boolean startupMetadataWasSent;
-
-    public EnvironmentBackupStrategyImpl(@NotNull EnvironmentImpl environment) {
-        this.environment = environment;
-        pageSize = environment.getEnvironmentConfig().getLogCachePageSize();
+    override fun beforeBackup() {
+        environment.suspendGC()
+        val highAndRootAddress = environment.flushSyncAndFillPagesWithNulls()
+        highAddress = highAndRootAddress[0]
+        rootAddress = highAndRootAddress[1]
+        fileLengthBound = environment.log.fileLengthBound
+        fileLastAddress = highAddress / fileLengthBound * fileLengthBound
     }
 
-
-    @Override
-    public void beforeBackup() {
-        environment.suspendGC();
-
-        final long[] highAndRootAddress = environment.flushSyncAndFillPagesWithNulls();
-
-        highAddress = highAndRootAddress[0];
-        rootAddress = highAndRootAddress[1];
-
-        fileLengthBound = environment.getLog().getFileLengthBound();
-        fileLastAddress = (highAddress / fileLengthBound) * fileLengthBound;
-    }
-
-    @Override
-    public Iterable<VirtualFileDescriptor> getContents() {
-        environment.flushAndSync();
-
-        return new Iterable<>() {
-            private final File[] files = IOUtil.listFiles(new File(environment.getLocation()));
-            private int i = 0;
-            private VirtualFileDescriptor next;
-
-            @NotNull
-            @Override
-            public Iterator<VirtualFileDescriptor> iterator() {
-                return new Iterator<>() {
-                    @Override
-                    public boolean hasNext() {
+    override fun getContents(): Iterable<VirtualFileDescriptor> {
+        environment.flushAndSync()
+        return object : Iterable<VirtualFileDescriptor> {
+            private val files = listFiles(File(environment.location))
+            private var i = 0
+            private var next: VirtualFileDescriptor? = null
+            override fun iterator(): Iterator<VirtualFileDescriptor> {
+                return object : MutableIterator<VirtualFileDescriptor> {
+                    override fun hasNext(): Boolean {
                         if (next != null) {
-                            return true;
+                            return true
                         }
-
-                        while (i < files.length) {
-                            final File file = files[i++];
-
-                            if (file.isFile()) {
-                                final long fileSize = file.length();
-                                final String logFileName = file.getName();
-
-                                if (fileSize != 0 && logFileName.endsWith(LogUtil.LOG_FILE_EXTENSION)) {
-                                    final long fileAddress = LogUtil.getAddress(file.getName());
-
+                        while (i < files.size) {
+                            val file = files[i++]
+                            if (file.isFile) {
+                                val fileSize = file.length()
+                                val logFileName = file.name
+                                if (fileSize != 0L && logFileName.endsWith(LogUtil.LOG_FILE_EXTENSION)) {
+                                    val fileAddress = LogUtil.getAddress(file.name)
                                     if (fileLastAddress < fileAddress) {
-                                        break;
+                                        break
                                     }
-
                                     if (fileLastAddress > fileAddress && fileSize < fileLengthBound) {
-                                        DataCorruptionException.raise("Size of the file is less than expected. {expected : " +
-                                                        fileLengthBound + ", actual : " + fileSize + " }",
-                                                environment.getLog(), fileAddress);
+                                        DataCorruptionException.raise(
+                                            "Size of the file is less than expected. {expected : " +
+                                                    fileLengthBound + ", actual : " + fileSize + " }",
+                                            environment.log, fileAddress
+                                        )
                                     }
-
-                                    final long updatedFileSize = Math.min(fileSize, highAddress - fileAddress);
-                                    next = new FileDescriptor(file, "", updatedFileSize) {
-                                        @Override
-                                        public @NotNull InputStream getInputStream() throws IOException {
-                                            return new FileDescriptorInputStream(new FileInputStream(file),
-                                                    fileAddress, pageSize, getFileSize(),
-                                                    highAddress - fileAddress,
-                                                    environment.getLog(), environment.getCipherProvider(),
-                                                    environment.getCipherKey(), environment.getCipherBasicIV());
+                                    val updatedFileSize = fileSize.coerceAtMost(highAddress - fileAddress)
+                                    next = object : FileDescriptor(file, "", updatedFileSize) {
+                                        @Throws(IOException::class)
+                                        override fun getInputStream(): InputStream {
+                                            return FileDescriptorInputStream(
+                                                FileInputStream(file),
+                                                fileAddress, pageSize, getFileSize(),
+                                                highAddress - fileAddress,
+                                                environment.log, environment.cipherProvider,
+                                                environment.cipherKey, environment.cipherBasicIV
+                                            )
                                         }
-                                    };
-
-                                    return true;
+                                    }
+                                    return true
                                 }
                             }
                         }
-
                         if (!startupMetadataWasSent) {
-                            startupMetadataWasSent = true;
-
-                            final ByteBuffer metadataContent =
-                                    StartupMetadata.serialize(0, environment.getCurrentFormatVersion(), rootAddress,
-                                            environment.getLog().getCachePageSize(),
-                                            environment.getLog().getFileLengthBound(),
-                                            true);
-
-                            next = new FileDescriptor(new File(StartupMetadata.FIRST_FILE_NAME),
-                                    "", metadataContent.remaining()) {
-                                @Override
-                                public @NotNull InputStream getInputStream() {
-                                    return new ByteArrayInputStream(metadataContent.array(),
-                                            metadataContent.arrayOffset(), metadataContent.remaining());
+                            startupMetadataWasSent = true
+                            val metadataContent = StartupMetadata.serialize(
+                                0, EnvironmentImpl.CURRENT_FORMAT_VERSION, rootAddress,
+                                environment.log.cachePageSize,
+                                environment.log.fileLengthBound,
+                                true
+                            )
+                            next = object : FileDescriptor(
+                                File(StartupMetadata.FIRST_FILE_NAME),
+                                "", metadataContent.remaining().toLong()
+                            ) {
+                                override fun getInputStream(): InputStream {
+                                    return ByteArrayInputStream(
+                                        metadataContent.array(),
+                                        metadataContent.arrayOffset(), metadataContent.remaining()
+                                    )
                                 }
 
-                                @Override
-                                public boolean shouldCloseStream() {
-                                    return false;
+                                override fun shouldCloseStream(): Boolean {
+                                    return false
                                 }
 
-                                @Override
-                                public boolean hasContent() {
-                                    return true;
+                                override fun hasContent(): Boolean {
+                                    return true
                                 }
 
-                                @Override
-                                public long getTimeStamp() {
-                                    return System.currentTimeMillis();
+                                override fun getTimeStamp(): Long {
+                                    return System.currentTimeMillis()
                                 }
 
-                                @Override
-                                public boolean canBeEncrypted() {
-                                    return false;
+                                override fun canBeEncrypted(): Boolean {
+                                    return false
                                 }
-                            };
-                            return true;
+                            }
+                            return true
                         }
-
-                        return false;
+                        return false
                     }
 
-                    @Override
-                    public VirtualFileDescriptor next() {
+                    override fun next(): VirtualFileDescriptor {
                         if (!hasNext()) {
-                            throw new NoSuchElementException();
+                            throw NoSuchElementException()
                         }
-                        final VirtualFileDescriptor result = next;
-                        next = null;
-                        return result;
+                        val result = next
+                        next = null
+                        return result!!
                     }
 
-                    @Override
-                    public void remove() {
-                        throw new UnsupportedOperationException();
+                    override fun remove() {
+                        throw UnsupportedOperationException()
                     }
-                };
+                }
             }
-        };
+        }
     }
 
-    @Override
-    public boolean isEncrypted() {
-        return environment.getEnvironmentConfig().getCipherKey() != null;
+    override fun isEncrypted(): Boolean {
+        return environment.environmentConfig.cipherKey != null
     }
 
-    @Override
-    public void afterBackup() {
-        environment.resumeGC();
+    override fun afterBackup() {
+        environment.resumeGC()
     }
 }

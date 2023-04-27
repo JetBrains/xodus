@@ -13,28 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ByteIterable;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.*
 
-public final class NullLoggable {
-    public static final byte TYPE = 0;
-
-    public static SinglePageLoggable create(final long startAddress, final long endAddress) {
-        return new SinglePageLoggable(startAddress, endAddress, TYPE, Loggable.NO_STRUCTURE_ID,
-                Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES, 0, 0);
+object NullLoggable {
+    const val TYPE: Byte = 0
+    fun create(startAddress: Long, endAddress: Long): SinglePageLoggable {
+        return SinglePageLoggable(
+            startAddress, endAddress, TYPE, Loggable.NO_STRUCTURE_ID,
+            Loggable.NULL_ADDRESS, ByteIterable.EMPTY_BYTES, 0, 0
+        )
     }
 
-    public static SinglePageLoggable create() {
-        return SinglePageLoggable.NULL_PROTOTYPE;
+    @JvmStatic
+    fun create(): SinglePageLoggable {
+        return SinglePageLoggable.NULL_PROTOTYPE
     }
 
-    public static boolean isNullLoggable(final byte type) {
-        return type == TYPE;
+    @JvmStatic
+    fun isNullLoggable(type: Byte): Boolean {
+        return type == TYPE
     }
 
-    public static boolean isNullLoggable(@NotNull final Loggable loggable) {
-        return isNullLoggable(loggable.getType());
+    fun isNullLoggable(loggable: Loggable): Boolean {
+        return isNullLoggable(loggable.type)
     }
 }

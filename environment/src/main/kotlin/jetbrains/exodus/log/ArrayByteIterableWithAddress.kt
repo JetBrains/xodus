@@ -13,150 +13,118 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ArrayByteIterable;
-import jetbrains.exodus.bindings.LongBinding;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.bindings.LongBinding
 
-import java.util.NoSuchElementException;
+class ArrayByteIterableWithAddress(
+    override val dataAddress: Long, bytes: ByteArray,
+    start: Int, length: Int
+) : ArrayByteIterable(bytes, start, length), ByteIterableWithAddress {
 
-final class ArrayByteIterableWithAddress extends ArrayByteIterable implements ByteIterableWithAddress {
-
-    private final long address;
-
-    ArrayByteIterableWithAddress(final long address, final byte @NotNull [] bytes,
-                                 final int start, final int length) {
-        super(bytes, start, length);
-        this.address = address;
-    }
-
-    @Override
-    public long getDataAddress() {
-        return address;
-    }
-
-    @Override
-    public long nextLong(final int offset, final int length) {
-        final int start = this.offset + offset;
-        final int end = start + length;
-
-        long result = 0;
-        for (int i = start; i < end; ++i) {
-            result = (result << 8) + ((int) bytes[i] & 0xff);
+    override fun nextLong(offset: Int, length: Int): Long {
+        val start = this.offset + offset
+        val end = start + length
+        var result: Long = 0
+        for (i in start until end) {
+            result = (result shl 8) + (bytes[i].toInt() and 0xff)
         }
-
-        return result;
+        return result
     }
 
-    @Override
-    public int getCompressedUnsignedInt() {
-        int result = 0;
-        int shift = 0;
-        for (int i = offset; ; ++i) {
-            final byte b = bytes[i];
-            result += (b & 0x7f) << shift;
-            if ((b & 0x80) != 0) {
-                return result;
-            }
-            shift += 7;
-        }
-    }
-
-    @Override
-    public ArrayByteIteratorWithAddress iterator() {
-        return new ArrayByteIteratorWithAddress(bytes, this.offset, length);
-    }
-
-    @Override
-    public ArrayByteIteratorWithAddress iterator(final int offset) {
-        return new ArrayByteIteratorWithAddress(bytes,
-                this.offset + offset, length - offset);
-    }
-
-
-    @Override
-    public ArrayByteIterableWithAddress cloneWithOffset(int offset) {
-        return new ArrayByteIterableWithAddress(address + offset, bytes,
-                this.offset + offset, length - offset);
-    }
-
-    @Override
-    public ArrayByteIterableWithAddress cloneWithAddressAndLength(long address, int length) {
-        final int offset = (int) (address - this.address);
-        return new ArrayByteIterableWithAddress(address, bytes,
-                this.offset + offset, length);
-    }
-
-    private final class ArrayByteIteratorWithAddress extends Iterator implements ByteIteratorWithAddress {
-        ArrayByteIteratorWithAddress(final byte[] bytes, final int offset, final int length) {
-            super(bytes, offset, length);
-        }
-
-        @Override
-        public int available() {
-            return end - offset;
-        }
-
-        @Override
-        public long getAddress() {
-            return ArrayByteIterableWithAddress.this.address + offset - ArrayByteIterableWithAddress.this.offset;
-        }
-
-        @Override
-        public int getOffset() {
-            return offset;
-        }
-
-        @Override
-        public long nextLong(final int length) {
-            final long result = LongBinding.entryToUnsignedLong(bytes, offset, length);
-            offset += length;
-            return result;
-        }
-
-        @Override
-        public int getCompressedUnsignedInt() {
-            if (offset == end) {
-                throw new NoSuchElementException();
-            }
-
-            int result = 0;
-            int shift = 0;
-            do {
-                final byte b = bytes[offset++];
-                result += (b & 0x7f) << shift;
-                if ((b & 0x80) != 0) {
-                    return result;
+    override val compressedUnsignedInt: Int
+        get() {
+            var result = 0
+            var shift = 0
+            var i = offset
+            while (true) {
+                val b = bytes[i]
+                result += b.toInt() and 0x7f shl shift
+                if (b.toInt() and 0x80 != 0) {
+                    return result
                 }
-                shift += 7;
-            } while (offset < end);
-
-            throw new NoSuchElementException();
-        }
-
-        @Override
-        public long getCompressedUnsignedLong() {
-            if (offset == end) {
-                throw new NoSuchElementException();
+                shift += 7
+                ++i
             }
-
-            long result = 0;
-            int shift = 0;
-            do {
-                final byte b = bytes[offset++];
-
-                result += (long) (b & 0x7f) << shift;
-                if ((b & 0x80) != 0) {
-                    return result;
-                }
-
-                shift += 7;
-            } while (offset < end);
-
-            throw new NoSuchElementException();
         }
+
+    override fun iterator(): ArrayByteIteratorWithAddress {
+        return ArrayByteIteratorWithAddress(bytes, offset, length)
     }
 
+    override fun iterator(offset: Int): ArrayByteIteratorWithAddress {
+        return ArrayByteIteratorWithAddress(
+            bytes,
+            this.offset + offset, length - offset
+        )
+    }
 
+    override fun cloneWithOffset(offset: Int): ArrayByteIterableWithAddress {
+        return ArrayByteIterableWithAddress(
+            dataAddress + offset, bytes,
+            this.offset + offset, length - offset
+        )
+    }
+
+    override fun cloneWithAddressAndLength(address: Long, length: Int): ArrayByteIterableWithAddress {
+        val offset = (address - dataAddress).toInt()
+        return ArrayByteIterableWithAddress(
+            address, bytes,
+            this.offset + offset, length
+        )
+    }
+
+    inner class ArrayByteIteratorWithAddress internal constructor(bytes: ByteArray?, offset: Int, length: Int) :
+        Iterator(bytes, offset, length), ByteIteratorWithAddress {
+        override val address: Long
+            get() = dataAddress + super.offset - this@ArrayByteIterableWithAddress.offset
+        override val offset: Int
+            get() = super.offset
+
+        override fun available(): Int {
+            return end - super.offset
+        }
+
+        override fun nextLong(length: Int): Long {
+            val result = LongBinding.entryToUnsignedLong(bytes, super.offset, length)
+            super.offset += length
+            return result
+        }
+
+        override val compressedUnsignedInt: Int
+            get() {
+                if (super.offset == end) {
+                    throw NoSuchElementException()
+                }
+                var result = 0
+                var shift = 0
+                do {
+                    val b = bytes[super.offset++]
+                    result += b.toInt() and 0x7f shl shift
+                    if (b.toInt() and 0x80 != 0) {
+                        return result
+                    }
+                    shift += 7
+                } while (super.offset < end)
+                throw NoSuchElementException()
+            }
+        override val compressedUnsignedLong: Long
+            get() {
+                if (super.offset == end) {
+                    throw NoSuchElementException()
+                }
+                var result: Long = 0
+                var shift = 0
+                do {
+                    val b = bytes[super.offset++]
+                    result += (b.toInt() and 0x7f).toLong() shl shift
+                    if (b.toInt() and 0x80 != 0) {
+                        return result
+                    }
+                    shift += 7
+                } while (super.offset < end)
+                throw NoSuchElementException()
+            }
+    }
 }

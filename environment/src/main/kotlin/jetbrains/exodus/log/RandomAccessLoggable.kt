@@ -13,13 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import org.jetbrains.annotations.NotNull;
-
-public interface RandomAccessLoggable extends Loggable {
-
-    @NotNull
-    @Override
-    ByteIterableWithAddress getData();
+interface RandomAccessLoggable : Loggable {
+    override val data: ByteIterableWithAddress
 }

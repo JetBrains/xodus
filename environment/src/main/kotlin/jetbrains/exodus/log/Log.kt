@@ -60,10 +60,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     var isClosing: Boolean = false
         private set
 
-    private var identity: Int = 0
+    override var identity: Int = 0
+        private set
 
-    private val reader: DataReader = config.reader
-    private val dataWriter: DataWriter = config.writer
+    private val reader: DataReader = config.getReader()!!
+    private val dataWriter: DataWriter = config.getWriter()!!
 
     private val writer: BufferedDataWriter
     private var writeThread: Thread? = null
@@ -166,12 +167,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             val logContainsBlocks = reader.blocks.iterator().hasNext()
             val metadata = if (reader is FileDataReader) {
                 StartupMetadata.open(
-                    reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion,
+                    reader, rwIsReadonly, config.getCachePageSize(), expectedEnvironmentVersion,
                     fileLength, logContainsBlocks
                 )
             } else {
                 StartupMetadata.createStub(
-                    config.cachePageSize, !logContainsBlocks,
+                    config.getCachePageSize(), !logContainsBlocks,
                     expectedEnvironmentVersion, fileLength
                 )
             }
@@ -182,7 +183,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 startupMetadata = metadata
             } else {
                 startupMetadata = StartupMetadata.createStub(
-                    config.cachePageSize, !logContainsBlocks, expectedEnvironmentVersion,
+                    config.getCachePageSize(), !logContainsBlocks, expectedEnvironmentVersion,
                     fileLength
                 )
                 needToPerformMigration = logContainsBlocks
@@ -277,14 +278,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
             }
 
-            if (config.cachePageSize != startupMetadata.pageSize) {
+            if (config.getCachePageSize() != startupMetadata.pageSize) {
                 logger.warn(
                     "Environment $location was created with cache page size equals to " +
-                            "${startupMetadata.pageSize} but provided page size is ${config.cachePageSize} " +
+                            "${startupMetadata.pageSize} but provided page size is ${config.getCachePageSize()} " +
                             "page size will be updated to ${startupMetadata.pageSize}"
                 )
 
-                config.cachePageSize = startupMetadata.pageSize
+                config.setCachePageSize(startupMetadata.pageSize)
             }
 
             if (fileLength != startupMetadata.fileLengthBoundary) {
@@ -293,12 +294,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             "${startupMetadata.fileLengthBoundary} but provided file size is $fileLength " +
                             "file size will be updated to ${startupMetadata.fileLengthBoundary}"
                 )
-                config.fileSize = startupMetadata.fileLengthBoundary / 1024
+                config.setFileSize(startupMetadata.fileLengthBoundary / 1024)
             }
 
             fileLengthBound = startupMetadata.fileLengthBoundary
 
-            if (fileLengthBound % config.cachePageSize != 0L) {
+            if (fileLengthBound % config.getCachePageSize() != 0L) {
                 throw InvalidSettingException("File size should be a multiple of cache page size.")
             }
 
@@ -388,7 +389,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             val memoryUsage = config.memoryUsage
             val nonBlockingCache = config.isNonBlockingCache
             val useSoftReferences = config.cacheUseSoftReferences
-            val generationCount = config.cacheGenerationCount
+            val generationCount = config.getCacheGenerationCount()
 
             cache = if (memoryUsage != 0L) {
                 if (config.isSharedCache)
@@ -402,7 +403,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 else
                     SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
             } else {
-                val memoryUsagePercentage = config.memoryUsagePercentage
+                val memoryUsagePercentage = config.getMemoryUsagePercentage()
                 if (config.isSharedCache)
                     getSharedCache(
                         memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
@@ -470,7 +471,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 dataWriter,
                 !needToPerformMigration,
                 getSharedWriteBoundarySemaphore(maxWriteBoundary),
-                maxWriteBoundary, blockSetImmutable, highAddress, page, config.syncPeriod
+                maxWriteBoundary, blockSetImmutable, highAddress, page, config.getSyncPeriod()
             )
 
             val writtenInPage = highAddress and (cachePageSize - 1).toLong()
@@ -547,7 +548,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
-    fun padPageWithNulls() {
+    private fun padPageWithNulls() {
         beginWrite()
         beforeWrite()
         try {
@@ -773,10 +774,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             }
 
                             Arrays.fill(it, read, it.size, 0x80.toByte())
-                            val cipherProvider = config.cipherProvider
+                            val cipherProvider = config.streamCipherProvider
                             if (cipherProvider != null) {
                                 cryptBlocksMutable(
-                                    cipherProvider, config.cipherKey, config.cipherBasicIV,
+                                    cipherProvider, config.cipherKey!!, config.cipherBasicIV,
                                     endBlock.address + position, it, read, it.size - read,
                                     LogUtil.LOG_BLOCK_ALIGNMENT
                                 )
@@ -1088,9 +1089,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         return cache.getPageIterable(this, pageAddress, formatWithHashCodeIsUsed)
     }
 
-    override fun getIdentity(): Int {
-        return identity
-    }
 
     override fun readPage(pageAddress: Long, fileAddress: Long): ByteArray {
         return writer.readPage(pageAddress)
@@ -1172,7 +1170,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             return SinglePageLoggable(
                 address, end,
-                type, structureId, dataAddress, it.currentPage,
+                type, structureId, dataAddress, it.currentPage!!,
                 it.offset, dataLength
             )
         }
@@ -1283,7 +1281,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     fun release() {
-        if (!config.isLockIgnored) {
+        if (!config.lockIgnored) {
             dataWriter.release()
         }
     }
@@ -1358,11 +1356,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             if (leftBound == fileAddress && fileAddress + fileSize > pageAddress) {
                 val block = writer.getBlock(fileAddress)
-                if (block == null) {
-                    BlockNotFoundException.raise(this, pageAddress)
-                    return 0
-                }
-
                 return readFromBlock(block, pageAddress, output, highAddress)
             }
             if (fileAddress < (writer.minimumFile ?: -1L)) {
@@ -1395,7 +1388,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
         val lastPage = (highAddress and
                 ((cachePageSize - 1).inv()).toLong())
-        var checkConsistency = config.isCheckPagesAtRuntime &&
+        var checkConsistency = config.checkPagesAtRuntime &&
                 formatWithHashCodeIsUsed &&
                 (!rwIsReadonly || pageAddress < lastPage)
         checkConsistency = formatWithHashCodeIsUsed &&
@@ -1412,7 +1405,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             BufferedDataWriter.checkPageConsistency(pageAddress, output, cachePageSize, this)
         }
 
-        val cipherProvider = config.cipherProvider
+        val cipherProvider = config.streamCipherProvider
         if (cipherProvider != null) {
             val encryptedBytes = if (readBytes < cachePageSize) {
                 readBytes
@@ -1425,7 +1418,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
 
             cryptBlocksMutable(
-                cipherProvider, config.cipherKey, config.cipherBasicIV,
+                cipherProvider, config.cipherKey!!, config.cipherBasicIV,
                 pageAddress, output, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
             )
         }
@@ -1448,7 +1441,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     private fun tryLock() {
-        if (!config.isLockIgnored) {
+        if (!config.lockIgnored) {
             val lockTimeout = config.lockTimeout
             if (!dataWriter.lock(lockTimeout)) {
                 val exceptionMessage = StringBuilder()
@@ -1566,14 +1559,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         blockListeners.notifyListeners { it.blockModified(block) }
     }
 
-    fun mutableBlocksUnsafe(): BlockSet.Mutable {
-        return writer.mutableBlocksUnsafe()
-    }
-
-    fun updateBlockSetHighAddressUnsafe(prevHighAddress: Long, highAddress: Long, blockSet: BlockSet.Immutable) {
-        writer.updateBlockSetHighAddressUnsafe(prevHighAddress, highAddress, blockSet)
-    }
-
     private fun notifyReadBytes(bytes: ByteArray, count: Int) {
         readBytesListeners.notifyListeners { it.bytesRead(bytes, count) }
     }
@@ -1605,7 +1590,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
          * For tests only!!!
          */
         @JvmStatic
-        @Deprecated("for tests only")
         fun invalidateSharedCache() {
             synchronized(Log::class.java) {
                 sharedCache = null

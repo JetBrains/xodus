@@ -13,57 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
-
-import org.jetbrains.annotations.NotNull;
-
-import java.util.Iterator;
+package jetbrains.exodus.log
 
 /**
  * Stops at the end of log or on the file hole
  */
-public final class LoggableIterator implements Iterator<RandomAccessLoggable> {
+class LoggableIterator(private val log: Log, private val it: ByteIteratorWithAddress, private val highAddress: Long) :
+    MutableIterator<RandomAccessLoggable> {
+    constructor(log: Log, startAddress: Long, highAddress: Long) : this(
+        log,
+        log.readIteratorFrom(startAddress),
+        highAddress
+    )
 
-    @NotNull
-    private final Log log;
-    @NotNull
-    private final ByteIteratorWithAddress it;
-
-    private final long highAddress;
-
-    public LoggableIterator(@NotNull final Log log, final long startAddress, final long highAddress) {
-        this(log, log.readIteratorFrom(startAddress), highAddress);
+    fun getHighAddress(): Long {
+        return it.address
     }
 
-    public LoggableIterator(@NotNull final Log log, @NotNull final ByteIteratorWithAddress it, final long highAddress) {
-        this.log = log;
-        this.it = it;
-        this.highAddress = highAddress;
-    }
-
-    public long getHighAddress() {
-        return it.getAddress();
-    }
-
-    @Override
-    public RandomAccessLoggable next() {
+    override fun next(): RandomAccessLoggable {
         if (!hasNext()) {
-            return null;
+            throw NoSuchElementException()
         }
-        final RandomAccessLoggable result = log.read(it);
+
+        val result = log.read(it)
         if (!NullLoggable.isNullLoggable(result) || !HashCodeLoggable.isHashCodeLoggable(result)) {
-            it.skip(result.getDataLength());
+            it.skip(result.dataLength.toLong())
         }
-
-        return result;
+        return result
     }
 
-    @Override
-    public boolean hasNext() {
-        return it.hasNext() && it.getAddress() < highAddress;
+    override fun hasNext(): Boolean {
+        return it.hasNext() && it.address < highAddress
     }
 
-    @Override
-    public void remove() {
-    }
+    override fun remove() {}
 }

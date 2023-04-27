@@ -13,59 +13,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-import jetbrains.exodus.ByteIterable;
-import org.jetbrains.annotations.NotNull;
+import jetbrains.exodus.ByteIterable
 
 /**
  * For writing a loggable to log, instance should provide only type, data and its length.
  * If the instance is read from log, then all its methods return actual data.
  */
-public interface Loggable {
-
-    long NULL_ADDRESS = -1;
-    int NO_STRUCTURE_ID = 0;
-
+interface Loggable {
     /**
      * Address of the loggable in log. It's available (has non-negative value) only for loggables
      * been read from log. Loggables to write return indefinite value.
      *
      * @return non-negative address of the loggable.
      */
-    long getAddress();
+    val address: Long
 
     /**
      * Type of loggable.
      *
      * @return integer int the range [0..127] identifying the loggable.
      */
-    byte getType();
+    val type: Byte
 
     /**
      * @return Length of loggable with header and data
      */
-    int length();
+    fun length(): Int
 
     /**
      * @return address next to end address of loggable
      */
-    long end();
+    fun end(): Long
 
     /**
      * Loggable data.
      *
      * @return loggable data.
      */
-    @NotNull
-    ByteIterable getData();
+    val data: ByteIterable
 
     /**
      * Length of the loggable data.
      *
      * @return length of the loggable data.
      */
-    int getDataLength();
+    val dataLength: Int
 
     /**
      * Returns unique id of structure that the loggable belongs to. Basically, structure id is id of a tree
@@ -73,14 +67,19 @@ public interface Loggable {
      *
      * @return unique structure id.
      */
-    int getStructureId();
+    val structureId: Int
 
     /**
      * Indicates if all loggable completely stored inside single page.
      * This flag is used for optimization of calculation of relative addresses of part of loggable inside
      * implementations of data structures.
      *
-     * @return {@code true} if all loggable data are stored inside single page.
+     * @return `true` if all loggable data are stored inside single page.
      */
-    boolean isDataInsideSinglePage();
+    val isDataInsideSinglePage: Boolean
+
+    companion object {
+        const val NULL_ADDRESS: Long = -1
+        const val NO_STRUCTURE_ID = 0
+    }
 }

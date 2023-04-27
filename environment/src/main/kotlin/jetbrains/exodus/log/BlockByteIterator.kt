@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log;
+package jetbrains.exodus.log
 
-public interface BlockByteIterator {
-
-    int nextBytes(byte[] array, int off, int len);
+interface BlockByteIterator {
+    fun nextBytes(array: ByteArray, off: Int, len: Int): Int
 }
