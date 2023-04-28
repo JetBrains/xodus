@@ -156,15 +156,19 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 try (var cursor = nameToAddressStore.openCursor(txn)) {
                     while (cursor.getNext()) {
                         final var address = LongBinding.entryToLong(cursor.getValue());
-                        final var indexFileName = DirUtil.getFileNameByAddress(address);
+                        if (address >= 0) {
+                            final var indexFileName = DirUtil.getFileNameByAddress(address);
+                            storedFiles.add(address);
 
-                        storedFiles.add(address);
+                            if (!Files.exists(luceneIndex.resolve(indexFileName))) {
+                                var key = cursor.getKey();
+                                logger.info("File " + StringBinding.entryToString(key) +
+                                        " is absent and will be removed from index.");
 
-                        if (!Files.exists(luceneIndex.resolve(indexFileName))) {
+                                toDelete.add(key);
+                            }
+                        } else {
                             var key = cursor.getKey();
-                            logger.info("File " + StringBinding.entryToString(key) +
-                                    " is absent and will be removed from index.");
-
                             toDelete.add(key);
                         }
                     }
