@@ -689,7 +689,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
             filePath = luceneOutputPath.resolve(fileName);
             if (ivFileName != null) {
-                ivFilePath = luceneOutputPath.resolve(ivFileName);
+                ivFilePath = luceneIndex.resolve(ivFileName);
             } else {
                 ivFilePath = null;
             }
@@ -719,16 +719,16 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 var indexFileName = DirUtil.getFileNameByAddress(fileAddress);
                 var indexPath = luceneIndex.resolve(indexFileName);
 
-                if (ivFilePath != null) {
-                    try (var ivStream = new DataOutputStream(Files.newOutputStream(ivFilePath))) {
-                        ivStream.writeLong(((StreamCipherOutputStream) os).maxIv);
-                    }
-                }
-
                 try {
                     Files.move(filePath, indexPath, StandardCopyOption.ATOMIC_MOVE);
                 } catch (AtomicMoveNotSupportedException e) {
                     Files.move(filePath, indexPath);
+                }
+
+                if (ivFilePath != null) {
+                    try (var ivStream = new DataOutputStream(Files.newOutputStream(ivFilePath))) {
+                        ivStream.writeLong(((StreamCipherOutputStream) os).maxIv);
+                    }
                 }
 
                 environment.executeInTransaction(txn -> {
