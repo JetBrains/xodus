@@ -370,11 +370,11 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         var index = outputIndex.getAndIncrement();
         var fileName = name + index;
         if (cipherKey == null) {
-            return new XodusIndexOutput(fileName, name, null, openOutputStream(fileName));
+            return new XodusIndexOutput(fileName, name, false, openOutputStream(fileName));
         }
 
         return new XodusIndexOutput(fileName,
-                name, name + index + ".iv", openOutputStream(fileName));
+                name, true, openOutputStream(fileName));
     }
 
     @Override
@@ -663,7 +663,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         static final int CHUNK_SIZE = 8192;
 
         final Path filePath;
-        final Path ivFilePath;
+        final boolean storeivFile;
 
         final String indexName;
 
@@ -672,7 +672,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         final OutputStream os;
 
 
-        XodusIndexOutput(String fileName, String indexName, String ivFileName, OutputStream stream) {
+        XodusIndexOutput(String fileName, String indexName, boolean storeivFile, OutputStream stream) {
             super("XodusIndexOutput(path=\"" + luceneOutputPath.resolve(fileName) + "\")", fileName,
                     new FilterOutputStream(stream) {
                         // This implementation ensures, that we never write more than CHUNK_SIZE bytes:
@@ -688,11 +688,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                     }, CHUNK_SIZE);
 
             filePath = luceneOutputPath.resolve(fileName);
-            if (ivFileName != null) {
-                ivFilePath = luceneIndex.resolve(ivFileName);
-            } else {
-                ivFilePath = null;
-            }
+            this.storeivFile = storeivFile;
 
             this.indexName = indexName;
             this.os = stream;
@@ -725,8 +721,11 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                     Files.move(filePath, indexPath);
                 }
 
-                if (ivFilePath != null) {
-                    try (var ivStream = new DataOutputStream(Files.newOutputStream(ivFilePath))) {
+                if (storeivFile) {
+                    var ivFileName = DirUtil.getIvFileName(indexFileName);
+                    var ivPath = luceneIndex.resolve(ivFileName);
+
+                    try (var ivStream = new DataOutputStream(Files.newOutputStream(ivPath))) {
                         ivStream.writeLong(((StreamCipherOutputStream) os).maxIv);
                     }
                 }
