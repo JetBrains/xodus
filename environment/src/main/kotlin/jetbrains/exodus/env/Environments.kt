@@ -225,7 +225,7 @@ object Environments {
 
                 env.flushAndSync()
 
-                env.checkBlobs = true
+                env.isClearBrokenBlobs = true
                 env.isCheckLuceneDirectory = true
 
                 tempDir.delete()
@@ -248,7 +248,7 @@ object Environments {
             }
 
             if (env.log.restoredFromBackup) {
-                env.checkBlobs = true
+                env.isClearBrokenBlobs = true
                 env.isCheckLuceneDirectory = true
             }
         } else {
@@ -277,7 +277,7 @@ object Environments {
                 env.gc.resume()
             }
 
-            env.checkBlobs = true
+            env.isClearBrokenBlobs = true
             env.isCheckLuceneDirectory = true
 
             EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.location} is completed")

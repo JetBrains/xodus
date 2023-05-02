@@ -25,7 +25,6 @@ import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.system.JVMConstants;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.Map;
 
@@ -112,6 +111,12 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      */
     public static final String REFACTORING_DELETE_REDUNDANT_BLOBS = "exodus.entityStore.refactoring.deleteRedundantBlobs";
+
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
+     * <p>Mutable at runtime: no
+     */
+    public static final String REFACTORING_CLEAR_BROKEN_BLOBS = "exodus.entityStore.refactoring.clearBrokenBlobs";
 
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 30}.
@@ -397,6 +402,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(REFACTORING_HEAVY_LINKS, false),
                 new Pair(REFACTORING_HEAVY_PROPS, false),
                 new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
+                new Pair(REFACTORING_CLEAR_BROKEN_BLOBS, false),
                 new Pair(REFACTORING_DEDUPLICATE_BLOBS_EVERY, 30),
                 new Pair(REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE, 10),
                 new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
@@ -495,9 +501,19 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return getRefactoringForceAll() || (Boolean) getSetting(REFACTORING_DELETE_REDUNDANT_BLOBS);
     }
 
+
     public PersistentEntityStoreConfig setRefactoringDeleteRedundantBlobs(final boolean fixRedundantBlobs) {
         return setSetting(REFACTORING_DELETE_REDUNDANT_BLOBS, fixRedundantBlobs);
     }
+
+    public PersistentEntityStoreConfig setRefactoringClearBrokenBlobs(final boolean clearBrokenBlobs) {
+        return setSetting(REFACTORING_CLEAR_BROKEN_BLOBS, clearBrokenBlobs);
+    }
+
+    public boolean getRefactoringClearBrokenBlobs() {
+        return getRefactoringForceAll() || (Boolean) (getSetting(REFACTORING_CLEAR_BROKEN_BLOBS));
+    }
+
 
     public int getRefactoringDeduplicateBlobsEvery() {
         return getRefactoringForceAll() ? 0 : (Integer) getSetting(REFACTORING_DEDUPLICATE_BLOBS_EVERY);

@@ -258,21 +258,26 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 internalSettings = settings;
             }
 
-            if (environment.getCheckBlobs()) {
-                logger.warn("Checking BLOBs consistency.");
-
-                var blobsToRemove = ensureBlobsConsistency(txn, false);
-                if (!blobsToRemove.isEmpty()) {
-                    logger.warn("Database was not closed correctly. Found " + blobsToRemove.size() + " orphaned BLOBs. Removing them.");
-
-                    blobsToRemove.forEach(blob -> deleteBlob(txn, new PersistentEntity(this, new PersistentEntityId((int) blob[0], blob[1])),
-                            (int) blob[2]));
-                }
+            if (environment.isClearBrokenBlobs()) {
+                clearBrokenBlobs(txn);
             }
             return result;
         });
         if (!config.getRefactoringSkipAll() && !environment.isReadOnly()) {
             applyRefactorings(fromScratch); // this method includes refactorings that could be clustered into separate txns
+        }
+    }
+
+    private void clearBrokenBlobs(PersistentStoreTransaction txn) {
+        logger.warn("Checking BLOBs consistency.");
+
+        var blobsToRemove = ensureBlobsConsistency(txn, false);
+        if (!blobsToRemove.isEmpty()) {
+            logger.warn("Database " + getLocation() + ": " + blobsToRemove.size() +
+                    " orphaned BLOBs were found. Removing them.");
+
+            blobsToRemove.forEach(blob -> deleteBlob(txn, new PersistentEntity(this, new PersistentEntityId((int) blob[0], blob[1])),
+                    (int) blob[2]));
         }
     }
 
@@ -306,6 +311,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             final PersistentEntityStoreRefactorings refactorings = new PersistentEntityStoreRefactorings(this);
             if (config.getRefactoringDeleteRedundantBlobs()) {
                 refactorings.refactorDeleteRedundantBlobs();
+            }
+            if (config.getRefactoringClearBrokenBlobs()) {
+                executeInTransaction(txn -> clearBrokenBlobs((PersistentStoreTransaction) txn));
             }
             if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorBlobsForVersion2Format() applied") == null)) {
                 if (!fromScratch) {
@@ -1458,7 +1466,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                   @NotNull final PersistentEntity entity,
                                   @NotNull final String blobName,
                                   @Nullable final InputStream stream,
-                                  final int size) throws IOException {
+                                  final int size) {
         final EntityId id = entity.getId();
         final long entityLocalId = id.getLocalId();
         final int blobId = getPropertyId(txn, blobName, true);
@@ -2043,7 +2051,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
         truncateStores(txn, Arrays.asList(
                         entityTableName, linksTableName, secondLinksTableName, propertiesTableName, blobsObsoleteTableName, blobsTableName),
-                () -> new Iterator<String>() { // enumerate all property value indexes
+                () -> new Iterator<>() { // enumerate all property value indexes
                     private int propertyId = 0;
 
                     @Override

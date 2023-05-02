@@ -212,11 +212,11 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    public void setCheckBlobs(boolean checkBlobs) {
+    public void setClearBrokenBlobs(boolean checkBlobs) {
         this.checkBlobs = checkBlobs;
     }
 
-    public boolean getCheckBlobs() {
+    public boolean isClearBrokenBlobs() {
         return checkBlobs;
     }
 
