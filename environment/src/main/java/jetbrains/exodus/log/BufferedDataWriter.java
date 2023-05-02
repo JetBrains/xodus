@@ -510,6 +510,15 @@ public final class BufferedDataWriter {
         return blockSet.getMaximum();
     }
 
+     Long getMaximumWritingFile() {
+        var mutableSet = blockSetMutable;
+        if (mutableSet != null) {
+            return mutableSet.getMaximum();
+        }
+
+        return blockSet.getMaximum();
+    }
+
 
     void flush() {
         checkWriteError();

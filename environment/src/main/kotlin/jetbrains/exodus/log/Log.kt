@@ -161,7 +161,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         try {
             rwIsReadonly = false
 
-            val fileLength = config.fileSize * 1024L
+            var fileLength = config.fileSize * 1024L
 
             val logContainsBlocks = reader.blocks.iterator().hasNext()
             val metadata = if (reader is FileDataReader) {
@@ -293,7 +293,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             "${startupMetadata.fileLengthBoundary} but provided file size is $fileLength " +
                             "file size will be updated to ${startupMetadata.fileLengthBoundary}"
                 )
+
                 config.fileSize = startupMetadata.fileLengthBoundary / 1024
+                fileLength = startupMetadata.fileLengthBoundary
             }
 
             fileLengthBound = startupMetadata.fileLengthBoundary
@@ -502,6 +504,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             if (needToPerformMigration) {
                 switchToReadOnlyMode()
+            } else {
+                closeCurrentSegmentIfNecessary()
             }
         } catch (ex: RuntimeException) {
             release()
@@ -547,7 +551,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
-    fun padPageWithNulls() {
+    private fun closeCurrentSegmentIfNecessary() {
+        beginWrite()
+        beforeWrite()
+        try {
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+        } finally {
+            endWrite()
+        }
+    }
+
+    private fun padPageWithNulls() {
         beginWrite()
         beforeWrite()
         try {
@@ -626,38 +640,55 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         var dbRootAddress = Long.MIN_VALUE
         var dbRootEndAddress = Long.MIN_VALUE
 
+        var nextBlockCorruptionMessage: String? = null
+        var corruptedFileAddress = -1L
+
         val fileBlockIterator = blocks.values.iterator()
         try {
             do {
-                val block = fileBlockIterator.next()
-                val address = block.address
+                if (nextBlockCorruptionMessage != null) {
+                    DataCorruptionException.raise(nextBlockCorruptionMessage, this, corruptedFileAddress)
+                }
 
-                logger.info("File ${LogUtil.getLogFilename(address)} is being verified.")
+                val block = fileBlockIterator.next()
+                val startBlockAddress = block.address
+                val endBlockAddress = startBlockAddress + fileLengthBound
+
+                logger.info("File ${LogUtil.getLogFilename(startBlockAddress)} is being verified.")
 
                 val blockLength = block.length()
                 // if it is not the last file and its size is not as expected
                 hasNext = fileBlockIterator.hasNext()
 
                 if (blockLength > fileLengthBound || hasNext && blockLength != fileLengthBound || blockLength == 0L) {
-                    DataCorruptionException.raise(
-                        "Unexpected file length. " +
-                                "Expected length : $fileLengthBound, actual file length : $blockLength .", this,
-                        address
-                    )
+                    nextBlockCorruptionMessage = "Unexpected file length. " +
+                            "Expected length : $fileLengthBound, actual file length : $blockLength ."
+                    corruptedFileAddress = startBlockAddress
+
+                    if (blockLength == 0L) {
+                        continue
+                    }
                 }
 
                 // if the file address is not a multiple of fileLengthBound
-                if (address != getFileAddress(address)) {
+                if (startBlockAddress != getFileAddress(startBlockAddress)) {
                     DataCorruptionException.raise(
-                        "Unexpected file address. Expected ${getFileAddress(address)}, actual $address.",
+                        "Unexpected file address. Expected ${getFileAddress(startBlockAddress)}, actual $startBlockAddress.",
                         this,
-                        address
+                        startBlockAddress
                     )
                 }
 
-                val blockDataIterator = BlockDataIterator(this, block, address, formatWithHashCodeIsUsed, !hasNext)
+                val blockDataIterator = BlockDataIterator(
+                    this, block, startBlockAddress,
+                    formatWithHashCodeIsUsed, !hasNext
+                )
                 while (blockDataIterator.hasNext()) {
                     val loggableAddress = blockDataIterator.address
+
+                    if (loggableAddress >= endBlockAddress) {
+                        break
+                    }
                     val loggableType = blockDataIterator.next() xor 0x80.toByte()
 
                     checkLoggableType(loggableType, loggableAddress)
@@ -678,6 +709,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                     val dataLength = CompressedUnsignedLongByteIterable.getInt(blockDataIterator)
                     checkDataLength(dataLength, loggableAddress)
+
+                    if (blockDataIterator.address >= endBlockAddress) {
+                        break
+                    }
 
                     if (loggableType == DatabaseRoot.DATABASE_ROOT_TYPE) {
                         if (structureId != Loggable.NO_STRUCTURE_ID) {
@@ -720,15 +755,18 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     }
                 }
 
-                blockSetMutable.add(address, block)
+                blockSetMutable.add(startBlockAddress, block)
+                if (!hasNext && nextBlockCorruptionMessage != null) {
+                    DataCorruptionException.raise(nextBlockCorruptionMessage, this, corruptedFileAddress)
+                }
             } while (hasNext)
-        } catch (dataCorruptionException: DataCorruptionException) {
+        } catch (exception: Exception) {
             SharedOpenFilesCache.invalidate()
 
             try {
                 if (clearInvalidLog) {
                     logger.error(
-                        "Data corruption was detected. Reason : ${dataCorruptionException.message} . " +
+                        "Data corruption was detected. Reason : ${exception.message} . " +
                                 "Environment $location will be cleared."
                     )
                     blockSetMutable.clear()
@@ -740,7 +778,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                 if (dbRootEndAddress > 0) {
                     logger.error(
-                        "Data corruption was detected. Reason : ${dataCorruptionException.message} . " +
+                        "Data corruption was detected. Reason : ${exception.message} . " +
                                 "Environment log $location will be truncated till address : $dbRootEndAddress"
                     )
 
@@ -756,7 +794,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         if (!endBlock.setWritable(true)) {
                             throw ExodusException(
                                 "Can not write into file " + endBlock.absolutePath,
-                                dataCorruptionException
+                                exception
                             )
                         }
                     }
@@ -768,7 +806,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             if (read != endBlockReminder) {
                                 throw ExodusException(
                                     "Can not read segment ${LogUtil.getLogFilename(endBlock.address)}",
-                                    dataCorruptionException
+                                    exception
                                 )
                             }
 
@@ -788,7 +826,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         null
                     }
 
-                    logger.warn("File ${LogUtil.getLogFilename(endBlock.address)} is going to be truncated till length ${position + cachePageSize}")
+                    logger.warn(
+                        "File ${LogUtil.getLogFilename(endBlock.address)} is going to be truncated till length ${position + cachePageSize}"
+                    )
 
                     when (reader) {
                         is FileDataReader -> {
@@ -798,7 +838,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                 truncateFile(endBlock, position, lastPage)
                             } catch (e: IOException) {
                                 logger.error("Error during truncation of file $endBlock", e)
-                                throw ExodusException("Can not restore log corruption", dataCorruptionException)
+                                throw ExodusException("Can not restore log corruption", exception)
                             }
                         }
 
@@ -833,7 +873,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     if (!blockToDelete.setWritable(true)) {
                                         throw ExodusException(
                                             "Can not write into file " + blockToDelete.absolutePath,
-                                            dataCorruptionException
+                                            exception
                                         )
                                     }
                                 }
@@ -852,7 +892,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     }
                 } else {
                     logger.error(
-                        "Data corruption was detected. Reason : ${dataCorruptionException.message} . Likely invalid cipher key/iv were used. "
+                        "Data corruption was detected. Reason : ${exception.message} . Likely invalid cipher key/iv were used. "
                     )
 
                     blockSetMutable.clear()
@@ -876,7 +916,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 throw e
             } catch (e: Exception) {
                 logger.error("Error during attempt to restore log $location", e)
-                throw ExodusException(dataCorruptionException)
+                throw ExodusException(exception)
             }
         }
 
@@ -1371,13 +1411,21 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     this, pageAddress
                 )
             }
-            if (fileAddress >= (writer.maximumFile ?: -1L)) {
+
+            val maxFile = if (Thread.currentThread() == writeThread) {
+                writer.maximumFile
+            } else {
+                writer.maximumWritingFile
+            }
+
+            if (fileAddress >= (maxFile ?: -1L)) {
                 BlockNotFoundException.raise(
                     "Address is out of log space, overflow",
                     this, pageAddress
                 )
             }
         }
+
         BlockNotFoundException.raise(this, pageAddress)
         return 0
     }
