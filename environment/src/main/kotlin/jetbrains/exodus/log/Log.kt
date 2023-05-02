@@ -1295,15 +1295,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     // for tests only
-    @Deprecated("for tests only")
     fun forgetFile(address: Long) {
         beginWrite()
         forgetFiles(longArrayOf(address))
         endWrite()
     }
 
-    @Suppress("DeprecatedCallableAddReplaceWith")
-    @Deprecated("for tests only")
     fun clearCache() {
         cache.clear()
     }
@@ -1545,7 +1542,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
      * Sets LogTestConfig.
      * Is destined for tests only, please don't set a not-null value in application code.
      */
-    @Deprecated("for tests only")
     fun setLogTestConfig(testConfig: LogTestConfig?) {
         @Suppress("DEPRECATION")
         this.testConfig = testConfig

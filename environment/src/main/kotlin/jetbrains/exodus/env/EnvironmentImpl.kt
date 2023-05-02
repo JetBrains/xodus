@@ -847,9 +847,12 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                 }
                 // if we're trying to open existing store with prefixing which actually wasn't created as store
                 // with prefixing due to lack of the PatriciaTree feature, then open store with existing config
-                resultMetaInfo = TreeMetaInfo.load(this, hasDuplicates, false, resultMetaInfo.getStructureId())
+                resultMetaInfo = TreeMetaInfo.load(
+                    this, hasDuplicates, false,
+                    resultMetaInfo.structureId
+                )
             }
-            result = createStore(name, resultMetaInfo!!)
+            result = createStore(name, resultMetaInfo)
             // XD-774: if the store was just removed in the same txn forget the removal
             if (txn is ReadWriteTransaction) {
                 txn.storeOpened(result)

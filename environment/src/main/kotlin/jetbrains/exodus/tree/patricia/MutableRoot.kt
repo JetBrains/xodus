@@ -17,15 +17,14 @@ package jetbrains.exodus.tree.patricia
 
 import jetbrains.exodus.tree.MutableTreeRoot
 
-internal open class MutableRoot : MutableNode, MutableTreeRoot {
-
+open class MutableRoot : MutableNode, MutableTreeRoot {
     val sourceAddress: Long
 
     constructor(origin: ImmutableNode) : super(origin.asNodeBase()) {
         sourceAddress = origin.address
     }
 
-    constructor(node: MutableNode, sourceAddress: Long) : super(node.keySequence, node.value, node.children) {
+    constructor(node: MutableNode, sourceAddress: Long) : super(node.key, node.value, node.internalChildren) {
         this.sourceAddress = sourceAddress
     }
 

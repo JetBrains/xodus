@@ -4,6 +4,6 @@ dependencies {
     implementation(project(":xodus-utils"))
     api(project(":xodus-openAPI"))
     implementation(libs.bouncyCastle)
-    testImplementation(project(":xodus-utils", "testArtifacts"))
+    testImplementation(project(":xodus-utils-test"))
     testImplementation(project(":xodus-openAPI", "testArtifacts"))
 }

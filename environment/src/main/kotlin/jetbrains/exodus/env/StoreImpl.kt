@@ -65,6 +65,7 @@ open class StoreImpl internal constructor(
                         null -> {
                             NULL_CACHED_VALUE
                         }
+
                         is ArrayByteIterable -> {
                             result
                         }
@@ -165,7 +166,9 @@ open class StoreImpl internal constructor(
     }
 
     @Deprecated("Deprecated in Java")
-    override fun close() {}
+    override fun close() {
+    }
+
     override fun getConfig(): StoreConfig {
         return TreeMetaInfo.toConfig(metaInfo)
     }
@@ -181,7 +184,7 @@ open class StoreImpl internal constructor(
     open fun reclaim(
         transaction: Transaction,
         loggable: RandomAccessLoggable,
-        loggables: Iterator<RandomAccessLoggable?>
+        loggables: Iterator<RandomAccessLoggable>
     ) {
         val txn: ReadWriteTransaction =
             EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction")
@@ -221,7 +224,7 @@ open class StoreImpl internal constructor(
     }
 
     val structureId: Int
-        get() = metaInfo.getStructureId()
+        get() = metaInfo.structureId
 
     companion object {
         private val NULL_CACHED_VALUE = ArrayByteIterable(ByteIterable.EMPTY)

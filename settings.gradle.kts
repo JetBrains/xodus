@@ -101,3 +101,8 @@ project(":environment-crash-tests").name = "xodus-environment-crash-tests"
 include("lucene-directory-v2")
 project(":lucene-directory-v2").name = "xodus-lucene-directory-v2"
 
+include("environment-test")
+project(":environment-test").name = "xodus-environment-test"
+
+include("utils-test")
+project(":utils-test").name = "xodus-utils-test"

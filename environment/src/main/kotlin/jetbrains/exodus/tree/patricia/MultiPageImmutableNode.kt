@@ -30,20 +30,62 @@ const val CHILDREN_BITSET_SIZE_BYTES = CHILDREN_BITSET_SIZE_LONGS * Long.SIZE_BY
  * In V2 database format, a Patricia node with children can be encoded in 3 different ways depending
  * on number of children. Each of the ways is optimal for the number of children it represents.
  */
-private enum class V2ChildrenFormat {
+enum class V2ChildrenFormat {
     Complete, // the node has all 256 children
     Sparse,   // the number of children is in the range 1..32
     Bitset    // the number of children is in the range 33..255
 }
 
-internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
-    private val loggable: RandomAccessLoggable
-
+class MultiPageImmutableNode : NodeBase, ImmutableNode {
     private val log: Log
     private val data: ByteIterableWithAddress
-    private val childrenCount: Short
     private val childAddressLength: Byte
     private val baseAddress: Long // if it is not equal to NULL_ADDRESS then the node is saved in the v2 format
+    override val isMutable: Boolean
+        get() = false
+
+    override val loggable: RandomAccessLoggable
+    override val childrenCount: Int
+    override val address: Long
+        get() = loggable.address
+
+    override val children: NodeChildren
+        get() = object : NodeChildren {
+            override fun iterator(): NodeChildrenIterator {
+                val childrenCount = childrenCount
+                return if (childrenCount == 0)
+                    EmptyNodeChildrenIterator()
+                else {
+                    if (v2Format) {
+                        when (childrenCount) {
+                            256 -> ImmutableNodeCompleteChildrenV2Iterator(-1, null)
+                            in 1..32 -> ImmutableNodeSparseChildrenV2Iterator(-1, null)
+                            else -> ImmutableNodeBitsetChildrenV2Iterator(-1, null)
+                        }
+                    } else {
+                        ImmutableNodeChildrenIterator(-1, null)
+                    }
+                }
+            }
+        }
+
+    override val childrenLast: NodeChildrenIterator
+        get() {
+            val childrenCount = childrenCount
+            return if (childrenCount == 0)
+                EmptyNodeChildrenIterator()
+            else {
+                if (v2Format) {
+                    when (childrenCount) {
+                        256 -> ImmutableNodeCompleteChildrenV2Iterator(childrenCount, null)
+                        in 1..32 -> ImmutableNodeSparseChildrenV2Iterator(childrenCount, null)
+                        else -> ImmutableNodeBitsetChildrenV2Iterator(childrenCount, null)
+                    }
+                } else {
+                    ImmutableNodeChildrenIterator(childrenCount, null)
+                }
+            }
+        }
 
     constructor(log: Log, loggable: RandomAccessLoggable, data: ByteIterableWithAddress) :
             this(log, loggable.type, loggable, data, data.iterator())
@@ -63,14 +105,14 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
             val i = it.compressedUnsignedInt
             val childrenCount = i ushr 3
             if (childrenCount < VERSION2_CHILDREN_COUNT_BOUND) {
-                this.childrenCount = childrenCount.toShort()
+                this.childrenCount = childrenCount
             } else {
-                this.childrenCount = (childrenCount - VERSION2_CHILDREN_COUNT_BOUND).toShort()
+                this.childrenCount = childrenCount - VERSION2_CHILDREN_COUNT_BOUND
                 baseAddress = it.compressedUnsignedLong
             }
             checkAddressLength(((i and 7) + 1).also { len -> childAddressLength = len.toByte() })
         } else {
-            childrenCount = 0.toShort()
+            childrenCount = 0
             childAddressLength = 0.toByte()
         }
         this.baseAddress = baseAddress
@@ -78,22 +120,15 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
         this.data = data.cloneWithAddressAndLength(it.address, it.available())
     }
 
-    override fun getLoggable(): RandomAccessLoggable {
-        return loggable
-    }
-
-    override fun getAddress() = loggable.address
     override fun asNodeBase(): NodeBase {
         return this
     }
 
-    public override fun isMutable() = false
-
-    public override fun getMutableCopy(mutableTree: PatriciaTreeMutable): MutableNode {
+    override fun getMutableCopy(mutableTree: PatriciaTreeMutable): MutableNode {
         return mutableTree.mutateNode(this)
     }
 
-    public override fun getChild(tree: PatriciaTreeBase, b: Byte): NodeBase? {
+    override fun getChild(tree: PatriciaTreeBase, b: Byte): NodeBase? {
         if (v2Format) {
             getV2Child(b)?.let { searchResult ->
                 return tree.loadNode(addressByOffsetV2(searchResult.offset))
@@ -118,28 +153,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
         return null
     }
 
-    public override fun getChildren(): NodeChildren {
-        return object : NodeChildren {
-            override fun iterator(): NodeChildrenIterator {
-                val childrenCount = getChildrenCount()
-                return if (childrenCount == 0)
-                    EmptyNodeChildrenIterator()
-                else {
-                    if (v2Format) {
-                        when (childrenCount) {
-                            256 -> ImmutableNodeCompleteChildrenV2Iterator(-1, null)
-                            in 1..32 -> ImmutableNodeSparseChildrenV2Iterator(-1, null)
-                            else -> ImmutableNodeBitsetChildrenV2Iterator(-1, null)
-                        }
-                    } else {
-                        ImmutableNodeChildrenIterator(-1, null)
-                    }
-                }
-            }
-        }
-    }
-
-    public override fun getChildren(b: Byte): NodeChildrenIterator {
+    override fun getChildren(b: Byte): NodeChildrenIterator {
         if (v2Format) {
             getV2Child(b)?.let { searchResult ->
                 val index = searchResult.index
@@ -171,10 +185,10 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
         return EmptyNodeChildrenIterator()
     }
 
-    public override fun getChildrenRange(b: Byte): NodeChildrenIterator {
+    override fun getChildrenRange(b: Byte): NodeChildrenIterator {
         val ub = b.unsigned
         if (v2Format) {
-            when (val childrenCount = getChildrenCount()) {
+            when (val childrenCount = childrenCount) {
                 0 -> return EmptyNodeChildrenIterator()
                 256 -> return ImmutableNodeCompleteChildrenV2Iterator(
                     ub, ChildReference(b, addressByOffsetV2(ub * childAddressLength))
@@ -223,7 +237,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
             }
         } else {
             var low = -1
-            var high = getChildrenCount()
+            var high = childrenCount
             var offset = -1
             var resultByte = 0.toByte()
             while (high - low > 1) {
@@ -246,31 +260,12 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
         return EmptyNodeChildrenIterator()
     }
 
-    public override fun getChildrenCount() = childrenCount.toInt()
-
-    public override fun getChildrenLast(): NodeChildrenIterator {
-        val childrenCount = getChildrenCount()
-        return if (childrenCount == 0)
-            EmptyNodeChildrenIterator()
-        else {
-            if (v2Format) {
-                when (childrenCount) {
-                    256 -> ImmutableNodeCompleteChildrenV2Iterator(childrenCount, null)
-                    in 1..32 -> ImmutableNodeSparseChildrenV2Iterator(childrenCount, null)
-                    else -> ImmutableNodeBitsetChildrenV2Iterator(childrenCount, null)
-                }
-            } else {
-                ImmutableNodeChildrenIterator(childrenCount, null)
-            }
-        }
-    }
-
     private val v2Format: Boolean get() = baseAddress != Loggable.NULL_ADDRESS
 
     // if specified byte is found the returns index of child, offset of suffixAddress and type of children format
     private fun getV2Child(b: Byte): SearchResult? {
         val ub = b.unsigned
-        when (val childrenCount = getChildrenCount()) {
+        when (val childrenCount = childrenCount) {
             0 -> return null
             256 -> return SearchResult(
                 index = ub,
@@ -337,7 +332,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
 
     // get child reference in case of v2 format with sparse children (the number of children is in the range 1..32)
     private fun childReferenceSparseV2(index: Int) =
-        ChildReference(byteAt(index), addressByOffsetV2(getChildrenCount() + index * childAddressLength))
+        ChildReference(byteAt(index), addressByOffsetV2(childrenCount + index * childAddressLength))
 
     // get child reference in case of v2 format with bitset children representation
     // (the number of children is in the range 33..255)
@@ -357,7 +352,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
 
     private fun fillChildReferenceSparseV2(index: Int, node: ChildReference) {
         node.firstByte = byteAt(index)
-        node.suffixAddress = addressByOffsetV2(getChildrenCount() + index * childAddressLength)
+        node.suffixAddress = addressByOffsetV2(childrenCount + index * childAddressLength)
     }
 
     private fun fillChildReferenceBitsetV2(index: Int, bit: Int, node: ChildReference) {
@@ -379,7 +374,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
 
         override val parentNode: NodeBase get() = this@MultiPageImmutableNode
 
-        override val key: ByteIterable get() = keySequence
+        override val key: ByteIterable get() = this@MultiPageImmutableNode.key
     }
 
     private inner class ImmutableNodeChildrenIterator(index: Int, node: ChildReference?) :
@@ -471,7 +466,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
             --index
             if (bit < 0) {
                 bit = 256
-                for (i in index until getChildrenCount()) {
+                for (i in index until childrenCount) {
                     bit = bitset.previousSetBit(bit - 1)
                 }
             } else {
@@ -487,7 +482,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
     }
 }
 
-private data class SearchResult(val index: Int, val offset: Int, val childrenFormat: V2ChildrenFormat)
+data class SearchResult(val index: Int, val offset: Int, val childrenFormat: V2ChildrenFormat)
 
 private fun checkAddressLength(addressLen: Int) {
     if (addressLen < 0 || addressLen > 8) {

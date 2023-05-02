@@ -79,7 +79,7 @@ internal class TemporaryEmptyStore @JvmOverloads constructor(
     override fun reclaim(
         transaction: Transaction,
         loggable: RandomAccessLoggable,
-        loggables: Iterator<RandomAccessLoggable?>
+        loggables: Iterator<RandomAccessLoggable>
     ) {
         // nothing to reclaim
     }

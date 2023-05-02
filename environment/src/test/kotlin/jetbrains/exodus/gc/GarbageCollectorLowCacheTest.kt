@@ -30,7 +30,10 @@ open class GarbageCollectorLowCacheTest : EnvironmentTestsBase() {
         get() = StoreConfig.WITHOUT_DUPLICATES
 
     override fun createEnvironment() {
-        env = newEnvironmentInstance(LogConfig.create(reader, writer), EnvironmentConfig().setMemoryUsage(1).setMemoryUsagePercentage(0))
+        environment = newEnvironmentInstance(
+            LogConfig.create(reader!!, writer!!),
+            EnvironmentConfig().setMemoryUsage(1).setMemoryUsagePercentage(0)
+        )
     }
 
     @Test
@@ -47,8 +50,8 @@ open class GarbageCollectorLowCacheTest : EnvironmentTestsBase() {
          */
 
         set1KbFileWithoutGC()
-        env.environmentConfig.treeMaxPageSize = 16
-        env.environmentConfig.memoryUsage = 0
+        environment!!.environmentConfig.treeMaxPageSize = 16
+        environment!!.environmentConfig.memoryUsage = 0
         reopenEnvironment()
 
         val store = openStoreAutoCommit("duplicates", config)
@@ -65,7 +68,7 @@ open class GarbageCollectorLowCacheTest : EnvironmentTestsBase() {
         }
 
         val log = log
-        val gc = environment.gc
+        val gc = environment!!.gc
 
         val highFileAddress = log.highFileAddress
         var fileAddress = log.lowFileAddress

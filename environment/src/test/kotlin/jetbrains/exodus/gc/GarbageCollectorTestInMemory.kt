@@ -55,13 +55,13 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
     fun testTextIndexLike() {
         val started = System.currentTimeMillis()
         prepare()
-        val txn = env.beginTransaction()
-        val store = env.openStore("store", getStoreConfig(false), txn)
-        val storeDups = env.openStore("storeDups", getStoreConfig(true), txn)
+        val txn = environment!!.beginTransaction()
+        val store = environment!!.openStore("store", getStoreConfig(false), txn)
+        val storeDups = environment!!.openStore("storeDups", getStoreConfig(true), txn)
         txn.commit()
         try {
             while (System.currentTimeMillis() - started < TEST_DURATION) {
-                env.executeInTransaction { envTxn ->
+                environment!!.executeInTransaction { envTxn ->
                     var randomInt = rnd.nextInt() and 0x3fffffff
                     val count = 4 + randomInt and 0x1f
                     var j = 0
@@ -88,13 +88,13 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
     fun testTextIndexLikeWithDeletions() {
         val started = System.currentTimeMillis()
         prepare()
-        val txn = env.beginTransaction()
-        val store = env.openStore("store", getStoreConfig(false), txn)
-        val storeDups = env.openStore("storeDups", getStoreConfig(true), txn)
+        val txn = environment!!.beginTransaction()
+        val store = environment!!.openStore("store", getStoreConfig(false), txn)
+        val storeDups = environment!!.openStore("storeDups", getStoreConfig(true), txn)
         txn.commit()
         try {
             while (System.currentTimeMillis() - started < TEST_DURATION) {
-                env.executeInTransaction(object : TransactionalExecutable {
+                environment!!.executeInTransaction(object : TransactionalExecutable {
                     override fun execute(txn: Transaction) {
                         var randomInt = rnd.nextInt() and 0x3fffffff
                         val count = 4 + randomInt and 0x1f
@@ -140,9 +140,9 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
     fun testTextIndexLikeWithDeletionsAndConcurrentReading() {
         val started = System.currentTimeMillis()
         prepare()
-        val txn = env.beginTransaction()
-        val store = env.openStore("store", getStoreConfig(false), txn)
-        val storeDups = env.openStore("storeDups", getStoreConfig(true), txn)
+        val txn = environment!!.beginTransaction()
+        val store = environment!!.openStore("store", getStoreConfig(false), txn)
+        val storeDups = environment!!.openStore("storeDups", getStoreConfig(true), txn)
         txn.commit()
         var throwable: Throwable? = null
         val processors = arrayOfNulls<JobProcessor>(10)
@@ -156,7 +156,7 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
                 barrier.await()
                 try {
                     while (System.currentTimeMillis() - started < TEST_DURATION) {
-                        env.executeInTransaction(object : TransactionalExecutable {
+                        environment!!.executeInTransaction(object : TransactionalExecutable {
                             override fun execute(txn: Transaction) {
                                 var randomInt = rnd.nextInt() and 0x3fffffff
                                 val count = 4 + randomInt and 0x1f
@@ -232,7 +232,7 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
 
     private fun prepare() {
         setLogFileSize(2)
-        env.environmentConfig.treeMaxPageSize = 16
+        environment!!.environmentConfig.treeMaxPageSize = 16
         reopenEnvironment()
     }
 

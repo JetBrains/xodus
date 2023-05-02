@@ -91,7 +91,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
             while (cursor.next) {
                 val key = cursor.key
                 if (isStringKey(ArrayByteIterable(key))) {
-                    if (TreeMetaInfo.load(env, cursor.value).getStructureId() == structureId) {
+                    if (TreeMetaInfo.load(env, cursor.value).structureId == structureId) {
                         return StringBinding.entryToString(key)
                     }
                 }

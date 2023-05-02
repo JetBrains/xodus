@@ -22,7 +22,6 @@ import org.junit.Assert
 import org.junit.Test
 
 open class GarbageCollectorInterleavingTest : EnvironmentTestsBase() {
-
     protected open val storeConfig: StoreConfig
         get() = StoreConfig.WITHOUT_DUPLICATES
 
@@ -34,7 +33,7 @@ open class GarbageCollectorInterleavingTest : EnvironmentTestsBase() {
     fun testSimple() {
         set1KbFileWithoutGC()
 
-        val log = env.log
+        val log = environment!!.log
         val fileSize = log.fileLengthBound
 
         fill("updateSameKey")
@@ -47,17 +46,17 @@ open class GarbageCollectorInterleavingTest : EnvironmentTestsBase() {
 
         Assert.assertEquals(3L, log.numberOfFiles) // make cleaning of second file possible
 
-        env.gc.doCleanFile(fileSize) // clean second file
+        environment!!.gc.doCleanFile(fileSize) // clean second file
 
         Thread.sleep(300)
-        env.gc.testDeletePendingFiles()
+        environment!!.gc.testDeletePendingFiles()
 
         Assert.assertEquals(3L, log.numberOfFiles) // half of tree written out from second file
 
-        env.gc.doCleanFile(0) // clean first file
+        environment!!.gc.doCleanFile(0) // clean first file
 
         Thread.sleep(300)
-        env.gc.testDeletePendingFiles()
+        environment!!.gc.testDeletePendingFiles()
 
         Assert.assertEquals(2L, log.numberOfFiles) // first file contained only garbage
 
@@ -67,8 +66,8 @@ open class GarbageCollectorInterleavingTest : EnvironmentTestsBase() {
 
     private fun fill(table: String) {
         val val0 = StringBinding.stringToEntry("val0")
-        env.executeInTransaction { txn ->
-            val store = env.openStore(table, storeConfig, txn)
+        environment!!.executeInTransaction { txn ->
+            val store = environment!!.openStore(table, storeConfig, txn)
             for (i in 0 until recordsNumber) {
                 val key = StringBinding.stringToEntry("key $i")
                 store.put(txn, key, val0)
@@ -78,8 +77,8 @@ open class GarbageCollectorInterleavingTest : EnvironmentTestsBase() {
 
     private fun check(table: String) {
         val val0 = StringBinding.stringToEntry("val0")
-        env.executeInReadonlyTransaction { txn ->
-            val store = env.openStore(table, storeConfig, txn)
+        environment!!.executeInReadonlyTransaction { txn ->
+            val store = environment!!.openStore(table, storeConfig, txn)
             for (i in 0 until recordsNumber) {
                 val key = StringBinding.stringToEntry("key $i")
                 Assert.assertTrue(store.exists(txn, key, val0))

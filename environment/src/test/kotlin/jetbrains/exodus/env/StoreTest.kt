@@ -68,12 +68,12 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     fun testRemoveWithoutTransaction() {
         val store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES)
-        val txn = env.beginTransaction()
+        val txn = environment!!.beginTransaction()
         store.put(txn, key, value)
         txn.commit()
         assertNotNullStringValue(store, key, "value")
 
-        env.executeInTransaction { tx -> env.removeStore("store", tx) }
+        environment!!.executeInTransaction { tx -> environment!!.removeStore("store", tx) }
         try {
             openStoreAutoCommit("store", StoreConfig.USE_EXISTING)
             fail("Exception on open removed db is not thrown!")
@@ -86,13 +86,13 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     fun testRemoveWithinTransaction() {
         val store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES)
-        var txn: Transaction = env.beginTransaction()
+        var txn: Transaction = environment!!.beginTransaction()
         store.put(txn, key, value)
         txn.commit()
         assertNotNullStringValue(store, key, "value")
-        txn = env.beginTransaction()
+        txn = environment!!.beginTransaction()
         store.put(txn, key, value2)
-        env.removeStore("store", txn)
+        environment!!.removeStore("store", txn)
         txn.commit()
         assertEmptyValue(store, key)
 
@@ -108,11 +108,11 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     fun testPutWithDuplicates() {
         val store = openStoreAutoCommit("store", StoreConfig.WITH_DUPLICATES)
-        var txn: Transaction = env.beginTransaction()
+        var txn: Transaction = environment!!.beginTransaction()
         store.put(txn, key, value)
         txn.commit()
         assertNotNullStringValue(store, key, "value")
-        txn = env.beginTransaction()
+        txn = environment!!.beginTransaction()
         store.put(txn, key, value2)
         txn.commit()
         assertNotNullStringValue(store, key, "value")
@@ -123,7 +123,7 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     fun testCloseCursorTwice() {
         val store = openStoreAutoCommit("store", StoreConfig.WITH_DUPLICATES)
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val cursor = store.openCursor(txn)
             cursor.close()
             cursor.close()
@@ -132,22 +132,20 @@ class StoreTest : EnvironmentTestsBase() {
 
     @Test
     fun testCreateThreeStoresWithoutAutoCommit() {
-        val env = environment
-        val txn = env.beginTransaction()
-        env.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn)
-        env.openStore("store2", StoreConfig.WITHOUT_DUPLICATES, txn)
-        val store3 = env.openStore("store3", StoreConfig.WITHOUT_DUPLICATES, txn)
+        val txn = environment!!.beginTransaction()
+        environment!!.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn)
+        environment!!.openStore("store2", StoreConfig.WITHOUT_DUPLICATES, txn)
+        val store3 = environment!!.openStore("store3", StoreConfig.WITHOUT_DUPLICATES, txn)
         store3.put(txn, key, value)
         txn.commit()
     }
 
     @Test
     fun testCreateTwiceInTransaction_XD_394() {
-        val env = environment
-        val store = env.computeInTransaction { txn ->
-            val store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
+        val store = environment!!.computeInTransaction { txn ->
+            val store = environment!!.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
             store.put(txn, key, value)
-            val sameNameStore = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
+            val sameNameStore = environment!!.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
             sameNameStore.put(txn, key2, value2)
             store
         }
@@ -158,21 +156,20 @@ class StoreTest : EnvironmentTestsBase() {
 
     @Test
     fun testNewlyCreatedStoreExists_XD_394() {
-        val env = environment
-        env.executeInTransaction { txn ->
-            val store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
-            assertTrue(env.storeExists(store.name, txn))
+        environment!!.executeInTransaction { txn ->
+            val store = environment!!.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
+            assertTrue(environment!!.storeExists(store.name, txn))
         }
     }
 
     @Test
     fun test_XD_459() {
-        val store = env.computeInTransaction { txn -> env.openStore("Store", StoreConfig.WITHOUT_DUPLICATES, txn) }
-        env.executeInTransaction { txn ->
+        val store = environment!!.computeInTransaction { txn -> environment!!.openStore("Store", StoreConfig.WITHOUT_DUPLICATES, txn) }
+        environment!!.executeInTransaction { txn ->
             store.put(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0"))
             store.put(txn, StringBinding.stringToEntry("1"), StringBinding.stringToEntry("1"))
         }
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             store.openCursor(txn).use { cursor ->
                 assertTrue(cursor.getSearchBoth(StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")))
                 assertTrue(cursor.deleteCurrent())
@@ -189,11 +186,11 @@ class StoreTest : EnvironmentTestsBase() {
         val content = "quod non habet principium, non habet finem"
         val file = File.createTempFile("FileByteIterable", null, TestUtil.createTempDir())
         FileOutputStream(file).use { output -> output.write(content.toByteArray(Charset.defaultCharset())) }
-        val store = env.computeInTransaction { txn -> env.openStore("Store", StoreConfig.WITHOUT_DUPLICATES, txn) }
+        val store = environment!!.computeInTransaction { txn -> environment!!.openStore("Store", StoreConfig.WITHOUT_DUPLICATES, txn) }
         val fbi = FileByteIterable(file)
-        env.executeInTransaction { txn -> store.put(txn, StringBinding.stringToEntry("winged"), fbi) }
+        environment!!.executeInTransaction { txn -> store.put(txn, StringBinding.stringToEntry("winged"), fbi) }
         try {
-            assertEquals(content, env.computeInReadonlyTransaction(TransactionalComputable<String> { txn ->
+            assertEquals(content, environment!!.computeInReadonlyTransaction(TransactionalComputable<String> { txn ->
                 val value = store.get(txn, StringBinding.stringToEntry("winged"))
                     ?: throw ExodusException("value is null")
                 try {
@@ -221,22 +218,22 @@ class StoreTest : EnvironmentTestsBase() {
     @TestFor(issue = "XD-601")
     fun testXD_601() {
         val store =
-            env.computeInTransaction { txn -> env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn, true) }
+            environment!!.computeInTransaction { txn -> environment!!.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn, true) }
                 ?: throw ExodusException("store is null")
-        val cachePageSize = env.environmentConfig.logCachePageSize
+        val cachePageSize = environment!!.environmentConfig.logCachePageSize
         val builder = StringBuilder()
         for (i in 0 until cachePageSize) {
             builder.append('0')
         }
         val key = builder.toString()
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             store.put(
                 txn,
                 StringBinding.stringToEntry(key),
                 StringBinding.stringToEntry("")
             )
         }
-        assertNull(env.computeInTransaction { txn ->
+        assertNull(environment!!.computeInTransaction { txn ->
             store.get(
                 txn,
                 StringBinding.stringToEntry(key.substring(0, cachePageSize - 1) + '1')
@@ -247,9 +244,9 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     @TestFor(issue = "XD-608")
     fun testXD_608_by_Thorsten_Schemm() {
-        env.environmentConfig.isGcEnabled = false
-        val store = env.computeInTransaction { txn ->
-            env.openStore(
+        environment!!.environmentConfig.isGcEnabled = false
+        val store = environment!!.computeInTransaction { txn ->
+            environment!!.openStore(
                 "Whatever",
                 StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
                 txn,
@@ -257,21 +254,21 @@ class StoreTest : EnvironmentTestsBase() {
             )
         }
             ?: throw ExodusException("store is null")
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0))
             store.put(txn, IntegerBinding.intToEntry(1), IntegerBinding.intToEntry(1))
         }
-        env.executeInReadonlyTransaction { txn -> assert_XD_608_1_0(txn, store) }
-        env.executeInReadonlyTransaction { txn -> assert_XD_608_0_0_1(txn, store) }
-        env.executeInReadonlyTransaction { txn -> assert_XD_608_0_1(txn, store) }
+        environment!!.executeInReadonlyTransaction { txn -> assert_XD_608_1_0(txn, store) }
+        environment!!.executeInReadonlyTransaction { txn -> assert_XD_608_0_0_1(txn, store) }
+        environment!!.executeInReadonlyTransaction { txn -> assert_XD_608_0_1(txn, store) }
     }
 
     @Test
     @TestFor(issue = "XD-608")
     fun testXD_608_Mutable() {
-        env.environmentConfig.isGcEnabled = false
-        val store = env.computeInTransaction { txn ->
-            env.openStore(
+        environment!!.environmentConfig.isGcEnabled = false
+        val store = environment!!.computeInTransaction { txn ->
+            environment!!.openStore(
                 "Whatever",
                 StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
                 txn,
@@ -279,7 +276,7 @@ class StoreTest : EnvironmentTestsBase() {
             )
         }
             ?: throw ExodusException("store is null")
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0))
             store.put(txn, IntegerBinding.intToEntry(1), IntegerBinding.intToEntry(1))
             assert_XD_608_1_0(txn, store)
@@ -318,9 +315,9 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     @TestFor(issue = "XD-614")
     fun testXD_614_by_Thorsten_Schemm() {
-        env.environmentConfig.isGcEnabled = false
-        val store = env.computeInTransaction { txn ->
-            env.openStore(
+        environment!!.environmentConfig.isGcEnabled = false
+        val store = environment!!.computeInTransaction { txn ->
+            environment!!.openStore(
                 "Whatever",
                 StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
                 txn,
@@ -328,7 +325,7 @@ class StoreTest : EnvironmentTestsBase() {
             )
         }
             ?: throw ExodusException("store is null")
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             store.put(txn, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(0))
             store.put(txn, IntegerBinding.intToEntry(256), IntegerBinding.intToEntry(256))
             store.put(txn, IntegerBinding.intToEntry(257), IntegerBinding.intToEntry(257))
@@ -340,7 +337,7 @@ class StoreTest : EnvironmentTestsBase() {
                 assertEquals(0, IntegerBinding.entryToInt(cursor.key).toLong())
             }
         }
-        env.executeInReadonlyTransaction { txn ->
+        environment!!.executeInReadonlyTransaction { txn ->
             store.openCursor(txn).use { cursor ->
                 assertNotNull(cursor.getSearchKey(IntegerBinding.intToEntry(256)))
                 assertTrue(cursor.prev)
@@ -352,9 +349,9 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     @TestFor(issue = "XD-614")
     fun testXD_614_next_prev() {
-        env.environmentConfig.isGcEnabled = false
-        val store = env.computeInTransaction { txn ->
-            env.openStore(
+        environment!!.environmentConfig.isGcEnabled = false
+        val store = environment!!.computeInTransaction { txn ->
+            environment!!.openStore(
                 "Whatever",
                 StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
                 txn,
@@ -362,13 +359,13 @@ class StoreTest : EnvironmentTestsBase() {
             )
         }
             ?: throw ExodusException("store is null")
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             for (i in 0..511) {
                 store.put(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
             }
             assert_XD_614(txn, store)
         }
-        env.executeInReadonlyTransaction { txn -> assert_XD_614(txn, store) }
+        environment!!.executeInReadonlyTransaction { txn -> assert_XD_614(txn, store) }
     }
 
     private fun assert_XD_614(txn: Transaction, store: Store) {
@@ -385,25 +382,25 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     @TestFor(issue = "XD-601")
     fun testXD_601_by_Thorsten_Schemm() {
-        env.environmentConfig.isGcEnabled = false
+        environment!!.environmentConfig.isGcEnabled = false
         assertTrue(HashSet(listOf(*XD_601_KEYS)).size == XD_601_KEYS.size)
         val store =
-            env.computeInTransaction { txn -> env.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn, true) }
+            environment!!.computeInTransaction { txn -> environment!!.openStore("Messages", StoreConfig.WITHOUT_DUPLICATES, txn, true) }
                 ?: throw ExodusException("store is null")
         for (i in XD_601_KEYS.indices) {
             val nextKey = StringBinding.stringToEntry(XD_601_KEYS[i])
             val nextValue = StringBinding.stringToEntry(i.toString())
-            val storeCount = env.computeInTransaction { txn -> store.count(txn) }
+            val storeCount = environment!!.computeInTransaction { txn -> store.count(txn) }
             assertEquals(storeCount, i.toLong())
             if (storeCount != i.toLong()) {
                 println("unexpected store count:  $storeCount at $i")
             }
-            val currentValue = env.computeInReadonlyTransaction { txn -> store.get(txn, nextKey) }
+            val currentValue = environment!!.computeInReadonlyTransaction { txn -> store.get(txn, nextKey) }
             if (currentValue != null) {
                 println("unexpected value: " + StringBinding.entryToString(currentValue) + " at " + i)
-                env.executeInReadonlyTransaction { txn -> assertNotNull(store.get(txn, nextKey)) }
+                environment!!.executeInReadonlyTransaction { txn -> assertNotNull(store.get(txn, nextKey)) }
             }
-            env.executeInTransaction { txn -> assertTrue(store.put(txn, nextKey, nextValue)) }
+            environment!!.executeInTransaction { txn -> assertTrue(store.put(txn, nextKey, nextValue)) }
         }
     }
 
@@ -411,19 +408,19 @@ class StoreTest : EnvironmentTestsBase() {
     @TestFor(issue = "XD-774")
     fun `remove and open store in single txn (by Martin Hausler)`() {
         val store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES)
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             store.put(txn, key, value)
         }
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertEquals(value, store[txn, key])
         }
-        env.executeInTransaction { txn ->
-            env.removeStore("store", txn)
-            @Suppress("NAME_SHADOWING") val store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
+        environment!!.executeInTransaction { txn ->
+            environment!!.removeStore("store", txn)
+            @Suppress("NAME_SHADOWING") val store = environment!!.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
             store.put(txn, key, value2)
         }
-        env.executeInTransaction { txn ->
-            @Suppress("NAME_SHADOWING") val store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
+        environment!!.executeInTransaction { txn ->
+            @Suppress("NAME_SHADOWING") val store = environment!!.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn)
             val value = store[txn, key]
             assertNotNull(value)
             assertEquals(value2, value)
@@ -433,13 +430,13 @@ class StoreTest : EnvironmentTestsBase() {
     @Test
     fun `FixedLengthByteIterable#getBytesUnsafe`() {
         val store = openStoreAutoCommit("store", StoreConfig.WITHOUT_DUPLICATES)
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             store.put(txn, key, value)
         }
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertEquals(value, store[txn, key])
         }
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val vl = value.length
             (0 until vl).forEach { i ->
                 assertEquals(value.subIterable(i, vl - i), store[txn, key]?.subIterable(i, vl - i))
@@ -448,16 +445,15 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     private fun putWithoutDuplicates(config: StoreConfig) {
-        val env = environment
-        var txn: Transaction = env.beginTransaction()
-        val store = env.openStore("store", config, txn)
+        var txn: Transaction = environment!!.beginTransaction()
+        val store = environment!!.openStore("store", config, txn)
         assertTrue(store.put(txn, key, value))
         txn.commit()
         assertNotNullStringValue(store, key, "value")
-        txn = env.beginTransaction()
+        txn = environment!!.beginTransaction()
         assertTrue(store.put(txn, key, value2))
         txn.commit()
-        txn = env.beginTransaction()
+        txn = environment!!.beginTransaction()
         // TODO: review the following when we no longer need meta-tree cloning
         assertEquals(!config.prefixing, store.put(txn, key, value2))
         txn.commit()
@@ -465,9 +461,8 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     private fun successivePutRightWithoutDuplicates(config: StoreConfig) {
-        val env = environment
-        val txn = env.beginTransaction()
-        val store = env.openStore("store", config, txn)
+        val txn = environment!!.beginTransaction()
+        val store = environment!!.openStore("store", config, txn)
         val kv0 = ArrayByteIterable(byteArrayOf(0))
         store.putRight(txn, kv0, StringBinding.stringToEntry("0"))
         val kv10 = ArrayByteIterable(byteArrayOf(1, 0))
@@ -481,14 +476,14 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     private fun truncateWithinTxn(config: StoreConfig) {
-        var txn: Transaction = env.beginTransaction()
-        val store = env.openStore("store", config, txn)
+        var txn: Transaction = environment!!.beginTransaction()
+        val store = environment!!.openStore("store", config, txn)
         store.put(txn, key, value)
         txn.commit()
         assertNotNullStringValue(store, key, "value")
-        txn = env.beginTransaction()
+        txn = environment!!.beginTransaction()
         store.put(txn, key, value2)
-        env.truncateStore("store", txn)
+        environment!!.truncateStore("store", txn)
         txn.commit()
         assertEmptyValue(store, key)
         openStoreAutoCommit("store", StoreConfig.USE_EXISTING)
@@ -496,7 +491,7 @@ class StoreTest : EnvironmentTestsBase() {
     }
 
     private fun concurrentPutLikeJetPass(config: StoreConfig) {
-        env.environmentConfig.isGcEnabled = false
+        environment!!.environmentConfig.isGcEnabled = false
         val store = openStoreAutoCommit("store", config)
         val processor = object : MultiThreadDelegatingJobProcessor("ConcurrentPutProcessor", 8) {
 
@@ -508,7 +503,7 @@ class StoreTest : EnvironmentTestsBase() {
         for (i in 0 until count) {
             processor.queue(object : Job() {
                 override fun execute() {
-                    env.executeInTransaction { txn ->
+                    environment!!.executeInTransaction { txn ->
                         val key = randomLong()
                         store.put(txn, LongBinding.longToCompressedEntry(key), value)
                         if (txn.flush()) {
@@ -525,7 +520,7 @@ class StoreTest : EnvironmentTestsBase() {
         processor.waitForJobs(10)
         processor.finish()
         assertEquals(count.toLong(), keys.size.toLong())
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val longs = keys.toLongArray()
             for (key in longs) {
                 assertEquals(value, store.get(txn, LongBinding.longToCompressedEntry(key)))

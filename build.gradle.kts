@@ -35,7 +35,9 @@ version = xodusVersion ?: version
 fun shouldDeploy(project: Project): Boolean {
     return project.version.toString().isNotEmpty() && project.name !in listOf(
         "xodus-benchmarks", "xodus-samples",
-        "xodus-environment-crash-tests"
+        "xodus-environment-crash-tests",
+        "xodus-environment-test",
+        "xodus-utils-test"
     )
 }
 
@@ -44,7 +46,9 @@ fun shouldApplyDokka(project: Project): Boolean {
         "xodus-benchmarks",
         "xodus-samples",
         "xodus-query",
-        "xodus-environment-crash-tests"
+        "xodus-environment-crash-tests",
+        "xodus-environment-test",
+        "xodus-utils-test"
     )
 }
 

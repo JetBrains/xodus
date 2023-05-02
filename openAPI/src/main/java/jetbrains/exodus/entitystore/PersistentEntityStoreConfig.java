@@ -20,12 +20,10 @@ import jetbrains.exodus.ConfigSettingChangeListener;
 import jetbrains.exodus.ConfigurationStrategy;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.core.dataStructures.Pair;
-import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.system.JVMConstants;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.util.Map;
 
@@ -356,14 +354,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String MANAGEMENT_ENABLED = "exodus.entityStore.managementEnabled";
 
     /**
-     * If set to some value different from {@code null}, delegate replication to corresponding external service of provided value.
-     * <p>Mutable at runtime: no
-     *
-     * @see PersistentEntityStoreReplicator
-     */
-    public static final String REPLICATOR = "exodus.entityStore.replicator";
-
-    /**
      * Location of directory on the file system where all blobs will be stored.
      * Applicable only if disk based blob directory is used.
      * If relative path is provided, path will be created relatively location of main database.
@@ -426,7 +416,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(TRANSACTION_BLOB_STRINGS_CACHE_SIZE, 256),
                 new Pair(GATHER_STATISTICS, true),
                 new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
-                new Pair(REPLICATOR, null),
                 new Pair(BLOB_MAX_READ_WAITING_INTERVAL, 300),
                 new Pair(BLOBS_DIRECTORY_LOCATION, null)
 
@@ -755,14 +744,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setManagementEnabled(final boolean managementEnabled) {
         return setSetting(MANAGEMENT_ENABLED, managementEnabled && !JVMConstants.getIS_ANDROID());
-    }
-
-    public PersistentEntityStoreConfig setStoreReplicator(final PersistentEntityStoreReplicator replicator) {
-        return setSetting(REPLICATOR, replicator);
-    }
-
-    public PersistentEntityStoreReplicator getStoreReplicator() {
-        return (PersistentEntityStoreReplicator) getSetting(REPLICATOR);
     }
 
     public PersistentEntityStoreConfig setBlobsDirectoryLocation(final String value) {

@@ -25,7 +25,8 @@ class EnvironmentStatisticsMBeanTest : EnvironmentTestsBase() {
 
     @Test
     fun beanIsAccessible() {
-        val envConfigInstances = platformMBeanServer.queryMBeans(ObjectName(EnvironmentStatistics.getObjectName(env)), null)
+        val envConfigInstances = platformMBeanServer.queryMBeans(ObjectName(
+            EnvironmentStatistics.getObjectName(environment!!)), null)
         Assert.assertNotNull(envConfigInstances)
         Assert.assertFalse(envConfigInstances.isEmpty())
     }

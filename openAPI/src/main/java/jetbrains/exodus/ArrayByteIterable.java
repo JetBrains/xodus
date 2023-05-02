@@ -25,8 +25,7 @@ import java.util.Arrays;
  */
 public class ArrayByteIterable extends ByteIterableBase {
 
-    @SuppressWarnings("StaticInitializerReferencesSubClass")
-    public static final EmptyIterable EMPTY = new EmptyIterable();
+    public static final ArrayByteIterable EMPTY = new EmptyIterable();
 
     protected int offset;
 
@@ -271,10 +270,8 @@ public class ArrayByteIterable extends ByteIterableBase {
 
     }
 
-    @SuppressWarnings({"NonConstantFieldWithUpperCaseName"})
     private static final class EmptyIterable extends ArrayByteIterable {
-
-        public final Iterator ITERATOR = new Iterator(null, 0, 0);
+        private static final Iterator ITERATOR = new Iterator(null, 0, 0);
 
         EmptyIterable() {
             super(EMPTY_BYTES, 0);

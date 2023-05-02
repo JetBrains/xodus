@@ -202,7 +202,7 @@ open class ReadWriteTransaction : TransactionBase {
         return createdStores.containsKey(name)
     }
 
-    fun doCommit(out: Array<Proto?>, log: Log?): ExpiredLoggableCollection {
+    fun doCommit(out: Array<Proto?>, log: Log): ExpiredLoggableCollection {
         val removedEntries = removedStores.long2ObjectEntrySet()
         var expiredLoggables = ExpiredLoggableCollection.newInstance(log)
         val metaTreeMutable = _metaTree!!.tree.mutableCopy

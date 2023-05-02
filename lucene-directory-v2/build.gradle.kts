@@ -9,10 +9,7 @@ dependencies {
     implementation(libs.lucene.queries)
     implementation(libs.lucene.queryparser)
 
-    //noinspection DependencyNotationArgument
-    //testImplementation project(':xodus-environment').sourceSets.test.output
-    //noinspection DependencyNotationArgume
-    testImplementation(project(":xodus-utils", "testArtifacts"))
+    testImplementation(project(":xodus-utils-test"))
     testImplementation(libs.lucene.test.framework)
-    testImplementation(project(":xodus-environment", "testArtifacts"))
+    testImplementation(project(":xodus-environment-test"))
 }

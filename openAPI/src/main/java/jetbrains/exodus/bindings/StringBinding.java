@@ -73,6 +73,7 @@ public class StringBinding extends ComparableBinding {
      * @param object value to serialize
      * @return {@linkplain ArrayByteIterable} entry
      */
+    @NotNull
     public static ArrayByteIterable stringToEntry(@NotNull final String object) {
         return BINDING.objectToEntry(object);
     }

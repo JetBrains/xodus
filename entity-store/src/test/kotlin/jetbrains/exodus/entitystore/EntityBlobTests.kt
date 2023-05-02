@@ -144,10 +144,10 @@ class EntityBlobTests : EntityStoreTestBase() {
         val data = this.javaClass.classLoader.getResource("testXD_362.data").notNull
         entity.setBlob("body", data.openStream())
         Assert.assertTrue(entity.getBlobSize("body") > 0L)
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), data.openStream(), false))
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), data.openStream(), false))
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, data.openStream(), false))
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, data.openStream(), false))
         txn.flush()
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), data.openStream()))
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, data.openStream()))
     }
 
     fun testBlobOverwrite() {
@@ -156,14 +156,14 @@ class EntityBlobTests : EntityStoreTestBase() {
         val entity = txn.newEntity("Issue")
         Assert.assertNull(entity.getBlob("body"))
         entity.setBlob("body", string2Stream("body"))
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body")))
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, string2Stream("body")))
         entity.setBlob("body", string2Stream("body1"))
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body1")))
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, string2Stream("body1")))
         txn.flush()
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body1")))
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, string2Stream("body1")))
         entity.setBlob("body", string2Stream("body2"))
         txn.flush()
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body2")))
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, string2Stream("body2")))
     }
 
     fun testSingleNameBlobAndProperty() {
@@ -172,10 +172,10 @@ class EntityBlobTests : EntityStoreTestBase() {
         Assert.assertNull(entity.getBlob("body"))
         entity.setBlob("body", string2Stream("stream body"))
         entity.setProperty("body", "string body")
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("stream body")))
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, string2Stream("stream body")))
         txn.flush()
-        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("stream body")))
-        Assert.assertEquals(entity.getProperty("body"), "string body")
+        Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, string2Stream("stream body")))
+        Assert.assertEquals(entity.getProperty("body").toString(), "string body")
     }
 
     fun testMultipleBlobs() {
@@ -186,7 +186,7 @@ class EntityBlobTests : EntityStoreTestBase() {
         }
         txn.flush()
         for (i in 0..1999) {
-            Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body$i"), string2Stream("body$i")))
+            Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body$i")!!, string2Stream("body$i")))
         }
     }
 
@@ -204,7 +204,7 @@ class EntityBlobTests : EntityStoreTestBase() {
                 val txn1 = entityStore.beginTransaction()
                 for (i in 0..1999) {
                     try {
-                        if (!TestUtil.streamsEqual(entity.getBlob("body$i"), string2Stream("body$i"))) {
+                        if (!TestUtil.streamsEqual(entity.getBlob("body$i")!!, string2Stream("body$i"))) {
                             wereExceptions[0] = true
                             break
                         }
@@ -259,7 +259,7 @@ class EntityBlobTests : EntityStoreTestBase() {
                 txn.newEntity("Issue").setBlobString("description", "This is test description")
             }
         }
-        PersistentEntityStoreRefactorings(store).refactorDeduplicateInPlaceBlobs();
+        PersistentEntityStoreRefactorings(store).refactorDeduplicateInPlaceBlobs()
         store.executeInReadonlyTransaction { txn ->
             txn.getAll("Issue").forEach { entity ->
                 Assert.assertEquals("This is test description", entity.getBlobString("description"))
@@ -276,12 +276,12 @@ private fun checkBlobs(txn: StoreTransaction) {
     val length = "body".toByteArray().size
     entity.setBlob("body", string2Stream("body"))
     entity.setBlob("body2", createTempFile("body"))
-    Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body")))
+    Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, string2Stream("body")))
     Assert.assertEquals(length.toLong(), entity.getBlobSize("body"))
     Assert.assertEquals("body", entity.getBlobString("body2"))
     Assert.assertEquals((length + 2).toLong(), entity.getBlobSize("body2"))
     txn.flush()
-    Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body"), string2Stream("body")))
+    Assert.assertTrue(TestUtil.streamsEqual(entity.getBlob("body")!!, string2Stream("body")))
     Assert.assertEquals(length.toLong(), entity.getBlobSize("body"))
     Assert.assertEquals("body", entity.getBlobString("body2"))
     Assert.assertEquals((length + 2).toLong(), entity.getBlobSize("body2"))

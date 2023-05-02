@@ -1,0 +1,182 @@
+/*
+ * Copyright 2010 - 2023 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package jetbrains.exodus.tree
+
+import it.unimi.dsi.fastutil.ints.IntArrayList
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap
+import it.unimi.dsi.fastutil.longs.LongArrayList
+import jetbrains.exodus.log.*
+import java.util.function.BiConsumer
+
+interface ExpiredLoggableCollection {
+    val size: Int
+    fun add(loggable: Loggable)
+    fun add(address: Long, length: Int)
+    fun trimToSize(): ExpiredLoggableCollection
+    fun mergeWith(parent: ExpiredLoggableCollection): ExpiredLoggableCollection
+    fun forEach(action: BiConsumer<Long, Int>)
+
+    companion object {
+        @JvmStatic
+        fun newInstance(log: Log): ExpiredLoggableCollection {
+            return MutableExpiredLoggableCollection(log)
+        }
+
+        val EMPTY: ExpiredLoggableCollection = EmptyLoggableCollection()
+        const val NON_ACCUMULATED_STATS_LIMIT = 1000
+    }
+}
+
+internal class MutableExpiredLoggableCollection @JvmOverloads constructor(
+    private val log: Log,
+    private var parent: MutableExpiredLoggableCollection? = null,
+    private val addresses: LongArrayList = LongArrayList(),
+    private val lengths: IntArrayList = IntArrayList(),
+    private var accumulatedStats: Long2IntOpenHashMap? = null
+) : ExpiredLoggableCollection {
+    private var _size = 0
+    override val size: Int
+        get() = _size + if (parent != null) parent!!.size else 0
+    private val nonAccumulatedSize: Int
+        get() {
+            return lengths.size +
+                    (parent?.let {
+                        it.lengths.size + (it.accumulatedStats?.size ?: 0)
+                    } ?: 0)
+
+        }
+
+    override fun add(loggable: Loggable) {
+        add(loggable.address, loggable.length())
+    }
+
+    override fun add(address: Long, length: Int) {
+        addresses.add(address)
+        lengths.add(length)
+        _size++
+        accumulateStats()
+    }
+
+    private fun accumulateStats() {
+        if (nonAccumulatedSize >= ExpiredLoggableCollection.NON_ACCUMULATED_STATS_LIMIT) {
+            if (accumulatedStats == null) {
+                accumulatedStats = Long2IntOpenHashMap()
+            }
+            var currentParent = parent
+            var currentLengths = lengths
+            var currentAddresses = addresses
+            var currentAccumulatedStats: Long2IntOpenHashMap? = null
+            while (true) {
+                for (i in currentLengths.indices) {
+                    val currentAddress = currentAddresses.getLong(i)
+                    val currentFileAddress = log.getFileAddress(currentAddress)
+                    val currentLength = currentLengths.getInt(i)
+                    accumulatedStats!!.mergeInt(
+                        currentFileAddress,
+                        currentLength
+                    ) { a: Int, b: Int -> Integer.sum(a, b) }
+                }
+                if (currentAccumulatedStats != null) {
+                    for (entry in currentAccumulatedStats.long2IntEntrySet()) {
+                        accumulatedStats!!.mergeInt(
+                            entry.longKey,
+                            entry.intValue
+                        ) { a: Int, b: Int -> Integer.sum(a, b) }
+                    }
+                }
+                if (currentParent != null) {
+                    currentLengths = currentParent.lengths
+                    currentAddresses = currentParent.addresses
+                    currentParent = currentParent.parent
+                    currentAccumulatedStats = currentParent?.accumulatedStats
+                } else {
+                    break
+                }
+            }
+            parent = null
+            addresses.clear()
+            lengths.clear()
+        }
+    }
+
+    override fun trimToSize(): ExpiredLoggableCollection {
+        addresses.trim()
+        lengths.trim()
+        return this
+    }
+
+    override fun mergeWith(parent: ExpiredLoggableCollection): ExpiredLoggableCollection {
+        if (parent is MutableExpiredLoggableCollection) {
+            val parentAsMutable = parent
+            return (if (this.parent != null) MutableExpiredLoggableCollection(
+                log,
+                this, parentAsMutable.addresses, parentAsMutable.lengths, parentAsMutable.accumulatedStats
+            ) else MutableExpiredLoggableCollection(log, parentAsMutable, addresses, lengths, accumulatedStats))
+                .applyAccumulateStats()
+        }
+        return this
+    }
+
+    private fun applyAccumulateStats(): MutableExpiredLoggableCollection {
+        accumulateStats()
+        return this
+    }
+
+    override fun forEach(action: BiConsumer<Long, Int>) {
+        var current: MutableExpiredLoggableCollection? = this
+        while (current != null) {
+            for (i in current.lengths.indices) {
+                action.accept(current.addresses.getLong(i), current.lengths.getInt(i))
+            }
+            if (current.accumulatedStats != null) {
+                for (entry in current.accumulatedStats!!.long2IntEntrySet()) {
+                    action.accept(entry.longKey, entry.intValue)
+                }
+            }
+            current = current.parent
+        }
+    }
+
+    override fun toString(): String {
+        return "Expired $size loggables"
+    }
+}
+
+internal class EmptyLoggableCollection : ExpiredLoggableCollection {
+    override val size: Int
+        get() = 0
+
+    override fun add(loggable: Loggable) {
+        throw UnsupportedOperationException()
+    }
+
+    override fun add(address: Long, length: Int) {
+        throw UnsupportedOperationException()
+    }
+
+    override fun trimToSize(): ExpiredLoggableCollection {
+        return this
+    }
+
+    override fun mergeWith(parent: ExpiredLoggableCollection): ExpiredLoggableCollection {
+        if (parent.size > 0) {
+            throw UnsupportedOperationException()
+        }
+        return this
+    }
+
+    override fun forEach(action: BiConsumer<Long, Int>) {}
+}
