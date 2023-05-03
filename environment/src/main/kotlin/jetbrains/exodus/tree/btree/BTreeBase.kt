@@ -30,7 +30,7 @@ import java.io.PrintStream
  */
 abstract class BTreeBase internal constructor(
     override val log: Log,
-    @JvmField val balancePolicy: BTreeBalancePolicy,
+    val balancePolicy: BTreeBalancePolicy,
     val allowsDuplicates: Boolean,
     override val structureId: Int
 ) : ITree {

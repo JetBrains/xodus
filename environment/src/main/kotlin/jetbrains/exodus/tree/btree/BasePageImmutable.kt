@@ -26,11 +26,31 @@ abstract class BasePageImmutable : BasePage {
 
     private var _minKey: ILeafNode? = null
     override val minKey: ILeafNode
-        get() = _minKey ?: run { super.minKey.also { _minKey = it } }
+        get() {
+            var minKey = _minKey
+            if (minKey != null) {
+                return minKey
+            }
+
+            minKey = super.minKey
+            this._minKey = minKey
+            return minKey
+        }
 
     private var _maxKey: ILeafNode? = null
     override val maxKey: ILeafNode
-        get() = _maxKey ?: run { super.maxKey.also { _maxKey = it } }
+        get() {
+            var maxKey = _maxKey
+            if (maxKey != null) {
+                return maxKey
+            }
+
+            maxKey = super.maxKey
+            this._maxKey = maxKey
+
+            return maxKey
+        }
+
 
     protected val log: Log
     protected val page: ByteArray?
@@ -88,10 +108,12 @@ abstract class BasePageImmutable : BasePage {
         loggableInsideSinglePage: Boolean
     ) : super(tree) {
         log = tree.log
+
         this.size = size
         val it = data.iterator()
         this.data = init(data, it)
         formatWithHashCodeIsUsed = log.formatWithHashCodeIsUsed
+
         if (loggableInsideSinglePage) {
             page = this.data.baseBytes
             dataOffset = this.data.baseOffset()
@@ -119,7 +141,8 @@ abstract class BasePageImmutable : BasePage {
         get() = if (data.dataAddress == Loggable.NULL_ADDRESS) ByteIterable.EMPTY_ITERATOR else data.iterator()
 
     protected open fun loadAddressLengths(length: Int, it: ByteIterator) {
-        checkAddressLength(length.toByte().also { keyAddressLen = it })
+        keyAddressLen = length.toByte()
+        checkAddressLength(keyAddressLen)
     }
 
     override fun getKeyAddress(index: Int): Long {
@@ -135,9 +158,12 @@ abstract class BasePageImmutable : BasePage {
         var input = offset
         input += dataOffset
         var result: Long = 0
+        val page = page!!
+
         for (i in 0 until length) {
-            result = (result shl 8) + (page!![input + i].toInt() and 0xff)
+            result = (result shl 8) + (page[input + i].toInt() and 0xff)
         }
+
         return result
     }
 
@@ -196,9 +222,11 @@ abstract class BasePageImmutable : BasePage {
                 leftAddress -> {
                     it.page = leftPage
                 }
+
                 rightAddress -> {
                     it.page = rightPage
                 }
+
                 else -> {
                     leftPage = log.getCachedPage(pageAddress)
                     it.page = leftPage
@@ -281,9 +309,11 @@ abstract class BasePageImmutable : BasePage {
                 leftAddress -> {
                     it.page = leftPage
                 }
+
                 rightAddress -> {
                     it.page = rightPage
                 }
+
                 else -> {
                     leftPage = log.getCachedPage(pageAddress)
                     it.page = leftPage

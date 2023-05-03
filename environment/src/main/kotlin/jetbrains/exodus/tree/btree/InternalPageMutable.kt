@@ -90,16 +90,20 @@ class InternalPageMutable : BasePageMutable {
             throw ArrayIndexOutOfBoundsException("$index >= $size")
         }
         val tree = tree as BTreeMutable
-        return children[index] ?: run {
-            val childAddress = childrenAddresses[index]
-            tree.addExpiredLoggable(childAddress)
-            val child = tree.loadPage(childAddress).getMutableCopy(tree)
-            children[index] = child
-            // loaded mutable page will be changed and must be saved
-            childrenAddresses[index] = Loggable.NULL_ADDRESS
-            child
+
+        var child = children[index]
+        if (child != null) {
+            return child
         }
 
+        val childAddress = childrenAddresses[index]
+        tree.addExpiredLoggable(childAddress)
+
+        child = tree.loadPage(childAddress).getMutableCopy(tree)
+        children[index] = child
+        // loaded mutable page will be changed and must be saved
+        childrenAddresses[index] = Loggable.NULL_ADDRESS
+        return child
     }
 
     override fun setMutableChild(index: Int, child: BasePageMutable) {
@@ -175,6 +179,7 @@ class InternalPageMutable : BasePageMutable {
     override fun decrementSize(value: Int) {
         val initialSize = size
         super.decrementSize(value)
+
         for (i in size until initialSize) {
             children[i] = null
             childrenAddresses[i] = 0L

@@ -22,7 +22,6 @@ import jetbrains.exodus.ByteIterable
  */
 open class TreeCursor @JvmOverloads constructor(protected open val traverser: TreeTraverser, var alreadyIn: Boolean = false) :
     ITreeCursor {
-    @JvmField
     protected var canGoDown = true
     var inited = false
     protected open operator fun hasNext(): Boolean {

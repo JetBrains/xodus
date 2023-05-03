@@ -24,11 +24,8 @@ import jetbrains.exodus.ExodusException
  */
 open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
     final override val tree: ITreeMutable
-    @JvmField
     protected var wasDelete = false
-    @JvmField
     protected var nextAfterRemovedKey: ByteIterable? = null
-    @JvmField
     protected var nextAfterRemovedValue: ByteIterable? = null
     private var moveToKey: ByteIterable? = null
     private var moveToValue: ByteIterable? = null
@@ -205,7 +202,7 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
         fun notifyCursors(tree: ITreeMutable, cursorToSkip: ITreeCursorMutable?) {
             val openCursors = tree.openCursors
             if (openCursors != null) {
-                for(cursor in openCursors) {
+                for (cursor in openCursors) {
                     if (cursor !== cursorToSkip) {
                         cursor.treeChanged()
                     }

@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.tree.patricia
 
-abstract class ChildReferenceBase(var firstByte: Byte) {
+abstract class ChildReferenceBase(internal var firstByte: Byte) {
     abstract val isMutable: Boolean
     abstract fun getNode(tree: PatriciaTreeBase): NodeBase
 }

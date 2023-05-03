@@ -26,7 +26,7 @@ open class BTree(
     allowsDuplicates: Boolean,
     structureId: Int
 ) : BTreeBase(log, policy, allowsDuplicates, structureId) {
-    private val rootLoggable: RandomAccessLoggable?
+    private val rootLoggable: RandomAccessLoggable
     final override val root: BasePageImmutable
 
     constructor(log: Log, rootAddress: Long, allowsDuplicates: Boolean, structureId: Int) : this(
@@ -55,11 +55,11 @@ open class BTree(
     }
 
     override val rootAddress: Long
-        get() = rootLoggable!!.address
+        get() = rootLoggable.address
     override val mutableCopy: BTreeMutable
         get() {
             val result = BTreeMutable(this)
-            result.addExpiredLoggable(rootLoggable!!)
+            result.addExpiredLoggable(rootLoggable)
             return result
         }
 
@@ -68,7 +68,7 @@ open class BTree(
         loggableInsideSinglePage: Boolean
     ): BasePageImmutable {
         val result: BasePageImmutable
-        val type = rootLoggable!!.type
+        val type = rootLoggable.type
         result = when (type) {
             LEAF_DUP_BOTTOM_ROOT, BOTTOM_ROOT, BOTTOM, DUP_BOTTOM -> BottomPage(
                 this,

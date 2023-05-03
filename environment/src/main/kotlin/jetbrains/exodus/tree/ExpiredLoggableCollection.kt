@@ -49,14 +49,31 @@ internal class MutableExpiredLoggableCollection @JvmOverloads constructor(
 ) : ExpiredLoggableCollection {
     private var _size = 0
     override val size: Int
-        get() = _size + if (parent != null) parent!!.size else 0
+        get() {
+            var sum = _size
+            val parent = parent
+
+            if (parent != null) {
+                sum += parent.size
+            }
+
+            return sum
+        }
     private val nonAccumulatedSize: Int
         get() {
-            return lengths.size +
-                    (parent?.let {
-                        it.lengths.size + (it.accumulatedStats?.size ?: 0)
-                    } ?: 0)
+            var sum = lengths.size
+            val parent = parent
 
+            if (parent != null) {
+                sum += parent.lengths.size
+
+                val accumulatedStats = parent.accumulatedStats
+                if (accumulatedStats != null) {
+                    sum += accumulatedStats.size
+                }
+            }
+
+            return sum
         }
 
     override fun add(loggable: Loggable) {

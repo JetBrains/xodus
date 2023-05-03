@@ -20,9 +20,9 @@ import jetbrains.exodus.tree.MutableTreeRoot
 import jetbrains.exodus.tree.TreeCursorMutable
 
 class BTreeCursorDupMutable(
-    tree: ITreeMutable?, // hack to avoid casts
+    tree: ITreeMutable, // hack to avoid casts
     override val traverser: BTreeTraverserDup
-) : TreeCursorMutable(tree!!, traverser) {
+) : TreeCursorMutable(tree, traverser) {
     override fun getNextDup(): Boolean {
         moveIfNecessary()
         // move to next dup if in -1 position or dupCursor has next element

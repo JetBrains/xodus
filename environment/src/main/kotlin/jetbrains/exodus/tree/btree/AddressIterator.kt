@@ -23,7 +23,7 @@ import jetbrains.exodus.tree.TreeTraverser
 /*
  *Iterator over tree addresses
  */
-class AddressIterator(private var root: ITree?, private var alreadyIn: Boolean, @JvmField val traverser: TreeTraverser) :
+class AddressIterator(private var root: ITree?, private var alreadyIn: Boolean, val traverser: TreeTraverser) :
     LongIterator {
     private var canGoDown = true
     override fun hasNext(): Boolean {
@@ -57,15 +57,19 @@ class AddressIterator(private var root: ITree?, private var alreadyIn: Boolean, 
             canGoDown = false
             return traverser.currentAddress
         }
+
+        val root = this.root
         if (root != null) {
-            val result = root!!.rootAddress
-            root = null
+            val result = root.rootAddress
+
+            this.root = null
             return result
         }
+
         return Loggable.NULL_ADDRESS
     }
 
-    protected fun advance(): Boolean {
+    private fun advance(): Boolean {
         while (traverser.canMoveUp()) {
             canGoDown = if (traverser.canMoveRight()) {
                 return true

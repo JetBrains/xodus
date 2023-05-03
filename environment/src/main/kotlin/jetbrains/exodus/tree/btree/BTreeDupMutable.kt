@@ -25,7 +25,7 @@ import jetbrains.exodus.tree.ITreeCursorMutable
 import jetbrains.exodus.tree.TreeCursor
 import jetbrains.exodus.util.LightOutputStream
 
-internal open class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMutable(dupTree, null) {
+internal class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMutable(dupTree, null) {
     var mainTree: BTreeMutable? = null
     var key: ByteIterable
     var address = Loggable.NULL_ADDRESS

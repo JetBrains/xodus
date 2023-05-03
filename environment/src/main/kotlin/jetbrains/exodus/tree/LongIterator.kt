@@ -23,7 +23,6 @@ interface LongIterator {
     operator fun next(): Long
 
     companion object {
-        @JvmField
         val EMPTY: LongIterator = object : LongIterator {
             override fun hasNext(): Boolean {
                 return false

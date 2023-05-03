@@ -70,7 +70,7 @@ abstract class BaseLeafNode : ILeafNode {
     }
 
     override fun toString(): String {
-        return "LN {key:" + key + "} @ " + address
+        return "LN {key:$key} @ $address"
     }
 
     override fun dump(out: PrintStream, level: Int, renderer: Dumpable.ToString?) {

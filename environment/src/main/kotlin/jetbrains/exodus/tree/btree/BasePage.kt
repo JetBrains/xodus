@@ -23,8 +23,7 @@ import java.io.PrintStream
  * BTree base implementation of page
  */
 abstract class BasePage protected constructor(val tree: BTreeBase) : Dumpable {
-    @JvmField
-    var size = 0
+    internal var size = 0
 
     open fun getChild(index: Int): BasePage {
         throw UnsupportedOperationException()

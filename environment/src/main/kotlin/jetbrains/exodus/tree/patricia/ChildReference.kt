@@ -18,7 +18,7 @@ package jetbrains.exodus.tree.patricia
 import jetbrains.exodus.log.Loggable
 
 open class ChildReference : ChildReferenceBase {
-    var suffixAddress: Long
+    internal var suffixAddress: Long
 
     constructor(firstByte: Byte, suffixAddress: Long) : super(firstByte) {
         this.suffixAddress = suffixAddress

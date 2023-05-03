@@ -32,8 +32,8 @@ internal class LeafNodeMutable(override val key: ByteIterable, override val valu
         check(address == Loggable.NULL_ADDRESS) { "Leaf already saved" }
         val keyLength = key.length
         val mutableTree = tree as BTreeMutable
-        val output = mutableTree.leafStream
-        fillBytes(keyLength.toLong(), output!!)
+        val output = mutableTree.leafStream!!
+        fillBytes(keyLength.toLong(), output)
         ByteIterableBase.fillBytes(key, output)
         ByteIterableBase.fillBytes(value, output)
         address = tree.log.write(

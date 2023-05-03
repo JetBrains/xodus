@@ -39,7 +39,8 @@ internal class InternalPage : BasePageImmutable {
     override fun loadAddressLengths(length: Int, it: ByteIterator) {
         super.loadAddressLengths(length, it)
         it.skip(size.toLong() * keyAddressLen)
-        checkAddressLength(it.next().also { childAddressLen = it })
+        childAddressLen = it.next()
+        checkAddressLength(childAddressLen)
     }
 
     override fun getMutableCopy(treeMutable: BTreeMutable): BasePageMutable {
