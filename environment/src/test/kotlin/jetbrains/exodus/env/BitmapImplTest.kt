@@ -32,12 +32,13 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Before
     override fun setUp() {
         super.setUp()
-        bitmap = env.computeInExclusiveTransaction { env.openBitmap("test", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, it) }
+        bitmap = environment!!.computeInExclusiveTransaction {
+            environment!!.openBitmap("test", StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, it) }
     }
 
     @Test
     fun `get from unused bitmap`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertFalse(bitmap.get(txn, bit0))
             assertFalse(bitmap.get(txn, bit42))
         }
@@ -45,7 +46,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `set bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertFalse(bitmap.set(txn, bit0, false))
             assertTrue(bitmap.set(txn, bit42, true))
             assertTrue(bitmap.set(txn, bit6040, true))
@@ -55,11 +56,11 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     @Test
     fun `successive bits get compressed`() {
         (0L..63L).forEach { bit ->
-            env.executeInTransaction { txn ->
+            environment!!.executeInTransaction { txn ->
                 bitmap.set(txn, bit, true)
             }
             if (bit == 0L || bit == 62L || bit == 63L) {
-                env.executeInReadonlyTransaction { txn ->
+                environment!!.executeInReadonlyTransaction { txn ->
                     assertEquals(1, bitmap.store.get(txn, LongBinding.longToCompressedEntry(0L))?.length)
                 }
             }
@@ -68,7 +69,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `set and get 100 random bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
 
             for (i in 0..100) {
@@ -84,7 +85,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `change bits value`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertTrue(bitmap.set(txn, bit0, true))
             assertTrue(bitmap.get(txn, bit0))
 
@@ -108,7 +109,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `clear unsetted bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertFalse(bitmap.get(txn, bit0))
             assertFalse(bitmap.get(txn, bit42))
             assertFalse(bitmap.get(txn, bit6040))
@@ -135,7 +136,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `all operations for 62nd and 63rd bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, 62L, true)
             bitmap.set(txn, 63L, true)
             assertTrue(bitmap.get(txn, 62L))
@@ -152,7 +153,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `all operations for random bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
@@ -172,7 +173,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `clear 62nd and 63rd consequent bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, 62L, true)
             bitmap.set(txn, 63L, true)
             assertTrue(bitmap.get(txn, 62L))
@@ -189,7 +190,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `clear random bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
@@ -209,28 +210,28 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test(expected = IllegalArgumentException::class)
     fun `set negative bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, -1, true)
         }
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `get negative bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.get(txn, -1)
         }
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `clear negative bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.clear(txn, -1)
         }
     }
 
     @Test
     fun `getFirst and getLast on empty bitmap`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertEquals(-1L, bitmap.getFirst(txn))
             assertEquals(-1L, bitmap.getLast(txn))
         }
@@ -238,7 +239,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `getFirst and getLast on  bitmap with one element`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, bit42, true)
             assertEquals(bit42, bitmap.getFirst(txn))
             assertEquals(bit42, bitmap.getLast(txn))
@@ -247,7 +248,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `getFirst and getLast on  bitmap with tree elements`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, bit42, true)
             bitmap.set(txn, bit63, true)
             bitmap.set(txn, bit6040, true)
@@ -258,14 +259,14 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `count for empty`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertEquals(0, bitmap.count(txn))
         }
     }
 
     @Test
     fun `count for set and clear all bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
@@ -283,7 +284,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `count for lots of set bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..100) {
                 val randomBit = (Math.random() * Long.MAX_VALUE).toLong()
@@ -296,7 +297,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `count for lots of set bits in small interval`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..100) {
                 val randomBit = (Math.random() * 1000L).toLong()
@@ -309,7 +310,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `count in range`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, 0, true)
             bitmap.set(txn, 32, true)
             bitmap.set(txn, 64, true)
@@ -329,7 +330,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
 
     @Test
     fun `sequential set`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             for (i in 0L..1000L) {
                 assertEquals(i, bitmap.count(txn))
                 assertTrue(bitmap.set(txn, i, true))
@@ -339,7 +340,7 @@ open class BitmapImplTest : EnvironmentTestsBase() {
     }
 
     private fun allOperationsForOneBit(bit: Long) {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             assertTrue(bitmap.set(txn, bit, true))
             assertTrue(bitmap.get(txn, bit))
             assertTrue(bitmap.clear(txn, bit))

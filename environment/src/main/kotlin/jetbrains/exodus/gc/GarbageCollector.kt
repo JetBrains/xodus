@@ -333,7 +333,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             val loggables = log.getLoggableIterator(fileAddress)
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
-                if (loggable == null || loggable.address >= nextFileAddress) {
+                if (loggable.address >= nextFileAddress) {
                     break
                 }
                 val structureId = loggable.structureId

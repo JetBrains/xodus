@@ -33,13 +33,14 @@ class EnvironmentConfigMBeanTest : EnvironmentTestsBase() {
     override fun setUp() {
         super.setUp()
         envConfigName = null
-        envConfigName = ObjectName(EnvironmentConfig.getObjectName(env))
+        envConfigName = ObjectName(EnvironmentConfig.getObjectName(environment!!))
     }
 
     @Test
     fun beanIsAccessible() {
         Assert.assertNotNull(envConfigName)
-        val envConfigInstances = platformMBeanServer.queryMBeans(ObjectName(EnvironmentConfig.getObjectName(env)), null)
+        val envConfigInstances = platformMBeanServer.queryMBeans(
+            ObjectName(EnvironmentConfig.getObjectName(environment!!)), null)
         Assert.assertNotNull(envConfigInstances)
         Assert.assertFalse(envConfigInstances.isEmpty())
     }
@@ -50,16 +51,16 @@ class EnvironmentConfigMBeanTest : EnvironmentTestsBase() {
         Assert.assertFalse((platformMBeanServer.getAttribute(envConfigName, READ_ONLY_ATTR) as Boolean))
         platformMBeanServer.setAttribute(envConfigName, Attribute(READ_ONLY_ATTR, true))
         Assert.assertTrue((platformMBeanServer.getAttribute(envConfigName, READ_ONLY_ATTR) as Boolean))
-        Assert.assertTrue(env.environmentConfig.envIsReadonly)
+        Assert.assertTrue(environment!!.environmentConfig.envIsReadonly)
         platformMBeanServer.setAttribute(envConfigName, Attribute(READ_ONLY_ATTR, false))
     }
 
     @Test
     fun readOnly_XD_444() {
         beanIsAccessible()
-        val txn: Transaction = env.beginTransaction()
+        val txn: Transaction = environment!!.beginTransaction()
         try {
-            env.openStore("New Store", StoreConfig.WITHOUT_DUPLICATES, txn)
+            environment!!.openStore("New Store", StoreConfig.WITHOUT_DUPLICATES, txn)
             Assert.assertFalse(txn.isIdempotent)
             platformMBeanServer.setAttribute(envConfigName, Attribute(READ_ONLY_ATTR, true))
             TestUtil.runWithExpectedException({ txn.flush() }, ReadonlyTransactionException::class.java)

@@ -37,7 +37,6 @@ import java.io.File
 private const val ENTRIES = 1000
 private val expectedException = InvalidCipherParametersException::class.java
 
-@Suppress("DEPRECATION")
 class InvalidCipherParametersTest {
 
     private lateinit var dir: File
@@ -258,7 +257,7 @@ private fun openEnvironment(
         TestUtil.runWithExpectedException({
             Environments.newInstance(dir, ec)
         }, exceptionClass)
-        val highFile = dir.list { _, name -> name.endsWith(LogUtil.LOG_FILE_EXTENSION) }.apply { sortDescending() }[0]
+        val highFile = dir.list { _, name -> name.endsWith(LogUtil.LOG_FILE_EXTENSION) }!!.apply { sortDescending() }[0]
         return LogUtil.getAddress(highFile) + File(dir, highFile).length()
     }
 }

@@ -48,7 +48,7 @@ abstract class XodusLuceneTestsBase : EnvironmentTestsBase() {
     @Throws(Exception::class)
     override fun setUp() {
         super.setUp()
-        directory = XodusDirectory(environment)
+        directory = XodusDirectory(environment!!)
         createAnalyzer()
         createIndexWriter()
     }
@@ -56,7 +56,7 @@ abstract class XodusLuceneTestsBase : EnvironmentTestsBase() {
     override fun createEnvironment() {
         val envConfig = EnvironmentConfig()
         envConfig.logCachePageSize = 1024
-        env = Environments.newInstance(LogConfig.create(reader, writer), envConfig) as EnvironmentImpl
+        environment = Environments.newInstance(LogConfig.create(reader!!, writer!!), envConfig) as EnvironmentImpl
     }
 
     @After

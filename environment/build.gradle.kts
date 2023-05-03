@@ -5,26 +5,13 @@ dependencies {
     implementation(project(":xodus-utils"))
     api(project(":xodus-openAPI"))
     implementation(libs.jetbrains.annotations)
-    testImplementation(project(":xodus-utils", "testArtifacts"))
+
+    testImplementation(project(":xodus-utils-test"))
+    testImplementation(project(":xodus-environment-test"))
 }
 
-val testArtifacts: Configuration by configurations.creating
 
 tasks {
-    val jarTest by creating(Jar::class) {
-        archiveClassifier.set("test")
-        from(sourceSets.test.get().output)
-    }
-
-    artifacts {
-        add("testArtifacts", jarTest)
-    }
-
-    named("compileJava", JavaCompile::class) {
-        options.isWarnings = true
-        options.compilerArgs.add("-Werror")
-    }
-
     named("compileKotlin", KotlinCompile::class) {
         kotlinOptions {
             allWarningsAsErrors = true

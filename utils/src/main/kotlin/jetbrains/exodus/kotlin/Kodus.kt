@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.kotlin
 
-import kotlin.reflect.KProperty
-
 val <T> T?.notNull: T get() = this ?: throw IllegalStateException()
 
 fun <T> T?.notNull(msg: () -> Any?) = this ?: throw IllegalStateException(msg().toString())
@@ -25,15 +23,3 @@ inline fun <T : Any, R> T.synchronized(block: T.() -> R): R = synchronized(this)
     return block()
 }
 
-class DefaultDelegate<T>(private val getDefault: () -> T) {
-
-    private var value: T? = null
-
-    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
-        return value ?: getDefault().also { value = it }
-    }
-
-    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-        this.value = value
-    }
-}

@@ -31,10 +31,8 @@ import jetbrains.exodus.entitystore.iterate.EntityFromLinksIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.management.EntityStoreConfig;
 import jetbrains.exodus.entitystore.management.EntityStoreStatistics;
-import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.entitystore.tables.*;
 import jetbrains.exodus.env.*;
-import jetbrains.exodus.env.replication.EnvironmentReplicationDelta;
 import jetbrains.exodus.io.DataReaderWriterProvider;
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable;
 import jetbrains.exodus.management.Statistics;
@@ -171,7 +169,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         location = environment.getLocation();
 
         readerWriterProvider =
-                Objects.requireNonNull(((EnvironmentImpl) environment).getLog().getConfig().getReaderWriterProvider());
+                Objects.requireNonNull(((EnvironmentImpl) environment).log.getConfig().getReaderWriterProvider());
         // if database is in-memory then never create blobs in BlobVault
         if (readerWriterProvider.isInMemory()) {
             config.setMaxInPlaceBlobSize(Integer.MAX_VALUE);
@@ -258,7 +256,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 internalSettings = settings;
             }
 
-            if (environment.getCheckBlobs()) {
+            if (environment.checkBlobs) {
                 logger.warn("Checking BLOBs consistency.");
 
                 var blobsToRemove = ensureBlobsConsistency(txn, false);
@@ -292,10 +290,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (cipherProvider != null) {
             result = new EncryptedBlobVault(fsVault, cipherProvider,
                     Objects.requireNonNull(environment.getCipherKey()), environment.getCipherBasicIV());
-        }
-        final PersistentEntityStoreReplicator replicator = config.getStoreReplicator();
-        if (replicator != null) {
-            result = replicator.decorateBlobVault(result, this);
         }
         return (BlobVault) result; // TODO: improve this
     }
@@ -449,83 +443,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             return blobVault;
         } catch (IOException e) {
             throw ExodusException.toExodusException(e);
-        }
-    }
-
-    private void replicate(@NotNull PersistentEntityStoreReplicator replicator, @Nullable BlobVault blobVault) {
-        if (blobVault != null) {
-            throw new UnsupportedOperationException("Can only replicate default blob value");
-        }
-
-        final long highBlobHandle = computeInReadonlyTransaction(tx -> {
-            final PersistentStoreTransaction txn = (PersistentStoreTransaction) tx;
-            final Transaction envTxn = txn.getEnvironmentTransaction();
-            final Store sequencesStore = environment.openStore(
-                    SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, envTxn, false
-            );
-            final long result;
-            if (sequencesStore == null) {
-                result = -1;
-            } else {
-                final ByteIterable value = sequencesStore.get(envTxn, PersistentSequence.sequenceNameToEntry(BLOB_HANDLES_SEQUENCE));
-                result = value == null ? -1 : LongBinding.compressedEntryToLong(value);
-            }
-            return result;
-        });
-
-        final EnvironmentReplicationDelta delta = replicator.beginReplication(environment);
-
-        try {
-            replicator.replicateEnvironment(delta, environment);
-
-            if (highBlobHandle >= 0) {
-                replicateBlobs(replicator, delta, highBlobHandle);
-            }
-        } finally {
-            replicator.endReplication(delta);
-        }
-    }
-
-    private void replicateBlobs(@NotNull PersistentEntityStoreReplicator replicator, @NotNull EnvironmentReplicationDelta delta, final long highBlobHandle) {
-        final List<Pair<Long, Long>> blobsToReplicate = computeInReadonlyTransaction(tx -> {
-            final String internalSettingsName = namingRulez.getInternalSettingsName();
-            final Transaction envTxn = ((PersistentStoreTransaction) tx).getEnvironmentTransaction();
-            final Store settings = environment.openStore(internalSettingsName,
-                    StoreConfig.WITHOUT_DUPLICATES, envTxn, false);
-            final Store blobFileLengths = environment.openStore(namingRulez.getBlobFileLengthsTable(),
-                    StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, envTxn, false);
-
-            if (settings == null || blobFileLengths == null) {
-                return Collections.emptyList();
-            }
-            if (Settings.get(settings, "refactorBlobFileLengths() applied") == null) {
-                throw new IllegalStateException("Cannot replicate blobs without serialized blob list");
-            }
-
-            final List<Pair<Long, Long>> result = new ArrayList<>();
-            try (Cursor cursor = blobFileLengths.openCursor(getAndCheckCurrentTransaction().getEnvironmentTransaction())) {
-                final ByteIterable foundBlob = cursor.getSearchKeyRange(LongBinding.longToCompressedEntry(highBlobHandle));
-                if (foundBlob != null) {
-                    do {
-                        final long blobHandle = LongBinding.compressedEntryToLong(cursor.getKey());
-                        if (blobHandle > highBlobHandle) {
-                            final long fileLength = LongBinding.compressedEntryToLong(cursor.getValue());
-                            result.add(new Pair<>(blobHandle, fileLength));
-                        }
-                    } while (cursor.getNext());
-                }
-            }
-            return result;
-        });
-        if (!blobsToReplicate.isEmpty()) {
-            final BlobVault vault = computeInReadonlyTransaction(txn -> {
-                initBasicStores(((PersistentStoreTransaction) txn).getEnvironmentTransaction());
-                return initBlobVault();
-            });
-
-            replicator.replicateBlobVault(delta, vault, blobsToReplicate);
-
-            this.blobVault = vault;
         }
     }
 

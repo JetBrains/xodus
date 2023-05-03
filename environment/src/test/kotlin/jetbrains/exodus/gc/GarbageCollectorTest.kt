@@ -27,9 +27,9 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
     @Test
     fun dummyCleanWholeLog() {
         envDirectory
-        val gc = env.gc
+        val gc = environment!!.gc
         gc.cleanEntireLog()
-        gc.doCleanFile(env.log.highFileAddress)
+        gc.doCleanFile(environment!!.log.highFileAddress)
     }
 
     @Test
@@ -40,11 +40,11 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         for (i in 0..999) {
             putAutoCommit(store, key, key)
         }
-        Assert.assertTrue(env.log.numberOfFiles > 1)
+        Assert.assertTrue(environment!!.log.numberOfFiles > 1)
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
-        Assert.assertEquals(1L, env.log.numberOfFiles)
+        Assert.assertEquals(1L, environment!!.log.numberOfFiles)
     }
 
     @Test
@@ -55,11 +55,11 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         for (i in 0..999) {
             putAutoCommit(store, key, key)
         }
-        Assert.assertTrue(env.log.numberOfFiles > 1)
+        Assert.assertTrue(environment!!.log.numberOfFiles > 1)
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
-        Assert.assertEquals(1L, env.log.numberOfFiles)
+        Assert.assertEquals(1L, environment!!.log.numberOfFiles)
     }
 
     @Test
@@ -71,11 +71,11 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
             putAutoCommit(store, key, key)
         }
         deleteAutoCommit(store, key)
-        Assert.assertTrue(env.log.numberOfFiles > 1)
+        Assert.assertTrue(environment!!.log.numberOfFiles > 1)
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
-        Assert.assertEquals(1L, env.log.numberOfFiles)
+        Assert.assertEquals(1L, environment!!.log.numberOfFiles)
     }
 
     @Test
@@ -87,11 +87,11 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
             putAutoCommit(store, key, key)
         }
         deleteAutoCommit(store, key)
-        Assert.assertTrue(env.log.numberOfFiles > 1)
+        Assert.assertTrue(environment!!.log.numberOfFiles > 1)
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
-        Assert.assertEquals(1L, env.log.numberOfFiles)
+        Assert.assertEquals(1L, environment!!.log.numberOfFiles)
     }
 
     @Test
@@ -104,7 +104,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         }
         Assert.assertEquals(1, countAutoCommit(store))
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
         store = openStoreAutoCommit("updateSameKey", StoreConfig.USE_EXISTING)
         Assert.assertEquals(1, countAutoCommit(store))
@@ -118,7 +118,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
     @Test
     fun reopenDbAfterGcWithBackgroundCleaner() {
         set1KbFileWithoutGC()
-        env.environmentConfig.isGcEnabled = true // enable background GC
+        environment!!.environmentConfig.isGcEnabled = true // enable background GC
         val key = StringBinding.stringToEntry("key")
         var store: Store = openStoreAutoCommit("updateSameKey")
         for (i in 0..999) {
@@ -126,7 +126,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         }
         Assert.assertEquals(1, countAutoCommit(store))
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
         store = openStoreAutoCommit("updateSameKey", StoreConfig.USE_EXISTING)
         Assert.assertEquals(1, countAutoCommit(store))
@@ -158,7 +158,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
             }
         }
         for (i in 0..31) {
-            val txn = env.beginTransaction()
+            val txn = environment!!.beginTransaction()
             try {
                 store.openCursor(txn).use { cursor ->
                     Assert.assertNotNull(cursor.getSearchKeyRange(IntegerBinding.intToEntry(i)))
@@ -174,7 +174,8 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
                 txn.commit()
             }
         }
-        env.gc.cleanEntireLog()
+
+        environment!!.gc.cleanEntireLog()
 
         reopenEnvironment()
 
@@ -182,7 +183,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         for (i in 0..31) {
             val it = getAutoCommit(store, IntegerBinding.intToEntry(i))
             Assert.assertNotNull(it)
-            Assert.assertEquals(100, IntegerBinding.entryToInt(it).toLong())
+            Assert.assertEquals(100, IntegerBinding.entryToInt(it!!).toLong())
         }
     }
 
@@ -198,7 +199,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
             putAutoCommit(nodups, IntegerBinding.intToEntry(0), IntegerBinding.intToEntry(i))
         }
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
         reopenEnvironment()
 
@@ -215,13 +216,13 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         for (i in 0..999) {
             putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
         }
-        Assert.assertTrue(env.log.numberOfFiles > 1)
+        Assert.assertTrue(environment!!.log.numberOfFiles > 1)
 
-        env.executeInTransaction { txn -> env.truncateStore("store", txn) }
+        environment!!.executeInTransaction { txn -> environment!!.truncateStore("store", txn) }
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
-        Assert.assertEquals(1L, env.log.numberOfFiles)
+        Assert.assertEquals(1L, environment!!.log.numberOfFiles)
     }
 
     @Test
@@ -231,13 +232,13 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         for (i in 0..999) {
             putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
         }
-        Assert.assertTrue(env.log.numberOfFiles > 1)
+        Assert.assertTrue(environment!!.log.numberOfFiles > 1)
 
-        env.executeInTransaction { txn -> env.removeStore("store", txn) }
+        environment!!.executeInTransaction { txn -> environment!!.removeStore("store", txn) }
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
-        Assert.assertEquals(1L, env.log.numberOfFiles)
+        Assert.assertEquals(1L, environment!!.log.numberOfFiles)
     }
 
     @Test
@@ -248,23 +249,23 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         for (i in 0 until count) {
             putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
         }
-        Assert.assertTrue(env.log.numberOfFiles > 1)
+        Assert.assertTrue(environment!!.log.numberOfFiles > 1)
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
-        env.executeInTransaction { txn -> env.removeStore("store", txn) }
+        environment!!.executeInTransaction { txn -> environment!!.removeStore("store", txn) }
 
         store = openStoreAutoCommit("store")
         for (i in 0 until count) {
             putAutoCommit(store, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
         }
 
-        env.gc.cleanEntireLog()
+        environment!!.gc.cleanEntireLog()
 
         for (i in 0 until count) {
             Assert.assertEquals(
                 i.toLong(),
-                IntegerBinding.entryToInt(getAutoCommit(store, IntegerBinding.intToEntry(i))).toLong()
+                IntegerBinding.entryToInt(getAutoCommit(store, IntegerBinding.intToEntry(i))!!).toLong()
             )
         }
     }
@@ -272,7 +273,7 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
     @Test
     fun xd98() {
         setLogFileSize(64)
-        env.environmentConfig.isGcEnabled = false
+        environment!!.environmentConfig.isGcEnabled = false
         val store = openStoreAutoCommit("store")
         val builder = StringBuilder()
         for (i in 0..99) {
@@ -280,14 +281,14 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
             val value = StringBinding.stringToEntry(builder.toString())
             putAutoCommit(store, IntegerBinding.intToEntry(0), value)
         }
-        env.gc.cleanEntireLog()
-        Assert.assertEquals(1L, env.log.numberOfFiles)
+        environment!!.gc.cleanEntireLog()
+        Assert.assertEquals(1L, environment!!.log.numberOfFiles)
     }
 
     @Test
     @TestFor(issue = "XD-780")
     fun `stackoverflow-com-questions-56662998`() {
-        env.environmentConfig.run {
+        environment!!.environmentConfig.run {
             gcStartIn = 0
             gcFileMinAge = 1
             gcFilesDeletionDelay = 0
@@ -295,26 +296,26 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         }
         setLogFileSize(1)
         val store = openStoreAutoCommit("store")
-        env.executeInExclusiveTransaction { txn ->
+        environment!!.executeInExclusiveTransaction { txn ->
             for (i in 1..500) {
                 store.putRight(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
             }
         }
-        Assert.assertTrue(env.log.numberOfFiles > 3L)
-        env.executeInExclusiveTransaction { txn ->
+        Assert.assertTrue(environment!!.log.numberOfFiles > 3L)
+        environment!!.executeInExclusiveTransaction { txn ->
             store.openCursor(txn).use { cursor ->
                 cursor.forEach { deleteCurrent() }
             }
         }
-        env.gc()
-        env.gc.waitForPendingGC()
-        Assert.assertTrue(env.log.numberOfFiles <= 3L)
+        environment!!.gc()
+        environment!!.gc.waitForPendingGC()
+        Assert.assertTrue(environment!!.log.numberOfFiles <= 3L)
     }
 
     @Test
     @TestFor(issue = "XD-780")
     fun `stackoverflow-com-questions-56662998+`() {
-        env.environmentConfig.run {
+        environment!!.environmentConfig.run {
             gcStartIn = 0
             gcFileMinAge = 1
             gcFilesDeletionDelay = 0
@@ -322,21 +323,21 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
         }
         setLogFileSize(1)
         val store = openStoreAutoCommit("store")
-        env.executeInExclusiveTransaction { txn ->
+        environment!!.executeInExclusiveTransaction { txn ->
             for (i in 1..500) {
                 store.putRight(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
             }
         }
-        Assert.assertTrue(env.log.numberOfFiles > 3L)
-        env.executeInExclusiveTransaction { txn ->
-            env.truncateStore("store", txn)
+        Assert.assertTrue(environment!!.log.numberOfFiles > 3L)
+        environment!!.executeInExclusiveTransaction { txn ->
+            environment!!.truncateStore("store", txn)
         }
-        env.gc()
-        env.gc.waitForPendingGC()
-        Assert.assertTrue(env.log.numberOfFiles <= 3L)
+        environment!!.gc()
+        environment!!.gc.waitForPendingGC()
+        Assert.assertTrue(environment!!.log.numberOfFiles <= 3L)
     }
 
-    protected fun openStoreAutoCommit(name: String): StoreImpl {
+    private fun openStoreAutoCommit(name: String): StoreImpl {
         return openStoreAutoCommit(name, getStoreConfig(false)) as StoreImpl
     }
 
@@ -345,12 +346,12 @@ open class GarbageCollectorTest : EnvironmentTestsBase() {
     }
 
     private fun createStore(name: String, keys: Int): Long {
-        val txn = env.beginTransaction()
-        val store = env.openStore(name, getStoreConfig(false), txn)
+        val txn = environment!!.beginTransaction()
+        val store = environment!!.openStore(name, getStoreConfig(false), txn)
         for (i in 0 until keys) {
             store.put(txn, IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(i))
         }
-        val result = env.log.highAddress
+        val result = environment!!.log.highAddress
         txn.commit()
         return result
     }

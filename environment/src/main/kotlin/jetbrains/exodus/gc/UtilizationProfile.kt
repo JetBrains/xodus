@@ -67,7 +67,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             computeUtilizationFromScratch()
         } else {
             val storedUtilization = ec.gcUtilizationFromFile
-            if (!storedUtilization.isEmpty()) {
+            if (storedUtilization.isNotEmpty()) {
                 loadUtilizationFromFile(storedUtilization)
             } else {
                 env.executeInReadonlyTransaction { txn ->
@@ -323,7 +323,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      * Is used instead of [Long] for saving free bytes per file in  order to update the value in-place, so
      * reducing number of lookups in the [LongHashMap][.filesUtilization].
      */
-    private class MutableLong constructor(var value: Long) {
+    private class MutableLong(var value: Long) {
 
         override fun toString(): String {
             return value.toString()

@@ -94,7 +94,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
     public XodusDirectory(Environment environment) throws IOException {
         this.environment = (EnvironmentImpl) environment;
-        var log = this.environment.getLog();
+        var log = this.environment.log;
         var logConfig = log.getConfig();
 
         var path = Path.of(log.getLocation());
@@ -111,7 +111,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         }
 
 
-        this.cipherProvider = logConfig.getCipherProvider();
+        this.cipherProvider = logConfig.getStreamCipherProvider();
         this.cipherKey = logConfig.getCipherKey();
 
         this.identity = Log.Companion.getIdentityGenerator().nextId();

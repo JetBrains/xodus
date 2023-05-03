@@ -28,7 +28,6 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
 
     companion object : KLogging()
 
-    private var useNio = false
     private var log: Log? = null
 
     internal var usedWithWatcher = false
@@ -48,10 +47,7 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
 
     override fun close() {
         try {
-            SharedOpenFilesCache.getInstance().removeDirectory(dir)
-            if (useNio) {
-                SharedMappedFilesCache.getInstance().removeDirectory(dir)
-            }
+            SharedOpenFilesCache.instance.removeDirectory(dir)
         } catch (e: IOException) {
             throw ExodusException("Can't close all files", e)
         }
@@ -65,16 +61,11 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
         return dir.path
     }
 
-    internal fun useNio(freePhysicalMemoryThreshold: Long) {
-        useNio = true
-        SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold)
-    }
-
     private fun toBlocks(files: LongArrayList) =
-            files.toArray().asSequence().map { address -> FileBlock(address, this) }.asIterable()
+        files.toArray().asSequence().map { address -> FileBlock(address, this) }.asIterable()
 
     class FileBlock(private val address: Long, private val reader: FileDataReader) :
-            File(reader.dir, LogUtil.getLogFilename(address)), Block {
+        File(reader.dir, LogUtil.getLogFilename(address)), Block {
 
         override fun getAddress() = address
 
@@ -82,26 +73,12 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
             try {
                 val log = reader.log
                 val immutable = log?.isImmutableFile(address) ?: !canWrite()
-                val filesCache = SharedOpenFilesCache.getInstance()
-                val file = if (immutable && !reader.usedWithWatcher) filesCache.getCachedFile(this) else filesCache.openFile(this)
+                val filesCache = SharedOpenFilesCache.instance
+                val file =
+                    if (immutable && !reader.usedWithWatcher) filesCache.getCachedFile(this) else filesCache.openFile(
+                        this
+                    )
                 file.use { f ->
-                    if (reader.useNio &&
-                            /* only read-only (immutable) files can be mapped */ immutable) {
-                        try {
-                            SharedMappedFilesCache.getInstance().getFileBuffer(f).use { mappedBuffer ->
-                                val buffer = mappedBuffer.buffer
-                                buffer.position(position.toInt())
-                                buffer.get(output, offset, count)
-                                return count
-                            }
-                        } catch (t: Throwable) {
-                            // if we failed to read mapped file, then try ordinary RandomAccessFile.read()
-                            if (logger.isWarnEnabled) {
-                                logger.warn("Failed to transfer bytes from memory mapped file", t)
-                            }
-                        }
-                    }
-
                     f.seek(position)
 
                     return readFully(f, output, offset, count)

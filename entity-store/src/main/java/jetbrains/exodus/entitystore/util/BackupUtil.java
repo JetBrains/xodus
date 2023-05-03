@@ -146,7 +146,7 @@ public class BackupUtil {
                         int readBufferOffset = 0;
 
                         final String rootName;
-                        if (namePath .getNameCount() == 1) {
+                        if (namePath.getNameCount() == 1) {
                             rootName = "";
                         } else {
                             rootName = namePath.subpath(0, 1).toString();
@@ -291,7 +291,7 @@ public class BackupUtil {
                             || name.endsWith("/" + StartupMetadata.SECOND_FILE_NAME)) {
 
                         final String rootName;
-                        if (namePath .getNameCount() == 1) {
+                        if (namePath.getNameCount() == 1) {
                             rootName = "";
                         } else {
                             rootName = namePath.subpath(0, 1).toString();

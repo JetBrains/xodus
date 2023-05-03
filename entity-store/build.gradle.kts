@@ -5,7 +5,7 @@ dependencies {
     implementation(project(":xodus-compress"))
     implementation(libs.commons.io)
     testImplementation("io.github.classgraph:classgraph:4.8.90")
-    testImplementation(project(":xodus-utils", "testArtifacts"))
+    testImplementation(project(":xodus-utils-test"))
 }
 
 val testArtifacts: Configuration by configurations.creating

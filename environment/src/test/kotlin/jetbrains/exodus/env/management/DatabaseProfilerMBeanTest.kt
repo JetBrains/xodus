@@ -24,16 +24,19 @@ import java.lang.management.ManagementFactory
 import javax.management.ObjectName
 
 class DatabaseProfilerMBeanTest : EnvironmentTestsBase() {
-
     @Test
     fun beanIsAccessible() {
-        val profilerBeans = platformMBeanServer.queryMBeans(ObjectName(DatabaseProfiler.getObjectName(env)), null)
+        val profilerBeans = platformMBeanServer.queryMBeans(
+            ObjectName(DatabaseProfiler.getObjectName(environment!!)),
+            null
+        )
         Assert.assertNotNull(profilerBeans)
         Assert.assertFalse(profilerBeans.isEmpty())
     }
 
     override fun createEnvironment() {
-        env = newEnvironmentInstance(LogConfig.create(reader, writer), EnvironmentConfig().setProfilerEnabled(true))
+        environment =
+            newEnvironmentInstance(LogConfig.create(reader!!, writer!!), EnvironmentConfig().setProfilerEnabled(true))
     }
 
     companion object {

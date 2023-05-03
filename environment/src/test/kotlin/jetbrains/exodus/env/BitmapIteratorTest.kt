@@ -32,7 +32,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `hasNext for empty`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val iter = bitmap.iterator(txn)
             assertFalse(iter.hasNext())
         }
@@ -40,7 +40,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reversed hasNext for empty`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val iter = bitmap.reverseIterator(txn)
             assertFalse(iter.hasNext())
         }
@@ -48,7 +48,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `hasNext for bitmap with 1 set bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             for (i in 0..20) {
                 val randomBit = Random.nextLong(Long.MAX_VALUE)
                 bitmap.set(txn, randomBit, true)
@@ -63,7 +63,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reversed hasNext for bitmap with 1 set bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             for (i in 0..20) {
                 val randomBit = Random.nextLong(Long.MAX_VALUE)
                 bitmap.set(txn, randomBit, true)
@@ -78,7 +78,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `hasNext twice for bitmap with 1 set bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE)
             bitmap.set(txn, randomBit, true)
             val iter = bitmap.iterator(txn)
@@ -94,7 +94,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reversed hasNext twice for bitmap with 1 set bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE)
             bitmap.set(txn, randomBit, true)
             val iter = bitmap.reverseIterator(txn)
@@ -110,7 +110,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `hasNext after set and clear`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, bit0, true)
             bitmap.clear(txn, bit0)
             val iter = bitmap.iterator(txn)
@@ -120,7 +120,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reversed hasNext after set and clear`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, bit0, true)
             bitmap.clear(txn, bit0)
             val iter = bitmap.reverseIterator(txn)
@@ -153,7 +153,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `iterator for bitmap with 3 set bits without hasNext check`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE - 10)
             bitmap.set(txn, randomBit, true)
             bitmap.set(txn, randomBit + 1, true)
@@ -168,7 +168,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reversed iterator for bitmap with 3 set bits without hasNext check`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE - 10)
             bitmap.set(txn, randomBit, true)
             bitmap.set(txn, randomBit + 1, true)
@@ -183,7 +183,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `iterator for bitmap with many set bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..100) {
                 val randomBit = Random.nextLong(Long.MAX_VALUE)
@@ -202,7 +202,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reverse iterator for bitmap with many set bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..100) {
                 val randomBit = Random.nextLong(Long.MAX_VALUE)
@@ -222,7 +222,7 @@ class BitmapIteratorTest : BitmapImplTest() {
     @Test
     fun `call remove on empty element`() {
         TestUtil.runWithExpectedException({
-            env.executeInTransaction { txn ->
+            environment!!.executeInTransaction { txn ->
                 val iter = bitmap.iterator(txn)
                 iter.remove()
             }
@@ -232,7 +232,7 @@ class BitmapIteratorTest : BitmapImplTest() {
     @Test
     fun `reverse call remove on empty element`() {
         TestUtil.runWithExpectedException({
-            env.executeInTransaction { txn ->
+            environment!!.executeInTransaction { txn ->
                 val iter = bitmap.reverseIterator(txn)
                 iter.remove()
             }
@@ -242,7 +242,7 @@ class BitmapIteratorTest : BitmapImplTest() {
     @Test
     fun `call remove twice on the same element`() {
         TestUtil.runWithExpectedException({
-            env.executeInTransaction { txn ->
+            environment!!.executeInTransaction { txn ->
                 val randomBit = Random.nextLong(Long.MAX_VALUE)
                 bitmap.set(txn, randomBit, true)
                 val iter = bitmap.iterator(txn)
@@ -255,7 +255,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `remove from bitmap with 1 bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE)
             bitmap.set(txn, randomBit, true)
 
@@ -271,7 +271,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `remove 3 subsequent bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE - 2)
             bitmap.set(txn, randomBit, true)
             bitmap.set(txn, randomBit + 1, true)
@@ -290,7 +290,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `remove random bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = Random.nextLong(Long.MAX_VALUE)
@@ -312,7 +312,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reverse remove random bits`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBits = mutableSetOf<Long>()
             for (i in 0..10) {
                 val randomBit = Random.nextLong(Long.MAX_VALUE)
@@ -334,7 +334,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `navigate to the only set bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             for (i in 0..20) {
                 val randomBit = Random.nextLong(Long.MAX_VALUE)
                 bitmap.set(txn, randomBit, true)
@@ -352,7 +352,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `navigate to the second set bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE - 20)
             bitmap.set(txn, randomBit, true)
             bitmap.set(txn, randomBit + 10, true)
@@ -366,7 +366,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `iterate from the random bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE - 11)
             bitmap.set(txn, randomBit, true)
             bitmap.set(txn, randomBit + 10, true)
@@ -382,7 +382,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `iterate from the bit with big step`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, bit42, true)
             bitmap.set(txn, bit42 + 10, true)
             bitmap.set(txn, bit42 + 20, true)
@@ -395,7 +395,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `iterate from the random bit with big step`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE - 20)
             bitmap.set(txn, randomBit, true)
             bitmap.set(txn, randomBit + 10, true)
@@ -411,7 +411,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reversed iteration from the random bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = bit63
             bitmap.set(txn, randomBit, true)
             bitmap.set(txn, randomBit + 1, true)
@@ -428,7 +428,7 @@ class BitmapIteratorTest : BitmapImplTest() {
     @Test
     @TestFor(issue = "XD-854")
     fun `reversed iteration from the random bit with big step`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             val randomBit = Random.nextLong(Long.MAX_VALUE - 20)
             bitmap.set(txn, randomBit, true)
             bitmap.set(txn, randomBit + 10, true)
@@ -444,7 +444,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `navigate to not existing bit between existing and move cursor to bigger one`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, 0, true)
             bitmap.set(txn, 10, true)
             bitmap.set(txn, 128, true)
@@ -457,7 +457,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reversed navigate to not existing bit between existing and move cursor to smaller one`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, 0, true)
             bitmap.set(txn, 10, true)
             bitmap.set(txn, 128, true)
@@ -470,7 +470,7 @@ class BitmapIteratorTest : BitmapImplTest() {
 
     @Test
     fun `reversed navigate to smaller bit`() {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, 0, true)
             bitmap.set(txn, 10, true)
             bitmap.set(txn, 65, true)
@@ -485,13 +485,13 @@ class BitmapIteratorTest : BitmapImplTest() {
     @TestFor(issue = "XD-848")
     fun `search bit with patricia v2 format`() {
         val startBit = 2048L + 64L
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, 1024L, true)
             for (i in 0L..33L) {
                 bitmap.set(txn, startBit + (i * 64), true)
             }
         }
-        env.executeInReadonlyTransaction { txn ->
+        environment!!.executeInReadonlyTransaction { txn ->
             bitmap.iterator(txn).let {
                 assertTrue(it.getSearchBit(startBit - 64L))
                 assertEquals(startBit, it.next())
@@ -500,7 +500,7 @@ class BitmapIteratorTest : BitmapImplTest() {
     }
 
     private fun oneBitTest(bit: Long, direction: Int = 1) {
-        env.executeInTransaction { txn ->
+        environment!!.executeInTransaction { txn ->
             bitmap.set(txn, bit, true)
             val ind =
                 if (direction == 1) bitmap.iterator(txn).next()
