@@ -495,7 +495,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             if (logWasChanged) {
                 logger.info("Log $location content was changed during the initialization, data sync is performed.")
-                sync()
+
+                beginWrite()
+                try {
+                    writer.sync()
+                } finally {
+                    endWrite()
+                }
             }
 
             if (config.isWarmup) {
@@ -504,8 +510,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             if (needToPerformMigration) {
                 switchToReadOnlyMode()
-            } else {
-                closeCurrentSegmentIfNecessary()
             }
         } catch (ex: RuntimeException) {
             release()
@@ -542,7 +546,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     private fun padWholePageWithNulls() {
         beginWrite()
-        beforeWrite()
         try {
             writer.padWholePageWithNulls()
             writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
@@ -551,19 +554,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
     }
 
-    private fun closeCurrentSegmentIfNecessary() {
-        beginWrite()
-        beforeWrite()
-        try {
-            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
-        } finally {
-            endWrite()
-        }
-    }
-
     private fun padPageWithNulls() {
         beginWrite()
-        beforeWrite()
         try {
             writer.padPageWithNulls()
             writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
@@ -574,7 +566,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     fun padPageWithNulls(expiredLoggables: ExpiredLoggableCollection) {
         beginWrite()
-        beforeWrite()
         try {
             val currentAddress = writer.currentHighAddress
             val written = writer.padPageWithNulls()
@@ -1021,7 +1012,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     fun beginWrite(): Long {
         writeThread = Thread.currentThread()
-        return writer.beforeWrite()
+        return writer.beginWrite()
     }
 
     fun endWrite(): Long {
@@ -1278,6 +1269,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     fun sync() {
         writer.sync()
+        writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
     }
 
     override fun close() {
@@ -1285,11 +1277,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
         if (!rwIsReadonly) {
             val highAddress = writer.highAddress
-            if (formatWithHashCodeIsUsed && (highAddress.toInt() and (cachePageSize - 1)) != 0) {
-                beginWrite()
-                try {
-                    beforeWrite()
-
+            beginWrite()
+            try {
+                if (formatWithHashCodeIsUsed && (highAddress.toInt() and (cachePageSize - 1)) != 0) {
                     //we pad page with nulls to ensure that all pages could be checked on consistency
                     //by hash code which is stored at the end of the page.
                     val written = writer.padPageWithNulls()
@@ -1298,18 +1288,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     }
 
                     writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
-                } finally {
-                    endWrite()
-                }
-            }
 
-            sync()
+                }
+
+                sync()
+            } finally {
+                endWrite()
+            }
 
             if (reader is FileDataReader) {
                 startupMetadata.closeAndUpdate(reader)
             }
-
-
         }
 
         writer.close(!rwIsReadonly)

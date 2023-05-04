@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.log;
 
+import jetbrains.exodus.ArrayByteIterable;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.TestUtil;
@@ -51,6 +52,52 @@ public class LogTests extends LogTestsBase {
 
             Assert.assertEquals(3 * (i + 1), (int) getLog().getNumberOfFiles()); // each DUMMY_LOGGABLE takes 3 bytes
         }
+    }
+
+    @Test
+    public void testNewFileGeneration() {
+        initLog(1, 1024);
+
+        getLog().beginWrite();
+        final Loggable emptyLoggable = NullLoggable.create();
+        //make page almost full
+        for (int i = 0; i < 1011; ++i) {
+            var expired = ExpiredLoggableCollection.newInstance(log);
+            getLog().write(emptyLoggable, expired);
+        }
+        getLog().flush();
+        getLog().endWrite();
+
+        //sync the first time
+        getLog().beginWrite();
+        try {
+            getLog().sync();
+        } finally {
+            getLog().endWrite();
+        }
+
+        //write nothing between two sync calls
+
+        //sync the second time
+        getLog().beginWrite();
+        try {
+            getLog().sync();
+        } finally {
+            getLog().endWrite();
+        }
+
+
+        //try to write something, it should be written to the new file
+        getLog().beginWrite();
+        getLog().write((byte) 6, 845, new ArrayByteIterable(new byte[10]),
+                ExpiredLoggableCollection.newInstance(getLog()));
+        getLog().flush();
+        getLog().endWrite();
+
+        var addresses = getLog().getAllFileAddresses();
+        Assert.assertEquals(2, addresses.length);
+
+        closeLog();
     }
 
     @Test

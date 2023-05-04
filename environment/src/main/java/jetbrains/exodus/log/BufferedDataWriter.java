@@ -161,7 +161,7 @@ public final class BufferedDataWriter {
     }
 
 
-    public long beforeWrite() {
+    public long beginWrite() {
         checkWriteError();
 
         if (currentPage == null) {
@@ -298,7 +298,7 @@ public final class BufferedDataWriter {
                 if (HashCodeLoggable.isHashCodeLoggable(type)) {
                     var loggable = new HashCodeLoggable(pageAddress + i, i, bytes);
 
-                    var hash = calculateHashRecordHashCode(sha256, bytes, 0, i);
+                    var hash = calculateHashRecordHashCode(sha256, bytes, i);
                     if (hash == loggable.getHashCode()) {
                         lastHashBlock = i;
                     }
@@ -324,14 +324,14 @@ public final class BufferedDataWriter {
         return pageSize;
     }
 
-    private static long calculateHashRecordHashCode(MessageDigest sha256, byte @NotNull [] bytes, int offset, int len) {
+    private static long calculateHashRecordHashCode(MessageDigest sha256, byte @NotNull [] bytes, int len) {
         long hashCode;
 
         if (sha256 != null) {
-            sha256.update(bytes, offset, len);
+            sha256.update(bytes, 0, len);
             hashCode = BindingUtils.readLong(sha256.digest(), 0);
         } else {
-            hashCode = calculatePageHashCode(bytes, offset, len);
+            hashCode = calculatePageHashCode(bytes, 0, len);
         }
 
         return hashCode;
@@ -510,7 +510,7 @@ public final class BufferedDataWriter {
         return blockSet.getMaximum();
     }
 
-     Long getMaximumWritingFile() {
+    Long getMaximumWritingFile() {
         var mutableSet = blockSetMutable;
         if (mutableSet != null) {
             return mutableSet.getMaximum();
@@ -541,6 +541,15 @@ public final class BufferedDataWriter {
     int padPageWithNulls() {
         checkWriteError();
 
+        if (!writer.isOpen()) {
+            if (paddingIsNeeded()) {
+                throw new ExodusException("Database : " + log.getLocation() +
+                        ". Can't pad page with nulls, writer is closed");
+            }
+
+            return 0;
+        }
+
         final int written = doPadPageWithNulls();
         this.currentHighAddress += written;
 
@@ -559,6 +568,15 @@ public final class BufferedDataWriter {
     void padWholePageWithNulls() {
         checkWriteError();
 
+        if (!writer.isOpen()) {
+            if (paddingIsNeeded()) {
+                throw new ExodusException("Database : " + log.getLocation() +
+                        ". Can't pad page with nulls, writer is closed");
+            }
+
+            return;
+        }
+
         assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
         final int written = doPadWholePageWithNulls();
         this.currentHighAddress += written;
@@ -573,6 +591,15 @@ public final class BufferedDataWriter {
 
     int padWithNulls(long fileLengthBound, byte[] nullPage) {
         checkWriteError();
+
+        if (!writer.isOpen()) {
+            if (currentHighAddress % fileLengthBound > 0) {
+                throw new ExodusException("Database : " + log.getLocation() +
+                        ". Can't pad file with nulls, writer is closed");
+            }
+
+            return 0;
+        }
 
         assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
         assert nullPage.length == pageSize;
@@ -665,7 +692,7 @@ public final class BufferedDataWriter {
         currentPage.bytes[currentPage.writtenCount++] = (byte) (0x80 ^ HashCodeLoggable.TYPE);
 
         var hashCode = calculateHashRecordHashCode(sha256,
-                currentPage.bytes, 0, currentPage.writtenCount - 1);
+                currentPage.bytes, currentPage.writtenCount - 1);
         BindingUtils.writeLong(hashCode, currentPage.bytes, currentPage.writtenCount);
         currentPage.writtenCount += HASH_CODE_SIZE;
 
@@ -864,8 +891,6 @@ public final class BufferedDataWriter {
         var currentPage = this.currentPage;
         var endPosition = writer.position() + currentPage.writtenCount - currentPage.committedCount;
 
-        assert endPosition <= fileLengthBound;
-
         if (endPosition == fileLengthBound) {
             sync();
 
@@ -901,6 +926,8 @@ public final class BufferedDataWriter {
                     ((File) block).setReadOnly();
                 }
             }
+        } else if (endPosition > fileLengthBound) {
+            throw new ExodusException("endPosition > fileLengthBound: " + endPosition + " > " + fileLengthBound);
         }
     }
 
@@ -988,6 +1015,14 @@ public final class BufferedDataWriter {
         } else {
             return 0;
         }
+    }
+
+    private boolean paddingIsNeeded() {
+        if (!calculateHashCode) {
+            return currentPage.writtenCount > 0 && currentPage.writtenCount < pageSize;
+        }
+
+        return currentPage.writtenCount > 0 && currentPage.writtenCount < adjustedPageSize;
     }
 
     private static class MutablePage {
