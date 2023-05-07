@@ -58,6 +58,8 @@ public class LogConfig {
 
     private boolean checkPagesAtRuntime;
 
+    private boolean skipInvalidLoggableType;
+
     public LogConfig() {
         useV1Format = EnvironmentConfig.DEFAULT.getUseVersion1Format();
         checkPagesAtRuntime = EnvironmentConfig.DEFAULT.getCheckPagesAtRuntime();
@@ -71,6 +73,15 @@ public class LogConfig {
     public LogConfig setReaderWriterProvider(@NotNull final String provider) {
         readerWriterProvider = provider;
         return this;
+    }
+
+    public LogConfig setSkipInvalidLoggableType(boolean skipInvalidLoggableType) {
+        this.skipInvalidLoggableType = skipInvalidLoggableType;
+        return this;
+    }
+
+    public boolean isSkipInvalidLoggableType() {
+        return skipInvalidLoggableType;
     }
 
     public long getFileSize() {

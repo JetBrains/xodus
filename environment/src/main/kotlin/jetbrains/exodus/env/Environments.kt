@@ -123,6 +123,7 @@ object Environments {
             cipherKey = ec.cipherKey
             cipherBasicIV = ec.cipherBasicIV
             isCheckPagesAtRuntime = ec.checkPagesAtRuntime
+            isSkipInvalidLoggableType = ec.isLogSkipInvalidLoggableType
 
             setUseV1Format(ec.useVersion1Format)
         })

@@ -680,7 +680,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     if (loggableAddress >= endBlockAddress) {
                         break
                     }
+
                     val loggableType = blockDataIterator.next() xor 0x80.toByte()
+                    if (loggableType < 0 && config.isSkipInvalidLoggableType) {
+                        continue
+                    }
 
                     checkLoggableType(loggableType, loggableAddress)
 

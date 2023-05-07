@@ -297,6 +297,8 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String LOG_CLEAR_INVALID = "exodus.log.clearInvalid";
 
+    public static final String LOG_SKIP_INVALID_LOGGALE_TYPE = "exodus.log.skipInvalidLoggableType";
+
     /**
      * Sets the period in milliseconds to force file system's fsync call that often if {@linkplain #LOG_DURABLE_WRITE}
      * is switched off. Default value is {@code 10000L}.
@@ -796,7 +798,8 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
                 new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
                 new Pair(META_SERVER, null),
-                new Pair(CHECK_PAGES_AT_RUNTIME, true)
+                new Pair(CHECK_PAGES_AT_RUNTIME, true),
+                new Pair(LOG_SKIP_INVALID_LOGGALE_TYPE, false)
         }, strategy);
     }
 
@@ -1458,6 +1461,14 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setLogClearInvalid(final boolean logClearInvalid) {
         return setSetting(LOG_CLEAR_INVALID, logClearInvalid);
+    }
+
+    public EnvironmentConfig setLogSkipInvalidLoggableType(final boolean skipInvalidLoggableType) {
+        return setSetting(LOG_SKIP_INVALID_LOGGALE_TYPE, skipInvalidLoggableType);
+    }
+
+    public boolean isLogSkipInvalidLoggableType() {
+        return (Boolean) getSetting(LOG_SKIP_INVALID_LOGGALE_TYPE);
     }
 
     /**
