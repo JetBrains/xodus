@@ -474,6 +474,14 @@ public final class BufferedDataWriter {
         return blockSet.getBlock(blockAddress);
     }
 
+    Block getWriterBlock(long blockAddress) {
+        if (blockSetMutable != null) {
+            return blockSetMutable.getBlock(blockAddress);
+        }
+
+        return blockSet.getBlock(blockAddress);
+    }
+
     void forgetFiles(final long[] files, long fileBoundary) {
         assert blockSetMutable != null;
 
@@ -884,6 +892,14 @@ public final class BufferedDataWriter {
     }
 
     LongIterator getFilesFrom(final long address) {
+        return blockSet.getFilesFrom(address);
+    }
+
+    LongIterator getWriterFiles(final long address) {
+        if (blockSetMutable != null) {
+            return blockSetMutable.getFilesFrom(address);
+        }
+
         return blockSet.getFilesFrom(address);
     }
 

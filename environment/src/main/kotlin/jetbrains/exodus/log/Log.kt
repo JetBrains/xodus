@@ -1384,13 +1384,26 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     fun readBytes(output: ByteArray, pageAddress: Long): Int {
         val fileAddress = getFileAddress(pageAddress)
 
-        val files = writer.getFilesFrom(fileAddress)
+        val writerThread = Thread.currentThread() == writeThread
+
+        val files = if (writerThread) {
+            writer.getWriterFiles(fileAddress)
+        } else {
+            writer.getFilesFrom(fileAddress)
+        }
+
+        val highAddress = highReadAddress
         if (files.hasNext()) {
             val leftBound = files.nextLong()
             val fileSize = getFileSize(leftBound, highAddress)
 
             if (leftBound == fileAddress && fileAddress + fileSize > pageAddress) {
-                val block = writer.getBlock(fileAddress)
+                val block = if (writerThread) {
+                    writer.getWriterBlock(fileAddress)
+                } else {
+                    writer.getBlock(fileAddress)
+                }
+
                 if (block == null) {
                     BlockNotFoundException.raise(this, pageAddress)
                     return 0
@@ -1398,6 +1411,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                 return readFromBlock(block, pageAddress, output, highAddress)
             }
+
             if (fileAddress < (writer.minimumFile ?: -1L)) {
                 BlockNotFoundException.raise(
                     "Address is out of log space, underflow",
@@ -1405,7 +1419,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 )
             }
 
-            val maxFile = if (Thread.currentThread() == writeThread) {
+            val maxFile = if (writerThread) {
                 writer.maximumFile
             } else {
                 writer.maximumWritingFile
