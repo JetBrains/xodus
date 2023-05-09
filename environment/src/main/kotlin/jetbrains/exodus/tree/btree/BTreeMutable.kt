@@ -28,49 +28,45 @@ import jetbrains.exodus.util.LightOutputStream
 @Suppress("LeakingThis")
 open class BTreeMutable @JvmOverloads internal constructor(
     private val immutableTree: BTreeBase,
-    extraBelongings: ExtraMutableBelongings? = ExtraMutableBelongings()
+    private val extraBelongings: ExtraMutableBelongings? = ExtraMutableBelongings()
 ) : BTreeBase(
     immutableTree.log, immutableTree.balancePolicy, immutableTree.allowsDuplicates, immutableTree.structureId
 ), ITreeMutable {
-    override var root: BasePageMutable = immutableTree.root.getMutableCopy(this)
+    @JvmField
+    internal var root: BasePageMutable = immutableTree.getRoot().getMutableCopy(this)
 
-    private val extraBelongings: ExtraMutableBelongings?
     init {
         size = immutableTree.size
-        this.extraBelongings = extraBelongings
     }
 
-    override val rootAddress: Long
-        get() = Loggable.NULL_ADDRESS
-    override val isAllowingDuplicates: Boolean
-        get() = allowsDuplicates
-    override val openCursors: Iterable<ITreeCursorMutable>?
-        get() = extraBelongings!!.openCursors
+    override fun getRoot(): BasePageMutable = root
+    override fun getRootAddress(): Long = Loggable.NULL_ADDRESS
+    override fun isAllowingDuplicates(): Boolean = allowsDuplicates
+    override fun getOpenCursors(): Iterable<ITreeCursorMutable>? = extraBelongings!!.openCursors
 
     override fun addressIterator(): AddressIterator {
         return immutableTree.addressIterator()
     }
 
-    override val mutableCopy: BTreeMutable
-        get() = this
+    override fun getMutableCopy(): BTreeMutable = this
 
     override fun getDataIterator(address: Long): DataIterator {
         return immutableTree.getDataIterator(address)
     }
 
     override fun put(ln: INode) {
-        val value = ln.value ?: throw ExodusException("Value can't be null")
-        put(ln.key, value)
+        val value = ln.getValue() ?: throw ExodusException("Value can't be null")
+        put(ln.getKey(), value)
     }
 
     override fun putRight(ln: INode) {
-        val value = ln.value ?: throw ExodusException("Value can't be null")
-        putRight(ln.key, value)
+        val value = ln.getValue() ?: throw ExodusException("Value can't be null")
+        putRight(ln.getKey(), value)
     }
 
     override fun add(ln: INode): Boolean {
-        val value = ln.value ?: throw ExodusException("Value can't be null")
-        return add(ln.key, value)
+        val value = ln.getValue() ?: throw ExodusException("Value can't be null")
+        return add(ln.getKey(), value)
     }
 
     override fun put(key: ByteIterable, value: ByteIterable): Boolean {
@@ -109,17 +105,16 @@ open class BTreeMutable @JvmOverloads internal constructor(
         return false
     }
 
-    open val leafStream: LightOutputStream?
-        get() {
-            var leafStream = extraBelongings!!.leafStream
-            if (leafStream == null) {
-                leafStream = LightOutputStream(16)
-                extraBelongings.leafStream = leafStream
-            } else {
-                leafStream.clear()
-            }
-            return leafStream
+    open fun getLeafStream(): LightOutputStream? {
+        var leafStream = extraBelongings!!.leafStream
+        if (leafStream == null) {
+            leafStream = LightOutputStream(16)
+            extraBelongings.leafStream = leafStream
+        } else {
+            leafStream.clear()
         }
+        return leafStream
+    }
 
     // for test only!!!
     fun delete(key: ByteIterable, value: ByteIterable?): Boolean {
@@ -146,19 +141,19 @@ open class BTreeMutable @JvmOverloads internal constructor(
 
     override fun save(): Long {
         // dfs, save leafs, then bottoms, then internals, then root
-        val type: Byte = if (root.isBottom) BOTTOM_ROOT else INTERNAL_ROOT
+        val type: Byte = if (root.isBottom()) BOTTOM_ROOT else INTERNAL_ROOT
         val log = log
-        val savedData = root.data
+        val savedData = root.getData()
         val iterables = arrayOf(
             getIterable(size),
             savedData
         )
-        return log.write(type, structureId, CompoundByteIterable(iterables), expiredLoggables)
+        return log.write(type, structureId, CompoundByteIterable(iterables), getExpiredLoggables())
     }
 
     open fun addExpiredLoggable(loggable: Loggable) {
-        if (loggable.address != Loggable.NULL_ADDRESS) {
-            expiredLoggables.add(loggable)
+        if (loggable.getAddress() != Loggable.NULL_ADDRESS) {
+            getExpiredLoggables().add(loggable)
         }
     }
 
@@ -169,24 +164,23 @@ open class BTreeMutable @JvmOverloads internal constructor(
     }
 
     fun addExpiredLoggable(node: ILeafNode) {
-        if (!node.isMutable) {
+        if (!node.isMutable()) {
             if (node is LeafNode) {
                 addExpiredLoggable(node.loggable)
             } else {
-                addExpiredLoggable(node.address)
+                addExpiredLoggable(node.getAddress())
             }
         }
     }
 
-    override val expiredLoggables: ExpiredLoggableCollection
-        get() {
-            var expiredLoggables = extraBelongings!!.expiredLoggables
-            if (expiredLoggables == null) {
-                expiredLoggables = newInstance(log)
-                extraBelongings.expiredLoggables = expiredLoggables
-            }
-            return expiredLoggables
+    override fun getExpiredLoggables(): ExpiredLoggableCollection {
+        var expiredLoggables = extraBelongings!!.expiredLoggables
+        if (expiredLoggables == null) {
+            expiredLoggables = newInstance(log)
+            extraBelongings.expiredLoggables = expiredLoggables
         }
+        return expiredLoggables
+    }
 
     override fun openCursor(): TreeCursor {
         var cursors = extraBelongings!!.openCursors
@@ -206,14 +200,10 @@ open class BTreeMutable @JvmOverloads internal constructor(
         extraBelongings!!.openCursors!!.remove(cursor)
     }
 
-    open val bottomPageType: Byte
-        get() = BOTTOM
-    open val internalPageType: Byte
-        get() = INTERNAL
-    open val leafType: Byte
-        get() = LEAF
-    open val isDup: Boolean
-        get() = false
+    open fun getBottomPageType(): Byte = BOTTOM
+    open fun getInternalPageType(): Byte = INTERNAL
+    open fun getLeafType(): Byte = LEAF
+    open fun isDup(): Boolean = false
 
     open fun createMutableLeaf(key: ByteIterable, value: ByteIterable): BaseLeafNodeMutable {
         return LeafNodeMutable(key, value)
@@ -225,9 +215,9 @@ open class BTreeMutable @JvmOverloads internal constructor(
     ): Boolean {
         var inputLoggable = loggable
         val context = BTreeReclaimTraverser(this)
-        val nextFileAddress = log.getFileAddress(inputLoggable.address) + log.fileLengthBound
+        val nextFileAddress = log.getFileAddress(inputLoggable.getAddress()) + log.fileLengthBound
         loop@ while (true) {
-            val type = inputLoggable.type
+            val type = inputLoggable.getType()
             when (type) {
                 NullLoggable.TYPE, HashCodeLoggable.TYPE -> {}
                 LEAF_DUP_BOTTOM_ROOT, LEAF_DUP_INTERNAL_ROOT -> {
@@ -238,7 +228,7 @@ open class BTreeMutable @JvmOverloads internal constructor(
 
                 LEAF -> LeafNode(log, inputLoggable).reclaim(context)
                 BOTTOM_ROOT, INTERNAL_ROOT -> {
-                    if (inputLoggable.address == immutableTree.rootAddress) {
+                    if (inputLoggable.getAddress() == immutableTree.getRootAddress()) {
                         context.wasReclaim = true
                     }
                     break@loop  // txn ended
@@ -264,7 +254,7 @@ open class BTreeMutable @JvmOverloads internal constructor(
                 break
             }
             inputLoggable = loggables.next()
-            if (inputLoggable.address >= nextFileAddress) {
+            if (inputLoggable.getAddress() >= nextFileAddress) {
                 break
             }
         }
@@ -276,7 +266,7 @@ open class BTreeMutable @JvmOverloads internal constructor(
     }
 
     fun reclaimInternal(loggable: RandomAccessLoggable, context: BTreeReclaimTraverser) {
-        val data = loggable.data
+        val data = loggable.getData()
         val it = data.iterator()
         val i = it.compressedUnsignedInt
         if (i and 1 == 1 && i > 1) {
@@ -287,15 +277,15 @@ open class BTreeMutable @JvmOverloads internal constructor(
                         it.address,
                         it.available()
                     ),
-                    i shr 1, loggable.isDataInsideSinglePage
+                    i shr 1, loggable.isDataInsideSinglePage()
                 )
-                page.reclaim(minKey.key, context)
+                page.reclaim(minKey.getKey(), context)
             }
         }
     }
 
     fun reclaimBottom(loggable: RandomAccessLoggable, context: BTreeReclaimTraverser) {
-        val data = loggable.data
+        val data = loggable.getData()
         val it = data.iterator()
         val i = it.compressedUnsignedInt
         if (i and 1 == 1 && i > 1) {
@@ -307,9 +297,9 @@ open class BTreeMutable @JvmOverloads internal constructor(
                         it.available()
                     ),
                     i shr 1,
-                    loggable.isDataInsideSinglePage
+                    loggable.isDataInsideSinglePage()
                 )
-                page.reclaim(minKey.key, context)
+                page.reclaim(minKey.getKey(), context)
             }
         }
     }
@@ -321,8 +311,11 @@ open class BTreeMutable @JvmOverloads internal constructor(
     }
 
     internal class ExtraMutableBelongings {
+        @JvmField
         var expiredLoggables: ExpiredLoggableCollection? = null
+        @JvmField
         var openCursors: MutableSet<ITreeCursorMutable>? = null
+        @JvmField
         var leafStream: LightOutputStream? = null
     }
 

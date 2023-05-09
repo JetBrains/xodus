@@ -18,8 +18,8 @@ package jetbrains.exodus.tree.patricia
 import jetbrains.exodus.log.RandomAccessLoggable
 import jetbrains.exodus.tree.INode
 
-interface ImmutableNode : INode {
-    val loggable: RandomAccessLoggable
-    val address: Long
+internal interface ImmutableNode : INode {
+    fun getLoggable(): RandomAccessLoggable
+    fun getAddress(): Long
     fun asNodeBase(): NodeBase
 }

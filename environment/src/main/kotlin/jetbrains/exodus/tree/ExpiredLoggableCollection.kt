@@ -22,7 +22,7 @@ import jetbrains.exodus.log.*
 import java.util.function.BiConsumer
 
 interface ExpiredLoggableCollection {
-    val size: Int
+    fun size(): Int
     fun add(loggable: Loggable)
     fun add(address: Long, length: Int)
     fun trimToSize(): ExpiredLoggableCollection
@@ -48,36 +48,35 @@ internal class MutableExpiredLoggableCollection @JvmOverloads constructor(
     private var accumulatedStats: Long2IntOpenHashMap? = null
 ) : ExpiredLoggableCollection {
     private var _size = 0
-    override val size: Int
-        get() {
-            var sum = _size
-            val parent = parent
+    override fun size(): Int {
+        var sum = _size
+        val parent = parent
 
-            if (parent != null) {
-                sum += parent.size
-            }
-
-            return sum
+        if (parent != null) {
+            sum += parent.size()
         }
-    private val nonAccumulatedSize: Int
-        get() {
-            var sum = lengths.size
-            val parent = parent
 
-            if (parent != null) {
-                sum += parent.lengths.size
+        return sum
+    }
 
-                val accumulatedStats = parent.accumulatedStats
-                if (accumulatedStats != null) {
-                    sum += accumulatedStats.size
-                }
+    private fun getNonAccumulatedSize(): Int {
+        var sum = lengths.size
+        val parent = parent
+
+        if (parent != null) {
+            sum += parent.lengths.size
+
+            val accumulatedStats = parent.accumulatedStats
+            if (accumulatedStats != null) {
+                sum += accumulatedStats.size
             }
-
-            return sum
         }
+
+        return sum
+    }
 
     override fun add(loggable: Loggable) {
-        add(loggable.address, loggable.length())
+        add(loggable.getAddress(), loggable.length())
     }
 
     override fun add(address: Long, length: Int) {
@@ -88,7 +87,7 @@ internal class MutableExpiredLoggableCollection @JvmOverloads constructor(
     }
 
     private fun accumulateStats() {
-        if (nonAccumulatedSize >= ExpiredLoggableCollection.NON_ACCUMULATED_STATS_LIMIT) {
+        if (getNonAccumulatedSize() >= ExpiredLoggableCollection.NON_ACCUMULATED_STATS_LIMIT) {
             if (accumulatedStats == null) {
                 accumulatedStats = Long2IntOpenHashMap()
             }
@@ -168,13 +167,12 @@ internal class MutableExpiredLoggableCollection @JvmOverloads constructor(
     }
 
     override fun toString(): String {
-        return "Expired $size loggables"
+        return "Expired ${size()} loggables"
     }
 }
 
 internal class EmptyLoggableCollection : ExpiredLoggableCollection {
-    override val size: Int
-        get() = 0
+    override fun size(): Int = 0
 
     override fun add(loggable: Loggable) {
         throw UnsupportedOperationException()
@@ -189,7 +187,7 @@ internal class EmptyLoggableCollection : ExpiredLoggableCollection {
     }
 
     override fun mergeWith(parent: ExpiredLoggableCollection): ExpiredLoggableCollection {
-        if (parent.size > 0) {
+        if (parent.size() > 0) {
             throw UnsupportedOperationException()
         }
         return this

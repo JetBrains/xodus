@@ -26,9 +26,12 @@ import java.io.PrintStream
 import java.util.NoSuchElementException
 import kotlin.math.abs
 
-abstract class NodeBase : INode {
-    final override var key: ByteIterable
-    final override var value: ByteIterable?
+internal abstract class NodeBase : INode {
+    @JvmField
+    internal var key: ByteIterable
+
+    @JvmField
+    internal var value: ByteIterable?
 
     constructor(keySequence: ByteIterable, value: ByteIterable?) {
         key = keySequence
@@ -43,6 +46,10 @@ abstract class NodeBase : INode {
         key = extractKey(type, data, it)
         value = extractValue(type, data, it)
     }
+
+    override fun getKey(): ByteIterable = key
+
+    override fun getValue(): ByteIterable? = value
 
     fun matchesKeySequence(it: ByteIterator): Long {
         var matchingLength = 0
@@ -85,20 +92,20 @@ abstract class NodeBase : INode {
         throw UnsupportedOperationException()
     }
 
-    abstract val address: Long
-    abstract val isMutable: Boolean
+    abstract fun getAddress(): Long
+    abstract fun isMutable(): Boolean
     abstract fun getMutableCopy(mutableTree: PatriciaTreeMutable): MutableNode
     abstract fun getChild(tree: PatriciaTreeBase, b: Byte): NodeBase?
     abstract fun getChildren(b: Byte): NodeChildrenIterator
     abstract fun getChildrenRange(b: Byte): NodeChildrenIterator
-    abstract val childrenLast: NodeChildrenIterator
-    abstract val children: NodeChildren
-    abstract val childrenCount: Int
+    abstract fun getChildrenLast(): NodeChildrenIterator
+    abstract fun getChildren(): NodeChildren
+    abstract fun getChildrenCount(): Int
     override fun toString(): String {
         return String.format(
             "%s} %s %s",
             if (key.iterator().hasNext()) "{key:$key" else '{',
-            if (value == null) "@" else value.toString() + " @", address
+            if (value == null) "@" else value.toString() + " @", getAddress()
         )
     }
 
@@ -143,10 +150,8 @@ abstract class NodeBase : INode {
     }
 
     internal inner class EmptyNodeChildrenIterator : NodeChildrenIterator {
-        override val key: ByteIterable?
-            get() = ByteIterable.EMPTY
-        override val isMutable: Boolean
-            get() = false
+        override fun getKey(): ByteIterable? = ByteIterable.EMPTY
+        override fun isMutable(): Boolean = false
 
         override fun nextInPlace() {
             throw UnsupportedOperationException()
@@ -156,19 +161,16 @@ abstract class NodeBase : INode {
             throw UnsupportedOperationException()
         }
 
-        override val node: ChildReference?
-            get() = null
-        override val parentNode: NodeBase
-            get() = this@NodeBase
-        override val index: Int
-            get() = 0
+        override fun getNode(): ChildReference? = null
+        override fun getParentNode(): NodeBase = this@NodeBase
+        override fun getIndex(): Int = 0
 
         override fun hasNext(): Boolean {
             return false
         }
 
         override fun next(): ChildReference {
-           throw NoSuchElementException()
+            throw NoSuchElementException()
         }
 
         override fun hasPrev(): Boolean {

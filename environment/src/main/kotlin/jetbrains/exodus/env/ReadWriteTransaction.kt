@@ -205,10 +205,11 @@ open class ReadWriteTransaction : TransactionBase {
     fun doCommit(out: Array<Proto?>, log: Log): ExpiredLoggableCollection {
         val removedEntries = removedStores.long2ObjectEntrySet()
         var expiredLoggables = ExpiredLoggableCollection.newInstance(log)
-        val metaTreeMutable = _metaTree!!.tree.mutableCopy
+        val metaTreeMutable = _metaTree!!.tree.getMutableCopy()
         for ((key, value) in removedEntries) {
             MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), key)
-            expiredLoggables = expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()!!).trimToSize())
+            expiredLoggables =
+                expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()!!).trimToSize())
         }
         removedStores.clear()
         for ((key, value) in createdStores) {
@@ -216,12 +217,12 @@ open class ReadWriteTransaction : TransactionBase {
         }
         createdStores.clear()
         for (treeMutable in mutableTrees.values) {
-            expiredLoggables = expiredLoggables.mergeWith(treeMutable.expiredLoggables.trimToSize())
+            expiredLoggables = expiredLoggables.mergeWith(treeMutable.getExpiredLoggables().trimToSize())
             MetaTreeImpl.saveTree(metaTreeMutable, treeMutable)
         }
         clearImmutableTrees()
         mutableTrees.clear()
-        expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.expiredLoggables.trimToSize())
+        expiredLoggables = expiredLoggables.mergeWith(metaTreeMutable.getExpiredLoggables().trimToSize())
         out[0] = MetaTreeImpl.saveMetaTree(metaTreeMutable, environment, expiredLoggables)
         return expiredLoggables
     }
@@ -243,7 +244,7 @@ open class ReadWriteTransaction : TransactionBase {
         val structureId = store.structureId
         var result = mutableTrees[structureId]
         if (result == null) {
-            result = getTree(store).mutableCopy
+            result = getTree(store).getMutableCopy()
             mutableTrees.put(structureId, result)
         }
         return result

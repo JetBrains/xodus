@@ -27,33 +27,33 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
     private fun refresh(): BTreeMutable? {
         val a = saveTree()
         tree = BTree(log!!, policy, a, false, 1)
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         return treeMutable!!
     }
 
     @Test
     fun testDeleteKeys() {
-        treeMutable = BTreeEmpty(log!!, policy, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, policy, false, 1).getMutableCopy()
         for (i in 0..124) {
             treeMutable!!.put(kv(i, "k$i"))
         }
-        val key = treeMutable!!.root.getKey(1).key
+        val key = treeMutable!!.root.getKey(1).getKey()
         refresh()
         treeMutable!!.delete(key)
         Assert.assertEquals(
             0,
-            treeMutable!!.root.getKey(1).compareKeyTo(treeMutable!!.root.getChild(1).minKey.key).toLong()
+            treeMutable!!.root.getKey(1).compareKeyTo(treeMutable!!.root.getChild(1).getMinKey().getKey()).toLong()
         )
     }
 
     @Test
     fun testDeleteNoDuplicatesDeleteFirstTwoPages() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), false, 1).getMutableCopy()
         for (i in 0..19) {
             treeMutable!!.put(kv(i, "v$i"))
         }
         val a = saveTree()
-        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, false, 1).mutableCopy
+        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, false, 1).getMutableCopy()
         dump(treeMutable!!)
         for (i in 0..7) {
             treeMutable!!.delete(key(i))
@@ -64,12 +64,18 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testDeleteNotExistingKeys() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), false, 1).mutableCopy
+        treeMutable = BTreeEmpty(
+            log!!, BTreeBalancePolicy(4),
+            false, 1
+        ).getMutableCopy()
         for (i in 0..19) {
             treeMutable!!.put(kv(i, "v$i"))
         }
         val a = saveTree()
-        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, false, 1).mutableCopy
+        treeMutable = BTree(
+            log!!, BTreeBalancePolicy(4), a,
+            false, 1
+        ).getMutableCopy()
         dump(treeMutable!!)
         for (i in -5..7) {
             treeMutable!!.delete(key(i))
@@ -85,7 +91,10 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testDeleteNoDuplicatesBottomPage() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(16), false, 1).mutableCopy
+        treeMutable = BTreeEmpty(
+            log!!, BTreeBalancePolicy(16), false,
+            1
+        ).getMutableCopy()
         val res: MutableList<INode> = ArrayList()
         for (i in 0..63) {
             val ln: INode = kv(i, "v$i")
@@ -94,7 +103,10 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
         }
         dump(treeMutable!!)
         val a = saveTree()
-        treeMutable = BTree(log!!, BTreeBalancePolicy(16), a, false, 1).mutableCopy
+        treeMutable = BTree(
+            log!!, BTreeBalancePolicy(16), a, false,
+            1
+        ).getMutableCopy()
         for (i in 0..63) {
             treeMutable!!.delete(key(i))
             res.removeAt(0)
@@ -105,7 +117,7 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testDeleteDuplicates() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv(1, "11"))
         treeMutable!!.put(kv(1, "12"))
         Assert.assertFalse(treeMutable!!.delete(key(2)))
@@ -121,7 +133,7 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testDeleteDuplicates2() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv(1, "11"))
         treeMutable!!.put(kv(1, "12"))
         Assert.assertTrue(treeMutable!!.delete(key(1), value("11")))
@@ -137,7 +149,10 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testMergeWithDefaultPolicy() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(7), true, 1).mutableCopy
+        treeMutable = BTreeEmpty(
+            log!!, BTreeBalancePolicy(7), true,
+            1
+        ).getMutableCopy()
         for (i in 0..7) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -171,7 +186,10 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testRemoveFirst() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), true, 1).mutableCopy
+        treeMutable = BTreeEmpty(
+            log!!, BTreeBalancePolicy(4), true,
+            1
+        ).getMutableCopy()
         for (i in 0..13) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -196,7 +214,10 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testMergeDuplicatesWithDefaultPolicyOnRemoveLast() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), true, 1).mutableCopy
+        treeMutable = BTreeEmpty(
+            log!!, BTreeBalancePolicy(4), true,
+            1
+        ).getMutableCopy()
         for (i in 0..13) {
             treeMutable!!.put(kv(i, "v$i"))
             dump(treeMutable!!)
@@ -232,7 +253,10 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testMergeDuplicatesWithDefaultPolicyOnRemoveMiddle() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), true, 1).mutableCopy
+        treeMutable = BTreeEmpty(
+            log!!, BTreeBalancePolicy(4), true,
+            1
+        ).getMutableCopy()
         for (i in 0..13) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -271,13 +295,16 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
 
     @Test
     fun testGetNextEmpty() {
-        val copy = BTreeEmpty(log!!, true, 1).mutableCopy
+        val copy = BTreeEmpty(
+            log!!, true,
+            1
+        ).getMutableCopy()
         log!!.beginWrite()
         val address = copy.save()
         log!!.flush()
         log!!.endWrite()
-        treeMutable = BTree(log!!, address, true, 1).mutableCopy
-        Assert.assertTrue(treeMutable!!.isEmpty)
+        treeMutable = BTree(log!!, address, true, 1).getMutableCopy()
+        Assert.assertTrue(treeMutable!!.isEmpty())
         Assert.assertEquals(0, treeMutable!!.size)
         Assert.assertFalse(treeMutable!!.openCursor().next)
     }
@@ -286,25 +313,25 @@ class BTreeDeleteSpecificTest : BTreeTestBase() {
     fun testBulkDelete() {
         prepareData(5000)
         var i = 0
-        while (!treeMutable!!.isEmpty && i <= 5000) {
+        while (!treeMutable!!.isEmpty() && i <= 5000) {
             if (i == 103) dump(treeMutable!!)
             treeMutable!!.delete(key(i))
             Assert.assertEquals((5000 - i - 1).toLong(), treeMutable!!.size)
             i++
         }
         val a = saveTree()
-        treeMutable = BTree(log!!, a, true, 1).mutableCopy
-        Assert.assertTrue(treeMutable!!.isEmpty)
+        treeMutable = BTree(log!!, a, true, 1).getMutableCopy()
+        Assert.assertTrue(treeMutable!!.isEmpty())
         Assert.assertEquals(0, treeMutable!!.size)
         Assert.assertFalse(treeMutable!!.openCursor().next)
     }
 
     private fun prepareData(size: Int) {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         for (i in 0 until size) {
             treeMutable!!.put(kv(i, "v$i"))
         }
         val a = saveTree()
-        treeMutable = BTree(log!!, a, true, 1).mutableCopy
+        treeMutable = BTree(log!!, a, true, 1).getMutableCopy()
     }
 }

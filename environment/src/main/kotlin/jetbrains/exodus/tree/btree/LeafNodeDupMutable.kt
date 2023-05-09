@@ -23,9 +23,10 @@ import java.io.PrintStream
 /**
  * Stateful leaf node with root page of duplicates sub-tree as a value
  */
-internal class LeafNodeDupMutable(override val tree: BTreeDupMutable) : BaseLeafNodeMutable() {
-    override val address: Long
-        get() = tree.address
+internal class LeafNodeDupMutable(val tree: BTreeDupMutable) : BaseLeafNodeMutable() {
+    override fun getAddress(): Long = tree.address
+
+    override fun getTree(): BTreeBase = tree
 
     override fun addressIterator(): AddressIterator {
         val traverser: BTreeTraverser = BTreeMutatingTraverser.create(tree)
@@ -36,12 +37,9 @@ internal class LeafNodeDupMutable(override val tree: BTreeDupMutable) : BaseLeaf
         return false
     }
 
-    override val isDup: Boolean
-        get() = true
-    override val dupCount: Long
-        get() = tree.size
-    val rootPage: BasePageMutable
-        get() = tree.root
+    override fun isDup(): Boolean = true
+    override fun getDupCount(): Long = tree.size
+    fun getRootPage(): BasePageMutable = tree.getRoot()
 
     override fun valueExists(value: ByteIterable): Boolean {
         // value is a key in duplicates sub-tree
@@ -53,13 +51,11 @@ internal class LeafNodeDupMutable(override val tree: BTreeDupMutable) : BaseLeaf
     }
 
     override fun compareValueTo(iterable: ByteIterable): Int {
-        return value.compareTo(iterable)
+        return getValue().compareTo(iterable)
     }
 
-    override val key: ByteIterable
-        get() = tree.key
-    override val value: ByteIterable
-        get() = tree.root.minKey.key
+    override fun getKey(): ByteIterable = tree.key
+    override fun getValue(): ByteIterable = tree.root.getMinKey().getKey()
 
     override fun delete(value: ByteIterable?): Boolean {
         return tree.delete(value!!)
@@ -83,7 +79,7 @@ internal class LeafNodeDupMutable(override val tree: BTreeDupMutable) : BaseLeaf
     }
 
     override fun toString(): String {
-        return "LND* {key:$key}"
+        return "LND* {key:${getKey()}}"
     }
 
     override fun dump(out: PrintStream, level: Int, renderer: Dumpable.ToString?) {
@@ -100,15 +96,15 @@ internal class LeafNodeDupMutable(override val tree: BTreeDupMutable) : BaseLeaf
          * @return mutable copy of ln
          */
         fun convert(ln: ILeafNode, mainTree: BTreeMutable): LeafNodeDupMutable {
-            val isLeafNodeDup = ln.isDup
+            val isLeafNodeDup = ln.isDup()
             if (isLeafNodeDup && ln is LeafNodeDupMutable) {
                 return ln
             }
 
             // wrapper tree that doesn't allow duplicates
-            val dupTree = if (isLeafNodeDup) (ln as LeafNodeDup).treeCopyMutable else BTreeDupMutable(
+            val dupTree = if (isLeafNodeDup) (ln as LeafNodeDup).getTreeCopyMutable() else BTreeDupMutable(
                 BTreeEmpty(mainTree.log, mainTree.balancePolicy, false, mainTree.structureId),
-                ln.key
+                ln.getKey()
             )
             dupTree.mainTree = mainTree
             return convert(ln, mainTree, dupTree)
@@ -116,12 +112,12 @@ internal class LeafNodeDupMutable(override val tree: BTreeDupMutable) : BaseLeaf
 
         fun convert(ln: ILeafNode, mainTree: BTreeMutable, dupTree: BTreeDupMutable): LeafNodeDupMutable {
             val result = LeafNodeDupMutable(dupTree)
-            return if (ln.isDup) {
+            return if (ln.isDup()) {
                 result
             } else {
                 // leaf node with one value -- add it
                 mainTree.decrementSize(1) // hack
-                result.put(ln.value!!)
+                result.put(ln.getValue()!!)
                 result
             }
         }

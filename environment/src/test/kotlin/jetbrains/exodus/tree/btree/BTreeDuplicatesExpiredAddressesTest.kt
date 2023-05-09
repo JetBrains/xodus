@@ -24,7 +24,10 @@ import org.junit.Test
 open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
     @Test
     fun testNestedInternals() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(3), false, 1).mutableCopy
+        treeMutable = BTreeEmpty(
+            log!!, BTreeBalancePolicy(3), false,
+            1
+        ).getMutableCopy()
         for (i in 0..9) {
             treeMutable!!.put(kv(i, "value$i"))
         }
@@ -34,13 +37,13 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testAdd() {
-        treeMutable =BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         val address = saveTree()
         //Expired: none
         checkExpiredAddress(treeMutable!!, 0)
         saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         //Expired: root
         checkExpiredAddress(treeMutable!!, 1)
         treeMutable!!.put(kv(0, "value"))
@@ -50,19 +53,19 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testAddDup() {
-        treeMutable =BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv(0, "value"))
         //Expired: none
         checkExpiredAddress(treeMutable!!, 0)
         val address = saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         treeMutable!!.put(kv(0, "value2"))
         //Expired: root, LeafNode -> LeafNodeDupMutable
         checkExpiredAddress(treeMutable!!, 2)
         saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         treeMutable!!.put(kv(0, "value3"))
         // Expired: root, dupTree
         checkExpiredAddress(treeMutable!!, 2)
@@ -71,7 +74,7 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testDeleteDup() {
-        treeMutable =BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv(0, "v0"))
         treeMutable!!.put(kv(0, "v1"))
         val address = saveTree()
@@ -80,7 +83,7 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
         checkExpiredAddress(treeMutable!!, 0)
         saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         //Expired: root
         checkExpiredAddress(treeMutable!!, 1)
         Assert.assertFalse(treeMutable!!.delete(key(0), value("v2")))
@@ -91,7 +94,7 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testDeleteAllDups() {
-        treeMutable =BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv(0, "value"))
         //Expired: none
         checkExpiredAddress(treeMutable!!, 0)
@@ -101,8 +104,8 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
         checkExpiredAddress(treeMutable!!, 0)
         val address = saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
-        treeMutable!!.delete(leafNode.key)
+        treeMutable = tree!!.getMutableCopy()
+        treeMutable!!.delete(leafNode.getKey())
         //Expired: root, dupTree, value, value2
         checkExpiredAddress(treeMutable!!, 4)
         saveTree()
@@ -110,7 +113,7 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testDeleteSingleConvert() {
-        treeMutable =BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv(0, "value"))
         val leafNode: INode = kv(0, "value2")
         treeMutable!!.put(leafNode)
@@ -118,11 +121,11 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
         checkExpiredAddress(treeMutable!!, 0)
         val address = saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         val it = treeMutable!!.addressIterator()
         println("Before delete:")
         dumplLoggable(it)
-        treeMutable!!.delete(leafNode.key, leafNode.value)
+        treeMutable!!.delete(leafNode.getKey(), leafNode.getValue())
         //Expired: root, dupTree, value, value2
         checkExpiredAddress(treeMutable!!, 4)
         saveTree()
@@ -131,13 +134,13 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
     private fun dumplLoggable(it: AddressIterator) {
         while (it.hasNext()) {
             val address = it.next()
-            println("Address: " + address + " type: " + log!!.read(address).type)
+            println("Address: " + address + " type: " + log!!.read(address).getType())
         }
     }
 
     @Test
     fun testDeleteSingleNoConvert() {
-        treeMutable =BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv(0, "value"))
         treeMutable!!.put(kv(0, "value2"))
         val leafNode: INode = kv(0, "value3")
@@ -146,8 +149,8 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
         checkExpiredAddress(treeMutable!!, 0)
         val address = saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
-        treeMutable!!.delete(leafNode.key, leafNode.value)
+        treeMutable = tree!!.getMutableCopy()
+        treeMutable!!.delete(leafNode.getKey(), leafNode.getValue())
         //Expired: root, dupTree, value3
         checkExpiredAddress(treeMutable!!, 3)
         saveTree()
@@ -155,11 +158,11 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testBulkAdd() {
-        treeMutable =BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         val address = saveTree()
         checkExpiredAddress(treeMutable!!, 0)
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         for (i in 0..999) {
             treeMutable!!.put(kv(i, "value"))
             treeMutable!!.put(kv(i, "value2"))
@@ -173,12 +176,12 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testBulkDeleteByKey() {
-        treeMutable =BTreeEmpty(
+        treeMutable = BTreeEmpty(
             log!!,
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         val keys = arrayOfNulls<ByteIterable>(1000)
         for (i in 0..999) {
             val node: INode = kv(i, "value")
@@ -190,13 +193,13 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
             treeMutable!!.put(kv(i, "value6"))
             treeMutable!!.put(kv(i, "value7"))
             treeMutable!!.put(kv(i, "value8"))
-            keys[i] = node.key
+            keys[i] = node.getKey()
         }
         //Expired: none
         checkExpiredAddress(treeMutable!!, 0)
         val address = saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         val addresses = countNodes(treeMutable)
         for (i in 0..999) {
             treeMutable!!.delete(keys[i]!!)
@@ -207,12 +210,12 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testBulkDeleteByKV() {
-        treeMutable =BTreeEmpty(
+        treeMutable = BTreeEmpty(
             log!!,
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         val leaves: MutableList<INode?> = ArrayList()
         for (i in 0..999) {
             val nodes = arrayOfNulls<INode>(5)
@@ -230,17 +233,17 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
         checkExpiredAddress(treeMutable!!, 0)
         val address = saveTree()
         tree = BTree(log!!, address, true, 1)
-        treeMutable =tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         val addresses = countNodes(treeMutable)
         for (leafNode in leaves) {
-            treeMutable!!.delete(leafNode!!.key, leafNode.value)
+            treeMutable!!.delete(leafNode!!.getKey(), leafNode.getValue())
         }
         checkExpiredAddress(treeMutable!!, addresses)
         saveTree()
     }
 
     private fun checkExpiredAddress(tree: ITreeMutable, expectedAddresses: Long) {
-        Assert.assertEquals(expectedAddresses, tree.expiredLoggables.size.toLong())
+        Assert.assertEquals(expectedAddresses, tree.getExpiredLoggables().size().toLong())
     }
 
     private fun countNodes(tree: BTreeMutable?): Long {
@@ -248,12 +251,12 @@ open class BTreeDuplicatesExpiredAddressesTest : BTreeTestBase() {
     }
 
     private fun countNodes(page: BasePage): Long {
-        if (page.isBottom) {
+        if (page.isBottom()) {
             var result: Long = 1
             for (i in 0 until page.size) {
                 var r: Long = 1
                 val node = page.getKey(i)
-                if (node.isDup) {
+                if (node.isDup()) {
                     val it = node.addressIterator()
                     while (it.hasNext()) {
                         it.next()

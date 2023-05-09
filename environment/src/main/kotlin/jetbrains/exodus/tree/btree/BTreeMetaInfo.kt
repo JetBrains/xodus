@@ -34,8 +34,7 @@ class BTreeMetaInfo private constructor(
         structureId
     )
 
-    override val isKeyPrefixing: Boolean
-        get() = false
+    override fun isKeyPrefixing(): Boolean = false
 
     override fun clone(newStructureId: Int): BTreeMetaInfo {
         return BTreeMetaInfo(log!!, balancePolicy, duplicates, newStructureId)

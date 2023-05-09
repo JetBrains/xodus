@@ -21,14 +21,16 @@ import jetbrains.exodus.tree.TreeCursor
  * BTree iterator with duplicates support
  */
 internal class BTreeCursorDup(// hack to avoid casts
-    override val traverser: BTreeTraverserDup
+    traverser: BTreeTraverserDup
 ) : TreeCursor(traverser) {
     override fun getNextDup(): Boolean {
+        val traverser = traverser as BTreeTraverserDup
         // move to next dup if in -1 position or dupCursor has next element
         return hasNext() && traverser.inDupTree && next && traverser.inDupTree
     }
 
     override fun getNextNoDup(): Boolean {
+        val traverser = traverser as BTreeTraverserDup
         if (traverser.inDupTree) {
             traverser.popUntilDupRight()
             canGoDown = false
@@ -37,16 +39,19 @@ internal class BTreeCursorDup(// hack to avoid casts
     }
 
     override fun getPrevDup(): Boolean {
+        val traverser = traverser as BTreeTraverserDup
         // move to next dup if in -1 position or dupCursor has next element
         return hasPrev() && traverser.inDupTree && prev && traverser.inDupTree
     }
 
     override fun getPrevNoDup(): Boolean {
+        val traverser = traverser as BTreeTraverserDup
         traverser.popUntilDupLeft() // ignore duplicates
         return prev
     }
 
     override fun count(): Int {
+        val traverser = traverser as BTreeTraverserDup
         return if (traverser.inDupTree) traverser.currentNode.tree.size.toInt() else super.count()
     }
 }

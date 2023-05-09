@@ -25,19 +25,16 @@ import jetbrains.exodus.tree.patricia.PatriciaTreeMutable.Companion.getNotNullVa
 
 internal class PatriciaTreeWithDuplicatesMutable(treeNoDuplicates: ITreeMutable) :
     PatriciaTreeWithDuplicates(treeNoDuplicates), ITreeMutable {
-    override val mutableCopy: ITreeMutable
-        get() = this
+    override fun getMutableCopy(): ITreeMutable = this
 
     override fun cursorClosed(cursor: ITreeCursorMutable) {
         throw UnsupportedOperationException()
     }
 
-    override val root: MutableTreeRoot?
-        get() = (this.treeNoDuplicates as ITreeMutable).root
-    override val isAllowingDuplicates: Boolean
-        get() = true
-    override val openCursors: Iterable<ITreeCursorMutable>?
-        get() = (this.treeNoDuplicates as ITreeMutable).openCursors
+    override fun getRoot(): MutableTreeRoot? = (this.treeNoDuplicates as ITreeMutable).getRoot()
+    override fun isAllowingDuplicates(): Boolean = true
+    override fun getOpenCursors(): Iterable<ITreeCursorMutable>? =
+        (this.treeNoDuplicates as ITreeMutable).getOpenCursors()
 
     override fun put(key: ByteIterable, value: ByteIterable): Boolean {
         return (this.treeNoDuplicates as ITreeMutable).put(
@@ -58,15 +55,15 @@ internal class PatriciaTreeWithDuplicatesMutable(treeNoDuplicates: ITreeMutable)
     }
 
     override fun put(ln: INode) {
-        put(ln.key, getNotNullValue(ln))
+        put(ln.getKey(), getNotNullValue(ln))
     }
 
     override fun putRight(ln: INode) {
-        putRight(ln.key, getNotNullValue(ln))
+        putRight(ln.getKey(), getNotNullValue(ln))
     }
 
     override fun add(ln: INode): Boolean {
-        return add(ln.key, getNotNullValue(ln))
+        return add(ln.getKey(), getNotNullValue(ln))
     }
 
     override fun delete(key: ByteIterable): Boolean {
@@ -109,8 +106,8 @@ internal class PatriciaTreeWithDuplicatesMutable(treeNoDuplicates: ITreeMutable)
         return (this.treeNoDuplicates as ITreeMutable).save()
     }
 
-    override val expiredLoggables: ExpiredLoggableCollection
-        get() = (this.treeNoDuplicates as ITreeMutable).expiredLoggables
+    override fun getExpiredLoggables(): ExpiredLoggableCollection =
+        (this.treeNoDuplicates as ITreeMutable).getExpiredLoggables()
 
     override fun reclaim(
         loggable: RandomAccessLoggable,

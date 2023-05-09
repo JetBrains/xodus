@@ -29,10 +29,10 @@ abstract class TreeMetaInfo protected constructor(val log: Log?, val duplicates:
         return duplicates
     }
 
-    abstract val isKeyPrefixing: Boolean
+    abstract fun isKeyPrefixing(): Boolean
     fun toByteIterable(): ByteIterable {
-        var flags  = (if (duplicates) DUPLICATES_BIT else 0).toByte()
-        if (isKeyPrefixing) {
+        var flags = (if (duplicates) DUPLICATES_BIT else 0).toByte()
+        if (isKeyPrefixing()) {
             flags = (flags + KEY_PREFIXING_BIT.toByte()).toByte()
         }
         val output = LightOutputStream(10)
@@ -44,8 +44,7 @@ abstract class TreeMetaInfo protected constructor(val log: Log?, val duplicates:
 
     abstract fun clone(newStructureId: Int): TreeMetaInfo
     private class Empty(structureId: Int) : TreeMetaInfo(null, false, structureId) {
-        override val isKeyPrefixing: Boolean
-            get() = false
+        override fun isKeyPrefixing(): Boolean = false
 
         override fun clone(newStructureId: Int): TreeMetaInfo {
             return Empty(newStructureId)
@@ -59,7 +58,7 @@ abstract class TreeMetaInfo protected constructor(val log: Log?, val duplicates:
         fun toConfig(metaInfo: TreeMetaInfo): StoreConfig {
             return if (metaInfo.structureId < 0) {
                 StoreConfig.TEMPORARY_EMPTY
-            } else StoreConfig.getStoreConfig(metaInfo.duplicates, metaInfo.isKeyPrefixing)
+            } else StoreConfig.getStoreConfig(metaInfo.duplicates, metaInfo.isKeyPrefixing())
         }
 
         fun load(
@@ -86,7 +85,7 @@ abstract class TreeMetaInfo protected constructor(val log: Log?, val duplicates:
         }
 
         fun getTreeLoggables(tree: ITree): ExpiredLoggableCollection {
-            val log = tree.log
+            val log = tree.getLog()
             val result: ExpiredLoggableCollection = ExpiredLoggableCollection.newInstance(log)
             val it = tree.addressIterator()
             while (it.hasNext()) {

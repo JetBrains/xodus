@@ -37,7 +37,7 @@ class LoggableIterator(private val log: Log, private val it: ByteIteratorWithAdd
 
         val result = log.read(it)
         if (!NullLoggable.isNullLoggable(result) || !HashCodeLoggable.isHashCodeLoggable(result)) {
-            it.skip(result.dataLength.toLong())
+            it.skip(result.getDataLength().toLong())
         }
         return result
     }

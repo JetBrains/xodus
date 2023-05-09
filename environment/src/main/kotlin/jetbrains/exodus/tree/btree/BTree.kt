@@ -27,7 +27,11 @@ open class BTree(
     structureId: Int
 ) : BTreeBase(log, policy, allowsDuplicates, structureId) {
     private val rootLoggable: RandomAccessLoggable
-    final override val root: BasePageImmutable
+
+    @JvmField
+    val root: BasePageImmutable
+
+    override fun getRoot(): BasePage = root
 
     constructor(log: Log, rootAddress: Long, allowsDuplicates: Boolean, structureId: Int) : this(
         log,
@@ -40,35 +44,34 @@ open class BTree(
     init {
         require(rootAddress != Loggable.NULL_ADDRESS) { "Can't instantiate not empty tree with null root address." }
         rootLoggable = getLoggable(rootAddress)
-        val type = rootLoggable.type
+        val type = rootLoggable.getType()
         // load size, but check if it exists
         if (type != BOTTOM_ROOT && type != INTERNAL_ROOT) {
             throw ExodusException("Unexpected root page type: $type")
         }
-        val data = rootLoggable.data
+        val data = rootLoggable.getData()
         val it = data.iterator()
         size = it.compressedUnsignedLong
         root = loadRootPage(
             data.cloneWithAddressAndLength(it.address, it.available()),
-            rootLoggable.isDataInsideSinglePage
+            rootLoggable.isDataInsideSinglePage()
         )
     }
 
-    override val rootAddress: Long
-        get() = rootLoggable.address
-    override val mutableCopy: BTreeMutable
-        get() {
-            val result = BTreeMutable(this)
-            result.addExpiredLoggable(rootLoggable)
-            return result
-        }
+    override fun getRootAddress(): Long = rootLoggable.getAddress()
+
+    override fun getMutableCopy(): BTreeMutable {
+        val result = BTreeMutable(this)
+        result.addExpiredLoggable(rootLoggable)
+        return result
+    }
 
     private fun loadRootPage(
         data: ByteIterableWithAddress,
         loggableInsideSinglePage: Boolean
     ): BasePageImmutable {
         val result: BasePageImmutable
-        val type = rootLoggable.type
+        val type = rootLoggable.getType()
         result = when (type) {
             LEAF_DUP_BOTTOM_ROOT, BOTTOM_ROOT, BOTTOM, DUP_BOTTOM -> BottomPage(
                 this,
@@ -83,7 +86,7 @@ open class BTree(
             )
 
             else -> {
-                raise("Unexpected loggable type: $type", log, rootLoggable.address)
+                raise("Unexpected loggable type: $type", log, rootLoggable.getAddress())
                 // dummy unreachable statement
                 throw RuntimeException()
             }

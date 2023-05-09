@@ -23,12 +23,13 @@ import jetbrains.exodus.log.NullLoggable.create
 import jetbrains.exodus.log.RandomAccessLoggable
 import java.util.*
 
-class SinglePageImmutableNode : NodeBase, ImmutableNode {
-    override val loggable: RandomAccessLoggable
+internal class SinglePageImmutableNode : NodeBase, ImmutableNode {
+    @JvmField
+    internal val loggable: RandomAccessLoggable
     private val data: ByteArray
     private var dataStart: Int
     private val dataEnd: Int
-    override val childrenCount: Int
+    private val childrenCount: Int
     private val childAddressLength: Byte
     private val v2Format: Boolean
     private val baseAddress // if it is not equal to NULL_ADDRESS then the node is saved in the v2 format
@@ -37,7 +38,7 @@ class SinglePageImmutableNode : NodeBase, ImmutableNode {
     constructor(
         loggable: RandomAccessLoggable,
         data: ByteIterableWithAddress
-    ) : this(loggable.type, loggable, data, data.iterator())
+    ) : this(loggable.getType(), loggable, data, data.iterator())
 
     constructor() : super(ByteIterable.EMPTY, null) {
         dataStart = 0
@@ -61,13 +62,13 @@ class SinglePageImmutableNode : NodeBase, ImmutableNode {
         this.loggable = loggable
         var baseAddress = Loggable.NULL_ADDRESS
         if (PatriciaTreeBase.nodeHasChildren(type)) {
-            val i = compressedUnsignedInt
+            val i = getCompressedUnsignedInt()
             val childrenCount = i ushr 3
             if (childrenCount < VERSION2_CHILDREN_COUNT_BOUND) {
                 this.childrenCount = childrenCount
             } else {
                 this.childrenCount = childrenCount - VERSION2_CHILDREN_COUNT_BOUND
-                baseAddress = compressedUnsignedLong
+                baseAddress = getCompressedUnsignedLong()
             }
             val addressLen = (i and 7) + 1
             checkAddressLength(addressLen)
@@ -80,49 +81,51 @@ class SinglePageImmutableNode : NodeBase, ImmutableNode {
         v2Format = baseAddress != Loggable.NULL_ADDRESS
     }
 
+    override fun getChildrenCount(): Int = childrenCount
+
+    override fun getLoggable(): RandomAccessLoggable = loggable
+
     private fun checkAddressLength(addressLen: Int) {
         if (addressLen < 0 || addressLen > 8) {
             throw ExodusException("Invalid length of address: \$addressLen")
         }
     }
 
-    private val compressedUnsignedInt: Int
-        get() {
-            var result = 0
-            var shift = 0
-            do {
-                val b = data[dataStart++]
-                result += b.toInt() and 0x7f shl shift
-                if (b.toInt() and 0x80 != 0) {
-                    return result
-                }
-                shift += 7
-            } while (dataStart < dataEnd)
-            throw ExodusException("Bad compressed number")
-        }
-    private val compressedUnsignedLong: Long
-        get() {
-            var result: Long = 0
-            var shift = 0
-            do {
-                val b = data[dataStart++]
-                result += (b.toInt() and 0x7f).toLong() shl shift
-                if (b.toInt() and 0x80 != 0) {
-                    return result
-                }
-                shift += 7
-            } while (dataStart < dataEnd)
-            throw ExodusException("Bad compressed number")
-        }
-    override val address: Long
-        get() = loggable.address
+    private fun getCompressedUnsignedInt(): Int {
+        var result = 0
+        var shift = 0
+        do {
+            val b = data[dataStart++]
+            result += b.toInt() and 0x7f shl shift
+            if (b.toInt() and 0x80 != 0) {
+                return result
+            }
+            shift += 7
+        } while (dataStart < dataEnd)
+        throw ExodusException("Bad compressed number")
+    }
+
+    private fun getCompressedUnsignedLong(): Long {
+        var result: Long = 0
+        var shift = 0
+        do {
+            val b = data[dataStart++]
+            result += (b.toInt() and 0x7f).toLong() shl shift
+            if (b.toInt() and 0x80 != 0) {
+                return result
+            }
+            shift += 7
+        } while (dataStart < dataEnd)
+        throw ExodusException("Bad compressed number")
+    }
+
+    override fun getAddress(): Long = loggable.getAddress()
 
     override fun asNodeBase(): NodeBase {
         return this
     }
 
-    override val isMutable: Boolean
-        get() = false
+    override fun isMutable(): Boolean = false
 
     override fun getMutableCopy(mutableTree: PatriciaTreeMutable): MutableNode {
         return mutableTree.mutateNode(this)
@@ -154,26 +157,25 @@ class SinglePageImmutableNode : NodeBase, ImmutableNode {
         return null
     }
 
-    override val children: NodeChildren
-        get() = object : NodeChildren {
-            override fun iterator(): NodeChildrenIterator {
-                val childrenCount = (this@SinglePageImmutableNode).childrenCount
-                if (childrenCount == 0) {
-                    return EmptyNodeChildrenIterator()
+    override fun getChildren(): NodeChildren = object : NodeChildren {
+        override fun iterator(): NodeChildrenIterator {
+            val childrenCount = (this@SinglePageImmutableNode).childrenCount
+            if (childrenCount == 0) {
+                return EmptyNodeChildrenIterator()
+            }
+            if (v2Format) {
+                if (childrenCount == 256) {
+                    return ImmutableNodeCompleteChildrenV2Iterator(-1, null)
                 }
-                if (v2Format) {
-                    if (childrenCount == 256) {
-                        return ImmutableNodeCompleteChildrenV2Iterator(-1, null)
-                    }
-                    if (childrenCount in 1..32) {
-                        return ImmutableNodeSparseChildrenV2Iterator(-1, null)
-                    }
-                    return ImmutableNodeBitsetChildrenV2Iterator(-1, null)
-                } else {
-                    return ImmutableNodeChildrenIterator(-1, null)
+                if (childrenCount in 1..32) {
+                    return ImmutableNodeSparseChildrenV2Iterator(-1, null)
                 }
+                return ImmutableNodeBitsetChildrenV2Iterator(-1, null)
+            } else {
+                return ImmutableNodeChildrenIterator(-1, null)
             }
         }
+    }
 
     override fun getChildrenRange(b: Byte): NodeChildrenIterator {
         val ub = java.lang.Byte.toUnsignedInt(b)
@@ -295,32 +297,31 @@ class SinglePageImmutableNode : NodeBase, ImmutableNode {
         return EmptyNodeChildrenIterator()
     }
 
-    override val childrenLast: NodeChildrenIterator
-        get() {
-            val childrenCount = childrenCount
-            if (childrenCount == 0) {
-                return EmptyNodeChildrenIterator()
-            }
-            return if (v2Format) {
-                if (childrenCount == 256) {
-                    return ImmutableNodeCompleteChildrenV2Iterator(
-                        childrenCount,
-                        null
-                    )
-                }
-                if (childrenCount in 2..32) {
-                    ImmutableNodeSparseChildrenV2Iterator(
-                        childrenCount,
-                        null
-                    )
-                } else ImmutableNodeBitsetChildrenV2Iterator(
+    override fun getChildrenLast(): NodeChildrenIterator {
+        val childrenCount = childrenCount
+        if (childrenCount == 0) {
+            return EmptyNodeChildrenIterator()
+        }
+        return if (v2Format) {
+            if (childrenCount == 256) {
+                return ImmutableNodeCompleteChildrenV2Iterator(
                     childrenCount,
                     null
                 )
-            } else {
-                ImmutableNodeChildrenIterator(childrenCount, null)
             }
+            if (childrenCount in 2..32) {
+                ImmutableNodeSparseChildrenV2Iterator(
+                    childrenCount,
+                    null
+                )
+            } else ImmutableNodeBitsetChildrenV2Iterator(
+                childrenCount,
+                null
+            )
+        } else {
+            ImmutableNodeChildrenIterator(childrenCount, null)
         }
+    }
 
     private fun addressByOffsetV2(offset: Int): Long {
         return nextLong(offset) + baseAddress
@@ -444,13 +445,16 @@ class SinglePageImmutableNode : NodeBase, ImmutableNode {
     }
 
     private abstract inner class NodeChildrenIteratorBase protected constructor(
-        override var index: Int,
-        override var node: ChildReference?
+        @JvmField var index: Int,
+        @JvmField var node: ChildReference?
     ) : NodeChildrenIterator {
-        override val key: ByteIterable?
-            get() = this@SinglePageImmutableNode.key
-        override val isMutable: Boolean
-            get() = false
+
+        override fun getIndex(): Int = index
+
+        override fun getNode(): ChildReference? = node
+
+        override fun getKey(): ByteIterable? = this@SinglePageImmutableNode.key
+        override fun isMutable(): Boolean = false
 
         override fun hasNext(): Boolean {
             return index < childrenCount - 1
@@ -466,9 +470,7 @@ class SinglePageImmutableNode : NodeBase, ImmutableNode {
             )
         }
 
-        override val parentNode: NodeBase?
-            get() = this@SinglePageImmutableNode
-
+        override fun getParentNode(): NodeBase? = this@SinglePageImmutableNode
     }
 
     private inner class ImmutableNodeChildrenIterator(index: Int, node: ChildReference?) :

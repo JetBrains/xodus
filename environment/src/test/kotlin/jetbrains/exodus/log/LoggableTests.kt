@@ -55,7 +55,7 @@ class LoggableTests {
     fun testFactoryNullLoggable() {
         val nullLoggable: Loggable = create()
         Assert.assertNotNull(nullLoggable)
-        Assert.assertEquals(nullLoggable.type.toLong(), create().type.toLong())
+        Assert.assertEquals(nullLoggable.getType().toLong(), create().getType().toLong())
     }
 
     @Test

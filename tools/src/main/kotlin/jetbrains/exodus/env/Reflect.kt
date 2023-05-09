@@ -29,7 +29,6 @@ import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.NullLoggable
 import jetbrains.exodus.tree.LongIterator
-import jetbrains.exodus.tree.patricia.PatriciaTreeBase
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
@@ -141,8 +140,6 @@ class Reflect(directory: File) {
 
     companion object {
 
-        private const val MAX_VALID_LOGGABLE_TYPE = PatriciaTreeBase.MAX_VALID_LOGGABLE_TYPE.toInt()
-
         private fun inc(counts: IntHashMap<Int>, key: Int) {
             val count = counts[key]
             if (count == null) {
@@ -192,16 +189,22 @@ class Reflect(directory: File) {
             })
             sortedKeys.addAll(counts.keys)
             sortedKeys.forEach { i ->
-                println("${i.toString().padEnd(7)}: count = ${counts.get(i).toString().padStart(10)}, space = ${totalSpaces[i].toString().padStart(20)}")
+                println(
+                    "${i.toString().padEnd(7)}: count = ${
+                        counts.get(i).toString().padStart(10)
+                    }, space = ${totalSpaces[i].toString().padStart(20)}"
+                )
             }
             println()
         }
 
-        fun openEnvironment(directory: File,
-                            readonly: Boolean = false,
-                            cipherId: String? = null,
-                            cipherKey: String? = null,
-                            cipherBasicIV: Long? = null): EnvironmentImpl {
+        fun openEnvironment(
+            directory: File,
+            readonly: Boolean = false,
+            cipherId: String? = null,
+            cipherKey: String? = null,
+            cipherBasicIV: Long? = null
+        ): EnvironmentImpl {
             val reader = FileDataReader(directory)
             val writer = AsyncFileDataWriter(reader)
             val config = newEnvironmentConfig {
@@ -238,10 +241,10 @@ class Reflect(directory: File) {
         log.allFileAddresses.reversed().forEach {
             val endAddress = it + log.getFileSize(it)
             log.getLoggableIterator(it).forEach { loggable ->
-                if (loggable.type == DatabaseRoot.DATABASE_ROOT_TYPE) {
+                if (loggable.getType() == DatabaseRoot.DATABASE_ROOT_TYPE) {
                     ++totalRoots
                     if (!DatabaseRoot(loggable).isValid) {
-                        println("Invalid root at address: ${loggable.address}")
+                        println("Invalid root at address: ${loggable.getAddress()}")
                     }
                 }
                 if (loggable.end() >= endAddress) return@forEach
@@ -256,26 +259,26 @@ class Reflect(directory: File) {
         val types = IntHashMap<Int>()
         var totalLoggables = 0L
         var nullLoggables = 0L
-        var hashCodeLoggables= 0L
+        var hashCodeLoggables = 0L
         val fileAddresses = log.allFileAddresses
         val fileCount = fileAddresses.size
         fileAddresses.forEachIndexed { i, address ->
             print("\rCollecting log statistics, reading file ${i + 1} of $fileCount, ${i * 100 / fileCount}% complete")
             val nextFileAddress = address + log.fileLengthBound
             log.getLoggableIterator(address).forEach {
-                val la = it.address
+                val la = it.getAddress()
                 if (la >= nextFileAddress) {
                     return@forEach
                 }
                 ++totalLoggables
                 if (NullLoggable.isNullLoggable(it)) {
                     ++nullLoggables
-                } else if(HashCodeLoggable.isHashCodeLoggable(it))  {
+                } else if (HashCodeLoggable.isHashCodeLoggable(it)) {
                     ++hashCodeLoggables
                 } else {
-                    inc(dataLengths, it.dataLength)
-                    inc(structureIds, it.structureId)
-                    inc(types, it.type.toInt())
+                    inc(dataLengths, it.getDataLength())
+                    inc(structureIds, it.getStructureId())
+                    inc(types, it.getType().toInt())
                 }
             }
         }
@@ -316,8 +319,8 @@ class Reflect(directory: File) {
                     store.openCursor(txn).forEach { ++storeSize }
                     val tree = (txn as TransactionBase).getTree(store)
                     fetchUsedSpace(name, tree.addressIterator(), usedSpace, usedSpacePerStore)
-                    if (tree.size != storeSize) {
-                        println("Stored size (${tree.size}) isn't equal to actual size ($storeSize)")
+                    if (tree.size() != storeSize) {
+                        println("Stored size (${tree.size()}) isn't equal to actual size ($storeSize)")
                     }
                 }
             } catch (t: Throwable) {
@@ -346,20 +349,18 @@ class Reflect(directory: File) {
         spaceInfo(storedSpace.entries)
     }
 
-    private fun fetchUsedSpace(name: String, itr: LongIterator,
-                               usedSpace: TreeMap<Long, Long?>,
-                               usedSpacePerStore: TreeMap<String, Long?>) {
+    private fun fetchUsedSpace(
+        name: String, itr: LongIterator,
+        usedSpace: TreeMap<Long, Long?>,
+        usedSpacePerStore: TreeMap<String, Long?>
+    ) {
         itr.forEach {
             try {
                 val loggable = log.read(it)
                 val fileAddress = log.getFileAddress(it)
-                val dataLength = loggable.end() - loggable.address
+                val dataLength = loggable.end() - loggable.getAddress()
                 usedSpace[fileAddress] = (usedSpace[fileAddress] ?: 0L) + dataLength
                 usedSpacePerStore[name] = (usedSpacePerStore[name] ?: 0L) + dataLength
-                val type = loggable.type.toInt()
-                if (type > MAX_VALID_LOGGABLE_TYPE) {
-                    println("Wrong loggable type: $type")
-                }
             } catch (e: ExodusException) {
                 println("Can't read loggable: $e")
             }
@@ -418,14 +419,21 @@ class Reflect(directory: File) {
         }
     }
 
-    private fun printPerStoreSpaceInfo(usedSpace: Iterable<Map.Entry<String, Long?>>, replacement: (String) -> String? = { it }) {
+    private fun printPerStoreSpaceInfo(
+        usedSpace: Iterable<Map.Entry<String, Long?>>,
+        replacement: (String) -> String? = { it }
+    ) {
         for ((name, usedBytes) in usedSpace.sortedBy { -(it.value ?: 0) }) {
-            println(if (usedBytes == null) {
-                "Used bytes for store $name unknown"
-            } else {
-                String.format("Used bytes for store\t%110s\t%10.2fKB", replacement(name)
-                        ?: name, usedBytes.toDouble() / 1024)
-            })
+            println(
+                if (usedBytes == null) {
+                    "Used bytes for store $name unknown"
+                } else {
+                    String.format(
+                        "Used bytes for store\t%110s\t%10.2fKB", replacement(name)
+                            ?: name, usedBytes.toDouble() / 1024
+                    )
+                }
+            )
         }
     }
 }

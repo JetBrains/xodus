@@ -24,7 +24,7 @@ class BTreeSimpleTest : BTreeTestBase() {
     @Test
     fun testEmptyTree() {
         checkEmptyTree(BTreeEmpty(log!!, false, 1).also { tree = it })
-        treeMutable = BTreeEmpty(log!!, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, false, 1).getMutableCopy()
         checkEmptyTree(treeMutable!!)
         val address = saveTree()
         reopen()
@@ -35,7 +35,7 @@ class BTreeSimpleTest : BTreeTestBase() {
     @Test
     fun testPutSaveGet() {
         // put
-        treeMutable = BTreeEmpty(log!!, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, false, 1).getMutableCopy()
         val ln1: INode = kv("1", "vadim")
         treeMutable!!.put(ln1)
         Assert.assertEquals(1, treeMutable!!.size)
@@ -44,8 +44,8 @@ class BTreeSimpleTest : BTreeTestBase() {
         Assert.assertTrue(treeMutable!!.root is BottomPageMutable)
         val bpm = treeMutable!!.root as BottomPageMutable
         Assert.assertEquals(1, bpm.size.toLong())
-        Assert.assertEquals(ln1, bpm.keys[0])
-        Assert.assertEquals(Loggable.NULL_ADDRESS, bpm.keysAddresses[0])
+        Assert.assertEquals(ln1, bpm.keys!![0])
+        Assert.assertEquals(Loggable.NULL_ADDRESS, bpm.keysAddresses!![0])
         assertMatchesIterator(treeMutable!!, ln1)
         valueEquals("vadim", treeMutable!![key("1")])
 
@@ -60,8 +60,8 @@ class BTreeSimpleTest : BTreeTestBase() {
                 Assert.assertEquals(1, tree!!.size)
                 Assert.assertTrue(treeMutable!!.hasKey(key("1")))
                 Assert.assertTrue(treeMutable!!.hasPair(key("1"), value("vadim")))
-                Assert.assertTrue(tree!!.root is BottomPage)
-                val bp = tree!!.root as BottomPage
+                Assert.assertTrue(tree!!.getRoot() is BottomPage)
+                val bp = tree!!.getRoot() as BottomPage
                 Assert.assertEquals(1, bp.size.toLong())
                 Assert.assertTrue(bp.getKeyAddress(0) != Loggable.NULL_ADDRESS)
                 Assert.assertEquals(ln1, bp[key("1")])

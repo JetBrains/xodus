@@ -23,21 +23,20 @@ import java.io.PrintStream
  * BTree base implementation of page
  */
 abstract class BasePage protected constructor(val tree: BTreeBase) : Dumpable {
+    @JvmField
     internal var size = 0
 
     open fun getChild(index: Int): BasePage {
         throw UnsupportedOperationException()
     }
 
-    open val minKey: ILeafNode
-        get() {
+    open fun getMinKey(): ILeafNode {
             if (size <= 0) {
                 throw ArrayIndexOutOfBoundsException("Page is empty.")
             }
             return getKey(0)
         }
-    open val maxKey: ILeafNode
-        get() {
+    open fun getMaxKey(): ILeafNode {
             if (size <= 0) {
                 throw ArrayIndexOutOfBoundsException("Page is empty.")
             }
@@ -45,13 +44,13 @@ abstract class BasePage protected constructor(val tree: BTreeBase) : Dumpable {
         }
 
     fun isInPageRange(key: ByteIterable, value: ByteIterable?): Boolean {
-        val maxKey = maxKey
-        var cmp = maxKey.key.compareTo(key)
+        val maxKey = getMaxKey()
+        var cmp = maxKey.getKey().compareTo(key)
         if (cmp < 0) {
             return false
         }
         if (cmp == 0 && value != null) {
-            val maxValue = maxKey.value
+            val maxValue = maxKey.getValue()
             if (maxValue == null || maxValue < value) {
                 return false
             }
@@ -59,29 +58,29 @@ abstract class BasePage protected constructor(val tree: BTreeBase) : Dumpable {
         if (size == 1) {
             return true
         }
-        val minKey = minKey
-        cmp = minKey.key.compareTo(key)
+        val minKey = getMinKey()
+        cmp = minKey.getKey().compareTo(key)
         if (cmp > 0) {
             return false
         }
         if (cmp == 0 && value != null) {
-            val minValue = minKey.value
+            val minValue = minKey.getValue()
             return minValue != null && minValue <= value
         }
         return true
     }
 
     open fun isDupKey(index: Int): Boolean {
-        return getKey(index).isDup
+        return getKey(index).isDup()
     }
 
     abstract fun getKey(index: Int): BaseLeafNode
     abstract fun getMutableCopy(treeMutable: BTreeMutable): BasePageMutable
-    abstract val dataAddress: Long
+    abstract fun getDataAddress(): Long
     abstract fun getKeyAddress(index: Int): Long
-    abstract val isBottom: Boolean
-    abstract val isMutable: Boolean
-    abstract val bottomPagesCount: Long
+    abstract fun isBottom(): Boolean
+    abstract fun isMutable(): Boolean
+    abstract fun getBottomPagesCount(): Long
     abstract fun binarySearch(key: ByteIterable): Int
     abstract fun binarySearch(key: ByteIterable, low: Int): Int
     abstract fun binarySearch(key: ByteIterable, low: Int, expectedAddress: Long): Int

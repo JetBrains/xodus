@@ -26,19 +26,20 @@ internal class BTreeDup(mainTree: BTreeBase, leafNodeDup: LeafNodeDup) :
 
     // get key from tree
     private val leafNodeDupKey: ByteIterable
+    @JvmField
     var startAddress: Long = 0
     private var dataOffset: Byte = 0
 
     init {
         dataIterator = mainTree.getDataIterator(Loggable.NULL_ADDRESS)
         this.leafNodeDup = leafNodeDup
-        leafNodeDupKey = leafNodeDup.key
+        leafNodeDupKey = leafNodeDup.getKey()
         val iterator = leafNodeDup.getRawValue(0).iterator()
         val l = iterator.compressedUnsignedLong
         size = l shr 1
         if (l and 1L == 1L) {
             val offset = iterator.compressedUnsignedLong
-            startAddress = leafNodeDup.address - offset
+            startAddress = leafNodeDup.getAddress() - offset
             dataOffset = (getCompressedSize(l)
                     + getCompressedSize(offset)).toByte()
         } else {
@@ -47,39 +48,34 @@ internal class BTreeDup(mainTree: BTreeBase, leafNodeDup: LeafNodeDup) :
         }
     }
 
-    override val rootAddress: Long
-        get() {
-            throw UnsupportedOperationException("BTreeDup has no root in 'Loggable' terms")
-        }
-    override val mutableCopy: BTreeDupMutable
-        get() = BTreeDupMutable(this, leafNodeDupKey)
-
-    override fun openCursor(): TreeCursor {
-        return TreeCursor(BTreeTraverser(this.root))
+    override fun getRootAddress(): Long {
+        throw UnsupportedOperationException("BTreeDup has no root in 'Loggable' terms")
     }
 
-    override val root: BasePage
-        get() = loadPage(
-            leafNodeDup.type, leafNodeDup.getRawValue(dataOffset.toInt()),
-            leafNodeDup.insideSinglePage
-        )
+    override fun getMutableCopy(): BTreeDupMutable = BTreeDupMutable(this, leafNodeDupKey)
+
+    override fun openCursor(): TreeCursor {
+        return TreeCursor(BTreeTraverser(this.getRoot()))
+    }
+
+    override fun getRoot(): BasePage = loadPage(
+        leafNodeDup.getType(), leafNodeDup.getRawValue(dataOffset.toInt()),
+        leafNodeDup.insideSinglePage
+    )
 
     override fun loadLeaf(address: Long): LeafNode {
         val loggable = getLoggable(address)
-        return if (loggable.type == DUP_LEAF) {
+        return if (loggable.getType() == DUP_LEAF) {
             object : LeafNode(log, loggable) {
-                override val isDupLeaf: Boolean
-                    get() = true
-
-                override val value: ByteIterable
-                    get() = leafNodeDupKey
+                override fun isDupLeaf(): Boolean = true
+                override fun getValue(): ByteIterable = leafNodeDupKey
 
                 override fun toString(): String {
-                    return "DLN {key:" + key + "} @ " + this.address
+                    return "DLN {key:" + getKey() + "} @ " + this.getAddress()
                 }
             }
         } else {
-            throw IllegalArgumentException("Unexpected loggable type " + loggable.type + " at address " + loggable.address)
+            throw IllegalArgumentException("Unexpected loggable type " + loggable.getType() + " at address " + loggable.getAddress())
         }
     }
 

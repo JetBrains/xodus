@@ -17,18 +17,18 @@ package jetbrains.exodus.tree.patricia
 
 import jetbrains.exodus.ByteIterable
 
-interface NodeChildren : Iterable<ChildReference> {
+internal interface NodeChildren : Iterable<ChildReference> {
     override fun iterator(): NodeChildrenIterator
 }
 
-interface NodeChildrenIterator : MutableIterator<ChildReference> {
+internal interface NodeChildrenIterator : MutableIterator<ChildReference> {
     fun hasPrev(): Boolean
     fun prev(): ChildReference?
-    val isMutable: Boolean
+    fun isMutable(): Boolean
     fun nextInPlace()
     fun prevInPlace()
-    val node: ChildReference?
-    val parentNode: NodeBase?
-    val index: Int
-    val key: ByteIterable?
+    fun getNode(): ChildReference?
+    fun getParentNode(): NodeBase?
+    fun getIndex(): Int
+    fun getKey(): ByteIterable?
 }

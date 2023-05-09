@@ -22,10 +22,14 @@ import java.io.PrintStream
 /**
  */
 class StringKVNode(key: String, value: String?) : INode {
-    override val key: ByteIterable
-    override val value: ByteIterable?
+    private val key: ByteIterable
+    private val value: ByteIterable?
     private val skey: String
     private val svalue: String?
+
+    override fun getKey(): ByteIterable = key
+
+    override fun getValue(): ByteIterable? = value
 
     init {
         this.key = ArrayByteIterable(key.toByteArray())
@@ -35,7 +39,7 @@ class StringKVNode(key: String, value: String?) : INode {
     }
 
     override fun equals(other: Any?): Boolean {
-        return this === other || other is INode && key == other.key
+        return this === other || other is INode && key == other.getKey()
     }
 
     override fun hashCode(): Int {

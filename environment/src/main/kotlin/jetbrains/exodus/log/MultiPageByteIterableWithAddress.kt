@@ -17,9 +17,12 @@ package jetbrains.exodus.log
 
 import jetbrains.exodus.*
 
-class MultiPageByteIterableWithAddress(override val dataAddress: Long, private val length: Int, private val log: Log) :
+class MultiPageByteIterableWithAddress(@JvmField internal val dataAddress: Long, private val length: Int, private val log: Log) :
     ByteIterableWithAddress {
     private var bytes: ByteArray? = null
+
+    override fun getDataAddress(): Long = dataAddress
+
     override fun getLength(): Int {
         return length
     }
@@ -36,10 +39,12 @@ class MultiPageByteIterableWithAddress(override val dataAddress: Long, private v
             0 -> {
                 bytes = ByteIterable.EMPTY_BYTES
             }
+
             1 -> {
                 val iterator = iterator()
                 bytes = ByteIterableBase.SINGLE_BYTES[0xFF and iterator.next().toInt()]
             }
+
             else -> {
                 val iterator = iterator()
                 bytes = ByteArray(length)
@@ -81,8 +86,7 @@ class MultiPageByteIterableWithAddress(override val dataAddress: Long, private v
         return iterator(offset).nextLong(length)
     }
 
-    override val compressedUnsignedInt: Int
-        get() = CompressedUnsignedLongByteIterable.getInt(this)
+    override fun getCompressedUnsignedInt(): Int = CompressedUnsignedLongByteIterable.getInt(this)
 
     override fun compareTo(other: ByteIterable): Int {
         return compare(0, dataAddress, length, other, 0, other.length, log)

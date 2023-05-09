@@ -29,30 +29,25 @@ import jetbrains.exodus.util.LightOutputStream
 
 const val VERSION2_CHILDREN_COUNT_BOUND = 257
 
-open class MutableNode : NodeBase {
-    override val address: Long
-        get() = Loggable.NULL_ADDRESS
-    override val isMutable: Boolean
-        get() = true
+internal open class MutableNode : NodeBase {
+    override fun getAddress(): Long = Loggable.NULL_ADDRESS
+    override fun isMutable(): Boolean = true
 
-    private val _children: ChildReferenceSet
-    override val children: NodeChildren
-        get() = object : NodeChildren {
-            override fun iterator(): NodeChildrenIterator {
-                return if (_children.isEmpty) EmptyNodeChildrenIterator()
-                else MutableNodeChildrenIterator(this@MutableNode, _children)
-            }
+    @JvmField
+    internal val children: ChildReferenceSet
+    override fun getChildren(): NodeChildren = object : NodeChildren {
+        override fun iterator(): NodeChildrenIterator {
+            return if (children.isEmpty()) EmptyNodeChildrenIterator()
+            else MutableNodeChildrenIterator(this@MutableNode, children)
         }
-    internal val internalChildren: ChildReferenceSet
-        get() = _children
-    override val childrenCount: Int
-        get() = _children.size()
+    }
 
-    override val childrenLast: NodeChildrenIterator
-        get() = getChildren(_children.size())
+    override fun getChildrenCount(): Int = children.size()
 
-    constructor(origin: NodeBase) : super(origin.key, origin.value) {
-        _children = ChildReferenceSet()
+    override fun getChildrenLast(): NodeChildrenIterator = getChildren(children.size())
+
+    constructor(origin: NodeBase) : super(origin.getKey(), origin.getValue()) {
+        children = ChildReferenceSet()
         copyChildrenFrom(origin)
     }
 
@@ -60,7 +55,7 @@ open class MutableNode : NodeBase {
 
     constructor(keySequence: ByteIterable, value: ByteIterable?, children: ChildReferenceSet)
             : super(keySequence, value) {
-        this._children = children
+        this.children = children
     }
 
     open fun setKeySequence(keySequence: ByteIterable) {
@@ -69,59 +64,59 @@ open class MutableNode : NodeBase {
 
     override fun getMutableCopy(mutableTree: PatriciaTreeMutable) = this
 
-    fun getRef(pos: Int): ChildReference = _children.referenceAt(pos)
+    fun getRef(pos: Int): ChildReference = children.referenceAt(pos)
 
     override fun getChild(tree: PatriciaTreeBase, b: Byte): NodeBase? {
-        val ref = _children[b]
+        val ref = children[b]
         return ref?.getNode(tree)
     }
 
     override fun getChildren(b: Byte): NodeChildrenIterator {
-        val index = _children.searchFor(b)
+        val index = children.searchFor(b)
         if (index < 0) return EmptyNodeChildrenIterator()
-        return MutableNodeChildrenIterator(this, _children.iterator(index))
+        return MutableNodeChildrenIterator(this, children.iterator(index))
     }
 
-    fun getChildren(pos: Int): NodeChildrenIterator = MutableNodeChildrenIterator(this, _children.iterator(pos))
+    fun getChildren(pos: Int): NodeChildrenIterator = MutableNodeChildrenIterator(this, children.iterator(pos))
 
     override fun getChildrenRange(b: Byte): NodeChildrenIterator {
-        if (_children.isEmpty) {
+        if (children.isEmpty()) {
             return EmptyNodeChildrenIterator()
         }
-        var index = _children.searchFor(b)
+        var index = children.searchFor(b)
         if (index < 0) {
             index = -index - 1
         }
-        return MutableNodeChildrenIterator(this, _children.iterator(index))
+        return MutableNodeChildrenIterator(this, children.iterator(index))
     }
 
-    fun hasChildren() = !_children.isEmpty
+    fun hasChildren() = !children.isEmpty()
 
     fun setChild(b: Byte, child: MutableNode) {
-        val index = _children.searchFor(b)
+        val index = children.searchFor(b)
         if (index < 0) {
-            _children.insertAt(-index - 1, ChildReferenceMutable(b, child))
+            children.insertAt(-index - 1, ChildReferenceMutable(b, child))
         } else {
-            val ref = _children.referenceAt(index)
-            if (ref.isMutable) {
+            val ref = children.referenceAt(index)
+            if (ref.isMutable()) {
                 (ref as ChildReferenceMutable).child = child
             } else {
-                _children.setAt(index, ChildReferenceMutable(b, child))
+                children.setAt(index, ChildReferenceMutable(b, child))
             }
         }
     }
 
     fun setChild(index: Int, child: MutableNode) {
-        val ref = _children.referenceAt(index)
-        if (ref.isMutable) {
+        val ref = children.referenceAt(index)
+        if (ref.isMutable()) {
             (ref as ChildReferenceMutable).child = child
         } else {
-            _children.setAt(index, ChildReferenceMutable(ref.firstByte, child))
+            children.setAt(index, ChildReferenceMutable(ref.firstByte, child))
         }
     }
 
     fun getRightChild(tree: PatriciaTreeBase, b: Byte): NodeBase? {
-        val ref = _children.right ?: return null
+        val ref = children.getRight() ?: return null
         val firstByte = ref.firstByte.unsigned
         val rightByte = b.unsigned
         require(rightByte >= firstByte)
@@ -135,9 +130,9 @@ open class MutableNode : NodeBase {
      * @param child child node.
      */
     private fun addRightChild(b: Byte, child: MutableNode) {
-        val right = _children.right
+        val right = children.getRight()
         require(right == null || right.firstByte.unsigned < b.unsigned)
-        _children.putRight(ChildReferenceMutable(b, child))
+        children.putRight(ChildReferenceMutable(b, child))
     }
 
     /**
@@ -147,12 +142,12 @@ open class MutableNode : NodeBase {
      * @param child child node.
      */
     fun setRightChild(b: Byte, child: MutableNode) {
-        val right = _children.right
+        val right = children.getRight()
         require(right != null && right.firstByte.unsigned == b.unsigned)
-        _children.setAt(_children.size() - 1, ChildReferenceMutable(b, child))
+        children.setAt(children.size() - 1, ChildReferenceMutable(b, child))
     }
 
-    fun removeChild(b: Byte) = _children.remove(b)
+    fun removeChild(b: Byte) = children.remove(b)
 
     /**
      * Splits current node onto two ones: prefix defined by prefix length and suffix linked with suffix via nextByte.
@@ -177,7 +172,7 @@ open class MutableNode : NodeBase {
 
         val suffix = MutableNode(
             suffixKey, value,  // copy children of this node to the suffix one
-            _children
+            children
         )
 
         prefix.setChild(nextByte, suffix)
@@ -189,9 +184,9 @@ open class MutableNode : NodeBase {
     fun mergeWithSingleChild(tree: PatriciaTreeMutable) {
         val ref = children.iterator().next()
         val child = ref.getNode(tree)
-        value = child.value
+        value = child.getValue()
         key = CompoundByteIterable(
-            arrayOf(key, SingleByteIterable.getIterable(ref.firstByte), child.key)
+            arrayOf(key, SingleByteIterable.getIterable(ref.firstByte), child.getKey())
         )
         copyChildrenFrom(child)
     }
@@ -223,7 +218,7 @@ open class MutableNode : NodeBase {
             CompressedUnsignedLongByteIterable.fillBytes(value.length.toLong(), nodeStream)
             ByteIterableBase.fillBytes(value, nodeStream)
         }
-        val childrenCount = childrenCount
+        val childrenCount = getChildrenCount()
         if (childrenCount > 0) {
             // save references to children
             if (tree.useV1Format || childrenCount < 2 /* for single child, v2 format definitely wouldn't benefit */) {
@@ -240,7 +235,7 @@ open class MutableNode : NodeBase {
         val startAddress = context.startAddress
         var result: Long
         val expiredLoggables = tree.getOrInitExperedLoggables()
-        if (!isRoot) {
+        if (!isRoot()) {
             result = log.write(type, structureId, mainIterable, expiredLoggables)
             // save address of the first saved loggable
             if (startAddress == Loggable.NULL_ADDRESS) {
@@ -296,14 +291,14 @@ open class MutableNode : NodeBase {
         return result
     }
 
-    protected open val isRoot: Boolean get() = false
+    protected open fun isRoot(): Boolean = false
 
     private fun copyChildrenFrom(node: NodeBase) {
-        val childrenCount = node.childrenCount
-        _children.clear(childrenCount)
+        val childrenCount = node.getChildrenCount()
+        children.clear(childrenCount)
         if (childrenCount > 0) {
-            for ((i, child) in node.children.withIndex()) {
-                _children.setAt(i, child.notNull)
+            for ((i, child) in node.getChildren().withIndex()) {
+                children.setAt(i, child.notNull)
             }
         }
     }
@@ -320,7 +315,7 @@ open class MutableNode : NodeBase {
             if (hasChildren()) {
                 result = result plus PatriciaTreeBase.HAS_CHILDREN_BIT
             }
-            if (isRoot) {
+            if (isRoot()) {
                 result = result plus PatriciaTreeBase.ROOT_BIT
             }
             return result
@@ -328,23 +323,23 @@ open class MutableNode : NodeBase {
 
     private fun saveChildrenV1(childrenCount: Int, nodeStream: LightOutputStream) {
         val bytesPerAddress =
-            _children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
+            children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
         CompressedUnsignedLongByteIterable.fillBytes(((childrenCount shl 3) + bytesPerAddress - 1).toLong(), nodeStream)
-        for (ref in _children) {
+        for (ref in children) {
             nodeStream.write(ref.firstByte.toInt())
             LongBinding.writeUnsignedLong(ref.suffixAddress, bytesPerAddress, nodeStream)
         }
     }
 
     private fun saveChildrenV2(childrenCount: Int, nodeStream: LightOutputStream) {
-        val baseAddress = _children.minOf { r -> r.suffixAddress }
-        val bytesPerAddress = _children.maxOf { r ->
+        val baseAddress = children.minOf { r -> r.suffixAddress }
+        val bytesPerAddress = children.maxOf { r ->
             CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress - baseAddress)
         }
         // if this is a sparse node make sure v2 format would result in a more compact saving
         if (childrenCount <= 32) {
             val bytesPerAddressV1 =
-                _children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
+                children.maxOf { r -> CompressedUnsignedLongArrayByteIterable.logarithm(r.suffixAddress) }
             if (bytesPerAddress == bytesPerAddressV1 ||
                 (bytesPerAddressV1 - bytesPerAddress) * childrenCount <=
                 CompressedUnsignedLongByteIterable.getCompressedSize(baseAddress) + 1
@@ -360,12 +355,12 @@ open class MutableNode : NodeBase {
         CompressedUnsignedLongByteIterable.fillBytes(baseAddress, nodeStream)
         if (childrenCount < 256) {
             if (childrenCount <= 32) {
-                for (ref in _children) {
+                for (ref in children) {
                     nodeStream.write(ref.firstByte.toInt())
                 }
             } else {
                 val bitset = longArrayOf(0L, 0L, 0L, 0L)
-                for (ref in _children) {
+                for (ref in children) {
                     val b = ref.firstByte.unsigned
                     bitset[b / Long.SIZE_BITS] += 1L shl (b % Long.SIZE_BITS)
                 }
@@ -374,7 +369,7 @@ open class MutableNode : NodeBase {
                 }
             }
         }
-        for (ref in _children) {
+        for (ref in children) {
             LongBinding.writeUnsignedLong(ref.suffixAddress - baseAddress, bytesPerAddress, nodeStream)
         }
     }
@@ -383,7 +378,7 @@ open class MutableNode : NodeBase {
 
         private val _node: MutableNode
         private val refs: ChildReferenceIterator
-        override val key: ByteIterable
+        private val key: ByteIterable
         private var ref: ChildReference? = null
 
         constructor(node: MutableNode, refs: ChildReferenceSet) {
@@ -399,6 +394,8 @@ open class MutableNode : NodeBase {
             key = node.key
         }
 
+        override fun getKey(): ByteIterable = key
+
         override fun hasNext() = refs.hasNext()
 
         override fun next(): ChildReference = refs.next().also { this.ref = it }
@@ -407,7 +404,7 @@ open class MutableNode : NodeBase {
 
         override fun prev(): ChildReference = refs.prev().also { this.ref = it }
 
-        override val isMutable = true
+        override fun isMutable() = true
 
         override fun nextInPlace() = throw UnsupportedOperationException()
 
@@ -417,11 +414,11 @@ open class MutableNode : NodeBase {
             _node.removeChild(ref.notNull.firstByte)
         }
 
-        override val node: ChildReference? get() = ref
+        override fun getNode(): ChildReference? = ref
 
-        override val parentNode: MutableNode get() = _node
+        override fun getParentNode(): MutableNode = _node
 
-        override val index: Int get() = refs.index
+        override fun getIndex(): Int = refs.index
     }
 }
 

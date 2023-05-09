@@ -28,7 +28,7 @@ import org.junit.Test
 abstract class TreeCursorConcurrentModificationTest : TreeBaseTest<ITree, ITreeMutable>() {
     @Before
     fun prepareTree() {
-        treeMutable = createMutableTree(false, 1)!!.mutableCopy
+        treeMutable = createMutableTree(false, 1)!!.getMutableCopy()
         treeMutable!!.put(key(1), value("v10"))
         treeMutable!!.put(key(2), value("v20"))
         treeMutable!!.put(key(3), value("v30"))

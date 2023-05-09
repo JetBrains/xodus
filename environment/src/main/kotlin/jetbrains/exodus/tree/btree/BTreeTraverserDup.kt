@@ -16,57 +16,57 @@
 package jetbrains.exodus.tree.btree
 
 open class BTreeTraverserDup(currentNode: BasePage) : BTreeTraverser(currentNode) {
+    @JvmField
     var inDupTree = false
     override fun canMoveDown(): Boolean {
         val currentPos = currentPos
         val currentNode = currentNode
-        return currentPos < currentNode.size && (!currentNode.isBottom || currentPos >= 0 && currentNode.isDupKey(
+        return currentPos < currentNode.size && (!currentNode.isBottom() || currentPos >= 0 && currentNode.isDupKey(
             currentPos
         ))
     }
 
-    override val childForMoveDown: BasePage?
-        get() = if (currentNode.isBottom) {
-            val leaf = currentNode.getKey(currentPos)
-            inDupTree = true
-            leaf.tree.root
-        } else {
-            super.childForMoveDown
-        }
+    override fun getChildForMoveDown(): BasePage? = if (currentNode.isBottom()) {
+        val leaf = currentNode.getKey(currentPos)
+        inDupTree = true
+        leaf.getTree().getRoot()
+    } else {
+        super.getChildForMoveDown()
+    }
 
     override fun moveUp() {
         super.moveUp()
-        if (currentNode.isBottom) {
+        if (currentNode.isBottom()) {
             // we moved up and we are at bottom: this means we were in a dup tree
             inDupTree = false
         }
     }
 
     override fun handleLeaf(leaf: BaseLeafNode): ILeafNode? {
-        return if (leaf.isDupLeaf) {
-            LeafNodeKV(leaf.value!!, leaf.key)
+        return if (leaf.isDupLeaf()) {
+            LeafNodeKV(leaf.getValue()!!, leaf.getKey())
         } else {
             super.handleLeaf(leaf)
         }
     }
 
     override fun handleLeafR(leaf: BaseLeafNode): ILeafNode? {
-        return if (leaf.isDupLeaf) {
-            LeafNodeKV(leaf.value!!, leaf.key)
-        } else if (leaf.isDup) {
+        return if (leaf.isDupLeaf()) {
+            LeafNodeKV(leaf.getValue()!!, leaf.getKey())
+        } else if (leaf.isDup()) {
             inDupTree = true
-            pushChild(TreePos(currentNode, currentPos), leaf.tree.root, 0)
+            pushChild(TreePos(currentNode, currentPos), leaf.getTree().getRoot(), 0)
         } else {
             super.handleLeaf(leaf)
         }
     }
 
     override fun handleLeafL(leaf: BaseLeafNode): ILeafNode? {
-        return if (leaf.isDupLeaf) {
-            LeafNodeKV(leaf.value!!, leaf.key)
-        } else if (leaf.isDup) {
+        return if (leaf.isDupLeaf()) {
+            LeafNodeKV(leaf.getValue()!!, leaf.getKey())
+        } else if (leaf.isDup()) {
             inDupTree = true
-            val root = leaf.tree.root
+            val root = leaf.getTree().getRoot()
             pushChild(TreePos(currentNode, currentPos), root, root.size - 1)
         } else {
             super.handleLeaf(leaf)
@@ -79,7 +79,7 @@ open class BTreeTraverserDup(currentNode: BasePage) : BTreeTraverser(currentNode
             --bottom
             val current = stack[bottom]!!
             stack[bottom] = null // gc
-            if (current.node.isBottom) {
+            if (current.node.isBottom()) {
                 currentNode = current.node
                 currentPos = current.pos
                 top = bottom
@@ -103,6 +103,5 @@ open class BTreeTraverserDup(currentNode: BasePage) : BTreeTraverser(currentNode
         }*/
     }
 
-    override val isDup: Boolean
-        get() = true
+    override fun isDup(): Boolean = true
 }

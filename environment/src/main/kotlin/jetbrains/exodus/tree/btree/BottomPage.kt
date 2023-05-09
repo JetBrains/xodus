@@ -35,15 +35,13 @@ internal open class BottomPage : BasePageImmutable {
         loggableInsideSinglePage: Boolean
     ) : super(tree, data, size, loggableInsideSinglePage)
 
-    override val isBottom: Boolean
-        get() = true
+    override fun isBottom(): Boolean = true
 
     override fun getChildAddress(index: Int): Long {
         return getKeyAddress(index)
     }
 
-    override val bottomPagesCount: Long
-        get() = 1
+    override fun getBottomPagesCount(): Long = 1
 
     override fun get(key: ByteIterable): ILeafNode? {
         return Companion[key, this]
@@ -76,7 +74,7 @@ internal open class BottomPage : BasePageImmutable {
     }
 
     override fun toString(): String {
-        return "Bottom [" + size + "] @ " + (dataAddress - getIterable((size shl 1).toLong()).length - 1)
+        return "Bottom [" + size + "] @ " + (getDataAddress() - getIterable((size shl 1).toLong()).length - 1)
     }
 
     override fun dump(out: PrintStream, level: Int, renderer: Dumpable.ToString?) {
@@ -85,11 +83,11 @@ internal open class BottomPage : BasePageImmutable {
 
     fun reclaim(keyIterable: ByteIterable, context: BTreeReclaimTraverser) {
         val node = context.currentNode
-        if (node.isBottom) {
-            if (node.dataAddress == dataAddress) {
+        if (node.isBottom()) {
+            if (node.getDataAddress() == getDataAddress()) {
                 doReclaim(context)
                 return
-            } else if (node.size > 0 && node.minKey.compareKeyTo(keyIterable) == 0) {
+            } else if (node.size > 0 && node.getMinKey().compareKeyTo(keyIterable) == 0) {
                 // we are already in desired bottom page, but address in not the same
                 return
             }
@@ -119,7 +117,7 @@ internal open class BottomPage : BasePageImmutable {
             }
             context.pushChild(index)
         }
-        if (context.currentNode.dataAddress == dataAddress) {
+        if (context.currentNode.getDataAddress() == getDataAddress()) {
             doReclaim(context)
         }
     }
@@ -134,8 +132,8 @@ internal open class BottomPage : BasePageImmutable {
 
         private fun findFirst(stack: BTreeTraverser, depth: Int, page: BasePage): ILeafNode {
             val result: ILeafNode
-            if (page.isBottom) {
-                result = page.minKey
+            if (page.isBottom()) {
+                result = page.getMinKey()
                 stack.currentNode = page
                 stack.currentPos = 0
                 stack.top = depth
@@ -164,8 +162,8 @@ internal open class BottomPage : BasePageImmutable {
                 }
             }
             val ln: ILeafNode = page.getKey(index)
-            if (ln.isDup) {
-                val dupRoot = ln.tree.root
+            if (ln.isDup()) {
+                val dupRoot = ln.getTree().getRoot()
                 val dupLeaf: ILeafNode?
                 if (value != null) {
                     // move dup cursor to requested value
@@ -180,10 +178,10 @@ internal open class BottomPage : BasePageImmutable {
                 (stack as BTreeTraverserDup).inDupTree = true
                 return dupLeaf
             }
-            if (stack.isDup) {
+            if (stack.isDup()) {
                 (stack as BTreeTraverserDup).inDupTree = false
             }
-            if (value == null || (if (equalOrNext) value <= ln.value else value.compareTo(ln.value) == 0)) {
+            if (value == null || (if (equalOrNext) value <= ln.getValue() else value.compareTo(ln.getValue()) == 0)) {
                 stack.currentNode = page
                 stack.currentPos = index
                 stack.top = depth

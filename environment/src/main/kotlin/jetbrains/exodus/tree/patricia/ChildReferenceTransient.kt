@@ -15,9 +15,8 @@
  */
 package jetbrains.exodus.tree.patricia
 
-internal class ChildReferenceTransient(firstByte: Byte, var child: NodeBase) : ChildReferenceBase(firstByte) {
-    override val isMutable: Boolean
-        get() = child.isMutable
+internal class ChildReferenceTransient(firstByte: Byte, @JvmField var child: NodeBase) : ChildReferenceBase(firstByte) {
+    override fun isMutable(): Boolean = child.isMutable()
 
     override fun getNode(tree: PatriciaTreeBase): NodeBase {
         return child

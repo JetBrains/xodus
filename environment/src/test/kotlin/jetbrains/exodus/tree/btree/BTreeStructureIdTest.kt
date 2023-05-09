@@ -23,8 +23,8 @@ import org.junit.Test
 class BTreeStructureIdTest : BTreeTestBase() {
     @Test
     fun testStructureIdSaveEmpty() {
-        val firstTree = BTreeEmpty(log!!, false, 1).mutableCopy
-        val secondTree = BTreeEmpty(log!!, false, 2).mutableCopy
+        val firstTree = BTreeEmpty(log!!, false, 1).getMutableCopy()
+        val secondTree = BTreeEmpty(log!!, false, 2).getMutableCopy()
         log!!.beginWrite()
         val first = firstTree.save()
         val second = secondTree.save()
@@ -42,13 +42,13 @@ class BTreeStructureIdTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             42
-        ).mutableCopy
+        ).getMutableCopy()
         val secondTree = BTreeEmpty(
             log!!,
             createTestSplittingPolicy(),
             false,
             142
-        ).mutableCopy
+        ).getMutableCopy()
         for (node in createLNs("v", 100)) {
             firstTree.put(node)
             secondTree.put(node)
@@ -72,13 +72,13 @@ class BTreeStructureIdTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             42
-        ).mutableCopy
+        ).getMutableCopy()
         val secondTree = BTreeEmpty(
             log!!,
             createTestSplittingPolicy(),
             false,
             142
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0..99) {
             for (j in 0..9) {
                 firstTree.put(kv(i, duplicate("v", j)))
@@ -102,13 +102,13 @@ class BTreeStructureIdTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             42
-        ).mutableCopy
+        ).getMutableCopy()
         var secondTree = BTreeEmpty(
             log!!,
             createTestSplittingPolicy(),
             false,
             142
-        ).mutableCopy
+        ).getMutableCopy()
         for (node in createLNs("v", 100)) {
             firstTree.put(node)
             secondTree.put(node)
@@ -123,8 +123,8 @@ class BTreeStructureIdTest : BTreeTestBase() {
         assertContains(42, first)
         assertContains(142, second)
         assertStructureIdNotEqual(first, second)
-        firstTree = BTree(log!!, first, false, 42).mutableCopy
-        secondTree = BTree(log!!, second, false, 142).mutableCopy
+        firstTree = BTree(log!!, first, false, 42).getMutableCopy()
+        secondTree = BTree(log!!, second, false, 142).getMutableCopy()
         for (node in createLNs("vvv", 100)) {
             firstTree.put(node)
             secondTree.put(node)
@@ -152,7 +152,7 @@ class BTreeStructureIdTest : BTreeTestBase() {
         val it = firstImTree.addressIterator()
         while (it.hasNext()) Assert.assertEquals(
             expectedId,
-            log!!.read(it.next()).structureId.toLong()
+            log!!.read(it.next()).getStructureId().toLong()
         )
     }
 
@@ -163,9 +163,9 @@ class BTreeStructureIdTest : BTreeTestBase() {
             var it = firstImTree.addressIterator()
             val firstSet = LongHashSet()
             val secondSet = LongHashSet()
-            while (it.hasNext()) firstSet.add(log!!.read(it.next()).structureId.toLong())
+            while (it.hasNext()) firstSet.add(log!!.read(it.next()).getStructureId().toLong())
             it = secondImTree.addressIterator()
-            while (it.hasNext()) secondSet.add(log!!.read(it.next()).structureId.toLong())
+            while (it.hasNext()) secondSet.add(log!!.read(it.next()).getStructureId().toLong())
             for (firstStructureId in firstSet) {
                 for (seconfStrutureId in secondSet) {
                     if (firstStructureId == seconfStrutureId) throw AssertionError("Structure ids are equal!")

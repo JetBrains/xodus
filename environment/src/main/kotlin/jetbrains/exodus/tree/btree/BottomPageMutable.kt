@@ -26,23 +26,23 @@ import kotlin.math.max
 internal class BottomPageMutable : BasePageMutable {
     constructor(tree: BTreeMutable, page: BottomPage) : super(tree, page)
     private constructor(page: BottomPageMutable, from: Int, length: Int) : super(page.tree as BTreeMutable) {
-        val bp = balancePolicy
+        val bp = getBalancePolicy()
         val max = max(
             (length and 0x7ffffffe) + 2 /* we should have at least one more place to insert a key */,
-            if ((tree as BTreeMutable).isDup) bp.dupPageMaxSize else bp.pageMaxSize
+            if ((tree as BTreeMutable).isDup()) bp.dupPageMaxSize else bp.pageMaxSize
         )
         keys = arrayOfNulls(max)
         keysAddresses = LongArray(max)
-        System.arraycopy(page.keys, from, keys, 0, length)
-        System.arraycopy(page.keysAddresses, from, keysAddresses, 0, length)
+
+        System.arraycopy(page.keys!!, from, keys!!, 0, length)
+        System.arraycopy(page.keysAddresses!!, from, keysAddresses!!, 0, length)
         size = length
     }
 
-    override val isBottom: Boolean
-        get() = true
+    override fun isBottom(): Boolean = true
 
     override fun getChildAddress(index: Int): Long {
-        return keysAddresses[index]
+        return keysAddresses!![index]
     }
 
     override fun put(
@@ -69,7 +69,7 @@ internal class BottomPageMutable : BasePageMutable {
                     }
                     // main tree size will be auto-incremented with some help from duplicates tree
                 } else {
-                    if (!ln.isDupLeaf) {
+                    if (!ln.isDupLeaf()) {
                         tree.addExpiredLoggable(ln)
                         set(pos, tree.createMutableLeaf(key, value), null)
                         // this should be always true in order to keep up with keysAddresses[pos] expiration
@@ -116,8 +116,7 @@ internal class BottomPageMutable : BasePageMutable {
         return result
     }
 
-    override val bottomPagesCount: Long
-        get() = 1
+    override fun getBottomPagesCount(): Long = 1
 
     override fun get(key: ByteIterable): ILeafNode? {
         return BottomPage[key, this]
@@ -144,6 +143,10 @@ internal class BottomPageMutable : BasePageMutable {
     override fun saveChildren(): ReclaimFlag {
         val tree = this.tree
         var result = ReclaimFlag.RECLAIM
+
+        val keysAddresses = keysAddresses!!
+        val keys = keys!!
+
         for (i in 0 until size) {
             if (keysAddresses[i] == Loggable.NULL_ADDRESS) {
                 keysAddresses[i] = keys[i]!!.save(tree)
@@ -172,31 +175,33 @@ internal class BottomPageMutable : BasePageMutable {
         val pos = binarySearch(key)
         if (pos < 0) return false
         val tree = this.tree as BTreeMutable
+        val keysAddresses = keysAddresses!!
+
         if (tree.allowsDuplicates) {
             val ln: ILeafNode = getKey(pos)
             if (value == null) { // size will be decreased dramatically, all dup sub-tree will expire
-                if (!ln.isMutable) {
+                if (!ln.isMutable()) {
                     tree.addExpiredLoggable(ln)
                     val it = ln.addressIterator()
                     while (it.hasNext()) tree.addExpiredLoggable(it.next())
                 }
                 copyChildren(pos + 1, pos)
-                tree.decrementSize(ln.dupCount)
+                tree.decrementSize(ln.getDupCount())
                 decrementSize(1)
                 return true
             }
-            if (ln.isDup) {
+            if (ln.isDup()) {
                 val lnm: LeafNodeDupMutable
                 var res: Boolean
-                if (ln.isMutable) {
+                if (ln.isMutable()) {
                     lnm = ln as LeafNodeDupMutable
                     res = lnm.delete(value)
                 } else {
                     val lnd = ln as LeafNodeDup
-                    val dupTree = lnd.treeCopyMutable
+                    val dupTree = lnd.getTreeCopyMutable()
                     dupTree.mainTree = tree
                     if (dupTree.delete(value).also { res = it }) {
-                        tree.addExpiredLoggable(ln.address)
+                        tree.addExpiredLoggable(ln.getAddress())
                         lnm = LeafNodeDupMutable.convert(ln, tree, dupTree)
                         // remember in page
                         set(pos, lnm, null)
@@ -206,13 +211,13 @@ internal class BottomPageMutable : BasePageMutable {
                 }
                 if (res) {
                     // if only one node left
-                    if (lnm.rootPage.isBottom && lnm.rootPage.size == 1) {
+                    if (lnm.getRootPage().isBottom() && lnm.getRootPage().size == 1) {
                         //expire previous address
                         tree.addExpiredLoggable(keysAddresses[pos])
                         //expire single duplicate from sub-tree
                         tree.addExpiredLoggable(ln.addressIterator().next())
                         // convert back to leaf without duplicates
-                        set(pos, tree.createMutableLeaf(lnm.key, lnm.value), null)
+                        set(pos, tree.createMutableLeaf(lnm.getKey(), lnm.getValue()), null)
                     }
                     return true
                 }
@@ -232,13 +237,14 @@ internal class BottomPageMutable : BasePageMutable {
 
     override fun mergeWithRight(page: BasePageMutable) {
         val newPageSize = size + page.size
-        if (newPageSize >= keys.size) {
+
+        if (newPageSize >= keys!!.size) {
             val newArraySize = (newPageSize and 0x7ffffffe) + 2
-            keys = keys.copyOf(newArraySize)
-            keysAddresses = keysAddresses.copyOf(newArraySize)
+            keys = keys!!.copyOf(newArraySize)
+            keysAddresses = keysAddresses!!.copyOf(newArraySize)
         }
-        System.arraycopy(page.keys, 0, keys, size, page.size)
-        System.arraycopy(page.keysAddresses, 0, keysAddresses, size, page.size)
+        System.arraycopy(page.keys!!, 0, keys!!, size, page.size)
+        System.arraycopy(page.keysAddresses!!, 0, keysAddresses!!, size, page.size)
         size = newPageSize
     }
 
@@ -253,8 +259,7 @@ internal class BottomPageMutable : BasePageMutable {
         return false
     }
 
-    override val type: Byte
-        get() = (tree as BTreeMutable).bottomPageType
+    override fun getType(): Byte = (tree as BTreeMutable).getBottomPageType()
 
     override fun setMutableChild(index: Int, child: BasePageMutable) {
         throw UnsupportedOperationException()

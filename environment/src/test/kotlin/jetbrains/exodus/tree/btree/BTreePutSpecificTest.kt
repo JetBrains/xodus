@@ -21,7 +21,7 @@ import org.junit.Test
 class BTreePutSpecificTest : BTreeTestBase() {
     @Test
     fun testPutDuplicateTreeWithDuplicates() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv("1", "1"))
         valueEquals("1", treeMutable!![key("1")])
         treeMutable!!.put(kv("1", "11"))
@@ -34,7 +34,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testPutDuplicateTreeWithDuplicates2() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv("1", "1"))
         treeMutable!!.put(kv("1", "11"))
         treeMutable!!.put(kv("1", "11"))
@@ -48,7 +48,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testNextDup() {
-        treeMutable = createEmptyTreeForCursor(1).mutableCopy
+        treeMutable = createEmptyTreeForCursor(1).getMutableCopy()
         treeMutable!!.put(kv("1", "1"))
         treeMutable!!.put(kv("1", "2"))
         treeMutable!!.put(kv("1", "3"))
@@ -64,7 +64,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testNextDupWithSearch() {
-        treeMutable = createEmptyTreeForCursor(1).mutableCopy
+        treeMutable = createEmptyTreeForCursor(1).getMutableCopy()
         treeMutable!!.put(kv("1", "1"))
         treeMutable!!.put(kv("1", "2"))
         treeMutable!!.put(kv("1", "3"))
@@ -80,7 +80,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testPutNoOverwriteDuplicateTreeWithDuplicates2() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         Assert.assertTrue(treeMutable!!.add(kv("1", "1")))
         valueEquals("1", treeMutable!![key("1")])
         Assert.assertFalse(treeMutable!!.add(kv("1", "11")))
@@ -93,7 +93,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testIterateOverDuplicates1() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv("1", "1"))
         treeMutable!!.put(kv("1", "11"))
         Assert.assertEquals(2, treeMutable!!.size)
@@ -103,7 +103,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
             kv("1", "11")
         )
         val address = saveTree()
-        tree =BTree(log!!, address, true, 2)
+        tree = BTree(log!!, address, true, 2)
         Assert.assertEquals(2, treeMutable!!.size)
         assertMatchesIteratorAndExists(
             tree!!,
@@ -114,19 +114,19 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testPutDuplicateTreeWithDuplicatesAfterSaveNoOrigDups() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), true, 1).getMutableCopy()
 
         // no duplicates
         treeMutable!!.put(kv("1", "1"))
         treeMutable!!.put(kv("2", "1"))
         var a = saveTree()
         reopen()
-        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, true, 2).mutableCopy
+        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, true, 2).getMutableCopy()
         treeMutable!!.put(kv("1", "11"))
         treeMutable!!.put(kv("2", "22"))
         a = saveTree()
         reopen()
-        tree =BTree(log!!, BTreeBalancePolicy(4), a, true, 2)
+        tree = BTree(log!!, BTreeBalancePolicy(4), a, true, 2)
         Assert.assertTrue(tree!!.hasKey(key("1")))
         Assert.assertTrue(tree!!.hasKey(key("2")))
         Assert.assertFalse(tree!!.hasKey(key("3")))
@@ -137,7 +137,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testPutDuplicateTreeWithDuplicatesAfterSaveOrigDupsPresent() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), true, 1).getMutableCopy()
 
         // dups present
         treeMutable!!.put(kv("1", "11"))
@@ -145,12 +145,12 @@ class BTreePutSpecificTest : BTreeTestBase() {
         treeMutable!!.put(kv("2", "21"))
         var a = saveTree()
         reopen()
-        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, true, 1).mutableCopy
+        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, true, 1).getMutableCopy()
         treeMutable!!.put(kv("1", "13"))
         treeMutable!!.put(kv("2", "22"))
         a = saveTree()
         reopen()
-        tree =BTree(log!!, BTreeBalancePolicy(4), a, true, 1)
+        tree = BTree(log!!, BTreeBalancePolicy(4), a, true, 1)
         assertMatchesIterator(
             tree!!,
             kv("1", "11"),
@@ -163,7 +163,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testIterateOverDuplicates2() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv("0", "0"))
         treeMutable!!.put(kv("1", "1"))
         treeMutable!!.put(kv("2", "2"))
@@ -177,7 +177,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
             kv("2", "2")
         )
         val address = saveTree()
-        tree =BTree(log!!, address, true, 1)
+        tree = BTree(log!!, address, true, 1)
         Assert.assertEquals(4, treeMutable!!.size)
         assertMatchesIteratorAndExists(
             treeMutable!!,
@@ -190,7 +190,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testIterateOverDuplicates3() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(kv("0", "0"))
         treeMutable!!.put(kv("2", "2"))
         treeMutable!!.put(kv("1", "11"))
@@ -204,7 +204,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
             kv("2", "2")
         )
         val address = saveTree()
-        tree =BTree(log!!, address, true, 1)
+        tree = BTree(log!!, address, true, 1)
         Assert.assertEquals(4, treeMutable!!.size)
         assertMatchesIteratorAndExists(
             treeMutable!!,
@@ -224,7 +224,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
                     return page.size - 1
                 }
             }, true, 1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0..6) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -236,23 +236,23 @@ class BTreePutSpecificTest : BTreeTestBase() {
                 // root
                 val ipm = treeMutable!!.root as InternalPageMutable
                 Assert.assertEquals(2, ipm.size.toLong())
-                Assert.assertEquals(key(0), ipm.keys[0]!!.key)
-                Assert.assertEquals(key(4), ipm.keys[1]!!.key)
+                Assert.assertEquals(key(0), ipm.keys!![0]!!.getKey())
+                Assert.assertEquals(key(4), ipm.keys!![1]!!.getKey())
 
                 // bottom1
-                val bp1 = ipm.children[0] as BottomPageMutable
+                val bp1 = ipm.children!![0] as BottomPageMutable
                 Assert.assertEquals(4, bp1.size.toLong())
                 for (i in 0..3) {
-                    Assert.assertEquals(key(i), bp1.keys[i]!!.key)
-                    valueEquals("v$i", bp1.keys[i]!!.value)
+                    Assert.assertEquals(key(i), bp1.keys!![i]!!.getKey())
+                    valueEquals("v$i", bp1.keys!![i]!!.getValue())
                 }
 
                 // bottom2
-                val bp2 = ipm.children[1] as BottomPageMutable
+                val bp2 = ipm.children!![1] as BottomPageMutable
                 Assert.assertEquals(3, bp2.size.toLong())
                 for (i in 4..6) {
-                    Assert.assertEquals(key(i), bp2.keys[i - 4]!!.key)
-                    valueEquals("v$i", bp2.keys[i - 4]!!.value)
+                    Assert.assertEquals(key(i), bp2.keys!![i - 4]!!.getKey())
+                    valueEquals("v$i", bp2.keys!![i - 4]!!.getValue())
                 }
             }
         }
@@ -265,7 +265,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
         r.run()
         r2.run()
         reopen()
-        tree =BTree(log!!, rootAddress, true, 1)
+        tree = BTree(log!!, rootAddress, true, 1)
         Assert.assertEquals(7, tree!!.size)
         r2.setTree(tree)
         r2.run()
@@ -273,7 +273,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testSplitDefault() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(7), true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(7), true, 1).getMutableCopy()
         for (i in 0..9) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -282,7 +282,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
 
     @Test
     fun testSplitAfterSave() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(4), false, 1).getMutableCopy()
         treeMutable!!.put(kv(1, "v1"))
         treeMutable!!.put(kv(2, "v2"))
         treeMutable!!.put(kv(3, "v3"))
@@ -292,7 +292,7 @@ class BTreePutSpecificTest : BTreeTestBase() {
         treeMutable!!.put(kv(7, "v7"))
         assertMatches(treeMutable!!, ip(bp(3), bp(4)))
         val a = saveTree()
-        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, false, 1).mutableCopy
+        treeMutable = BTree(log!!, BTreeBalancePolicy(4), a, false, 1).getMutableCopy()
         treeMutable!!.put(kv(8, "v8"))
         assertMatches(treeMutable!!, ip(bp(3), bp(3), bp(2)))
     }

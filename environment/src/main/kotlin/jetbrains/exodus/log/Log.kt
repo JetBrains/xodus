@@ -47,8 +47,9 @@ import java.util.concurrent.Semaphore
 import kotlin.experimental.xor
 import kotlin.text.StringBuilder
 
-class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, CacheDataProvider {
+class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, CacheDataProvider {
 
+    @JvmField
     val created = System.currentTimeMillis()
 
     @JvmField
@@ -57,8 +58,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     private val writeBoundarySemaphore: Semaphore
 
     @Volatile
+    @JvmField
     var isClosing: Boolean = false
-        private set
 
     override var identity: Int = 0
         private set
@@ -81,17 +82,20 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         private set
 
     /** Size of single page in log cache. */
+    @JvmField
     var cachePageSize: Int
 
     /**
      * Indicate whether it is needed to perform migration to the format which contains
      * hash codes of content inside the pages.
      */
+    @JvmField
     val formatWithHashCodeIsUsed: Boolean
 
     /** Size of a single file of the log in bytes.
      * @return size of a single log file in bytes.
      */
+    @JvmField
     val fileLengthBound: Long
 
     @Deprecated("for tests only")
@@ -1205,7 +1209,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
      * @return address where the loggable was placed.
      */
     fun write(loggable: Loggable, expiredLoggables: ExpiredLoggableCollection): Long {
-        return write(loggable.type, loggable.structureId, loggable.data, expiredLoggables)
+        return write(loggable.getType(), loggable.getStructureId(), loggable.getData(), expiredLoggables)
     }
 
     fun write(type: Byte, structureId: Int, data: ByteIterable, expiredLoggables: ExpiredLoggableCollection): Long {

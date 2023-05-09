@@ -20,20 +20,27 @@ import jetbrains.exodus.ByteIterable
 /**
  *
  */
-open class TreeCursor @JvmOverloads constructor(protected open val traverser: TreeTraverser, var alreadyIn: Boolean = false) :
+open class TreeCursor @JvmOverloads constructor(
+    @JvmField protected val traverser: TreeTraverser,
+    @JvmField var alreadyIn: Boolean = false
+) :
     ITreeCursor {
+    @JvmField
     protected var canGoDown = true
+
+    @JvmField
     var inited = false
     protected open operator fun hasNext(): Boolean {
         return if (inited) {
             traverser.canMoveRight() || advance()
-        } else traverser.isNotEmpty
+        } else traverser.isNotEmpty()
     }
+
 
     protected open fun hasPrev(): Boolean {
         return if (inited) {
             traverser.canMoveLeft() || retreat()
-        } else traverser.isNotEmpty
+        } else traverser.isNotEmpty()
     }
 
     override fun getNext(): Boolean {
@@ -79,21 +86,21 @@ open class TreeCursor @JvmOverloads constructor(protected open val traverser: Tr
         }
         traverser.init(false)
         inited = true
-        alreadyIn = !traverser.isNotEmpty && traverser.hasValue()
+        alreadyIn = !traverser.isNotEmpty() && traverser.hasValue()
         return prev
     }
 
     override fun getKey(): ByteIterable {
-        return traverser.key
+        return traverser.getKey()
     }
 
     override fun getValue(): ByteIterable {
-        return traverser.value
+        return traverser.getValue()
     }
 
     override fun getNextDup(): Boolean {
         // tree without duplicates can has next dup only in -1 position
-        return traverser.key === ByteIterable.EMPTY && next
+        return traverser.getKey() === ByteIterable.EMPTY && next
     }
 
     override fun getNextNoDup(): Boolean {
@@ -137,15 +144,14 @@ open class TreeCursor @JvmOverloads constructor(protected open val traverser: Tr
         return false
     }
 
-    override val tree: ITree?
-        get() = traverser.tree
+    override fun getTree(): ITree? = traverser.getTree()
 
     protected open fun moveTo(key: ByteIterable, value: ByteIterable?, rangeSearch: Boolean): ByteIterable? {
         if (if (rangeSearch) traverser.moveToRange(key, value) else traverser.moveTo(key, value)) {
             canGoDown = true
             alreadyIn = false
             inited = true
-            return traverser.value
+            return traverser.getValue()
         }
         return null
     }

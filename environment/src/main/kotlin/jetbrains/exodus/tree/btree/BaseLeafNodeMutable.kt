@@ -16,6 +16,5 @@
 package jetbrains.exodus.tree.btree
 
 abstract class BaseLeafNodeMutable : BaseLeafNode(), ILeafNodeMutable {
-    override val isMutable: Boolean
-        get() = true
+    override fun isMutable(): Boolean = true
 }

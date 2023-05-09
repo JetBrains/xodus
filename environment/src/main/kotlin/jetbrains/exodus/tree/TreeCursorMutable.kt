@@ -23,9 +23,15 @@ import jetbrains.exodus.ExodusException
  * May be used for trees with duplicates or without ones.
  */
 open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
-    final override val tree: ITreeMutable
+    private val tree: ITreeMutable
+
+    @JvmField
     protected var wasDelete = false
+
+    @JvmField
     protected var nextAfterRemovedKey: ByteIterable? = null
+
+    @JvmField
     protected var nextAfterRemovedValue: ByteIterable? = null
     private var moveToKey: ByteIterable? = null
     private var moveToValue: ByteIterable? = null
@@ -38,6 +44,10 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
         this.tree = tree
     }
 
+    final override fun getTree(): ITree {
+        return tree
+    }
+
     override fun getNext(): Boolean {
         moveIfNecessary()
         return if (wasDelete) {
@@ -45,7 +55,7 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
             // move to remembered next
             val key = nextAfterRemovedKey
             if (key != null) {
-                if (traverser.moveTo(key, if (tree.isAllowingDuplicates) nextAfterRemovedValue else null)) {
+                if (traverser.moveTo(key, if (tree.isAllowingDuplicates()) nextAfterRemovedValue else null)) {
                     inited = true
                     return true
                 }
@@ -108,15 +118,15 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
         val key = key
         val value = value
         if (next) {
-            nextAfterRemovedKey = traverser.key
-            nextAfterRemovedValue = traverser.value
+            nextAfterRemovedKey = traverser.getKey()
+            nextAfterRemovedValue = traverser.getValue()
         } else {
             nextAfterRemovedKey = null
             nextAfterRemovedValue = null
         }
 
         // don't call back treeChanged() for current cursor
-        if (tree.isAllowingDuplicates) {
+        if (tree.isAllowingDuplicates()) {
             tree.delete(key, value, this)
         } else {
             tree.delete(key, null, this)
@@ -124,7 +134,7 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
         wasDelete = true
 
         // root may be changed by tree.delete, so reset cursor with new root
-        reset(tree.root)
+        reset(tree.getRoot())
         return true
     }
 
@@ -165,9 +175,9 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
     }
 
     private fun moveToPair(key: ByteIterable, value: ByteIterable) {
-        reset(tree.root)
+        reset(tree.getRoot())
         // move to current
-        val withDuplicates = tree.isAllowingDuplicates
+        val withDuplicates = tree.isAllowingDuplicates()
         if (!traverser.moveTo(key, if (withDuplicates) value else null)) {
             wasDelete = true
             // null means current was removed
@@ -180,8 +190,8 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
             } else if (!traverser.moveToRange(key, null)) {
                 return
             }
-            nextAfterRemovedKey = traverser.key
-            nextAfterRemovedValue = traverser.value
+            nextAfterRemovedKey = traverser.getKey()
+            nextAfterRemovedValue = traverser.getValue()
         } else {
             inited = true
         }
@@ -190,7 +200,7 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
     companion object {
         @JvmStatic
         fun notifyCursors(tree: ITreeMutable) {
-            val openCursors = tree.openCursors
+            val openCursors = tree.getOpenCursors()
             if (openCursors != null) {
                 for (cursor in openCursors) {
                     cursor.treeChanged()
@@ -200,7 +210,7 @@ open class TreeCursorMutable : TreeCursor, ITreeCursorMutable {
 
         @JvmStatic
         fun notifyCursors(tree: ITreeMutable, cursorToSkip: ITreeCursorMutable?) {
-            val openCursors = tree.openCursors
+            val openCursors = tree.getOpenCursors()
             if (openCursors != null) {
                 for (cursor in openCursors) {
                     if (cursor !== cursorToSkip) {

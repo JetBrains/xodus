@@ -21,7 +21,8 @@ import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.tree.ITreeCursor
 import jetbrains.exodus.tree.ITreeMutable
 
-class PatriciaTreeEmpty(log: Log, structureId: Int, hasDuplicates: Boolean) : PatriciaTreeBase(log, structureId) {
+internal class PatriciaTreeEmpty(log: Log, structureId: Int, hasDuplicates: Boolean) :
+    PatriciaTreeBase(log, structureId) {
     private val hasDuplicates: Boolean
 
     init {
@@ -29,23 +30,21 @@ class PatriciaTreeEmpty(log: Log, structureId: Int, hasDuplicates: Boolean) : Pa
         this.hasDuplicates = hasDuplicates
     }
 
-    override val mutableCopy: ITreeMutable
-        get() {
-            val treeMutable = PatriciaTreeMutable(
-                log, structureId, 0,
-                (root as ImmutableNode)
-            )
-            return if (hasDuplicates) PatriciaTreeWithDuplicatesMutable(treeMutable) else treeMutable
-        }
-    override val rootAddress: Long
-        get() = Loggable.NULL_ADDRESS
+    override fun getMutableCopy(): ITreeMutable {
+        val treeMutable = PatriciaTreeMutable(
+            log, structureId, 0,
+            (getRoot() as ImmutableNode)
+        )
+        return if (hasDuplicates) PatriciaTreeWithDuplicatesMutable(treeMutable) else treeMutable
+    }
+
+    override fun getRootAddress(): Long = Loggable.NULL_ADDRESS
 
     override fun openCursor(): ITreeCursor {
         return ITreeCursor.EMPTY_CURSOR
     }
 
-    override val root: NodeBase
-        get() = SinglePageImmutableNode()
+    override fun getRoot(): NodeBase = SinglePageImmutableNode()
 
     override fun getNode(key: ByteIterable): NodeBase? {
         return null

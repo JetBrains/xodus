@@ -36,12 +36,9 @@ open class BTreeEmpty(
         structureId
     )
 
-    override val mutableCopy: BTreeMutable
-        get() = BTreeMutable(this)
-    override val rootAddress: Long
-        get() = Loggable.NULL_ADDRESS
-    override val isEmpty: Boolean
-        get() = true
+    override fun getMutableCopy(): BTreeMutable = BTreeMutable(this)
+    override fun getRootAddress(): Long = Loggable.NULL_ADDRESS
+    override fun isEmpty(): Boolean = true
 
     override fun openCursor(): ITreeCursor {
         return ITreeCursor.EMPTY_CURSOR
@@ -55,6 +52,5 @@ open class BTreeEmpty(
         return false
     }
 
-    override val root: BasePage
-        get() = BottomPage(this)
+    override fun getRoot(): BasePage = BottomPage(this)
 }

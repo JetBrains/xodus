@@ -52,7 +52,7 @@ open class BTreeBalancePolicy @JvmOverloads constructor(val pageMaxSize: Int, va
     companion object {
         var DEFAULT = BTreeBalancePolicy(128, 32)
         private fun isDupTree(page: BasePage): Boolean {
-            return (page.tree as BTreeMutable).isDup
+            return (page.tree as BTreeMutable).isDup()
         }
     }
 }

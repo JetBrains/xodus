@@ -838,7 +838,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                             resultConfig.duplicates + " while it was created with duplicates =" + hasDuplicates
                 )
             }
-            if (resultMetaInfo.isKeyPrefixing != resultConfig.prefixing) {
+            if (resultMetaInfo.isKeyPrefixing() != resultConfig.prefixing) {
                 if (!resultConfig.prefixing) {
                     throw ExodusException(
                         "Attempt to open store '" + name +

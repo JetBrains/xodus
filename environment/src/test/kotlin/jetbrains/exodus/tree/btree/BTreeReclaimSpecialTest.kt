@@ -44,7 +44,7 @@ class BTreeReclaimSpecialTest : BTreeTestBase() {
         log!!.endWrite()
         Assert.assertEquals(1, log!!.numberOfFiles)
         Assert.assertTrue(log!!.highAddress < fileSize)
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         val key: ArrayByteIterable = key("K")
         for (i in 0..COUNT) {
             treeMutable!!.put(key, v(i))
@@ -78,7 +78,7 @@ class BTreeReclaimSpecialTest : BTreeTestBase() {
 
     @Test
     fun testDups() {
-        treeMutable = BTreeEmpty(log!!, true, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         treeMutable!!.put(key("k"), value("v0"))
         treeMutable!!.put(key("k"), value("v1"))
         val firstAddress = saveTree()
@@ -94,7 +94,7 @@ class BTreeReclaimSpecialTest : BTreeTestBase() {
     }
 
     private fun reloadMutableTree(address: Long) {
-        treeMutable = BTree(log!!, treeMutable!!.balancePolicy, address, true, 1).mutableCopy
+        treeMutable = BTree(log!!, treeMutable!!.balancePolicy, address, true, 1).getMutableCopy()
     }
 
     companion object {

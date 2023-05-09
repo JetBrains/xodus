@@ -34,11 +34,10 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
         return patriciaCursor.isMutable
     }
 
-    override val tree: ITree?
-        get() = patriciaCursor.tree
+    override fun getTree(): ITree? = patriciaCursor.getTree()
 
     override fun getNext(): Boolean {
-        if (nextLazy) {
+        if (getNextLazy()) {
             advance()
             return true
         }
@@ -47,7 +46,7 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
 
     override fun getNextDup(): Boolean {
         checkNotNull(keyBytes) { "Cursor is not yet initialized" }
-        if (nextLazy && keyBytes!!.compareTo(keyLength, nextKeyBytes, nextKeyLength) == 0) {
+        if (getNextLazy() && keyBytes!!.compareTo(keyLength, nextKeyBytes, nextKeyLength) == 0) {
             advance()
             return true
         }
@@ -58,12 +57,12 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
         if (keyBytes == null) {
             return next // init
         }
-        if (nextLazy && keyBytes!!.compareTo(keyLength, nextKeyBytes, nextKeyLength) != 0) {
+        if (getNextLazy() && keyBytes!!.compareTo(keyLength, nextKeyBytes, nextKeyLength) != 0) {
             advance()
             return true
         }
         // we must create new cursor 'cause we don't know if next "no dup" pair exists
-        val cursor = patriciaCursor.tree!!.openCursor()
+        val cursor = patriciaCursor.getTree()!!.openCursor()
         var cursorToClose = cursor
         try {
             if (cursor.getSearchKeyRange(PatriciaTreeWithDuplicates.getEscapedKeyValue(key, value)) != null) {
@@ -90,7 +89,7 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
     }
 
     override fun getPrev(): Boolean {
-        if (prevLazy) {
+        if (getPrevLazy()) {
             retreat()
             return true
         }
@@ -99,7 +98,7 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
 
     override fun getPrevDup(): Boolean {
         checkNotNull(keyBytes) { "Cursor is not yet initialized" }
-        if (prevLazy && keyBytes!!.compareTo(keyLength, prevKeyBytes, prevKeyLength) == 0) {
+        if (getPrevLazy() && keyBytes!!.compareTo(keyLength, prevKeyBytes, prevKeyLength) == 0) {
             retreat()
             return true
         }
@@ -110,12 +109,12 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
         if (keyBytes == null) {
             return prev // init
         }
-        if (prevLazy && keyBytes!!.compareTo(keyLength, prevKeyBytes, prevKeyLength) != 0) {
+        if (getPrevLazy() && keyBytes!!.compareTo(keyLength, prevKeyBytes, prevKeyLength) != 0) {
             advance()
             return true
         }
         // we must create new cursor 'cause we don't know if prev "no dup" pair exists
-        val cursor = patriciaCursor.tree!!.openCursor()
+        val cursor = patriciaCursor.getTree()!!.openCursor()
         var cursorToClose = cursor
         try {
             if (cursor.getSearchKeyRange(PatriciaTreeWithDuplicates.getEscapedKeyValue(key, value)) != null) {
@@ -168,7 +167,7 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
     }
 
     override fun getSearchKey(key: ByteIterable): ByteIterable? {
-        val cursor = patriciaCursor.tree!!.openCursor()
+        val cursor = patriciaCursor.getTree()!!.openCursor()
         var cursorToClose = cursor
         try {
             val keyLengthIterable = cursor.getSearchKeyRange(EscapingByteIterable(key))
@@ -206,7 +205,7 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
     }
 
     override fun getSearchBoth(key: ByteIterable, value: ByteIterable): Boolean {
-        val cursor = patriciaCursor.tree!!.openCursor()
+        val cursor = patriciaCursor.getTree()!!.openCursor()
         var cursorToClose = cursor
         return try {
             val keyLengthIterable =
@@ -230,7 +229,7 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
     }
 
     override fun getSearchBothRange(key: ByteIterable, value: ByteIterable): ByteIterable? {
-        val cursor = patriciaCursor.tree!!.openCursor()
+        val cursor = patriciaCursor.getTree()!!.openCursor()
         var cursorToClose = cursor
         try {
             var keyLengthIterable = cursor.getSearchKeyRange(EscapingByteIterable(key))
@@ -275,7 +274,7 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
 
     override fun count(): Int {
         var result = 0
-        patriciaCursor.tree!!.openCursor().use { cursor ->
+        patriciaCursor.getTree()!!.openCursor().use { cursor ->
             var value = cursor.getSearchKeyRange(EscapingByteIterable(key))
             while (value != null) {
                 if (keyLength != getInt(value)) {
@@ -310,21 +309,20 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
         nextKeyLength = UNKNOWN // forget computed next pair
     }
 
-    private val nextLazy: Boolean
-        get() {
-            if (nextKeyLength < 0) { // UNKNOWN
-                if (patriciaCursor.next) {
-                    val keyLengthIterable = patriciaCursor.value
-                    val noDupKey: ByteIterable = ArrayByteIterable(UnEscapingByteIterable(patriciaCursor.key))
-                    nextKeyBytes = noDupKey
-                    nextKeyLength = getInt(keyLengthIterable)
-                    nextValueLength = noDupKey.length - nextKeyLength - 1
-                    return true
-                }
-                return false
+    private fun getNextLazy(): Boolean {
+        if (nextKeyLength < 0) { // UNKNOWN
+            if (patriciaCursor.next) {
+                val keyLengthIterable = patriciaCursor.value
+                val noDupKey: ByteIterable = ArrayByteIterable(UnEscapingByteIterable(patriciaCursor.key))
+                nextKeyBytes = noDupKey
+                nextKeyLength = getInt(keyLengthIterable)
+                nextValueLength = noDupKey.length - nextKeyLength - 1
+                return true
             }
-            return nextKeyBytes != null
+            return false
         }
+        return nextKeyBytes != null
+    }
 
     private fun retreat() {
         nextKeyBytes = keyBytes
@@ -336,21 +334,20 @@ class PatriciaCursorDecorator(private var patriciaCursor: ITreeCursor) : ITreeCu
         prevKeyLength = UNKNOWN // forget computed prev pair
     }
 
-    private val prevLazy: Boolean
-        get() {
-            if (prevKeyLength < 0) { // UNKNOWN
-                if (patriciaCursor.prev) {
-                    val keyLengthIterable = patriciaCursor.value
-                    val noDupKey: ByteIterable = ArrayByteIterable(UnEscapingByteIterable(patriciaCursor.key))
-                    prevKeyBytes = noDupKey
-                    prevKeyLength = getInt(keyLengthIterable)
-                    prevValueLength = noDupKey.length - prevKeyLength - 1
-                    return true
-                }
-                return false
+    private fun getPrevLazy(): Boolean {
+        if (prevKeyLength < 0) { // UNKNOWN
+            if (patriciaCursor.prev) {
+                val keyLengthIterable = patriciaCursor.value
+                val noDupKey: ByteIterable = ArrayByteIterable(UnEscapingByteIterable(patriciaCursor.key))
+                prevKeyBytes = noDupKey
+                prevKeyLength = getInt(keyLengthIterable)
+                prevValueLength = noDupKey.length - prevKeyLength - 1
+                return true
             }
-            return prevKeyBytes != null
+            return false
         }
+        return prevKeyBytes != null
+    }
 
     companion object {
         private const val UNKNOWN = -1

@@ -18,9 +18,9 @@ package jetbrains.exodus.log
 import jetbrains.exodus.*
 
 interface ByteIterableWithAddress : ByteIterable {
-    val dataAddress: Long
+    fun getDataAddress(): Long
     fun nextLong(offset: Int, length: Int): Long
-    val compressedUnsignedInt: Int
+    fun getCompressedUnsignedInt(): Int
     override fun iterator(): ByteIteratorWithAddress
     fun iterator(offset: Int): ByteIteratorWithAddress
     fun cloneWithOffset(offset: Int): ByteIterableWithAddress

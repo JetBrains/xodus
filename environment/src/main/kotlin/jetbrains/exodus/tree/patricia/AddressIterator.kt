@@ -33,7 +33,7 @@ class AddressIterator(private val traverser: TreeTraverser) : LongIterator {
     }
 
     override fun next(): Long {
-        val result = traverser.currentAddress
+        val result = traverser.getCurrentAddress()
         if (traverser.canMoveDown()) {
             traverser.moveDown()
             return result

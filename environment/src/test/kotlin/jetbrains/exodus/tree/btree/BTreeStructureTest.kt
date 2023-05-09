@@ -33,13 +33,13 @@ class BTreeStructureTest : BTreeTestBase() {
     private fun refresh(): BTreeMutable {
         val a = saveTree()
         tree = BTree(log!!, policy, a, false, 1)
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         return treeMutable!!
     }
 
     @Test
     fun simple() {
-        treeMutable = BTreeEmpty(log!!, policy, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, policy, false, 1).getMutableCopy()
         add("c")
         for (i in 0..6) {
             add("a$i")
@@ -55,14 +55,14 @@ class BTreeStructureTest : BTreeTestBase() {
 
     @Test
     fun childExistsTest() {
-        treeMutable = BTreeEmpty(log!!, policy, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, policy, false, 1).getMutableCopy()
         for (i in 0..60) {
             treeMutable!!.add(key("k $i"), value("v $i"))
         }
         refresh()
         val root: BasePage = treeMutable!!.root
         val child = root.getChild(0) as InternalPage
-        Assert.assertTrue(root.childExists(child.getKey(0).key, child.getChildAddress(0)))
+        Assert.assertTrue(root.childExists(child.getKey(0).getKey(), child.getChildAddress(0)))
     }
 
     companion object {

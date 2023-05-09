@@ -24,16 +24,16 @@ import java.io.PrintStream
  * Interface for immutable tree implementations
  */
 interface ITree {
-    val log: Log
+    fun getLog(): Log
     fun getDataIterator(address: Long): DataIterator
-    val rootAddress: Long
-    val structureId: Int
+    fun getRootAddress(): Long
+    fun getStructureId(): Int
     operator fun get(key: ByteIterable): ByteIterable?
     fun hasPair(key: ByteIterable, value: ByteIterable): Boolean
     fun hasKey(key: ByteIterable): Boolean
-    val mutableCopy: ITreeMutable
-    val isEmpty: Boolean
-    val size: Long
+    fun getMutableCopy(): ITreeMutable
+    fun isEmpty(): Boolean
+    fun size(): Long
     fun openCursor(): ITreeCursor
     fun addressIterator(): LongIterator
     fun dump(out: PrintStream)

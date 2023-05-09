@@ -19,34 +19,41 @@ import jetbrains.exodus.*
 import jetbrains.exodus.log.*
 import jetbrains.exodus.log.CompressedUnsignedLongByteIterable.Companion.getCompressedSize
 import jetbrains.exodus.log.DataCorruptionException.Companion.raise
-import jetbrains.exodus.tree.Dumpable
-import jetbrains.exodus.tree.ITree
-import jetbrains.exodus.tree.ITreeCursor
-import jetbrains.exodus.tree.TreeCursor
+import jetbrains.exodus.tree.*
 import java.io.PrintStream
 
 /**
  * Base BTree implementation
  */
 abstract class BTreeBase internal constructor(
-    override val log: Log,
+    @JvmField val log: Log,
     val balancePolicy: BTreeBalancePolicy,
+    @JvmField
     val allowsDuplicates: Boolean,
-    override val structureId: Int
+    @JvmField
+    val structureId: Int
 ) : ITree {
+    @JvmField
     protected var dataIterator: DataIterator? = null
-    final override var size: Long = -1
 
-    abstract override val mutableCopy: BTreeMutable
+    @JvmField
+    var size: Long = -1
+
+    override fun size(): Long = size
+
+    override fun getLog(): Log = log
+
+    override fun getStructureId(): Int = structureId
+
+    abstract override fun getMutableCopy(): BTreeMutable
 
     /**
      * Returns root page of the tree
      *
      * @return tree root
      */
-    abstract val root: BasePage
-    override val isEmpty: Boolean
-        get() = this.root.size == 0
+    abstract fun getRoot(): BasePage
+    override fun isEmpty(): Boolean = this.getRoot().size == 0
 
     override fun getDataIterator(address: Long): DataIterator {
         if (dataIterator == null) {
@@ -64,11 +71,15 @@ abstract class BTreeBase internal constructor(
             if (allowsDuplicates) BTreeMutatingTraverserDup.create(this) else BTreeMutatingTraverser.create(
                 this
             )
-        return AddressIterator(if (isEmpty) null else this, traverser.currentPos >= 0 && !isEmpty, traverser)
+        return AddressIterator(if (isEmpty()) null else this, traverser.currentPos >= 0 && !isEmpty(), traverser)
     }
 
     override fun openCursor(): ITreeCursor {
-        return if (allowsDuplicates) BTreeCursorDup(BTreeTraverserDup(this.root)) else TreeCursor(BTreeTraverser(this.root))
+        return if (allowsDuplicates) BTreeCursorDup(BTreeTraverserDup(this.getRoot())) else TreeCursor(
+            BTreeTraverser(
+                this.getRoot()
+            )
+        )
     }
 
     fun getLoggable(address: Long): RandomAccessLoggable {
@@ -77,14 +88,14 @@ abstract class BTreeBase internal constructor(
 
     fun loadPage(address: Long): BasePageImmutable {
         val loggable = getLoggable(address)
-        return loadPage(loggable.type.toInt(), loggable.data, loggable.isDataInsideSinglePage)
+        return loadPage(loggable.getType(), loggable.getData(), loggable.isDataInsideSinglePage())
     }
 
     protected fun loadPage(
-        type: Int, data: ByteIterableWithAddress,
+        type: Byte, data: ByteIterableWithAddress,
         loggableInsideSinglePage: Boolean
     ): BasePageImmutable {
-        val result: BasePageImmutable = when (type.toByte()) {
+        val result: BasePageImmutable = when (type) {
             LEAF_DUP_BOTTOM_ROOT, BOTTOM_ROOT, BOTTOM, DUP_BOTTOM -> BottomPage(
                 this,
                 data,
@@ -104,7 +115,7 @@ abstract class BTreeBase internal constructor(
 
     open fun loadLeaf(address: Long): LeafNode {
         val loggable = getLoggable(address)
-        return when (val type = loggable.type) {
+        return when (val type = loggable.getType()) {
             LEAF, DUP_LEAF -> LeafNode(
                 log, loggable
             )
@@ -127,37 +138,37 @@ abstract class BTreeBase internal constructor(
     }
 
     open fun isDupKey(address: Long): Boolean {
-        val type = getLoggable(address).type
+        val type = getLoggable(address).getType()
         return type == LEAF_DUP_BOTTOM_ROOT || type == LEAF_DUP_INTERNAL_ROOT
     }
 
     fun compareLeafToKey(address: Long, key: ByteIterable): Int {
         val loggable = getLoggable(address)
-        val data = loggable.data
-        val keyLength = data.compressedUnsignedInt
+        val data = loggable.getData()
+        val keyLength = data.getCompressedUnsignedInt()
         val keyRecordSize = getCompressedSize(keyLength.toLong())
         return data.compareTo(keyRecordSize, keyLength, key, 0, key.length)
     }
 
     override fun get(key: ByteIterable): ByteIterable? {
-        val leaf = this.root[key]
-        return leaf?.value
+        val leaf = this.getRoot()[key]
+        return leaf?.getValue()
     }
 
     override fun hasKey(key: ByteIterable): Boolean {
-        return this.root.keyExists(key)
+        return this.getRoot().keyExists(key)
     }
 
     override fun hasPair(key: ByteIterable, value: ByteIterable): Boolean {
-        return this.root.exists(key, value)
+        return this.getRoot().exists(key, value)
     }
 
     override fun dump(out: PrintStream) {
-        this.root.dump(out, 0, null)
+        this.getRoot().dump(out, 0, null)
     }
 
     override fun dump(out: PrintStream, renderer: Dumpable.ToString?) {
-        this.root.dump(out, 0, renderer)
+        this.getRoot().dump(out, 0, renderer)
     }
 
     companion object {

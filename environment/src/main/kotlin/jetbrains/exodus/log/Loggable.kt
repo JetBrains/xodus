@@ -28,14 +28,14 @@ interface Loggable {
      *
      * @return non-negative address of the loggable.
      */
-    val address: Long
+    fun getAddress(): Long
 
     /**
      * Type of loggable.
      *
      * @return integer int the range [0..127] identifying the loggable.
      */
-    val type: Byte
+    fun getType(): Byte
 
     /**
      * @return Length of loggable with header and data
@@ -52,14 +52,14 @@ interface Loggable {
      *
      * @return loggable data.
      */
-    val data: ByteIterable
+    fun getData(): ByteIterable
 
     /**
      * Length of the loggable data.
      *
      * @return length of the loggable data.
      */
-    val dataLength: Int
+    fun getDataLength(): Int
 
     /**
      * Returns unique id of structure that the loggable belongs to. Basically, structure id is id of a tree
@@ -67,7 +67,7 @@ interface Loggable {
      *
      * @return unique structure id.
      */
-    val structureId: Int
+    fun getStructureId(): Int
 
     /**
      * Indicates if all loggable completely stored inside single page.
@@ -76,7 +76,7 @@ interface Loggable {
      *
      * @return `true` if all loggable data are stored inside single page.
      */
-    val isDataInsideSinglePage: Boolean
+    fun isDataInsideSinglePage(): Boolean
 
     companion object {
         const val NULL_ADDRESS: Long = -1

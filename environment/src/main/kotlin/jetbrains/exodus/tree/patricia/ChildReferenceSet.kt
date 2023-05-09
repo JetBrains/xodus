@@ -17,7 +17,7 @@ package jetbrains.exodus.tree.patricia
 
 import java.util.NoSuchElementException
 
-class ChildReferenceSet : Iterable<ChildReference> {
+internal class ChildReferenceSet : Iterable<ChildReference> {
     private var refs: Array<ChildReference?>? = null
     fun clear(capacity: Int) {
         refs = if (capacity == 0) null else arrayOfNulls(capacity)
@@ -27,19 +27,17 @@ class ChildReferenceSet : Iterable<ChildReference> {
         return if (refs == null) 0 else refs!!.size
     }
 
-    val isEmpty: Boolean
-        get() = size() == 0
+    fun isEmpty(): Boolean = size() == 0
 
     operator fun get(b: Byte): ChildReference? {
         val index = searchFor(b)
         return if (index < 0) null else refs!![index]
     }
 
-    val right: ChildReference?
-        get() {
-            val size = size()
-            return if (size > 0) refs!![size - 1] else null
-        }
+    fun getRight(): ChildReference? {
+        val size = size()
+        return if (size > 0) refs!![size - 1] else null
+    }
 
     fun searchFor(b: Byte): Int {
         val refs = refs
@@ -128,7 +126,7 @@ class ChildReferenceSet : Iterable<ChildReference> {
         }
     }
 
-   class ChildReferenceIterator(set: ChildReferenceSet, var index: Int) : MutableIterator<ChildReference> {
+    class ChildReferenceIterator(set: ChildReferenceSet, var index: Int) : MutableIterator<ChildReference> {
         private val refs: Array<ChildReference?>?
         private val size: Int
 

@@ -17,9 +17,14 @@ package jetbrains.exodus.tree.btree
 
 import jetbrains.exodus.log.RandomAccessLoggable
 
-class BTreeReclaimTraverser(val mainTree: BTreeMutable) : BTreeTraverser(mainTree.root) {
+class BTreeReclaimTraverser(@JvmField val mainTree: BTreeMutable) : BTreeTraverser(mainTree.getRoot()) {
+    @JvmField
     var wasReclaim = false
+
+    @JvmField
     val dupLeafsLo: MutableList<RandomAccessLoggable?> = ArrayList()
+
+    @JvmField
     val dupLeafsHi: MutableList<RandomAccessLoggable?> = ArrayList()
     fun setPage(node: BasePage) {
         currentNode = node
@@ -32,7 +37,7 @@ class BTreeReclaimTraverser(val mainTree: BTreeMutable) : BTreeTraverser(mainTre
     fun popAndMutate() {
         val node = currentNode
         moveUp()
-        if (node.isMutable) {
+        if (node.isMutable()) {
             val nodeMutable = currentNode.getMutableCopy(mainTree)
             nodeMutable.setMutableChild(currentPos, node as BasePageMutable)
             currentNode = nodeMutable

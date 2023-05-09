@@ -17,13 +17,16 @@ package jetbrains.exodus.log
 
 import jetbrains.exodus.bindings.BindingUtils
 
-class HashCodeLoggable internal constructor(override val address: Long, pageOffset: Int, page: ByteArray?) :
+class HashCodeLoggable internal constructor(private val address: Long, pageOffset: Int, page: ByteArray?) :
     RandomAccessLoggable {
+    @JvmField
     val hashCode: Long
 
     init {
         hashCode = BindingUtils.readLong(page, pageOffset + java.lang.Byte.BYTES)
     }
+
+    override fun getAddress(): Long = address
 
     override fun length(): Int {
         return java.lang.Long.BYTES + 1
@@ -33,21 +36,18 @@ class HashCodeLoggable internal constructor(override val address: Long, pageOffs
         return address + length()
     }
 
-    override val data: ByteIterableWithAddress
-        get() {
-            val bytes = ByteArray(java.lang.Long.BYTES)
-            BindingUtils.writeLong(hashCode, bytes, 0)
-            return ArrayByteIterableWithAddress(address + java.lang.Byte.BYTES, bytes, 0, bytes.size)
-        }
-    override val dataLength: Int
-        get() = java.lang.Long.BYTES
-    override val structureId: Int
-        get() = Loggable.NO_STRUCTURE_ID
-    override val isDataInsideSinglePage: Boolean
-        get() = true
+    override fun getData(): ByteIterableWithAddress {
+        val bytes = ByteArray(java.lang.Long.BYTES)
+        BindingUtils.writeLong(hashCode, bytes, 0)
+        return ArrayByteIterableWithAddress(address + java.lang.Byte.BYTES, bytes, 0, bytes.size)
+    }
 
-    override val type: Byte
-        get() = TYPE
+    override fun getDataLength(): Int = Long.SIZE_BYTES
+    override fun getStructureId(): Int = Loggable.NO_STRUCTURE_ID
+    override fun isDataInsideSinglePage(): Boolean = true
+
+    override fun getType(): Byte = TYPE
+
     companion object {
         const val TYPE: Byte = 0x7F
         fun isHashCodeLoggable(type: Byte): Boolean {
@@ -55,7 +55,7 @@ class HashCodeLoggable internal constructor(override val address: Long, pageOffs
         }
 
         fun isHashCodeLoggable(loggable: Loggable): Boolean {
-            return loggable.type == TYPE
+            return loggable.getType() == TYPE
         }
     }
 }

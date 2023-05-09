@@ -23,22 +23,27 @@ import jetbrains.exodus.tree.ITree
 /**
  * Stateful leaf node for mutable tree
  */
-internal class LeafNodeMutable(override val key: ByteIterable, override val value: ByteIterable) :
+internal class LeafNodeMutable(private val key: ByteIterable, private val value: ByteIterable) :
     BaseLeafNodeMutable() {
-    override var address = Loggable.NULL_ADDRESS
-        private set
+
+    private var address = Loggable.NULL_ADDRESS
+    override fun getAddress() = Loggable.NULL_ADDRESS
+
+    override fun getKey(): ByteIterable = key
+
+    override fun getValue(): ByteIterable = value
 
     override fun save(tree: ITree): Long {
         check(address == Loggable.NULL_ADDRESS) { "Leaf already saved" }
         val keyLength = key.length
         val mutableTree = tree as BTreeMutable
-        val output = mutableTree.leafStream!!
+        val output = mutableTree.getLeafStream()!!
         fillBytes(keyLength.toLong(), output)
         ByteIterableBase.fillBytes(key, output)
         ByteIterableBase.fillBytes(value, output)
         address = tree.log.write(
-            mutableTree.leafType, tree.structureId, output.asArrayByteIterable(),
-            tree.expiredLoggables
+            mutableTree.getLeafType(), tree.structureId, output.asArrayByteIterable(),
+            tree.getExpiredLoggables()
         )
         return address
     }

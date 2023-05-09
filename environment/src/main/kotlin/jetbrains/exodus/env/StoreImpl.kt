@@ -51,9 +51,9 @@ open class StoreImpl internal constructor(
         if (!tx.isDisableStoreGetCache) {
             val storeGetCache = environment.storeGetCache
             if (storeGetCache != null) {
-                val treeRootAddress = tree.rootAddress
+                val treeRootAddress = tree.getRootAddress()
                 val useStoreGetCache =
-                    treeRootAddress != Loggable.NULL_ADDRESS && tree.size >= storeGetCache.minTreeSize
+                    treeRootAddress != Loggable.NULL_ADDRESS && tree.size() >= storeGetCache.minTreeSize
                 // if neither tree is empty nor mutable
                 if (useStoreGetCache) {
                     var result = storeGetCache.tryKey(treeRootAddress, key)
@@ -141,7 +141,7 @@ open class StoreImpl internal constructor(
     }
 
     override fun count(txn: Transaction): Long {
-        return (txn as TransactionBase).getTree(this).size
+        return (txn as TransactionBase).getTree(this).size()
     }
 
     override fun openCursor(txn: Transaction): Cursor {
@@ -200,7 +200,7 @@ open class StoreImpl internal constructor(
         val hasDuplicates = metaInfo.hasDuplicates()
         val treeIsEmpty = upToDateRootAddress == Loggable.NULL_ADDRESS
         val log = environment.log
-        val result: ITree = if (!metaInfo.isKeyPrefixing) {
+        val result: ITree = if (!metaInfo.isKeyPrefixing()) {
             val balancePolicy = environment.bTreeBalancePolicy
             if (treeIsEmpty) BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) else BTree(
                 log,

@@ -26,17 +26,15 @@ object NullLoggable {
         )
     }
 
-    @JvmStatic
     fun create(): SinglePageLoggable {
         return SinglePageLoggable.NULL_PROTOTYPE
     }
 
-    @JvmStatic
     fun isNullLoggable(type: Byte): Boolean {
         return type == TYPE
     }
 
     fun isNullLoggable(loggable: Loggable): Boolean {
-        return isNullLoggable(loggable.type)
+        return isNullLoggable(loggable.getType())
     }
 }

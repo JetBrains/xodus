@@ -27,7 +27,7 @@ import org.junit.Test
  */
 class BTreeCursorNoDuplicatesTest : TreeCursorNoDuplicatesTest() {
     override fun createMutableTree(hasDuplicates: Boolean, structureId: Int): ITreeMutable {
-        return BTreeEmpty(log!!, false, structureId).mutableCopy
+        return BTreeEmpty(log!!, false, structureId).getMutableCopy()
     }
 
     override fun openTree(address: Long, hasDuplicates: Boolean): ITree {

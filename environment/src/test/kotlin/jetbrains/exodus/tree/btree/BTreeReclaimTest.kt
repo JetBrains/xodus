@@ -32,7 +32,7 @@ class BTreeReclaimTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0 until p) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -45,7 +45,7 @@ class BTreeReclaimTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0 until p) {
             for (j in 0 until u) {
                 treeMutable!!.put(kv(i, "v$i#$j"))
@@ -61,19 +61,19 @@ class BTreeReclaimTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         treeMutable!!.put(kv(0, "nothing"))
         val rootAddress = saveTree()
         tree = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1)
         val key: ByteIterable = key(0)
-        val savedLeaf = tree!!.root[key]
+        val savedLeaf = tree!!.getRoot()[key]
         Assert.assertNotNull(savedLeaf)
-        val savedLeafAddress = savedLeaf!!.address
-        treeMutable = tree!!.mutableCopy
+        val savedLeafAddress = savedLeaf!!.getAddress()
+        treeMutable = tree!!.getMutableCopy()
         treeMutable!!.put(kv(0, "anything"))
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(savedLeafAddress)
         Assert.assertTrue(treeMutable!!.reclaim(iter.next(), iter))
         val addressIterator = getTreeAddresses(tree!!)
@@ -90,7 +90,7 @@ class BTreeReclaimTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         treeMutable!!.put(kv(0, "thing"))
         treeMutable!!.put(kv(1, "nothing"))
         treeMutable!!.put(kv(2, "something"))
@@ -101,18 +101,18 @@ class BTreeReclaimTest : BTreeTestBase() {
         var rootAddress = saveTree()
         tree = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1)
         val key: ByteIterable = key(0)
-        val savedLeaf = tree!!.root[key]
+        val savedLeaf = tree!!.getRoot()[key]
         Assert.assertNotNull(savedLeaf)
-        val savedLeafAddress = savedLeaf!!.address
-        treeMutable = tree!!.mutableCopy
+        val savedLeafAddress = savedLeaf!!.getAddress()
+        treeMutable = tree!!.getMutableCopy()
         treeMutable!!.delete(key(1))
         rootAddress = saveTree()
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(savedLeafAddress)
         Assert.assertTrue(treeMutable!!.reclaim(iter.next(), iter))
-        println(treeMutable!!.expiredLoggables.size)
+        println(treeMutable!!.getExpiredLoggables().size())
         val addressIterator = getTreeAddresses(tree!!)
         while (addressIterator.hasNext()) {
             val address = addressIterator.next()
@@ -127,19 +127,19 @@ class BTreeReclaimTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         treeMutable!!.put(kv(0, "nothing"))
         treeMutable!!.put(kv(1, "something"))
         var rootAddress = saveTree()
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         treeMutable!!.delete(key(0))
         treeMutable!!.delete(key(1))
         rootAddress = saveTree()
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(rootAddress)
         Assert.assertTrue(treeMutable!!.reclaim(iter.next(), iter)) // root should be reclaimed
     }
@@ -150,12 +150,12 @@ class BTreeReclaimTest : BTreeTestBase() {
         var rootAddress = init(1000.also { p = it })
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val key: ByteIterable = key(0)
-        val savedLeaf = tree!!.root[key]
+        val savedLeaf = tree!!.getRoot()[key]
         Assert.assertNotNull(savedLeaf)
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(
-            savedLeaf!!.address
+            savedLeaf!!.getAddress()
         )
         Assert.assertTrue(treeMutable!!.reclaim(iter.next(), iter))
         val addressIterator = getTreeAddresses(tree!!)
@@ -166,7 +166,7 @@ class BTreeReclaimTest : BTreeTestBase() {
         rootAddress = saveTree()
         checkTree(BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1).also {
             tree = it
-        }.mutableCopy.also { treeMutable = it }, p).run()
+        }.getMutableCopy().also { treeMutable = it }, p).run()
     }
 
     @Test
@@ -175,17 +175,17 @@ class BTreeReclaimTest : BTreeTestBase() {
         var rootAddress = init(1000.also { p = it })
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(0)
         val leaf = iter.next()
         var next: RandomAccessLoggable
         while (true) {
             next = iter.next()
-            if (next.type == BTreeBase.INTERNAL) {
+            if (next.getType() == BTreeBase.INTERNAL) {
                 break
             }
         }
-        val page: BasePage = tree!!.loadPage(next.address)
+        val page: BasePage = tree!!.loadPage(next.getAddress())
         Assert.assertTrue(treeMutable!!.reclaim(leaf, iter))
         val addressIterator = getTreeAddresses(tree!!)
         while (addressIterator.hasNext()) {
@@ -199,7 +199,7 @@ class BTreeReclaimTest : BTreeTestBase() {
         rootAddress = saveTree()
         checkTree(BTree(log!!, treeMutable!!.balancePolicy, rootAddress, false, 1).also {
             tree = it
-        }.mutableCopy.also { treeMutable = it }, p).run()
+        }.getMutableCopy().also { treeMutable = it }, p).run()
     }
 
     @Test
@@ -209,12 +209,12 @@ class BTreeReclaimTest : BTreeTestBase() {
         var rootAddress = initDup(10.also { p = it }, 100.also { u = it })
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val key: ByteIterable = key(0)
-        val savedLeaf = tree!!.root[key]
+        val savedLeaf = tree!!.getRoot()[key]
         Assert.assertNotNull(savedLeaf)
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(
-            savedLeaf!!.address
+            savedLeaf!!.getAddress()
         )
         Assert.assertTrue(treeMutable!!.reclaim(iter.next(), iter))
         val addressIterator = getTreeAddresses(tree!!)
@@ -229,7 +229,7 @@ class BTreeReclaimTest : BTreeTestBase() {
         rootAddress = saveTree()
         checkTree(BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).also {
             tree = it
-        }.mutableCopy.also { treeMutable = it }, p, u).run()
+        }.getMutableCopy().also { treeMutable = it }, p, u).run()
     }
 
     @Test
@@ -239,18 +239,18 @@ class BTreeReclaimTest : BTreeTestBase() {
         var rootAddress = initDup( /* p = */10,  /* u = */100)
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val key: ByteIterable = key(5)
-        val savedLeaf = tree!!.root[key]
+        val savedLeaf = tree!!.getRoot()[key]
         Assert.assertNotNull(savedLeaf)
-        val oldAddress = savedLeaf!!.address
+        val oldAddress = savedLeaf!!.getAddress()
         treeMutable!!.delete(key)
         treeMutable!!.delete(key(6))
         treeMutable!!.put(key(6), value("v6#0"))
         rootAddress = saveTree()
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(oldAddress)
         Assert.assertTrue(treeMutable!!.reclaim(iter.next(), iter))
         val addressIterator = getTreeAddresses(tree!!)
@@ -271,20 +271,20 @@ class BTreeReclaimTest : BTreeTestBase() {
         val rootAddress = initDup(10.also { p = it }, 100.also { u = it })
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val key: ByteIterable = key(0)
         val value: ByteIterable = value("v0#10")
-        val dupLeaf = tree!!.root[key] as LeafNodeDup?
+        val dupLeaf = tree!!.getRoot()[key] as LeafNodeDup?
         Assert.assertNotNull(dupLeaf)
-        val dt = dupLeaf!!.tree
-        val savedLeaf = dt.root[value]
+        val dt = dupLeaf!!.getTree()
+        val savedLeaf = dt.getRoot()[value]
         Assert.assertNotNull(savedLeaf)
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(
-            savedLeaf!!.address
+            savedLeaf!!.getAddress()
         )
         Assert.assertTrue(treeMutable!!.reclaim(iter.next(), iter))
         val addressIterator = getTreeAddresses(tree!!)
-        val dupLeafMutable = treeMutable!!.root[key] as LeafNodeDupMutable?
+        val dupLeafMutable = treeMutable!!.getRoot()[key] as LeafNodeDupMutable?
         Assert.assertNotNull(dupLeafMutable)
         val dtm = dupLeafMutable!!.tree
         while (addressIterator.hasNext()) {
@@ -296,7 +296,7 @@ class BTreeReclaimTest : BTreeTestBase() {
         }
         checkTree(BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).also {
             tree = it
-        }.mutableCopy.also { treeMutable = it }, p, u).run()
+        }.getMutableCopy().also { treeMutable = it }, p, u).run()
     }
 
     @Test
@@ -306,25 +306,25 @@ class BTreeReclaimTest : BTreeTestBase() {
         val rootAddress = initDup(10.also { p = it }, 100.also { u = it })
         treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).also {
             tree = it
-        }.mutableCopy
+        }.getMutableCopy()
         val key: ByteIterable = key(0)
         val value: ByteIterable = value("v0#10")
-        val dupLeaf = tree!!.root[key] as LeafNodeDup?
+        val dupLeaf = tree!!.getRoot()[key] as LeafNodeDup?
         Assert.assertNotNull(dupLeaf)
-        val dt: BTreeBase = dupLeaf!!.tree
-        val savedLeaf = dt.root[value]
+        val dt: BTreeBase = dupLeaf!!.getTree()
+        val savedLeaf = dt.getRoot()[value]
         Assert.assertNotNull(savedLeaf)
         val iter: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(
-            savedLeaf!!.address
+            savedLeaf!!.getAddress()
         )
         var loggable = iter.next()
-        while (loggable.type != BTreeBase.DUP_INTERNAL) {
+        while (loggable.getType() != BTreeBase.DUP_INTERNAL) {
             loggable = iter.next()
         }
-        val page: BasePage = dt.loadPage(loggable.address)
+        val page: BasePage = dt.loadPage(loggable.getAddress())
         Assert.assertTrue(treeMutable!!.reclaim(loggable, iter))
         val addressIterator = getTreeAddresses(tree!!)
-        val dupLeafMutable = treeMutable!!.root[key] as LeafNodeDupMutable?
+        val dupLeafMutable = treeMutable!!.getRoot()[key] as LeafNodeDupMutable?
         Assert.assertNotNull(dupLeafMutable)
         val dtm: BTreeMutable = dupLeafMutable!!.tree
         while (addressIterator.hasNext()) {
@@ -336,25 +336,25 @@ class BTreeReclaimTest : BTreeTestBase() {
         }
         checkTree(BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).also {
             tree = it
-        }.mutableCopy.also { treeMutable = it }, p, u).run()
+        }.getMutableCopy().also { treeMutable = it }, p, u).run()
     }
 
     private fun isAffected(loggable: Loggable, key: ByteIterable, path: BTreeTraverser): Boolean {
-        return when (loggable.type) {
+        return when (loggable.getType()) {
             BTreeBase.BOTTOM_ROOT, BTreeBase.INTERNAL_ROOT -> {
-                Assert.assertEquals(tree!!.rootAddress, loggable.address)
-                assertAffected(treeMutable!!, tree!!.root, key, path)
+                Assert.assertEquals(tree!!.getRootAddress(), loggable.getAddress())
+                assertAffected(treeMutable!!, tree!!.getRoot(), key, path)
                 true
             }
 
             BTreeBase.BOTTOM, BTreeBase.INTERNAL -> {
-                assertAffected(treeMutable!!, tree!!.loadPage(loggable.address), key, path)
+                assertAffected(treeMutable!!, tree!!.loadPage(loggable.getAddress()), key, path)
                 true
             }
 
             BTreeBase.LEAF, BTreeBase.LEAF_DUP_BOTTOM_ROOT, BTreeBase.LEAF_DUP_INTERNAL_ROOT -> assertAffected(
                 treeMutable!!,
-                tree!!.loadLeaf(loggable.address),
+                tree!!.loadLeaf(loggable.getAddress()),
                 key
             )
 
@@ -363,15 +363,15 @@ class BTreeReclaimTest : BTreeTestBase() {
     }
 
     private fun assertAffected(loggable: Loggable, page: BasePage, path: BTreeTraverser) {
-        when (loggable.type) {
+        when (loggable.getType()) {
             BTreeBase.BOTTOM_ROOT, BTreeBase.INTERNAL_ROOT -> {
-                Assert.assertEquals(tree!!.rootAddress, loggable.address)
-                assertAffected(treeMutable!!, tree!!.root, page, path)
+                Assert.assertEquals(tree!!.getRootAddress(), loggable.getAddress())
+                assertAffected(treeMutable!!, tree!!.getRoot(), page, path)
                 return
             }
 
             BTreeBase.BOTTOM, BTreeBase.INTERNAL -> {
-                assertAffected(treeMutable!!, tree!!.loadPage(loggable.address), page, path)
+                assertAffected(treeMutable!!, tree!!.loadPage(loggable.getAddress()), page, path)
                 return
             }
 
@@ -384,19 +384,19 @@ class BTreeReclaimTest : BTreeTestBase() {
             dtm: BTreeMutable, dt: BTreeBase, loggable: Loggable,
             value: ByteIterable, path: BTreeTraverser
         ) {
-            when (loggable.type) {
+            when (loggable.getType()) {
                 BTreeBase.LEAF_DUP_BOTTOM_ROOT, BTreeBase.LEAF_DUP_INTERNAL_ROOT -> {
-                    assertAffected(dtm, dt.root, value, path)
+                    assertAffected(dtm, dt.getRoot(), value, path)
                     return
                 }
 
                 BTreeBase.DUP_BOTTOM, BTreeBase.DUP_INTERNAL -> {
-                    assertAffected(dtm, dt.loadPage(loggable.address), value, path)
+                    assertAffected(dtm, dt.loadPage(loggable.getAddress()), value, path)
                     return
                 }
 
                 BTreeBase.DUP_LEAF -> {
-                    assertAffected(dtm, dt.loadLeaf(loggable.address), value)
+                    assertAffected(dtm, dt.loadLeaf(loggable.getAddress()), value)
                     return
                 }
 
@@ -408,9 +408,9 @@ class BTreeReclaimTest : BTreeTestBase() {
             dtm: BTreeMutable, dt: BTreeBase,
             loggable: Loggable, key: ByteIterable
         ) {
-            when (loggable.type) {
+            when (loggable.getType()) {
                 BTreeBase.LEAF_DUP_BOTTOM_ROOT, BTreeBase.LEAF_DUP_INTERNAL_ROOT -> {
-                    assertAffected(dtm, dt.loadLeaf(loggable.address), key)
+                    assertAffected(dtm, dt.loadLeaf(loggable.getAddress()), key)
                     return
                 }
 
@@ -423,14 +423,14 @@ class BTreeReclaimTest : BTreeTestBase() {
             dtm: BTreeMutable, dt: BTreeBase, loggable: RandomAccessLoggable,
             page: BasePage, path: BTreeTraverser
         ) {
-            when (loggable.type) {
+            when (loggable.getType()) {
                 BTreeBase.LEAF_DUP_BOTTOM_ROOT, BTreeBase.LEAF_DUP_INTERNAL_ROOT -> {
-                    assertAffected(dtm, dt.root, page, path)
+                    assertAffected(dtm, dt.getRoot(), page, path)
                     return
                 }
 
                 BTreeBase.DUP_BOTTOM, BTreeBase.DUP_INTERNAL -> {
-                    assertAffected(dtm, dt.loadPage(loggable.address), page, path)
+                    assertAffected(dtm, dt.loadPage(loggable.getAddress()), page, path)
                     return
                 }
 
@@ -439,18 +439,18 @@ class BTreeReclaimTest : BTreeTestBase() {
         }
 
         private fun assertAffected(treeMutable: BTreeMutable, leaf: INode, key: ByteIterable): Boolean {
-            if (isEqual(leaf.key, key)) {
-                val ln = treeMutable.root[key]
+            if (isEqual(leaf.getKey(), key)) {
+                val ln = treeMutable.getRoot()[key]
                 Assert.assertNotNull(ln)
-                Assert.assertTrue(ln!!.isMutable)
+                Assert.assertTrue(ln!!.isMutable())
                 return true
             }
             return false
         }
 
         private fun assertAffected(treeMutable: BTreeMutable, page: BasePage, key: ByteIterable, path: BTreeTraverser) {
-            if (isBetween(page.minKey.key, key, page.maxKey.key)) {
-                Assert.assertTrue(getPage(treeMutable, path).isMutable)
+            if (isBetween(page.getMinKey().getKey(), key, page.getMaxKey().getKey())) {
+                Assert.assertTrue(getPage(treeMutable, path).isMutable())
             }
         }
 
@@ -460,8 +460,13 @@ class BTreeReclaimTest : BTreeTestBase() {
             page: BasePage,
             path: BTreeTraverser
         ) {
-            if (isBetween(sourcePage.minKey.key, page.minKey.key, sourcePage.maxKey.key)) {
-                Assert.assertTrue(getPage(treeMutable, path).isMutable)
+            if (isBetween(
+                    sourcePage.getMinKey().getKey(),
+                    page.getMinKey().getKey(),
+                    sourcePage.getMaxKey().getKey()
+                )
+            ) {
+                Assert.assertTrue(getPage(treeMutable, path).isMutable())
             }
         }
 
@@ -483,18 +488,18 @@ class BTreeReclaimTest : BTreeTestBase() {
         }
 
         private fun getPage(treeMutable: BTreeMutable, path: BTreeTraverser): BasePage {
-            var result: BasePage = treeMutable.root
+            var result: BasePage = treeMutable.getRoot()
             val itr = path.iterator()
             while (itr.hasNext()) {
                 val node = itr.next()
-                if (result.isBottom xor node!!.isBottom) {
+                if (result.isBottom() xor node!!.isBottom()) {
                     Assert.fail("Tree structure not matched by type")
                 }
                 if (itr.hasNext()) {
-                    if (result.isBottom) {
+                    if (result.isBottom()) {
                         Assert.fail("Tree structure not matched by depth")
                     } else {
-                        result = result.getChild((node.size - 1).coerceAtMost(itr.pos))
+                        result = result.getChild((node.size - 1).coerceAtMost(itr.getPos()))
                     }
                 }
             }

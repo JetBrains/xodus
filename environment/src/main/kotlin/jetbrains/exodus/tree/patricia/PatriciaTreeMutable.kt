@@ -26,39 +26,36 @@ import jetbrains.exodus.tree.ExpiredLoggableCollection.Companion.EMPTY
 
 import java.util.*
 
-class PatriciaTreeMutable(
+internal class PatriciaTreeMutable(
     log: Log,
     structureId: Int,
     treeSize: Long,
     immutableRoot: ImmutableNode
 ) : PatriciaTreeBase(log, structureId), ITreeMutable {
-    override var root = MutableRoot(immutableRoot)
-        private set
+    internal var root = MutableRoot(immutableRoot)
+    override fun getRoot(): MutableRoot = root
 
-    private var _expiredLoggables: ExpiredLoggableCollection? = null
-    override val expiredLoggables: ExpiredLoggableCollection
-        get() {
-            if (_expiredLoggables == null) {
-                return EMPTY
-            }
-            return _expiredLoggables!!
+    private var expiredLoggables: ExpiredLoggableCollection? = null
+    override fun getExpiredLoggables(): ExpiredLoggableCollection {
+        if (expiredLoggables == null) {
+            return EMPTY
         }
+        return expiredLoggables!!
+    }
 
-    override var openCursors: MutableSet<ITreeCursorMutable>? = null
-        private set
+    private var openCursors: MutableSet<ITreeCursorMutable>? = null
 
-    override val mutableCopy: ITreeMutable
-        get() = this
+    override fun getOpenCursors(): MutableSet<ITreeCursorMutable>? = openCursors
 
-    override val rootAddress: Long
-        get() = Loggable.NULL_ADDRESS
+    override fun getMutableCopy(): ITreeMutable = this
 
-    override val isAllowingDuplicates: Boolean
-        get() = false
+    override fun getRootAddress(): Long = Loggable.NULL_ADDRESS
+
+    override fun isAllowingDuplicates(): Boolean = false
 
     init {
         this.size = treeSize
-        addExpiredLoggable(immutableRoot.loggable)
+        addExpiredLoggable(immutableRoot.getLoggable())
     }
 
     val useV1Format: Boolean get() = (this as PatriciaTreeBase).log.config.useV1Format()
@@ -110,7 +107,7 @@ class PatriciaTreeMutable(
             prev = node
             prevFirstByte = nextByte
             val mutableChild = child.getMutableCopy(this)
-            if (!child.isMutable) {
+            if (!child.isMutable()) {
                 node.setChild(nextByte, mutableChild)
             }
             node = mutableChild
@@ -158,7 +155,7 @@ class PatriciaTreeMutable(
             prev = node
             prevFirstByte = nextByte
             val mutableChild = child.getMutableCopy(this)
-            if (!child.isMutable) {
+            if (!child.isMutable()) {
                 node.setRightChild(nextByte, mutableChild)
             }
             node = mutableChild
@@ -236,26 +233,26 @@ class PatriciaTreeMutable(
     }
 
     override fun put(ln: INode) {
-        put(ln.key, getNotNullValue(ln))
+        put(ln.getKey(), getNotNullValue(ln))
     }
 
-    override fun putRight(ln: INode) = putRight(ln.key, getNotNullValue(ln))
+    override fun putRight(ln: INode) = putRight(ln.getKey(), getNotNullValue(ln))
 
-    override fun add(ln: INode) = add(ln.key, getNotNullValue(ln))
+    override fun add(ln: INode) = add(ln.getKey(), getNotNullValue(ln))
 
     override fun save(): Long {
         val context =
-            MutableNodeSaveContext(CompressedUnsignedLongByteIterable.getIterable((this as PatriciaTreeBase).size))
-        val stack = ArrayDeque<ChildReferenceMutable>().apply {
-            push(ChildReferenceMutable(root))
-        }
+            MutableNodeSaveContext(CompressedUnsignedLongByteIterable.getIterable((this as PatriciaTreeBase).size()))
+        val stack = ArrayDeque<ChildReferenceMutable>()
+        stack.push(ChildReferenceMutable(root))
+
         while (true) {
             val ref = stack.peek()
             val node = ref.child
             var childPushed = false
             val children = if (node.hasChildren()) node.children.asSequence() else emptySequence()
             for (r in children) {
-                if (r.isMutable && r.suffixAddress == Loggable.NULL_ADDRESS) {
+                if (r.isMutable() && r.suffixAddress == Loggable.NULL_ADDRESS) {
                     childPushed = true
                     stack.push(r as ChildReferenceMutable)
                 }
@@ -282,16 +279,16 @@ class PatriciaTreeMutable(
         loggables: Iterator<RandomAccessLoggable>
     ): Boolean {
         var l = loggable
-        var minAddress = l.address
+        var minAddress = l.getAddress()
         while (true) {
-            val type = l.type
+            val type = l.getType()
             if (type < NODE_WO_KEY_WO_VALUE_WO_CHILDREN || type > MAX_VALID_LOGGABLE_TYPE) {
                 if (type != NullLoggable.TYPE && type != HashCodeLoggable.TYPE) { // skip null loggable
-                    throw ExodusException("Unexpected loggable type " + l.type)
+                    throw ExodusException("Unexpected loggable type " + l.getType())
                 }
             } else {
-                if (l.structureId != (this as PatriciaTreeBase).structureId) {
-                    throw ExodusException("Unexpected structure id " + l.structureId)
+                if (l.getStructureId() != (this as PatriciaTreeBase).structureId) {
+                    throw ExodusException("Unexpected structure id " + l.getStructureId())
                 }
                 if (nodeIsRoot(type)) {
                     break
@@ -302,15 +299,15 @@ class PatriciaTreeMutable(
             }
             l = loggables.next()
         }
-        val maxAddress = l.address
+        val maxAddress = l.getAddress()
         val sourceTree = PatriciaTreeForReclaim(
             (this as PatriciaTreeBase).log, maxAddress,
             (this as PatriciaTreeBase).structureId
         )
-        val sourceRoot = sourceTree.root
+        val sourceRoot = sourceTree.getRoot()
         val backRef = sourceTree.backRef
         if (backRef > 0) {
-            val treeStartAddress = sourceTree.rootAddress - backRef
+            val treeStartAddress = sourceTree.getRootAddress() - backRef
             check(treeStartAddress <= minAddress) { "Wrong back reference!" }
             if (!(this as PatriciaTreeBase).log.hasAddressRange(treeStartAddress, maxAddress)) {
                 return false
@@ -319,7 +316,7 @@ class PatriciaTreeMutable(
         }
         val actual = PatriciaReclaimActualTraverser(this)
         reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, minAddress), actual)
-        return actual.wasReclaim || sourceRoot.address == root.sourceAddress
+        return actual.wasReclaim || sourceRoot.getAddress() == root.sourceAddress
     }
 
     fun mutateNode(node: MultiPageImmutableNode): MutableNode {
@@ -333,18 +330,18 @@ class PatriciaTreeMutable(
     }
 
     private fun addExpiredLoggable(sourceLoggable: RandomAccessLoggable?) {
-        if (sourceLoggable != null && sourceLoggable.address != Loggable.NULL_ADDRESS) {
+        if (sourceLoggable != null && sourceLoggable.getAddress() != Loggable.NULL_ADDRESS) {
             val expiredLoggables = getOrInitExperedLoggables()
             expiredLoggables.add(sourceLoggable)
         }
     }
 
     fun getOrInitExperedLoggables(): ExpiredLoggableCollection {
-        var expiredLoggables = _expiredLoggables
+        var expiredLoggables = expiredLoggables
 
         if (expiredLoggables == null) {
             expiredLoggables = ExpiredLoggableCollection.newInstance((this as PatriciaTreeBase).log)
-            this._expiredLoggables = expiredLoggables
+            this.expiredLoggables = expiredLoggables
         }
 
         return expiredLoggables
@@ -376,14 +373,14 @@ class PatriciaTreeMutable(
             stack.pop()
             mutableNode = parent.mutate(this)
             mutableNode.removeChild(parent.firstByte)
-            if (!mutableNode.hasValue() && mutableNode.childrenCount == 1) {
+            if (!mutableNode.hasValue() && mutableNode.getChildrenCount() == 1) {
                 mutableNode.mergeWithSingleChild(this)
             }
         } else {
             mutableNode.value = null
             if (!hasChildren) {
                 mutableNode.setKeySequence(ByteIterable.EMPTY)
-            } else if (mutableNode.childrenCount == 1) {
+            } else if (mutableNode.getChildrenCount() == 1) {
                 mutableNode.mergeWithSingleChild(this)
             }
         }
@@ -408,7 +405,7 @@ class PatriciaTreeMutable(
 
         @JvmStatic
         fun getNotNullValue(ln: INode): ByteIterable {
-            return ln.value ?: throw ExodusException("Value can't be null")
+            return ln.getValue() ?: throw ExodusException("Value can't be null")
         }
 
         private fun reclaim(
@@ -433,7 +430,7 @@ class PatriciaTreeMutable(
                                 }
                             } else {
                                 val children = actual.currentNode.getChildren(srcItr.next())
-                                val child = children.node ?: break
+                                val child = children.getNode() ?: break
                                 actual.currentChild = child
                                 actual.currentIterator = children
                                 actual.moveDown()
@@ -442,7 +439,7 @@ class PatriciaTreeMutable(
                             }
                         } else if (actItr.hasNext()) {
                             val children = source.currentNode.getChildren(actItr.next())
-                            val child = children.node
+                            val child = children.getNode()
                             if (child == null || !source.isAddressReclaimable(child.suffixAddress)) {
                                 break // child can be expired if source parent was already not-current
                             }
@@ -492,13 +489,13 @@ class PatriciaTreeMutable(
         }
 
         private fun PatriciaReclaimSourceTraverser.matches(actual: PatriciaReclaimActualTraverser) =
-            currentNode.address == actual.currentNode.address
+            currentNode.getAddress() == actual.currentNode.getAddress()
 
         private fun reclaimActualChildren(
             source: PatriciaReclaimSourceTraverser,
             actual: PatriciaReclaimActualTraverser
         ) {
-            actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree)
+            actual.updateCurrentNode(actual.currentNode.getMutableCopy(actual.mainTree))
             actual.itr
             actual.wasReclaim = true
             var depth = 1
@@ -509,7 +506,7 @@ class PatriciaTreeMutable(
                     val suffixAddress = actualChild!!.suffixAddress
                     if (source.isAddressReclaimable(suffixAddress)) {
                         actual.moveDown()
-                        actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree)
+                        actual.updateCurrentNode(actual.currentNode.getMutableCopy(actual.mainTree))
                         actual.itr
                         actual.wasReclaim = true
                         depth++

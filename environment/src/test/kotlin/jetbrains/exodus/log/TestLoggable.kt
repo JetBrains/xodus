@@ -20,12 +20,17 @@ import jetbrains.exodus.ByteIterable
 /**
  * Loggable for writing
  */
-class TestLoggable(override val type: Byte, override val data: ByteIterable, override val structureId: Int) : Loggable {
+class TestLoggable(private val type: Byte, private val data: ByteIterable, private val structureId: Int) : Loggable {
 
-    override val address: Long
-        get() {
-            throw UnsupportedOperationException("TestLoggable has no address until it is written to log")
-        }
+    override fun getType(): Byte = type
+
+    override fun getData(): ByteIterable = data
+
+    override fun getStructureId(): Int = structureId
+
+    override fun getAddress(): Long {
+        throw UnsupportedOperationException("TestLoggable has no address until it is written to log")
+    }
 
     override fun length(): Int {
         throw UnsupportedOperationException("TestLoggable has no address until it is written to log")
@@ -35,8 +40,6 @@ class TestLoggable(override val type: Byte, override val data: ByteIterable, ove
         throw UnsupportedOperationException("TestLoggable has no address until it is written to log")
     }
 
-    override val dataLength: Int
-        get() = data.length
-    override val isDataInsideSinglePage: Boolean
-        get() = true
+    override fun getDataLength(): Int = data.length
+    override fun isDataInsideSinglePage(): Boolean = true
 }

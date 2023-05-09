@@ -21,39 +21,44 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.log.*
 
 abstract class BasePageImmutable : BasePage {
+    @JvmField
     protected val data: ByteIterableWithAddress
+
+    @JvmField
     var keyAddressLen: Byte = 0
 
     private var _minKey: ILeafNode? = null
-    override val minKey: ILeafNode
-        get() {
-            var minKey = _minKey
-            if (minKey != null) {
-                return minKey
-            }
-
-            minKey = super.minKey
-            this._minKey = minKey
+    override fun getMinKey(): ILeafNode {
+        var minKey = _minKey
+        if (minKey != null) {
             return minKey
         }
 
+        minKey = super.getMinKey()
+        this._minKey = minKey
+        return minKey
+    }
+
     private var _maxKey: ILeafNode? = null
-    override val maxKey: ILeafNode
-        get() {
-            var maxKey = _maxKey
-            if (maxKey != null) {
-                return maxKey
-            }
-
-            maxKey = super.maxKey
-            this._maxKey = maxKey
-
+    override fun getMaxKey(): ILeafNode {
+        var maxKey = _maxKey
+        if (maxKey != null) {
             return maxKey
         }
 
+        maxKey = super.getMaxKey()
+        this._maxKey = maxKey
 
+        return maxKey
+    }
+
+
+    @JvmField
     protected val log: Log
+
+    @JvmField
     protected val page: ByteArray?
+
     private val dataOffset: Int
     private val formatWithHashCodeIsUsed: Boolean
 
@@ -135,10 +140,9 @@ abstract class BasePageImmutable : BasePage {
         return result
     }
 
-    override val dataAddress: Long
-        get() = data.dataAddress
-    val dataIterator: ByteIterator
-        get() = if (data.dataAddress == Loggable.NULL_ADDRESS) ByteIterable.EMPTY_ITERATOR else data.iterator()
+    override fun getDataAddress(): Long = data.getDataAddress()
+    fun getDataIterator(): ByteIterator =
+        if (data.getDataAddress() == Loggable.NULL_ADDRESS) ByteIterable.EMPTY_ITERATOR else data.iterator()
 
     protected open fun loadAddressLengths(length: Int, it: ByteIterator) {
         keyAddressLen = length.toByte()
@@ -146,7 +150,7 @@ abstract class BasePageImmutable : BasePage {
     }
 
     override fun getKeyAddress(index: Int): Long {
-        if (dataAddress == Loggable.NULL_ADDRESS) {
+        if (getDataAddress() == Loggable.NULL_ADDRESS) {
             return Loggable.NULL_ADDRESS
         }
         return if (page != null) {
@@ -175,8 +179,7 @@ abstract class BasePageImmutable : BasePage {
         return tree.isDupKey(getKeyAddress(index))
     }
 
-    override val isMutable: Boolean
-        get() = false
+    override fun isMutable(): Boolean = false
 
     override fun binarySearch(key: ByteIterable): Int {
         return binarySearch(key, 0)
@@ -187,7 +190,7 @@ abstract class BasePageImmutable : BasePage {
     }
 
     override fun binarySearch(key: ByteIterable, low: Int): Int {
-        if (dataAddress == Loggable.NULL_ADDRESS) {
+        if (getDataAddress() == Loggable.NULL_ADDRESS) {
             return -1
         }
         if (page != null) {
@@ -204,7 +207,7 @@ abstract class BasePageImmutable : BasePage {
         var currentLow = low
         val cachePageSize = log.cachePageSize
         val bytesPerAddress = keyAddressLen.toInt()
-        val dataAddress = dataAddress
+        val dataAddress = getDataAddress()
         var currentHigh = size - 1
         var leftAddress = -1L
         var leftPage: ByteArray? = null
@@ -287,7 +290,7 @@ abstract class BasePageImmutable : BasePage {
         var currentLow = low
         val cachePageSize = log.cachePageSize
         val bytesPerAddress = keyAddressLen.toInt()
-        val dataAddress = dataAddress
+        val dataAddress = getDataAddress()
         var currentHigh = size - 1
         var leftAddress = -1L
         var leftPage: ByteArray? = null

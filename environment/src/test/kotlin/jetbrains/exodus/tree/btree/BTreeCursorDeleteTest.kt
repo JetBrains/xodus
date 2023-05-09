@@ -34,7 +34,7 @@ class BTreeCursorDeleteTest : BTreeTestBase() {
 
     @Test
     fun testDeleteCursorNoDuplicates2() {
-        treeMutable = createEmptyTreeForCursor(1).mutableCopy
+        treeMutable = createEmptyTreeForCursor(1).getMutableCopy()
         for (i in 0..7) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -59,7 +59,7 @@ class BTreeCursorDeleteTest : BTreeTestBase() {
         Assert.assertTrue(treeMutable!!.root is BottomPageMutable)
         Assert.assertEquals(1, treeMutable!!.root.size.toLong())
         Assert.assertTrue(treeMutable!!.root.getKey(0) is LeafNodeDupMutable)
-        Assert.assertEquals(2, treeMutable!!.root.getKey(0).dupCount)
+        Assert.assertEquals(2, treeMutable!!.root.getKey(0).getDupCount())
         val c: Cursor = treeMutable!!.openCursor()
         Assert.assertTrue(c.next)
         Assert.assertTrue(c.deleteCurrent())
@@ -75,7 +75,7 @@ class BTreeCursorDeleteTest : BTreeTestBase() {
 
     @Test
     fun testDeleteCursorDuplicates2() {
-        treeMutable = createEmptyTreeForCursor(1).mutableCopy
+        treeMutable = createEmptyTreeForCursor(1).getMutableCopy()
         for (i in 0..7) {
             treeMutable!!.put(kv(i, "v$i"))
             treeMutable!!.put(kv(i, "vv$i"))
@@ -92,7 +92,7 @@ class BTreeCursorDeleteTest : BTreeTestBase() {
 
     @Test
     fun testDeleteCursorDuplicates3() {
-        treeMutable = createMutableTree(true, 1)!!.mutableCopy
+        treeMutable = createMutableTree(true, 1)!!.getMutableCopy()
         for (i in 0..31) {
             for (j in 0..31) {
                 treeMutable!!.put(IntegerBinding.intToEntry(i), IntegerBinding.intToEntry(j))

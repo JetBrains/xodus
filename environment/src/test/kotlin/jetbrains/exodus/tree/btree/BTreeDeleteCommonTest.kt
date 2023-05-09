@@ -22,7 +22,7 @@ import jetbrains.exodus.tree.TreeDeleteTest
 class BTreeDeleteCommonTest : TreeDeleteTest() {
     private val policy = BTreeBalancePolicy(2)
     override fun createMutableTree(hasDuplicates: Boolean, structureId: Int): ITreeMutable {
-        return BTreeEmpty(log!!, policy, hasDuplicates, structureId).mutableCopy
+        return BTreeEmpty(log!!, policy, hasDuplicates, structureId).getMutableCopy()
     }
 
     override fun openTree(address: Long, hasDuplicates: Boolean): ITree {

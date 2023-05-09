@@ -20,8 +20,8 @@ import java.io.PrintStream
 
 interface INode : Dumpable {
     fun hasValue(): Boolean
-    val key: ByteIterable
-    val value: ByteIterable?
+    fun getKey(): ByteIterable
+    fun getValue(): ByteIterable?
 
     companion object {
         val EMPTY: INode = object : INode {
@@ -29,10 +29,9 @@ interface INode : Dumpable {
                 return false
             }
 
-            override val key: ByteIterable
-                get() = ByteIterable.EMPTY
-            override val value: ByteIterable?
-                get() = ByteIterable.EMPTY
+            override fun getKey(): ByteIterable = ByteIterable.EMPTY
+
+            override fun getValue(): ByteIterable? = ByteIterable.EMPTY
 
             override fun dump(out: PrintStream, level: Int, renderer: Dumpable.ToString?) {
                 out.println("Empty node")

@@ -20,13 +20,13 @@ import jetbrains.exodus.ByteIterable
 /**
  * Leaf node for external usage.
  */
-open class LeafNodeKV(override var key: ByteIterable, value: ByteIterable) : BaseLeafNode() {
-    override var value: ByteIterable = value
-        protected set
-    override val isMutable: Boolean
-        get() = false
+class LeafNodeKV(private val key: ByteIterable, private val value: ByteIterable) : BaseLeafNode() {
+    override fun getValue(): ByteIterable = value
+    override fun isMutable(): Boolean = false
+
+    override fun getKey(): ByteIterable = key
 
     override fun toString(): String {
-        return "KV {key:$key} @ $address"
+        return "KV {key:$key} @ ${getAddress()}"
     }
 }

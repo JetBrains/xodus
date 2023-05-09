@@ -28,7 +28,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0 until s) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -48,7 +48,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0 until s) {
             treeMutable!!.putRight(kv(i, "v$i"))
         }
@@ -68,7 +68,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in s - 1 downTo 0) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -89,7 +89,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         while (lns.isNotEmpty()) {
             val index = (Math.random() * lns.size).toInt()
             val ln = lns[index]
@@ -112,7 +112,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0..99) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -139,7 +139,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0..99) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -172,20 +172,20 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0..99) {
             treeMutable!!.put(kv(i, "v$i"))
         }
         var rootAddress = saveTree()
-        treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).mutableCopy
+        treeMutable = BTree(log!!, treeMutable!!.balancePolicy, rootAddress, true, 1).getMutableCopy()
         checkTree(treeMutable!!, 100).run()
         for (i in 0..99) {
             treeMutable!!.put(kv(i, "v$i"))
         }
-        Assert.assertEquals(1L, treeMutable!!.expiredLoggables.size.toLong())
+        Assert.assertEquals(1L, treeMutable!!.getExpiredLoggables().size().toLong())
         for (i in 0..99) {
             val ln: INode = kv(i, "v$i")
-            treeMutable!!.delete(ln.key, ln.value)
+            treeMutable!!.delete(ln.getKey(), ln.getValue())
         }
         Assert.assertEquals(0, treeMutable!!.size)
         assertMatchesIterator(treeMutable!!, emptyList())
@@ -211,7 +211,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             duplicates,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0..99) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -229,7 +229,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         val expected: MutableList<INode> = ArrayList()
         expected.add(kv("1", "1"))
         expected.add(kv("2", "2"))
@@ -255,7 +255,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         val expected: MutableList<INode> = ArrayList()
         expected.add(kv("1", "1"))
         expected.add(kv("2", "2"))
@@ -281,7 +281,7 @@ class BTreeTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             true,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         val l: MutableList<INode> = ArrayList()
         l.add(kv("1", "1"))
         l.add(kv("2", "2"))

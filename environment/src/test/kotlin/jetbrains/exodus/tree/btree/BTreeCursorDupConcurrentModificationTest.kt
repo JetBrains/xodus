@@ -27,7 +27,10 @@ import org.junit.Test
 open class BTreeCursorDupConcurrentModificationTest : BTreeTestBase() {
     @Before
     fun prepareTree() {
-        treeMutable = BTreeEmpty(log!!, BTreeBalancePolicy(5), true, 1).mutableCopy
+        treeMutable = BTreeEmpty(
+            log!!,
+            BTreeBalancePolicy(5), true, 1
+        ).getMutableCopy()
         treeMutable!!.put(key(1), value("v10"))
         treeMutable!!.put(key(2), value("v20"))
         treeMutable!!.put(key(3), value("v30"))

@@ -23,11 +23,11 @@ import org.junit.Test
 open class BTreeNoDuplicatesExpiredAddressesTest : BTreeTestBase() {
     @Test
     fun testAdd() {
-        treeMutable = BTreeEmpty(log!!, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, false, 1).getMutableCopy()
         val address = saveTree()
         checkExpiredAddress(treeMutable!!, 0, "Expired: none")
         tree = BTree(log!!, address, false, 1)
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         treeMutable!!.put(kv(0, "value"))
         checkExpiredAddress(treeMutable!!, 1, "Expired: root")
         saveTree()
@@ -35,13 +35,13 @@ open class BTreeNoDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testModify() {
-        treeMutable = BTreeEmpty(log!!, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, false, 1).getMutableCopy()
         treeMutable!!.put(kv(0, "value"))
         treeMutable!!.put(kv(1, "value2"))
         checkExpiredAddress(treeMutable!!, 0, "Expired: none")
         val address = saveTree()
         tree = BTree(log!!, address, false, 1)
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         treeMutable!!.put(kv(0, "value2"))
         checkExpiredAddress(treeMutable!!, 2, "Expired: root, value")
         saveTree()
@@ -49,25 +49,25 @@ open class BTreeNoDuplicatesExpiredAddressesTest : BTreeTestBase() {
 
     @Test
     fun testDelete() {
-        treeMutable = BTreeEmpty(log!!, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, false, 1).getMutableCopy()
         val leafNode: INode = kv(0, "value")
         treeMutable!!.put(leafNode)
         checkExpiredAddress(treeMutable!!, 0, "Expired: none")
         val address = saveTree()
         tree = BTree(log!!, address, false, 1)
-        treeMutable = tree!!.mutableCopy
-        treeMutable!!.delete(leafNode.key)
+        treeMutable = tree!!.getMutableCopy()
+        treeMutable!!.delete(leafNode.getKey())
         checkExpiredAddress(treeMutable!!, 2, "Expired: root, value")
         saveTree()
     }
 
     @Test
     fun testBulkAdd() {
-        treeMutable = BTreeEmpty(log!!, false, 1).mutableCopy
+        treeMutable = BTreeEmpty(log!!, false, 1).getMutableCopy()
         val address = saveTree()
         checkExpiredAddress(treeMutable!!, 0, "Expired: none")
         tree = BTree(log!!, address, false, 1)
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         for (i in 0..999) {
             treeMutable!!.put(kv(i, "value"))
         }
@@ -82,14 +82,14 @@ open class BTreeNoDuplicatesExpiredAddressesTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         for (i in 0..999) {
             treeMutable!!.put(kv(i, "value"))
         }
         checkExpiredAddress(treeMutable!!, 0, "Expired: none")
         val address = saveTree()
         tree = BTree(log!!, address, false, 1)
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         for (i in 0..999) {
             treeMutable!!.put(kv(i, "value2"))
         }
@@ -104,7 +104,7 @@ open class BTreeNoDuplicatesExpiredAddressesTest : BTreeTestBase() {
             createTestSplittingPolicy(),
             false,
             1
-        ).mutableCopy
+        ).getMutableCopy()
         val leafNode = arrayOfNulls<INode>(1000)
         for (i in 0..999) {
             leafNode[i] = kv(i, "value")
@@ -113,17 +113,17 @@ open class BTreeNoDuplicatesExpiredAddressesTest : BTreeTestBase() {
         checkExpiredAddress(treeMutable!!, 0, "Expired: none")
         val address = saveTree()
         tree = BTree(log!!, address, false, 1)
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         val addresses = countNodes(treeMutable!!)
         for (i in 0..999) {
-            treeMutable!!.delete(leafNode[i]!!.key)
+            treeMutable!!.delete(leafNode[i]!!.getKey())
         }
         checkExpiredAddress(treeMutable!!, addresses, "Expired: root, 1000 values + internal nodes")
         saveTree()
     }
 
     private fun checkExpiredAddress(tree: ITreeMutable, expectedAddresses: Long, message: String?) {
-        Assert.assertEquals(message, expectedAddresses, tree.expiredLoggables.size.toLong())
+        Assert.assertEquals(message, expectedAddresses, tree.getExpiredLoggables().size().toLong())
     }
 
     private fun countNodes(tree: BTreeMutable): Long {
@@ -131,7 +131,7 @@ open class BTreeNoDuplicatesExpiredAddressesTest : BTreeTestBase() {
     }
 
     private fun countNodes(page: BasePage): Long {
-        if (page.isBottom) {
+        if (page.isBottom()) {
             return (page.size + 1).toLong()
         }
         var result: Long = 1

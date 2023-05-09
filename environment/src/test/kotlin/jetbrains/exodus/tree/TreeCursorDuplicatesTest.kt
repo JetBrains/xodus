@@ -27,6 +27,7 @@ import org.junit.Test
 abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
     var values: MutableList<INode> = ArrayList()
     var valuesNoDup: MutableSet<INode> = LinkedHashSet()
+
     @Before
     fun prepareTree() {
         treeMutable = createMutableTree(true, 1)
@@ -98,8 +99,8 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
                 val c: Cursor = t!!.openCursor()
                 for (ln in values) {
                     Assert.assertTrue(c.next)
-                    Assert.assertEquals(ln.value, c.value)
-                    Assert.assertEquals(ln.key, c.key)
+                    Assert.assertEquals(ln.getValue(), c.value)
+                    Assert.assertEquals(ln.getKey(), c.key)
                 }
                 Assert.assertFalse(c.next)
             }
@@ -154,8 +155,8 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
                 val c: Cursor = t!!.openCursor()
                 for (ln in valuesNoDup) {
                     Assert.assertTrue(c.nextNoDup)
-                    Assert.assertEquals(ln.value, c.value)
-                    Assert.assertEquals(ln.key, c.key)
+                    Assert.assertEquals(ln.getValue(), c.value)
+                    Assert.assertEquals(ln.getKey(), c.key)
                 }
                 Assert.assertFalse(c.nextNoDup)
             }
@@ -186,16 +187,16 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
             override fun run() {
                 val c: Cursor = t!!.openCursor()
                 for (ln in valuesNoDup) {
-                    Assert.assertEquals(ln.value, c.getSearchKey(ln.key))
-                    Assert.assertEquals(ln.value, c.value)
-                    Assert.assertEquals(ln.key, c.key)
+                    Assert.assertEquals(ln.getValue(), c.getSearchKey(ln.getKey()))
+                    Assert.assertEquals(ln.getValue(), c.value)
+                    Assert.assertEquals(ln.getKey(), c.key)
                 }
                 Assert.assertNull(c.getSearchKey(key(0)))
                 Assert.assertNull(c.getSearchKey(key(4)))
                 Assert.assertNull(c.getSearchKey(key(13)))
                 // prev state due to failed search
-                Assert.assertEquals(values[values.size - 1].value, c.value)
-                Assert.assertEquals(values[values.size - 1].key, c.key)
+                Assert.assertEquals(values[values.size - 1].getValue(), c.value)
+                Assert.assertEquals(values[values.size - 1].getKey(), c.key)
             }
         }
         getSearchKey.run()
@@ -212,9 +213,9 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
             override fun run() {
                 val c: Cursor = t!!.openCursor()
                 for (ln in values) {
-                    Assert.assertTrue(c.getSearchBoth(ln.key, ln.value!!))
-                    Assert.assertEquals(ln.value, c.value)
-                    Assert.assertEquals(ln.key, c.key)
+                    Assert.assertTrue(c.getSearchBoth(ln.getKey(), ln.getValue()!!))
+                    Assert.assertEquals(ln.getValue(), c.value)
+                    Assert.assertEquals(ln.getKey(), c.key)
                 }
                 Assert.assertFalse(
                     c.getSearchBoth(
@@ -235,8 +236,8 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
                     )
                 )
                 // prev state due to failed search
-                Assert.assertEquals(values[values.size - 1].value, c.value)
-                Assert.assertEquals(values[values.size - 1].key, c.key)
+                Assert.assertEquals(values[values.size - 1].getValue(), c.value)
+                Assert.assertEquals(values[values.size - 1].getKey(), c.key)
             }
         }
         getSearchBoth.run()
@@ -253,9 +254,9 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
             override fun run() {
                 val c: Cursor = t!!.openCursor()
                 for (ln in valuesNoDup) {
-                    Assert.assertEquals(ln.value, c.getSearchKeyRange(ln.key))
-                    Assert.assertEquals(ln.value, c.value)
-                    Assert.assertEquals(ln.key, c.key)
+                    Assert.assertEquals(ln.getValue(), c.getSearchKeyRange(ln.getKey()))
+                    Assert.assertEquals(ln.getValue(), c.value)
+                    Assert.assertEquals(ln.getKey(), c.key)
                 }
             }
         }
@@ -359,9 +360,9 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
             override fun run() {
                 val c: Cursor = t!!.openCursor()
                 for (ln in values) {
-                    Assert.assertEquals(ln.value, c.getSearchBothRange(ln.key, ln.value!!))
-                    Assert.assertEquals(ln.value, c.value)
-                    Assert.assertEquals(ln.key, c.key)
+                    Assert.assertEquals(ln.getValue(), c.getSearchBothRange(ln.getKey(), ln.getValue()!!))
+                    Assert.assertEquals(ln.getValue(), c.value)
+                    Assert.assertEquals(ln.getKey(), c.key)
                 }
             }
         }
@@ -478,8 +479,8 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
                 while (itr.hasPrevious()) {
                     val ln = itr.previous()
                     Assert.assertTrue(c.prev)
-                    Assert.assertEquals(ln.value, c.value)
-                    Assert.assertEquals(ln.key, c.key)
+                    Assert.assertEquals(ln.getValue(), c.value)
+                    Assert.assertEquals(ln.getKey(), c.key)
                 }
                 Assert.assertFalse(c.prev)
             }
@@ -510,8 +511,8 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
                 while (itr.hasPrevious()) {
                     val ln = itr.previous()
                     Assert.assertTrue(c.prev)
-                    Assert.assertEquals(ln.value, c.value)
-                    Assert.assertEquals(ln.key, c.key)
+                    Assert.assertEquals(ln.getValue(), c.value)
+                    Assert.assertEquals(ln.getKey(), c.key)
                 }
                 Assert.assertFalse(c.prev)
             }

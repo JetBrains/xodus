@@ -16,13 +16,25 @@
 package jetbrains.exodus.log
 
 class MultiPageLoggable(
-    override val address: Long,
-    override val type: Byte,
-    override val data: MultiPageByteIterableWithAddress,
-    override val dataLength: Int,
-    override val structureId: Int,
+    private val address: Long,
+    private val type: Byte,
+    private val data: MultiPageByteIterableWithAddress,
+    private val dataLength: Int,
+    private val structureId: Int,
     private val log: Log?
 ) : RandomAccessLoggable {
+
+    override fun getData(): ByteIterableWithAddress = data
+
+    override fun getAddress(): Long = address
+
+    override fun getType(): Byte = type
+
+    override fun getDataLength(): Int = dataLength
+
+    override fun getStructureId(): Int = structureId
+
+
     override fun length(): Int {
         assert(log != null)
         return dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId.toLong()) +
@@ -34,6 +46,5 @@ class MultiPageLoggable(
         return log!!.adjustLoggableAddress(data.dataAddress, dataLength.toLong())
     }
 
-    override val isDataInsideSinglePage: Boolean
-        get() = false
+    override fun isDataInsideSinglePage(): Boolean = false
 }

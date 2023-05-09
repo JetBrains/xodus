@@ -22,21 +22,20 @@ import jetbrains.exodus.log.RandomAccessLoggable
 import jetbrains.exodus.tree.ITreeCursor
 import jetbrains.exodus.tree.TreeCursor
 
-open class PatriciaTree(log: Log, rootAddress: Long, structureId: Int) : PatriciaTreeBase(log, structureId) {
+internal open class PatriciaTree(log: Log, rootAddress: Long, structureId: Int) : PatriciaTreeBase(log, structureId) {
     private val rootLoggable: RandomAccessLoggable
 
-    private val _root: ImmutableNode
-    override val root: NodeBase
-        get() = _root.asNodeBase()
+    private val root: ImmutableNode
+    override fun getRoot(): NodeBase = root.asNodeBase()
 
     init {
         require(rootAddress != Loggable.NULL_ADDRESS) { "Can't instantiate nonempty tree with null root address" }
         rootLoggable = getLoggable(rootAddress)
-        val type = rootLoggable.type
+        val type = rootLoggable.getType()
         if (!nodeIsRoot(type)) {
             throw ExodusException("Unexpected root page type: $type")
         }
-        val data = rootLoggable.data
+        val data = rootLoggable.getData()
         val it = data.iterator()
         size = it.compressedUnsignedLong
         if (nodeHasBackReference(type)) {
@@ -45,7 +44,7 @@ open class PatriciaTree(log: Log, rootAddress: Long, structureId: Int) : Patrici
             rememberBackRef(backRef)
         }
 
-        _root = if (rootLoggable.isDataInsideSinglePage) {
+        root = if (rootLoggable.isDataInsideSinglePage()) {
             SinglePageImmutableNode(
                 rootLoggable,
                 data.cloneWithAddressAndLength(it.address, it.available())
@@ -58,13 +57,11 @@ open class PatriciaTree(log: Log, rootAddress: Long, structureId: Int) : Patrici
         }
     }
 
-    override val mutableCopy: PatriciaTreeMutable
-        get() = PatriciaTreeMutable(log, structureId, size, _root)
-    override val rootAddress: Long
-        get() = rootLoggable.address
+    override fun getMutableCopy(): PatriciaTreeMutable = PatriciaTreeMutable(log, structureId, size, root)
+    override fun getRootAddress(): Long = rootLoggable.getAddress()
 
     override fun openCursor(): ITreeCursor {
-        return TreeCursor(PatriciaTraverser(this, root), root.hasValue())
+        return TreeCursor(PatriciaTraverser(this, root.asNodeBase()), root.hasValue())
     }
 
     open fun rememberBackRef(backRef: Long) {

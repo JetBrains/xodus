@@ -20,7 +20,7 @@ import jetbrains.exodus.env.Cursor
 
 interface ITreeCursor : Cursor {
     override fun isMutable(): Boolean
-    val tree: ITree?
+    fun getTree(): ITree?
 
     companion object {
         @JvmField
@@ -86,8 +86,8 @@ interface ITreeCursor : Cursor {
             }
 
             override fun close() {}
-            override val tree: ITree?
-                get() = null
+
+            override fun getTree(): ITree? = null
 
             override fun deleteCurrent(): Boolean {
                 return false

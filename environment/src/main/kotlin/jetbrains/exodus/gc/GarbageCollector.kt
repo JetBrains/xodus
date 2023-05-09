@@ -333,10 +333,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             val loggables = log.getLoggableIterator(fileAddress)
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
-                if (loggable.address >= nextFileAddress) {
+                if (loggable.getAddress() >= nextFileAddress) {
                     break
                 }
-                val structureId = loggable.structureId
+                val structureId = loggable.getStructureId()
                 if (structureId != Loggable.NO_STRUCTURE_ID && structureId != EnvironmentImpl.META_TREE_ID) {
                     var store = openStoresCache.get(structureId)
                     if (store == null) {

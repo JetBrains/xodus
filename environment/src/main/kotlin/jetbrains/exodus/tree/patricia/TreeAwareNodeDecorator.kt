@@ -19,13 +19,11 @@ import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.tree.*
 import java.io.PrintStream
 
-internal class TreeAwareNodeDecorator(val tree: PatriciaTreeBase, private val decorated: NodeBase) : NodeBase(
+internal class TreeAwareNodeDecorator(@JvmField val tree: PatriciaTreeBase, private val decorated: NodeBase) : NodeBase(
     decorated.key, decorated.value
 ) {
-    override val address: Long
-        get() = decorated.address
-    override val isMutable: Boolean
-        get() = decorated.isMutable
+    override fun getAddress(): Long = decorated.getAddress()
+    override fun isMutable(): Boolean = decorated.isMutable()
 
     override fun getMutableCopy(mutableTree: PatriciaTreeMutable): MutableNode {
         return decorated.getMutableCopy(mutableTree)
@@ -43,12 +41,10 @@ internal class TreeAwareNodeDecorator(val tree: PatriciaTreeBase, private val de
         return decorated.getChildrenRange(b)
     }
 
-    override val childrenLast: NodeChildrenIterator
-        get() = decorated.childrenLast
-    override val children: NodeChildren
-        get() = decorated.children
-    override val childrenCount: Int
-        get() = decorated.childrenCount
+    override fun getChildrenLast(): NodeChildrenIterator = decorated.getChildrenLast()
+
+    override fun getChildren(): NodeChildren = decorated.getChildren()
+    override fun getChildrenCount(): Int = decorated.getChildrenCount()
 
     override fun dump(out: PrintStream, level: Int, renderer: Dumpable.ToString?) {
         dump(tree, this, out, level, renderer)
@@ -65,12 +61,12 @@ internal class TreeAwareNodeDecorator(val tree: PatriciaTreeBase, private val de
             out.println(
                 String.format(
                     "node %s%s] %s",
-                    if (node.isMutable) "(m) [" else '[',
-                    node.childrenCount,
+                    if (node.isMutable()) "(m) [" else '[',
+                    node.getChildrenCount(),
                     if (renderer == null) node.toString() else renderer.toString(node)
                 )
             )
-            for (child in node.children) {
+            for (child in node.getChildren()) {
                 indent(out, level)
                 val childAddress = child.suffixAddress
                 out.println(child.firstByte.toString() + " -> " + childAddress)

@@ -23,16 +23,16 @@ import jetbrains.exodus.tree.LongIterator
 import java.io.PrintStream
 
 interface ILeafNode : INode {
-    val address: Long
+    fun getAddress(): Long
     fun compareKeyTo(iterable: ByteIterable): Int
     fun compareValueTo(iterable: ByteIterable): Int
     fun valueExists(value: ByteIterable): Boolean
     fun addressIterator(): LongIterator
-    val isDup: Boolean
-    val isMutable: Boolean
-    val tree: BTreeBase
-    val dupCount: Long
-    val isDupLeaf: Boolean
+    fun isDup(): Boolean
+    fun isMutable(): Boolean
+    fun getTree(): BTreeBase
+    fun getDupCount(): Long
+    fun isDupLeaf(): Boolean
 
     companion object {
         val EMPTY: ILeafNode = object : ILeafNode {
@@ -40,12 +40,11 @@ interface ILeafNode : INode {
                 return false
             }
 
-            override val key: ByteIterable
-                get() = ByteIterable.EMPTY
-            override val value: ByteIterable
-                get() = ByteIterable.EMPTY
-            override val address: Long
-                get() = Loggable.NULL_ADDRESS
+            override fun getKey(): ByteIterable = ByteIterable.EMPTY
+
+            override fun getValue(): ByteIterable? = ByteIterable.EMPTY
+
+            override fun getAddress(): Long = Loggable.NULL_ADDRESS
 
             override fun compareKeyTo(iterable: ByteIterable): Int {
                 throw UnsupportedOperationException()
@@ -63,18 +62,15 @@ interface ILeafNode : INode {
                 throw UnsupportedOperationException()
             }
 
-            override val isDup: Boolean
-                get() = false
-            override val isMutable: Boolean
-                get() = false
-            override val tree: BTreeBase
-                get() {
-                    throw UnsupportedOperationException()
-                }
-            override val dupCount: Long
-                get() = 0
-            override val isDupLeaf: Boolean
-                get() = false
+            override fun isDup(): Boolean = false
+
+            override fun isMutable(): Boolean = false
+
+            override fun getTree(): BTreeBase = throw UnsupportedOperationException()
+
+            override fun getDupCount(): Long = 0
+
+            override fun isDupLeaf(): Boolean = false
 
             override fun dump(out: PrintStream, level: Int, renderer: Dumpable.ToString?) {
                 out.println("Empty leaf node")

@@ -26,16 +26,16 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
     fun testDeleteNoDuplicates() {
         treeMutable = createMutableTree(false, 1)
         treeMutable!!.put(kv(1, "1"))
-        Assert.assertEquals(1, treeMutable!!.size)
+        Assert.assertEquals(1, treeMutable!!.size())
         Assert.assertEquals(value("1"), treeMutable!![key(1)])
         Assert.assertFalse(treeMutable!!.delete(key(2)))
         Assert.assertTrue(treeMutable!!.delete(key(1)))
-        Assert.assertEquals(0, treeMutable!!.size)
+        Assert.assertEquals(0, treeMutable!!.size())
         Assert.assertNull(treeMutable!![key(1)])
         val a = saveTree()
         reopen()
         tree = openTree(a, false)
-        Assert.assertEquals(0, treeMutable!!.size)
+        Assert.assertEquals(0, treeMutable!!.size())
         Assert.assertNull(treeMutable!![key(1)])
     }
 
@@ -48,20 +48,20 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
         var a = saveTree()
         reopen()
         tree = openTree(a, false)
-        treeMutable = tree!!.mutableCopy
-        Assert.assertEquals(3, treeMutable!!.size)
+        treeMutable = tree!!.getMutableCopy()
+        Assert.assertEquals(3, treeMutable!!.size())
         Assert.assertEquals(value("1"), treeMutable!![key("1")])
         Assert.assertEquals(value("11"), treeMutable!![key("11")])
         Assert.assertEquals(value("111"), treeMutable!![key("111")])
         Assert.assertFalse(treeMutable!!.delete(key(2)))
         Assert.assertTrue(treeMutable!!.delete(key("111")))
         Assert.assertTrue(treeMutable!!.delete(key("11")))
-        Assert.assertEquals(1, treeMutable!!.size)
+        Assert.assertEquals(1, treeMutable!!.size())
         Assert.assertNull(treeMutable!![key("11")])
         a = saveTree()
         reopen()
         tree = openTree(a, false)
-        Assert.assertEquals(1, treeMutable!!.size)
+        Assert.assertEquals(1, treeMutable!!.size())
         Assert.assertNull(treeMutable!![key("111")])
         Assert.assertNull(treeMutable!![key("11")])
         valueEquals("1", treeMutable!![key("1")])
@@ -71,7 +71,7 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
     fun testDeleteNotExistingKey() {
         treeMutable = createMutableTree(false, 1)
         treeMutable!!.put(kv(1, "1"))
-        Assert.assertEquals(1, treeMutable!!.size)
+        Assert.assertEquals(1, treeMutable!!.size())
         Assert.assertEquals(value("1"), treeMutable!![key(1)])
         Assert.assertFalse(treeMutable!!.delete(key(-1)))
         Assert.assertFalse(treeMutable!!.delete(key(-2)))
@@ -81,12 +81,12 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
         Assert.assertFalse(treeMutable!!.delete(key(1)))
         Assert.assertFalse(treeMutable!!.delete(key(-1)))
         Assert.assertFalse(treeMutable!!.delete(key(-2)))
-        Assert.assertEquals(0, treeMutable!!.size)
+        Assert.assertEquals(0, treeMutable!!.size())
         Assert.assertNull(treeMutable!![key(1)])
         val a = saveTree()
         reopen()
         tree = openTree(a, false)
-        Assert.assertEquals(0, tree!!.size)
+        Assert.assertEquals(0, tree!!.size())
         Assert.assertNull(tree!![key(1)])
         Assert.assertNull(tree!![key(-1)])
         Assert.assertNull(tree!![key(2)])
@@ -98,7 +98,7 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
         treeMutable!!.put(kv(1, "1"))
         treeMutable!!.put(kv(11, "1"))
         treeMutable!!.put(kv(111, "1"))
-        Assert.assertEquals(3, treeMutable!!.size)
+        Assert.assertEquals(3, treeMutable!!.size())
         Assert.assertEquals(value("1"), treeMutable!![key(1)])
         Assert.assertFalse(treeMutable!!.delete(key(-1)))
         Assert.assertFalse(treeMutable!!.delete(key(-2)))
@@ -112,12 +112,12 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
         Assert.assertFalse(treeMutable!!.delete(key(111)))
         Assert.assertFalse(treeMutable!!.delete(key(-1)))
         Assert.assertFalse(treeMutable!!.delete(key(-2)))
-        Assert.assertEquals(0, treeMutable!!.size)
+        Assert.assertEquals(0, treeMutable!!.size())
         Assert.assertNull(treeMutable!![key(1)])
         val a = saveTree()
         reopen()
         tree = openTree(a, false)
-        Assert.assertEquals(0, tree!!.size)
+        Assert.assertEquals(0, tree!!.size())
         Assert.assertNull(tree!![key(1)])
         Assert.assertNull(tree!![key(-1)])
         Assert.assertNull(tree!![key(2)])
@@ -142,7 +142,7 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
         var address = saveTree()
         reopen()
         tree = openTree(address, false)
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         TestUtil.time("Delete took ") {
             for (i in 0 until count) {
                 val key: Int = abs(RANDOM!!.nextInt())
@@ -155,13 +155,13 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
         address = saveTree()
         reopen()
         tree = openTree(address, false)
-        Assert.assertEquals(map.size.toLong(), tree!!.size)
+        Assert.assertEquals(map.size.toLong(), tree!!.size())
         TestUtil.time("Get took ") {
             for ((key, value) in map) {
                 valueEquals(value, tree!![key(key.toString())])
             }
         }
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         TestUtil.time("Missing get took ") {
             for (i in 0 until count) {
                 val key: Int = abs(RANDOM!!.nextInt())

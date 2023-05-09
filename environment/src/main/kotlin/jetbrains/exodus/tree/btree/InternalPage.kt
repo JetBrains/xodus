@@ -58,8 +58,7 @@ internal class InternalPage : BasePageImmutable {
         return tree.loadPage(getChildAddress(index))
     }
 
-    override val isBottom: Boolean
-        get() = false
+    override fun isBottom(): Boolean = false
 
     override fun get(key: ByteIterable): ILeafNode? {
         return Companion[key, this]
@@ -88,17 +87,16 @@ internal class InternalPage : BasePageImmutable {
         return index >= 0 && (getChildAddress(index) == pageAddress || getChild(index).childExists(key, pageAddress))
     }
 
-    override val bottomPagesCount: Long
-        get() {
-            var result: Long = 0
-            for (i in 0 until size) {
-                result += getChild(i).bottomPagesCount
-            }
-            return result
+    override fun getBottomPagesCount(): Long {
+        var result: Long = 0
+        for (i in 0 until size) {
+            result += getChild(i).getBottomPagesCount()
         }
+        return result
+    }
 
     override fun toString(): String {
-        return "Internal [$size] @ " + (dataAddress -
+        return "Internal [$size] @ " + (getDataAddress() -
                 getIterable((size shl 1).toLong()).length - 2)
     }
 
@@ -107,12 +105,12 @@ internal class InternalPage : BasePageImmutable {
     }
 
     fun reclaim(keyIterable: ByteIterable?, context: BTreeReclaimTraverser) {
-        if (context.currentNode.dataAddress != dataAddress) {
+        if (context.currentNode.getDataAddress() != getDataAddress()) {
             // go up
             if (context.canMoveUp()) {
                 while (true) {
                     context.popAndMutate()
-                    if (context.currentNode.dataAddress == dataAddress) {
+                    if (context.currentNode.getDataAddress() == getDataAddress()) {
                         doReclaim(context)
                         return
                     }
@@ -131,7 +129,7 @@ internal class InternalPage : BasePageImmutable {
             }
             // go down
             while (context.canMoveDown()) {
-                if (context.currentNode.dataAddress == dataAddress) {
+                if (context.currentNode.getDataAddress() == getDataAddress()) {
                     doReclaim(context)
                     return
                 }

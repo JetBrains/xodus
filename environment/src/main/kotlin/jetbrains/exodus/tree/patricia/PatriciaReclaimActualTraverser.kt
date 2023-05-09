@@ -15,8 +15,9 @@
  */
 package jetbrains.exodus.tree.patricia
 
-internal class PatriciaReclaimActualTraverser(val mainTree: PatriciaTreeMutable) :
+internal class PatriciaReclaimActualTraverser(@JvmField val mainTree: PatriciaTreeMutable) :
     PatriciaTraverser(mainTree, mainTree.root) {
+    @JvmField
     var wasReclaim = false
 
     init {
@@ -26,20 +27,20 @@ internal class PatriciaReclaimActualTraverser(val mainTree: PatriciaTreeMutable)
     fun popAndMutate() {
         --top
         val topItr = stack[top]!!
-        val parentNode = topItr.parentNode
-        if (currentNode.isMutable) {
-            val pos = topItr.index
+        val parentNode = topItr.getParentNode()
+        if (currentNode.isMutable()) {
+            val pos = topItr.getIndex()
             val parentNodeMutable = parentNode!!.getMutableCopy(mainTree)
             parentNodeMutable.setChild(pos, (currentNode as MutableNode))
-            currentNode = parentNodeMutable
+            updateCurrentNode(parentNodeMutable)
             currentChild = parentNodeMutable.getRef(pos)
             // mutate iterator to boost performance
-            currentIterator = if (parentNode.isMutable) topItr else parentNodeMutable.getChildren(pos)
+            currentIterator = if (parentNode.isMutable()) topItr else parentNodeMutable.getChildren(pos)
             // currentIterator = topItr;
         } else {
-            currentNode = parentNode!!
+            updateCurrentNode(parentNode!!)
             currentIterator = topItr
-            currentChild = topItr.node
+            currentChild = topItr.getNode()
         }
         stack[top] = null // help gc
     }

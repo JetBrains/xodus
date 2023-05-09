@@ -19,9 +19,11 @@ import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.bindings.LongBinding
 
 class ArrayByteIterableWithAddress(
-    override val dataAddress: Long, bytes: ByteArray,
+    private val dataAddress: Long, bytes: ByteArray,
     start: Int, length: Int
 ) : ArrayByteIterable(bytes, start, length), ByteIterableWithAddress {
+
+    override fun getDataAddress(): Long = dataAddress
 
     override fun nextLong(offset: Int, length: Int): Long {
         val start = this.offset + offset
@@ -33,21 +35,20 @@ class ArrayByteIterableWithAddress(
         return result
     }
 
-    override val compressedUnsignedInt: Int
-        get() {
-            var result = 0
-            var shift = 0
-            var i = offset
-            while (true) {
-                val b = bytes[i]
-                result += b.toInt() and 0x7f shl shift
-                if (b.toInt() and 0x80 != 0) {
-                    return result
-                }
-                shift += 7
-                ++i
+    override fun getCompressedUnsignedInt(): Int {
+        var result = 0
+        var shift = 0
+        var i = offset
+        while (true) {
+            val b = bytes[i]
+            result += b.toInt() and 0x7f shl shift
+            if (b.toInt() and 0x80 != 0) {
+                return result
             }
+            shift += 7
+            ++i
         }
+    }
 
     override fun iterator(): ArrayByteIteratorWithAddress {
         return ArrayByteIteratorWithAddress(bytes, offset, length)

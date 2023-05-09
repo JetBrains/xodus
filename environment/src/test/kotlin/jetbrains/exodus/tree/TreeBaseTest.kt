@@ -43,6 +43,7 @@ abstract class TreeBaseTest<T : ITree, MT : ITreeMutable> {
 
     protected abstract fun createMutableTree(hasDuplicates: Boolean, structureId: Int): MT?
     protected abstract fun openTree(address: Long, hasDuplicates: Boolean): ITree?
+
     @Before
     fun start() {
         val userHome = System.getProperty("user.home")
@@ -203,9 +204,9 @@ abstract class TreeBaseTest<T : ITree, MT : ITreeMutable> {
         }
 
         fun checkEmptyTree(bt: ITree) {
-            Assert.assertEquals(log, bt.log)
-            Assert.assertTrue(bt.isEmpty)
-            Assert.assertEquals(0, bt.size)
+            Assert.assertEquals(log, bt.getLog())
+            Assert.assertTrue(bt.isEmpty())
+            Assert.assertEquals(0, bt.size())
             Assert.assertNull(bt[ByteIterable.EMPTY])
             Assert.assertNull(bt[key("some key")])
             Assert.assertFalse(bt.openCursor().next)
@@ -243,14 +244,14 @@ abstract class TreeBaseTest<T : ITree, MT : ITreeMutable> {
 
         fun assertMatchesIterator(actual: ITree, checkExists: Boolean, vararg expected: INode) {
             val it1 = actual.openCursor()
-            val act: MutableList<INode> = ArrayList(actual.size.toInt())
+            val act: MutableList<INode> = ArrayList(actual.size().toInt())
             while (it1.next) {
                 act.add(LeafNodeKV(it1.key, it1.value))
             }
             Assert.assertArrayEquals(expected, act.toTypedArray<INode>())
             if (checkExists) {
                 for (leafNode in expected) {
-                    Assert.assertTrue(actual.hasPair(leafNode.key, leafNode.value!!))
+                    Assert.assertTrue(actual.hasPair(leafNode.getKey(), leafNode.getValue()!!))
                 }
             }
         }

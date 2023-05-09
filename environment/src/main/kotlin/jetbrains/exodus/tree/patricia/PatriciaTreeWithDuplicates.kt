@@ -26,7 +26,7 @@ import jetbrains.exodus.tree.ITreeCursor
 import jetbrains.exodus.tree.ITreeMutable
 import jetbrains.exodus.tree.LongIterator
 
-open class PatriciaTreeWithDuplicates : PatriciaTreeDecorator {
+internal open class PatriciaTreeWithDuplicates : PatriciaTreeDecorator {
     @JvmOverloads
     constructor(
         log: Log,
@@ -58,8 +58,7 @@ open class PatriciaTreeWithDuplicates : PatriciaTreeDecorator {
         return treeNoDuplicates.hasKey(getEscapedKeyValue(key, value))
     }
 
-    override val mutableCopy: ITreeMutable
-        get() = PatriciaTreeWithDuplicatesMutable(treeNoDuplicates.mutableCopy)
+    override fun getMutableCopy(): ITreeMutable = PatriciaTreeWithDuplicatesMutable(treeNoDuplicates.getMutableCopy())
 
     override fun openCursor(): ITreeCursor {
         return PatriciaCursorDecorator(treeNoDuplicates.openCursor())

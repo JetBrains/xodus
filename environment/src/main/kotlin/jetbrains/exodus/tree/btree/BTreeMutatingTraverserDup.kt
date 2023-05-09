@@ -15,15 +15,15 @@
  */
 package jetbrains.exodus.tree.btree
 
-class BTreeMutatingTraverserDup private constructor(protected val mainTree: BTreeMutable) :
-    BTreeTraverserDup(mainTree.root) {
+class BTreeMutatingTraverserDup private constructor(private val mainTree: BTreeMutable) :
+    BTreeTraverserDup(mainTree.getRoot()) {
     override fun pushChild(topPos: TreePos, child: BasePage, pos: Int): ILeafNode? {
         return super.pushChild(topPos, child.getMutableCopy(mainTree), pos)
     }
 
     companion object {
         fun create(mainTree: BTreeBase): BTreeMutatingTraverserDup {
-            return BTreeMutatingTraverserDup(mainTree.mutableCopy)
+            return BTreeMutatingTraverserDup(mainTree.getMutableCopy())
         }
     }
 }

@@ -36,7 +36,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
     }
 
     override fun treeAddress(): Long {
-        return tree.rootAddress
+        return tree.getRootAddress()
     }
 
     override fun rootAddress(): Long {
@@ -59,7 +59,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
 
     val allStoreCount: Long
         get() {
-            val size = tree.size
+            val size = tree.size()
             if (size % 2L != 0L) {
                 logger.error("MetaTree size is not even")
             }
@@ -68,7 +68,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
     val allStoreNames: List<String>
         get() {
             val tree = tree
-            if (tree.size == 0L) {
+            if (tree.size() == 0L) {
                 return emptyList()
             }
             val result: MutableList<String> = ArrayList()
@@ -130,13 +130,13 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
                     null
                 }
                 if (rootLoggable != null) {
-                    val root = rootLoggable.address
+                    val root = rootLoggable.getAddress()
                     var dbRoot: DatabaseRoot? = null
                     try {
                         dbRoot = DatabaseRoot(rootLoggable)
                     } catch (e: ExodusException) {
                         EnvironmentImpl.loggerError(
-                            "Failed to load database root at " + rootLoggable.address,
+                            "Failed to load database root at " + rootLoggable.getAddress(),
                             e
                         )
                     }
@@ -168,7 +168,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
             val root: Long
             log.beginWrite()
             try {
-                val rootAddress = resultTree.mutableCopy.save()
+                val rootAddress = resultTree.getMutableCopy().save()
                 root = log.write(
                     DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
                     DatabaseRoot.asByteIterable(rootAddress, EnvironmentImpl.META_TREE_ID), expired
@@ -208,7 +208,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
             treeMutable: ITreeMutable
         ) {
             val treeRootAddress = treeMutable.save()
-            val structureId = treeMutable.structureId
+            val structureId = treeMutable.getStructureId()
             out.put(
                 LongBinding.longToCompressedEntry(structureId.toLong()),
                 CompressedUnsignedLongByteIterable.getIterable(treeRootAddress)
@@ -246,7 +246,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
 
         fun cloneTree(tree: ITree): ITreeMutable {
             tree.openCursor().use { cursor ->
-                val result = tree.mutableCopy
+                val result = tree.getMutableCopy()
                 while (cursor.next) {
                     result.put(cursor.key, cursor.value)
                 }

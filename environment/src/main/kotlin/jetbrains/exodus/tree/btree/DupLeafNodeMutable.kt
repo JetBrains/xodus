@@ -23,26 +23,26 @@ import jetbrains.exodus.tree.ITree
 /**
  * Stateful leaf node for mutable tree of duplicates
  */
-internal class DupLeafNodeMutable(override val key: ByteIterable, private val dupTree: BTreeDupMutable) :
+internal class DupLeafNodeMutable(private val key: ByteIterable, private val dupTree: BTreeDupMutable) :
     BaseLeafNodeMutable() {
-    override var address = Loggable.NULL_ADDRESS
-        private set
-    override val isDupLeaf: Boolean
-        get() = true
-    override val value: ByteIterable
-        get() = dupTree.key
+    private var address = Loggable.NULL_ADDRESS
+
+    override fun isDupLeaf(): Boolean = true
+    override fun getValue(): ByteIterable = dupTree.key
+    override fun getAddress(): Long = address
+    override fun getKey(): ByteIterable = key
 
     override fun save(tree: ITree): Long {
         check(address == Loggable.NULL_ADDRESS) { "Leaf already saved" }
-        address = tree.log.write(
-            (tree as BTreeMutable).leafType,
+        address = tree.getLog().write(
+            (tree as BTreeMutable).getLeafType(),
             tree.structureId,
             CompoundByteIterable(
                 arrayOf(
                     getIterable(key.length.toLong()),
                     key
                 )
-            ), dupTree.expiredLoggables
+            ), dupTree.getExpiredLoggables()
         )
         return address
     }

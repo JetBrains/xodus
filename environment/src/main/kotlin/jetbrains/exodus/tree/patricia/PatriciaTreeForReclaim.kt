@@ -17,7 +17,7 @@ package jetbrains.exodus.tree.patricia
 
 import jetbrains.exodus.log.Log
 
-class PatriciaTreeForReclaim(log: Log, rootAddress: Long, structureId: Int) :
+internal class PatriciaTreeForReclaim(log: Log, rootAddress: Long, structureId: Int) :
     PatriciaTree(log, rootAddress, structureId) {
     var backRef: Long = 0
         private set

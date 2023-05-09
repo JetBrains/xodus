@@ -29,7 +29,7 @@ import java.util.*
 abstract class TreeCursorNoDuplicatesTest : CursorTestBase() {
     @Before
     fun prepareTree() {
-        treeMutable = createMutableTree(false, 1)!!.mutableCopy
+        treeMutable = createMutableTree(false, 1)!!.getMutableCopy()
         for (i in 0 until s) {
             treeMutable!!.put(kv(i, "v$i"))
         }
@@ -39,7 +39,7 @@ abstract class TreeCursorNoDuplicatesTest : CursorTestBase() {
     fun testOneNode() {
         treeMutable = createMutableTree(false, 1)
         treeMutable!!.put(kv(1, "v1"))
-        Assert.assertEquals(1, treeMutable!!.size)
+        Assert.assertEquals(1, treeMutable!!.size())
         val cursor = treeMutable!!.openCursor()
         Assert.assertTrue(cursor.next)
         Assert.assertFalse(cursor.next)
@@ -254,7 +254,7 @@ abstract class TreeCursorNoDuplicatesTest : CursorTestBase() {
 
     @Test
     fun testGetSearchBothRange2() {
-        treeMutable = treeMutable!!.mutableCopy
+        treeMutable = treeMutable!!.getMutableCopy()
         treeMutable!!.put(key("10"), value("v10"))
         treeMutable!!.put(key("20"), value("v20"))
         treeMutable!!.put(key("30"), value("v30"))
@@ -319,23 +319,23 @@ abstract class TreeCursorNoDuplicatesTest : CursorTestBase() {
             treeMutable!!.put(kv)
             treeMutable!!.openCursor().use { c ->
                 Assert.assertTrue(c.last)
-                Assert.assertEquals(kv.key, c.key)
-                Assert.assertEquals(kv.value, c.value)
+                Assert.assertEquals(kv.getKey(), c.key)
+                Assert.assertEquals(kv.getValue(), c.value)
                 if (i > 0) {
                     Assert.assertTrue(c.prev)
-                    Assert.assertNotEquals(kv.key, c.key)
-                    Assert.assertNotEquals(kv.value, c.value)
+                    Assert.assertNotEquals(kv.getKey(), c.key)
+                    Assert.assertNotEquals(kv.getValue(), c.value)
                 }
                 Assert.assertTrue(c.last)
-                Assert.assertEquals(kv.key, c.key)
-                Assert.assertEquals(kv.value, c.value)
+                Assert.assertEquals(kv.getKey(), c.key)
+                Assert.assertEquals(kv.getValue(), c.value)
             }
         }
     }
 
     @Test
     fun testSplitRange() {
-        treeMutable = treeMutable!!.mutableCopy
+        treeMutable = treeMutable!!.getMutableCopy()
         treeMutable!!.put(key("aaabbb"), value("v10"))
         treeMutable!!.put(key("aaaddd"), value("v20"))
         val c: Cursor = treeMutable!!.openCursor()

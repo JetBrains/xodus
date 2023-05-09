@@ -20,10 +20,19 @@ import jetbrains.exodus.tree.*
 import java.util.*
 
 open class BTreeTraverser : TreeTraverser {
+    @JvmField
     protected var stack = arrayOfNulls<TreePos>(8)
+
+    @JvmField
     var top = 0
+
+    @JvmField
     var currentNode: BasePage
+
+    @JvmField
     var node: ILeafNode = ILeafNode.EMPTY
+
+    @JvmField
     var currentPos = 0
 
     constructor(currentNode: BasePage) {
@@ -45,35 +54,31 @@ open class BTreeTraverser : TreeTraverser {
         }
     }
 
-    override val isNotEmpty: Boolean
-        get() = currentNode.size > 0
-    override val key: ByteIterable
-        get() = node.key
-    override val value: ByteIterable
-        get() = node.value ?: throw NullPointerException()
+    override fun isNotEmpty(): Boolean = currentNode.size > 0
+    override fun getKey(): ByteIterable = node.getKey()
+    override fun getValue(): ByteIterable = node.getValue() ?: throw NullPointerException()
 
     override fun hasValue(): Boolean {
         return node.hasValue()
     }
 
     override fun moveDown(): INode {
-        return pushChild(TreePos(currentNode, currentPos), childForMoveDown!!, 0).also { node = it!! }!!
+        return pushChild(TreePos(currentNode, currentPos), getChildForMoveDown()!!, 0).also { node = it!! }!!
     }
 
     override fun moveDownToLast(): INode {
-        val child = childForMoveDown
+        val child = getChildForMoveDown()
         return pushChild(TreePos(currentNode, currentPos), child!!, child.size - 1).also { node = it!! }!!
     }
 
-    protected open val childForMoveDown: BasePage?
-        get() = currentNode.getChild(currentPos)
+    protected open fun getChildForMoveDown(): BasePage? = currentNode.getChild(currentPos)
 
     protected open fun pushChild(topPos: TreePos, child: BasePage, pos: Int): ILeafNode? {
         setAt(top, topPos)
         currentNode = child
         currentPos = pos
         ++top
-        return if (child.isBottom) {
+        return if (child.isBottom()) {
             handleLeaf(child.getKey(pos))
         } else {
             ILeafNode.EMPTY
@@ -127,7 +132,7 @@ open class BTreeTraverser : TreeTraverser {
 
     override fun moveRight(): INode {
         ++currentPos
-        return if (currentNode.isBottom) {
+        return if (currentNode.isBottom()) {
             handleLeafR(currentNode.getKey(currentPos)).also { node = it!! }!!
         } else {
             ILeafNode.EMPTY.also { node = it }
@@ -148,22 +153,21 @@ open class BTreeTraverser : TreeTraverser {
 
     override fun moveLeft(): INode {
         --currentPos
-        return if (currentNode.isBottom) {
+        return if (currentNode.isBottom()) {
             handleLeafL(currentNode.getKey(currentPos)).also { node = it!! }!!
         } else {
             ILeafNode.EMPTY.also { node = it }
         }
     }
 
-    override val currentAddress: Long
-        get() = currentNode.getChildAddress(currentPos)
+    override fun getCurrentAddress(): Long = currentNode.getChildAddress(currentPos)
 
     override fun canMoveUp(): Boolean {
         return top != 0
     }
 
     override fun canMoveDown(): Boolean {
-        return !currentNode.isBottom
+        return !currentNode.isBottom()
     }
 
     override fun reset(root: MutableTreeRoot) {
@@ -202,20 +206,21 @@ open class BTreeTraverser : TreeTraverser {
         if (result == null) {
             return false
         }
-        node = if (result.isDupLeaf) LeafNodeKV(result.value!!, result.key) else result
+        node = if (result.isDupLeaf()) LeafNodeKV(result.getValue()!!, result.getKey()) else result
         return true
     }
 
-    override val tree: BTreeBase
-        get() = (if (top == 0) currentNode else stack[0]!!.node).tree
-    open val isDup: Boolean
-        get() = false
+    override fun getTree(): BTreeBase = (if (top == 0) currentNode else stack[0]!!.node).tree
+    open fun isDup(): Boolean = false
 
     operator fun iterator(): PageIterator { // for testing purposes
         return object : PageIterator {
-            var index = 0
-            override var pos = 0
-            var currentIteratorNode: BasePage? = null
+            private var index = 0
+            private var pos = 0
+            private var currentIteratorNode: BasePage? = null
+
+            override fun getPos() = pos
+
             override fun hasNext(): Boolean {
                 return index <= top // equality means we should return current
             }
@@ -246,19 +251,17 @@ open class BTreeTraverser : TreeTraverser {
     }
 
     interface PageIterator : MutableIterator<BasePage?> {
-        val pos: Int
+        fun getPos(): Int
     }
 
     companion object {
         // for tests only
-        @JvmStatic
         fun isInDupMode(addressIterator: AddressIterator): Boolean {
             // hasNext() updates 'inDupTree'
             return addressIterator.hasNext() && (addressIterator.traverser as BTreeTraverserDup).inDupTree
         }
 
         // for tests only
-        @JvmStatic
         fun getTraverserNoDup(addressIterator: AddressIterator): BTreeTraverser {
             return BTreeTraverser(addressIterator.traverser as BTreeTraverser)
         }

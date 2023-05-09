@@ -41,7 +41,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
         Companion.valueEquals("1", treeMutable!![key("1")])
         treeMutable!!.put(key("1"), value("11"))
         Companion.valueEquals("11", treeMutable!![key("1")])
-        Assert.assertEquals(1, treeMutable!!.size)
+        Assert.assertEquals(1, treeMutable!!.size())
         Assert.assertTrue(treeMutable!!.hasKey(key("1")))
         Assert.assertFalse(treeMutable!!.hasKey(key("2")))
         Assert.assertTrue(treeMutable!!.hasPair(key("1"), value("11")))
@@ -55,7 +55,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
         Companion.valueEquals("1", treeMutable!![key("1")])
         Assert.assertTrue(treeMutable!!.put(key("1"), value("11")))
         Companion.valueEquals("1", treeMutable!![key("1")])
-        Assert.assertEquals(2, treeMutable!!.size)
+        Assert.assertEquals(2, treeMutable!!.size())
         Assert.assertFalse(treeMutable!!.put(key("1"), value("11")))
     }
 
@@ -66,7 +66,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
         Companion.valueEquals("1", treeMutable!![key("1")])
         Assert.assertFalse(treeMutable!!.add(key("1"), value("11")))
         Companion.valueEquals("1", treeMutable!![key("1")])
-        Assert.assertEquals(1, treeMutable!!.size)
+        Assert.assertEquals(1, treeMutable!!.size())
         Assert.assertTrue(treeMutable!!.hasKey(key("1")))
         Assert.assertFalse(treeMutable!!.hasKey(key("2")))
         Assert.assertFalse(treeMutable!!.hasPair(key("1"), value("11")))
@@ -106,7 +106,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
                 value((count - i).toString())
             )
         }
-        Assert.assertEquals(count.toLong(), treeMutable!!.size)
+        Assert.assertEquals(count.toLong(), treeMutable!!.size())
         for (i in 0 until count) {
             Companion.valueEquals(
                 (count - i).toString(),
@@ -157,7 +157,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
         tree = openTree(address, false)
         Companion.valueEquals("1", tree!![key("1")])
         Companion.valueEquals("1", tree!![key("2")])
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         treeMutable!!.put(key("2"), value("2"))
         address = saveTree()
         reopen()
@@ -206,11 +206,11 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
             treeMutable!!.putRight(IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i))
             if (i % 32 == 0) {
                 val address = saveTree()
-                treeMutable = openTree(address, false)!!.mutableCopy
+                treeMutable = openTree(address, false)!!.getMutableCopy()
             }
         }
         val address = saveTree()
-        treeMutable = openTree(address, false)!!.mutableCopy
+        treeMutable = openTree(address, false)!!.getMutableCopy()
         val cursor = treeMutable!!.openCursor()
         for (i in 0 until count) {
             Assert.assertTrue(cursor.next)
@@ -256,7 +256,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
             treeMutable!!.putRight(LongBinding.longToCompressedEntry(i), LongBinding.longToCompressedEntry(i))
             val address = saveTree()
             reopen()
-            treeMutable = openTree(address, false)!!.mutableCopy
+            treeMutable = openTree(address, false)!!.getMutableCopy()
         }
         treeMutable!!.putRight(LongBinding.longToCompressedEntry(count), LongBinding.longToCompressedEntry(count))
     }
@@ -269,7 +269,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
             treeMutable!!.putRight(IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i))
             val address = saveTree()
             reopen()
-            treeMutable = openTree(address, false)!!.mutableCopy
+            treeMutable = openTree(address, false)!!.getMutableCopy()
         }
         treeMutable!!.putRight(IntegerBinding.intToCompressedEntry(count), IntegerBinding.intToCompressedEntry(count))
     }
@@ -311,7 +311,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
                 map.put(key, value)
             }
         }
-        Assert.assertEquals(map.size.toLong(), treeMutable!!.size)
+        Assert.assertEquals(map.size.toLong(), treeMutable!!.size())
         TestUtil.time("get()") {
             for ((key, value) in map) {
                 Companion.valueEquals(value, treeMutable!![key(key.toString())])
@@ -335,7 +335,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
         val address = saveTree()
         reopen()
         tree = openTree(address, false)
-        Assert.assertEquals(map.size.toLong(), tree!!.size)
+        Assert.assertEquals(map.size.toLong(), tree!!.size())
         TestUtil.time("get()") {
             for ((key, value) in map) {
                 Companion.valueEquals(value, tree!![key(key.toString())])
@@ -358,7 +358,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
         val address = saveTree()
         reopen()
         tree = openTree(address, false)
-        Assert.assertEquals(map.size.toLong(), tree!!.size)
+        Assert.assertEquals(map.size.toLong(), tree!!.size())
         TestUtil.time("get()") {
             for ((key, value) in map) {
                 Companion.valueEquals(value, tree!![key(key)])
@@ -387,13 +387,13 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
         val address = saveTree()
         reopen()
         tree = openTree(address, false)
-        Assert.assertEquals(map.size.toLong(), tree!!.size)
+        Assert.assertEquals(map.size.toLong(), tree!!.size())
         TestUtil.time("get()") {
             for ((key, value) in map) {
                 Companion.valueEquals(value, tree!![key(key.toString())])
             }
         }
-        treeMutable = tree!!.mutableCopy
+        treeMutable = tree!!.getMutableCopy()
         TestUtil.time("Failing add()") {
             for ((key, value) in map) {
                 Assert.assertFalse(
@@ -427,10 +427,10 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
             }
         }
         val address = saveTree()
-        println("Log size: " + treeMutable!!.log.highAddress)
+        println("Log size: " + treeMutable!!.getLog().highAddress)
         reopen()
         tree = openTree(address, false)
-        Assert.assertEquals(set.size.toLong(), tree!!.size)
+        Assert.assertEquals(set.size.toLong(), tree!!.size())
         TestUtil.time("get()") {
             for (i in set) {
                 Assert.assertTrue(tree!!.hasKey(key(i!!.toString())))

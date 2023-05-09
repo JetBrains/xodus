@@ -26,8 +26,13 @@ import jetbrains.exodus.tree.TreeCursor
 import jetbrains.exodus.util.LightOutputStream
 
 internal class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMutable(dupTree, null) {
+    @JvmField
     var mainTree: BTreeMutable? = null
+
+    @JvmField
     var key: ByteIterable
+
+    @JvmField
     var address = Loggable.NULL_ADDRESS
 
     init {
@@ -55,17 +60,17 @@ internal class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMut
 
     override fun save(): Long {
         check(address == Loggable.NULL_ADDRESS) { "Duplicates sub-tree already saved" }
-        val rootPage: BasePageMutable = root
+        val rootPage: BasePageMutable = getRoot()
         val type: Byte =
-            if (rootPage.isBottom) LEAF_DUP_BOTTOM_ROOT else LEAF_DUP_INTERNAL_ROOT
+            if (rootPage.isBottom()) LEAF_DUP_BOTTOM_ROOT else LEAF_DUP_INTERNAL_ROOT
         val keyIterable = getIterable(key.length.toLong())
         var sizeIterable: ByteIterable
         var startAddress = log.writtenHighAddress // remember high address before saving the data
-        val rootDataIterable = rootPage.data
+        val rootDataIterable = rootPage.getData()
         var iterables: Array<ByteIterable?>
         var result: Long
         val canRetry: Boolean
-        val expired = expiredLoggables
+        val expired = getExpiredLoggables()
         if (log.isLastWrittenFileAddress(startAddress)) {
             sizeIterable = getIterable(size shl 1)
             iterables = arrayOf(keyIterable, key, sizeIterable, rootDataIterable)
@@ -113,12 +118,9 @@ internal class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMut
         return result
     }
 
-    override val leafStream: LightOutputStream?
-        get() = mainTree!!.leafStream
-    override val expiredLoggables: ExpiredLoggableCollection
-        get() = mainTree!!.expiredLoggables
-    override val openCursors: Iterable<ITreeCursorMutable>?
-        get() = throwCantOpenCursor<Iterable<ITreeCursorMutable>>()
+    override fun getLeafStream(): LightOutputStream? = mainTree!!.getLeafStream()
+    override fun getExpiredLoggables(): ExpiredLoggableCollection = mainTree!!.getExpiredLoggables()
+    override fun getOpenCursors(): Iterable<ITreeCursorMutable>? = throwCantOpenCursor<Iterable<ITreeCursorMutable>>()
 
     override fun openCursor(): TreeCursor {
         return throwCantOpenCursor<TreeCursor>()!!
@@ -128,30 +130,26 @@ internal class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMut
         throwCantOpenCursor<Any>()
     }
 
-    override val bottomPageType: Byte
-        get() = DUP_BOTTOM
-    override val internalPageType: Byte
-        get() = DUP_INTERNAL
-    override val leafType: Byte
-        get() = DUP_LEAF
-    override val isDup: Boolean
-        get() = true
+    override fun getBottomPageType(): Byte = DUP_BOTTOM
+    override fun getInternalPageType(): Byte = DUP_INTERNAL
+    override fun getLeafType(): Byte = DUP_LEAF
+    override fun isDup(): Boolean = true
 
     override fun loadLeaf(address: Long): LeafNode {
         val loggable = getLoggable(address)
-        return if (loggable.type == DUP_LEAF) {
+        return if (loggable.getType() == DUP_LEAF) {
             object : LeafNode(log, loggable) {
-                override val value: ByteIterable
-                    get() = this@BTreeDupMutable.key
-                override val isDupLeaf: Boolean
-                    get() = true
-
+                override fun getValue(): ByteIterable = this@BTreeDupMutable.key
+                override fun isDupLeaf(): Boolean = true
                 override fun toString(): String {
-                    return "DLN {key:" + key + "} @ " + this.address
+                    return "DLN {key:" + key + "} @ " + this.getAddress()
                 }
             }
         } else {
-            throw IllegalArgumentException("Unexpected loggable type " + loggable.type + " at address " + loggable.address)
+            throw IllegalArgumentException(
+                "Unexpected loggable type " + loggable.getType() +
+                        " at address " + loggable.getAddress()
+            )
         }
     }
 

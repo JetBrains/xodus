@@ -19,9 +19,9 @@ import jetbrains.exodus.ByteIterable
 
 interface TreeTraverser {
     fun init(left: Boolean)
-    val isNotEmpty: Boolean
-    val key: ByteIterable
-    val value: ByteIterable
+    fun isNotEmpty(): Boolean
+    fun getKey(): ByteIterable
+    fun getValue(): ByteIterable
     fun hasValue(): Boolean
     fun canMoveRight(): Boolean
     fun canMoveLeft(): Boolean
@@ -34,8 +34,8 @@ interface TreeTraverser {
     fun moveDownToLast(): INode
     fun compareCurrent(key: ByteIterable): Int
     fun reset(root: MutableTreeRoot)
-    val currentAddress: Long
-    val tree: ITree?
+    fun getCurrentAddress(): Long
+    fun getTree(): ITree?
     fun moveTo(key: ByteIterable, value: ByteIterable?): Boolean
     fun moveToRange(key: ByteIterable, value: ByteIterable?): Boolean
 }

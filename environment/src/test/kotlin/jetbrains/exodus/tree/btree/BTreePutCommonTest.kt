@@ -21,7 +21,7 @@ import jetbrains.exodus.tree.TreePutTest
 
 class BTreePutCommonTest : TreePutTest() {
     override fun createMutableTree(hasDuplicates: Boolean, structureId: Int): ITreeMutable {
-        return BTreeEmpty(log!!, hasDuplicates, structureId).mutableCopy
+        return BTreeEmpty(log!!, hasDuplicates, structureId).getMutableCopy()
     }
 
     override fun openTree(address: Long, hasDuplicates: Boolean): ITree {

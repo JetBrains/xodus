@@ -24,15 +24,20 @@ import jetbrains.exodus.tree.ITree
 import jetbrains.exodus.tree.LongIterator
 import java.io.PrintStream
 
-abstract class PatriciaTreeBase protected constructor(final override val log: Log, structureId: Int) : ITree {
+internal abstract class PatriciaTreeBase protected constructor(
+    @JvmField internal val log: Log,
+    @JvmField internal val structureId: Int
+) : ITree {
     private val dataIterator: DataIterator = DataIterator(log)
-    final override val structureId: Int
-    final override var size: Long = 0
-        protected set
 
-    init {
-        this.structureId = structureId
-    }
+    @JvmField
+    protected var size = 0L
+
+    override fun size(): Long = size
+
+    override fun getStructureId(): Int = structureId
+
+    override fun getLog(): Log = log
 
     override fun getDataIterator(address: Long): DataIterator {
         dataIterator.checkPage(address)
@@ -53,21 +58,20 @@ abstract class PatriciaTreeBase protected constructor(final override val log: Lo
         return get(key) != null
     }
 
-    override val isEmpty: Boolean
-        get() = size == 0L
+    override fun isEmpty(): Boolean = size == 0L
 
     override fun dump(out: PrintStream) {
         dump(out, null)
     }
 
     override fun dump(out: PrintStream, renderer: Dumpable.ToString?) {
-        TreeAwareNodeDecorator(this, this.root!!).dump(out, 0, renderer)
+        TreeAwareNodeDecorator(this, this.getRoot()!!).dump(out, 0, renderer)
     }
 
     override fun addressIterator(): LongIterator {
-        return if (isEmpty) {
+        return if (isEmpty()) {
             LongIterator.EMPTY
-        } else AddressIterator(PatriciaTraverser(this, this.root!!))
+        } else AddressIterator(PatriciaTraverser(this, this.getRoot()!!))
     }
 
     fun getLoggable(address: Long): RandomAccessLoggable {
@@ -76,15 +80,16 @@ abstract class PatriciaTreeBase protected constructor(final override val log: Lo
 
     fun loadNode(address: Long): NodeBase {
         val loggable = getLoggable(address)
-        return if (loggable.isDataInsideSinglePage) {
-            SinglePageImmutableNode(loggable, loggable.data)
-        } else MultiPageImmutableNode(log, loggable, loggable.data)
+        return if (loggable.isDataInsideSinglePage()) {
+            SinglePageImmutableNode(loggable, loggable.getData())
+        } else MultiPageImmutableNode(log, loggable, loggable.getData())
     }
 
-    abstract val root: NodeBase?
+    abstract fun getRoot(): NodeBase?
+
     protected open fun getNode(key: ByteIterable): NodeBase? {
         val it = key.iterator()
-        var node = this.root
+        var node = this.getRoot()
         do {
             if (NodeBase.MatchResult.getMatchingLength(node!!.matchesKeySequence(it)) < 0) {
                 return null

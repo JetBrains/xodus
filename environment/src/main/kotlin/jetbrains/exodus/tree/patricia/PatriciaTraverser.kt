@@ -18,44 +18,57 @@ package jetbrains.exodus.tree.patricia
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.ByteIterableBase
 import jetbrains.exodus.tree.INode
+import jetbrains.exodus.tree.ITree
 import jetbrains.exodus.tree.MutableTreeRoot
 import jetbrains.exodus.tree.TreeTraverser
 import jetbrains.exodus.util.LightOutputStream
 
-internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, currentNode: NodeBase) : TreeTraverser {
+internal open class PatriciaTraverser(private val tree: PatriciaTreeBase, currentNode: NodeBase) : TreeTraverser {
+    @JvmField
     var stack: Array<NodeChildrenIterator?>
+
+    @JvmField
     var top: Int
+
     private var currentValue: ByteIterable? = null
+
+    @JvmField
     var currentChild: ChildReference? = null
+
+    @JvmField
     var currentIterator: NodeChildrenIterator? = null
-    var currentNode: NodeBase = currentNode
-        set(value) {
-            field = value
-            currentValue = value.value
-        }
+
+    @JvmField
+    var currentNode: NodeBase
+    override fun getTree(): ITree? = tree
 
     init {
         this.currentNode = currentNode
+        currentValue = currentNode.getValue()
 
         stack = arrayOfNulls(INITIAL_STACK_CAPACITY)
         top = 0
+    }
+
+    fun updateCurrentNode(currentNode: NodeBase) {
+        this.currentNode = currentNode
+        currentValue = currentNode.getValue()
     }
 
     override fun init(left: Boolean) {
         if (left) {
             itr
         } else {
-            currentIterator = currentNode.childrenLast
-            currentChild = currentIterator!!.node
+            currentIterator = currentNode.getChildrenLast()
+            currentChild = currentIterator!!.getNode()
         }
     }
 
-    override val isNotEmpty: Boolean
-        get() = currentNode.childrenCount > 0
+    override fun isNotEmpty(): Boolean = currentNode.getChildrenCount() > 0
 
     override fun moveDown(): INode {
         stack = pushIterator(stack, currentIterator, top)
-        currentNode = currentChild!!.getNode(tree)
+        updateCurrentNode(currentChild!!.getNode(tree))
         itr
         ++top
         return currentNode
@@ -63,12 +76,12 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
 
     override fun moveDownToLast(): INode {
         stack = pushIterator(stack, currentIterator, top)
-        currentNode = currentChild!!.getNode(tree)
+        updateCurrentNode(currentChild!!.getNode(tree))
 
-        if (currentNode.childrenCount > 0) {
-            val itr = currentNode.childrenLast
+        if (currentNode.getChildrenCount() > 0) {
+            val itr = currentNode.getChildrenLast()
             currentIterator = itr
-            currentChild = itr.node
+            currentChild = itr.getNode()
         } else {
             currentIterator = null
             currentChild = null
@@ -77,21 +90,20 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
         return currentNode
     }
 
-    override val key: ByteIterable
-        get() {
-            if (top == 0) {
-                return if (currentNode.hasValue()) currentNode.key else ByteIterable.EMPTY
-            }
-            val output = LightOutputStream(7)
-            for (i in 0 until top) {
-                ByteIterableBase.fillBytes(stack[i]!!.key!!, output)
-                output.write(stack[i]!!.node!!.firstByte.toInt()) // seems that firstByte isn't mutated
-            }
-            ByteIterableBase.fillBytes(currentNode.key, output)
-            return output.asArrayByteIterable()
+    override fun getKey(): ByteIterable {
+        if (top == 0) {
+            return if (currentNode.hasValue()) currentNode.getKey() else ByteIterable.EMPTY
         }
-    override val value: ByteIterable
-        get() = currentValue ?: ByteIterable.EMPTY
+        val output = LightOutputStream(7)
+        for (i in 0 until top) {
+            ByteIterableBase.fillBytes(stack[i]!!.getKey()!!, output)
+            output.write(stack[i]!!.getNode()!!.firstByte.toInt()) // seems that firstByte isn't mutated
+        }
+        ByteIterableBase.fillBytes(currentNode.getKey(), output)
+        return output.asArrayByteIterable()
+    }
+
+    override fun getValue(): ByteIterable = currentValue ?: ByteIterable.EMPTY
 
     override fun hasValue(): Boolean {
         return currentValue != null
@@ -100,9 +112,9 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
     override fun moveUp() {
         --top
         val topItr = stack[top]
-        currentNode = topItr!!.parentNode!!
+        updateCurrentNode(topItr!!.getParentNode()!!)
         currentIterator = topItr
-        currentChild = topItr.node
+        currentChild = topItr.getNode()
         stack[top] = null // help gc
     }
 
@@ -119,7 +131,7 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
 
     override fun moveRight(): INode {
         if (currentIterator!!.hasNext()) {
-            if (currentIterator!!.isMutable) {
+            if (currentIterator!!.isMutable()) {
                 currentChild = currentIterator!!.next()
             } else {
                 currentIterator!!.nextInPlace()
@@ -133,13 +145,13 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
 
     override fun canMoveLeft(): Boolean {
         return if (currentIterator == null) {
-            currentNode.childrenCount > 0
+            currentNode.getChildrenCount() > 0
         } else currentIterator!!.hasPrev()
     }
 
     override fun moveLeft(): INode {
         return if (currentIterator!!.hasPrev()) {
-            if (currentIterator!!.isMutable || currentChild == null) {
+            if (currentIterator!!.isMutable() || currentChild == null) {
                 currentChild = currentIterator!!.prev()
             } else {
                 currentIterator!!.prevInPlace()
@@ -150,8 +162,7 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
         }
     }
 
-    override val currentAddress: Long
-        get() = currentNode.address
+    override fun getCurrentAddress(): Long = currentNode.getAddress()
 
     override fun canMoveUp(): Boolean {
         return top != 0
@@ -163,13 +174,14 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
 
     override fun reset(root: MutableTreeRoot) {
         top = 0
-        currentNode = root as NodeBase
+        updateCurrentNode(root as NodeBase)
         itr
     }
 
     override fun moveTo(key: ByteIterable, value: ByteIterable?): Boolean {
         val it = key.iterator()
-        var node = if (top == 0) currentNode else stack[0]!!.parentNode!! // the most bottom node, ignoring lower bound
+        var node =
+            if (top == 0) currentNode else stack[0]!!.getParentNode()!! // the most bottom node, ignoring lower bound
         var depth = 0
         var tmp = arrayOfNulls<NodeChildrenIterator>(INITIAL_STACK_CAPACITY)
         // go down and search
@@ -181,13 +193,13 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
                 break
             }
             val itr = node.getChildren(it.next())
-            val ref = itr.node ?: return false
+            val ref = itr.getNode() ?: return false
             tmp = pushIterator(tmp, itr, depth++)
             node = ref.getNode(tree)
         }
         // key match
-        if (node.hasValue() && (value == null || value.compareTo(node.value) == 0)) {
-            currentNode = node
+        if (node.hasValue() && (value == null || value.compareTo(node.getValue()) == 0)) {
+            updateCurrentNode(node)
             itr
             stack = tmp
             top = depth
@@ -198,7 +210,8 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
 
     override fun moveToRange(key: ByteIterable, value: ByteIterable?): Boolean {
         val it = key.iterator()
-        var node = if (top == 0) currentNode else stack[0]!!.parentNode!! // the most bottom node, ignoring lower bound
+        var node =
+            if (top == 0) currentNode else stack[0]!!.getParentNode()!! // the most bottom node, ignoring lower bound
         var depth = 0
         var tmp = arrayOfNulls<NodeChildrenIterator>(INITIAL_STACK_CAPACITY)
         // go down and search
@@ -222,8 +235,8 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
                     dive = true
                     break
                 }
-                if (value == null || value <= node.value) {
-                    currentNode = node
+                if (value == null || value <= node.getValue()) {
+                    updateCurrentNode(node)
                     itr
                     stack = tmp
                     top = depth
@@ -233,10 +246,10 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
             }
             val nextByte = it.next()
             var itr = node.getChildren(nextByte)
-            var ref = itr.node
+            var ref = itr.getNode()
             if (ref == null) {
                 itr = node.getChildrenRange(nextByte)
-                ref = itr.node
+                ref = itr.getNode()
                 if (ref != null) {
                     tmp = pushIterator(tmp, itr, depth++)
                     node = ref.getNode(tree)
@@ -251,8 +264,8 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
             node = ref.getNode(tree)
         }
         if (smaller || !node.hasValue()) {
-            if (dive && node.childrenCount > 0) {
-                val itr = node.children.iterator()
+            if (dive && node.getChildrenCount() > 0) {
+                val itr = node.getChildren().iterator()
                 tmp = pushIterator(tmp, itr, depth)
                 node = itr.next().getNode(tree)
             } else {
@@ -270,14 +283,14 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
             }
             ++depth
             while (!node.hasValue()) {
-                val itr = node.children.iterator()
+                val itr = node.getChildren().iterator()
                 check(itr.hasNext()) { "Can't dive into tree branch" }
                 val ref = itr.next()
                 tmp = pushIterator(tmp, itr, depth++)
                 node = ref.getNode(tree)
             }
         }
-        currentNode = node
+        updateCurrentNode(node)
         itr
         stack = tmp
         top = depth
@@ -286,8 +299,8 @@ internal open class PatriciaTraverser(override val tree: PatriciaTreeBase, curre
 
     val itr: Unit
         get() {
-            if (currentNode.childrenCount > 0) {
-                val itr = currentNode.children.iterator()
+            if (currentNode.getChildrenCount() > 0) {
+                val itr = currentNode.getChildren().iterator()
                 currentIterator = itr
                 currentChild = itr.next()
             } else {

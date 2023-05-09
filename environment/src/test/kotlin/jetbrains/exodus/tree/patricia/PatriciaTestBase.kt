@@ -44,7 +44,7 @@ open class PatriciaTestBase : TreeBaseTest<ITree, ITreeMutable>() {
 
     fun assertMatches(t: ITree, node: N) {
         val tree = t as PatriciaTreeBase
-        node.matches(tree, tree.root)
+        node.matches(tree, tree.getRoot())
     }
 
     class N internal constructor(
@@ -87,12 +87,12 @@ open class PatriciaTestBase : TreeBaseTest<ITree, ITreeMutable>() {
             value = expectedValue
         }
 
-        fun matches(tree: PatriciaTreeBase?, node: NodeBase?) {
-            Assert.assertEquals(mutable, node!!.isMutable)
-            Assert.assertEquals(children.size, node.childrenCount)
+        internal fun matches(tree: PatriciaTreeBase?, node: NodeBase?) {
+            Assert.assertEquals(mutable, node!!.isMutable())
+            Assert.assertEquals(children.size, node.getChildrenCount())
             assertIterablesMatch(keySequence, node.key)
             assertIterablesMatch(value, node.value)
-            for ((i, ref) in node.children.withIndex()) {
+            for ((i, ref) in node.getChildren().withIndex()) {
                 val expectedChild = children[i]
                 Assert.assertEquals(expectedChild.c.code, ref.firstByte.toInt())
                 val child = ref.getNode(tree!!)
@@ -103,7 +103,7 @@ open class PatriciaTestBase : TreeBaseTest<ITree, ITreeMutable>() {
 
     companion object {
         fun doCreateMutableTree(hasDuplicates: Boolean, structureId: Int): ITreeMutable {
-            return PatriciaTreeEmpty(log!!, structureId, hasDuplicates).mutableCopy
+            return PatriciaTreeEmpty(log!!, structureId, hasDuplicates).getMutableCopy()
         }
 
         fun doOpenTree(address: Long, hasDuplicates: Boolean): ITree {

@@ -16,5 +16,5 @@
 package jetbrains.exodus.log
 
 interface RandomAccessLoggable : Loggable {
-    override val data: ByteIterableWithAddress
+    override fun getData(): ByteIterableWithAddress
 }

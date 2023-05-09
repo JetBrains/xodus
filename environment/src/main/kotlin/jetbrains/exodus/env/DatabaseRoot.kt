@@ -26,7 +26,7 @@ class DatabaseRoot internal constructor(private val loggable: Loggable, it: Byte
     val lastStructureId: Int
     val isValid: Boolean
 
-    constructor(loggable: Loggable) : this(loggable, loggable.data.iterator())
+    constructor(loggable: Loggable) : this(loggable, loggable.getData().iterator())
 
     init {
         rootAddress = CompressedUnsignedLongByteIterable.getLong(it)
@@ -36,7 +36,7 @@ class DatabaseRoot internal constructor(private val loggable: Loggable, it: Byte
     }
 
     val address: Long
-        get() = loggable.address
+        get() = loggable.getAddress()
 
     companion object {
         const val DATABASE_ROOT_TYPE: Byte = 1

@@ -27,50 +27,46 @@ import java.io.PrintStream
  */
 abstract class BaseLeafNode : ILeafNode {
     override fun equals(other: Any?): Boolean {
-        return this === other || other is INode && key == other.key
+        return this === other || other is INode && getKey() == other.getKey()
     }
 
     override fun hasValue(): Boolean {
         return true
     }
 
-    override val isDupLeaf: Boolean
-        get() = false
+    override fun isDupLeaf() = false
 
     override fun hashCode(): Int {
-        return key.hashCode()
+        return getKey().hashCode()
     }
 
-    override val address: Long
-        get() = Loggable.NULL_ADDRESS
-    override val tree: BTreeBase
-        get() {
-            throw UnsupportedOperationException()
-        }
+    override fun getAddress(): Long = Loggable.NULL_ADDRESS
+
+    override fun getTree(): BTreeBase = throw UnsupportedOperationException()
 
     override fun addressIterator(): LongIterator {
         return LongIterator.EMPTY
     }
 
-    override val isDup: Boolean
-        get() = false
-    override val dupCount: Long
-        get() = 1
+    override fun isDup(): Boolean = false
+
+    override fun getDupCount(): Long = 1
+
 
     override fun valueExists(value: ByteIterable): Boolean {
         return compareValueTo(value) == 0
     }
 
     override fun compareKeyTo(iterable: ByteIterable): Int {
-        return key.compareTo(iterable)
+        return getKey().compareTo(iterable)
     }
 
     override fun compareValueTo(iterable: ByteIterable): Int {
-        return value!!.compareTo(iterable)
+        return getValue()!!.compareTo(iterable)
     }
 
     override fun toString(): String {
-        return "LN {key:$key} @ $address"
+        return "LN {key:${getKey()}} @ ${getAddress()}"
     }
 
     override fun dump(out: PrintStream, level: Int, renderer: Dumpable.ToString?) {

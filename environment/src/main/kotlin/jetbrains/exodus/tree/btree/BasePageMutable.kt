@@ -27,18 +27,21 @@ import jetbrains.exodus.tree.MutableTreeRoot
 import kotlin.math.max
 
 abstract class BasePageMutable : BasePage, MutableTreeRoot {
-    internal lateinit var keys: Array<BaseLeafNodeMutable?>
-    internal lateinit var keysAddresses: LongArray
+    @JvmField
+    internal var keys: Array<BaseLeafNodeMutable?>? = null
+
+    @JvmField
+    internal var keysAddresses: LongArray? = null
 
     protected constructor(tree: BTreeMutable) : super(tree)
     protected constructor(tree: BTreeMutable, page: BasePageImmutable) : super(tree) {
         size = page.size
-        val bp = balancePolicy
+        val bp = getBalancePolicy()
         @Suppress("LeakingThis")
-        createChildren(max(page.size, if (tree.isDup) bp.dupPageMaxSize else bp.pageMaxSize))
+        createChildren(max(page.size, if (tree.isDup()) bp.dupPageMaxSize else bp.pageMaxSize))
         if (size > 0) {
             @Suppress("LeakingThis")
-            load(page.dataIterator, page.keyAddressLen.toInt())
+            load(page.getDataIterator(), page.keyAddressLen.toInt())
         }
     }
 
@@ -51,8 +54,7 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
         return this
     }
 
-    override val dataAddress: Long
-        get() = Loggable.NULL_ADDRESS
+    override fun getDataAddress(): Long = Loggable.NULL_ADDRESS
 
     protected open fun createChildren(max: Int) {
         keys = arrayOfNulls(max)
@@ -79,13 +81,13 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
      */
     abstract fun put(key: ByteIterable, value: ByteIterable, overwrite: Boolean, result: BooleanArray): BasePageMutable?
     abstract fun putRight(key: ByteIterable, value: ByteIterable): BasePageMutable?
-    val data: ByteIterable
-        /**
-         * Serialize page data
-         *
-         * @return serialized data
-         */
-        get() = CompoundByteIterable(getByteIterables(saveChildren()))
+
+    /**
+     * Serialize page data
+     *
+     * @return serialized data
+     */
+    fun getData(): ByteIterable = CompoundByteIterable(getByteIterables(saveChildren()))
 
     protected abstract fun saveChildren(): ReclaimFlag
     protected abstract fun getByteIterables(flag: ReclaimFlag): Array<ByteIterable>
@@ -99,11 +101,11 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
         // save leaf nodes
         var flag = saveChildren()
         // save self. complementary to {@link load()}
-        val type = type
+        val type = getType()
         val tree = this.tree
         val structureId = tree.structureId
         val log = tree.log
-        val expiredLoggables = (tree as BTreeMutable).expiredLoggables
+        val expiredLoggables = (tree as BTreeMutable).getExpiredLoggables()
         if (flag == ReclaimFlag.PRESERVE) {
             // there is a chance to update the flag to RECLAIM
             if (log.writtenHighAddress % log.fileLengthBound == 0L) {
@@ -127,30 +129,30 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
         return log.write(type, structureId, CompoundByteIterable(getByteIterables(flag)), expiredLoggables)
     }
 
-    protected abstract val type: Byte
+    protected abstract fun getType(): Byte
     override fun getKeyAddress(index: Int): Long {
-        return keysAddresses[index]
+        return keysAddresses!![index]
     }
 
     override fun getKey(index: Int): BaseLeafNode {
         if (index >= size) {
             throw ArrayIndexOutOfBoundsException("$index >= $size")
         }
-        return if (keys[index] == null) tree.loadLeaf(keysAddresses[index]) else keys[index]!!
+        val keys = keys!!
+        return if (keys[index] == null) tree.loadLeaf(keysAddresses!![index]) else keys[index]!!
     }
 
     abstract fun setMutableChild(index: Int, child: BasePageMutable)
-    protected val balancePolicy: BTreeBalancePolicy
-        get() = tree.balancePolicy
-    override val isMutable: Boolean
-        get() = true
+    protected fun getBalancePolicy(): BTreeBalancePolicy = tree.balancePolicy
+
+    override fun isMutable(): Boolean = true
 
     protected fun insertAt(pos: Int, key: ILeafNode, child: BasePageMutable?): BasePageMutable? {
-        return if (!balancePolicy.needSplit(this)) {
+        return if (!getBalancePolicy().needSplit(this)) {
             insertDirectly(pos, key, child)
             null
         } else {
-            val splitPos = balancePolicy.getSplitPos(this, pos)
+            val splitPos = getBalancePolicy().getSplitPos(this, pos)
             val sibling = split(splitPos, size - splitPos)
             if (pos >= splitPos) {
                 // insert into right sibling
@@ -164,13 +166,15 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
     }
 
     open operator fun set(pos: Int, key: ILeafNode, child: BasePageMutable?) {
+        val keys = keys!!
         // do not remember immutable leaf, but only address
         if (key is BaseLeafNodeMutable) {
             keys[pos] = key
         } else {
             keys[pos] = null // forget previous mutable leaf
         }
-        keysAddresses[pos] = key.address
+
+        keysAddresses!![pos] = key.getAddress()
     }
 
     private fun insertDirectly(pos: Int, key: ILeafNode, child: BasePageMutable?) {
@@ -183,6 +187,9 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
 
     protected open fun copyChildren(from: Int, to: Int) {
         if (from >= size) return
+        val keys = keys!!
+        val keysAddresses = keysAddresses!!
+
         System.arraycopy(keys, from, keys, to, size - from)
         System.arraycopy(keysAddresses, from, keysAddresses, to, size - from)
     }
@@ -199,6 +206,8 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
         // searching for the address linearly in keyAdresses seems to be quite cheap
         // if we find it we don't have to perform binary search with several keys' loadings
         val size = this.size
+        val keysAddresses = keysAddresses!!
+
         for (i in low until size) {
             if (keysAddresses[i] == expectedAddress && getKey(i).compareKeyTo(key) == 0) {
                 return i
@@ -213,6 +222,9 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
         }
         val initialSize = size
         size -= value
+        val keys = keys!!
+        val keysAddresses = keysAddresses!!
+
         for (i in size until initialSize) {
             keys[i] = null
             keysAddresses[i] = 0L

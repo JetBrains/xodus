@@ -27,12 +27,12 @@ class SinglePageLoggable(
     start: Int,
     dataLength: Int
 ) : RandomAccessLoggable {
-    override val address: Long
+    private val address: Long
     private val end: Long
-    override val structureId: Int
-    override val type: Byte
+    private val structureId: Int
+    private val type: Byte
     private var length = -1
-    override val data: ArrayByteIterableWithAddress
+    private val data: ArrayByteIterableWithAddress
 
     init {
         data = ArrayByteIterableWithAddress(dataAddress, bytes, start, dataLength)
@@ -42,11 +42,19 @@ class SinglePageLoggable(
         this.end = end
     }
 
+    override fun getAddress(): Long = address
+
+    override fun getStructureId(): Int = structureId
+
+    override fun getType(): Byte = type
+
+    override fun getData(): ByteIterableWithAddress = data
+
     override fun length(): Int {
         if (length >= 0) {
             return length
         }
-        val dataLength = dataLength
+        val dataLength = data.length
         length = dataLength + CompressedUnsignedLongByteIterable.getCompressedSize(structureId.toLong()) +
                 CompressedUnsignedLongByteIterable.getCompressedSize(dataLength.toLong()) + 1
         return length
@@ -56,10 +64,8 @@ class SinglePageLoggable(
         return end
     }
 
-    override val dataLength: Int
-        get() = data.length
-    override val isDataInsideSinglePage: Boolean
-        get() = true
+    override fun getDataLength(): Int = data.length
+    override fun isDataInsideSinglePage(): Boolean = true
 
     companion object {
         val NULL_PROTOTYPE = SinglePageLoggable(

@@ -22,8 +22,7 @@ import jetbrains.exodus.log.Log
 import jetbrains.exodus.tree.TreeMetaInfo
 
 class PatriciaMetaInfo(log: Log, duplicates: Boolean, structureId: Int) : TreeMetaInfo(log, duplicates, structureId) {
-    override val isKeyPrefixing: Boolean
-        get() = true
+    override fun isKeyPrefixing(): Boolean = true
 
     override fun clone(newStructureId: Int): TreeMetaInfo {
         return PatriciaMetaInfo(log!!, duplicates, newStructureId)

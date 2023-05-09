@@ -29,7 +29,7 @@ class PatriciaReclaimTest : PatriciaTestBase() {
         treeMutable!!.put(kv("aacd", "aacd"))
         val a = saveTree()
         tree = openTree(a, false)
-        treeMutable = tree!!.mutableCopy as PatriciaTreeMutable
+        treeMutable = tree!!.getMutableCopy() as PatriciaTreeMutable
         val loggables: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(0)
         treeMutable!!.reclaim(loggables.next(), loggables)
         assertMatches(
@@ -50,7 +50,7 @@ class PatriciaReclaimTest : PatriciaTestBase() {
         treeMutable!!.put(kv("aca", "3")) // should be reclaimed
         var a = saveTree()
         tree = openTree(a, false)
-        treeMutable = tree!!.mutableCopy as PatriciaTreeMutable
+        treeMutable = tree!!.getMutableCopy() as PatriciaTreeMutable
         treeMutable!!.delete(key("abbaa"))
         treeMutable!!.put(kv("abbab", "2"))
         treeMutable!!.put(kv("abbba", "5"))
@@ -70,7 +70,7 @@ class PatriciaReclaimTest : PatriciaTestBase() {
         )
         a = saveTree()
         tree = openTree(a, false)
-        treeMutable = tree!!.mutableCopy as PatriciaTreeMutable
+        treeMutable = tree!!.getMutableCopy() as PatriciaTreeMutable
         val loggables: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(0)
         treeMutable!!.reclaim(loggables.next(), loggables)
         assertMatches(
@@ -96,7 +96,7 @@ class PatriciaReclaimTest : PatriciaTestBase() {
         treeMutable!!.put(kv("aaac", "aaac"))
         var a = saveTree()
         tree = openTree(a, false)
-        treeMutable = tree!!.mutableCopy as PatriciaTreeMutable
+        treeMutable = tree!!.getMutableCopy() as PatriciaTreeMutable
         assertMatches(
             treeMutable!!,
             rm(
@@ -109,7 +109,7 @@ class PatriciaReclaimTest : PatriciaTestBase() {
         val secondAddress: Long = log!!.read(a).end()
         a = saveTree()
         tree = openTree(a, false)
-        treeMutable = tree!!.mutableCopy as PatriciaTreeMutable
+        treeMutable = tree!!.getMutableCopy() as PatriciaTreeMutable
         var loggables: Iterator<RandomAccessLoggable> = log!!.getLoggableIterator(0)
         treeMutable!!.reclaim(loggables.next(), loggables)
         assertMatches(
@@ -124,7 +124,7 @@ class PatriciaReclaimTest : PatriciaTestBase() {
                 n('b', "b", "aabb")
             )
         )
-        treeMutable = tree!!.mutableCopy as PatriciaTreeMutable
+        treeMutable = tree!!.getMutableCopy() as PatriciaTreeMutable
         loggables = log!!.getLoggableIterator(secondAddress)
         treeMutable!!.reclaim(loggables.next(), loggables)
         assertMatches(

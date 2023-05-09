@@ -183,7 +183,7 @@ open class LogTests : LogTestsBase() {
             log.flush()
             log.endWrite()
             Assert.assertEquals(expectedAddress(i * 3L, 1024), dummyAddress)
-            Assert.assertEquals(dummyAddress, log.read(dummyAddress).address)
+            Assert.assertEquals(dummyAddress, log.read(dummyAddress).getAddress())
         }
     }
 
@@ -282,9 +282,9 @@ open class LogTests : LogTestsBase() {
         var i = 0
         while (it.hasNext()) {
             val l: Loggable = it.next()
-            Assert.assertEquals((4 * i++).toLong(), l.address)
-            Assert.assertEquals(126, l.type.toLong())
-            Assert.assertEquals(1, l.dataLength.toLong())
+            Assert.assertEquals((4 * i++).toLong(), l.getAddress())
+            Assert.assertEquals(126, l.getType().toLong())
+            Assert.assertEquals(1, l.getDataLength().toLong())
         }
         Assert.assertEquals(count.toLong(), i.toLong())
     }
@@ -308,9 +308,9 @@ open class LogTests : LogTestsBase() {
         var i = 0
         while (it.hasNext()) {
             val l: Loggable = it.next()
-            Assert.assertEquals((4 * i++).toLong(), l.address)
-            Assert.assertEquals(126, l.type.toLong())
-            Assert.assertEquals(1, l.dataLength.toLong())
+            Assert.assertEquals((4 * i++).toLong(), l.getAddress())
+            Assert.assertEquals(126, l.getType().toLong())
+            Assert.assertEquals(1, l.getDataLength().toLong())
         }
         Assert.assertEquals(count.toLong(), i.toLong())
     }
@@ -324,7 +324,7 @@ open class LogTests : LogTestsBase() {
             log.flush()
             log.endWrite()
             Assert.assertEquals(
-                i.toLong(), getLong(log.read(addr).data).toInt()
+                i.toLong(), getLong(log.read(addr).getData()).toInt()
                     .toLong()
             )
         }
@@ -342,7 +342,7 @@ open class LogTests : LogTestsBase() {
         log.endWrite()
         for (i in 0 until count) {
             Assert.assertEquals(
-                i.toLong(), getLong(log.read(addrs[i]).data).toInt()
+                i.toLong(), getLong(log.read(addrs[i]).getData()).toInt()
                     .toLong()
             )
         }
@@ -362,7 +362,7 @@ open class LogTests : LogTestsBase() {
         for (addr in addrs.keys) {
             Assert.assertEquals(
                 (addrs[addr] as Int).toLong(),
-                getLong(log.read(addr).data).toInt().toLong()
+                getLong(log.read(addr).getData()).toInt().toLong()
             )
             log.read(addr)
         }

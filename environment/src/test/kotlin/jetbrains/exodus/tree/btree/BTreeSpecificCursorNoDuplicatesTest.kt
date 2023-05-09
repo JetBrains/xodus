@@ -22,7 +22,7 @@ import org.junit.Test
 class BTreeSpecificCursorNoDuplicatesTest : BTreeTestBase() {
     @Test
     fun testGetSearchKeyRange3() {
-        treeMutable = createEmptyTreeForCursor(1).mutableCopy
+        treeMutable = createEmptyTreeForCursor(1).getMutableCopy()
         treeMutable!!.put(kv(1, "v1"))
         treeMutable!!.put(kv(2, "v2"))
         treeMutable!!.put(kv(3, "v3"))

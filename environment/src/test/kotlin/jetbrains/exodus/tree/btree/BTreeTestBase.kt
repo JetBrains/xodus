@@ -31,7 +31,7 @@ open class BTreeTestBase : TreeBaseTest<BTreeBase, BTreeMutable>() {
         }
 
     fun assertMatches(t: BTreeBase, ip: IP) {
-        ip.matches(t.root)
+        ip.matches(t.getRoot())
     }
 
     fun ip(vararg children: IP): IP {
@@ -91,7 +91,7 @@ open class BTreeTestBase : TreeBaseTest<BTreeBase, BTreeMutable>() {
                 createTestSplittingPolicy(),
                 hasDuplicates,
                 structureId
-            ).mutableCopy
+            ).getMutableCopy()
         }
 
         fun doOpenTree(address: Long, hasDuplicates: Boolean): BTree {

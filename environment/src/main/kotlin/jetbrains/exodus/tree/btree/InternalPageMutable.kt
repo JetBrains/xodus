@@ -26,30 +26,31 @@ import java.io.PrintStream
 import kotlin.math.max
 
 class InternalPageMutable : BasePageMutable {
-    internal lateinit var children: Array<BasePageMutable?>
-    private lateinit var childrenAddresses: LongArray
+    @JvmField
+    internal var children: Array<BasePageMutable?>? = null
+    private var childrenAddresses: LongArray? = null
 
     internal constructor(tree: BTreeMutable, page: InternalPage) : super(tree, page)
     private constructor(page: InternalPageMutable, from: Int, length: Int) : super(page.tree as BTreeMutable) {
-        val bp = balancePolicy
+        val bp = getBalancePolicy()
         createChildren(
             max(
                 (length and 0x7ffffffe) + 2 /* we should have at least one more place to insert a key */,
-                if ((tree as BTreeMutable).isDup) bp.dupPageMaxSize else bp.pageMaxSize
+                if ((tree as BTreeMutable).isDup()) bp.dupPageMaxSize else bp.pageMaxSize
             )
         )
-        System.arraycopy(page.keys, from, keys, 0, length)
-        System.arraycopy(page.keysAddresses, from, keysAddresses, 0, length)
-        System.arraycopy(page.children, from, children, 0, length)
-        System.arraycopy(page.childrenAddresses, from, childrenAddresses, 0, length)
+        System.arraycopy(page.keys!!, from, keys!!, 0, length)
+        System.arraycopy(page.keysAddresses!!, from, keysAddresses!!, 0, length)
+        System.arraycopy(page.children!!, from, children!!, 0, length)
+        System.arraycopy(page.childrenAddresses!!, from, childrenAddresses!!, 0, length)
         size = length
     }
 
     internal constructor(tree: BTreeMutable, page1: BasePageMutable, page2: BasePageMutable) : super(tree) {
-        val bp = balancePolicy
-        createChildren(if (tree.isDup) bp.dupPageMaxSize else bp.pageMaxSize)
-        set(0, page1.minKey, page1)
-        set(1, page2.minKey, page2)
+        val bp = getBalancePolicy()
+        createChildren(if (tree.isDup()) bp.dupPageMaxSize else bp.pageMaxSize)
+        set(0, page1.getMinKey(), page1)
+        set(1, page2.getMinKey(), page2)
         size = 2
     }
 
@@ -58,8 +59,7 @@ class InternalPageMutable : BasePageMutable {
         CompressedUnsignedLongArrayByteIterable.loadLongs(childrenAddresses, it, size)
     }
 
-    override val isBottom: Boolean
-        get() = false
+    override fun isBottom(): Boolean = false
 
     override fun createChildren(max: Int) {
         super.createChildren(max)
@@ -68,22 +68,24 @@ class InternalPageMutable : BasePageMutable {
     }
 
     override fun getChildAddress(index: Int): Long {
-        return childrenAddresses[index]
+        return childrenAddresses!![index]
     }
 
     override fun getChild(index: Int): BasePage {
-        return children[index] ?: run {
-            tree.loadPage(childrenAddresses[index])
+        return children!![index] ?: run {
+            tree.loadPage(childrenAddresses!![index])
         }
     }
 
     override fun childExists(key: ByteIterable, pageAddress: Long): Boolean {
         val index: Int = InternalPage.binarySearchGuessUnsafe(this, key)
-        return index >= 0 && (childrenAddresses[index] == pageAddress || getChild(index).childExists(key, pageAddress))
+        return index >= 0 && (childrenAddresses!![index] == pageAddress || getChild(index).childExists(
+            key,
+            pageAddress
+        ))
     }
 
-    override val type: Byte
-        get() = (tree as BTreeMutable).internalPageType
+    override fun getType(): Byte = (tree as BTreeMutable).getInternalPageType()
 
     private fun getMutableChild(index: Int): BasePageMutable {
         if (index >= size) {
@@ -91,27 +93,32 @@ class InternalPageMutable : BasePageMutable {
         }
         val tree = tree as BTreeMutable
 
-        var child = children[index]
+        var child = children!![index]
         if (child != null) {
             return child
         }
 
-        val childAddress = childrenAddresses[index]
+        val childAddress = childrenAddresses!![index]
         tree.addExpiredLoggable(childAddress)
 
         child = tree.loadPage(childAddress).getMutableCopy(tree)
-        children[index] = child
+        children!![index] = child
         // loaded mutable page will be changed and must be saved
-        childrenAddresses[index] = Loggable.NULL_ADDRESS
+        childrenAddresses!![index] = Loggable.NULL_ADDRESS
         return child
     }
 
     override fun setMutableChild(index: Int, child: BasePageMutable) {
+        val keys = keys!!
+        val keysAddresses = keysAddresses!!
+        val children = children!!
+        val childrenAddresses = childrenAddresses!!
+
         if (children[index] !== child) {
-            val key = child.keys[0]
+            val key = child.keys!![0]
             if (key != null) { // first key is mutable ==> changed, no merges or reclaims allowed
                 keys[index] = key
-                keysAddresses[index] = key.address
+                keysAddresses[index] = key.getAddress()
             }
             children[index] = child
             (tree as BTreeMutable).addExpiredLoggable(childrenAddresses[index])
@@ -140,10 +147,10 @@ class InternalPageMutable : BasePageMutable {
         val newChild = child.put(key, value, overwrite, result)
         // change min key for child
         if (result[0]) {
-            tree.addExpiredLoggable(childrenAddresses[pos])
-            set(pos, child.minKey, child)
+            tree.addExpiredLoggable(childrenAddresses!![pos])
+            set(pos, child.getMinKey(), child)
             if (newChild != null) {
-                return insertAt(pos + 1, newChild.minKey, newChild)
+                return insertAt(pos + 1, newChild.getMinKey(), newChild)
             }
         }
         return null
@@ -155,24 +162,26 @@ class InternalPageMutable : BasePageMutable {
         val child = getChild(pos).getMutableCopy(tree)
         val newChild = child.putRight(key, value)
         // change min key for child
-        tree.addExpiredLoggable(childrenAddresses[pos])
-        set(pos, child.minKey, child)
+        tree.addExpiredLoggable(childrenAddresses!![pos])
+        set(pos, child.getMinKey(), child)
         return if (newChild != null) {
-            insertAt(pos + 1, newChild.minKey, newChild)
+            insertAt(pos + 1, newChild.getMinKey(), newChild)
         } else null
     }
 
     override fun set(pos: Int, key: ILeafNode, child: BasePageMutable?) {
         super.set(pos, key, child)
         // remember mutable page and reset address to save it later
-        children[pos] = child!!
-        childrenAddresses[pos] = Loggable.NULL_ADDRESS
+        children!![pos] = child!!
+        childrenAddresses!![pos] = Loggable.NULL_ADDRESS
     }
 
     override fun copyChildren(from: Int, to: Int) {
         if (from >= size) return
         super.copyChildren(from, to)
+        val children = children!!
         System.arraycopy(children, from, children, to, size - from)
+        val childrenAddresses = childrenAddresses!!
         System.arraycopy(childrenAddresses, from, childrenAddresses, to, size - from)
     }
 
@@ -181,8 +190,8 @@ class InternalPageMutable : BasePageMutable {
         super.decrementSize(value)
 
         for (i in size until initialSize) {
-            children[i] = null
-            childrenAddresses[i] = 0L
+            children!![i] = null
+            childrenAddresses!![i] = 0L
         }
     }
 
@@ -214,24 +223,27 @@ class InternalPageMutable : BasePageMutable {
         return InternalPage.exists(key, value, this)
     }
 
-    override val bottomPagesCount: Long
-        get() {
-            var result: Long = 0
-            for (i in 0 until size) {
-                result += getChild(i).bottomPagesCount
-            }
-            return result
+    override fun getBottomPagesCount(): Long {
+        var result: Long = 0
+        for (i in 0 until size) {
+            result += getChild(i).getBottomPagesCount()
         }
+        return result
+    }
 
     override fun saveChildren(): ReclaimFlag {
         // save children to get their addresses
         var result = ReclaimFlag.RECLAIM
+        val childrenAddresses = childrenAddresses!!
+        val keysAddresses = keysAddresses!!
+        val children = children!!
+
         for (i in 0 until size) {
             if (childrenAddresses[i] == Loggable.NULL_ADDRESS) {
                 val child = children[i]!!
 
                 childrenAddresses[i] = child.save()
-                keysAddresses[i] = child.keysAddresses[0]
+                keysAddresses[i] = child.keysAddresses!![0]
                 result = ReclaimFlag.PRESERVE
             }
         }
@@ -257,17 +269,17 @@ class InternalPageMutable : BasePageMutable {
     override fun mergeWithRight(page: BasePageMutable) {
         val internalPage = page as InternalPageMutable
         val newPageSize = size + internalPage.size
-        if (newPageSize >= keys.size) {
+        if (newPageSize >= keys!!.size) {
             val newArraySize = (newPageSize and 0x7ffffffe) + 2
-            keys = keys.copyOf(newArraySize)
-            keysAddresses = keysAddresses.copyOf(newArraySize)
-            children = children.copyOf(newArraySize)
-            childrenAddresses = childrenAddresses.copyOf(newArraySize)
+            keys = keys!!.copyOf(newArraySize)
+            keysAddresses = keysAddresses!!.copyOf(newArraySize)
+            children = children!!.copyOf(newArraySize)
+            childrenAddresses = childrenAddresses!!.copyOf(newArraySize)
         }
-        System.arraycopy(internalPage.keys, 0, keys, size, internalPage.size)
-        System.arraycopy(internalPage.keysAddresses, 0, keysAddresses, size, internalPage.size)
-        System.arraycopy(internalPage.children, 0, children, size, internalPage.size)
-        System.arraycopy(internalPage.childrenAddresses, 0, childrenAddresses, size, internalPage.size)
+        System.arraycopy(internalPage.keys!!, 0, keys!!, size, internalPage.size)
+        System.arraycopy(internalPage.keysAddresses!!, 0, keysAddresses!!, size, internalPage.size)
+        System.arraycopy(internalPage.children!!, 0, children!!, size, internalPage.size)
+        System.arraycopy(internalPage.childrenAddresses!!, 0, childrenAddresses!!, size, internalPage.size)
         size += internalPage.size
     }
 
@@ -295,9 +307,9 @@ class InternalPageMutable : BasePageMutable {
         // if first element was removed in child, then update min key
         val childSize = child.size
         if (childSize > 0) {
-            set(pos, child.minKey, child)
+            set(pos, child.getMinKey(), child)
         }
-        val balancePolicy = balancePolicy
+        val balancePolicy = getBalancePolicy()
         if (pos > 0) {
             val left = getChild(pos - 1)
             if (balancePolicy.needMerge(left, child)) {
@@ -314,7 +326,7 @@ class InternalPageMutable : BasePageMutable {
                 mutableRight.mergeWithLeft(child)
                 removeChild(pos)
                 // change key for link to right
-                set(pos, mutableRight.minKey, mutableRight)
+                set(pos, mutableRight.getMinKey(), mutableRight)
             }
         } else if (childSize == 0) {
             removeChild(pos)
@@ -324,7 +336,7 @@ class InternalPageMutable : BasePageMutable {
 
     override fun mergeWithChildren(): BasePageMutable {
         var result: BasePageMutable = this
-        while (!result.isBottom && result.size == 1) {
+        while (!result.isBottom() && result.size == 1) {
             result = (result as InternalPageMutable).getMutableChild(0)
         }
         return result

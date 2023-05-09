@@ -19,9 +19,9 @@ import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.log.RandomAccessLoggable
 
 interface ITreeMutable : ITree {
-    val root: MutableTreeRoot?
-    val isAllowingDuplicates: Boolean
-    val openCursors: Iterable<ITreeCursorMutable>?
+    fun getRoot(): MutableTreeRoot?
+    fun isAllowingDuplicates(): Boolean
+    fun getOpenCursors(): Iterable<ITreeCursorMutable>?
     fun cursorClosed(cursor: ITreeCursorMutable)
 
     /**
@@ -111,7 +111,7 @@ interface ITreeMutable : ITree {
     /**
      * @return set of expired loggables that were changed by put or delete methods.
      */
-    val expiredLoggables: ExpiredLoggableCollection
+    fun getExpiredLoggables(): ExpiredLoggableCollection
 
     /**
      * Same as reclaim with expirationChecker, but takes all loggables into account

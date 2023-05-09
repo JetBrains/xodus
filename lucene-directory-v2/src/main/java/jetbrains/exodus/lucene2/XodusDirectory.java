@@ -95,7 +95,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
     public XodusDirectory(Environment environment) throws IOException {
         this.environment = (EnvironmentImpl) environment;
         var log = this.environment.log;
-        var logConfig = log.getConfig();
+        var logConfig = log.config;
 
         var path = Path.of(log.getLocation());
 
@@ -250,7 +250,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             }
         }
 
-        this.pageSize = log.getCachePageSize();
+        this.pageSize = log.cachePageSize;
 
         if (maxAddressLengthIv[0] >= 0) {
             var nextAddress = maxAddressLengthIv[0] + maxAddressLengthIv[1];
@@ -554,9 +554,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         var cache = SharedOpenFilesCache.getInstance();
         var path = pendingDeletes.get(file);
         try {
-            if (cache != null) {
-                cache.removeFile(path.toFile());
-            }
+            cache.removeFile(path.toFile());
 
             Files.deleteIfExists(path);
 
@@ -582,7 +580,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
     }
 
     @Override
-    public byte[] readPage(long pageAddress, long fileAddress) {
+    public byte @NotNull [] readPage(long pageAddress, long fileAddress) {
         var filesCache = SharedOpenFilesCache.getInstance();
         var fileName = DirUtil.getFileNameByAddress(fileAddress);
         var pageOffset = pageAddress - fileAddress;

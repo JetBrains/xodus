@@ -17,7 +17,8 @@ package jetbrains.exodus.tree.patricia
 
 import jetbrains.exodus.log.Loggable
 
-open class ChildReference : ChildReferenceBase {
+internal open class ChildReference : ChildReferenceBase {
+    @JvmField
     internal var suffixAddress: Long
 
     constructor(firstByte: Byte, suffixAddress: Long) : super(firstByte) {
@@ -28,8 +29,7 @@ open class ChildReference : ChildReferenceBase {
         suffixAddress = Loggable.NULL_ADDRESS
     }
 
-    override val isMutable: Boolean
-        get() = false
+    override fun isMutable(): Boolean = false
 
     override fun getNode(tree: PatriciaTreeBase): NodeBase {
         return tree.loadNode(suffixAddress)

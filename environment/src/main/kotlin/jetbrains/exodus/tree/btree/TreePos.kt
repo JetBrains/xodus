@@ -18,4 +18,4 @@ package jetbrains.exodus.tree.btree
 /**
  * Position in btree
  */
-class TreePos(val node: BasePage, val pos: Int)
+class TreePos(@JvmField val node: BasePage, @JvmField val pos: Int)

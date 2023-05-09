@@ -23,26 +23,21 @@ import jetbrains.exodus.tree.ITree
 import java.io.PrintStream
 
 abstract class PatriciaTreeDecorator protected constructor(val treeNoDuplicates: ITree) : ITree {
-    override val log: Log
-        get() = treeNoDuplicates.log
+    override fun getLog(): Log = treeNoDuplicates.getLog()
 
     override fun getDataIterator(address: Long): DataIterator {
         return treeNoDuplicates.getDataIterator(address)
     }
 
-    override val rootAddress: Long
-        get() = treeNoDuplicates.rootAddress
-    override val structureId: Int
-        get() = treeNoDuplicates.structureId
+    override fun getRootAddress(): Long = treeNoDuplicates.getRootAddress()
+    override fun getStructureId(): Int = treeNoDuplicates.getStructureId()
 
     override fun hasKey(key: ByteIterable): Boolean {
         return get(key) != null
     }
 
-    override val isEmpty: Boolean
-        get() = treeNoDuplicates.isEmpty
-    override val size: Long
-        get() = treeNoDuplicates.size
+    override fun isEmpty(): Boolean = treeNoDuplicates.isEmpty()
+    override fun size(): Long = treeNoDuplicates.size()
 
     override fun dump(out: PrintStream) {
         treeNoDuplicates.dump(out)

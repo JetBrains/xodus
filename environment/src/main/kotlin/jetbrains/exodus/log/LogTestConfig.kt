@@ -19,5 +19,6 @@ class LogTestConfig {
     /**
      * If maxHighAddress is set to a non-negative value, no loggable with address GE to it will be written.
      */
+    @JvmField
     var maxHighAddress: Long = 0
 }

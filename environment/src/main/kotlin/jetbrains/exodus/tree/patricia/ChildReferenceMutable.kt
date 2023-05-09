@@ -15,11 +15,10 @@
  */
 package jetbrains.exodus.tree.patricia
 
-class ChildReferenceMutable(firstByte: Byte, var child: MutableNode) : ChildReference(firstByte) {
+internal class ChildReferenceMutable(firstByte: Byte, @JvmField var child: MutableNode) : ChildReference(firstByte) {
     constructor(child: MutableNode) : this(0.toByte(), child)
 
-    override val isMutable: Boolean
-        get() = true
+    override fun isMutable(): Boolean = true
 
     override fun getNode(tree: PatriciaTreeBase): NodeBase {
         return child

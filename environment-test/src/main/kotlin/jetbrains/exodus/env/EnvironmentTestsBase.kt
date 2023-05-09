@@ -360,16 +360,16 @@ open class EnvironmentTestsBase {
                 while (true) {
                     Assert.assertTrue(it.hasNext())
                     val loggable = it.next()
-                    if (loggable.type == HashCodeLoggable.TYPE) {
+                    if (loggable.getType() == HashCodeLoggable.TYPE) {
                         continue
                     }
-                    Assert.assertEquals(type.toLong(), loggable.type.toLong())
+                    Assert.assertEquals(type.toLong(), loggable.getType().toLong())
                     break
                 }
             }
             while (it.hasNext()) {
                 val loggable = it.next()
-                if (loggable.type == HashCodeLoggable.TYPE) {
+                if (loggable.getType() == HashCodeLoggable.TYPE) {
                     continue
                 }
                 Assert.fail()

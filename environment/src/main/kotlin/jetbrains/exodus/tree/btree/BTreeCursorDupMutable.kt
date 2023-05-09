@@ -21,11 +21,12 @@ import jetbrains.exodus.tree.TreeCursorMutable
 
 class BTreeCursorDupMutable(
     tree: ITreeMutable, // hack to avoid casts
-    override val traverser: BTreeTraverserDup
+    traverser: BTreeTraverserDup
 ) : TreeCursorMutable(tree, traverser) {
     override fun getNextDup(): Boolean {
         moveIfNecessary()
         // move to next dup if in -1 position or dupCursor has next element
+        val traverser = traverser as BTreeTraverserDup
         return if (traverser.node === ILeafNode.EMPTY) {
             if (wasDelete) {
                 val root = traverser.currentNode // traverser was reset to root after delete
@@ -51,6 +52,7 @@ class BTreeCursorDupMutable(
 
     override fun getNextNoDup(): Boolean {
         moveIfNecessary()
+        val traverser = traverser as BTreeTraverserDup
         if (wasDelete) {
             if (next) {
                 /* we managed to re-navigate to key which is next
@@ -79,6 +81,7 @@ class BTreeCursorDupMutable(
 
     override fun count(): Int {
         moveIfNecessary()
+        val traverser = traverser as BTreeTraverserDup
         return if (traverser.inDupTree) traverser.currentNode.tree.size.toInt() else super.count()
     }
 }

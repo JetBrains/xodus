@@ -169,7 +169,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         location = environment.getLocation();
 
         readerWriterProvider =
-                Objects.requireNonNull(((EnvironmentImpl) environment).log.getConfig().getReaderWriterProvider());
+                Objects.requireNonNull(((EnvironmentImpl) environment).log.config.getReaderWriterProvider());
         // if database is in-memory then never create blobs in BlobVault
         if (readerWriterProvider.isInMemory()) {
             config.setMaxInPlaceBlobSize(Integer.MAX_VALUE);
