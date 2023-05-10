@@ -68,6 +68,7 @@ class SinglePageLoggable(
     override fun isDataInsideSinglePage(): Boolean = true
 
     companion object {
+        @JvmField
         val NULL_PROTOTYPE = SinglePageLoggable(
             Loggable.NULL_ADDRESS,
             Loggable.NULL_ADDRESS,

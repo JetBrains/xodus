@@ -78,10 +78,8 @@ class ArrayByteIterableWithAddress(
 
     inner class ArrayByteIteratorWithAddress internal constructor(bytes: ByteArray?, offset: Int, length: Int) :
         Iterator(bytes, offset, length), ByteIteratorWithAddress {
-        override val address: Long
-            get() = dataAddress + super.offset - this@ArrayByteIterableWithAddress.offset
-        override val offset: Int
-            get() = super.offset
+        override fun getAddress(): Long = dataAddress + super.offset - this@ArrayByteIterableWithAddress.offset
+        override fun getOffset(): Int = super.offset
 
         override fun available(): Int {
             return end - super.offset
@@ -93,39 +91,38 @@ class ArrayByteIterableWithAddress(
             return result
         }
 
-        override val compressedUnsignedInt: Int
-            get() {
-                if (super.offset == end) {
-                    throw NoSuchElementException()
-                }
-                var result = 0
-                var shift = 0
-                do {
-                    val b = bytes[super.offset++]
-                    result += b.toInt() and 0x7f shl shift
-                    if (b.toInt() and 0x80 != 0) {
-                        return result
-                    }
-                    shift += 7
-                } while (super.offset < end)
+        override fun getCompressedUnsignedInt(): Int {
+            if (super.offset == end) {
                 throw NoSuchElementException()
             }
-        override val compressedUnsignedLong: Long
-            get() {
-                if (super.offset == end) {
-                    throw NoSuchElementException()
+            var result = 0
+            var shift = 0
+            do {
+                val b = bytes[super.offset++]
+                result += b.toInt() and 0x7f shl shift
+                if (b.toInt() and 0x80 != 0) {
+                    return result
                 }
-                var result: Long = 0
-                var shift = 0
-                do {
-                    val b = bytes[super.offset++]
-                    result += (b.toInt() and 0x7f).toLong() shl shift
-                    if (b.toInt() and 0x80 != 0) {
-                        return result
-                    }
-                    shift += 7
-                } while (super.offset < end)
+                shift += 7
+            } while (super.offset < end)
+            throw NoSuchElementException()
+        }
+
+        override fun getCompressedUnsignedLong(): Long {
+            if (super.offset == end) {
                 throw NoSuchElementException()
             }
+            var result: Long = 0
+            var shift = 0
+            do {
+                val b = bytes[super.offset++]
+                result += (b.toInt() and 0x7f).toLong() shl shift
+                if (b.toInt() and 0x80 != 0) {
+                    return result
+                }
+                shift += 7
+            } while (super.offset < end)
+            throw NoSuchElementException()
+        }
     }
 }

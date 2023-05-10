@@ -56,7 +56,7 @@ internal class SinglePageImmutableNode : NodeBase, ImmutableNode {
         loggable: RandomAccessLoggable,
         data: ByteIterableWithAddress, it: ByteIteratorWithAddress
     ) : super(type, data, it) {
-        dataStart = it.offset
+        dataStart = it.getOffset()
         dataEnd = dataStart + data.length
         this.data = data.baseBytes
         this.loggable = loggable

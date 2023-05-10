@@ -16,6 +16,6 @@
 package jetbrains.exodus.log
 
 interface CacheDataProvider {
-    val identity: Int
+    fun getIdentity(): Int
     fun readPage(pageAddress: Long, fileAddress: Long): ByteArray
 }

@@ -61,6 +61,7 @@ abstract class TreeDeleteTest : TreeBaseTest<ITree, ITreeMutable>() {
         a = saveTree()
         reopen()
         tree = openTree(a, false)
+        treeMutable = tree!!.getMutableCopy()
         Assert.assertEquals(1, treeMutable!!.size())
         Assert.assertNull(treeMutable!![key("111")])
         Assert.assertNull(treeMutable!![key("11")])

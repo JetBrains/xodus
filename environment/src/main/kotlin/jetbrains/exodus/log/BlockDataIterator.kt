@@ -26,13 +26,13 @@ import java.security.NoSuchAlgorithmException
 class BlockDataIterator(
     private val log: Log,
     private val block: Block,
-    override var address: Long,
+    private var address: Long,
     private val checkPage: Boolean,
     private val lastBlock: Boolean
 ) : ByteIteratorWithAddress {
     private val cipherProvider: StreamCipherProvider?
     private var end: Long
-    override var currentPage: ByteArray? = null
+    private var currentPage: ByteArray? = null
     private val pageSize: Int
     private var chunkSize = 0
     private val config: LogConfig
@@ -43,7 +43,7 @@ class BlockDataIterator(
         end = block.address + block.length()
         pageSize = log.cachePageSize
         config = log.config
-        cipherProvider = config.streamCipherProvider
+        cipherProvider = config.getStreamCipherProvider()
         sha256 = if (cipherProvider != null) {
             try {
                 MessageDigest.getInstance("SHA-256")
@@ -59,6 +59,10 @@ class BlockDataIterator(
             pageSize
         }
     }
+
+    override fun getAddress(): Long = address
+
+    override fun getCurrentPage(): ByteArray? = currentPage
 
     override fun hasNext(): Boolean {
         if (address == end && throwCorruptionException) {
@@ -109,7 +113,7 @@ class BlockDataIterator(
                 }
                 if (cipherProvider != null) {
                     cryptBlocksMutable(
-                        cipherProvider, config.cipherKey!!, config.cipherBasicIV,
+                        cipherProvider, config.getCipherKey()!!, config.getCipherBasicIv(),
                         address, result, 0, chunkSize.coerceAtMost(currentPageSize), LogUtil.LOG_BLOCK_ALIGNMENT
                     )
                 }
@@ -133,7 +137,7 @@ class BlockDataIterator(
                 chunkSize
             }
             cryptBlocksMutable(
-                cipherProvider, config.cipherKey!!, config.cipherBasicIV,
+                cipherProvider, config.getCipherKey()!!, config.getCipherBasicIv(),
                 address, result, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
             )
         }
@@ -158,8 +162,7 @@ class BlockDataIterator(
         return bytesToSkip
     }
 
-    override val offset: Int
-        get() = (address - block.address).toInt()
+    override fun getOffset(): Int = (address - block.address).toInt()
 
     override fun available(): Int {
         throw UnsupportedOperationException()

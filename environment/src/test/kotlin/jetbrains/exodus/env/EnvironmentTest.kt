@@ -24,6 +24,7 @@ import jetbrains.exodus.core.dataStructures.hash.HashSet
 import jetbrains.exodus.core.execution.locks.Latch
 import jetbrains.exodus.env.Environments.newInstance
 import jetbrains.exodus.io.*
+import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogConfig.Companion.create
 import jetbrains.exodus.log.LogTestConfig
 import jetbrains.exodus.log.LogUtil.getLogFilename
@@ -403,6 +404,7 @@ open class EnvironmentTest : EnvironmentTestsBase() {
     open fun mappedFileNotUnmapped() {
         val tempDir = TestUtil.createTempDir()
         try {
+            Log.invalidateSharedCache()
             val env = newInstance(
                 tempDir,
                 EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024).setLogCacheShared(false)
@@ -445,20 +447,20 @@ open class EnvironmentTest : EnvironmentTestsBase() {
     }
 
 
-    @Test(expected = IllegalStateException::class)
+    @Test(expected = ExodusException::class)
     @TestFor(issue = "XD-628")
     fun readCloseRace() {
         val store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES)
-        environment!!.executeInTransaction { txn: Transaction? ->
+        environment!!.executeInTransaction { txn: Transaction ->
             for (i in 0..9999) {
-                store.put(txn!!, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(i.toString()))
+                store.put(txn, IntegerBinding.intToEntry(i), StringBinding.stringToEntry(i.toString()))
             }
         }
         environment!!.environmentConfig.setEnvCloseForcedly(true)
         environment!!.log.clearCache()
-        environment!!.executeInReadonlyTransaction { txn: Transaction? ->
+        environment!!.executeInReadonlyTransaction { txn: Transaction ->
             store.openCursor(
-                txn!!
+                txn
             ).use { cursor ->
                 val latch = Latch.create()
                 try {

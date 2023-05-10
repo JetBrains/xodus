@@ -24,11 +24,11 @@ import jetbrains.exodus.core.dataStructures.hash.LongIterator
 import jetbrains.exodus.crypto.StreamCipherProvider
 import jetbrains.exodus.crypto.cryptBlocksImmutable
 import jetbrains.exodus.io.*
+import mu.KLogging
 import net.jpountz.xxhash.StreamingXXHash64
 import net.jpountz.xxhash.XXHash64
 import net.jpountz.xxhash.XXHashFactory
 import org.jctools.maps.NonBlockingHashMapLong
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
@@ -50,9 +50,9 @@ class BufferedDataWriter internal constructor(
     private val syncPeriod: Long
 ) {
     private val logCache: LogCache = log.cache
-    private val cipherProvider: StreamCipherProvider? = log.config.streamCipherProvider
-    private val cipherKey: ByteArray? = log.config.cipherKey
-    private val cipherBasicIV: Long = log.config.cipherBasicIV
+    private val cipherProvider: StreamCipherProvider? = log.config.getStreamCipherProvider()
+    private val cipherKey: ByteArray? = log.config.getCipherKey()
+    private val cipherBasicIV: Long = log.config.getCipherBasicIv()
     private val pageSize: Int = log.cachePageSize
     private val adjustedPageSize: Int = pageSize - HASH_CODE_SIZE
     private var blockSetMutable: BlockSet.Mutable? = null
@@ -61,12 +61,13 @@ class BufferedDataWriter internal constructor(
     private val localWritesSemaphore: Semaphore
     private val writeCompletionHandler: BiConsumer<LongIntPair, in Throwable>
     private var currentPage: MutablePage? = null
+
+    @JvmField
     var currentHighAddress: Long = 0
-        private set
 
     @Volatile
+    @JvmField
     var highAddress: Long = 0
-        private set
 
     @Volatile
     private var blockSet: BlockSet.Immutable? = null
@@ -112,7 +113,7 @@ class BufferedDataWriter internal constructor(
                 writeError = err
                 logger.error(
                     "Error during writing of data to the file for the log " +
-                            log.location,
+                            log.getLocation(),
                     err
                 )
             }
@@ -335,10 +336,8 @@ class BufferedDataWriter internal constructor(
         return blockSet!!.getFiles()
     }
 
-    val minimumFile: Long?
-        get() = blockSet!!.minimum
-    val maximumFile: Long?
-        get() = blockSet!!.maximum
+    fun getMinimumFile(): Long? = blockSet!!.getMinimum()
+    fun getMaximumFile(): Long? = blockSet!!.getMaximum()
 
     fun flush() {
         checkWriteError()
@@ -482,11 +481,10 @@ class BufferedDataWriter internal constructor(
         lastSyncedAddress = Long.MAX_VALUE
     }
 
-    val filesSize: Int
-        get() {
-            assert(blockSetMutable != null)
-            return blockSetMutable!!.size()
-        }
+    fun getFilesSize(): Int {
+        assert(blockSetMutable != null)
+        return blockSetMutable!!.size()
+    }
 
     fun clear() {
         ensureWritesAreCompleted()
@@ -629,7 +627,7 @@ class BufferedDataWriter internal constructor(
             writer.close()
             assert(blockSetMutable != null)
             val blockSet = blockSetMutable
-            val lastFile = blockSet!!.maximum
+            val lastFile = blockSet!!.getMaximum()
             if (lastFile != null) {
                 val block = blockSet.getBlock(lastFile)
                 val refreshed = block.refresh()
@@ -698,10 +696,15 @@ class BufferedDataWriter internal constructor(
         page: ByteArray,
         pageAddress: Long, writtenCount: Int, committedCount: Int
     ) {
+        @JvmField
         val bytes: ByteArray
+        @JvmField
         val pageAddress: Long
+        @JvmField
         var committedCount: Int
+        @JvmField
         var writtenCount: Int
+        @JvmField
         val xxHash64: StreamingXXHash64
 
         init {
@@ -716,7 +719,8 @@ class BufferedDataWriter internal constructor(
         }
     }
 
-    private class PageHolder(@field:Volatile var page: ByteArray, written: Int) {
+    private class PageHolder(@JvmField @Volatile var page: ByteArray, written: Int) {
+        @JvmField
         val written: AtomicInteger
 
         init {
@@ -724,10 +728,11 @@ class BufferedDataWriter internal constructor(
         }
     }
 
-    companion object {
-        private val logger = LoggerFactory.getLogger(BufferedDataWriter::class.java)
+    companion object : KLogging() {
         const val XX_HASH_SEED = 0xADEF1279AL
+        @JvmField
         val XX_HASH_FACTORY: XXHashFactory = XXHashFactory.fastestJavaInstance()
+        @JvmField
         val xxHash: XXHash64 = XX_HASH_FACTORY.hash64()
         const val HASH_CODE_SIZE = java.lang.Long.BYTES
         fun checkPageConsistency(pageAddress: Long, bytes: ByteArray, pageSize: Int, log: Log) {

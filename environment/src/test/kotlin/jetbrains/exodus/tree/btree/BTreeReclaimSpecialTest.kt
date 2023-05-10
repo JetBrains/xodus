@@ -42,8 +42,8 @@ class BTreeReclaimSpecialTest : BTreeTestBase() {
         }
         log!!.flush()
         log!!.endWrite()
-        Assert.assertEquals(1, log!!.numberOfFiles)
-        Assert.assertTrue(log!!.highAddress < fileSize)
+        Assert.assertEquals(1, log!!.getNumberOfFiles())
+        Assert.assertTrue(log!!.getHighAddress() < fileSize)
         treeMutable = BTreeEmpty(log!!, true, 1).getMutableCopy()
         val key: ArrayByteIterable = key("K")
         for (i in 0..COUNT) {
@@ -51,7 +51,7 @@ class BTreeReclaimSpecialTest : BTreeTestBase() {
         }
         var saved = saveTree()
         reloadMutableTree(saved)
-        Assert.assertEquals(4, log!!.numberOfFiles)
+        Assert.assertEquals(4, log!!.getNumberOfFiles())
         val address = 0L
         log!!.forgetFile(address)
         log!!.removeFile(address) // emulate gc of first file
@@ -68,7 +68,7 @@ class BTreeReclaimSpecialTest : BTreeTestBase() {
         treeMutable!!.reclaim(loggables.next(), loggables) // reclaim second file
         saved = saveTree()
         reloadMutableTree(saved)
-        Assert.assertTrue(log!!.numberOfFiles > 2) // make sure that some files were added
+        Assert.assertTrue(log!!.getNumberOfFiles() > 2) // make sure that some files were added
         log!!.forgetFile(fileSize)
         log!!.removeFile(fileSize) // remove reclaimed file
         treeMutable!!.openCursor().use { cursor ->

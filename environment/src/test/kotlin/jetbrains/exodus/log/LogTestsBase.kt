@@ -35,13 +35,14 @@ open class LogTestsBase {
             if (_log == null) {
                 synchronized(this) {
                     if (_log == null) {
+                        Log.invalidateSharedCache()
                         _log = Log(create(reader!!, writer!!), EnvironmentImpl.CURRENT_FORMAT_VERSION)
                     }
                 }
             }
 
-            return _log!!
-        }
+        return _log!!
+    }
 
     private var _logDirectory: File? = null
     protected val logDirectory: File
@@ -104,6 +105,7 @@ open class LogTestsBase {
         if (_log == null) {
             synchronized(this) {
                 if (_log == null) {
+                    Log.invalidateSharedCache()
                     _log = Log(config.setReaderWriter(reader!!, writer!!), EnvironmentImpl.CURRENT_FORMAT_VERSION)
                 }
             }

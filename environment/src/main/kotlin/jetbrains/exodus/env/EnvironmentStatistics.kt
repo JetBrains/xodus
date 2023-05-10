@@ -40,7 +40,7 @@ class EnvironmentStatistics internal constructor(private val env: EnvironmentImp
 
     init {
         createAllStatisticsItems()
-        getStatisticsItem(Type.BYTES_WRITTEN).total = env.log.highAddress
+        getStatisticsItem(Type.BYTES_WRITTEN).total = env.log.getHighAddress()
         env.log.addReadBytesListener { _: ByteArray, count: Int ->
             getStatisticsItem(Type.BYTES_READ).addTotal(
                 count.toLong()

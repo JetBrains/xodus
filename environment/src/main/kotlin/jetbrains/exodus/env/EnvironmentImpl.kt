@@ -113,7 +113,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         try {
             this.log = log
             this.ec = ec
-            val logLocation = log.location
+            val logLocation = log.getLocation()
             applyEnvironmentSettings(logLocation, ec)
             checkStorageType(logLocation, ec)
             val readerWriterProvider = log.config.getReaderWriterProvider()
@@ -161,9 +161,9 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
             stuckTxnMonitor =
                 if (transactionTimeout() > 0 || transactionExpirationTimeout() > 0) StuckTransactionMonitor(this) else null
             val logConfig = log.config
-            streamCipherProvider = logConfig.streamCipherProvider
-            cipherKey = logConfig.cipherKey
-            cipherBasicIV = logConfig.cipherBasicIV
+            streamCipherProvider = logConfig.getStreamCipherProvider()
+            cipherKey = logConfig.getCipherKey()
+            cipherBasicIV = logConfig.getCipherBasicIv()
             syncTask = if (!isReadOnly) {
                 @Suppress("LeakingThis")
                 SyncIO.scheduleSyncLoop(this)
@@ -173,7 +173,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
             gc.fetchExpiredLoggables(expired)
             loggerInfo("Exodus environment created: $logLocation")
         } catch (e: Exception) {
-            logger.error("Error during opening the environment " + log.location, e)
+            logger.error("Error during opening the environment " + log.getLocation(), e)
             log.switchToReadOnlyMode()
             log.release()
             throw e
@@ -185,7 +185,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
     }
 
     override fun getLocation(): String {
-        return log.location
+        return log.getLocation()
     }
 
     override fun openBitmap(
@@ -363,7 +363,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
     }
 
     override fun isReadOnly(): Boolean {
-        return ec.envIsReadonly || log.isReadOnly
+        return ec.envIsReadonly || log.isReadOnly()
     }
 
     override fun close() {
@@ -406,7 +406,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                     }
                 }
                 ec.removeChangedSettingsListener(envSettingsListener!!)
-                logCacheHitRate = log.cacheHitRate
+                logCacheHitRate = log.getCacheHitRate()
                 if (!isReadOnly) {
                     metaReadLock.lock()
                     try {
@@ -539,7 +539,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
             } finally {
                 log.endWrite()
             }
-            highAddress = log.highAddress
+            highAddress = log.getHighAddress()
             rootAddress = metaTreeInternal.root
         }
         gc.fetchExpiredLoggables(expiredLoggables)
@@ -557,7 +557,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                 highAddressAndRoot[1], log.cachePageSize, log.fileLengthBound,
                 true, fileAddress, fileOffset
             )
-            val backupMetadata = Paths.get(log.location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
+            val backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
             try {
                 Files.deleteIfExists(backupMetadata)
             } catch (e: IOException) {
@@ -584,7 +584,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         if (isOpen) {
             gc.resume()
         }
-        val backupMetadata = Paths.get(log.location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
+        val backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
         try {
             Files.deleteIfExists(backupMetadata)
         } catch (e: IOException) {
@@ -644,7 +644,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
     }
 
     val diskUsage: Long
-        get() = log.diskUsage
+        get() = log.getDiskUsage()
 
     fun acquireTransaction(txn: TransactionBase) {
         checkIfTransactionCreatedAgainstThis(txn)
@@ -1049,7 +1049,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                     } finally {
                         txn.abort()
                     }
-                    if (!log.isReadOnly) {
+                    if (!log.isReadOnly()) {
                         log.updateStartUpDbRoot(metaTreeInternal.root)
                         flushSyncAndFillPagesWithNulls()
                     }
@@ -1074,8 +1074,6 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                 balancePolicy = null
             } else if (key == EnvironmentConfig.TREE_DUP_MAX_PAGE_SIZE) {
                 balancePolicy = null
-            } else if (key == EnvironmentConfig.LOG_CACHE_READ_AHEAD_MULTIPLE) {
-                log.config.cacheReadAheadMultiple = ec.logCacheReadAheadMultiple
             }
         }
     }
@@ -1117,7 +1115,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                 } catch (t: Throwable) {
                     logger.error(
                         "Error during synchronization of content of log " +
-                                environment.log.location, t
+                                environment.log.getLocation(), t
                     )
                     environment.throwableOnCommit = t
                 }

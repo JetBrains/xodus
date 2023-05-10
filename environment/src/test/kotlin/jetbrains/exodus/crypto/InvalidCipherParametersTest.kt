@@ -225,7 +225,7 @@ private fun createEnvironment(dir: File, cipherId: String?, cipherKey: String?, 
         (env as EnvironmentImpl).log
     }
 
-    return log.highAddress
+    return log.getHighAddress()
 }
 
 // open environment with specified cipher parameters
@@ -252,7 +252,7 @@ private fun openEnvironment(
             }
             (env as EnvironmentImpl).log
         }
-        return log.highAddress
+        return log.getHighAddress()
     } else {
         TestUtil.runWithExpectedException({
             Environments.newInstance(dir, ec)

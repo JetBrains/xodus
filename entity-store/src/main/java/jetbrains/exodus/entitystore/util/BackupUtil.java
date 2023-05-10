@@ -315,12 +315,12 @@ public class BackupUtil {
                                 dbMetadata = new DbMetadata();
                                 dbMetadata.binaryFormatVersion = EnvironmentImpl.CURRENT_FORMAT_VERSION;
 
-                                dbMetadata.pageSize = startupMetadata.getPageSize();
-                                dbMetadata.fileLengthBound = startupMetadata.getFileLengthBoundary();
+                                dbMetadata.pageSize = startupMetadata.pageSize;
+                                dbMetadata.fileLengthBound = startupMetadata.pageSize;
                                 metadataMap.put(rootName, dbMetadata);
                             }
 
-                            if (dbMetadata.pageSize != startupMetadata.getPageSize()) {
+                            if (dbMetadata.pageSize != startupMetadata.pageSize) {
                                 throw new IllegalStateException("Backup is broken please fix backup consistency by " +
                                         "opening it in database and correctly closing database. " +
                                         "Database will restore data automatically.");

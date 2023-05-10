@@ -29,15 +29,15 @@ internal fun Log.warmup() {
     processor.queue(RunnableJob {
         // number of files to walk through at maximum
         val maxFiles = cache.memoryUsage / fileLengthBound
-        val files = allFileAddresses.takeLast(max(1, maxFiles.toInt()))
+        val files = getAllFileAddresses().takeLast(max(1, maxFiles.toInt()))
         val size = files.size
         val it = DataIterator(this)
         val pageSize = config.getCachePageSize()
-        Log.logger.info("Warming LogCache up with newest $size ${if (size > 1) "files" else "file"} at $location")
+        Log.logger.info("Warming LogCache up with newest $size ${if (size > 1) "files" else "file"} at ${getLocation()}")
         processor.executeIterable(files) { address ->
             Log.logger.info("Warming up ${LogUtil.getLogFilename(address)}")
             var pageAddress = address
-            while (pageAddress < address + fileLengthBound && pageAddress + pageSize < highAddress) {
+            while (pageAddress < address + fileLengthBound && pageAddress + pageSize < getHighAddress()) {
                 it.checkPage(pageAddress)
                 pageAddress += pageSize
             }

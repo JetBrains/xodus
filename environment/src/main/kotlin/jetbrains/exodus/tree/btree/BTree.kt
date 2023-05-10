@@ -51,9 +51,9 @@ open class BTree(
         }
         val data = rootLoggable.getData()
         val it = data.iterator()
-        size = it.compressedUnsignedLong
+        size = it.getCompressedUnsignedLong()
         root = loadRootPage(
-            data.cloneWithAddressAndLength(it.address, it.available()),
+            data.cloneWithAddressAndLength(it.getAddress(), it.available()),
             rootLoggable.isDataInsideSinglePage()
         )
     }

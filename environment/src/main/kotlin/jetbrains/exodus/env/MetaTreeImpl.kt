@@ -120,7 +120,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
             expired: ExpiredLoggableCollection
         ): Pair<MetaTreeImpl, Int> {
             val log = env.log
-            val highAddress = log.highAddress
+            val highAddress = log.getHighAddress()
             if (highAddress > EMPTY_LOG_BOUND) {
                 val rootLoggable: Loggable?
                 val rootAddress = log.getStartUpDbRoot()
@@ -235,7 +235,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
                 DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
                 DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId), expired
             )
-            expired.add(dbRootAddress, (log.writtenHighAddress - dbRootAddress).toInt())
+            expired.add(dbRootAddress, (log.getWrittenHighAddress() - dbRootAddress).toInt())
             return Proto(newMetaTreeAddress, dbRootAddress)
         }
 

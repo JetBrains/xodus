@@ -65,7 +65,7 @@ internal class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMut
             if (rootPage.isBottom()) LEAF_DUP_BOTTOM_ROOT else LEAF_DUP_INTERNAL_ROOT
         val keyIterable = getIterable(key.length.toLong())
         var sizeIterable: ByteIterable
-        var startAddress = log.writtenHighAddress // remember high address before saving the data
+        var startAddress = log.getWrittenHighAddress() // remember high address before saving the data
         val rootDataIterable = rootPage.getData()
         var iterables: Array<ByteIterable?>
         var result: Long
@@ -90,11 +90,11 @@ internal class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMut
                 val lengthBound = log.fileLengthBound
                 val alignment = startAddress % lengthBound
                 startAddress += lengthBound - alignment
-                check(log.writtenHighAddress >= startAddress) { "Address alignment underflow: start address $startAddress, alignment $alignment" }
+                check(log.getWrittenHighAddress() >= startAddress) { "Address alignment underflow: start address $startAddress, alignment $alignment" }
             }
         }
         sizeIterable = getIterable((size shl 1) + 1)
-        val offsetIterable = getIterable(log.writtenHighAddress - startAddress)
+        val offsetIterable = getIterable(log.getWrittenHighAddress() - startAddress)
         iterables = arrayOf(keyIterable, key, sizeIterable, offsetIterable, rootDataIterable)
         val data: ByteIterable = CompoundByteIterable(iterables)
         result = if (canRetry) log.tryWrite(type, structureId, data, expired) else log.writeContinuously(
@@ -105,7 +105,7 @@ internal class BTreeDupMutable(dupTree: BTreeBase, key: ByteIterable) : BTreeMut
         )
         if (result < 0) {
             if (canRetry) {
-                iterables[3] = getIterable(log.writtenHighAddress - startAddress)
+                iterables[3] = getIterable(log.getWrittenHighAddress() - startAddress)
                 result = log.writeContinuously(type, structureId, CompoundByteIterable(iterables), expired)
                 if (result < 0) {
                     throw TooBigLoggableException()

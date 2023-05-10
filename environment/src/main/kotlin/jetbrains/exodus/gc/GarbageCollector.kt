@@ -319,8 +319,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         }
         val log = log
         if (logger.isDebugEnabled) {
-            val high = log.highAddress
-            val highFile = log.highFileAddress
+            val high = log.getHighAddress()
+            val highFile = log.getHighFileAddress()
             logger.debug(
                 String.format(
                     "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",

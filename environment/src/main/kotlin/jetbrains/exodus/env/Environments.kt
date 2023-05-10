@@ -124,7 +124,7 @@ object Environments {
             setCipherProvider(ec.cipherId?.let { cipherId -> newCipherProvider(cipherId) })
             setCipherKey(ec.cipherKey)
             setCipherBasicIV(ec.cipherBasicIV)
-            checkPagesAtRuntime = ec.checkPagesAtRuntime
+            setCheckPagesAtRuntime(ec.checkPagesAtRuntime)
 
             setUseV1Format(ec.useVersion1Format)
         })
@@ -133,7 +133,7 @@ object Environments {
     @JvmStatic
     fun newLogInstance(config: LogConfig): Log = Log(
         config.also
-        { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) }, EnvironmentImpl.CURRENT_FORMAT_VERSION
+        { SharedOpenFilesCache.setSize(config.getCacheOpenFilesCount()) }, EnvironmentImpl.CURRENT_FORMAT_VERSION
     )
 
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
@@ -142,17 +142,17 @@ object Environments {
         val needsToBeMigrated = !env.log.formatWithHashCodeIsUsed
 
         if (ec.logDataReaderWriterProvider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER &&
-            ec.envCompactOnOpen && env.log.numberOfFiles > 1 || needsToBeMigrated
+            ec.envCompactOnOpen && env.log.getNumberOfFiles() > 1 || needsToBeMigrated
         ) {
             if (needsToBeMigrated) {
                 EnvironmentImpl.loggerInfo(
-                    "Outdated binary format is used in environment ${env.log.location} " +
+                    "Outdated binary format is used in environment ${env.log.getLocation()} " +
                             "migration of binary format will be performed."
                 )
             }
 
             if (ec.envIsReadonly) {
-                throw ExodusException("Can't compact readonly environment: ${env.log.location}")
+                throw ExodusException("Can't compact readonly environment: ${env.log.getLocation()}")
             }
 
             val location = env.location
@@ -218,7 +218,7 @@ object Environments {
 
                 if (needsToBeMigrated) {
                     EnvironmentImpl.loggerInfo(
-                        "Migration of binary format in environment ${env.log.location}" +
+                        "Migration of binary format in environment ${env.log.getLocation()}" +
                                 " has been completed. Please delete all files with extension " +
                                 "*.del once you ensure database consistency."
                     )
@@ -234,7 +234,7 @@ object Environments {
             }
         }
 
-        if (env.log.isClosedCorrectly) {
+        if (env.log.isClosedCorrectly()) {
             if (env.log.formatWithHashCodeIsUsed) {
                 env.gc.utilizationProfile.load()
                 val rootAddress = env.metaTree.rootAddress()
@@ -249,13 +249,13 @@ object Environments {
                 env.gc.utilizationProfile.fetchExpiredLoggables(expiredLoggableCollection)
             }
 
-            if (env.log.restoredFromBackup) {
+            if (env.log.isRestoredFromBackup()) {
                 env.checkBlobs = true
                 env.isCheckLuceneDirectory = true
             }
         } else {
             EnvironmentImpl.loggerInfo(
-                "Because environment ${env.log.location} was closed incorrectly space utilization " +
+                "Because environment ${env.log.getLocation()} was closed incorrectly space utilization " +
                         "will be computed from scratch"
             )
             if (env.environmentConfig.isGcEnabled) {
@@ -282,7 +282,7 @@ object Environments {
             env.checkBlobs = true
             env.isCheckLuceneDirectory = true
 
-            EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.location} is completed")
+            EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.getLocation()} is completed")
         }
 
         val metaServer = ec.metaServer

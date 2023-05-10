@@ -17,7 +17,7 @@ package jetbrains.exodus.log
 
 import jetbrains.exodus.bindings.LongBinding
 
-class DataIterator @JvmOverloads constructor(
+class DataIterator(
     private val log: Log,
     startAddress: Long = -1L,
     private var length: Long = Long.MAX_VALUE
@@ -25,9 +25,8 @@ class DataIterator @JvmOverloads constructor(
     private val cachePageSize: Int = log.cachePageSize
     private val pageAddressMask: Long = (cachePageSize - 1).toLong().inv()
     private var pageAddress: Long
-    override var currentPage: ByteArray? = null
-    override var offset = 0
-        private set
+    private var currentPage: ByteArray? = null
+    private var offset = 0
     private var chunkLength = 0
     private val formatWithHashCodeIsUsed: Boolean
 
@@ -39,13 +38,17 @@ class DataIterator @JvmOverloads constructor(
         }
     }
 
+    override fun getCurrentPage(): ByteArray? = currentPage
+
+    override fun getOffset(): Int = offset
+
     override fun hasNext(): Boolean {
         assert(length >= 0)
         if (currentPage == null || length == 0L) {
             return false
         }
         if (offset >= chunkLength) {
-            checkPageSafe(address)
+            checkPageSafe(getAddress())
             return hasNext()
         }
         return true
@@ -54,7 +57,7 @@ class DataIterator @JvmOverloads constructor(
     override fun next(): Byte {
         if (!hasNext()) {
             DataCorruptionException.raise(
-                "DataIterator: no more bytes available", log, address
+                "DataIterator: no more bytes available", log, getAddress()
             )
         }
         assert(length > 0)
@@ -83,7 +86,7 @@ class DataIterator @JvmOverloads constructor(
             val offsetSkip = pagesToSkip * chunkSize
             val pageOffset = (rest - offsetSkip).toInt()
             val addressDiff = pageSkip + pageOffset
-            checkPageSafe(address + addressDiff)
+            checkPageSafe(getAddress() + addressDiff)
         }
         length -= bytesToSkip
         return bytesToSkip
@@ -92,7 +95,7 @@ class DataIterator @JvmOverloads constructor(
     override fun nextLong(length: Int): Long {
         if (this.length < length) {
             DataCorruptionException.raise(
-                "DataIterator: no more bytes available", log, address
+                "DataIterator: no more bytes available", log, getAddress()
             )
         }
         if (currentPage == null || chunkLength - offset < length) {
@@ -107,7 +110,7 @@ class DataIterator @JvmOverloads constructor(
     fun checkPage(address: Long) {
         val pageAddress = address and pageAddressMask
         if (this.pageAddress != pageAddress) {
-            if (address >= log.highReadAddress) {
+            if (address >= log.getHighReadAddress()) {
                 BlockNotFoundException.raise(log, address)
                 return
             }
@@ -128,24 +131,24 @@ class DataIterator @JvmOverloads constructor(
         return length.toInt()
     }
 
-    override val address: Long
-        get() {
-            assert(offset <= chunkLength)
-            return if (offset < chunkLength) {
-                pageAddress + offset
-            } else pageAddress + cachePageSize
-        }
+    override fun getAddress(): Long {
+        assert(offset <= chunkLength)
+
+        return if (offset < chunkLength) {
+            pageAddress + offset
+        } else pageAddress + cachePageSize
+    }
 
     private fun checkPageSafe(address: Long) {
         try {
             checkPage(address)
             val pageAddress = address and pageAddressMask
-            chunkLength = (log.highReadAddress - pageAddress).coerceAtMost(
+            chunkLength = (log.getHighReadAddress() - pageAddress).coerceAtMost(
                 (
                         cachePageSize - BufferedDataWriter.HASH_CODE_SIZE).toLong()
             ).toInt()
             if (!formatWithHashCodeIsUsed) {
-                chunkLength = (log.highAddress - pageAddress).coerceAtMost(cachePageSize.toLong()).toInt()
+                chunkLength = (log.getHighAddress() - pageAddress).coerceAtMost(cachePageSize.toLong()).toInt()
             }
             if (chunkLength > offset) {
                 return

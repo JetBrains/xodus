@@ -27,10 +27,10 @@ import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 
 open class StartupMetadata protected constructor(
-    val isUseFirstFile: Boolean, @field:Volatile var rootAddress: Long,
-    val isCorrectlyClosed: Boolean, val pageSize: Int, val currentVersion: Long,
-    val environmentFormatVersion: Int,
-    val fileLengthBoundary: Long
+    @JvmField val isUseFirstFile: Boolean, @JvmField @field:Volatile var rootAddress: Long,
+    @JvmField val isCorrectlyClosed: Boolean, @JvmField  val pageSize: Int,  @JvmField val currentVersion: Long,
+    @JvmField val environmentFormatVersion: Int,
+    @JvmField val fileLengthBoundary: Long
 ) {
 
     @Throws(IOException::class)

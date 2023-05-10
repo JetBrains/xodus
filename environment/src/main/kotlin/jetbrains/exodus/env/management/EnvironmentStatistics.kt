@@ -43,7 +43,7 @@ class EnvironmentStatistics(private val env: EnvironmentImpl) : MBeanBase(getObj
         get() = getMean(EnvironmentStatistics.Type.BYTES_MOVED_BY_GC)
 
     override val logCacheHitRate: Float
-        get() = env.log.cacheHitRate
+        get() = env.log.getCacheHitRate()
 
     override val numberOfTransactions: Long
         get() = getTotal(EnvironmentStatistics.Type.TRANSACTIONS)

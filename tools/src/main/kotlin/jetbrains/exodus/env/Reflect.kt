@@ -238,7 +238,7 @@ class Reflect(directory: File) {
 
     internal fun roots() {
         var totalRoots = 0L
-        log.allFileAddresses.reversed().forEach {
+        log.getAllFileAddresses().reversed().forEach {
             val endAddress = it + log.getFileSize(it)
             log.getLoggableIterator(it).forEach { loggable ->
                 if (loggable.getType() == DatabaseRoot.DATABASE_ROOT_TYPE) {
@@ -260,7 +260,7 @@ class Reflect(directory: File) {
         var totalLoggables = 0L
         var nullLoggables = 0L
         var hashCodeLoggables = 0L
-        val fileAddresses = log.allFileAddresses
+        val fileAddresses = log.getAllFileAddresses()
         val fileCount = fileAddresses.size
         fileAddresses.forEachIndexed { i, address ->
             print("\rCollecting log statistics, reading file ${i + 1} of $fileCount, ${i * 100 / fileCount}% complete")
@@ -342,7 +342,7 @@ class Reflect(directory: File) {
 
     fun spaceInfoFromUtilization() {
         val storedSpace = TreeMap<Long, Long?>()
-        log.allFileAddresses.forEach { address ->
+        log.getAllFileAddresses().forEach { address ->
             val freeBytes = env.gc.getFileFreeBytes(address)
             storedSpace[address] = if (freeBytes == Long.MAX_VALUE) null else log.getFileSize(address) - freeBytes
         }
