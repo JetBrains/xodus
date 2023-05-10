@@ -18,19 +18,11 @@ package jetbrains.exodus.log
 import jetbrains.exodus.ByteIterator
 
 interface ByteIteratorWithAddress : ByteIterator {
-    val address: Long
-    val offset: Int
+    fun getAddress(): Long
+    fun getOffset(): Int
     fun available(): Int
-    fun availableInCurrentPage(bytes: Int): Boolean {
-        return false
-    }
-
-    val currentPage: ByteArray?
-        get() {
-            throw UnsupportedOperationException()
-        }
-    val compressedUnsignedInt: Int
-        get() = CompressedUnsignedLongByteIterable.getInt(this)
-    val compressedUnsignedLong: Long
-        get() = CompressedUnsignedLongByteIterable.getLong(this)
+    fun availableInCurrentPage(bytes: Int): Boolean = false
+    fun getCurrentPage(): ByteArray? = throw UnsupportedOperationException()
+    fun getCompressedUnsignedInt(): Int = CompressedUnsignedLongByteIterable.getInt(this)
+    fun getCompressedUnsignedLong(): Long = CompressedUnsignedLongByteIterable.getLong(this)
 }

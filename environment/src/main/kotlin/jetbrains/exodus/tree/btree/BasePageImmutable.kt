@@ -88,7 +88,7 @@ abstract class BasePageImmutable : BasePage {
     ) : super(tree) {
         log = tree.log
         val it = data.iterator()
-        size = it.compressedUnsignedInt shr 1
+        size = it.getCompressedUnsignedInt() shr 1
         this.data = init(data, it)
         formatWithHashCodeIsUsed = log.formatWithHashCodeIsUsed
         if (loggableInsideSinglePage) {
@@ -132,10 +132,10 @@ abstract class BasePageImmutable : BasePage {
         val result: ByteIterableWithAddress
         if (size > 0) {
             val next = itr.next().toInt()
-            result = data.cloneWithAddressAndLength(itr.address, itr.available())
+            result = data.cloneWithAddressAndLength(itr.getAddress(), itr.available())
             loadAddressLengths(next, itr)
         } else {
-            result = data.cloneWithAddressAndLength(itr.address, itr.available())
+            result = data.cloneWithAddressAndLength(itr.getAddress(), itr.available())
         }
         return result
     }

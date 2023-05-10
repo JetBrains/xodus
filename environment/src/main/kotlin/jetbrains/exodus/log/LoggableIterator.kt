@@ -27,7 +27,7 @@ class LoggableIterator(private val log: Log, private val it: ByteIteratorWithAdd
     )
 
     fun getHighAddress(): Long {
-        return it.address
+        return it.getAddress()
     }
 
     override fun next(): RandomAccessLoggable {
@@ -43,7 +43,7 @@ class LoggableIterator(private val log: Log, private val it: ByteIteratorWithAdd
     }
 
     override fun hasNext(): Boolean {
-        return it.hasNext() && it.address < highAddress
+        return it.hasNext() && it.getAddress() < highAddress
     }
 
     override fun remove() {}

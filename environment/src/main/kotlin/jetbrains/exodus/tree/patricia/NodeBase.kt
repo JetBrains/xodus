@@ -215,11 +215,11 @@ internal abstract class NodeBase : INode {
             data: ByteIterableWithAddress,
             it: ByteIteratorWithAddress
         ): ByteIterable {
-            val length = it.compressedUnsignedInt
+            val length = it.getCompressedUnsignedInt()
             if (length == 1) {
                 return ArrayByteIterable.fromByte(it.next())
             }
-            val result = data.cloneWithAddressAndLength(it.address, length)
+            val result = data.cloneWithAddressAndLength(it.getAddress(), length)
             it.skip(length.toLong())
             return result
         }

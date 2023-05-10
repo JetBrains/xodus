@@ -22,19 +22,19 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 class JvmFieldEnforcerProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
         val includes = if (environment.options["includes"] != null) {
-            environment.options["includes"]!!.split(",").toSet()
+            environment.options["includes"]!!.split(";").toSet()
         } else {
             emptySet()
         }
 
         val excludes = if (environment.options["excludes"] != null) {
-            environment.options["excludes"]!!.split(",").toSet()
+            environment.options["excludes"]!!.split(";").toSet()
         } else {
             emptySet()
         }
 
         val excludePaths = if (environment.options["excludePaths"] != null) {
-            environment.options["excludePaths"]!!.split(",").toSet()
+            environment.options["excludePaths"]!!.split(";").toSet()
         } else {
             emptySet()
         }

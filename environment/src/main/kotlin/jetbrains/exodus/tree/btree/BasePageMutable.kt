@@ -108,7 +108,7 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
         val expiredLoggables = (tree as BTreeMutable).getExpiredLoggables()
         if (flag == ReclaimFlag.PRESERVE) {
             // there is a chance to update the flag to RECLAIM
-            if (log.writtenHighAddress % log.fileLengthBound == 0L) {
+            if (log.getWrittenHighAddress() % log.fileLengthBound == 0L) {
                 // page will be exactly on file border
                 flag = ReclaimFlag.RECLAIM
             } else {

@@ -58,7 +58,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
         val log = env.log
         // are there enough files in the log?
-        if (gc.minFileAge < log.numberOfFiles) {
+        if (gc.minFileAge < log.getNumberOfFiles()) {
             if (!canContinue()) {
                 wakeAt(gc, System.currentTimeMillis() + gcRunPeriod)
                 return
@@ -80,19 +80,21 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
     private fun doCleanLog(log: Log, gc: GarbageCollector) {
 
-        GarbageCollector.loggingInfo { "Executing before GC actions for ${log.location}" }
+        GarbageCollector.loggingInfo { "Executing before GC actions for ${log.getLocation()}" }
         try {
             beforeGcActions.forEach { it.run() }
         } catch (t: Throwable) {
-            GarbageCollector.loggingError(t) { "Failed to execute before GC actions for ${log.location}" }
+            GarbageCollector.loggingError(t) { "Failed to execute before GC actions for ${log.getLocation()}" }
         }
 
         val up = gc.utilizationProfile
 
-        GarbageCollector.loggingInfo { "Starting background cleaner loop for ${log.location}, free space: ${up.totalFreeSpacePercent()}%" }
+        GarbageCollector.loggingInfo {
+            "Starting background cleaner loop for ${log.getLocation()}, free space: ${up.totalFreeSpacePercent()}%"
+        }
 
         val env = gc.environment
-        val highFile = log.highFileAddress
+        val highFile = log.getHighFileAddress()
         val loopStart = System.currentTimeMillis()
         val gcRunPeriod = env.environmentConfig.gcRunPeriod
 
@@ -109,7 +111,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         } finally {
             up.estimateTotalBytes()
             up.isDirty = true
-            GarbageCollector.loggingInfo { "Finished background cleaner loop for ${log.location}, free space: ${up.totalFreeSpacePercent()}%" }
+            GarbageCollector.loggingInfo { "Finished background cleaner loop for ${log.getLocation()}, free space: ${up.totalFreeSpacePercent()}%" }
         }
     }
 

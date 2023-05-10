@@ -28,70 +28,30 @@ class LogConfig {
     private var location: String? = null
     private var readerWriterProvider: String? = null
     private var readerWriterProviderInstance: DataReaderWriterProvider? = null
-    var fileSize: Long = 0
-        private set
-        get() {
-            if (field == 0L) {
-                field = DEFAULT_FILE_SIZE.toLong()
-            }
-            return field
-        }
-
-    var lockTimeout: Long = 0
-        private set
-    var memoryUsage: Long = 0
-        private set
+    private var fileSize: Long = 0
+    private var lockTimeout: Long = 0
+    private var memoryUsage: Long = 0
     private var memoryUsagePercentage = 0
     private var reader: DataReader? = null
     private var writer: DataWriter? = null
-    var isDurableWrite = false
-        private set
-    var isSharedCache = false
-        private set
-    var isNonBlockingCache = false
-        private set
-    var cacheUseSoftReferences = false
-        private set
+    private var isDurableWrite = false
+    private var isSharedCache = false
+    private var isNonBlockingCache = false
+    private var cacheUseSoftReferences = false
     private var cacheGenerationCount = 0
-
-    @get:Suppress("unused")
-    var cacheReadAheadMultiple = 0
-        get() {
-            if (field == 0) {
-                field = EnvironmentConfig.DEFAULT.logCacheReadAheadMultiple
-            }
-            return field
-        }
-
     private var cachePageSize = 0
-    var cacheOpenFilesCount = 0
-        private set
-        get() {
-            if (field == 0) {
-                field = EnvironmentConfig.DEFAULT.logCacheOpenFilesCount
-            }
-            return field
-        }
-    var isCleanDirectoryExpected = false
-        private set
-    var isClearInvalidLog = false
-        private set
-    var isWarmup = false
-        private set
+    private var cacheOpenFilesCount = 0
+    private var isCleanDirectoryExpected = false
+    private var isClearInvalidLog = false
+    private var isWarmup = false
     private var syncPeriod: Long = 0
-    var isFullFileReadonly = false
-        private set
-    var streamCipherProvider: StreamCipherProvider? = null
-        private set
-    var cipherKey: ByteArray? = null
-        private set
-    var cipherBasicIV: Long = 0
-        private set
-
-    var lockIgnored = false
-
+    private var isFullFileReadonly = false
+    private var streamCipherProvider: StreamCipherProvider? = null
+    private var cipherKey: ByteArray? = null
+    private var cipherBasicIV: Long = 0
+    private var lockIgnored = false
     private var useV1Format: Boolean
-    var checkPagesAtRuntime: Boolean
+    private var checkPagesAtRuntime: Boolean
 
     init {
         useV1Format = EnvironmentConfig.DEFAULT.useVersion1Format
@@ -119,6 +79,7 @@ class LogConfig {
         return this
     }
 
+
     @Suppress("unused")
     fun setMemoryUsage(memUsage: Long): LogConfig {
         memoryUsage = memUsage
@@ -132,6 +93,50 @@ class LogConfig {
         return memoryUsagePercentage
     }
 
+    fun getFileSize(): Long {
+        if (fileSize == 0L) {
+            fileSize = DEFAULT_FILE_SIZE.toLong()
+        }
+
+        return fileSize
+    }
+
+    fun getCacheOpenFilesCount() : Int {
+        if (cacheOpenFilesCount == 0) {
+            cacheOpenFilesCount = EnvironmentConfig.DEFAULT.logCacheOpenFilesCount
+        }
+
+        return cacheOpenFilesCount
+    }
+
+    fun getMemoryUsage() : Long = memoryUsage
+
+    fun isWarmup() : Boolean {
+        return isWarmup
+    }
+
+    fun isFullFileReadonly() : Boolean {
+        return isFullFileReadonly
+    }
+
+    fun isCleanDirectoryExpected() : Boolean {
+        return isCleanDirectoryExpected
+    }
+
+    fun isClearInvalidLog() : Boolean {
+        return isClearInvalidLog
+    }
+
+    fun isDurableWrite() : Boolean = isDurableWrite
+
+    fun isLockIgnored() : Boolean = lockIgnored
+
+    fun setCheckPagesAtRuntime(checkPagesAtRuntime: Boolean) : LogConfig {
+        this.checkPagesAtRuntime = checkPagesAtRuntime
+        return this
+    }
+
+
     @Suppress("unused")
     fun setMemoryUsagePercentage(memoryUsagePercentage: Int): LogConfig {
         this.memoryUsagePercentage = memoryUsagePercentage
@@ -144,6 +149,22 @@ class LogConfig {
         }
         return reader
     }
+
+    fun getCipherBasicIv(): Long {
+        return cipherBasicIV
+    }
+
+    fun getCipherKey(): ByteArray? {
+        return cipherKey
+    }
+
+    fun getStreamCipherProvider(): StreamCipherProvider? {
+        return streamCipherProvider
+    }
+
+    fun isCheckPagesAtRuntime() = checkPagesAtRuntime
+
+    fun getLockTimeout() = lockTimeout
 
     @Deprecated("")
     fun setReader(reader: DataReader): LogConfig {
@@ -312,6 +333,7 @@ class LogConfig {
 
     companion object {
         private const val DEFAULT_FILE_SIZE = 1024 // in kilobytes
+
         @JvmStatic
         fun create(reader: DataReader, writer: DataWriter): LogConfig {
             return LogConfig().setReaderWriter(reader, writer)

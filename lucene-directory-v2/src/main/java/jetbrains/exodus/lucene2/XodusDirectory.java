@@ -103,18 +103,14 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             throw new ExodusException("Path " + path + " does not exist in file system.");
         }
 
-        if (logConfig.isSharedCache()) {
-            sharedLogCache = (SharedLogCache) log.cache;
-        } else {
-            throw new ExodusException("Lucene directory : " + log.getLocation() +
-                    " . Only environments with shared cache are supported.");
-        }
+
+        sharedLogCache = log.cache;
 
 
         this.cipherProvider = logConfig.getStreamCipherProvider();
         this.cipherKey = logConfig.getCipherKey();
 
-        this.identity = Log.Companion.getIdentityGenerator().nextId();
+        this.identity = Log.identityGenerator.nextId();
 
         this.luceneOutputPath = path.resolve("luceneOutput");
         this.luceneIndex = path.resolve("luceneIndex");

@@ -268,13 +268,13 @@ open class BTreeMutable @JvmOverloads internal constructor(
     fun reclaimInternal(loggable: RandomAccessLoggable, context: BTreeReclaimTraverser) {
         val data = loggable.getData()
         val it = data.iterator()
-        val i = it.compressedUnsignedInt
+        val i = it.getCompressedUnsignedInt()
         if (i and 1 == 1 && i > 1) {
             val minKey = loadMinKey(data, getCompressedSize(i.toLong()))
             if (minKey != null) {
                 val page = InternalPage(
                     this, data.cloneWithAddressAndLength(
-                        it.address,
+                        it.getAddress(),
                         it.available()
                     ),
                     i shr 1, loggable.isDataInsideSinglePage()
@@ -287,13 +287,13 @@ open class BTreeMutable @JvmOverloads internal constructor(
     fun reclaimBottom(loggable: RandomAccessLoggable, context: BTreeReclaimTraverser) {
         val data = loggable.getData()
         val it = data.iterator()
-        val i = it.compressedUnsignedInt
+        val i = it.getCompressedUnsignedInt()
         if (i and 1 == 1 && i > 1) {
             val minKey = loadMinKey(data, getCompressedSize(i.toLong()))
             if (minKey != null) {
                 val page = BottomPage(
                     this, data.cloneWithAddressAndLength(
-                        it.address,
+                        it.getAddress(),
                         it.available()
                     ),
                     i shr 1,

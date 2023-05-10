@@ -269,7 +269,7 @@ internal open class MutableNode : NodeBase {
             iterables[2] = mainIterable
         }
         type = type plus PatriciaTreeBase.ROOT_BIT_WITH_BACKREF
-        iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.writtenHighAddress - startAddress)
+        iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress)
         val data: ByteIterable = CompoundByteIterable(iterables, pos + 2)
         result =
             if (singleFile) {
@@ -279,7 +279,7 @@ internal open class MutableNode : NodeBase {
             }
         if (result < 0) {
             if (!singleFile) {
-                iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.writtenHighAddress - startAddress)
+                iterables[pos] = CompressedUnsignedLongByteIterable.getIterable(log.getWrittenHighAddress() - startAddress)
                 result =
                     log.writeContinuously(type, structureId, CompoundByteIterable(iterables, pos + 2), expiredLoggables)
                 if (result >= 0) {

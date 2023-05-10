@@ -103,7 +103,7 @@ open class RecoveryClassLoaderTest {
                 last = iter.next()
             }
             Assert.assertNotNull(last)
-            Assert.assertEquals(log.highAddress, last!!.end())
+            Assert.assertEquals(log.getHighAddress(), last!!.end())
         }
 
         private fun runIsolated(runnable: Runnable) {

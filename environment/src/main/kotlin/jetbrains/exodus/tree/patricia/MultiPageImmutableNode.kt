@@ -103,13 +103,13 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
 
         var baseAddress = Loggable.NULL_ADDRESS
         if (PatriciaTreeBase.nodeHasChildren(type)) {
-            val i = it.compressedUnsignedInt
+            val i = it.getCompressedUnsignedInt()
             val childrenCount = i ushr 3
             if (childrenCount < VERSION2_CHILDREN_COUNT_BOUND) {
                 this.childrenCount = childrenCount
             } else {
                 this.childrenCount = childrenCount - VERSION2_CHILDREN_COUNT_BOUND
-                baseAddress = it.compressedUnsignedLong
+                baseAddress = it.getCompressedUnsignedLong()
             }
             checkAddressLength(((i and 7) + 1).also { len -> childAddressLength = len.toByte() })
         } else {
@@ -118,7 +118,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
         }
         this.baseAddress = baseAddress
         this.v2Format = baseAddress != Loggable.NULL_ADDRESS
-        this.data = data.cloneWithAddressAndLength(it.address, it.available())
+        this.data = data.cloneWithAddressAndLength(it.getAddress(), it.available())
     }
 
     override fun asNodeBase(): NodeBase {

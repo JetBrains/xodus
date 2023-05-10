@@ -72,7 +72,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             } else {
                 env.executeInReadonlyTransaction { txn ->
                     if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
-                        if (env.allStoreCount == 0L && log.numberOfFiles <= 1) {
+                        if (env.allStoreCount == 0L && log.getNumberOfFiles() <= 1) {
                             clearUtilization()
                         } else {
                             computeUtilizationFromScratch()
@@ -99,7 +99,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                         // check of saved utilization is consistent, at least if it contains same files as the log
                         var inconsistent = false
                         with(PackedLongHashSet(filesUtilization.keys)) {
-                            log.allFileAddresses.forEach {
+                            log.getAllFileAddresses().forEach {
                                 if (!remove(it)) {
                                     inconsistent = true
                                     return@with
@@ -203,7 +203,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     internal fun resetFile(fileAddress: Long) = filesUtilization.synchronized { this[fileAddress]?.value = 0L }
 
     internal fun estimateTotalBytes() {
-        val fileAddresses = log.allFileAddresses
+        val fileAddresses = log.getAllFileAddresses()
         val filesCount = fileAddresses.size
         val minFileAge = gc.minFileAge
         val totalFreeBytes: Long = filesUtilization.synchronized {
@@ -217,7 +217,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     }
 
     internal fun getFilesSortedByUtilization(highFile: Long): Iterator<Long> {
-        val fileAddresses = log.allFileAddresses
+        val fileAddresses = log.getAllFileAddresses()
         val maxFreeBytes = usefulFileSize * gc.maximumFreeSpacePercent.toLong() / 100L
         val fragmentedFiles = PriorityQueue(10, Comparator<Pair<Long, Long>> { leftPair, rightPair ->
             val leftFreeBytes = leftPair.second
@@ -296,7 +296,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     /**
      * Reloads utilization profile.
      */
-    fun computeUtilizationFromScratch() : Job? {
+    fun computeUtilizationFromScratch(): Job? {
         GarbageCollector.loggingInfo { "Queueing ComputeUtilizationFromScratchJob" }
         return gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(gc), gc.startTime)
     }

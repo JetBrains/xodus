@@ -44,7 +44,7 @@ open class LogTests : LogTestsBase() {
             log.endWrite()
             Assert.assertEquals(
                 (3 * (i + 1)).toLong(),
-                log.numberOfFiles.toInt().toLong()
+                log.getNumberOfFiles().toInt().toLong()
             ) // each DUMMY_LOGGABLE takes 3 bytes
         }
     }
@@ -78,7 +78,7 @@ open class LogTests : LogTestsBase() {
         }
         log.flush()
         log.endWrite()
-        Assert.assertEquals(3, log.numberOfFiles.toInt().toLong()) // each DUMMY_LOGGABLE takes 3 bytes
+        Assert.assertEquals(3, log.getNumberOfFiles().toInt().toLong()) // each DUMMY_LOGGABLE takes 3 bytes
     }
 
     @Test
@@ -96,7 +96,7 @@ open class LogTests : LogTestsBase() {
         log.removeFile(1024)
         log.removeFile(8192)
         log.removeFile(32768)
-        Assert.assertEquals(95, log.numberOfFiles.toInt().toLong()) // null loggable should take only one byte
+        Assert.assertEquals(95, log.getNumberOfFiles().toInt().toLong()) // null loggable should take only one byte
     }
 
     @Test
@@ -149,7 +149,7 @@ open class LogTests : LogTestsBase() {
         }
         log.flush()
         log.endWrite()
-        Assert.assertEquals(99, log.numberOfFiles.toInt().toLong()) // null loggable should take only one byte
+        Assert.assertEquals(99, log.getNumberOfFiles().toInt().toLong()) // null loggable should take only one byte
     }
 
     @Test
@@ -165,10 +165,10 @@ open class LogTests : LogTestsBase() {
         val dummyAddress = log.write(DUMMY_LOGGABLE, expired)
         log.flush()
         log.endWrite()
-        Assert.assertEquals(2, log.numberOfFiles.toInt().toLong())
+        Assert.assertEquals(2, log.getNumberOfFiles().toInt().toLong())
         // despite the fact that DUMMY_LOGGABLE size + 1023 nulls should result in 1025 bytes,
         // we should actually get 1026 (one kb + 2) due to automatic alignment
-        Assert.assertEquals(1027, log.highAddress.toInt().toLong())
+        Assert.assertEquals(1027, log.getHighAddress().toInt().toLong())
         // by the same reason, address of dummy should be at the beginning of the second file
         Assert.assertEquals(1024, dummyAddress.toInt().toLong())
     }

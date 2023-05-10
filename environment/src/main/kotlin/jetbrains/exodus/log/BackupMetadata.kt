@@ -23,7 +23,7 @@ open class BackupMetadata protected constructor(
     useFirstFile: Boolean, rootAddress: Long,
     isCorrectlyClosed: Boolean, pageSize: Int, currentVersion: Long,
     environmentFormatVersion: Int, fileLengthBoundary: Long,
-    val lastFileAddress: Long, val lastFileOffset: Long
+    @JvmField val lastFileAddress: Long,@JvmField val lastFileOffset: Long
 ) : StartupMetadata(
     useFirstFile, rootAddress, isCorrectlyClosed, pageSize, currentVersion,
     environmentFormatVersion, fileLengthBoundary

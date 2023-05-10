@@ -21,26 +21,34 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentLongMap
 import jetbrains.exodus.io.Block
 
 // block key is aligned block address, i.e. block address divided by blockSize
-sealed class BlockSet(val blockSize: Long, val set: PersistentLongMap<Block>) {
-    protected abstract val current: PersistentLongMap.ImmutableMap<Block>
+sealed class BlockSet(@JvmField val blockSize: Long, @JvmField val set: PersistentLongMap<Block>) {
+    protected abstract fun getCurrent(): PersistentLongMap.ImmutableMap<Block>
 
-    fun size() = current.size()
+    fun size() = getCurrent().size()
 
-    val isEmpty get() = current.isEmpty
+    fun isEmpty() = getCurrent().isEmpty
 
-    val minimum: Long? get() = current.iterator().let { if (it.hasNext()) it.next().key.keyToAddress else null }
+    fun getMinimum(): Long? {
+        val iterator = getCurrent().iterator()
 
-    val maximum: Long? get() = current.reverseIterator().let { if (it.hasNext()) it.next().key.keyToAddress else null }
+        if (iterator.hasNext()) {
+            return iterator.next().key.keyToAddress()
+        }
 
-    /**
-     * Array of blocks' addresses in reverse order: the newer blocks first
-     */
-    val array: LongArray
-        get() = getFiles(reversed = true)
+        return null
+    }
 
-    @JvmOverloads
+    fun getMaximum(): Long? {
+        val iterator = getCurrent().reverseIterator()
+        if (iterator.hasNext()) {
+            return iterator.next().key.keyToAddress()
+        }
+
+        return null
+    }
+
     fun getFiles(reversed: Boolean = false): LongArray {
-        val current = current
+        val current = getCurrent()
         val result = LongArray(current.size())
         val it = if (reversed) {
             current.reverseIterator()
@@ -48,55 +56,57 @@ sealed class BlockSet(val blockSize: Long, val set: PersistentLongMap<Block>) {
             current.iterator()
         }
         for (i in 0 until result.size) {
-            result[i] = it.next().key.keyToAddress
+            result[i] = it.next().key.keyToAddress()
         }
         return result
     }
 
-    fun contains(blockAddress: Long) = current.containsKey(blockAddress.addressToKey)
+    fun contains(blockAddress: Long) = getCurrent().containsKey(blockAddress.addressToKey())
 
-    fun getBlock(blockAddress: Long): Block = current.get(blockAddress.addressToKey) ?: EmptyBlock(blockAddress)
+    fun getBlock(blockAddress: Long): Block =
+        getCurrent().get(blockAddress.addressToKey()) ?: EmptyBlock(blockAddress)
 
     // if address is inside of a block, the block containing it must be included as well if present
     fun getFilesFrom(blockAddress: Long = 0L): LongIterator = object : LongIterator {
-        val it = if (blockAddress == 0L) current.iterator() else current.tailEntryIterator(blockAddress.addressToKey)
+        val current = getCurrent()
+        val it =
+            if (blockAddress == 0L) current.iterator() else current.tailEntryIterator(blockAddress.addressToKey())
 
         override fun next() = nextLong()
 
         override fun hasNext() = it.hasNext()
 
-        override fun nextLong() = it.next().key.keyToAddress
+        override fun nextLong() = it.next().key.keyToAddress()
 
         override fun remove() = throw UnsupportedOperationException()
     }
 
     fun beginWrite() = Mutable(blockSize, set.clone)
 
-    protected val Long.keyToAddress: Long get() = this * blockSize
 
-    protected val Long.addressToKey: Long get() = this / blockSize
+    protected fun Long.keyToAddress(): Long = this * blockSize
 
-    class Immutable @JvmOverloads constructor(
-            blockSize: Long,
-            map: PersistentLongMap<Block> = PersistentBitTreeLongMap()
+    protected fun Long.addressToKey(): Long = this / blockSize
+
+    class Immutable(
+        blockSize: Long,
+        map: PersistentLongMap<Block> = PersistentBitTreeLongMap()
     ) : BlockSet(blockSize, map) {
         private val immutable: PersistentLongMap.ImmutableMap<Block> = map.beginRead()
 
-        public override val current: PersistentLongMap.ImmutableMap<Block>
-            get() = immutable
+        public override fun getCurrent(): PersistentLongMap.ImmutableMap<Block> = immutable
     }
 
     class Mutable(blockSize: Long, map: PersistentLongMap<Block>) : BlockSet(blockSize, map) {
         private val mutable: PersistentLongMap.MutableMap<Block> = set.beginWrite()
 
-        override val current: PersistentLongMap.ImmutableMap<Block>
-            get() = mutable
+        override fun getCurrent(): PersistentLongMap.ImmutableMap<Block> = mutable
 
         fun clear() = mutable.clear()
 
-        fun add(blockAddress: Long, block: Block) = mutable.put(blockAddress.addressToKey, block)
+        fun add(blockAddress: Long, block: Block) = mutable.put(blockAddress.addressToKey(), block)
 
-        fun remove(blockAddress: Long) = mutable.remove(blockAddress.addressToKey) != null
+        fun remove(blockAddress: Long) = mutable.remove(blockAddress.addressToKey()) != null
 
         fun endWrite(): Immutable {
             if (!mutable.endWrite()) {

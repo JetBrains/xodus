@@ -32,7 +32,7 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
     fun `emulate out of disk space`() {
         var (store0, store1) = prepareStores()
 
-        val highAddress = log.highAddress
+        val highAddress = log.getHighAddress()
         for (l in highAddress * 2 downTo highAddress) {
             val logTestConfig = LogTestConfig().apply {
                 maxHighAddress = l
@@ -75,7 +75,7 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
     fun `too big loggable`() {
         var store0 = prepareStores().first
 
-        println(environment!!.log.highAddress)
+        println(environment!!.log.getHighAddress())
         for (i in 0 until 10) {
             try {
                 environment!!.executeInTransaction { txn ->
@@ -104,7 +104,7 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
                         store0[txn, StringBinding.stringToEntry(" ")]
                     )
                 }
-                println(environment!!.log.highAddress)
+                println(environment!!.log.getHighAddress())
                 continue
             }
             Assert.fail()

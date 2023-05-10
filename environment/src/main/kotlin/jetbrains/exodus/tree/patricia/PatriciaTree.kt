@@ -37,9 +37,9 @@ internal open class PatriciaTree(log: Log, rootAddress: Long, structureId: Int) 
         }
         val data = rootLoggable.getData()
         val it = data.iterator()
-        size = it.compressedUnsignedLong
+        size = it.getCompressedUnsignedLong()
         if (nodeHasBackReference(type)) {
-            val backRef = it.compressedUnsignedLong
+            val backRef = it.getCompressedUnsignedLong()
             @Suppress("LeakingThis")
             rememberBackRef(backRef)
         }
@@ -47,12 +47,12 @@ internal open class PatriciaTree(log: Log, rootAddress: Long, structureId: Int) 
         root = if (rootLoggable.isDataInsideSinglePage()) {
             SinglePageImmutableNode(
                 rootLoggable,
-                data.cloneWithAddressAndLength(it.address, it.available())
+                data.cloneWithAddressAndLength(it.getAddress(), it.available())
             )
         } else {
             MultiPageImmutableNode(
                 log, rootLoggable,
-                data.cloneWithAddressAndLength(it.address, it.available())
+                data.cloneWithAddressAndLength(it.getAddress(), it.available())
             )
         }
     }

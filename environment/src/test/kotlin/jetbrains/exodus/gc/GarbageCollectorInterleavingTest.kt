@@ -37,28 +37,28 @@ open class GarbageCollectorInterleavingTest : EnvironmentTestsBase() {
         val fileSize = log.fileLengthBound
 
         fill("updateSameKey")
-        Assert.assertEquals(1L, log.numberOfFiles)
+        Assert.assertEquals(1L, log.getNumberOfFiles())
         fill("updateSameKey")
 
-        Assert.assertEquals(2L, log.numberOfFiles) // but ends in second one
+        Assert.assertEquals(2L, log.getNumberOfFiles()) // but ends in second one
 
         fill("another")
 
-        Assert.assertEquals(3L, log.numberOfFiles) // make cleaning of second file possible
+        Assert.assertEquals(3L, log.getNumberOfFiles()) // make cleaning of second file possible
 
         environment!!.gc.doCleanFile(fileSize) // clean second file
 
         Thread.sleep(300)
         environment!!.gc.testDeletePendingFiles()
 
-        Assert.assertEquals(3L, log.numberOfFiles) // half of tree written out from second file
+        Assert.assertEquals(3L, log.getNumberOfFiles()) // half of tree written out from second file
 
         environment!!.gc.doCleanFile(0) // clean first file
 
         Thread.sleep(300)
         environment!!.gc.testDeletePendingFiles()
 
-        Assert.assertEquals(2L, log.numberOfFiles) // first file contained only garbage
+        Assert.assertEquals(2L, log.getNumberOfFiles()) // first file contained only garbage
 
         check("updateSameKey")
         check("another")

@@ -53,7 +53,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     val created = System.currentTimeMillis()
 
     @JvmField
-    var cache: LogCache
+    var cache: SharedLogCache
 
     private val writeBoundarySemaphore: Semaphore
 
@@ -61,8 +61,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     @JvmField
     var isClosing: Boolean = false
 
-    override var identity: Int = 0
-        private set
+    private var identity: Int = 0
 
     private val reader: DataReader = config.getReader()!!
     private val dataWriter: DataWriter = config.getWriter()!!
@@ -75,11 +74,8 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
     private var startupMetadata: StartupMetadata
 
-    val isClosedCorrectly: Boolean
-        get() = startupMetadata.isCorrectlyClosed
+    private var restoredFromBackup: Boolean = false
 
-    var restoredFromBackup: Boolean = false
-        private set
 
     /** Size of single page in log cache. */
     @JvmField
@@ -101,60 +97,53 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     @Deprecated("for tests only")
     private var testConfig: LogTestConfig? = null
 
-    val location: String
-        get() = reader.location
+    fun getLocation(): String = reader.location
 
-    val numberOfFiles: Long
-        get() = writer.numberOfFiles().toLong()
+    fun getNumberOfFiles(): Long = writer.numberOfFiles().toLong()
 
     /**
      * Returns addresses of log files from the newest to the oldest ones.
      */
-    val allFileAddresses: LongArray
-        get() = writer.allFiles()
+    fun getAllFileAddresses(): LongArray = writer.allFiles()
 
-    val highAddress: Long
-        get() = writer.highAddress
+    fun getHighAddress(): Long = writer.highAddress
 
-    val writtenHighAddress: Long
-        get() = writer.currentHighAddress
+    fun getWrittenHighAddress(): Long = writer.currentHighAddress
 
-    val highReadAddress: Long
-        get() {
-            return if (writeThread != null && writeThread == Thread.currentThread()) {
-                writer.currentHighAddress
-            } else {
-                writer.highAddress
-            }
+    fun isRestoredFromBackup() = restoredFromBackup
+
+    fun isClosedCorrectly(): Boolean = startupMetadata.isCorrectlyClosed
+
+    fun getHighReadAddress(): Long {
+        return if (writeThread != null && writeThread == Thread.currentThread()) {
+            writer.currentHighAddress
+        } else {
+            writer.highAddress
         }
+    }
 
-    val lowFileAddress: Long
-        get() {
-            val result = writer.minimumFile
-            return result ?: Loggable.NULL_ADDRESS
-        }
+    fun getLowFileAddress(): Long {
+        val result = writer.getMinimumFile()
+        return result ?: Loggable.NULL_ADDRESS
+    }
 
-    val highFileAddress: Long
-        get() = getFileAddress(highAddress)
+    fun getHighFileAddress(): Long = getFileAddress(getHighAddress())
 
-    val diskUsage: Long
-        get() {
-            val allFiles = writer.allFiles()
-            val highAddress = writer.highAddress
+    fun getDiskUsage(): Long {
+        val allFiles = writer.allFiles()
+        val highAddress = writer.highAddress
 
-            val filesCount = allFiles.size
+        val filesCount = allFiles.size
 
-            return if (filesCount == 0) 0L else (filesCount - 1) * fileLengthBound + getFileSize(
-                allFiles[filesCount - 1],
-                highAddress
-            )
-        }
+        return if (filesCount == 0) 0L else (filesCount - 1) * fileLengthBound + getFileSize(
+            allFiles[filesCount - 1],
+            highAddress
+        )
+    }
 
-    val cacheHitRate: Float
-        get() = cache.hitRate()
+    fun getCacheHitRate(): Float = cache.hitRate()
 
-    val isReadOnly: Boolean
-        get() = rwIsReadonly
+    fun isReadOnly(): Boolean = rwIsReadonly
 
     private val nullPage: ByteArray
 
@@ -166,7 +155,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         try {
             rwIsReadonly = false
 
-            val fileLength = config.fileSize * 1024L
+            val fileLength = config.getFileSize() * 1024L
 
             val logContainsBlocks = reader.blocks.iterator().hasNext()
             val metadata = if (reader is FileDataReader) {
@@ -194,9 +183,9 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             }
 
             if (!needToPerformMigration && !startupMetadata.isCorrectlyClosed) {
-                val backupLocation = Path.of(location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
+                val backupLocation = Path.of(getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
                 if (Files.exists(backupLocation)) {
-                    logger.info("Database $location : trying to restore from dynamic backup...")
+                    logger.info("Database ${getLocation()} : trying to restore from dynamic backup...")
                     val backupMetadataBuffer = ByteBuffer.allocate(BackupMetadata.FILE_SIZE)
                     FileChannel.open(backupLocation, StandardOpenOption.READ).use { channel ->
                         while (backupMetadataBuffer.remaining() > 0) {
@@ -217,17 +206,17 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                     if (backupMetadata == null || backupMetadata.rootAddress < 0 ||
                         (backupMetadata.lastFileOffset % backupMetadata.pageSize.toLong()) != 0L
                     ) {
-                        logger.warn("Dynamic backup is not stored correctly for database $location.")
+                        logger.warn("Dynamic backup is not stored correctly for database ${getLocation()}.")
                     } else {
                         val lastFileName = LogUtil.getLogFilename(backupMetadata.lastFileAddress)
-                        val lastSegmentFile = Path.of(location).resolve(lastFileName)
+                        val lastSegmentFile = Path.of(getLocation()).resolve(lastFileName)
 
                         if (!Files.exists(lastSegmentFile)) {
-                            logger.warn("Dynamic backup is not stored correctly for database $location.")
+                            logger.warn("Dynamic backup is not stored correctly for database ${getLocation()}.")
                         } else {
                             logger.info(
                                 "Found dynamic backup. " +
-                                        "Database $location will be restored till file $lastFileName, " +
+                                        "Database ${getLocation()} will be restored till file $lastFileName, " +
                                         "last file length ${backupMetadata.lastFileOffset}. DB root address ${backupMetadata.rootAddress}"
                             )
 
@@ -275,7 +264,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                                 startupMetadata = backupMetadata
                                 restoredFromBackup = true
                             } catch (ex: Exception) {
-                                logger.error("Failed to restore database $location from dynamic backup. ", ex)
+                                logger.error("Failed to restore database ${getLocation()} from dynamic backup. ", ex)
                             }
                         }
                     }
@@ -284,7 +273,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
             if (config.getCachePageSize() != startupMetadata.pageSize) {
                 logger.warn(
-                    "Environment $location was created with cache page size equals to " +
+                    "Environment ${getLocation()} was created with cache page size equals to " +
                             "${startupMetadata.pageSize} but provided page size is ${config.getCachePageSize()} " +
                             "page size will be updated to ${startupMetadata.pageSize}"
                 )
@@ -294,7 +283,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
             if (fileLength != startupMetadata.fileLengthBoundary) {
                 logger.warn(
-                    "Environment $location was created with maximum files size equals to " +
+                    "Environment ${getLocation()} was created with maximum files size equals to " +
                             "${startupMetadata.fileLengthBoundary} but provided file size is $fileLength " +
                             "file size will be updated to ${startupMetadata.fileLengthBoundary}"
                 )
@@ -311,7 +300,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
             if (expectedEnvironmentVersion != startupMetadata.environmentFormatVersion) {
                 throw ExodusException(
-                    "For environment $location expected format version is $expectedEnvironmentVersion " +
+                    "For environment ${getLocation()} expected format version is $expectedEnvironmentVersion " +
                             "but  data are stored using version ${startupMetadata.environmentFormatVersion}"
                 )
             }
@@ -323,7 +312,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
             var tmpLeftovers = false
             if (reader is FileDataReader) {
-                LogUtil.listTlcFiles(File(location)).use {
+                LogUtil.listTlcFiles(File(getLocation())).use {
                     var count = 0
 
                     it.forEach { path ->
@@ -352,7 +341,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
             var incorrectLastSegmentSize = false
             if (!needToPerformMigration && blockSetMutable.size() > 0) {
-                val lastAddress = blockSetMutable.maximum!!
+                val lastAddress = blockSetMutable.getMaximum()!!
 
                 val lastBlock = blockSetMutable.getBlock(lastAddress)
                 val lastFileLength = lastBlock.length()
@@ -367,70 +356,53 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             }
 
             if (!rwIsReadonly && reader is MemoryDataReader) {
-                logger.info("Checking data consistency for environment $location ...")
+                logger.info("Checking data consistency for environment ${getLocation()} ...")
 
                 blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
-                logger.info("Data check is completed for environment $location.")
+                logger.info("Data check is completed for environment ${getLocation()}.")
             } else if (!rwIsReadonly && reader is FileDataReader &&
                 (!startupMetadata.isCorrectlyClosed || tmpLeftovers
                         || incorrectLastSegmentSize || needToPerformMigration)
             ) {
                 logger.warn(
-                    "Environment located at $location has been closed incorrectly. " +
+                    "Environment located at ${getLocation()} has been closed incorrectly. " +
                             "Data check routine is started to assess data consistency ..."
                 )
 
                 blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
-                logger.info("Data check is completed for environment $location.")
+                logger.info("Data check is completed for environment ${getLocation()}.")
             }
 
             val blockSetImmutable = blockSetMutable.endWrite()
 
-            val memoryUsage = config.memoryUsage
-            val nonBlockingCache = config.isNonBlockingCache
-            val useSoftReferences = config.cacheUseSoftReferences
+            val memoryUsage = config.getMemoryUsage()
             val generationCount = config.getCacheGenerationCount()
 
             cache = if (memoryUsage != 0L) {
-                if (config.isSharedCache)
-                    getSharedCache(
-                        memoryUsage,
-                        cachePageSize,
-                        nonBlockingCache,
-                        useSoftReferences,
-                        generationCount
-                    )
-                else
-                    SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
+                getSharedCache(
+                    memoryUsage,
+                    cachePageSize,
+                    generationCount
+                )
             } else {
                 val memoryUsagePercentage = config.getMemoryUsagePercentage()
-                if (config.isSharedCache)
-                    getSharedCache(
-                        memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
-                        generationCount
-                    )
-                else
-                    SeparateLogCache(
-                        memoryUsagePercentage, cachePageSize, nonBlockingCache, useSoftReferences,
-                        generationCount
-                    )
+                getSharedCache(
+                    memoryUsagePercentage, cachePageSize,
+                    generationCount
+                )
             }
 
             val writeBoundary = (fileLength / cachePageSize).toInt()
-            writeBoundarySemaphore = if (config.isSharedCache) {
-                getSharedWriteBoundarySemaphore(writeBoundary)
-            } else {
-                Semaphore(writeBoundary)
-            }
+            writeBoundarySemaphore = getSharedWriteBoundarySemaphore(writeBoundary)
 
             DeferredIO.getJobProcessor()
             isClosing = false
 
-            val lastFileAddress = blockSetMutable.maximum
+            val lastFileAddress = blockSetMutable.getMaximum()
             updateLogIdentity()
 
             val page: ByteArray
@@ -484,7 +456,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             if (!rwIsReadonly && writtenInPage > 0) {
                 logger.warn(
                     "Page ${(highAddress and (cachePageSize - 1).toLong())} is not written completely, fixing it. " +
-                            "Environment : $location, file : ${LogUtil.getLogFilename(getFileAddress(highAddress))}."
+                            "Environment : ${getLocation()}, file : ${LogUtil.getLogFilename(getFileAddress(highAddress))}."
                 )
 
                 if (needToPerformMigration) {
@@ -497,11 +469,11 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             }
 
             if (logWasChanged) {
-                logger.info("Log $location content was changed during the initialization, data sync is performed.")
+                logger.info("Log ${getLocation()} content was changed during the initialization, data sync is performed.")
                 sync()
             }
 
-            if (config.isWarmup) {
+            if (config.isWarmup()) {
                 warmup()
             }
 
@@ -513,6 +485,8 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             throw ex
         }
     }
+
+    override fun getIdentity(): Int = identity
 
     private fun checkLogConsistencyAndUpdateRootAddress(
         blockSetMutable: BlockSet.Mutable,
@@ -530,7 +504,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             SharedOpenFilesCache.invalidate()
 
             dataWriter.close()
-            val lastBlockAddress = blockSetMutable.maximum
+            val lastBlockAddress = blockSetMutable.getMaximum()
 
             if (lastBlockAddress != null) {
                 val lastBlock = blockSetMutable.getBlock(lastBlockAddress)
@@ -546,7 +520,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         beforeWrite()
         try {
             writer.padWholePageWithNulls()
-            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly())
         } finally {
             endWrite()
         }
@@ -557,7 +531,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         beforeWrite()
         try {
             writer.padPageWithNulls()
-            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly())
         } finally {
             endWrite()
         }
@@ -574,7 +548,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                 expiredLoggables.add(currentAddress, written)
             }
 
-            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly())
         } finally {
             endWrite()
         }
@@ -606,7 +580,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             return Long.MIN_VALUE
         }
 
-        if (config.isCleanDirectoryExpected) {
+        if (config.isCleanDirectoryExpected()) {
             throw ExodusException("Clean log is expected")
         }
 
@@ -616,7 +590,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             blocks[block.address] = block
         }
 
-        logger.info("Files found in directory $location ...")
+        logger.info("Files found in directory ${getLocation()} ...")
         logger.info("------------------------------------------------------")
         val blockAddressIterator = blocks.keys.iterator()
         while (blockAddressIterator.hasNext()) {
@@ -625,7 +599,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         }
         logger.info("------------------------------------------------------")
 
-        val clearInvalidLog = config.isClearInvalidLog
+        val clearInvalidLog = config.isClearInvalidLog()
         var hasNext: Boolean
 
         var dbRootAddress = Long.MIN_VALUE
@@ -662,7 +636,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
                 val blockDataIterator = BlockDataIterator(this, block, address, formatWithHashCodeIsUsed, !hasNext)
                 while (blockDataIterator.hasNext()) {
-                    val loggableAddress = blockDataIterator.address
+                    val loggableAddress = blockDataIterator.getAddress()
                     val loggableType = blockDataIterator.next() xor 0x80.toByte()
 
                     checkLoggableType(loggableType, loggableAddress)
@@ -693,7 +667,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                         }
 
                         val loggableData = ByteArray(dataLength)
-                        val dataAddress = blockDataIterator.address
+                        val dataAddress = blockDataIterator.getAddress()
 
                         for (i in 0 until dataLength) {
                             loggableData[i] = blockDataIterator.next()
@@ -701,7 +675,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
                         val rootLoggable = SinglePageLoggable(
                             loggableAddress,
-                            blockDataIterator.address,
+                            blockDataIterator.getAddress(),
                             loggableType,
                             structureId,
                             dataAddress,
@@ -711,7 +685,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                         val dbRoot = DatabaseRoot(rootLoggable)
                         if (dbRoot.isValid) {
                             dbRootAddress = loggableAddress
-                            dbRootEndAddress = blockDataIterator.address
+                            dbRootEndAddress = blockDataIterator.getAddress()
                         } else {
                             DataCorruptionException.raise(
                                 "Corrupted database root was found", this,
@@ -734,7 +708,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                 if (clearInvalidLog) {
                     logger.error(
                         "Data corruption was detected. Reason : ${dataCorruptionException.message} . " +
-                                "Environment $location will be cleared."
+                                "Environment ${getLocation()} will be cleared."
                     )
                     blockSetMutable.clear()
                     dataWriter.clear()
@@ -746,7 +720,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                 if (dbRootEndAddress > 0) {
                     logger.error(
                         "Data corruption was detected. Reason : ${dataCorruptionException.message} . " +
-                                "Environment log $location will be truncated till address : $dbRootEndAddress"
+                                "Environment log ${getLocation()} will be truncated till address : $dbRootEndAddress"
                     )
 
                     val endBlockAddress = getFileAddress(dbRootEndAddress)
@@ -778,10 +752,10 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                             }
 
                             Arrays.fill(it, read, it.size, 0x80.toByte())
-                            val cipherProvider = config.streamCipherProvider
+                            val cipherProvider = config.getStreamCipherProvider()
                             if (cipherProvider != null) {
                                 cryptBlocksMutable(
-                                    cipherProvider, config.cipherKey!!, config.cipherBasicIV,
+                                    cipherProvider, config.getCipherKey()!!, config.getCipherBasicIv(),
                                     endBlock.address + position, it, read, it.size - read,
                                     LogUtil.LOG_BLOCK_ALIGNMENT
                                 )
@@ -865,7 +839,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                 }
 
                 rwIsReadonly = false
-                logger.error("Data corruption was fixed for environment $location.")
+                logger.error("Data corruption was fixed for environment ${getLocation()}.")
 
                 if (loadedDbRootAddress != dbRootAddress) {
                     logger.warn(
@@ -880,7 +854,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             } catch (e: DataCorruptionException) {
                 throw e
             } catch (e: Exception) {
-                logger.error("Error during attempt to restore log $location", e)
+                logger.error("Error during attempt to restore log ${getLocation()}", e)
                 throw ExodusException(dataCorruptionException)
             }
         }
@@ -902,7 +876,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         lastPage: ByteArray?
     ) {
         val endBlockBackupPath =
-            Path.of(location).resolve(
+            Path.of(getLocation()).resolve(
                 endBlock.name.substring(
                     0,
                     endBlock.name.length - LogUtil.LOG_FILE_EXTENSION_LENGTH
@@ -936,7 +910,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             )
         } catch (moveNotSupported: AtomicMoveNotSupportedException) {
             logger.warn(
-                "Environment: $location. " +
+                "Environment: ${getLocation()}. " +
                         "Atomic move is not supported by the file system and can not be used during " +
                         "log restore. Falling back to the non-atomic move."
             )
@@ -1023,7 +997,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     }
 
     fun isLastWrittenFileAddress(address: Long): Boolean {
-        return getFileAddress(address) == getFileAddress(writtenHighAddress)
+        return getFileAddress(address) == getFileAddress(getWrittenHighAddress())
     }
 
     fun adjustLoggableAddress(address: Long, offset: Long): Long {
@@ -1138,12 +1112,12 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     }
 
     @JvmOverloads
-    fun read(it: ByteIteratorWithAddress, address: Long = it.address): RandomAccessLoggable {
+    fun read(it: ByteIteratorWithAddress, address: Long = it.getAddress()): RandomAccessLoggable {
         val type = it.next() xor 0x80.toByte()
         return if (NullLoggable.isNullLoggable(type)) {
             NullLoggable.create(address, adjustLoggableAddress(address, 1))
         } else if (HashCodeLoggable.isHashCodeLoggable(type)) {
-            HashCodeLoggable(address, it.offset, it.currentPage)
+            HashCodeLoggable(address, it.getOffset(), it.getCurrentPage())
         } else {
             read(type, it, address)
         }
@@ -1159,6 +1133,10 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     }
 
     private fun read(type: Byte, it: ByteIteratorWithAddress, address: Long): RandomAccessLoggable {
+        if (isClosing) {
+            throw ExodusException("Can't read from closed log")
+        }
+
         checkLoggableType(type, address)
 
         val structureId = CompressedUnsignedLongByteIterable.getInt(it)
@@ -1167,15 +1145,15 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         val dataLength = CompressedUnsignedLongByteIterable.getInt(it)
         checkDataLength(dataLength, address)
 
-        val dataAddress = it.address
+        val dataAddress = it.getAddress()
 
         if (dataLength > 0 && it.availableInCurrentPage(dataLength)) {
             val end = dataAddress + dataLength
 
             return SinglePageLoggable(
                 address, end,
-                type, structureId, dataAddress, it.currentPage!!,
-                it.offset, dataLength
+                type, structureId, dataAddress, it.getCurrentPage()!!,
+                it.getOffset(), dataLength
             )
         }
 
@@ -1188,7 +1166,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     }
 
     fun getLoggableIterator(startAddress: Long): LoggableIterator {
-        return LoggableIterator(this, startAddress, highAddress)
+        return LoggableIterator(this, startAddress, getHighAddress())
     }
 
     fun tryWrite(type: Byte, structureId: Int, data: ByteIterable, expiredLoggables: ExpiredLoggableCollection): Long {
@@ -1231,7 +1209,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     }
 
     fun flush() {
-        if (config.isDurableWrite) {
+        if (config.isDurableWrite()) {
             sync()
         } else {
             writer.flush()
@@ -1259,7 +1237,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
                         throw ExodusException("Invalid value of tip of the log $highAddress")
                     }
 
-                    writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+                    writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly())
                 } finally {
                     endWrite()
                 }
@@ -1270,22 +1248,16 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             if (reader is FileDataReader) {
                 startupMetadata.closeAndUpdate(reader)
             }
-
-
         }
 
         writer.close(!rwIsReadonly)
         reader.close()
 
-        if (cache is SeparateLogCache) {
-            cache.clear()
-        }
-
         release()
     }
 
     fun release() {
-        if (!config.lockIgnored) {
+        if (!config.isLockIgnored()) {
             dataWriter.release()
         }
     }
@@ -1313,7 +1285,6 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         writer.forgetFiles(files, fileLengthBound)
     }
 
-    @JvmOverloads
     fun removeFile(
         address: Long,
         rbt: RemoveBlockType = RemoveBlockType.Delete
@@ -1343,7 +1314,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
         if (written > 0) {
             expiredLoggables.add(address, written)
-            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+            writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly())
         }
     }
 
@@ -1353,19 +1324,19 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         val files = writer.getFilesFrom(fileAddress)
         if (files.hasNext()) {
             val leftBound = files.nextLong()
-            val fileSize = getFileSize(leftBound, highAddress)
+            val fileSize = getFileSize(leftBound, getHighAddress())
 
             if (leftBound == fileAddress && fileAddress + fileSize > pageAddress) {
                 val block = writer.getBlock(fileAddress)
-                return readFromBlock(block, pageAddress, output, highAddress)
+                return readFromBlock(block, pageAddress, output, getHighAddress())
             }
-            if (fileAddress < (writer.minimumFile ?: -1L)) {
+            if (fileAddress < (writer.getMinimumFile() ?: -1L)) {
                 BlockNotFoundException.raise(
                     "Address is out of log space, underflow",
                     this, pageAddress
                 )
             }
-            if (fileAddress >= (writer.maximumFile ?: -1L)) {
+            if (fileAddress >= (writer.getMaximumFile() ?: -1L)) {
                 BlockNotFoundException.raise(
                     "Address is out of log space, overflow",
                     this, pageAddress
@@ -1389,7 +1360,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
 
         val lastPage = (highAddress and
                 ((cachePageSize - 1).inv()).toLong())
-        var checkConsistency = config.checkPagesAtRuntime &&
+        var checkConsistency = config.isCheckPagesAtRuntime() &&
                 formatWithHashCodeIsUsed &&
                 (!rwIsReadonly || pageAddress < lastPage)
         checkConsistency = formatWithHashCodeIsUsed &&
@@ -1406,7 +1377,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             BufferedDataWriter.checkPageConsistency(pageAddress, output, cachePageSize, this)
         }
 
-        val cipherProvider = config.streamCipherProvider
+        val cipherProvider = config.getStreamCipherProvider()
         if (cipherProvider != null) {
             val encryptedBytes = if (readBytes < cachePageSize) {
                 readBytes
@@ -1419,7 +1390,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             }
 
             cryptBlocksMutable(
-                cipherProvider, config.cipherKey!!, config.cipherBasicIV,
+                cipherProvider, config.getCipherKey()!!, config.getCipherBasicIv(),
                 pageAddress, output, 0, encryptedBytes, LogUtil.LOG_BLOCK_ALIGNMENT
             )
         }
@@ -1428,7 +1399,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     }
 
     fun getWrittenFilesSize(): Int {
-        return writer.filesSize
+        return writer.getFilesSize()
     }
 
     /**
@@ -1442,8 +1413,8 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     }
 
     private fun tryLock() {
-        if (!config.lockIgnored) {
-            val lockTimeout = config.lockTimeout
+        if (!config.isLockIgnored()) {
+            val lockTimeout = config.getLockTimeout()
             if (!dataWriter.lock(lockTimeout)) {
                 val exceptionMessage = StringBuilder()
                 exceptionMessage.append(
@@ -1471,6 +1442,9 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     ): Long {
         if (rwIsReadonly) {
             throw ExodusException("Environment is working in read-only mode. No writes are allowed")
+        }
+        if (isClosing) {
+            throw ExodusException("Can't write to closed log")
         }
 
         var result = beforeWrite()
@@ -1521,7 +1495,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             }
         }
 
-        writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly)
+        writer.closeFileIfNecessary(fileLengthBound, config.isFullFileReadonly())
         return result
     }
 
@@ -1576,8 +1550,7 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
     }
 
     companion object : KLogging() {
-
-
+        @JvmField
         val identityGenerator = IdGenerator()
 
         @Volatile
@@ -1611,16 +1584,14 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
         private fun getSharedCache(
             memoryUsage: Long,
             pageSize: Int,
-            nonBlocking: Boolean,
-            useSoftReferences: Boolean,
             cacheGenerationCount: Int
-        ): LogCache {
+        ): SharedLogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
                         sharedCache = SharedLogCache(
-                            memoryUsage, pageSize, nonBlocking, useSoftReferences,
+                            memoryUsage, pageSize,
                             cacheGenerationCount
                         )
                     }
@@ -1629,23 +1600,20 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             }
             return result.notNull.also { cache ->
                 checkCachePageSize(pageSize, cache)
-                checkUseSoftReferences(useSoftReferences, cache)
             }
         }
 
         private fun getSharedCache(
             memoryUsagePercentage: Int,
             pageSize: Int,
-            nonBlocking: Boolean,
-            useSoftReferences: Boolean,
             cacheGenerationCount: Int
-        ): LogCache {
+        ): SharedLogCache {
             var result = sharedCache
             if (result == null) {
                 synchronized(Log::class.java) {
                     if (sharedCache == null) {
                         sharedCache = SharedLogCache(
-                            memoryUsagePercentage, pageSize, nonBlocking, useSoftReferences,
+                            memoryUsagePercentage, pageSize,
                             cacheGenerationCount
                         )
                     }
@@ -1654,7 +1622,6 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             }
             return result.notNull.also { cache ->
                 checkCachePageSize(pageSize, cache)
-                checkUseSoftReferences(useSoftReferences, cache)
             }
         }
 
@@ -1667,14 +1634,6 @@ class Log(@JvmField val config: LogConfig, expectedEnvironmentVersion: Int) : Cl
             }
         }
 
-        private fun checkUseSoftReferences(useSoftReferences: Boolean, cache: SharedLogCache) {
-            if (cache.useSoftReferences != useSoftReferences) {
-                throw ExodusException(
-                    "SharedLogCache was created with useSoftReferences = ${cache.useSoftReferences}" +
-                            " and then requested with useSoftReferences = $useSoftReferences. EnvironmentConfig.LOG_CACHE_USE_SOFT_REFERENCES is set manually."
-                )
-            }
-        }
 
         /**
          * Writes byte iterator to the log returning its length.

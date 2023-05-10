@@ -28,11 +28,11 @@ internal class CleanEntireLogJob(private val gc: GarbageCollector) : LatchJob() 
             var lastNumberOfFiles = java.lang.Long.MAX_VALUE
             // repeat cleaning until number of files stops decreasing
             while (true) {
-                val numberOfFiles = log.numberOfFiles
+                val numberOfFiles = log.getNumberOfFiles()
                 if (numberOfFiles == 1L || numberOfFiles >= lastNumberOfFiles) break
                 lastNumberOfFiles = numberOfFiles
-                val highFileAddress = log.highFileAddress
-                var fileAddress = log.lowFileAddress
+                val highFileAddress = log.getHighFileAddress()
+                var fileAddress = log.getLowFileAddress()
                 while (fileAddress != highFileAddress) {
                     gc.doCleanFile(fileAddress)
                     fileAddress = log.getNextFileAddress(fileAddress)

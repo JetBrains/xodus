@@ -26,6 +26,7 @@ internal class BTreeDup(mainTree: BTreeBase, leafNodeDup: LeafNodeDup) :
 
     // get key from tree
     private val leafNodeDupKey: ByteIterable
+
     @JvmField
     var startAddress: Long = 0
     private var dataOffset: Byte = 0
@@ -35,10 +36,10 @@ internal class BTreeDup(mainTree: BTreeBase, leafNodeDup: LeafNodeDup) :
         this.leafNodeDup = leafNodeDup
         leafNodeDupKey = leafNodeDup.getKey()
         val iterator = leafNodeDup.getRawValue(0).iterator()
-        val l = iterator.compressedUnsignedLong
+        val l = iterator.getCompressedUnsignedLong()
         size = l shr 1
         if (l and 1L == 1L) {
-            val offset = iterator.compressedUnsignedLong
+            val offset = iterator.getCompressedUnsignedLong()
             startAddress = leafNodeDup.getAddress() - offset
             dataOffset = (getCompressedSize(l)
                     + getCompressedSize(offset)).toByte()

@@ -427,7 +427,7 @@ abstract class TreePutTest : TreeBaseTest<ITree, ITreeMutable>() {
             }
         }
         val address = saveTree()
-        println("Log size: " + treeMutable!!.getLog().highAddress)
+        println("Log size: " + treeMutable!!.getLog().getHighAddress())
         reopen()
         tree = openTree(address, false)
         Assert.assertEquals(set.size.toLong(), tree!!.size())
