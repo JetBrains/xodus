@@ -126,7 +126,7 @@ internal class ChildReferenceSet : Iterable<ChildReference> {
         }
     }
 
-    class ChildReferenceIterator(set: ChildReferenceSet, var index: Int) : MutableIterator<ChildReference> {
+    class ChildReferenceIterator(set: ChildReferenceSet,@JvmField var index: Int) : MutableIterator<ChildReference> {
         private val refs: Array<ChildReference?>?
         private val size: Int
 

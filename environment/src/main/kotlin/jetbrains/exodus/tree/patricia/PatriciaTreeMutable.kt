@@ -32,6 +32,7 @@ internal class PatriciaTreeMutable(
     treeSize: Long,
     immutableRoot: ImmutableNode
 ) : PatriciaTreeBase(log, structureId), ITreeMutable {
+    @JvmField
     internal var root = MutableRoot(immutableRoot)
     override fun getRoot(): MutableRoot = root
 
@@ -58,7 +59,8 @@ internal class PatriciaTreeMutable(
         addExpiredLoggable(immutableRoot.getLoggable())
     }
 
-    val useV1Format: Boolean get() = (this as PatriciaTreeBase).log.config.useV1Format()
+    @JvmField
+    val useV1Format = (this as PatriciaTreeBase).log.config.useV1Format()
 
     override fun put(key: ByteIterable, value: ByteIterable): Boolean {
         val it = key.iterator()
@@ -457,7 +459,7 @@ internal class PatriciaTreeMutable(
                     }
                     while (true) {
                         if (iteratorsMatch) {
-                            while (source.isValidPos && actual.isValidPos) {
+                            while (source.isValidPos() && actual.isValidPos()) {
                                 val sourceChild = source.currentChild!!
                                 val sourceByte = sourceChild.firstByte.toInt() and 0xff
                                 val actualByte = actual.currentChild!!.firstByte.toInt() and 0xff
@@ -496,18 +498,18 @@ internal class PatriciaTreeMutable(
             actual: PatriciaReclaimActualTraverser
         ) {
             actual.updateCurrentNode(actual.currentNode.getMutableCopy(actual.mainTree))
-            actual.itr
+            actual.intiItr()
             actual.wasReclaim = true
             var depth = 1
             dive_deeper@
             while (true) {
-                while (actual.isValidPos) {
+                while (actual.isValidPos()) {
                     val actualChild = actual.currentChild
                     val suffixAddress = actualChild!!.suffixAddress
                     if (source.isAddressReclaimable(suffixAddress)) {
                         actual.moveDown()
                         actual.updateCurrentNode(actual.currentNode.getMutableCopy(actual.mainTree))
-                        actual.itr
+                        actual.intiItr()
                         actual.wasReclaim = true
                         depth++
                         continue@dive_deeper
@@ -533,7 +535,10 @@ internal class PatriciaTreeMutable(
         }
 
         private class ReclaimFrame {
+            @JvmField
             var srcPushes = 0
+
+            @JvmField
             var actPushes = 0
         }
     }

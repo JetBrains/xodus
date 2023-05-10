@@ -235,7 +235,7 @@ abstract class BasePageMutable : BasePage, MutableTreeRoot {
     abstract fun mergeWithChildren(): BasePageMutable
     abstract fun mergeWithRight(page: BasePageMutable)
     abstract fun mergeWithLeft(page: BasePageMutable)
-    protected enum class ReclaimFlag(val value: Int) {
+    protected enum class ReclaimFlag(@JvmField val value: Int) {
         PRESERVE(0),
         RECLAIM(1)
     }

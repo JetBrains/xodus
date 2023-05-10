@@ -19,7 +19,7 @@ import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.util.LightOutputStream
 
-class MutableNodeSaveContext(val preliminaryRootData: ByteIterable) {
+class MutableNodeSaveContext(@JvmField val preliminaryRootData: ByteIterable) {
     @JvmField
     var startAddress: Long = Loggable.NULL_ADDRESS
     private val nodeStream: LightOutputStream = LightOutputStream(16)

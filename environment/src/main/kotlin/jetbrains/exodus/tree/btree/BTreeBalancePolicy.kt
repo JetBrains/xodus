@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.tree.btree
 
-open class BTreeBalancePolicy @JvmOverloads constructor(val pageMaxSize: Int, val dupPageMaxSize: Int = pageMaxSize) {
+open class BTreeBalancePolicy @JvmOverloads constructor(
+    @JvmField val pageMaxSize: Int,
+    @JvmField val dupPageMaxSize: Int = pageMaxSize
+) {
 
     /**
      * @param page page to check whether it has to be split.
@@ -50,6 +53,7 @@ open class BTreeBalancePolicy @JvmOverloads constructor(val pageMaxSize: Int, va
     }
 
     companion object {
+        @JvmField
         var DEFAULT = BTreeBalancePolicy(128, 32)
         private fun isDupTree(page: BasePage): Boolean {
             return (page.tree as BTreeMutable).isDup()

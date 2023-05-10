@@ -26,7 +26,9 @@ import java.io.PrintStream
  * Base BTree implementation
  */
 abstract class BTreeBase internal constructor(
-    @JvmField val log: Log,
+    @JvmField
+    val log: Log,
+    @JvmField
     val balancePolicy: BTreeBalancePolicy,
     @JvmField
     val allowsDuplicates: Boolean,

@@ -23,7 +23,7 @@ import java.io.PrintStream
 /**
  * Stateful leaf node with root page of duplicates sub-tree as a value
  */
-internal class LeafNodeDupMutable(val tree: BTreeDupMutable) : BaseLeafNodeMutable() {
+internal class LeafNodeDupMutable(@JvmField val tree: BTreeDupMutable) : BaseLeafNodeMutable() {
     override fun getAddress(): Long = tree.address
 
     override fun getTree(): BTreeBase = tree

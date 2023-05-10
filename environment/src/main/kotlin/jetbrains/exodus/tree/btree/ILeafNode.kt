@@ -35,6 +35,7 @@ interface ILeafNode : INode {
     fun isDupLeaf(): Boolean
 
     companion object {
+        @JvmField
         val EMPTY: ILeafNode = object : ILeafNode {
             override fun hasValue(): Boolean {
                 return false
