@@ -24,6 +24,7 @@ interface INode : Dumpable {
     fun getValue(): ByteIterable?
 
     companion object {
+        @JvmField
         val EMPTY: INode = object : INode {
             override fun hasValue(): Boolean {
                 return false

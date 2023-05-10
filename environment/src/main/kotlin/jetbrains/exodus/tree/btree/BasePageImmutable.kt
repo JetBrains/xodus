@@ -353,9 +353,13 @@ abstract class BasePageImmutable : BasePage {
     }
 
     private class BinarySearchIterator(private val adjustedPageSize: Int) : ByteIterator {
+        @JvmField
         var page: ByteArray? = null
+
+        @JvmField
         var nextPage: ByteArray? = null
 
+        @JvmField
         var offset = 0
         fun asCompound(): CompoundByteIteratorBase {
             return object : CompoundByteIteratorBase(this) {

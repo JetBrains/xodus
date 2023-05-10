@@ -117,8 +117,8 @@ internal open class MutableNode : NodeBase {
 
     fun getRightChild(tree: PatriciaTreeBase, b: Byte): NodeBase? {
         val ref = children.getRight() ?: return null
-        val firstByte = ref.firstByte.unsigned
-        val rightByte = b.unsigned
+        val firstByte = ref.firstByte.toInt() and 0xff
+        val rightByte = b.toInt() and 0xff
         require(rightByte >= firstByte)
         return if (rightByte > firstByte) null else ref.getNode(tree)
     }
@@ -131,7 +131,7 @@ internal open class MutableNode : NodeBase {
      */
     private fun addRightChild(b: Byte, child: MutableNode) {
         val right = children.getRight()
-        require(right == null || right.firstByte.unsigned < b.unsigned)
+        require(right == null || (right.firstByte.toInt() and 0xff) < (b.toInt() and 0xff))
         children.putRight(ChildReferenceMutable(b, child))
     }
 
@@ -143,7 +143,7 @@ internal open class MutableNode : NodeBase {
      */
     fun setRightChild(b: Byte, child: MutableNode) {
         val right = children.getRight()
-        require(right != null && right.firstByte.unsigned == b.unsigned)
+        require(right != null && (right.firstByte.toInt() and 0xff) == (b.toInt() and 0xff))
         children.setAt(children.size() - 1, ChildReferenceMutable(b, child))
     }
 
@@ -361,7 +361,7 @@ internal open class MutableNode : NodeBase {
             } else {
                 val bitset = longArrayOf(0L, 0L, 0L, 0L)
                 for (ref in children) {
-                    val b = ref.firstByte.unsigned
+                    val b = ref.firstByte.toInt() and 0xff
                     bitset[b / Long.SIZE_BITS] += 1L shl (b % Long.SIZE_BITS)
                 }
                 bitset.forEach { l ->

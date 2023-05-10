@@ -21,7 +21,6 @@ import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.*
 import java.util.*
 
-internal val Byte.unsigned: Int get() = this.toInt() and 0xff
 
 const val CHILDREN_BITSET_SIZE_LONGS = 4
 const val CHILDREN_BITSET_SIZE_BYTES = CHILDREN_BITSET_SIZE_LONGS * Long.SIZE_BYTES
@@ -41,6 +40,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
     private val data: ByteIterableWithAddress
     private val childAddressLength: Byte
     private val baseAddress: Long // if it is not equal to NULL_ADDRESS then the node is saved in the v2 format
+    @JvmField
     internal val loggable: RandomAccessLoggable
     private val childrenCount: Int
     private val v2Format: Boolean
@@ -135,13 +135,13 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
                 return tree.loadNode(addressByOffsetV2(searchResult.offset))
             }
         } else {
-            val key = b.unsigned
+            val key = b.toInt() and 0xff
             var low = 0
             var high = childrenCount - 1
             while (low <= high) {
                 val mid = low + high ushr 1
                 val offset = mid * (childAddressLength + 1)
-                val cmp = byteAt(offset).unsigned - key
+                val cmp = (byteAt(offset).toInt() and 0xff) - key
                 when {
                     cmp < 0 -> low = mid + 1
                     cmp > 0 -> high = mid - 1
@@ -166,13 +166,13 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
                 }
             }
         } else {
-            val key = b.unsigned
+            val key = b.toInt() and 0xff
             var low = 0
             var high = childrenCount - 1
             while (low <= high) {
                 val mid = low + high ushr 1
                 val offset = mid * (childAddressLength + 1)
-                val cmp = byteAt(offset).unsigned - key
+                val cmp = (byteAt(offset).toInt() and 0xff) - key
                 when {
                     cmp < 0 -> low = mid + 1
                     cmp > 0 -> high = mid - 1
@@ -187,7 +187,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
     }
 
     override fun getChildrenRange(b: Byte): NodeChildrenIterator {
-        val ub = b.unsigned
+        val ub = b.toInt() and 0xff
         if (v2Format) {
             when (val childrenCount = childrenCount) {
                 0 -> return EmptyNodeChildrenIterator()
@@ -198,7 +198,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
                 in 1..32 -> {
                     for (i in 0 until childrenCount) {
                         val nextByte = byteAt(i)
-                        val next = nextByte.unsigned
+                        val next = nextByte.toInt() and 0xff
                         if (ub <= next) {
                             return ImmutableNodeSparseChildrenV2Iterator(
                                 i,
@@ -245,7 +245,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
                 val mid = low + high + 1 ushr 1
                 val off = mid * (childAddressLength + 1)
                 val actual = byteAt(off)
-                if (actual.unsigned >= ub) {
+                if (actual.toInt() and 0xff >= ub) {
                     offset = off
                     resultByte = actual
                     high = mid
@@ -264,7 +264,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
 
     // if specified byte is found the returns index of child, offset of suffixAddress and type of children format
     private fun getV2Child(b: Byte): SearchResult? {
-        val ub = b.unsigned
+        val ub = b.toInt() and 0xff
         when (val childrenCount = childrenCount) {
             0 -> return null
             256 -> return SearchResult(
@@ -275,7 +275,7 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
 
             in 1..32 -> {
                 for (i in 0 until childrenCount) {
-                    val next = byteAt(i).unsigned
+                    val next = byteAt(i).toInt() and 0xff
                     if (ub < next) break
                     if (ub == next) {
                         return SearchResult(
@@ -489,7 +489,11 @@ internal class MultiPageImmutableNode : NodeBase, ImmutableNode {
     }
 }
 
-data class SearchResult(val index: Int, val offset: Int, val childrenFormat: V2ChildrenFormat)
+data class SearchResult(
+    @JvmField val index: Int,
+    @JvmField val offset: Int,
+    @JvmField val childrenFormat: V2ChildrenFormat
+)
 
 private fun checkAddressLength(addressLen: Int) {
     if (addressLen < 0 || addressLen > 8) {

@@ -30,12 +30,12 @@ internal class PatriciaReclaimSourceTraverser(
         var result: INode
         do {
             result = super.moveRight()
-        } while (isValidPos && !isAddressReclaimable(currentChild!!.suffixAddress))
+        } while (isValidPos() && !isAddressReclaimable(currentChild!!.suffixAddress))
         return result
     }
 
     fun moveToNextReclaimable() {
-        while (isValidPos && !isAddressReclaimable(currentChild!!.suffixAddress)) {
+        while (isValidPos() && !isAddressReclaimable(currentChild!!.suffixAddress)) {
             super.moveRight()
         }
     }

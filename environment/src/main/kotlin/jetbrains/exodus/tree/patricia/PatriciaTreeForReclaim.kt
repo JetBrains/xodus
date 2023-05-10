@@ -19,8 +19,9 @@ import jetbrains.exodus.log.Log
 
 internal class PatriciaTreeForReclaim(log: Log, rootAddress: Long, structureId: Int) :
     PatriciaTree(log, rootAddress, structureId) {
+
+    @JvmField
     var backRef: Long = 0
-        private set
 
     override fun rememberBackRef(backRef: Long) {
         this.backRef = backRef

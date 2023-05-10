@@ -57,7 +57,7 @@ internal open class PatriciaTraverser(private val tree: PatriciaTreeBase, curren
 
     override fun init(left: Boolean) {
         if (left) {
-            itr
+            intiItr()
         } else {
             currentIterator = currentNode.getChildrenLast()
             currentChild = currentIterator!!.getNode()
@@ -69,7 +69,7 @@ internal open class PatriciaTraverser(private val tree: PatriciaTreeBase, curren
     override fun moveDown(): INode {
         stack = pushIterator(stack, currentIterator, top)
         updateCurrentNode(currentChild!!.getNode(tree))
-        itr
+        intiItr()
         ++top
         return currentNode
     }
@@ -126,8 +126,7 @@ internal open class PatriciaTraverser(private val tree: PatriciaTreeBase, curren
         return currentIterator != null && currentIterator!!.hasNext()
     }
 
-    val isValidPos: Boolean
-        get() = currentIterator != null
+    fun isValidPos(): Boolean = currentIterator != null
 
     override fun moveRight(): INode {
         if (currentIterator!!.hasNext()) {
@@ -175,7 +174,7 @@ internal open class PatriciaTraverser(private val tree: PatriciaTreeBase, curren
     override fun reset(root: MutableTreeRoot) {
         top = 0
         updateCurrentNode(root as NodeBase)
-        itr
+        intiItr()
     }
 
     override fun moveTo(key: ByteIterable, value: ByteIterable?): Boolean {
@@ -200,7 +199,7 @@ internal open class PatriciaTraverser(private val tree: PatriciaTreeBase, curren
         // key match
         if (node.hasValue() && (value == null || value.compareTo(node.getValue()) == 0)) {
             updateCurrentNode(node)
-            itr
+            intiItr()
             stack = tmp
             top = depth
             return true
@@ -237,7 +236,7 @@ internal open class PatriciaTraverser(private val tree: PatriciaTreeBase, curren
                 }
                 if (value == null || value <= node.getValue()) {
                     updateCurrentNode(node)
-                    itr
+                    intiItr()
                     stack = tmp
                     top = depth
                     return true
@@ -291,23 +290,22 @@ internal open class PatriciaTraverser(private val tree: PatriciaTreeBase, curren
             }
         }
         updateCurrentNode(node)
-        itr
+        intiItr()
         stack = tmp
         top = depth
         return true
     }
 
-    val itr: Unit
-        get() {
-            if (currentNode.getChildrenCount() > 0) {
-                val itr = currentNode.getChildren().iterator()
-                currentIterator = itr
-                currentChild = itr.next()
-            } else {
-                currentIterator = null
-                currentChild = null
-            }
+    fun intiItr() {
+        if (currentNode.getChildrenCount() > 0) {
+            val itr = currentNode.getChildren().iterator()
+            currentIterator = itr
+            currentChild = itr.next()
+        } else {
+            currentIterator = null
+            currentChild = null
         }
+    }
 
     companion object {
         private const val INITIAL_STACK_CAPACITY = 8

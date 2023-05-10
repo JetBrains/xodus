@@ -24,7 +24,10 @@ import jetbrains.exodus.tree.btree.BTreeMetaInfo
 import jetbrains.exodus.tree.patricia.PatriciaMetaInfo
 import jetbrains.exodus.util.LightOutputStream
 
-abstract class TreeMetaInfo protected constructor(val log: Log?, val duplicates: Boolean, val structureId: Int) {
+abstract class TreeMetaInfo protected constructor(
+    @JvmField val log: Log?, @JvmField val duplicates: Boolean,
+    @JvmField val structureId: Int
+) {
     fun hasDuplicates(): Boolean {
         return duplicates
     }
@@ -52,6 +55,7 @@ abstract class TreeMetaInfo protected constructor(val log: Log?, val duplicates:
     }
 
     companion object {
+        @JvmField
         val EMPTY: TreeMetaInfo = Empty(0)
         const val DUPLICATES_BIT = 1
         protected const val KEY_PREFIXING_BIT = 2

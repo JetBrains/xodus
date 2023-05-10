@@ -22,7 +22,7 @@ import jetbrains.exodus.tree.Dumpable
 import jetbrains.exodus.tree.ITree
 import java.io.PrintStream
 
-abstract class PatriciaTreeDecorator protected constructor(val treeNoDuplicates: ITree) : ITree {
+abstract class PatriciaTreeDecorator protected constructor(@JvmField val treeNoDuplicates: ITree) : ITree {
     override fun getLog(): Log = treeNoDuplicates.getLog()
 
     override fun getDataIterator(address: Long): DataIterator {

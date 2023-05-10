@@ -22,7 +22,7 @@ import java.io.PrintStream
 /**
  * BTree base implementation of page
  */
-abstract class BasePage protected constructor(val tree: BTreeBase) : Dumpable {
+abstract class BasePage protected constructor(@JvmField val tree: BTreeBase) : Dumpable {
     @JvmField
     internal var size = 0
 

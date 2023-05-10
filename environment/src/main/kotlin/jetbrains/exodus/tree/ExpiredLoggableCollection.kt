@@ -21,6 +21,9 @@ import it.unimi.dsi.fastutil.longs.LongArrayList
 import jetbrains.exodus.log.*
 import java.util.function.BiConsumer
 
+
+private const val NON_ACCUMULATED_STATS_LIMIT = 1000
+
 interface ExpiredLoggableCollection {
     fun size(): Int
     fun add(loggable: Loggable)
@@ -30,26 +33,25 @@ interface ExpiredLoggableCollection {
     fun forEach(action: BiConsumer<Long, Int>)
 
     companion object {
-        @JvmStatic
         fun newInstance(log: Log): ExpiredLoggableCollection {
             return MutableExpiredLoggableCollection(log)
         }
 
+        @JvmField
         val EMPTY: ExpiredLoggableCollection = EmptyLoggableCollection()
-        const val NON_ACCUMULATED_STATS_LIMIT = 1000
     }
 }
 
-internal class MutableExpiredLoggableCollection @JvmOverloads constructor(
+internal class MutableExpiredLoggableCollection(
     private val log: Log,
     private var parent: MutableExpiredLoggableCollection? = null,
     private val addresses: LongArrayList = LongArrayList(),
     private val lengths: IntArrayList = IntArrayList(),
     private var accumulatedStats: Long2IntOpenHashMap? = null
 ) : ExpiredLoggableCollection {
-    private var _size = 0
+    private var size = 0
     override fun size(): Int {
-        var sum = _size
+        var sum = size
         val parent = parent
 
         if (parent != null) {
@@ -82,12 +84,12 @@ internal class MutableExpiredLoggableCollection @JvmOverloads constructor(
     override fun add(address: Long, length: Int) {
         addresses.add(address)
         lengths.add(length)
-        _size++
+        size++
         accumulateStats()
     }
 
     private fun accumulateStats() {
-        if (getNonAccumulatedSize() >= ExpiredLoggableCollection.NON_ACCUMULATED_STATS_LIMIT) {
+        if (getNonAccumulatedSize() >= NON_ACCUMULATED_STATS_LIMIT) {
             if (accumulatedStats == null) {
                 accumulatedStats = Long2IntOpenHashMap()
             }
