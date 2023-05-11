@@ -815,7 +815,8 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(META_SERVER, null),
                 new Pair(CHECK_PAGES_AT_RUNTIME, true),
                 new Pair(LOG_SKIP_INVALID_LOGGALE_TYPE, false),
-                new Pair(LOG_FORCE_CHECK_DATA_CONSISTENCY, false)
+                new Pair(LOG_FORCE_CHECK_DATA_CONSISTENCY, false),
+                new Pair(LOG_PROCEED_DATA_RESTORE_AT_ANY_COST, false),
         }, strategy);
     }
 

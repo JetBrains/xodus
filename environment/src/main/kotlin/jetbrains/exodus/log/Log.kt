@@ -367,7 +367,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             val checkDataConsistency = if (!rwIsReadonly) {
                 if (reader is FileDataReader) {
-                    if (startupMetadata.isCorrectlyClosed || tmpLeftovers
+                    if (!startupMetadata.isCorrectlyClosed || tmpLeftovers
                         || incorrectLastSegmentSize
                     ) {
                         logger.warn(
@@ -800,7 +800,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val blocksToTruncate = blocks.tailMap(endBlockAddress, true)
                     val blocksToTruncateIterator = blocksToTruncate.values.iterator()
 
-                    if (!config.isProceedDataRestoreAtAnyCost && blocksToTruncate.size > 1) {
+                    if (!config.isProceedDataRestoreAtAnyCost && blocksToTruncate.size > 2) {
                         throw DataCorruptionException(
                             "Database $location is corrupted, " +
                                     "but to be restored till the valid state ${blocksToTruncate.size} " +
