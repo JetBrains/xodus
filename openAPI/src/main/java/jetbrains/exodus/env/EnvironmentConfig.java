@@ -309,6 +309,21 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String LOG_SYNC_PERIOD = "exodus.log.syncPeriod";
 
     /**
+     * Forces to check data consistency of the database on opening. Default value is {@code false}.
+     *
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_FORCE_CHECK_DATA_CONSISTENCY = "exodus.log.forceCheckDataConsistency";
+
+    /**
+     * Forces data restore routine to proceed even if it is not possible to restore all the data.
+     * Default value is {@code false}.
+     *
+     * <p>Mutable at runtime: no
+     */
+    public static final String LOG_PROCEED_DATA_RESTORE_AT_ANY_COST = "exodus.log.proceedDataRestoreAtAnyCost";
+
+    /**
      * If is set to {@code true} then each complete and immutable {@code Log} file (.xd file) is marked with read-only
      * attribute. Default value is {@code true}.
      * <p>Mutable at runtime: no
@@ -799,7 +814,8 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
                 new Pair(META_SERVER, null),
                 new Pair(CHECK_PAGES_AT_RUNTIME, true),
-                new Pair(LOG_SKIP_INVALID_LOGGALE_TYPE, false)
+                new Pair(LOG_SKIP_INVALID_LOGGALE_TYPE, false),
+                new Pair(LOG_FORCE_CHECK_DATA_CONSISTENCY, false)
         }, strategy);
     }
 
@@ -1196,6 +1212,41 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setLogCacheOpenFilesCount(final int files) {
         return setSetting(LOG_CACHE_OPEN_FILES, files);
+    }
+
+    /**
+     * Forces to check data consistency of the database on opening. Default value is {@code false}.
+     */
+    public boolean getLogForceCheckDataConsistency() {
+        return (Boolean) getSetting(LOG_FORCE_CHECK_DATA_CONSISTENCY);
+    }
+
+    /**
+     * Forces to check data consistency of the database on opening. Default value is {@code false}.
+     *
+     * <p>Mutable at runtime: no
+     *
+     * @param checkLogDataConsistency {@code true} to check data consistency of the database on opening
+     * @return this {@code EnvironmentConfig} instance
+     */
+    public EnvironmentConfig setLogForceCheckDataConsistency(final boolean checkLogDataConsistency) {
+        return setSetting(LOG_FORCE_CHECK_DATA_CONSISTENCY, checkLogDataConsistency);
+    }
+
+    /**
+     * Forces data restore routine to proceed even if it is not possible to restore all the data.
+     */
+    public boolean isLogProceedDataRestoredAtAnyCost() {
+        return (Boolean) getSetting(LOG_PROCEED_DATA_RESTORE_AT_ANY_COST);
+    }
+
+    /**
+     * Forces data restore routine to proceed even if it is not possible to restore all the data.
+     *
+     * <p>Mutable at runtime: no
+     */
+    public EnvironmentConfig setLogProceedDataRestoredAtAnyCost(final boolean proceedDataRestoredAtAnyCost) {
+        return setSetting(LOG_PROCEED_DATA_RESTORE_AT_ANY_COST, proceedDataRestoredAtAnyCost);
     }
 
     /**

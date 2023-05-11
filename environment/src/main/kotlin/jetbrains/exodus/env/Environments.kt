@@ -124,6 +124,8 @@ object Environments {
             cipherBasicIV = ec.cipherBasicIV
             isCheckPagesAtRuntime = ec.checkPagesAtRuntime
             isSkipInvalidLoggableType = ec.isLogSkipInvalidLoggableType
+            isForceDataCheckOnStart = ec.logForceCheckDataConsistency
+            isProceedDataRestoreAtAnyCost = ec.isLogProceedDataRestoredAtAnyCost
 
             setUseV1Format(ec.useVersion1Format)
         })

@@ -60,9 +60,32 @@ public class LogConfig {
 
     private boolean skipInvalidLoggableType;
 
+    private boolean forceDataCheckOnStart;
+
+    private boolean proceedDataRestoreAtAnyCost;
+
+
     public LogConfig() {
         useV1Format = EnvironmentConfig.DEFAULT.getUseVersion1Format();
         checkPagesAtRuntime = EnvironmentConfig.DEFAULT.getCheckPagesAtRuntime();
+    }
+
+    public boolean isForceDataCheckOnStart() {
+        return forceDataCheckOnStart;
+    }
+
+    public LogConfig setForceDataCheckOnStart(boolean forceDataCheckOnStart) {
+        this.forceDataCheckOnStart = forceDataCheckOnStart;
+        return this;
+    }
+
+    public boolean isProceedDataRestoreAtAnyCost() {
+        return proceedDataRestoreAtAnyCost;
+    }
+
+    public LogConfig setProceedDataRestoreAtAnyCost(boolean proceedDataRestoreAtAnyCost) {
+        this.proceedDataRestoreAtAnyCost = proceedDataRestoreAtAnyCost;
+        return this;
     }
 
     public LogConfig setLocation(@NotNull final String location) {

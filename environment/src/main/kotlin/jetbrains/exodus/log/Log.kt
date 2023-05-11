@@ -23,6 +23,7 @@ import jetbrains.exodus.InvalidSettingException
 import jetbrains.exodus.crypto.InvalidCipherParametersException
 import jetbrains.exodus.crypto.cryptBlocksMutable
 import jetbrains.exodus.env.DatabaseRoot
+import jetbrains.exodus.env.EnvironmentConfig
 import jetbrains.exodus.io.*
 import jetbrains.exodus.io.inMemory.MemoryDataReader
 import jetbrains.exodus.kotlin.notNull
@@ -34,6 +35,7 @@ import java.io.Closeable
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.lang.IllegalStateException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.AtomicMoveNotSupportedException
@@ -363,17 +365,41 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
             }
 
-            if (!rwIsReadonly && reader is MemoryDataReader) {
-                logger.info("Checking data consistency for environment $location ...")
+            val checkDataConsistency = if (!rwIsReadonly) {
+                if (reader is FileDataReader) {
+                    if (startupMetadata.isCorrectlyClosed || tmpLeftovers
+                        || incorrectLastSegmentSize
+                    ) {
+                        logger.warn(
+                            "Environment located at $location has been closed incorrectly. " +
+                                    "Data check routine is started to assess data consistency ..."
+                        )
+                        true
+                    } else if (needToPerformMigration) {
+                        logger.warn(
+                            "Environment located at $location has been created with different version. " +
+                                    "Data check routine is started to assess data consistency ..."
+                        )
+                        true
+                    } else if (config.isForceDataCheckOnStart) {
+                        logger.warn(
+                            "Environment located at $location will be checked for data consistency " +
+                                    "due to the forceDataCheckOnStart option is set to true."
+                        )
+                        true
+                    } else {
+                        false
+                    }
+                } else if (reader is MemoryDataReader) {
+                    true
+                } else {
+                    throw IllegalStateException("Unknown reader type $reader")
+                }
+            } else {
+                false
+            }
 
-                blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
-                logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
-
-                logger.info("Data check is completed for environment $location.")
-            } else if (!rwIsReadonly && reader is FileDataReader &&
-                (!startupMetadata.isCorrectlyClosed || tmpLeftovers
-                        || incorrectLastSegmentSize || needToPerformMigration)
-            ) {
+            if (checkDataConsistency) {
                 logger.warn(
                     "Environment located at $location has been closed incorrectly. " +
                             "Data check routine is started to assess data consistency ..."
@@ -770,15 +796,28 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
 
                 if (dbRootEndAddress > 0) {
+                    val endBlockAddress = getFileAddress(dbRootEndAddress)
+                    val blocksToTruncate = blocks.tailMap(endBlockAddress, true)
+                    val blocksToTruncateIterator = blocksToTruncate.values.iterator()
+
+                    if (!config.isProceedDataRestoreAtAnyCost && blocksToTruncate.size > 1) {
+                        throw DataCorruptionException(
+                            "Database $location is corrupted, " +
+                                    "but to be restored till the valid state ${blocksToTruncate.size} " +
+                                    "segments out of ${blocks.size} " +
+                                    "should be truncated. Segment size $fileLengthBound bytes. Data restore is aborted. " +
+                                    "To proceed data restore with such data loss " +
+                                    "please restart database with parameter " +
+                                    " ${EnvironmentConfig.LOG_PROCEED_DATA_RESTORE_AT_ANY_COST} set to true"
+                        )
+                    }
+
                     logger.error(
                         "Data corruption was detected. Reason : ${exception.message} . " +
                                 "Environment log $location will be truncated till address : $dbRootEndAddress"
                     )
 
-                    val endBlockAddress = getFileAddress(dbRootEndAddress)
-                    val blocksToTruncateIterator = blocks.tailMap(endBlockAddress, true).values.iterator()
                     val endBlock = blocksToTruncateIterator.next()
-
                     val endBlockLength = dbRootEndAddress % fileLengthBound
                     val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
 
