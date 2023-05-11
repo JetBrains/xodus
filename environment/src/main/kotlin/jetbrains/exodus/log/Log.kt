@@ -633,6 +633,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
         var nextBlockCorruptionMessage: String? = null
         var corruptedFileAddress = -1L
+        var loggablesProcessed = 0
 
         val fileBlockIterator = blocks.values.iterator()
         try {
@@ -689,6 +690,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     checkLoggableType(loggableType, loggableAddress)
 
                     if (NullLoggable.isNullLoggable(loggableType)) {
+                        loggablesProcessed++
                         continue
                     }
 
@@ -696,6 +698,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         for (i in 0 until Long.SIZE_BYTES) {
                             blockDataIterator.next()
                         }
+                        loggablesProcessed++
                         continue
                     }
 
@@ -748,6 +751,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             blockDataIterator.next()
                         }
                     }
+
+                    loggablesProcessed++
                 }
 
                 blockSetMutable.add(startBlockAddress, block)
@@ -760,14 +765,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
             try {
                 if (clearInvalidLog) {
-                    logger.error(
-                        "Data corruption was detected. Reason : ${exception.message} . " +
-                                "Environment $location will be cleared."
-                    )
-                    blockSetMutable.clear()
-                    dataWriter.clear()
-
-                    rwIsReadonly = false
+                    clearDataCorruptionLog(exception, blockSetMutable)
                     return -1
                 }
 
@@ -886,12 +884,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         }
                     }
                 } else {
-                    logger.error(
-                        "Data corruption was detected. Reason : ${exception.message} . Likely invalid cipher key/iv were used. "
-                    )
+                    if (loggablesProcessed < 3) {
+                        logger.error(
+                            "Data corruption was detected. Reason : ${exception.message} . Likely invalid cipher key/iv were used. "
+                        )
 
-                    blockSetMutable.clear()
-                    throw InvalidCipherParametersException()
+                        blockSetMutable.clear()
+                        throw InvalidCipherParametersException()
+                    } else {
+                        clearDataCorruptionLog(exception, blockSetMutable)
+                        return -1
+                    }
                 }
 
                 rwIsReadonly = false
@@ -924,6 +927,18 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
 
         return Long.MIN_VALUE
+    }
+
+    private fun clearDataCorruptionLog(exception: Exception, blockSetMutable: BlockSet.Mutable) {
+        logger.error(
+            "Data corruption was detected. Reason : ${exception.message} . " +
+                    "Environment $location will be cleared."
+        )
+
+        blockSetMutable.clear()
+        dataWriter.clear()
+
+        rwIsReadonly = false
     }
 
     private fun truncateFile(
