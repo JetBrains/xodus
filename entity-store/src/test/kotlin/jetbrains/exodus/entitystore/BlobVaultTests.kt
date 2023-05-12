@@ -18,10 +18,12 @@ package jetbrains.exodus.entitystore
 import jetbrains.exodus.TestFor
 import jetbrains.exodus.TestUtil
 import jetbrains.exodus.backup.BackupStrategy
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.kotlin.notNull
 import org.junit.Assert
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.InputStream
 import java.util.*
 
 class BlobVaultTests : EntityStoreTestBase() {
@@ -158,5 +160,79 @@ class BlobVaultTests : EntityStoreTestBase() {
         Assert.assertEquals(5L, next.second)
         Assert.assertFalse(infos.hasNext())
         Assert.assertEquals(2L, store.blobFileCount(txn))
+    }
+
+    fun testBlobBatchRemovalAndAddition() {
+        val blobHandleGenerator = object : BlobHandleGenerator {
+            var handle: Long = 0
+            override fun nextHandle(): Long {
+                return handle++
+            }
+        }
+
+        val blobDirectory = TestUtil.createTempDir()
+        try {
+            val blobVault = FileSystemBlobVault(
+                entityStore.config, blobDirectory.toPath(),
+                PersistentEntityStoreImpl.BLOBS_EXTENSION, blobHandleGenerator
+            )
+
+            val filesCount = 2048L
+            val filesToDelete = 1024L - 10
+
+            generateBlobs((0 until filesCount).asSequence(), blobVault)
+
+            checkBlobsPresence((0 until filesCount).asSequence(), blobVault)
+
+            blobVault.removeAllBlobsStartingFrom(filesCount - filesToDelete)
+
+            checkBlobsPresence((0 until (filesCount - filesToDelete)).asSequence(), blobVault)
+
+            checkBlobsAbsence(
+                ((filesCount - filesToDelete) until filesCount).asSequence(),
+                blobVault
+            )
+
+            generateBlobs(
+                ((filesCount - filesToDelete) until
+                        filesCount - (filesToDelete / 2)).asSequence(), blobVault
+            )
+
+            checkBlobsPresence((0L until (filesCount - filesToDelete / 2)).asSequence(), blobVault)
+            checkBlobsAbsence(((filesCount - filesToDelete / 2) until filesCount).asSequence(), blobVault)
+        } finally {
+            blobDirectory.delete()
+        }
+    }
+
+    private fun checkBlobsAbsence(
+        handles: kotlin.sequences.Sequence<Long>,
+        blobVault: FileSystemBlobVault
+    ) {
+        handles.forEach {
+            Assert.assertFalse(blobVault.getBlobLocation(it).exists())
+        }
+    }
+
+    private fun checkBlobsPresence(handles: kotlin.sequences.Sequence<Long>, blobVault: FileSystemBlobVault) {
+        handles.forEach {
+            Assert.assertTrue(blobVault.getBlobLocation(it).exists())
+        }
+    }
+
+    private fun generateBlobs(
+        handles: kotlin.sequences.Sequence<Long>,
+        blobVault: FileSystemBlobVault
+    ) {
+        val handleStreamMap = LongHashMap<InputStream>()
+        handles.forEach {
+            handleStreamMap[it] =
+                ByteArrayInputStream("content".toByteArray())
+        }
+
+        blobVault.flushBlobs(
+            handleStreamMap, null, null, null,
+            entityStore.environment
+        )
     }
 }

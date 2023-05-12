@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.BlobVaultItem
 import jetbrains.exodus.entitystore.DiskBasedBlobVault
 import jetbrains.exodus.entitystore.FileSystemBlobVaultOld
 import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Transaction
 import java.io.BufferedInputStream
 import java.io.File
@@ -84,7 +85,7 @@ class EncryptedBlobVault(
         blobFiles: LongHashMap<Path>?,
         tmpBlobFiles: LongHashMap<Path>?,
         deferredBlobsToDelete: LongSet?,
-        txn: Transaction
+        environment: Environment
     ) {
         val streams = LongHashMap<InputStream>()
         blobStreams?.forEach {
@@ -107,7 +108,7 @@ class EncryptedBlobVault(
                 }
             }
 
-            decorated.flushBlobs(streams, null, tmpBlobFiles, deferredBlobsToDelete, txn)
+            decorated.flushBlobs(streams, null, tmpBlobFiles, deferredBlobsToDelete, environment)
         } finally {
             openFiles?.forEach { it.close() }
         }
@@ -115,7 +116,7 @@ class EncryptedBlobVault(
 
     override fun size() = decorated.size()
 
-    override fun nextHandle(txn: Transaction) = decorated.nextHandle(txn)
+    override fun nextHandle() = decorated.nextHandle()
 
     override fun close() = decorated.close()
     override fun copyToTemporaryStore(
@@ -139,7 +140,12 @@ class EncryptedBlobVault(
 
     companion object {
         @JvmStatic
-        fun newCipher(cipherProvider: StreamCipherProvider, blobHandle: Long, cipherKey: ByteArray, cipherBasicIV: Long) : StreamCipher {
+        fun newCipher(
+            cipherProvider: StreamCipherProvider,
+            blobHandle: Long,
+            cipherKey: ByteArray,
+            cipherBasicIV: Long
+        ): StreamCipher {
             return cipherProvider.newCipher().apply { init(cipherKey, (cipherBasicIV - blobHandle).asHashedIV()) }
         }
     }

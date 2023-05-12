@@ -138,8 +138,8 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     }
 
     @Override
-    public long nextHandle(@NotNull final Transaction txn) {
-        return blobHandleGenerator.nextHandle(txn);
+    public long nextHandle() {
+        return blobHandleGenerator.nextHandle();
     }
 
     private void setContent(final long blobHandle, @NotNull final InputStream content) throws Exception {
@@ -186,6 +186,57 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         }
     }
 
+    public void removeAllBlobsStartingFrom(long blobHandle) throws IOException {
+        var location = getVaultLocation().toPath().toAbsolutePath().toRealPath();
+        var locationSize = location.getNameCount();
+
+        try (var stream = Files.walk(location).filter(path -> {
+            if (!Files.isRegularFile(path)) {
+                return false;
+            }
+
+            var fileName = path.getFileName().toString();
+            if (!fileName.endsWith(blobExtension)) {
+                return false;
+            }
+
+            var blobRelativePath = path.subpath(locationSize, path.getNameCount());
+            var hexBuilder = new StringBuilder();
+            var pathLength = blobRelativePath.getNameCount();
+            for (int i = 0; i < pathLength; i++) {
+                var name = blobRelativePath.getName(i).toString();
+
+                if (i == pathLength - 1) {
+                    name = name.substring(0, name.length() - blobExtension.length());
+                }
+
+                if (name.length() < 2) {
+                    name = "0" + name;
+                }
+
+                hexBuilder.append(name);
+            }
+
+            var currentBlobHandle = Long.parseLong(hexBuilder.toString(), 16);
+            return currentBlobHandle >= blobHandle;
+        })) {
+            stream.forEach(path -> {
+                logger.info("Handle of the blob {} is bigger then {} it is going to be deleted",
+                        path, blobHandle);
+                try {
+                    var file = path.toFile();
+                    if (!file.setWritable(true)) {
+                        logger.error("Failed to set writable for file: " + file);
+                    } else {
+                        Files.delete(path);
+                    }
+                } catch (IOException e) {
+                    logger.error("Failed to delete blob file: " + path, e);
+                }
+            });
+        }
+    }
+
     @Override
     @Nullable
     public InputStream getContent(final long blobHandle, @NotNull final Transaction txn, @Nullable Long expectedLength) {
@@ -224,8 +275,9 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     @Override
     public void flushBlobs(@Nullable final LongHashMap<InputStream> blobStreams,
                            final @Nullable LongHashMap<Path> blobFiles,
-                           @Nullable LongHashMap<Path> tmpBlobFiles, @Nullable final LongSet deferredBlobsToDelete,
-                           @NotNull final Transaction txn) throws Exception {
+                           @Nullable LongHashMap<Path> tmpBlobFiles,
+                           @Nullable final LongSet deferredBlobsToDelete,
+                           @NotNull Environment environment) throws Exception {
         if (blobStreams != null) {
             blobStreams.forEachEntry((ObjectProcedureThrows<Map.Entry<Long, InputStream>, Exception>) object -> {
                 setContent(object.getKey(), object.getValue());
@@ -255,7 +307,6 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
             while (it.hasNext()) {
                 copy.add(it.nextLong());
             }
-            final Environment environment = txn.getEnvironment();
             environment.executeTransactionSafeTask(() -> DeferredIO.getJobProcessor().queueIn(new Job() {
                 @Override
                 protected void execute() {
@@ -388,13 +439,11 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         final Path tempFile = tmpBlobsDir.resolve("tmp-blob-" + tempFileCounter.getAndIncrement());
 
         long read;
-        try {
+        try (stream) {
             try (OutputStream out = Files.newOutputStream(tempFile, StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE)) {
                 read = IOUtil.copyStreams(stream, out, IOUtil.getBUFFER_ALLOCATOR());
             }
-        } finally {
-            stream.close();
         }
 
         return new Pair<>(tempFile, read);

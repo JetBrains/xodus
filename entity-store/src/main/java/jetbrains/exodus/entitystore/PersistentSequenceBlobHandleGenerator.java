@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 
 class PersistentSequenceBlobHandleGenerator implements BlobHandleGenerator {
@@ -28,7 +27,7 @@ class PersistentSequenceBlobHandleGenerator implements BlobHandleGenerator {
     }
 
     @Override
-    public long nextHandle(@NotNull final Transaction txn) {
+    public long nextHandle() {
         return sequenceGetter.get().increment();
     }
 

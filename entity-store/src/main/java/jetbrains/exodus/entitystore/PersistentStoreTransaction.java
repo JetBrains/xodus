@@ -1087,7 +1087,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 tmpStreams = null;
             }
 
-            blobVault.flushBlobs(tmpStreams, blobFiles, tmpBlobFiles, deferredBlobsToDelete, txn);
+            blobVault.flushBlobs(tmpStreams, blobFiles, tmpBlobFiles, deferredBlobsToDelete, store.getEnvironment());
 
             for (final Path fileToDelete : filesToDelete) {
                 Files.deleteIfExists(fileToDelete);

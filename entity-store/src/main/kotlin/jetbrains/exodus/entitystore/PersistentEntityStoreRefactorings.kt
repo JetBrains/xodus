@@ -43,20 +43,9 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
         val blobVault = store.blobVault
         if (blobVault is FileSystemBlobVaultOld) {
             logInfo("Deleting redundant blobs...")
-            val nextBlobHandle = store.computeInReadonlyTransaction { tx ->
-                val txn = tx as PersistentStoreTransaction
-                blobVault.nextHandle(txn.environmentTransaction)
-            }
-            for (i in 0..9999) {
-                val item = blobVault.getBlob(nextBlobHandle + i)
-                if (item.exists()) {
-                    if (blobVault.delete(item.handle)) {
-                        logInfo("Deleted $item")
-                    } else {
-                        logger.error("Failed to delete $item")
-                    }
-                }
-            }
+
+            val nextBlobHandle = blobVault.nextHandle()
+            blobVault.removeAllBlobsStartingFrom(nextBlobHandle)
         }
     }
 

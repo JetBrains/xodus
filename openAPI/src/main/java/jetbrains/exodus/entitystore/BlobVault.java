@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.util.*;
 import org.jetbrains.annotations.NotNull;
@@ -162,7 +163,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
      * @param blobFiles             map of blob handles to {@linkplain File} instances
      * @param tmpBlobFiles          map of blob handles to temporary files which are used to store content of input streams.
      * @param deferredBlobsToDelete set of blob handles of blobs that should be deleted after the transaction is finished
-     * @param txn                   {@linkplain Transaction} instance
+     * @param environment           environment which contains current blob vault.
      * @throws Exception something went wrong
      * @see LongHashMap
      * @see LongSet
@@ -172,7 +173,7 @@ public abstract class BlobVault implements BlobHandleGenerator, Backupable {
                                     final @Nullable LongHashMap<Path> blobFiles,
                                     @Nullable LongHashMap<Path> tmpBlobFiles,
                                     @Nullable final LongSet deferredBlobsToDelete,
-                                    @NotNull final Transaction txn) throws Exception;
+                                    @NotNull Environment environment) throws Exception;
 
     /**
      * Returns amount of disk space occupied by the {@code BlobVault}. This value is rather "rough" since it does not
