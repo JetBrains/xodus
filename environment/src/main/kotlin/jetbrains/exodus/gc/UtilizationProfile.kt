@@ -43,6 +43,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     private var totalFreeBytes: Long = 0
 
     @Volatile
+    @JvmField
     var isDirty: Boolean = false
 
     init {
@@ -205,7 +206,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
     internal fun estimateTotalBytes() {
         val fileAddresses = log.getAllFileAddresses()
         val filesCount = fileAddresses.size
-        val minFileAge = gc.minFileAge
+        val minFileAge = gc.getMinFileAge()
         val totalFreeBytes: Long = filesUtilization.synchronized {
             (0 until filesCount - minFileAge).fold(0L) { sum, i ->
                 sum + (this[fileAddresses[i]]?.value ?: usefulFileSize)
@@ -218,7 +219,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
 
     internal fun getFilesSortedByUtilization(highFile: Long): Iterator<Long> {
         val fileAddresses = log.getAllFileAddresses()
-        val maxFreeBytes = usefulFileSize * gc.maximumFreeSpacePercent.toLong() / 100L
+        val maxFreeBytes = usefulFileSize * gc.getMaximumFreeSpacePercent().toLong() / 100L
         val fragmentedFiles = PriorityQueue(10, Comparator<Pair<Long, Long>> { leftPair, rightPair ->
             val leftFreeBytes = leftPair.second
             val rightFreeBytes = rightPair.second
@@ -230,7 +231,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         var totalCleanableBytes = 0L
         var totalFreeBytes = 0L
         filesUtilization.synchronized {
-            (0 until fileAddresses.size - gc.minFileAge).forEach { i ->
+            (0 until fileAddresses.size - gc.getMinFileAge()).forEach { i ->
                 val file = fileAddresses[i]
                 if (file < highFile && !gc.isFileCleaned(file)) {
                     totalCleanableBytes += usefulFileSize
@@ -251,7 +252,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
         return object : Iterator<Long> {
 
             override fun hasNext(): Boolean {
-                return !fragmentedFiles.isEmpty() && totalFreeBytes > totalCleanableBytes * gc.maximumFreeSpacePercent / 100L
+                return !fragmentedFiles.isEmpty() && totalFreeBytes > totalCleanableBytes * gc.getMaximumFreeSpacePercent() / 100L
             }
 
             override fun next(): Long {
@@ -290,7 +291,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
                 clear()
                 setUtilization(usedSpace)
             }
-        }, gc.startTime)
+        }, gc.getStartTime())
     }
 
     /**
@@ -298,12 +299,12 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      */
     fun computeUtilizationFromScratch(): Job? {
         GarbageCollector.loggingInfo { "Queueing ComputeUtilizationFromScratchJob" }
-        return gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(gc), gc.startTime)
+        return gc.cleaner.getJobProcessor().queueAt(ComputeUtilizationFromScratchJob(gc), gc.getStartTime())
     }
 
     internal fun estimateTotalBytesAndWakeGcIfNecessary() {
         estimateTotalBytes()
-        if (gc.isTooMuchFreeSpace) {
+        if (gc.isTooMuchFreeSpace()) {
             gc.wake()
         }
     }
@@ -323,8 +324,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
      * Is used instead of [Long] for saving free bytes per file in  order to update the value in-place, so
      * reducing number of lookups in the [LongHashMap][.filesUtilization].
      */
-    private class MutableLong(var value: Long) {
-
+    private class MutableLong(@JvmField var value: Long) {
         override fun toString(): String {
             return value.toString()
         }

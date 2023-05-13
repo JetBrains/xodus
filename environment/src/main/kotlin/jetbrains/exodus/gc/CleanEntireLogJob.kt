@@ -24,7 +24,7 @@ internal class CleanEntireLogJob(private val gc: GarbageCollector) : LatchJob() 
         logger.info { "CleanEntireLogJob started" }
 
         try {
-            val log = gc.log
+            val log = gc.getLog()
             var lastNumberOfFiles = java.lang.Long.MAX_VALUE
             // repeat cleaning until number of files stops decreasing
             while (true) {

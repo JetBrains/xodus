@@ -133,7 +133,7 @@ open class EnvironmentConfig(@JvmField protected val env: EnvironmentImpl) : MBe
         config.isGcEnabled = enabled
     }
 
-    override fun isGcSuspended(): Boolean = env.gc.isSuspended
+    override fun isGcSuspended(): Boolean = env.gc.isSuspended()
 
     override fun getGcStartIn(): Int = config.gcStartIn
 

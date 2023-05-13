@@ -120,24 +120,23 @@ class SharedOpenFilesCache private constructor(openFiles: Int) {
         }
 
         @JvmStatic
-        val instance: SharedOpenFilesCache
-            get() {
-                if (cacheSize == 0) {
-                    throw ExodusException("Size of SharedOpenFilesCache is not set")
-                }
-                var result = theCache
-                if (result == null) {
-                    synchronized(syncObject) {
+        fun getInstance(): SharedOpenFilesCache {
+            if (cacheSize == 0) {
+                throw ExodusException("Size of SharedOpenFilesCache is not set")
+            }
+            var result = theCache
+            if (result == null) {
+                synchronized(syncObject) {
+                    result = theCache
+                    if (result == null) {
+                        theCache =
+                            SharedOpenFilesCache(cacheSize)
                         result = theCache
-                        if (result == null) {
-                            theCache =
-                                SharedOpenFilesCache(cacheSize)
-                            result = theCache
-                        }
                     }
                 }
-                return result!!
             }
+            return result!!
+        }
 
         /**
          * For tests only!!!

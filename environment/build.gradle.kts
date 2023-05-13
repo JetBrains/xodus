@@ -18,7 +18,7 @@ dependencies {
 }
 
 ksp {
-    arg("includes", "jetbrains.exodus.tree;jetbrains.exodus.log;jetbrains.exodus.env")
+    arg("includes", "jetbrains.exodus.tree;jetbrains.exodus.log;jetbrains.exodus.env;jetbrains.exodus.gc;jetbrains.exodus.io")
     arg("excludePaths", project.projectDir.toPath().resolve("src").resolve("test").absolute().toString())
 }
 

@@ -110,13 +110,13 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         return it
     }
 
-    fun getCachedCount(handle: EntityIterableHandle): Long? {
+    private fun getCachedCount(handle: EntityIterableHandle): Long? {
         val identity = handle.identity
         iterableCountsCache.tryKey(identity)?.let { (count, time) ->
             // the greater is count, the longer it can live in the cache
             if (System.currentTimeMillis() - time <= max(config.entityIterableCacheCountsLifeTime, count)) {
                 stats.incTotalCountHits()
-                return count;
+                return count
             }
             // count is expired
             iterableCountsCache.remove(identity)
@@ -254,7 +254,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
         private val cacheRef = WeakReference(cache)
 
-        override val isExpired: Boolean get() = cacheRef.get() == null
+        override fun isExpired(): Boolean = cacheRef.get() == null
 
         override fun run() {
             val cache = cacheRef.get()

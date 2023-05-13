@@ -24,12 +24,13 @@ import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
 
-class FileDataReader(val dir: File) : DataReader, KLogging() {
+class FileDataReader(@JvmField val dir: File) : DataReader, KLogging() {
 
     companion object : KLogging()
 
     private var log: Log? = null
 
+    @JvmField
     internal var usedWithWatcher = false
 
     override fun getBlocks(): Iterable<Block> {
@@ -47,7 +48,7 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
 
     override fun close() {
         try {
-            SharedOpenFilesCache.instance.removeDirectory(dir)
+            SharedOpenFilesCache.getInstance().removeDirectory(dir)
         } catch (e: IOException) {
             throw ExodusException("Can't close all files", e)
         }
@@ -73,7 +74,7 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
             try {
                 val log = reader.log
                 val immutable = log?.isImmutableFile(address) ?: !canWrite()
-                val filesCache = SharedOpenFilesCache.instance
+                val filesCache = SharedOpenFilesCache.getInstance()
                 val file =
                     if (immutable && !reader.usedWithWatcher) filesCache.getCachedFile(this) else filesCache.openFile(
                         this

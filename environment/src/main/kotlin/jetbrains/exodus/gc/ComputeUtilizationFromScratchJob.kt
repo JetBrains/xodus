@@ -22,7 +22,7 @@ import jetbrains.exodus.env.TransactionBase
 internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc) {
 
     override fun doJob() {
-        val gc = this.gc ?: return
+        val gc = this.getGc() ?: return
         val usedSpace = LongHashMap<Long>()
         val env = gc.environment
         val location = env.location
@@ -38,7 +38,7 @@ internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc
                         val log = env.log
                         for (storeName in env.getAllStoreNames(txn) + GarbageCollector.UTILIZATION_PROFILE_STORE_NAME) {
                             // stop if environment is already closed
-                            if (this.gc == null) {
+                            if (this.getGc() == null) {
                                 break
                             }
                             if (env.storeExists(storeName, txn)) {
@@ -58,7 +58,7 @@ internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc
                 }
             }
             // if environment is not closed
-            this.gc?.let {
+            this.getGc()?.let {
                 up.setUtilization(usedSpace)
                 up.isDirty = true
                 up.estimateTotalBytesAndWakeGcIfNecessary()

@@ -22,8 +22,7 @@ class PeriodicGc(gc: GarbageCollector) : SharedTimer.ExpirablePeriodicTask {
 
     private val gcRef = WeakReference(gc)
     private val gc: GarbageCollector? get() = gcRef.get()
-
-    override val isExpired: Boolean get() = gc == null
+    override fun isExpired(): Boolean = gc == null
 
     override fun run() {
         gc?.let { gc ->
