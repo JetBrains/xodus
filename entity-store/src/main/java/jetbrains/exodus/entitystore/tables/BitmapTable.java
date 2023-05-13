@@ -31,7 +31,7 @@ public class BitmapTable extends Table {
                        @NotNull final StoreConfig config) {
         final PersistentEntityStoreImpl store = txn.getStore();
         bitmap = (BitmapImpl) store.getEnvironment().openBitmap(name, config, txn.getEnvironmentTransaction());
-        store.trackTableCreation(bitmap.getStore(), txn);
+        store.trackTableCreation(bitmap.store, txn);
     }
 
     @NotNull
@@ -41,7 +41,7 @@ public class BitmapTable extends Table {
 
     @Override
     public boolean canBeCached() {
-        return !bitmap.getStore().getConfig().temporaryEmpty;
+        return !bitmap.store.getConfig().temporaryEmpty;
     }
 }
 

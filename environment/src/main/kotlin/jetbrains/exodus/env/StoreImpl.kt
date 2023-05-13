@@ -33,6 +33,7 @@ import jetbrains.exodus.util.StringInterner.Companion.intern
 open class StoreImpl internal constructor(
     private val environment: EnvironmentImpl,
     name: String,
+    @JvmField
     val metaInfo: TreeMetaInfo
 ) : Store {
     private val name: String
@@ -195,13 +196,13 @@ open class StoreImpl internal constructor(
     }
 
     fun openImmutableTree(metaTree: MetaTreeImpl): ITree {
-        val structureId = structureId
+        val structureId = getStructureId()
         val upToDateRootAddress = metaTree.getRootAddress(structureId)
         val hasDuplicates = metaInfo.hasDuplicates()
         val treeIsEmpty = upToDateRootAddress == Loggable.NULL_ADDRESS
         val log = environment.log
         val result: ITree = if (!metaInfo.isKeyPrefixing()) {
-            val balancePolicy = environment.bTreeBalancePolicy
+            val balancePolicy = environment.getBTreeBalancePolicy()
             if (treeIsEmpty) BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) else BTree(
                 log,
                 balancePolicy,
@@ -223,8 +224,7 @@ open class StoreImpl internal constructor(
         return result
     }
 
-    val structureId: Int
-        get() = metaInfo.structureId
+    fun getStructureId(): Int = metaInfo.structureId
 
     companion object {
         private val NULL_CACHED_VALUE = ArrayByteIterable(ByteIterable.EMPTY)

@@ -23,29 +23,29 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 
 private typealias Bit = Long
 
-open class BitmapImpl(open val store: StoreImpl) : Bitmap {
+open class BitmapImpl(@JvmField val store: StoreImpl) : Bitmap {
 
     override fun getEnvironment() = store.environment
 
     override fun get(txn: Transaction, bit: Bit): Boolean {
-        val key = bit.ensureNonNegative().key
+        val key = bit.ensureNonNegative().key()
         val bitmapEntry = store.get(txn, LongBinding.longToCompressedEntry(key)) ?: return false
-        val mask = 1L shl bit.index
-        return bitmapEntry.asLong and mask != 0L
+        val mask = 1L shl bit.index()
+        return bitmapEntry.asLong() and mask != 0L
     }
 
     override fun set(txn: Transaction, bit: Bit, value: Boolean): Boolean {
-        val key = bit.ensureNonNegative().key
+        val key = bit.ensureNonNegative().key()
         val keyEntry = LongBinding.longToCompressedEntry(key)
-        val mask = 1L shl bit.index
-        val bitmap = store.get(txn, keyEntry)?.asLong ?: 0L
+        val mask = 1L shl bit.index()
+        val bitmap = store.get(txn, keyEntry)?.asLong() ?: 0L
         val prevValue = bitmap and mask != 0L
         if (prevValue == value) return false
         (bitmap xor mask).let {
             if (it == 0L) {
                 store.delete(txn, keyEntry)
             } else {
-                store.put(txn, keyEntry, it.asEntry)
+                store.put(txn, keyEntry, it.asEntry())
             }
         }
         return true
@@ -85,8 +85,8 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
             return if (get(txn, firstBit)) 1L else 0L
         }
         store.openCursor(txn).use { cursor ->
-            val firstKey = firstBit.ensureNonNegative().key
-            val lastKey = lastBit.ensureNonNegative().key
+            val firstKey = firstBit.ensureNonNegative().key()
+            val lastKey = lastBit.ensureNonNegative().key()
             val keyEntry = LongBinding.longToCompressedEntry(firstKey)
             val valueEntry = cursor.getSearchKeyRange(keyEntry) ?: return 0L
             var count = 0L
@@ -94,9 +94,9 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
             if (key in (firstKey + 1) until lastKey) {
                 count += valueEntry.countBits
             } else {
-                val bits = valueEntry.asLong
-                val lowBit = if (key == firstKey) firstBit.index else 0
-                val highBit = if (key == lastKey) lastBit.index else Long.SIZE_BITS - 1
+                val bits = valueEntry.asLong()
+                val lowBit = if (key == firstKey) firstBit.index() else 0
+                val highBit = if (key == lastKey) lastBit.index() else Long.SIZE_BITS - 1
                 for (i in lowBit..highBit) {
                     if (bits and (1L shl i) != 0L) {
                         ++count
@@ -109,8 +109,8 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
                     count += value.countBits
                 } else {
                     if (currentKey == lastKey) {
-                        val bits = value.asLong
-                        for (i in 0..lastBit.index) {
+                        val bits = value.asLong()
+                        for (i in 0..lastBit.index()) {
                             if (bits and (1L shl i) != 0L) {
                                 ++count
                             }
@@ -138,39 +138,37 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
             }
         }
 
-        internal val Long.asEntry: ByteIterable
-            get() {
-                if (this == ALL_ONES) {
-                    return ArrayByteIterable(byteArrayOf(0))
-                }
-                SINGLE_ONES[this]?.let { bit ->
-                    return ArrayByteIterable(byteArrayOf((bit + 1).toByte()))
-                }
-                SINGLE_ZEROS[this]?.let { bit ->
-                    return ArrayByteIterable(byteArrayOf((bit + Long.SIZE_BITS + 1).toByte()))
-                }
-                return LongBinding.longToEntry(this)
+        internal fun Long.asEntry(): ByteIterable {
+            if (this == ALL_ONES) {
+                return ArrayByteIterable(byteArrayOf(0))
             }
+            SINGLE_ONES[this]?.let { bit ->
+                return ArrayByteIterable(byteArrayOf((bit + 1).toByte()))
+            }
+            SINGLE_ZEROS[this]?.let { bit ->
+                return ArrayByteIterable(byteArrayOf((bit + Long.SIZE_BITS + 1).toByte()))
+            }
+            return LongBinding.longToEntry(this)
+        }
 
-        internal val ByteIterable.asLong: Long
-            get() {
-                if (this.length != 1) {
-                    return LongBinding.entryToLong(this)
-                }
-                this.iterator().next().unsigned.let { tag ->
-                    return when {
-                        tag == 0 -> ALL_ONES
-                        tag < Long.SIZE_BITS + 1 -> 1L shl (tag - 1)
-                        else -> ALL_ONES xor (1L shl (tag - Long.SIZE_BITS - 1))
-                    }
+        internal fun ByteIterable.asLong(): Long {
+            if (this.length != 1) {
+                return LongBinding.entryToLong(this)
+            }
+            this.iterator().next().unsigned().let { tag ->
+                return when {
+                    tag == 0 -> ALL_ONES
+                    tag < Long.SIZE_BITS + 1 -> 1L shl (tag - 1)
+                    else -> ALL_ONES xor (1L shl (tag - Long.SIZE_BITS - 1))
                 }
             }
+        }
 
         private val ByteIterable.countBits: Int
             get() {
                 this.iterator().let {
                     if (length == 1) {
-                        return it.next().unsigned.let { tag ->
+                        return it.next().unsigned().let { tag ->
                             when {
                                 tag == 0 -> 64
                                 tag < Long.SIZE_BITS + 1 -> 1
@@ -179,9 +177,9 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
                         }
                     }
                     var size = 0
-                    size += (it.next().unsigned xor 0x80).countOneBits()
+                    size += (it.next().unsigned() xor 0x80).countOneBits()
                     while (it.hasNext()) {
-                        size += it.next().unsigned.countOneBits()
+                        size += it.next().unsigned().countOneBits()
                     }
                     return size
                 }
@@ -189,11 +187,11 @@ open class BitmapImpl(open val store: StoreImpl) : Bitmap {
     }
 }
 
-internal val Bit.key: Bit get() = this shr 6
+internal fun Bit.key(): Bit = this shr 6
 
-internal val Bit.index: Int get() = (this and 63).toInt()
+internal fun Bit.index(): Int = (this and 63).toInt()
 
-private val Byte.unsigned: Int get() = this.toInt() and 0xff
+private fun Byte.unsigned(): Int = this.toInt() and 0xff
 
 private fun Bit.ensureNonNegative() =
     this.also { if (it < 0L) throw IllegalArgumentException("Bit number should be non-negative") }

@@ -27,7 +27,10 @@ import jetbrains.exodus.tree.btree.BTreeEmpty
 import mu.KLogging
 
 class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
+    @JvmField
     val tree: ITree
+
+    @JvmField
     val root: Long
 
     init {
@@ -57,34 +60,33 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
         return if (value == null) Loggable.NULL_ADDRESS else CompressedUnsignedLongByteIterable.getLong(value)
     }
 
-    val allStoreCount: Long
-        get() {
-            val size = tree.size()
-            if (size % 2L != 0L) {
-                logger.error("MetaTree size is not even")
-            }
-            return size / 2
+    fun getAllStoreCount(): Long {
+        val size = tree.size()
+        if (size % 2L != 0L) {
+            logger.error("MetaTree size is not even")
         }
-    val allStoreNames: List<String>
-        get() {
-            val tree = tree
-            if (tree.size() == 0L) {
-                return emptyList()
-            }
-            val result: MutableList<String> = ArrayList()
-            tree.openCursor().use { cursor ->
-                while (cursor.next) {
-                    val key = ArrayByteIterable(cursor.key)
-                    if (isStringKey(key)) {
-                        val storeName = StringBinding.entryToString(key)
-                        if (!EnvironmentImpl.isUtilizationProfile(storeName)) {
-                            result.add(storeName)
-                        }
+        return size / 2
+    }
+
+    fun getAllStoreNames(): List<String> {
+        val tree = tree
+        if (tree.size() == 0L) {
+            return emptyList()
+        }
+        val result: MutableList<String> = ArrayList()
+        tree.openCursor().use { cursor ->
+            while (cursor.next) {
+                val key = ArrayByteIterable(cursor.key)
+                if (isStringKey(key)) {
+                    val storeName = StringBinding.entryToString(key)
+                    if (!EnvironmentImpl.isUtilizationProfile(storeName)) {
+                        result.add(storeName)
                     }
                 }
             }
-            return result
         }
+        return result
+    }
 
     fun getStoreNameByStructureId(structureId: Int, env: EnvironmentImpl): String? {
         tree.openCursor().use { cursor ->
@@ -100,10 +102,9 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
         return null
     }
 
-    val clone: MetaTreeImpl
-        get() = MetaTreeImpl(cloneTree(tree), root)
+    fun clone(): MetaTreeImpl = MetaTreeImpl(cloneTree(tree), root)
 
-    class Proto(val address: Long, val root: Long) : MetaTreePrototype {
+    class Proto(@JvmField val address: Long, @JvmField val root: Long) : MetaTreePrototype {
         override fun treeAddress(): Long {
             return address
         }
@@ -151,7 +152,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
                             EnvironmentImpl.loggerError(
                                 "Failed to recover to valid root" +
                                         LogUtil.getWrongAddressErrorMessage(
-                                            dbRoot.address,
+                                            dbRoot.getAddress(),
                                             env.environmentConfig.logFileSize shl 10
                                         ), e
                             )
@@ -230,7 +231,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
         ): Proto {
             val newMetaTreeAddress = metaTree.save()
             val log = env.log
-            val lastStructureId = env.lastStructureId
+            val lastStructureId = env.getLastStructureId()
             val dbRootAddress = log.write(
                 DatabaseRoot.DATABASE_ROOT_TYPE, Loggable.NO_STRUCTURE_ID,
                 DatabaseRoot.asByteIterable(newMetaTreeAddress, lastStructureId), expired
@@ -255,7 +256,7 @@ class MetaTreeImpl(tree: ITree?, root: Long) : MetaTree {
         }
 
         private fun getEmptyMetaTree(env: EnvironmentImpl): ITree {
-            return object : BTreeEmpty(env.log, env.bTreeBalancePolicy, false, EnvironmentImpl.META_TREE_ID) {
+            return object : BTreeEmpty(env.log, env.getBTreeBalancePolicy(), false, EnvironmentImpl.META_TREE_ID) {
                 override fun getDataIterator(address: Long): DataIterator {
                     return DataIterator(log, address)
                 }

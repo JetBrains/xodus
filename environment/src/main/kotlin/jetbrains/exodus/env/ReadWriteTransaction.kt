@@ -32,10 +32,13 @@ open class ReadWriteTransaction : TransactionBase {
     private val mutableTrees: Int2ObjectOpenHashMap<ITreeMutable>
     private val removedStores: Long2ObjectOpenHashMap<Pair<String, ITree?>>
     private val createdStores: MutableMap<String, TreeMetaInfo>
-    final override val beginHook: Runnable?
+    private val beginHook: Runnable?
     private var commitHook: Runnable? = null
-    var replayCount: Int
-        private set
+
+    @JvmField
+    internal var replayCount: Int
+
+    @JvmField
     var acquiredPermits = 0
 
     internal constructor(
@@ -48,8 +51,8 @@ open class ReadWriteTransaction : TransactionBase {
         removedStores = Long2ObjectOpenHashMap()
         createdStores = HashMapDecorator()
         this.beginHook = Runnable {
-            val currentMetaTree = env.metaTree as MetaTreeImpl
-            metaTree = (if (cloneMeta) currentMetaTree.clone else currentMetaTree)
+            val currentMetaTree = env.getMetaTree() as MetaTreeImpl
+            metaTree = (if (cloneMeta) currentMetaTree.clone() else currentMetaTree)
             env.registerTransaction(this@ReadWriteTransaction)
             beginHook?.run()
         }
@@ -67,7 +70,9 @@ open class ReadWriteTransaction : TransactionBase {
         val env = environment
         this.beginHook = getWrappedBeginHook(beginHook)
         replayCount = 0
-        metaTree = origin.metaTree
+
+        setMetaTree(origin.getMetaTree())
+
         @Suppress("LeakingThis")
         isExclusive = env.shouldTransactionBeExclusive(this)
         @Suppress("LeakingThis")
@@ -75,6 +80,8 @@ open class ReadWriteTransaction : TransactionBase {
         @Suppress("LeakingThis")
         env.registerTransaction(this)
     }
+
+    override fun beginHook(): Runnable? = beginHook
 
     override fun isIdempotent(): Boolean {
         return mutableTrees.isEmpty() && removedStores.isEmpty() && createdStores.isEmpty()
@@ -115,7 +122,7 @@ open class ReadWriteTransaction : TransactionBase {
         if (isReadonly) {
             throw ExodusException("Attempt to revert read-only transaction")
         }
-        val oldRoot = _metaTree!!.root
+        val oldRoot = metaTree!!.root
         val wasExclusive = isExclusive
         val env = environment
         if (isIdempotent) {
@@ -156,7 +163,7 @@ open class ReadWriteTransaction : TransactionBase {
     fun openStoreByStructureId(structureId: Int): StoreImpl {
         checkIsFinished()
         val env = environment
-        val storeName = _metaTree!!.getStoreNameByStructureId(structureId, env)
+        val storeName = metaTree!!.getStoreNameByStructureId(structureId, env)
         return if (storeName == null) TemporaryEmptyStore(env) else env.openStoreImpl(
             storeName,
             StoreConfig.USE_EXISTING,
@@ -167,7 +174,7 @@ open class ReadWriteTransaction : TransactionBase {
 
     override fun getTree(store: StoreImpl): ITree {
         checkIsFinished()
-        return mutableTrees[store.structureId] ?: return super.getTree(store)
+        return mutableTrees[store.getStructureId()] ?: return super.getTree(store)
     }
 
     override fun getTreeMetaInfo(name: String): TreeMetaInfo? {
@@ -179,14 +186,14 @@ open class ReadWriteTransaction : TransactionBase {
     override fun storeRemoved(store: StoreImpl) {
         checkIsFinished()
         super.storeRemoved(store)
-        val structureId = store.structureId
-        val tree = store.openImmutableTree(_metaTree!!)
+        val structureId = store.getStructureId()
+        val tree = store.openImmutableTree(metaTree!!)
         removedStores.put(structureId.toLong(), Pair(store.name, tree))
         mutableTrees.remove(structureId)
     }
 
     fun storeOpened(store: StoreImpl) {
-        removedStores.remove(store.structureId.toLong())
+        removedStores.remove(store.getStructureId().toLong())
     }
 
     fun storeCreated(store: StoreImpl) {
@@ -205,7 +212,7 @@ open class ReadWriteTransaction : TransactionBase {
     fun doCommit(out: Array<Proto?>, log: Log): ExpiredLoggableCollection {
         val removedEntries = removedStores.long2ObjectEntrySet()
         var expiredLoggables = ExpiredLoggableCollection.newInstance(log)
-        val metaTreeMutable = _metaTree!!.tree.getMutableCopy()
+        val metaTreeMutable = metaTree!!.tree.getMutableCopy()
         for ((key, value) in removedEntries) {
             MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), key)
             expiredLoggables =
@@ -241,7 +248,7 @@ open class ReadWriteTransaction : TransactionBase {
                 throw ExodusException("Can't create mutable tree in a thread different from the one which transaction was created in")
             }
         }
-        val structureId = store.structureId
+        val structureId = store.getStructureId()
         var result = mutableTrees[structureId]
         if (result == null) {
             result = getTree(store).getMutableCopy()
@@ -255,24 +262,23 @@ open class ReadWriteTransaction : TransactionBase {
      * @return whether a mutable tree is created for specified store.
      */
     fun hasTreeMutable(store: StoreImpl): Boolean {
-        return mutableTrees.containsKey(store.structureId)
+        return mutableTrees.containsKey(store.getStructureId())
     }
 
     fun removeTreeMutable(store: StoreImpl) {
-        mutableTrees.remove(store.structureId)
+        mutableTrees.remove(store.getStructureId())
     }
 
-    override val allStoreNames: List<String>
-        get() {
-            var result = super.allStoreNames.toMutableList()
-            if (createdStores.isEmpty()) return result
-            if (result.isEmpty()) {
-                result = ArrayList()
-            }
-            result.addAll(createdStores.keys)
-            result.sort()
-            return result
+    override fun getAllStoreNames(): List<String> {
+        var result = super.getAllStoreNames().toMutableList()
+        if (createdStores.isEmpty()) return result
+        if (result.isEmpty()) {
+            result = ArrayList()
         }
+        result.addAll(createdStores.keys)
+        result.sort()
+        return result
+    }
 
     override fun setIsFinished(): Boolean {
         if (super.setIsFinished()) {

@@ -54,7 +54,9 @@ class JvmFieldEnforcerProcessor(
 
     inner class PropertyVisitor : KSTopDownVisitor<Unit, Unit>() {
         override fun visitPropertyDeclaration(property: KSPropertyDeclaration, data: Unit) {
-            if (property.isLocal() || property.modifiers.contains(Modifier.CONST)) {
+            if (property.isLocal() || property.modifiers.contains(Modifier.CONST) ||
+                property.modifiers.contains(Modifier.INLINE)
+            ) {
                 return
             }
 

@@ -22,13 +22,13 @@ internal class TransactionSet {
     private val snapshots: AtomicReference<MinMaxAwareSnapshotSet> = AtomicReference(MinMaxAwareSnapshotSet())
 
     fun forEach(executable: TransactionalExecutable) {
-        for (snapshot in current) {
+        for (snapshot in getCurrent()) {
             executable.execute(snapshot.txn)
         }
     }
 
     fun add(txn: TransactionBase) {
-        val snapshot = Snapshot(txn, txn.root)
+        val snapshot = Snapshot(txn, txn.getRoot())
         while (true) {
             val prevSet = snapshots.get()
             val newSet = prevSet.set.clone
@@ -37,8 +37,8 @@ internal class TransactionSet {
                 mutableSet.add(snapshot)
                 mutableSet.endWrite()
             }
-            val prevMin = prevSet.min
-            val prevMax = prevSet.max
+            val prevMin = prevSet.getMin()
+            val prevMax = prevSet.getMax()
             val newMin = if (prevMin != null && prevMin.root > snapshot.root) snapshot else prevMin
             val newMax = if (prevMax != null && prevMax.root < snapshot.root) snapshot else prevMax
             if (snapshots.compareAndSet(prevSet, MinMaxAwareSnapshotSet(newSet, newMin, newMax))) {
@@ -48,7 +48,7 @@ internal class TransactionSet {
     }
 
     operator fun contains(txn: TransactionBase): Boolean {
-        return current.contains(Snapshot(txn, 0))
+        return getCurrent().contains(Snapshot(txn, 0))
     }
 
     fun remove(txn: TransactionBase) {
@@ -62,8 +62,8 @@ internal class TransactionSet {
             }
             mutableSet.endWrite()
             // update min & max
-            val prevMin = prevSet.min
-            val prevMax = prevSet.max
+            val prevMin = prevSet.getMin()
+            val prevMax = prevSet.getMax()
             val newMin = if (prevMin == snapshot) null else prevMin
             val newMax = if (prevMax == snapshot) null else prevMax
             if (snapshots.compareAndSet(prevSet, MinMaxAwareSnapshotSet(newSet, newMin, newMax))) {
@@ -72,61 +72,57 @@ internal class TransactionSet {
         }
     }
 
-    val isEmpty: Boolean
-        get() = current.isEmpty
+    fun isEmpty(): Boolean = getCurrent().isEmpty
 
     fun size(): Int {
-        return current.size()
+        return getCurrent().size()
     }
 
-    val oldestTxnRootAddress: Long
-        get() {
-            val oldestSnapshot = snapshots.get().min
-            return oldestSnapshot?.root ?: Long.MAX_VALUE
-        }
-    val newestTxnRootAddress: Long
-        get() {
-            val newestSnapshot = snapshots.get().max
-            return newestSnapshot?.root ?: Long.MIN_VALUE
-        }
-    private val current: PersistentHashSet<Snapshot>
-        get() = snapshots.get().set
+    fun getOldestTxnRootAddress(): Long {
+        val oldestSnapshot = snapshots.get().getMin()
+        return oldestSnapshot?.root ?: Long.MAX_VALUE
+    }
 
-    private class MinMaxAwareSnapshotSet @JvmOverloads constructor(
-        val set: PersistentHashSet<Snapshot> = PersistentHashSet(),
-        @field:Volatile private var _min: Snapshot? = null, @field:Volatile private var _max: Snapshot? = null
+    fun getNewestTxnRootAddress(): Long {
+        val newestSnapshot = snapshots.get().getMax()
+        return newestSnapshot?.root ?: Long.MIN_VALUE
+    }
+
+    private fun getCurrent(): PersistentHashSet<Snapshot> = snapshots.get().set
+
+    private class MinMaxAwareSnapshotSet(
+        @JvmField val set: PersistentHashSet<Snapshot> = PersistentHashSet(),
+        @Volatile private var _min: Snapshot? = null, @Volatile private var _max: Snapshot? = null
     ) {
 
-        val min: Snapshot?
-            get() {
-                if (_min == null) {
-                    var min: Snapshot? = null
-                    for (snapshot in set) {
-                        if (min == null || snapshot.root < min.root) {
-                            min = snapshot
-                        }
+        fun getMin(): Snapshot? {
+            if (_min == null) {
+                var min: Snapshot? = null
+                for (snapshot in set) {
+                    if (min == null || snapshot.root < min.root) {
+                        min = snapshot
                     }
-                    _min = min
                 }
-                return _min
+                _min = min
             }
+            return _min
+        }
 
-        val max: Snapshot?
-            get() {
-                if (_max == null) {
-                    var max: Snapshot? = null
-                    for (snapshot in set) {
-                        if (max == null || snapshot.root > max.root) {
-                            max = snapshot
-                        }
+        fun getMax(): Snapshot? {
+            if (_max == null) {
+                var max: Snapshot? = null
+                for (snapshot in set) {
+                    if (max == null || snapshot.root > max.root) {
+                        max = snapshot
                     }
-                    _max = max
                 }
-                return _max
+                _max = max
             }
+            return _max
+        }
     }
 
-    private class Snapshot(val txn: Transaction, val root: Long) {
+    private class Snapshot(@JvmField val txn: Transaction, @JvmField val root: Long) {
         override fun equals(other: Any?): Boolean {
             return this === other || other is Snapshot && txn == other.txn
         }

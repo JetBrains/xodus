@@ -37,8 +37,7 @@ fun shouldDeploy(project: Project): Boolean {
         "xodus-benchmarks", "xodus-samples",
         "xodus-environment-crash-tests",
         "xodus-environment-test",
-        "xodus-utils-test",
-        "xodus-ksp-plugin"
+        "xodus-utils-test"
     )
 }
 

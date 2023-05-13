@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.env
 
-class ContextualBitmapImpl(override val store: ContextualStoreImpl) : ContextualBitmap, BitmapImpl(store) {
+class ContextualBitmapImpl(store: ContextualStoreImpl) : ContextualBitmap, BitmapImpl(store) {
 
-    override fun getEnvironment() = store.environment
+    override fun getEnvironment()  = (store as ContextualStoreImpl).environment
 
     override fun get(bit: Long): Boolean = get(currentTransaction, bit)
 

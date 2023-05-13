@@ -72,7 +72,7 @@ class UtilizationProfile(private val env: EnvironmentImpl, private val gc: Garba
             } else {
                 env.executeInReadonlyTransaction { txn ->
                     if (!env.storeExists(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME, txn)) {
-                        if (env.allStoreCount == 0L && log.getNumberOfFiles() <= 1) {
+                        if (env.getAllStoreCount() == 0L && log.getNumberOfFiles() <= 1) {
                             clearUtilization()
                         } else {
                             computeUtilizationFromScratch()

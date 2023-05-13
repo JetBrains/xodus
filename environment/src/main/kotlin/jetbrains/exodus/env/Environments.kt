@@ -161,7 +161,7 @@ object Environments {
                     EnvironmentImpl.loggerError("Failed to create temporary directory: $tempDir")
                     return@let
                 }
-                if (tempDir.freeSpace < env.diskUsage) {
+                if (tempDir.freeSpace < env.getDiskUsage()) {
                     EnvironmentImpl.loggerError("Not enough free disk space to compact the database: $location")
                     tempDir.delete()
                     return@let
@@ -237,7 +237,7 @@ object Environments {
         if (env.log.isClosedCorrectly()) {
             if (env.log.formatWithHashCodeIsUsed) {
                 env.gc.utilizationProfile.load()
-                val rootAddress = env.metaTree.rootAddress()
+                val rootAddress = env.getMetaTree().rootAddress()
                 val rootLoggable = env.log.read(rootAddress)
 
                 //once we close the log, the rest of the page is padded with null loggables

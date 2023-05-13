@@ -402,9 +402,9 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             }
 
             final TransactionBase envTxn = (TransactionBase) txn.getEnvironmentTransaction();
-            final boolean isStoreGetCacheDisabled = envTxn.isDisableStoreGetCache();
+            final boolean isStoreGetCacheDisabled = envTxn.isDisableStoreGetCache;
             try {
-                envTxn.setDisableStoreGetCache(true);
+                envTxn.isDisableStoreGetCache = true;
                 final EntityIterator it = source.iterator();
                 while (it.hasNext()) {
                     final PersistentEntityId nextId = (PersistentEntityId) it.nextId();
@@ -416,7 +416,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
                     }
                 }
             } finally {
-                envTxn.setDisableStoreGetCache(isStoreGetCacheDisabled);
+                envTxn.isDisableStoreGetCache = isStoreGetCacheDisabled;
             }
 
             // finally sort
