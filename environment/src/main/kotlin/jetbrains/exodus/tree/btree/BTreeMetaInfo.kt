@@ -29,7 +29,7 @@ class BTreeMetaInfo private constructor(
 ) : TreeMetaInfo(log, duplicates, structureId) {
     constructor(env: EnvironmentImpl, duplicates: Boolean, structureId: Int) : this(
         env.log,
-        env.bTreeBalancePolicy,
+        env.getBTreeBalancePolicy(),
         duplicates,
         structureId
     )

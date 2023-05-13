@@ -22,7 +22,7 @@ class EnvironmentStatistics internal constructor(private val env: EnvironmentImp
     Statistics<EnvironmentStatistics.Type?>(
         Type.values()
     ) {
-    enum class Type(val id: String) {
+    enum class Type(@JvmField val id: String) {
         BYTES_WRITTEN("Bytes written"),
         BYTES_READ("Bytes read"),
         BYTES_MOVED_BY_GC("Bytes moved by GC"),
@@ -88,7 +88,7 @@ class EnvironmentStatistics internal constructor(private val env: EnvironmentImp
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastAutoUpdateTime > DISK_USAGE_FREQ) {
                     lastAutoUpdateTime = currentTime
-                    return statistics.env.diskUsage
+                    return statistics.env.getDiskUsage()
                 }
             }
             return null

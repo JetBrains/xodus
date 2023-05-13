@@ -20,90 +20,71 @@ import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.env.EnvironmentStatistics
 import jetbrains.exodus.management.MBeanBase
 
-class EnvironmentStatistics(private val env: EnvironmentImpl) : MBeanBase(getObjectName(env)), EnvironmentStatisticsMBean {
+class EnvironmentStatistics(private val env: EnvironmentImpl) : MBeanBase(getObjectName(env)),
+    EnvironmentStatisticsMBean {
 
-    private val statistics = env.statistics
+    private fun getStatistics() = env.statistics
 
-    override val bytesWritten: Long
-        get() = getTotal(EnvironmentStatistics.Type.BYTES_WRITTEN)
+    override fun getBytesWritten(): Long = getTotal(EnvironmentStatistics.Type.BYTES_WRITTEN)
 
-    override val bytesWrittenPerSecond: Double
-        get() = getMean(EnvironmentStatistics.Type.BYTES_WRITTEN)
+    override fun getBytesWrittenPerSecond(): Double = getMean(EnvironmentStatistics.Type.BYTES_WRITTEN)
 
-    override val bytesRead: Long
-        get() = getTotal(EnvironmentStatistics.Type.BYTES_READ)
+    override fun getBytesRead(): Long = getTotal(EnvironmentStatistics.Type.BYTES_READ)
 
-    override val bytesReadPerSecond: Double
-        get() = getMean(EnvironmentStatistics.Type.BYTES_READ)
+    override fun getBytesReadPerSecond(): Double = getMean(EnvironmentStatistics.Type.BYTES_READ)
 
-    override val bytesMovedByGC: Long
-        get() = getTotal(EnvironmentStatistics.Type.BYTES_MOVED_BY_GC)
+    override fun getBytesMovedByGC(): Long = getTotal(EnvironmentStatistics.Type.BYTES_MOVED_BY_GC)
 
-    override val bytesMovedByGCPerSecond: Double
-        get() = getMean(EnvironmentStatistics.Type.BYTES_MOVED_BY_GC)
+    override fun getBytesMovedByGCPerSecond(): Double = getMean(EnvironmentStatistics.Type.BYTES_MOVED_BY_GC)
 
-    override val logCacheHitRate: Float
-        get() = env.log.getCacheHitRate()
+    override fun getLogCacheHitRate(): Float = env.log.getCacheHitRate()
 
-    override val numberOfTransactions: Long
-        get() = getTotal(EnvironmentStatistics.Type.TRANSACTIONS)
+    override fun getNumberOfTransactions(): Long = getTotal(EnvironmentStatistics.Type.TRANSACTIONS)
 
-    override val numberOfTransactionsPerSecond: Double
-        get() = getMean(EnvironmentStatistics.Type.TRANSACTIONS)
+    override fun getNumberOfTransactionsPerSecond(): Double = getMean(EnvironmentStatistics.Type.TRANSACTIONS)
 
-    override val numberOfReadonlyTransactions: Long
-        get() = getTotal(EnvironmentStatistics.Type.READONLY_TRANSACTIONS)
+    override fun getNumberOfReadonlyTransactions(): Long = getTotal(EnvironmentStatistics.Type.READONLY_TRANSACTIONS)
 
-    override val numberOfReadonlyTransactionsPerSecond: Double
-        get() = getMean(EnvironmentStatistics.Type.READONLY_TRANSACTIONS)
+    override fun getNumberOfReadonlyTransactionsPerSecond(): Double =
+        getMean(EnvironmentStatistics.Type.READONLY_TRANSACTIONS)
 
-    override val numberOfGCTransactions: Long
-        get() = getTotal(EnvironmentStatistics.Type.GC_TRANSACTIONS)
+    override fun getNumberOfGCTransactions(): Long = getTotal(EnvironmentStatistics.Type.GC_TRANSACTIONS)
 
-    override val numberOfGCTransactionsPerSecond: Double
-        get() = getMean(EnvironmentStatistics.Type.GC_TRANSACTIONS)
+    override fun getNumberOfGCTransactionsPerSecond(): Double = getMean(EnvironmentStatistics.Type.GC_TRANSACTIONS)
 
-    override val activeTransactions: Int
-        get() = getTotal(EnvironmentStatistics.Type.ACTIVE_TRANSACTIONS).toInt()
+    override fun getActiveTransactions(): Int = getTotal(EnvironmentStatistics.Type.ACTIVE_TRANSACTIONS).toInt()
 
-    override val numberOfFlushedTransactions: Long
-        get() = getTotal(EnvironmentStatistics.Type.FLUSHED_TRANSACTIONS)
+    override fun getNumberOfFlushedTransactions(): Long = getTotal(EnvironmentStatistics.Type.FLUSHED_TRANSACTIONS)
 
-    override val numberOfFlushedTransactionsPerSecond: Double
-        get() = getMean(EnvironmentStatistics.Type.FLUSHED_TRANSACTIONS)
+    override fun getNumberOfFlushedTransactionsPerSecond(): Double =
+        getMean(EnvironmentStatistics.Type.FLUSHED_TRANSACTIONS)
 
-    override val transactionsDuration: Long
-        get() = getTotal(EnvironmentStatistics.Type.TRANSACTIONS_DURATION)
+    override fun getTransactionsDuration(): Long = getTotal(EnvironmentStatistics.Type.TRANSACTIONS_DURATION)
 
-    override val readonlyTransactionsDuration: Long
-        get() = getTotal(EnvironmentStatistics.Type.READONLY_TRANSACTIONS_DURATION)
+    override fun getReadonlyTransactionsDuration(): Long =
+        getTotal(EnvironmentStatistics.Type.READONLY_TRANSACTIONS_DURATION)
 
-    override val gcTransactionsDuration: Long
-        get() = getTotal(EnvironmentStatistics.Type.GC_TRANSACTIONS_DURATION)
+    override fun getGcTransactionsDuration(): Long = getTotal(EnvironmentStatistics.Type.GC_TRANSACTIONS_DURATION)
 
-    override val diskUsage: Long
-        get() = getTotal(EnvironmentStatistics.Type.DISK_USAGE)
+    override fun getDiskUsage(): Long = getTotal(EnvironmentStatistics.Type.DISK_USAGE)
 
-    override val utilizationPercent: Int
-        get() = getTotal(EnvironmentStatistics.Type.UTILIZATION_PERCENT).toInt()
+    override fun getUtilizationPercent(): Int = getTotal(EnvironmentStatistics.Type.UTILIZATION_PERCENT).toInt()
 
-    override val storeGetCacheHitRate: Float
-        get() = env.storeGetCacheHitRate
+    override fun getStoreGetCacheHitRate(): Float = env.getStoreGetCacheHitRate()
 
-    override val stuckTransactionCount: Int
-        get() = env.stuckTransactionCount
+    override fun getStuckTransactionCount(): Int = env.getStuckTransactionCount()
 
     private fun getTotal(statisticsName: EnvironmentStatistics.Type): Long {
-        return statistics.getStatisticsItem(statisticsName).total
+        return getStatistics().getStatisticsItem(statisticsName).total
     }
 
     private fun getMean(statisticsName: EnvironmentStatistics.Type): Double {
-        return statistics.getStatisticsItem(statisticsName).mean
+        return getStatistics().getStatisticsItem(statisticsName).mean
     }
 
     companion object {
         internal fun getObjectName(env: Environment) =
-                "$STATISTICS_OBJECT_NAME_PREFIX, location=${escapeLocation(env.location)}"
+            "$STATISTICS_OBJECT_NAME_PREFIX, location=${escapeLocation(env.location)}"
     }
 
 }

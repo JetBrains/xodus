@@ -16,7 +16,7 @@
 package jetbrains.exodus.env
 
 class ReadonlyTransaction : TransactionBase {
-    override val beginHook: Runnable?
+    private val beginHook: Runnable?
 
     constructor(env: EnvironmentImpl, exclusive: Boolean, beginHook: Runnable?) : super(env, exclusive) {
         this.beginHook = getWrappedBeginHook(beginHook)
@@ -28,10 +28,13 @@ class ReadonlyTransaction : TransactionBase {
      */
     internal constructor(origin: TransactionBase) : super(origin.environment, false) {
         beginHook = null
-        metaTree = origin.metaTree
+        setMetaTree(origin.getMetaTree())
+
         val env = environment
         env.registerTransaction(this)
     }
+
+    override fun beginHook(): Runnable? = beginHook
 
     override fun setCommitHook(hook: Runnable?) {
         throw ReadonlyTransactionException()

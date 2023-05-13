@@ -22,8 +22,11 @@ import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.util.LightOutputStream
 
 class DatabaseRoot internal constructor(private val loggable: Loggable, it: ByteIterator) {
+    @JvmField
     val rootAddress: Long
+    @JvmField
     val lastStructureId: Int
+    @JvmField
     val isValid: Boolean
 
     constructor(loggable: Loggable) : this(loggable, loggable.getData().iterator())
@@ -35,8 +38,7 @@ class DatabaseRoot internal constructor(private val loggable: Loggable, it: Byte
                 CompressedUnsignedLongByteIterable.getLong(it) - lastStructureId - MAGIC_DIFF
     }
 
-    val address: Long
-        get() = loggable.getAddress()
+    fun getAddress(): Long = loggable.getAddress()
 
     companion object {
         const val DATABASE_ROOT_TYPE: Byte = 1

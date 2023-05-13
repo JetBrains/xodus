@@ -140,7 +140,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             Files.createDirectory(luceneIndex);
         }
 
-        var runCheck = ((EnvironmentImpl) environment).isCheckLuceneDirectory();
+        var runCheck = ((EnvironmentImpl) environment).isCheckLuceneDirectory;
         LongOpenHashSet storedFiles = new LongOpenHashSet();
 
         if (runCheck) {

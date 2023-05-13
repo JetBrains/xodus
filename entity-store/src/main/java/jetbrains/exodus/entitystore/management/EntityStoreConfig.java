@@ -298,7 +298,7 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
 
     @Override
     public void startBlobsDeduplication() {
-        ((EnvironmentImpl)store.getEnvironment()).getGc().getCleanerJobProcessor().queue(new Job() {
+        ((EnvironmentImpl)store.getEnvironment()).gc.getCleanerJobProcessor().queue(new Job() {
             @Override
             protected void execute() {
                 new PersistentEntityStoreRefactorings(store).refactorDeduplicateInPlaceBlobs();

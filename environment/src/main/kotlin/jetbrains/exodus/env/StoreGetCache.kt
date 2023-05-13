@@ -25,7 +25,7 @@ import jetbrains.exodus.core.execution.SharedTimer.ExpirablePeriodicTask
  * Caches Store.get() results retrieved from immutable trees.
  * For each key and tree address (KeyEntry), value is immutable, so lock-free caching is ok.
  */
-class StoreGetCache(cacheSize: Int, val minTreeSize: Int, val maxValueSize: Int) {
+class StoreGetCache(cacheSize: Int, @JvmField val minTreeSize: Int, @JvmField val maxValueSize: Int) {
     private val cache: SoftConcurrentLongObjectCache<ValueEntry>
 
     init {
@@ -64,9 +64,13 @@ class StoreGetCache(cacheSize: Int, val minTreeSize: Int, val maxValueSize: Int)
     }
 
     private class ValueEntry(
+        @JvmField
         val treeRootAddress: Long,
+        @JvmField
         val keyHashCode: Int,
+        @JvmField
         val key: ArrayByteIterable,
+        @JvmField
         val value: ArrayByteIterable
     )
 

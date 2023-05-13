@@ -29,25 +29,34 @@ import java.io.StringWriter
  * Base class for transactions.
  */
 abstract class TransactionBase(private val env: EnvironmentImpl, private var isExclusive: Boolean) : Transaction {
+    @JvmField
     val creatingThread: Thread = Thread.currentThread()
 
-    protected var _metaTree: MetaTreeImpl? = null
-    internal var metaTree: MetaTree?
-        get() = _metaTree
-        set(value) {
-            checkIsFinished()
-            _metaTree = value as MetaTreeImpl
-        }
+    @JvmField
+    protected var metaTree: MetaTreeImpl? = null
+
+    internal fun getMetaTree(): MetaTree? = metaTree
+
+    internal fun setMetaTree(metaTree: MetaTree?) {
+        this.metaTree = metaTree as MetaTreeImpl
+    }
+
 
     private val immutableTrees: IntHashMap<ITree> = IntHashMap()
     private val userObjects: MutableMap<Any, Any>
+
+    @JvmField
     val trace: StackTrace?
+
+    @JvmField
     val created // created is the ticks when the txn was actually created (constructed)
             : Long
     private var started // started is the ticks when the txn held its current snapshot
             : Long
     private val wasCreatedExclusive: Boolean = isExclusive
     private var traceFinish: Array<StackTraceElement>?
+
+    @JvmField
     var isDisableStoreGetCache = false
     private var beforeTransactionFlushAction: Runnable? = null
 
@@ -82,7 +91,7 @@ abstract class TransactionBase(private val env: EnvironmentImpl, private var isE
     }
 
     override fun getSnapshotId(): Long {
-        return _metaTree!!.root
+        return metaTree!!.root
     }
 
     final override fun isExclusive(): Boolean {
@@ -103,10 +112,10 @@ abstract class TransactionBase(private val env: EnvironmentImpl, private var isE
 
     open fun getTree(store: StoreImpl): ITree {
         checkIsFinished()
-        val structureId = store.structureId
+        val structureId = store.getStructureId()
         var result = immutableTrees[structureId]
         if (result == null) {
-            result = store.openImmutableTree(_metaTree!!)
+            result = store.openImmutableTree(metaTree!!)
             synchronized(immutableTrees) { immutableTrees.put(structureId, result) }
         }
         return result
@@ -127,11 +136,10 @@ abstract class TransactionBase(private val env: EnvironmentImpl, private var isE
         }
     }
 
-    val root: Long
-        get() = _metaTree!!.root
+    fun getRoot(): Long = metaTree!!.root
 
     fun invalidVersion(root: Long): Boolean {
-        return _metaTree == null || _metaTree!!.root != root
+        return metaTree == null || metaTree!!.root != root
     }
 
     fun setStarted(started: Long) {
@@ -142,25 +150,24 @@ abstract class TransactionBase(private val env: EnvironmentImpl, private var isE
         return wasCreatedExclusive
     }
 
-    open val isGCTransaction: Boolean
-        get() = false
+    open fun isGCTransaction(): Boolean = false
 
     open fun getTreeMetaInfo(name: String): TreeMetaInfo? {
         checkIsFinished()
-        return _metaTree!!.getMetaInfo(name, env)
+        return metaTree!!.getMetaInfo(name, env)
     }
 
     open fun storeRemoved(store: StoreImpl) {
         checkIsFinished()
-        synchronized(immutableTrees) { immutableTrees.remove(store.structureId) }
+        synchronized(immutableTrees) { immutableTrees.remove(store.getStructureId()) }
     }
 
-    open val allStoreNames: List<String>
-        get() {
-            checkIsFinished()
-            return _metaTree!!.allStoreNames
-        }
-    abstract val beginHook: Runnable?
+    open fun getAllStoreNames(): List<String> {
+        checkIsFinished()
+        return metaTree!!.getAllStoreNames()
+    }
+
+    abstract fun beginHook(): Runnable?
     protected fun clearImmutableTrees() {
         synchronized(immutableTrees) { immutableTrees.clear() }
     }
@@ -193,7 +200,7 @@ abstract class TransactionBase(private val env: EnvironmentImpl, private var isE
     protected fun getWrappedBeginHook(beginHook: Runnable?): Runnable {
         return Runnable {
             val env = environment
-            metaTree = env.metaTree as MetaTreeImpl
+            metaTree = env.getMetaTree() as MetaTreeImpl
             env.registerTransaction(this@TransactionBase)
             beginHook?.run()
         }

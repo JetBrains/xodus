@@ -18,27 +18,27 @@ package jetbrains.exodus.env.management
 const val STATISTICS_OBJECT_NAME_PREFIX = "jetbrains.exodus.env: type=EnvironmentStatistics"
 
 interface EnvironmentStatisticsMBean {
-    val bytesWritten: Long
-    val bytesWrittenPerSecond: Double
-    val bytesRead: Long
-    val bytesReadPerSecond: Double
-    val bytesMovedByGC: Long
-    val bytesMovedByGCPerSecond: Double
-    val logCacheHitRate: Float
-    val numberOfTransactions: Long
-    val numberOfTransactionsPerSecond: Double
-    val numberOfReadonlyTransactions: Long
-    val numberOfReadonlyTransactionsPerSecond: Double
-    val numberOfGCTransactions: Long
-    val numberOfGCTransactionsPerSecond: Double
-    val activeTransactions: Int
-    val numberOfFlushedTransactions: Long
-    val numberOfFlushedTransactionsPerSecond: Double
-    val transactionsDuration: Long
-    val readonlyTransactionsDuration: Long
-    val gcTransactionsDuration: Long
-    val diskUsage: Long
-    val utilizationPercent: Int
-    val storeGetCacheHitRate: Float
-    val stuckTransactionCount: Int
+    fun getBytesWritten(): Long
+    fun getBytesWrittenPerSecond(): Double
+    fun getBytesRead(): Long
+    fun getBytesReadPerSecond(): Double
+    fun getBytesMovedByGC(): Long
+    fun getBytesMovedByGCPerSecond(): Double
+    fun getLogCacheHitRate(): Float
+    fun getNumberOfTransactions(): Long
+    fun getNumberOfTransactionsPerSecond(): Double
+    fun getNumberOfReadonlyTransactions(): Long
+    fun getNumberOfReadonlyTransactionsPerSecond(): Double
+    fun getNumberOfGCTransactions(): Long
+    fun getNumberOfGCTransactionsPerSecond(): Double
+    fun getActiveTransactions(): Int
+    fun getNumberOfFlushedTransactions(): Long
+    fun getNumberOfFlushedTransactionsPerSecond(): Double
+    fun getTransactionsDuration(): Long
+    fun getReadonlyTransactionsDuration(): Long
+    fun getGcTransactionsDuration(): Long
+    fun getDiskUsage(): Long
+    fun getUtilizationPercent(): Int
+    fun getStoreGetCacheHitRate(): Float
+    fun getStuckTransactionCount(): Int
 }

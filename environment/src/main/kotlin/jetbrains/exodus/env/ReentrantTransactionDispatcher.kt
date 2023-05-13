@@ -84,7 +84,7 @@ internal class ReentrantTransactionDispatcher(maxSimultaneousTransactions: Int) 
         val creatingThread = txn.creatingThread
         val acquiredPermits: Int
         if (txn.isExclusive) {
-            if (txn.isGCTransaction) {
+            if (txn.isGCTransaction()) {
                 val gcTransactionAcquireTimeout = env.environmentConfig.gcTransactionAcquireTimeout
                 acquiredPermits = tryAcquireExclusiveTransaction(creatingThread, gcTransactionAcquireTimeout)
                 if (acquiredPermits == 0) {

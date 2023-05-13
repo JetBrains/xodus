@@ -23,12 +23,12 @@ import jetbrains.exodus.env.BitmapImpl.Companion.asLong
 import java.io.Closeable
 
 class BitmapIterator(
-    val txn: Transaction,
-    var store: StoreImpl,
+    @JvmField val txn: Transaction,
+    @JvmField var store: StoreImpl,
     private val direction: Int = 1
 ) : LongIterator, Closeable {
 
-    val cursor: Cursor = store.openCursor(txn)
+    @JvmField val cursor: Cursor = store.openCursor(txn)
     private var current: Long? = null
     private var next: Long? = null
     private var key = 0L
@@ -43,13 +43,13 @@ class BitmapIterator(
 
     override fun remove() {
         current?.let { current ->
-            val keyEntry = LongBinding.longToCompressedEntry(current.key)
-            val bitmap = store.get(txn, keyEntry)?.asLong ?: 0L
-            (bitmap xor (1L shl current.index)).let {
+            val keyEntry = LongBinding.longToCompressedEntry(current.key())
+            val bitmap = store.get(txn, keyEntry)?.asLong() ?: 0L
+            (bitmap xor (1L shl current.index())).let {
                 if (it == 0L) {
                     store.delete(txn, keyEntry)
                 } else {
-                    store.put(txn, keyEntry, it.asEntry)
+                    store.put(txn, keyEntry, it.asEntry())
                 }
             }
             this.current = null
@@ -83,7 +83,7 @@ class BitmapIterator(
     private fun setNext() {
         while (value == 0L && if (direction == 1) cursor.next else cursor.prev) {
             key = compressedEntryToLong(cursor.key)
-            value = cursor.value.asLong
+            value = cursor.value.asLong()
             bitIndex = if (direction == 1) 0 else 63
         }
 
@@ -104,21 +104,21 @@ class BitmapIterator(
     }
 
     fun getSearchBit(bit: Long): Boolean {
-        val searchKey = bit.key
-        val searchIndex = bit.index
+        val searchKey = bit.key()
+        val searchIndex = bit.index()
         if (this.getSearchKey(searchKey)) {
             val navigatedKey = compressedEntryToLong(cursor.key)
             key = navigatedKey
-            value = cursor.value.asLong
+            value = cursor.value.asLong()
             bitIndex = if (navigatedKey != searchKey) if (direction > 0) 0 else 63
             else {
-                if (direction > 0) {
+                value = if (direction > 0) {
                     // clear lower bits
-                    value = (value shr searchIndex) shl searchIndex
+                    (value shr searchIndex) shl searchIndex
                 } else {
                     // clear higher bits
                     val shiftBits = Long.SIZE_BITS - searchIndex - 1
-                    value = (value shl shiftBits) ushr shiftBits
+                    (value shl shiftBits) ushr shiftBits
                 }
                 searchIndex
             }

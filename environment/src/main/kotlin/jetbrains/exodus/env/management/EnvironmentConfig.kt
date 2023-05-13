@@ -19,243 +19,182 @@ import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.EnvironmentImpl
 import jetbrains.exodus.management.MBeanBase
 
-open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(getObjectName(env)), EnvironmentConfigMBean {
-
+open class EnvironmentConfig(@JvmField protected val env: EnvironmentImpl) : MBeanBase(getObjectName(env)),
+    EnvironmentConfigMBean {
     private val config = env.environmentConfig
+    override fun getMemoryUsage(): Long = config.memoryUsage
+    override fun getMemoryUsagePercent(): Int = config.memoryUsagePercentage
+    override fun getLogDurableWrite(): Boolean = config.logDurableWrite
+    override fun setLogDurableWrite(durableWrite: Boolean) {
+        config.logDurableWrite = durableWrite
+    }
 
-    override val memoryUsage: Long
-        get() = config.memoryUsage
+    override fun getLogFileSize(): Long = config.logFileSize
+    override fun getLogLockTimeout(): Long = config.logLockTimeout
+    override fun getLogCachePageSize(): Int = config.logCachePageSize
+    override fun getLogCacheOpenFilesCount(): Int = config.logCacheOpenFilesCount
+    override fun getLogCacheFreePhysicalMemoryThreshold(): Long = config.logCacheFreePhysicalMemoryThreshold
+    override fun isLogCacheShared(): Boolean = config.isLogCacheShared
+    override fun isLogCacheNonBlocking(): Boolean = config.isLogCacheNonBlocking
+    override fun getLogCacheGenerationCount(): Int = config.logCacheGenerationCount
+    override fun getLogCacheReadAheadMultiple(): Int = config.logCacheReadAheadMultiple
+    override fun setLogCacheReadAheadMultiple(readAheadMultiple: Int) {
+        config.logCacheReadAheadMultiple = readAheadMultiple
+    }
 
-    override val memoryUsagePercent: Int
-        get() = config.memoryUsagePercentage
+    override fun isLogCleanDirectoryExpected(): Boolean = config.isLogCleanDirectoryExpected
+    override fun isLogClearInvalid(): Boolean = config.isLogClearInvalid
+    override fun getLogSyncPeriod(): Long = config.logSyncPeriod
+    override fun setLogSyncPeriod(syncPeriod: Long) {
+        config.logSyncPeriod = syncPeriod
+    }
 
-    override var logDurableWrite: Boolean
-        get() = config.logDurableWrite
-        set(durableWrite) {
-            config.logDurableWrite = durableWrite
-        }
+    override fun isLogFullFileReadonly(): Boolean = config.isLogFullFileReadonly
+    override fun isLogAllowRemovable(): Boolean = config.isLogAllowRemovable
+    override fun isLogAllowRemote(): Boolean = config.isLogAllowRemote
+    override fun isLogAllowRamDisk(): Boolean = config.isLogAllowRamDisk
+    override fun isEnvIsReadonly(): Boolean = config.envIsReadonly
+    override fun setEnvIsReadonly(readOnly: Boolean) {
+        config.envIsReadonly = readOnly
+    }
 
-    override val logFileSize: Long
-        get() = config.logFileSize
+    override fun isEnvFailFastInReadonly(): Boolean = config.envFailFastInReadonly
+    override fun setEnvFailFastInReadonly(failFast: Boolean) {
+        config.envFailFastInReadonly = failFast
+    }
 
-    override val logLockTimeout: Long
-        get() = config.logLockTimeout
+    override fun isEnvReadonlyEmptyStores(): Boolean = config.envReadonlyEmptyStores
+    override fun setEnvReadonlyEmptyStores(readOnly: Boolean) {
+        config.envReadonlyEmptyStores = readOnly
+    }
 
-    override val logCachePageSize: Int
-        get() = config.logCachePageSize
+    override fun getEnvStoreGetCacheSize(): Int = config.envStoreGetCacheSize
+    override fun setEnvStoreGetCacheSize(cacheSize: Int) {
+        config.envStoreGetCacheSize = cacheSize
+    }
 
-    override val logCacheOpenFilesCount: Int
-        get() = config.logCacheOpenFilesCount
+    override fun getEnvStoreGetCacheMinTreeSize(): Int = config.envStoreGetCacheMinTreeSize
+    override fun setEnvStoreGetCacheMinTreeSize(minTreeSize: Int) {
+        config.envStoreGetCacheMinTreeSize = minTreeSize
+    }
 
-    override val logCacheFreePhysicalMemoryThreshold: Long
-        get() = config.logCacheFreePhysicalMemoryThreshold
+    override fun getEnvStoreGetCacheMaxValueSize(): Int = config.envStoreGetCacheMaxValueSize
+    override fun setEnvStoreGetCacheMaxValueSize(maxValueSize: Int) {
+        config.envStoreGetCacheMaxValueSize = maxValueSize
+    }
 
-    override val isLogCacheShared: Boolean
-        get() = config.isLogCacheShared
+    override fun isEnvCloseForcedly(): Boolean = config.envCloseForcedly
+    override fun setEnvCloseForcedly(closeForcedly: Boolean) {
+        config.envCloseForcedly = closeForcedly
+    }
 
-    override val isLogCacheNonBlocking: Boolean
-        get() = config.isLogCacheNonBlocking
+    override fun getEnvTxnReplayTimeout(): Long = config.envTxnReplayTimeout
+    override fun setEnvTxnReplayTimeout(txnReplayTimeout: Long) {
+        config.envTxnReplayTimeout = txnReplayTimeout
+    }
 
-    override val logCacheGenerationCount: Int
-        get() = config.logCacheGenerationCount
+    override fun getEnvTxnReplayMaxCount(): Int = config.envTxnReplayMaxCount
+    override fun setEnvTxnReplayMaxCount(txnReplayMaxCount: Int) {
+        config.envTxnReplayMaxCount = txnReplayMaxCount
+    }
 
-    override var logCacheReadAheadMultiple: Int
-        get() = config.logCacheReadAheadMultiple
-        set(readAheadMultiple) {
-            config.logCacheReadAheadMultiple = readAheadMultiple
-        }
+    override fun isEnvTxnDowngradeAfterFlush(): Boolean = config.envTxnDowngradeAfterFlush
+    override fun setEnvTxnDowngradeAfterFlush(downgrade: Boolean) {
+        config.envTxnDowngradeAfterFlush = downgrade
+    }
 
-    override val isLogCleanDirectoryExpected: Boolean
-        get() = config.isLogCleanDirectoryExpected
+    override fun isEnvTxnSingleThreadWrites(): Boolean = config.envTxnSingleThreadWrites
+    override fun setEnvTxnSingleThreadWrites(singleThreadWrites: Boolean) {
+        config.envTxnSingleThreadWrites = singleThreadWrites
+    }
 
-    override val isLogClearInvalid: Boolean
-        get() = config.isLogClearInvalid
+    override fun isEnvTxnTraceFinish(): Boolean = config.isEnvTxnTraceFinish
+    override fun setEnvTxnTraceFinish(traceFinish: Boolean) {
+        config.isEnvTxnTraceFinish = traceFinish
+    }
 
-    override var logSyncPeriod: Long
-        get() = config.logSyncPeriod
-        set(millis) {
-            config.logSyncPeriod = millis
-        }
+    override fun getEnvMaxParallelTxns(): Int = config.envMaxParallelTxns
 
-    override val isLogFullFileReadonly: Boolean
-        get() = config.isLogFullFileReadonly
+    override fun getEnvMonitorTxnsTimeout(): Int = config.envMonitorTxnsTimeout
 
-    override val isLogAllowRemovable: Boolean
-        get() = config.isLogAllowRemovable
+    override fun getEnvMonitorTxnsCheckFreq(): Int = config.envMonitorTxnsCheckFreq
 
-    override val isLogAllowRemote: Boolean
-        get() = config.isLogAllowRemote
+    override fun isEnvGatherStatistics(): Boolean = config.envGatherStatistics
 
-    override val isLogAllowRamDisk: Boolean
-        get() = config.isLogAllowRamDisk
+    override fun getTreeMaxPageSize(): Int = config.treeMaxPageSize
 
-    override var envIsReadonly: Boolean
-        get() = config.envIsReadonly
-        set(isReadonly) {
-            config.envIsReadonly = isReadonly
-        }
+    override fun setTreeMaxPageSize(treeMaxPageSize: Int) {
+        config.treeMaxPageSize = treeMaxPageSize
+    }
 
-    override var envFailFastInReadonly: Boolean
-        get() = config.envFailFastInReadonly
-        set(failFast) {
-            config.envFailFastInReadonly = failFast
-        }
+    override fun isGcEnabled(): Boolean = config.isGcEnabled
 
-    override var envReadonlyEmptyStores: Boolean
-        get() = config.envReadonlyEmptyStores
-        set(readonlyEmptyStores) {
-            config.envReadonlyEmptyStores = readonlyEmptyStores
-        }
+    override fun setGcEnabled(enabled: Boolean) {
+        config.isGcEnabled = enabled
+    }
 
-    override var envStoreGetCacheSize: Int
-        get() = config.envStoreGetCacheSize
-        set(storeGetCacheSize) {
-            config.envStoreGetCacheSize = storeGetCacheSize
-        }
+    override fun isGcSuspended(): Boolean = env.gc.isSuspended
 
-    override var envStoreGetCacheMinTreeSize: Int
-        get() = config.envStoreGetCacheMinTreeSize
-        set(minTreeSize) {
-            config.envStoreGetCacheMinTreeSize = minTreeSize
-        }
+    override fun getGcStartIn(): Int = config.gcStartIn
 
-    override var envStoreGetCacheMaxValueSize: Int
-        get() = config.envStoreGetCacheMaxValueSize
-        set(maxValueSize) {
-            config.envStoreGetCacheMaxValueSize = maxValueSize
-        }
+    override fun getGcMinUtilization(): Int = config.gcMinUtilization
 
-    override var envCloseForcedly: Boolean
-        get() = config.envCloseForcedly
-        set(closeForcedly) {
-            config.envCloseForcedly = closeForcedly
-        }
+    override fun setGcMinUtilization(percent: Int) {
+        config.gcMinUtilization = percent
+    }
 
-    override var envTxnReplayTimeout: Long
-        get() = config.envTxnReplayTimeout
-        set(txnReplayTimeout) {
-            config.envTxnReplayTimeout = txnReplayTimeout
-        }
+    override fun isGcRenameFiles(): Boolean = config.gcRenameFiles
 
-    override var envTxnReplayMaxCount: Int
-        get() = config.envTxnReplayMaxCount
-        set(txnReplayMaxCount) {
-            config.envTxnReplayMaxCount = txnReplayMaxCount
-        }
+    override fun setGcRenameFiles(rename: Boolean) {
+        config.gcRenameFiles = rename
+    }
 
-    override var envTxnDowngradeAfterFlush: Boolean
-        get() = config.envTxnDowngradeAfterFlush
-        set(downgrade) {
-            config.envTxnDowngradeAfterFlush = downgrade
-        }
+    override fun getGcFileMinAge(): Int = config.gcFileMinAge
 
-    override var envTxnSingleThreadWrites: Boolean
-        get() = config.envTxnSingleThreadWrites
-        set(singleThreadWrites) {
-            config.envTxnSingleThreadWrites = singleThreadWrites
-        }
+    override fun setGcFileMinAge(minAge: Int) {
+        config.gcFileMinAge = minAge
+    }
 
-    override var envTxnTraceFinish: Boolean
-        get() = config.isEnvTxnTraceFinish
-        set(traceFinish) {
-            config.isEnvTxnTraceFinish = traceFinish
-        }
+    override fun getGcRunPeriod(): Int = config.gcRunPeriod
+    override fun setGcRunPeriod(runPeriod: Int) {
+        config.gcRunPeriod = runPeriod
+    }
 
-    override val envMaxParallelTxns: Int
-        get() = config.envMaxParallelTxns
+    override fun isGcUtilizationFromScratch(): Boolean = config.gcUtilizationFromScratch
+    override fun setGcUtilizationFromScratch(fromScratch: Boolean) {
+        config.gcUtilizationFromScratch = fromScratch
+    }
 
-    override val envMonitorTxnsTimeout: Int
-        get() = config.envMonitorTxnsTimeout
+    override fun getGcUtilizationFromFile(): String? = config.gcUtilizationFromFile
+    override fun setGcUtilizationFromFile(file: String?) {
+        config.gcUtilizationFromFile = file
+    }
 
-    override val envMonitorTxnsCheckFreq: Int
-        get() = config.envMonitorTxnsCheckFreq
+    override fun isGcUseExclusiveTransaction(): Boolean = config.gcUseExclusiveTransaction
+    override fun setGcUseExclusiveTransaction(useExclusiveTransaction: Boolean) {
+        config.gcUseExclusiveTransaction = useExclusiveTransaction
+    }
 
-    override val envGatherStatistics: Boolean
-        get() = config.envGatherStatistics
+    override fun getGcTransactionAcquireTimeout(): Int = config.gcTransactionAcquireTimeout
+    override fun setGcTransactionAcquireTimeout(timeout: Int) {
+        config.gcTransactionAcquireTimeout = timeout
+    }
 
-    override var treeMaxPageSize: Int
-        get() = config.treeMaxPageSize
-        set(treeMaxPageSize) {
-            config.treeMaxPageSize = treeMaxPageSize
-        }
+    override fun getGcTransactionTimeout(): Int = config.gcTransactionTimeout
+    override fun setGcTransactionTimeout(timeout: Int) {
+        config.gcTransactionTimeout = timeout
+    }
 
-    override var isGcEnabled: Boolean
-        get() = config.isGcEnabled
-        set(enabled) {
-            config.isGcEnabled = enabled
-        }
+    override fun getGcFilesDeletionDelay(): Int = config.gcFilesDeletionDelay
+    override fun setGcFilesDeletionDelay(delay: Int) {
+        config.gcFilesDeletionDelay = delay
+    }
 
-    override val isGcSuspended: Boolean
-        get() = env.gc.isSuspended
+    override fun getGcRunEvery(): Int = config.gcRunEvery
+    override fun setGcRunEvery(seconds: Int) {
+        config.gcRunEvery = seconds
+    }
 
-    override val gcStartIn: Int
-        get() = config.gcStartIn
-
-    override var gcMinUtilization: Int
-        get() = config.gcMinUtilization
-        set(percent) {
-            config.gcMinUtilization = percent
-        }
-
-    override var gcRenameFiles: Boolean
-        get() = config.gcRenameFiles
-        set(rename) {
-            config.gcRenameFiles = rename
-        }
-
-    override var gcFileMinAge: Int
-        get() = config.gcFileMinAge
-        set(minAge) {
-            config.gcFileMinAge = minAge
-        }
-
-    override var gcRunPeriod: Int
-        get() = config.gcRunPeriod
-        set(runPeriod) {
-            config.gcRunPeriod = runPeriod
-        }
-
-    override var gcUtilizationFromScratch: Boolean
-        get() = config.gcUtilizationFromScratch
-        set(fromScratch) {
-            config.gcUtilizationFromScratch = fromScratch
-        }
-
-    override var gcUtilizationFromFile: String?
-        get() = config.gcUtilizationFromFile
-        set(file) {
-            config.gcUtilizationFromFile = file
-        }
-
-    override var gcUseExclusiveTransaction: Boolean
-        get() = config.gcUseExclusiveTransaction
-        set(useExclusiveTransaction) {
-            config.gcUseExclusiveTransaction = useExclusiveTransaction
-        }
-
-    override var gcTransactionAcquireTimeout: Int
-        get() = config.gcTransactionAcquireTimeout
-        set(timeout) {
-            config.gcTransactionAcquireTimeout = timeout
-        }
-
-    override var gcTransactionTimeout: Int
-        get() = config.gcTransactionTimeout
-        set(timeout) {
-            config.gcTransactionTimeout = timeout
-        }
-
-    override var gcFilesDeletionDelay: Int
-        get() = config.gcFilesDeletionDelay
-        set(delay) {
-            config.gcFilesDeletionDelay = delay
-        }
-
-    override var gcRunEvery: Int
-        get() = config.gcRunEvery
-        set(seconds) {
-            config.gcRunEvery = seconds
-        }
 
     override fun gc() {
         env.gc()
@@ -263,6 +202,6 @@ open class EnvironmentConfig(protected val env: EnvironmentImpl) : MBeanBase(get
 
     companion object {
         internal fun getObjectName(env: Environment) =
-                "$CONFIG_OBJECT_NAME_PREFIX, location=${escapeLocation(env.location)}"
+            "$CONFIG_OBJECT_NAME_PREFIX, location=${escapeLocation(env.location)}"
     }
 }

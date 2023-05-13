@@ -297,7 +297,7 @@ class Reflect(directory: File) {
         val usedSpace = TreeMap<Long, Long?>()
         val usedSpacePerStore = TreeMap<String, Long?>()
         print("Analysing meta tree loggables... ")
-        fetchUsedSpace("meta tree", (env.metaTree as MetaTreeImpl).addressIterator(), usedSpace, usedSpacePerStore)
+        fetchUsedSpace("meta tree", (env.getMetaTree() as MetaTreeImpl).addressIterator(), usedSpace, usedSpacePerStore)
         val names = env.computeInReadonlyTransaction { txn -> env.getAllStoreNames(txn) }.toMutableList()
 
         env.executeInReadonlyTransaction { txn ->

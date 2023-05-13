@@ -1544,7 +1544,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     private final class TransactionObjectCache<V> extends ObjectCacheDecorator<PropertyId, V> {
 
         private TransactionObjectCache(final int size) {
-            super(size, () -> !((TransactionBase) txn).isDisableStoreGetCache());
+            super(size, () -> !((TransactionBase) txn).isDisableStoreGetCache);
         }
 
         @Override

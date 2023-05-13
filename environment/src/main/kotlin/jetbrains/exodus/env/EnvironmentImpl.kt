@@ -61,30 +61,45 @@ import javax.management.InstanceAlreadyExistsException
 open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig) : Environment {
     @JvmField
     val log: Log
+
     private val ec: EnvironmentConfig
     private var balancePolicy: BTreeBalancePolicy? = null
 
+    @JvmField
     internal var metaTreeInternal: MetaTreeImpl
+
     private val structureId: AtomicInteger
     private val txns: TransactionSet
     private val txnSafeTasks: LinkedList<RunnableWithTxnRoot>
+
+    @JvmField
     var storeGetCache: StoreGetCache? = null
-        private set
+
     private var envSettingsListener: EnvironmentSettingsListener? = null
+
+    @JvmField
     var gc: GarbageCollector
+
+    @JvmField
     val commitLock = Any()
     private val metaReadLock: ReadLock
+
+    @JvmField
     val metaWriteLock: WriteLock
     private val txnDispatcher: ReentrantTransactionDispatcher
     private var statistics: EnvironmentStatistics
+
+    @JvmField
     var txnProfiler: TxnProfiler? = null
+
     private var configMBean: jetbrains.exodus.env.management.EnvironmentConfig? = null
     private var statisticsMBean: jetbrains.exodus.env.management.EnvironmentStatistics? = null
     private var profilerMBean: DatabaseProfiler? = null
+
+    @JvmField
     val backupController: BackupController
 
-    val metaTree: MetaTree
-        get() = metaTreeInternal
+    fun getMetaTree(): MetaTree = metaTreeInternal
 
     /**
      * Reference to the task which periodically ensures that stored data are synced to the disk.
@@ -98,6 +113,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
      * it will remain inoperative forever.
      */
     @Volatile
+    @JvmField
     var throwableOnCommit: Throwable? = null
     private var throwableOnClose: Throwable? = null
     private var stuckTxnMonitor: StuckTransactionMonitor? = null
@@ -107,6 +123,8 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
 
     @JvmField
     var checkBlobs = false
+
+    @JvmField
     var isCheckLuceneDirectory = false
 
     init {
@@ -260,8 +278,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
             throw ReadonlyTransactionException("Can't start GC transaction on read-only Environment")
         }
         return object : ReadWriteTransaction(this@EnvironmentImpl, null, ec.gcUseExclusiveTransaction, true) {
-            override val isGCTransaction: Boolean
-                get() = true
+            override fun isGCTransaction(): Boolean = true
         }
     }
 
@@ -300,7 +317,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
     }
 
     override fun executeTransactionSafeTask(task: Runnable) {
-        val newestTxnRoot = txns.newestTxnRootAddress
+        val newestTxnRoot = txns.getNewestTxnRootAddress()
         if (newestTxnRoot == Long.MIN_VALUE) {
             task.run()
         } else {
@@ -308,11 +325,10 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         }
     }
 
-    val stuckTransactionCount: Int
-        get() {
-            val stuckTxnMonitor = this.stuckTxnMonitor
-            return stuckTxnMonitor?.stuckTxnCount ?: 0
-        }
+    fun getStuckTransactionCount(): Int {
+        val stuckTxnMonitor = this.stuckTxnMonitor
+        return stuckTxnMonitor?.stuckTxnCount ?: 0
+    }
 
     override fun getCipherProvider(): StreamCipherProvider? {
         return streamCipherProvider
@@ -463,19 +479,18 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         t.storeRemoved(store)
     }
 
-    val allStoreCount: Long
-        get() {
-            metaReadLock.lock()
-            return try {
-                metaTreeInternal.allStoreCount
-            } finally {
-                metaReadLock.unlock()
-            }
+    fun getAllStoreCount(): Long {
+        metaReadLock.lock()
+        return try {
+            metaTreeInternal.getAllStoreCount()
+        } finally {
+            metaReadLock.unlock()
         }
+    }
 
     override fun getAllStoreNames(txn: Transaction): List<String> {
         checkIfTransactionCreatedAgainstThis(txn)
-        return (txn as TransactionBase).allStoreNames
+        return (txn as TransactionBase).getAllStoreNames()
     }
 
     override fun storeExists(storeName: String, txn: Transaction): Boolean {
@@ -498,14 +513,14 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         gc.addBeforeGcAction(action)
     }
 
-    val bTreeBalancePolicy: BTreeBalancePolicy
-        get() {
-            // we don't care of possible race condition here
-            if (balancePolicy == null) {
-                balancePolicy = BTreeBalancePolicy(ec.treeMaxPageSize, ec.treeDupMaxPageSize)
-            }
-            return balancePolicy!!
+    fun getBTreeBalancePolicy(): BTreeBalancePolicy {
+        // we don't care of possible race condition here
+        if (balancePolicy == null) {
+            balancePolicy = BTreeBalancePolicy(ec.treeMaxPageSize, ec.treeDupMaxPageSize)
         }
+
+        return balancePolicy!!
+    }
 
     /**
      * Flushes Log's data writer exclusively in commit lock. This guarantees that the data writer is in committed state.
@@ -607,8 +622,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         }
     }
 
-    val storeGetCacheHitRate: Float
-        get() = if (storeGetCache == null) 0.0f else storeGetCache!!.hitRate()
+    fun getStoreGetCacheHitRate(): Float = if (storeGetCache == null) 0.0f else storeGetCache!!.hitRate()
 
     protected open fun createStore(name: String, metaInfo: TreeMetaInfo): StoreImpl {
         return StoreImpl(this, name, metaInfo)
@@ -624,7 +638,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         if (txn.isReadonly) {
             statistics.getStatisticsItem(EnvironmentStatistics.Type.READONLY_TRANSACTIONS).incTotal()
             statistics.getStatisticsItem(EnvironmentStatistics.Type.READONLY_TRANSACTIONS_DURATION).addTotal(duration)
-        } else if (txn.isGCTransaction) {
+        } else if (txn.isGCTransaction()) {
             statistics.getStatisticsItem(EnvironmentStatistics.Type.GC_TRANSACTIONS).incTotal()
             statistics.getStatisticsItem(EnvironmentStatistics.Type.GC_TRANSACTIONS_DURATION).addTotal(duration)
         } else {
@@ -643,8 +657,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         ) else ReadWriteTransaction(this, beginHook, exclusive, cloneMeta)
     }
 
-    val diskUsage: Long
-        get() = log.getDiskUsage()
+    fun getDiskUsage(): Long = log.getDiskUsage()
 
     fun acquireTransaction(txn: TransactionBase) {
         checkIfTransactionCreatedAgainstThis(txn)
@@ -693,7 +706,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
     }
 
     fun loadMetaTree(rootAddress: Long): BTree {
-        return object : BTree(log, bTreeBalancePolicy, rootAddress, false, META_TREE_ID) {
+        return object : BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
             override fun getDataIterator(address: Long): DataIterator {
                 return DataIterator(log, address)
             }
@@ -716,7 +729,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         val expiredLoggables: ExpiredLoggableCollection?
         val initialHighAddress: Long
         val resultingHighAddress: Long
-        val isGcTransaction = txn.isGCTransaction
+        val isGcTransaction = txn.isGCTransaction()
         var wasUpSaved = false
         val up = gc.utilizationProfile
         if (!isGcTransaction && up.isDirty) {
@@ -750,7 +763,10 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                 metaWriteLock.lock()
                 try {
                     resultingHighAddress = updatedHighAddress
-                    txn.metaTree = MetaTreeImpl.create(this, proto!!).also { metaTreeInternal = it }
+                    val metaTree = MetaTreeImpl.create(this, proto!!)
+                    metaTreeInternal = metaTree
+
+                    txn.setMetaTree(metaTree)
                     txn.executeCommitHook()
                 } finally {
                     metaWriteLock.unlock()
@@ -783,7 +799,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         if (acquireTxn) {
             acquireTransaction(txn)
         }
-        val beginHook = txn.beginHook
+        val beginHook = txn.beginHook()
         metaReadLock.lock()
         return try {
             beginHook?.run()
@@ -861,8 +877,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         return result
     }
 
-    val lastStructureId: Int
-        get() = structureId.get()
+    fun getLastStructureId(): Int = structureId.get()
 
     fun registerTransaction(txn: TransactionBase) {
         checkIfTransactionCreatedAgainstThis(txn)
@@ -883,7 +898,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
     fun runTransactionSafeTasks() {
         if (throwableOnCommit == null) {
             var tasksToRun: MutableList<Runnable>? = null
-            val oldestTxnRoot = txns.oldestTxnRootAddress
+            val oldestTxnRoot = txns.getOldestTxnRootAddress()
             synchronized(txnSafeTasks) {
                 while (true) {
                     if (!txnSafeTasks.isEmpty()) {
@@ -1019,7 +1034,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         val txnProfiler = this.txnProfiler
         if (txnProfiler != null) {
             val writtenBytes = resultingHighAddress - initialHighAddress
-            if (txn.isGCTransaction) {
+            if (txn.isGCTransaction()) {
                 txnProfiler.incGcTransaction()
                 txnProfiler.addGcMovedBytes(writtenBytes)
             } else if (txn.isReadonly) {
@@ -1078,28 +1093,29 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
         }
     }
 
-    private class RunnableWithTxnRoot(val runnable: Runnable, val txnRoot: Long)
+    private class RunnableWithTxnRoot(@JvmField val runnable: Runnable,@JvmField val txnRoot: Long)
     private object SyncIO {
         @Volatile
         private var syncExecutor: ScheduledExecutorService? = null
-            get() {
-                if (field == null) {
-                    lock.lock()
-                    try {
-                        if (field == null) {
-                            field = Executors.newScheduledThreadPool(1, SyncIOThreadFactory())
-                        }
-                    } finally {
-                        lock.unlock()
+        private fun getSyncExecutor(): ScheduledExecutorService {
+            if (syncExecutor == null) {
+                lock.lock()
+                try {
+                    if (syncExecutor == null) {
+                        syncExecutor = Executors.newScheduledThreadPool(1, SyncIOThreadFactory())
                     }
+                } finally {
+                    lock.unlock()
                 }
-                return field
             }
+            return syncExecutor!!
+        }
+
         private val lock = ReentrantLock()
         fun scheduleSyncLoop(environment: EnvironmentImpl): ScheduledFuture<*> {
-            val executor = syncExecutor
+            val executor = getSyncExecutor()
             val syncPeriod = environment.ec.logSyncPeriod
-            return executor!!.scheduleWithFixedDelay({
+            return executor.scheduleWithFixedDelay({
                 try {
                     if (environment.log.needsToBeSynchronized()) {
                         synchronized(environment.commitLock) {

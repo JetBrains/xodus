@@ -200,7 +200,7 @@ open class EnvironmentTest : EnvironmentTestsBase() {
     @Test
     fun testUpdateBalancePolicy() {
         val envConfig = environment!!.environmentConfig
-        val bs = environment!!.bTreeBalancePolicy
+        val bs = environment!!.getBTreeBalancePolicy()
         val wtf = StringBinding.stringToEntry("wtf")
         val count = bs.pageMaxSize - 1
         run {

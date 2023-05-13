@@ -30,8 +30,9 @@ internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
         queueThis(env)
     }
 
-    var stuckTxnCount: Int = 0
-        private set
+    @JvmField
+    internal var stuckTxnCount: Int = 0
+
 
     private val env: EnvironmentImpl? get() = envRef.get()
 
@@ -72,7 +73,7 @@ internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
             val timeBound = System.currentTimeMillis() - this
             env?.forEachActiveTransaction {
                 val txn = it as TransactionBase
-                if (!txn.isGCTransaction && txn.startTime < timeBound) {
+                if (!txn.isGCTransaction() && txn.startTime < timeBound) {
                     callback(it)
                 }
             }
