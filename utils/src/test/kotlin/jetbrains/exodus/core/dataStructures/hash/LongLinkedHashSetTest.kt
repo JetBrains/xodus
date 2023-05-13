@@ -13,82 +13,82 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.hash;
+package jetbrains.exodus.core.dataStructures.hash
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.Iterator;
-
-public class LongLinkedHashSetTest {
-
+class LongLinkedHashSetTest {
     @Test
-    public void testAddContains() {
-        final LongLinkedHashSet tested = new LongLinkedHashSet();
-        for (long i = 0; i < 1000; ++i) {
-            tested.add(i);
+    fun testAddContains() {
+        val tested = LongLinkedHashSet()
+        for (i in 0..999) {
+            tested.add(i.toLong())
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertTrue(tested.contains(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertTrue(tested.contains(i.toLong()))
         }
     }
 
     @Test
-    public void testAddContainsRemove() {
-        final LongLinkedHashSet tested = new LongLinkedHashSet();
-        for (long i = 0; i < 1000; ++i) {
-            tested.add(i);
+    fun testAddContainsRemove() {
+        val tested = LongLinkedHashSet()
+        for (i in 0..999) {
+            tested.add(i.toLong())
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; i += 2) {
-            Assert.assertTrue(tested.remove(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        run {
+            var i: Long = 0
+            while (i < 1000) {
+                Assert.assertTrue(tested.remove(i))
+                i += 2
+            }
         }
-        Assert.assertEquals(500, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            if (i % 2 == 0) {
-                Assert.assertFalse(tested.contains(i));
+        Assert.assertEquals(500, tested.size.toLong())
+        for (i in 0L..999) {
+            if (i % 2 == 0L) {
+                Assert.assertFalse(tested.contains(i))
             } else {
-                Assert.assertTrue(tested.contains(i));
+                Assert.assertTrue(tested.contains(i))
             }
         }
     }
 
     @Test
-    public void iterator() {
-        final LongLinkedHashSet tested = new LongLinkedHashSet();
-
-        for (long i = 0; i < 10000; ++i) {
-            tested.add(i);
+    operator fun iterator() {
+        val tested = LongLinkedHashSet()
+        for (i in 0..9999) {
+            tested.add(i.toLong())
         }
-        long i = 0;
-        for (Long key : tested) {
-            Assert.assertEquals(i++, key.longValue());
-            tested.remove(key);
+        var i: Long = 0
+        for (key in tested) {
+            Assert.assertEquals(i++, key)
+            tested.remove(key)
         }
-        Assert.assertEquals(0, tested.size());
+        Assert.assertEquals(0, tested.size.toLong())
     }
 
     @Test
-    public void iterator2() {
-        final LongLinkedHashSet tested = new LongLinkedHashSet();
-        for (long i = 0; i < 10000; ++i) {
-            tested.add(i);
+    fun iterator2() {
+        val tested = LongLinkedHashSet()
+        for (i in 0..9999) {
+            tested.add(i.toLong())
         }
-        Iterator<Long> it = tested.iterator();
+        var it: MutableIterator<Long> = tested.iterator()
         while (it.hasNext()) {
-            final long i = it.next();
-            if (i % 2 == 0) {
-                it.remove();
+            val i = it.next()
+            if (i % 2 == 0L) {
+                it.remove()
             }
         }
-
-        Assert.assertEquals(5000, tested.size());
-
-        it = tested.iterator();
-        for (long i = 1; i < 10000; i += 2) {
-            Assert.assertTrue(it.hasNext());
-            Assert.assertEquals(i, it.next().longValue());
+        Assert.assertEquals(5000, tested.size.toLong())
+        it = tested.iterator()
+        var i: Long = 1
+        while (i < 10000) {
+            Assert.assertTrue(it.hasNext())
+            Assert.assertEquals(i, it.next())
+            i += 2
         }
     }
 }

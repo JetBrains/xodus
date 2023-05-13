@@ -13,182 +13,170 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.persistent;
+package jetbrains.exodus.core.dataStructures.persistent
 
-import jetbrains.exodus.util.Random;
-import org.junit.Assert;
-import org.junit.Test;
+import jetbrains.exodus.util.Random
+import org.junit.Assert
+import org.junit.Test
 
-public class PersistentHashMapTest {
-
-    private static final int ENTRIES_TO_ADD = 5000;
-
+class PersistentHashMapTest {
     @Test
-    public void mutableTreeRandomInsertDeleteTest() {
-        Random random = new Random(2343489);
-        PersistentHashMap<Integer, String> map = new PersistentHashMap<>();
-        checkInsertRemove(random, map, 100);
-        checkInsertRemove(random, map, ENTRIES_TO_ADD);
-        for (int i = 0; i < 100; i++) {
-            checkInsertRemove(random, map, 100);
+    fun mutableTreeRandomInsertDeleteTest() {
+        val random = Random(2343489)
+        val map = PersistentHashMap<Int, String>()
+        checkInsertRemove(random, map, 100)
+        checkInsertRemove(random, map, ENTRIES_TO_ADD)
+        for (i in 0..99) {
+            checkInsertRemove(random, map, 100)
         }
     }
 
     @Test
-    public void hashKeyCollision() {
-        final PersistentHashMap<HashKey, String> map = new PersistentHashMap<>();
-        PersistentHashMap<HashKey, String>.MutablePersistentHashMap w = map.beginWrite();
-        HashKey first = new HashKey(1);
-        w.put(first, "a");
-        HashKey second = new HashKey(1);
-        w.put(second, "b");
-        w.endWrite();
-        Assert.assertEquals(2, map.getCurrent().size());
-        w = map.beginWrite();
-        w.removeKey(first);
-        w.endWrite();
-        Assert.assertEquals(1, map.getCurrent().size());
-    }
-
-    @SuppressWarnings({"OverlyLongMethod"})
-    @Test
-    public void competingWritesTest() {
-        PersistentHashMap<Integer, String> tree = new PersistentHashMap<>();
-        PersistentHashMap<Integer, String>.MutablePersistentHashMap write1 = tree.beginWrite();
-        PersistentHashMap<Integer, String>.MutablePersistentHashMap write2 = tree.beginWrite();
-        write1.put(0, "0");
-        write2.removeKey(1);
-        Assert.assertTrue(write2.endWrite());
-        Assert.assertTrue(write1.endWrite());
-        PersistentHashMap<Integer, String>.ImmutablePersistentHashMap read = tree.getCurrent();
-        Assert.assertTrue(read.containsKey(0));
-        Assert.assertFalse(read.containsKey(1));
-        Assert.assertFalse(read.containsKey(2));
-        Assert.assertFalse(read.containsKey(3));
-        Assert.assertEquals(1, read.size());
-
-        write1.put(2, "2");
-        write2.put(3, "3");
-        Assert.assertTrue(write1.endWrite());
-        Assert.assertFalse(write2.endWrite());
-        Assert.assertTrue(read.containsKey(0));
-        Assert.assertFalse(read.containsKey(1));
-        Assert.assertFalse(read.containsKey(2));
-        Assert.assertFalse(read.containsKey(3));
-        Assert.assertEquals(1, read.size());
-        read = tree.getCurrent();
-        Assert.assertTrue(read.containsKey(0));
-        Assert.assertFalse(read.containsKey(1));
-        Assert.assertTrue(read.containsKey(2));
-        Assert.assertFalse(read.containsKey(3));
-        Assert.assertEquals(2, read.size());
-
-        Object root = write1.getRoot();
-        write1.put(2, "2");
-        Assert.assertNotSame(write1.getRoot(), root);
-        root = write2.getRoot();
-        write2.put(2, "_2");
-        Assert.assertNotSame(write2.getRoot(), root);
-        Assert.assertTrue(write1.endWrite());
-        Assert.assertFalse(write2.endWrite());
-        read = tree.getCurrent();
-        Assert.assertTrue(read.containsKey(0));
-        Assert.assertFalse(read.containsKey(1));
-        Assert.assertTrue(read.containsKey(2));
-        Assert.assertFalse(read.containsKey(3));
-        Assert.assertEquals(2, read.size());
+    fun hashKeyCollision() {
+        val map = PersistentHashMap<HashKey, String>()
+        var w = map.beginWrite()
+        val first = HashKey(1)
+        w.put(first, "a")
+        val second = HashKey(1)
+        w.put(second, "b")
+        w.endWrite()
+        Assert.assertEquals(2, map.current.size().toLong())
+        w = map.beginWrite()
+        w.removeKey(first)
+        w.endWrite()
+        Assert.assertEquals(1, map.current.size().toLong())
     }
 
     @Test
-    public void testOverwrite() {
-        final PersistentHashMap<Integer, String> tree = new PersistentHashMap<>();
-        PersistentHashMap<Integer, String>.MutablePersistentHashMap mutable = tree.beginWrite();
-        mutable.put(0, "0");
-        Assert.assertTrue(mutable.endWrite());
-        Assert.assertEquals("0", tree.getCurrent().get(0));
-        mutable = tree.beginWrite();
-        mutable.put(0, "0.0");
-        Assert.assertTrue(mutable.endWrite());
-        Assert.assertEquals("0.0", tree.getCurrent().get(0));
+    fun competingWritesTest() {
+        val tree = PersistentHashMap<Int, String>()
+        val write1 = tree.beginWrite()
+        val write2 = tree.beginWrite()
+        write1.put(0, "0")
+        write2.removeKey(1)
+        Assert.assertTrue(write2.endWrite())
+        Assert.assertTrue(write1.endWrite())
+        var read = tree.current
+        Assert.assertTrue(read.containsKey(0))
+        Assert.assertFalse(read.containsKey(1))
+        Assert.assertFalse(read.containsKey(2))
+        Assert.assertFalse(read.containsKey(3))
+        Assert.assertEquals(1, read.size().toLong())
+        write1.put(2, "2")
+        write2.put(3, "3")
+        Assert.assertTrue(write1.endWrite())
+        Assert.assertFalse(write2.endWrite())
+        Assert.assertTrue(read.containsKey(0))
+        Assert.assertFalse(read.containsKey(1))
+        Assert.assertFalse(read.containsKey(2))
+        Assert.assertFalse(read.containsKey(3))
+        Assert.assertEquals(1, read.size().toLong())
+        read = tree.current
+        Assert.assertTrue(read.containsKey(0))
+        Assert.assertFalse(read.containsKey(1))
+        Assert.assertTrue(read.containsKey(2))
+        Assert.assertFalse(read.containsKey(3))
+        Assert.assertEquals(2, read.size().toLong())
+        var root: Any = write1.getRoot()
+        write1.put(2, "2")
+        Assert.assertNotSame(write1.getRoot(), root)
+        root = write2.getRoot()
+        write2.put(2, "_2")
+        Assert.assertNotSame(write2.getRoot(), root)
+        Assert.assertTrue(write1.endWrite())
+        Assert.assertFalse(write2.endWrite())
+        read = tree.current
+        Assert.assertTrue(read.containsKey(0))
+        Assert.assertFalse(read.containsKey(1))
+        Assert.assertTrue(read.containsKey(2))
+        Assert.assertFalse(read.containsKey(3))
+        Assert.assertEquals(2, read.size().toLong())
     }
 
-    private static void checkInsertRemove(Random random, PersistentHashMap<Integer, String> map, int count) {
-        PersistentHashMap<Integer, String>.MutablePersistentHashMap write = map.beginWrite();
-        write.checkTip();
-        addEntries(random, write, count);
-        removeEntries(random, write, count);
-        Assert.assertEquals(0, write.size());
-        Assert.assertTrue(write.isEmpty());
-        Assert.assertTrue(write.endWrite());
+    @Test
+    fun testOverwrite() {
+        val tree = PersistentHashMap<Int, String>()
+        var mutable = tree.beginWrite()
+        mutable.put(0, "0")
+        Assert.assertTrue(mutable.endWrite())
+        Assert.assertEquals("0", tree.current[0])
+        mutable = tree.beginWrite()
+        mutable.put(0, "0.0")
+        Assert.assertTrue(mutable.endWrite())
+        Assert.assertEquals("0.0", tree.current[0])
     }
 
-    private static void addEntries(Random random, PersistentHashMap<Integer, String>.MutablePersistentHashMap tree, int count) {
-        int[] p = genPermutation(random, count);
-        for (int i = 0; i < count; i++) {
-            int size = tree.size();
-            Assert.assertEquals(i, size);
-            int key = p[i];
-            tree.put(key, key + " ");
-            Assert.assertFalse(tree.isEmpty());
-            tree.checkTip();
-            Assert.assertEquals(i + 1, tree.size());
-            tree.put(key, String.valueOf(key));
-            tree.checkTip();
-            Assert.assertEquals(i + 1, tree.size());
-            for (int j = 0; j <= 10; j++) {
-                int testKey = p[i * j / 10];
-                Assert.assertTrue(tree.containsKey(testKey));
-            }
-            if (i < count - 1) {
-                Assert.assertFalse(tree.containsKey(p[i + 1]));
-            }
-        }
-    }
-
-    private static void removeEntries(Random random, PersistentHashMap<Integer, String>.MutablePersistentHashMap tree, int count) {
-        int[] p = genPermutation(random, count);
-        for (int i = 0; i < count; i++) {
-            int size = tree.size();
-            Assert.assertEquals(count - i, size);
-            Assert.assertFalse(tree.isEmpty());
-            int key = p[i];
-            Assert.assertEquals(String.valueOf(key), tree.removeKey(key));
-            tree.checkTip();
-            Assert.assertNull(tree.removeKey(key));
-            tree.checkTip();
-            for (int j = 0; j <= 10; j++) {
-                int testKey = p[i * j / 10];
-                Assert.assertFalse(tree.containsKey(testKey));
-            }
-            if (i < count - 1) {
-                Assert.assertTrue(tree.containsKey(p[i + 1]));
-            }
-        }
-    }
-
-    private static int[] genPermutation(Random random, int size) {
-        int[] p = new int[size];
-        for (int i = 1; i < size; i++) {
-            int j = random.nextInt(i);
-            p[i] = p[j];
-            p[j] = i;
-        }
-        return p;
-    }
-
-    private class HashKey {
-        private final int hashCode;
-
-        private HashKey(int hashCode) {
-            this.hashCode = hashCode;
-        }
-
+    private inner class HashKey(private val hashCode: Int) {
         // equals isn't overriden intentionally (default is identity comparison) to emulate hash collision
-
-        @Override
-        public int hashCode() {
-            return hashCode;
+        override fun hashCode(): Int {
+            return hashCode
         }
     }
 
+    companion object {
+        private const val ENTRIES_TO_ADD = 5000
+        private fun checkInsertRemove(random: Random, map: PersistentHashMap<Int, String>, count: Int) {
+            val write = map.beginWrite()
+            write.checkTip()
+            addEntries(random, write, count)
+            removeEntries(random, write, count)
+            Assert.assertEquals(0, write.size().toLong())
+            Assert.assertTrue(write.isEmpty())
+            Assert.assertTrue(write.endWrite())
+        }
+
+        private fun addEntries(random: Random, tree:  PersistentHashMap<Int, String>.MutablePersistentHashMap, count: Int) {
+            val p = genPermutation(random, count)
+            for (i in 0 until count) {
+                val size: Int = tree.size()
+                Assert.assertEquals(i.toLong(), size.toLong())
+                val key = p[i]
+                tree.put(key, "$key ")
+                Assert.assertFalse(tree.isEmpty())
+                tree.checkTip()
+                Assert.assertEquals((i + 1).toLong(), tree.size().toLong())
+                tree.put(key, key.toString())
+                tree.checkTip()
+                Assert.assertEquals((i + 1).toLong(), tree.size().toLong())
+                for (j in 0..10) {
+                    val testKey = p[i * j / 10]
+                    Assert.assertTrue(tree.containsKey(testKey))
+                }
+                if (i < count - 1) {
+                    Assert.assertFalse(tree.containsKey(p[i + 1]))
+                }
+            }
+        }
+
+        private fun removeEntries(random: Random, tree:  PersistentHashMap<Int, String>.MutablePersistentHashMap, count: Int) {
+            val p = genPermutation(random, count)
+            for (i in 0 until count) {
+                val size: Int = tree.size()
+                Assert.assertEquals((count - i).toLong(), size.toLong())
+                Assert.assertFalse(tree.isEmpty())
+                val key = p[i]
+                Assert.assertEquals(key.toString(), tree.removeKey(key))
+                tree.checkTip()
+                Assert.assertNull(tree.removeKey(key))
+                tree.checkTip()
+                for (j in 0..10) {
+                    val testKey = p[i * j / 10]
+                    Assert.assertFalse(tree.containsKey(testKey))
+                }
+                if (i < count - 1) {
+                    Assert.assertTrue(tree.containsKey(p[i + 1]))
+                }
+            }
+        }
+
+        private fun genPermutation(random: Random, size: Int): IntArray {
+            val p = IntArray(size)
+            for (i in 1 until size) {
+                val j = random.nextInt(i)
+                p[i] = p[j]
+                p[j] = i
+            }
+            return p
+        }
+    }
 }

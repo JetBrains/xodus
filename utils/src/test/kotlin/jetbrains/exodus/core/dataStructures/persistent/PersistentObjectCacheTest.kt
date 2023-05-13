@@ -13,73 +13,69 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.persistent;
+package jetbrains.exodus.core.dataStructures.persistent
 
-import jetbrains.exodus.core.dataStructures.hash.HashSet;
-import org.junit.Assert;
-import org.junit.Test;
+import jetbrains.exodus.core.dataStructures.hash.HashSet
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.Iterator;
-
-public class PersistentObjectCacheTest {
-
+class PersistentObjectCacheTest {
     @Test
-    public void cacheFiniteness() {
-        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<>(4);
-        cache.put("Eclipse", "An IDE");
-        cache.put("IDEA", "good");
-        cache.put("IDEA 4.5", "better");
-        Assert.assertNotNull(cache.get("IDEA"));
-        Assert.assertNotNull(cache.get("IDEA 4.5"));
+    fun cacheFiniteness() {
+        val cache = PersistentObjectCache<String, String>(4)
+        cache.put("Eclipse", "An IDE")
+        cache.put("IDEA", "good")
+        cache.put("IDEA 4.5", "better")
+        Assert.assertNotNull(cache["IDEA"])
+        Assert.assertNotNull(cache["IDEA 4.5"])
         // "Eclipse" should already leave the cache
-        Assert.assertNull(cache.get("Eclipse"));
-        Assert.assertNotNull(cache.get("IDEA 4.5"));
-        Assert.assertNotNull(cache.get("IDEA"));
-        cache.put("IDEA 5.0", "perfect");
-        cache.put("IDEA 6.0", "ideal");
-        Assert.assertNotNull(cache.getObject("IDEA 6.0"));
-        Assert.assertNotNull(cache.getObject("IDEA 5.0"));
-        Assert.assertNotNull(cache.getObject("IDEA 4.5"));
-        Assert.assertNotNull(cache.getObject("IDEA"));
+        Assert.assertNull(cache["Eclipse"])
+        Assert.assertNotNull(cache["IDEA 4.5"])
+        Assert.assertNotNull(cache["IDEA"])
+        cache.put("IDEA 5.0", "perfect")
+        cache.put("IDEA 6.0", "ideal")
+        Assert.assertNotNull(cache.getObject("IDEA 6.0"))
+        Assert.assertNotNull(cache.getObject("IDEA 5.0"))
+        Assert.assertNotNull(cache.getObject("IDEA 4.5"))
+        Assert.assertNotNull(cache.getObject("IDEA"))
     }
 
     @Test
-    public void cacheIterator() {
-        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<>(4);
-        cache.put("Eclipse", "An IDE");
-        cache.put("IDEA", "good IDEA");
-        cache.put("IDEA 4.5", "better IDEA");
-        Assert.assertNotNull(cache.get("IDEA"));
-        Assert.assertNotNull(cache.get("IDEA 4.5"));
-        cache.put("IDEA 5.0", "perfect IDEA");
-        cache.put("IDEA 6.0", "IDEAL");
-        HashSet<String> values = new HashSet<>();
-        final Iterator<String> it = cache.values();
+    fun cacheIterator() {
+        val cache = PersistentObjectCache<String, String>(4)
+        cache.put("Eclipse", "An IDE")
+        cache.put("IDEA", "good IDEA")
+        cache.put("IDEA 4.5", "better IDEA")
+        Assert.assertNotNull(cache["IDEA"])
+        Assert.assertNotNull(cache["IDEA 4.5"])
+        cache.put("IDEA 5.0", "perfect IDEA")
+        cache.put("IDEA 6.0", "IDEAL")
+        val values = HashSet<String>()
+        val it = cache.values()
         while (it.hasNext()) {
-            values.add(it.next());
+            values.add(it.next())
         }
-        Assert.assertNull(cache.get("Eclipse"));
-        Assert.assertFalse(values.contains("An IDE"));
-        Assert.assertTrue(values.contains("good IDEA"));
-        Assert.assertTrue(values.contains("better IDEA"));
-        Assert.assertTrue(values.contains("perfect IDEA"));
-        Assert.assertTrue(values.contains("IDEAL"));
+        Assert.assertNull(cache["Eclipse"])
+        Assert.assertFalse(values.contains("An IDE"))
+        Assert.assertTrue(values.contains("good IDEA"))
+        Assert.assertTrue(values.contains("better IDEA"))
+        Assert.assertTrue(values.contains("perfect IDEA"))
+        Assert.assertTrue(values.contains("IDEAL"))
     }
 
     @Test
-    public void getClone() {
-        final PersistentObjectCache<String, String> cache = new PersistentObjectCache<>(4);
-        cache.put("IDEA", "good IDEA");
-        cache.put("NetBeans", "bad IDEA");
-        final PersistentObjectCache<String, String> copy = cache.getClone(null);
-        Assert.assertNotNull(copy.get("IDEA"));
-        copy.put("Eclipse", "An IDE");
-        Assert.assertNull(cache.get("Eclipse"));
-        Assert.assertNotNull(cache.get("NetBeans"));
-        Assert.assertNotNull(copy.get("IDEA"));
-        Assert.assertNotNull(copy.remove("NetBeans"));
-        Assert.assertNull(copy.get("NetBeans"));
-        Assert.assertNotNull(cache.get("NetBeans"));
-
+    fun testClone() {
+        val cache = PersistentObjectCache<String, String>(4)
+        cache.put("IDEA", "good IDEA")
+        cache.put("NetBeans", "bad IDEA")
+        val copy = cache.getClone(null)
+        Assert.assertNotNull(copy["IDEA"])
+        copy.put("Eclipse", "An IDE")
+        Assert.assertNull(cache["Eclipse"])
+        Assert.assertNotNull(cache["NetBeans"])
+        Assert.assertNotNull(copy["IDEA"])
+        Assert.assertNotNull(copy.remove("NetBeans"))
+        Assert.assertNull(copy["NetBeans"])
+        Assert.assertNotNull(cache["NetBeans"])
     }
 }

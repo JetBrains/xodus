@@ -13,86 +13,84 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures;
+package jetbrains.exodus.core.dataStructures
 
-import jetbrains.exodus.core.dataStructures.hash.HashSet;
-import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
-import org.junit.Assert;
-import org.junit.Test;
+import jetbrains.exodus.core.dataStructures.hash.HashSet
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.Iterator;
-
-public class LongObjectCacheTest {
-
-    private static final LongHashMap<String> removedPairs = new LongHashMap<>();
-
+class LongObjectCacheTest {
     @Test
-    public void cacheFiniteness() {
-        final LongObjectCache<String> cache = new LongObjectCache<>(4);
-        cache.put(5, "An IDE");
-        cache.put(0, "good");
-        cache.put(1, "better");
-        cache.put(2, "perfect");
-        cache.put(3, "ideal");
+    fun cacheFiniteness() {
+        val cache = LongObjectCache<String>(4)
+        cache.put(5, "An IDE")
+        cache.put(0, "good")
+        cache.put(1, "better")
+        cache.put(2, "perfect")
+        cache.put(3, "ideal")
         // "Eclipse" should already leave the cache
-        Assert.assertNull(cache.get(5));
+        Assert.assertNull(cache[5])
     }
 
     @Test
-    public void cacheIterator() {
-        LongObjectCache<String> cache = new LongObjectCache<>(4);
-        cache.put(0, "An IDE");
-        cache.put(1, "good IDEA");
-        cache.put(2, "better IDEA");
-        cache.put(3, "perfect IDEA");
-        cache.put(4, "IDEAL");
-        HashSet<String> values = new HashSet<>();
-        final Iterator<String> it = cache.values();
+    fun cacheIterator() {
+        val cache = LongObjectCache<String>(4)
+        cache.put(0, "An IDE")
+        cache.put(1, "good IDEA")
+        cache.put(2, "better IDEA")
+        cache.put(3, "perfect IDEA")
+        cache.put(4, "IDEAL")
+        val values = HashSet<String>()
+        val it = cache.values()
         while (it.hasNext()) {
-            values.add(it.next());
+            values.add(it.next())
         }
-        Assert.assertNull(cache.get(0));
-        Assert.assertFalse(values.contains("An IDE"));
-        Assert.assertTrue(values.contains("good IDEA"));
-        Assert.assertTrue(values.contains("better IDEA"));
-        Assert.assertTrue(values.contains("perfect IDEA"));
-        Assert.assertTrue(values.contains("IDEAL"));
+        Assert.assertNull(cache[0])
+        Assert.assertFalse(values.contains("An IDE"))
+        Assert.assertTrue(values.contains("good IDEA"))
+        Assert.assertTrue(values.contains("better IDEA"))
+        Assert.assertTrue(values.contains("perfect IDEA"))
+        Assert.assertTrue(values.contains("IDEAL"))
     }
 
-    private static class CacheDeletedPairsListener implements LongObjectCache.DeletedPairsListener<String> {
-        @Override
-        public void objectRemoved(long key, String value) {
-            removedPairs.put(key, value);
+    private class CacheDeletedPairsListener : LongObjectCache.DeletedPairsListener<String> {
+        override fun objectRemoved(key: Long, value: String) {
+            removedPairs[key] = value
         }
     }
 
     @Test
-    public void cacheListeners() {
-        LongObjectCache<String> cache = new LongObjectCache<>(4);
-        cache.addDeletedPairsListener(new CacheDeletedPairsListener());
-        removedPairs.clear();
-        cache.put(0, "An IDE");
-        cache.put(1, "IDEs");
-        cache.put(10, "good IDEA");
-        cache.put(11, "better IDEA");
-        cache.put(12, "perfect IDEA");
-        cache.put(13, "IDEAL");
-        Assert.assertEquals("An IDE", removedPairs.get(0));
-        Assert.assertEquals("IDEs", removedPairs.get(1));
+    fun cacheListeners() {
+        val cache = LongObjectCache<String>(4)
+        cache.addDeletedPairsListener(CacheDeletedPairsListener())
+        removedPairs.clear()
+        cache.put(0, "An IDE")
+        cache.put(1, "IDEs")
+        cache.put(10, "good IDEA")
+        cache.put(11, "better IDEA")
+        cache.put(12, "perfect IDEA")
+        cache.put(13, "IDEAL")
+        Assert.assertEquals("An IDE", removedPairs[0])
+        Assert.assertEquals("IDEs", removedPairs[1])
     }
 
     @Test
-    public void cacheListeners2() {
-        LongObjectCache<String> cache = new LongObjectCache<>(4);
-        cache.addDeletedPairsListener(new CacheDeletedPairsListener());
-        removedPairs.clear();
-        cache.put(0, "An IDE");
-        cache.put(1, "IDEs");
-        cache.put(10, "good IDEA");
-        cache.put(11, "better IDEA");
-        cache.tryKey(0);
-        cache.tryKey(1);
-        Assert.assertTrue(removedPairs.isEmpty());
-        Assert.assertEquals(4, cache.count());
+    fun cacheListeners2() {
+        val cache = LongObjectCache<String>(4)
+        cache.addDeletedPairsListener(CacheDeletedPairsListener())
+        removedPairs.clear()
+        cache.put(0, "An IDE")
+        cache.put(1, "IDEs")
+        cache.put(10, "good IDEA")
+        cache.put(11, "better IDEA")
+        cache.tryKey(0)
+        cache.tryKey(1)
+        Assert.assertTrue(removedPairs.isEmpty())
+        Assert.assertEquals(4, cache.count().toLong())
+    }
+
+    companion object {
+        private val removedPairs = LongHashMap<String>()
     }
 }

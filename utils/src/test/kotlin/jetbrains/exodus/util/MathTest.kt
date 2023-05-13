@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.util;
+package jetbrains.exodus.util
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.Assert
+import org.junit.Test
 
-public class MathTest {
-
+class MathTest {
     @Test
-    public void testLog() {
-        int power = 1;
-        int expected = 0;
-        for (int i = 0; i < 10000; i++) {
-            Assert.assertEquals(expected, MathUtil.integerLogarithm(i));
+    fun testLog() {
+        var power = 1
+        var expected = 0
+        for (i in 0..9999) {
+            Assert.assertEquals(expected.toLong(), MathUtil.integerLogarithm(i).toLong())
             if (i == power) {
-                power <<= 1;
-                expected++;
+                power = power shl 1
+                expected++
             }
         }
     }

@@ -13,13 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures;
+package jetbrains.exodus.core.dataStructures
 
-@SuppressWarnings("rawtypes")
-public class StablePriorityQueueTest extends PriorityQueueTest {
-
-    @Override
-    protected PriorityQueue createQueue() {
-        return new StablePriorityQueue();
+class StablePriorityQueueTest : PriorityQueueTest() {
+    override fun <T : Comparable<T>, V> createQueue(): PriorityQueue<T, V> {
+        return StablePriorityQueue()
     }
 }

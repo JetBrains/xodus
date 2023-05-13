@@ -13,15 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.persistent;
+package jetbrains.exodus.core.dataStructures.persistent
 
-import org.jetbrains.annotations.NotNull;
-
-public class PersistentBitTreeLongMapTest extends PersistentLongMapTest {
-
-    @NotNull
-    @Override
-    protected PersistentLongMap<String> createMap() {
-        return new PersistentBitTreeLongMap<>();
+class PersistentBitTreeLongMapTest : PersistentLongMapTest() {
+    override fun createMap(): PersistentLongMap<String> {
+        return PersistentBitTreeLongMap()
     }
 }

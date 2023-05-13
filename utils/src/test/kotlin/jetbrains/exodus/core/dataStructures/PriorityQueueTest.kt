@@ -13,311 +13,280 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures;
+package jetbrains.exodus.core.dataStructures
 
-import jetbrains.exodus.TestFor;
-import jetbrains.exodus.TestUtil;
-import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
-import jetbrains.exodus.core.execution.locks.Guard;
-import org.jetbrains.annotations.NotNull;
-import org.junit.Assert;
-import org.junit.Test;
+import jetbrains.exodus.TestFor
+import jetbrains.exodus.TestUtil.time
+import jetbrains.exodus.core.dataStructures.hash.IntHashSet
+import org.junit.Assert
+import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
 
-import java.util.Iterator;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.Assert.*;
-
-@SuppressWarnings({"unchecked", "rawtypes"})
-public abstract class PriorityQueueTest {
-
-    protected abstract PriorityQueue createQueue();
+abstract class PriorityQueueTest {
+    protected abstract fun <T : Comparable<T>, V> createQueue(): PriorityQueue<T, V>
 
     @Test
-    public void empty() {
-        assertEquals(0, createQueue().size());
-        Assert.assertTrue(createQueue().isEmpty());
+    fun empty() {
+        Assert.assertEquals(0, createQueue<String, Any>().size().toLong())
+        Assert.assertTrue(createQueue<String, Any>().isEmpty)
     }
 
     @Test
-    public void emptyPop() {
-        Assert.assertNull(createQueue().pop());
+    fun emptyPop() {
+        Assert.assertNull(createQueue<String, Any>().pop())
     }
 
     @Test
-    public void clear() {
-        final PriorityQueue<Integer, String> queue = createQueue();
-        queue.push(0, "1");
-        Assert.assertTrue(queue.size() > 0);
-        Assert.assertFalse(queue.isEmpty());
-        queue.clear();
-        assertEquals(0, queue.size());
-        Assert.assertTrue(queue.isEmpty());
-        Assert.assertNull(queue.peek());
-        Assert.assertNull(queue.pop());
+    fun clear() {
+        val queue: PriorityQueue<Int, String> = createQueue()
+        queue.push(0, "1")
+        Assert.assertTrue(queue.size() > 0)
+        Assert.assertFalse(queue.isEmpty)
+        queue.clear()
+        Assert.assertEquals(0, queue.size().toLong())
+        Assert.assertTrue(queue.isEmpty)
+        Assert.assertNull(queue.peek())
+        Assert.assertNull(queue.pop())
     }
 
     @Test
-    public void pushPop() {
-        final PriorityQueue<Priority, String> queue = populateQueue();
-        assertEquals("7", queue.pop());
-        assertEquals("2", queue.pop());
-        assertEquals("4", queue.pop());
-        assertEquals("1", queue.pop());
-        assertEquals("3", queue.pop());
-        assertEquals("5", queue.pop());
-        assertEquals("6", queue.pop());
-        assertEquals("8", queue.pop());
+    fun pushPop() {
+        val queue = populateQueue()
+        Assert.assertEquals("7", queue.pop())
+        Assert.assertEquals("2", queue.pop())
+        Assert.assertEquals("4", queue.pop())
+        Assert.assertEquals("1", queue.pop())
+        Assert.assertEquals("3", queue.pop())
+        Assert.assertEquals("5", queue.pop())
+        Assert.assertEquals("6", queue.pop())
+        Assert.assertEquals("8", queue.pop())
     }
 
     @Test
-    public void pushIterate() {
-        final PriorityQueue<Priority, String> queue = populateQueue();
-        final Iterator<String> it = queue.iterator();
-        assertTrue(it.hasNext());
-        assertEquals("7", it.next());
-        assertTrue(it.hasNext());
-        assertEquals("2", it.next());
-        assertTrue(it.hasNext());
-        assertEquals("4", it.next());
-        assertTrue(it.hasNext());
-        assertEquals("1", it.next());
-        assertTrue(it.hasNext());
-        assertEquals("3", it.next());
-        assertTrue(it.hasNext());
-        assertEquals("5", it.next());
-        assertTrue(it.hasNext());
-        assertEquals("6", it.next());
-        assertTrue(it.hasNext());
-        assertEquals("8", it.next());
-        assertFalse(it.hasNext());
+    fun pushIterate() {
+        val queue = populateQueue()
+        val it: Iterator<String> = queue.iterator()
+        Assert.assertTrue(it.hasNext())
+        Assert.assertEquals("7", it.next())
+        Assert.assertTrue(it.hasNext())
+        Assert.assertEquals("2", it.next())
+        Assert.assertTrue(it.hasNext())
+        Assert.assertEquals("4", it.next())
+        Assert.assertTrue(it.hasNext())
+        Assert.assertEquals("1", it.next())
+        Assert.assertTrue(it.hasNext())
+        Assert.assertEquals("3", it.next())
+        Assert.assertTrue(it.hasNext())
+        Assert.assertEquals("5", it.next())
+        Assert.assertTrue(it.hasNext())
+        Assert.assertEquals("6", it.next())
+        Assert.assertTrue(it.hasNext())
+        Assert.assertEquals("8", it.next())
+        Assert.assertFalse(it.hasNext())
     }
 
     @Test
-    public void pushPeek() {
-        final PriorityQueue<Priority, String> queue = populateQueue();
-        assertEquals("7", queue.peek());
-        assertEquals("7", queue.pop());
-        assertEquals("2", queue.peek());
-        assertEquals("2", queue.pop());
-        assertEquals("4", queue.peek());
-        assertEquals("4", queue.pop());
-        assertEquals("1", queue.peek());
-        assertEquals("1", queue.pop());
-        assertEquals("3", queue.peek());
-        assertEquals("3", queue.pop());
-        assertEquals("5", queue.peek());
-        assertEquals("5", queue.pop());
-        assertEquals("6", queue.peek());
-        assertEquals("6", queue.pop());
-        assertEquals("8", queue.peek());
-        assertEquals("8", queue.pop());
+    fun pushPeek() {
+        val queue = populateQueue()
+        Assert.assertEquals("7", queue.peek())
+        Assert.assertEquals("7", queue.pop())
+        Assert.assertEquals("2", queue.peek())
+        Assert.assertEquals("2", queue.pop())
+        Assert.assertEquals("4", queue.peek())
+        Assert.assertEquals("4", queue.pop())
+        Assert.assertEquals("1", queue.peek())
+        Assert.assertEquals("1", queue.pop())
+        Assert.assertEquals("3", queue.peek())
+        Assert.assertEquals("3", queue.pop())
+        Assert.assertEquals("5", queue.peek())
+        Assert.assertEquals("5", queue.pop())
+        Assert.assertEquals("6", queue.peek())
+        Assert.assertEquals("6", queue.pop())
+        Assert.assertEquals("8", queue.peek())
+        Assert.assertEquals("8", queue.pop())
     }
 
     @Test
-    public void pushCopyPop() {
-        final PriorityQueue<Priority, String> queue = populateAndCopyQueue();
-        assertEquals("7", queue.pop());
-        assertEquals("2", queue.pop());
-        assertEquals("4", queue.pop());
-        assertEquals("1", queue.pop());
-        assertEquals("3", queue.pop());
-        assertEquals("5", queue.pop());
-        assertEquals("6", queue.pop());
-        assertEquals("8", queue.pop());
+    fun pushCopyPop() {
+        val queue = populateAndCopyQueue()
+        Assert.assertEquals("7", queue.pop())
+        Assert.assertEquals("2", queue.pop())
+        Assert.assertEquals("4", queue.pop())
+        Assert.assertEquals("1", queue.pop())
+        Assert.assertEquals("3", queue.pop())
+        Assert.assertEquals("5", queue.pop())
+        Assert.assertEquals("6", queue.pop())
+        Assert.assertEquals("8", queue.pop())
     }
 
     @Test
-    public void pushCopyPeek() {
-        final PriorityQueue<Priority, String> queue = populateAndCopyQueue();
-        assertEquals("7", queue.peek());
-        assertEquals("7", queue.pop());
-        assertEquals("2", queue.peek());
-        assertEquals("2", queue.pop());
-        assertEquals("4", queue.peek());
-        assertEquals("4", queue.pop());
-        assertEquals("1", queue.peek());
-        assertEquals("1", queue.pop());
-        assertEquals("3", queue.peek());
-        assertEquals("3", queue.pop());
-        assertEquals("5", queue.peek());
-        assertEquals("5", queue.pop());
-        assertEquals("6", queue.peek());
-        assertEquals("6", queue.pop());
-        assertEquals("8", queue.peek());
-        assertEquals("8", queue.pop());
+    fun pushCopyPeek() {
+        val queue = populateAndCopyQueue()
+        Assert.assertEquals("7", queue.peek())
+        Assert.assertEquals("7", queue.pop())
+        Assert.assertEquals("2", queue.peek())
+        Assert.assertEquals("2", queue.pop())
+        Assert.assertEquals("4", queue.peek())
+        Assert.assertEquals("4", queue.pop())
+        Assert.assertEquals("1", queue.peek())
+        Assert.assertEquals("1", queue.pop())
+        Assert.assertEquals("3", queue.peek())
+        Assert.assertEquals("3", queue.pop())
+        Assert.assertEquals("5", queue.peek())
+        Assert.assertEquals("5", queue.pop())
+        Assert.assertEquals("6", queue.peek())
+        Assert.assertEquals("6", queue.pop())
+        Assert.assertEquals("8", queue.peek())
+        Assert.assertEquals("8", queue.pop())
     }
 
     @Test
-    public void meanPriority() {
-        assertEquals(Priority.normal, Priority.mean(Priority.above_normal, Priority.below_normal));
-        assertEquals(Priority.normal, Priority.mean(Priority.lowest, Priority.highest));
-        assertEquals(Priority.normal, Priority.mean(Priority.normal, Priority.normal));
+    fun meanPriority() {
+        Assert.assertEquals(Priority.normal, Priority.mean(Priority.above_normal, Priority.below_normal))
+        Assert.assertEquals(Priority.normal, Priority.mean(Priority.lowest, Priority.highest))
+        Assert.assertEquals(Priority.normal, Priority.mean(Priority.normal, Priority.normal))
     }
 
     @Test
-    public void meanPriorityPushes() {
-        final PriorityQueue<Priority, String> queue = createQueue();
-        queue.push(Priority.normal, "1");
-        queue.push(Priority.mean(Priority.normal, Priority.above_normal), "2");
-        queue.push(Priority.mean(Priority.normal, Priority.below_normal), "4");
-        queue.push(Priority.mean(Priority.normal, Priority.below_normal), "3");
-        queue.push(Priority.mean(Priority.normal, Priority.lowest), "5");
-        queue.push(Priority.mean(Priority.above_normal, Priority.lowest), "6");
-        queue.push(Priority.mean(Priority.above_normal, Priority.highest), "7");
-        assertEquals("7", queue.pop());
-        assertEquals("2", queue.pop());
-        assertEquals("1", queue.pop());
-        assertEquals("4", queue.pop());
-        assertEquals("3", queue.pop());
-        assertEquals("6", queue.pop());
-        assertEquals("5", queue.pop());
+    fun meanPriorityPushes() {
+        val queue: PriorityQueue<Priority, String> = createQueue()
+        queue.push(Priority.normal, "1")
+        queue.push(Priority.mean(Priority.normal, Priority.above_normal), "2")
+        queue.push(Priority.mean(Priority.normal, Priority.below_normal), "4")
+        queue.push(Priority.mean(Priority.normal, Priority.below_normal), "3")
+        queue.push(Priority.mean(Priority.normal, Priority.lowest), "5")
+        queue.push(Priority.mean(Priority.above_normal, Priority.lowest), "6")
+        queue.push(Priority.mean(Priority.above_normal, Priority.highest), "7")
+        Assert.assertEquals("7", queue.pop())
+        Assert.assertEquals("2", queue.pop())
+        Assert.assertEquals("1", queue.pop())
+        Assert.assertEquals("4", queue.pop())
+        Assert.assertEquals("3", queue.pop())
+        Assert.assertEquals("6", queue.pop())
+        Assert.assertEquals("5", queue.pop())
     }
 
     @Test
-    public void merge() {
-        final PriorityQueue<Integer, TestObject> queue = createQueue();
-        queue.push(0, new TestObject(0));
-        queue.push(1, new TestObject(1));
-        queue.push(2, new TestObject(2));
-        queue.push(0, new TestObject(1));
-        queue.push(2, new TestObject(0));
-        queue.push(1, new TestObject(1));
-        queue.push(0, new TestObject(0));
-        assertEquals(3, queue.size());
-        assertEquals(new TestObject(2), queue.pop());
-        assertEquals(new TestObject(1), queue.pop());
-        assertEquals(new TestObject(0), queue.pop());
+    fun merge() {
+        val queue: PriorityQueue<Int, TestObject> = createQueue()
+        queue.push(0, TestObject(0))
+        queue.push(1, TestObject(1))
+        queue.push(2, TestObject(2))
+        queue.push(0, TestObject(1))
+        queue.push(2, TestObject(0))
+        queue.push(1, TestObject(1))
+        queue.push(0, TestObject(0))
+        Assert.assertEquals(3, queue.size().toLong())
+        Assert.assertEquals(TestObject(2), queue.pop())
+        Assert.assertEquals(TestObject(1), queue.pop())
+        Assert.assertEquals(TestObject(0), queue.pop())
     }
 
     @TestFor(issue = "XD-600")
     @Test
-    public void mergePushedOut() {
-        final PriorityQueue<Integer, TestObject> queue = createQueue();
-        final TestObject firstValue = new TestObject(0);
-        TestObject pushedOut = queue.push(0, firstValue);
-        assertNull(pushedOut);
-        final TestObject secondValue = new TestObject(0);
-        pushedOut = queue.push(0, secondValue);
-        assertSame(firstValue, pushedOut);
-        pushedOut.number = 1;
-        assertEquals(1, queue.size());
-        assertNotNull(queue.pop());
-        assertNull(queue.pop());
+    fun mergePushedOut() {
+        val queue: PriorityQueue<Int, TestObject> = createQueue()
+        val firstValue = TestObject(0)
+        var pushedOut = queue.push(0, firstValue)
+        Assert.assertNull(pushedOut)
+        val secondValue = TestObject(0)
+        pushedOut = queue.push(0, secondValue)
+        Assert.assertSame(firstValue, pushedOut)
+        pushedOut.number = 1
+        Assert.assertEquals(1, queue.size().toLong())
+        Assert.assertNotNull(queue.pop())
+        Assert.assertNull(queue.pop())
     }
 
-    @SuppressWarnings("ObjectAllocationInLoop")
     @Test
-    public void concurrentBenchmark() {
-        final AtomicInteger counter = new AtomicInteger();
-        final PriorityQueue<Priority, TestObject> queue = createQueue();
-        final Runnable threadFunction = () -> {
+    fun concurrentBenchmark() {
+        val counter = AtomicInteger()
+        val queue: PriorityQueue<Priority, TestObject> = createQueue()
+        val threadFunction = Runnable {
             try {
-                //noinspection InfiniteLoopStatement
                 while (true) {
-                    try (Guard ignored = queue.lock()) {
-                        final TestObject value = new TestObject(counter);
-                        final Priority p;
-                        switch (value.number % 5) {
-                            case 0:
-                                p = Priority.lowest;
-                                break;
-                            case 1:
-                                p = Priority.below_normal;
-                                break;
-                            case 2:
-                                p = Priority.normal;
-                                break;
-                            case 3:
-                                p = Priority.above_normal;
-                                break;
-                            default:
-                                p = Priority.highest;
-                                break;
+                    queue.lock().use { ignored ->
+                        val value = TestObject(counter)
+                        val p: Priority
+                        p = when (value.number % 5) {
+                            0 -> Priority.lowest
+                            1 -> Priority.below_normal
+                            2 -> Priority.normal
+                            3 -> Priority.above_normal
+                            else -> Priority.highest
                         }
-                        queue.push(p, value);
+                        queue.push(p, value)
                     }
                 }
-            } catch (RuntimeException e) {
+            } catch (e: RuntimeException) {
                 // ignore
             }
-        };
-
-        TestUtil.time("concurrentBenchmark", () -> {
-            final int numberOfThreads = 4;
-            final Thread[] threads = new Thread[numberOfThreads];
-            for (int i = 0; i < numberOfThreads; ++i) {
-                threads[i] = new Thread(threadFunction);
+        }
+        time("concurrentBenchmark") {
+            val numberOfThreads = 4
+            val threads = arrayOfNulls<Thread>(numberOfThreads)
+            for (i in 0 until numberOfThreads) {
+                threads[i] = Thread(threadFunction)
             }
-            for (int i = 0; i < numberOfThreads; ++i) {
-                threads[i].start();
+            for (i in 0 until numberOfThreads) {
+                threads[i]!!.start()
             }
-            for (int i = 0; i < numberOfThreads; ++i) {
+            for (i in 0 until numberOfThreads) {
                 try {
-                    threads[i].join();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    threads[i]!!.join()
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
                     // ignore
                 }
             }
-        });
-
-        final IntHashSet numbers = new IntHashSet();
-        TestObject to;
-        while ((to = queue.pop()) != null) {
-            numbers.add(to.number);
         }
-        assertEquals(TestObject.MAX_TEST_OBJECTS, numbers.size());
+        val numbers = IntHashSet()
+        var to: TestObject?
+        while (queue.pop().also { to = it } != null) {
+            numbers.add(to!!.number)
+        }
+        Assert.assertEquals(TestObject.MAX_TEST_OBJECTS.toLong(), numbers.size.toLong())
     }
 
-    @NotNull
-    private PriorityQueue<Priority, String> populateQueue() {
-        final PriorityQueue<Priority, String> queue = createQueue();
-        queue.push(Priority.normal, "1");
-        queue.push(Priority.above_normal, "2");
-        queue.push(Priority.below_normal, "3");
-        queue.push(Priority.above_normal, "4");
-        queue.push(Priority.below_normal, "5");
-        queue.push(Priority.lowest, "6");
-        queue.push(Priority.highest, "7");
-        queue.push(Priority.lowest, "8");
-        return queue;
+    private fun populateQueue(): PriorityQueue<Priority, String> {
+        val queue: PriorityQueue<Priority, String> = createQueue()
+        queue.push(Priority.normal, "1")
+        queue.push(Priority.above_normal, "2")
+        queue.push(Priority.below_normal, "3")
+        queue.push(Priority.above_normal, "4")
+        queue.push(Priority.below_normal, "5")
+        queue.push(Priority.lowest, "6")
+        queue.push(Priority.highest, "7")
+        queue.push(Priority.lowest, "8")
+        return queue
     }
 
-    @NotNull
-    private PriorityQueue<Priority, String> populateAndCopyQueue() {
-        final PriorityQueue<Priority, String> source = populateQueue();
-        final PriorityQueue<Priority, String> result = createQueue();
-        PriorityQueue.moveQueue(source, result);
-        return result;
+    private fun populateAndCopyQueue(): PriorityQueue<Priority, String> {
+        val source = populateQueue()
+        val result: PriorityQueue<Priority, String> = createQueue()
+        PriorityQueue.moveQueue(source, result)
+        return result
     }
 
-    private static class TestObject {
-
-        private static final int MAX_TEST_OBJECTS = 3000000;
-
-        private int number;
-
-        private TestObject(final int number) {
-            this.number = number;
+    private class TestObject(var number: Int) {
+        init {
             if (number >= MAX_TEST_OBJECTS) {
-                throw new RuntimeException();
+                throw RuntimeException()
             }
         }
 
-        private TestObject(final AtomicInteger counter) {
-            this(counter.getAndIncrement());
+        constructor(counter: AtomicInteger) : this(counter.getAndIncrement())
+
+        override fun equals(o: Any?): Boolean {
+            return number == (o as TestObject?)!!.number
         }
 
-        @Override
-        public boolean equals(Object o) {
-            return number == ((TestObject) o).number;
+        override fun hashCode(): Int {
+            return number
         }
 
-        @Override
-        public int hashCode() {
-            return number;
+        companion object {
+            const val MAX_TEST_OBJECTS = 3000000
         }
     }
 }
-                                        

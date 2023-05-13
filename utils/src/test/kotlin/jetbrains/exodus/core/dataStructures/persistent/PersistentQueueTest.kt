@@ -13,43 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.persistent;
+package jetbrains.exodus.core.dataStructures.persistent
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.NoSuchElementException;
-
-@SuppressWarnings("unchecked")
-public class PersistentQueueTest {
-
+class PersistentQueueTest {
     @Test
-    public void testAddRemove() {
-        PersistentQueue<Integer> queue = PersistentQueue.EMPTY;
-        Assert.assertTrue(queue.isEmpty());
+    fun testAddRemove() {
+        var queue = PersistentQueue.EMPTY
+        Assert.assertTrue(queue.isEmpty)
         try {
-            queue.skip();
-            Assert.fail();
-        } catch (NoSuchElementException e) {
+            queue.skip()
+            Assert.fail()
+        } catch (e: NoSuchElementException) {
         }
-        for (int i = 0; i < 100; i++) {
-            queue = queue.add(i);
-            Assert.assertFalse(queue.isEmpty());
-            Assert.assertEquals(Integer.valueOf(0), queue.peek());
-            Assert.assertEquals(i + 1, queue.size());
+        for (i in 0..99) {
+            queue = queue.add(i)
+            Assert.assertFalse(queue.isEmpty)
+            Assert.assertEquals(Integer.valueOf(0), queue.peek())
+            Assert.assertEquals((i + 1).toLong(), queue.size().toLong())
         }
-        for (int i = 0; i < 100; i++) {
-            Assert.assertFalse(queue.isEmpty());
-            Assert.assertEquals(Integer.valueOf(i), queue.peek());
-            PersistentQueue<Integer> next = queue.skip();
-            Assert.assertEquals(next, queue.skip());
-            queue = next;
+        for (i in 0..99) {
+            Assert.assertFalse(queue.isEmpty)
+            Assert.assertEquals(Integer.valueOf(i), queue.peek())
+            val next = queue.skip()
+            Assert.assertEquals(next, queue.skip())
+            queue = next
         }
-        Assert.assertTrue(queue.isEmpty());
+        Assert.assertTrue(queue.isEmpty)
         try {
-            queue.skip();
-            Assert.fail();
-        } catch (NoSuchElementException e) {
+            queue.skip()
+            Assert.fail()
+        } catch (e: NoSuchElementException) {
         }
     }
 }

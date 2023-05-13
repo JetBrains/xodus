@@ -13,194 +13,191 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.hash;
+package jetbrains.exodus.core.dataStructures.hash
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.Iterator;
-import java.util.Map;
-
-public class IntLinkedHashMapTest {
-
+class IntLinkedHashMapTest {
     @Test
-    public void testPutGet() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
-        for (int i = 0; i < 1000; ++i) {
-            tested.put(i, Integer.toString(i));
+    fun testPutGet() {
+        val tested = IntLinkedHashMap<String>()
+        for (i in 0..999) {
+            tested.put(i, Integer.toString(i))
         }
-        Assert.assertEquals(1000, tested.size());
-        for (int i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Integer.toString(i), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(Integer.toString(i), tested[i])
         }
-        for (int i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Integer.toString(i), tested.put(i, Integer.toString(i + 1)));
+        for (i in 0..999) {
+            Assert.assertEquals(Integer.toString(i), tested.put(i, Integer.toString(i + 1)))
         }
-        Assert.assertEquals(1000, tested.size());
-        for (int i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Integer.toString(i + 1), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(Integer.toString(i + 1), tested[i])
         }
     }
 
     @Test
-    public void testPutGet2() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
-        for (int i = 0; i < 1000; ++i) {
-            tested.put(i - 500, Integer.toString(i));
+    fun testPutGet2() {
+        val tested = IntLinkedHashMap<String>()
+        for (i in 0..999) {
+            tested.put(i - 500, Integer.toString(i))
         }
-        Assert.assertEquals(1000, tested.size());
-        for (int i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Integer.toString(i), tested.get(i - 500));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(Integer.toString(i), tested[i - 500])
         }
-        for (int i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Integer.toString(i), tested.put(i - 500, Integer.toString(i + 1)));
+        for (i in 0..999) {
+            Assert.assertEquals(Integer.toString(i), tested.put(i - 500, Integer.toString(i + 1)))
         }
-        Assert.assertEquals(1000, tested.size());
-        for (int i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Integer.toString(i + 1), tested.get(i - 500));
-        }
-    }
-
-    @Test
-    public void testPutGetRemove() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
-        for (int i = 0; i < 1000; ++i) {
-            tested.put(i, Integer.toString(i));
-        }
-        Assert.assertEquals(1000, tested.size());
-        for (int i = 0; i < 1000; i += 2) {
-            Assert.assertEquals(Integer.toString(i), tested.remove(i));
-        }
-        Assert.assertEquals(500, tested.size());
-        for (int i = 0; i < 1000; ++i) {
-            Assert.assertEquals((i % 2 == 0) ? null : Integer.toString(i), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(Integer.toString(i + 1), tested[i - 500])
         }
     }
 
     @Test
-    public void keySet() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
-        for (int i = 0; i < 10000; ++i) {
-            tested.put(i, Integer.toString(i));
+    fun testPutGetRemove() {
+        val tested = IntLinkedHashMap<String>()
+        for (i in 0..999) {
+            tested.put(i, Integer.toString(i))
         }
-        int i = 10000;
-        for (Integer key : tested.keySet()) {
-            Assert.assertEquals(--i, key.intValue());
+        Assert.assertEquals(1000, tested.size.toLong())
+        run {
+            var i = 0
+            while (i < 1000) {
+                Assert.assertEquals(Integer.toString(i), tested.remove(i))
+                i += 2
+            }
+        }
+        Assert.assertEquals(500, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(if (i % 2 == 0) null else Integer.toString(i), tested[i])
         }
     }
 
     @Test
-    public void keySet2() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
-        for (int i = 0; i < 10000; ++i) {
-            tested.put(i, Integer.toString(i));
+    fun keySet() {
+        val tested = IntLinkedHashMap<String>()
+        for (i in 0..9999) {
+            tested.put(i, i.toString())
         }
-        Iterator<Integer> it = tested.keySet().iterator();
+        var i = 10000
+        for (key in tested.keys) {
+            Assert.assertEquals((--i).toLong(), key.toLong())
+        }
+    }
+
+    @Test
+    fun keySet2() {
+        val tested = IntLinkedHashMap<String>()
+        for (i in 0..9999) {
+            tested.put(i, Integer.toString(i))
+        }
+        var it = tested.keys.iterator()
         while (it.hasNext()) {
-            final int i = it.next();
+            val i = it.next()
             if (i % 2 == 0) {
-                it.remove();
+                it.remove()
             }
         }
-
-        Assert.assertEquals(5000, tested.size());
-
-        it = tested.keySet().iterator();
-        for (int i = 9999; i > 0; i -= 2) {
-            Assert.assertTrue(it.hasNext());
-            Assert.assertEquals(i, it.next().intValue());
+        Assert.assertEquals(5000, tested.size.toLong())
+        it = tested.keys.iterator()
+        var i = 9999
+        while (i > 0) {
+            Assert.assertTrue(it.hasNext())
+            Assert.assertEquals(i.toLong(), it.next().toLong())
+            i -= 2
         }
     }
 
     @Test
-    public void lru() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<String>() {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Integer, String> eldest) {
-                return size() > 500;
+    fun lru() {
+        val tested: IntLinkedHashMap<String> = object : IntLinkedHashMap<String>() {
+            override fun removeEldestEntry(eldest: Map.Entry<Int, String>): Boolean {
+                return size > 500
             }
-        };
-        for (int i = 0; i < 1000; ++i) {
-            tested.put(i, Integer.toString(i));
         }
-        Assert.assertEquals(500, tested.size());
-        for (int i = 0; i < 500; ++i) {
-            Assert.assertNull(tested.remove(i));
+        for (i in 0..999) {
+            tested.put(i, Integer.toString(i))
         }
-        Assert.assertEquals(500, tested.size());
-        for (int i = 500; i < 1000; ++i) {
-            Assert.assertEquals(Integer.toString(i), tested.remove(i));
+        Assert.assertEquals(500, tested.size.toLong())
+        for (i in 0..499) {
+            Assert.assertNull(tested.remove(i))
         }
-        Assert.assertEquals(0, tested.size());
+        Assert.assertEquals(500, tested.size.toLong())
+        for (i in 500..999) {
+            Assert.assertEquals(Integer.toString(i), tested.remove(i))
+        }
+        Assert.assertEquals(0, tested.size.toLong())
     }
 
     @Test
-    public void lru2() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<String>() {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Integer, String> eldest) {
-                return size() > 1000;
+    fun lru2() {
+        val tested: IntLinkedHashMap<String> = object : IntLinkedHashMap<String>() {
+            override fun removeEldestEntry(eldest: Map.Entry<Int, String>): Boolean {
+                return size > 1000
             }
-        };
-        for (int i = 0; i < 1000; ++i) {
-            tested.put(i, Integer.toString(i));
         }
-        Assert.assertEquals(Integer.toString(0), tested.get(0));
-        for (int i = 1000; i < 1999; ++i) {
-            tested.put(i, Integer.toString(i));
+        for (i in 0..999) {
+            tested.put(i, Integer.toString(i))
         }
-        Assert.assertEquals(Integer.toString(0), tested.get(0));
-        tested.put(2000, Integer.toString(2000));
-        Assert.assertNull(tested.get(1000));
+        Assert.assertEquals(Integer.toString(0), tested[0])
+        for (i in 1000..1998) {
+            tested.put(i, Integer.toString(i))
+        }
+        Assert.assertEquals(Integer.toString(0), tested[0])
+        tested.put(2000, Integer.toString(2000))
+        Assert.assertNull(tested[1000])
     }
 
     @Test
-    public void lru3() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<String>() {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Integer, String> eldest) {
-                return size() > 1000;
+    fun lru3() {
+        val tested: IntLinkedHashMap<String> = object : IntLinkedHashMap<String>() {
+            override fun removeEldestEntry(eldest: Map.Entry<Int, String>): Boolean {
+                return size > 1000
             }
-        };
-        for (int i = 0; i < 1000; ++i) {
-            tested.put(i, Integer.toString(i));
         }
-        Assert.assertEquals(Integer.toString(999), tested.remove(999));
-        Assert.assertEquals(999, tested.size());
-        Assert.assertEquals(Integer.toString(0), tested.get(0));
-        for (int i = 1000; i < 1999; ++i) {
-            tested.put(i, Integer.toString(i));
+        for (i in 0..999) {
+            tested.put(i, Integer.toString(i))
         }
-        Assert.assertEquals(Integer.toString(0), tested.get(0));
-        tested.put(2000, Integer.toString(2000));
-        Assert.assertNull(tested.get(1000));
+        Assert.assertEquals(Integer.toString(999), tested.remove(999))
+        Assert.assertEquals(999, tested.size.toLong())
+        Assert.assertEquals(Integer.toString(0), tested[0])
+        for (i in 1000..1998) {
+            tested.put(i, Integer.toString(i))
+        }
+        Assert.assertEquals(Integer.toString(0), tested[0])
+        tested.put(2000, Integer.toString(2000))
+        Assert.assertNull(tested[1000])
     }
 
     @Test
-    public void forEachProcedure() {
-        final IntLinkedHashMap<String> tested = new IntLinkedHashMap<>();
-        for (int i = 0; i < 100000; ++i) {
-            tested.put(i, Integer.toString(i));
+    fun forEachProcedure() {
+        val tested = IntLinkedHashMap<String>()
+        for (i in 0..99999) {
+            tested.put(i, Integer.toString(i))
         }
-        final int[] ii = {0};
-        tested.forEachKey(object -> {
-            ii[0]++;
-            return true;
-        });
-        tested.forEachValue(object -> {
-            ii[0]++;
-            return true;
-        });
-        Assert.assertEquals(tested.size() * 2, ii[0]);
-        ii[0] = 0;
-        tested.forEachKey(object -> {
-            ii[0]++;
-            return object > 99500;
-        });
-        tested.forEachValue(object -> {
-            ii[0]++;
-            return true;
-        });
-        Assert.assertEquals(tested.size() + 500, ii[0]);
+        val ii = intArrayOf(0)
+        tested.forEachKey { `object`: Int? ->
+            ii[0]++
+            true
+        }
+        tested.forEachValue { `object`: String? ->
+            ii[0]++
+            true
+        }
+        Assert.assertEquals((tested.size * 2).toLong(), ii[0].toLong())
+        ii[0] = 0
+        tested.forEachKey { `object`: Int ->
+            ii[0]++
+            `object` > 99500
+        }
+        tested.forEachValue { `object`: String? ->
+            ii[0]++
+            true
+        }
+        Assert.assertEquals((tested.size + 500).toLong(), ii[0].toLong())
     }
 }

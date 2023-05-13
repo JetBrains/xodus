@@ -13,42 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.persistent;
+package jetbrains.exodus.core.dataStructures.persistent
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.NoSuchElementException;
-
-public class PersistentStackTest {
-
+class PersistentStackTest {
     @Test
-    public void testAddRemove() {
-        PersistentStack<Integer> stack = PersistentStack.EMPTY_STACK;
-        Assert.assertTrue(stack.isEmpty());
+    fun testAddRemove() {
+        var stack = PersistentStack.EMPTY_STACK
+        Assert.assertTrue(stack.isEmpty)
         try {
-            stack.skip();
-            Assert.fail();
-        } catch (NoSuchElementException e) {
+            stack.skip()
+            Assert.fail()
+        } catch (e: NoSuchElementException) {
         }
-        for (int i = 0; i < 9000; i++) {
-            stack = stack.push(i);
-            Assert.assertFalse(stack.isEmpty());
-            Assert.assertEquals(Integer.valueOf(i), stack.peek());
-            Assert.assertEquals(i + 1, stack.size());
+        for (i in 0..8999) {
+            stack = stack.push(i)
+            Assert.assertFalse(stack.isEmpty)
+            Assert.assertEquals(Integer.valueOf(i), stack.peek())
+            Assert.assertEquals((i + 1).toLong(), stack.size().toLong())
         }
-        for (int i = 8999; i >= 0; i--) {
-            Assert.assertFalse(stack.isEmpty());
-            Assert.assertEquals(Integer.valueOf(i), stack.peek());
-            PersistentStack<Integer> next = stack.skip();
-            Assert.assertEquals(next, stack.skip());
-            stack = next;
+        for (i in 8999 downTo 0) {
+            Assert.assertFalse(stack.isEmpty)
+            Assert.assertEquals(Integer.valueOf(i), stack.peek())
+            val next = stack.skip()
+            Assert.assertEquals(next, stack.skip())
+            stack = next
         }
-        Assert.assertTrue(stack.isEmpty());
+        Assert.assertTrue(stack.isEmpty)
         try {
-            stack.skip();
-            Assert.fail();
-        } catch (NoSuchElementException e) {
+            stack.skip()
+            Assert.fail()
+        } catch (e: NoSuchElementException) {
         }
     }
 }

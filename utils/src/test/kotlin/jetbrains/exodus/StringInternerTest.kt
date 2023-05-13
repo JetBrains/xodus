@@ -13,42 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus;
+package jetbrains.exodus
 
-import jetbrains.exodus.util.StringInterner;
-import org.junit.Assert;
-import org.junit.Test;
+import jetbrains.exodus.util.StringInterner.Companion.intern
+import jetbrains.exodus.util.StringInterner.Companion.newInterner
+import org.junit.Assert
+import org.junit.Test
 
-public class StringInternerTest {
-
+class StringInternerTest {
     @Test
-    public void sameInstance() {
-        final String firstString = "Intern me right away";
-        //noinspection RedundantStringConstructorCall
-        final String secondString = new String("Intern me") + " right away";
-        Assert.assertEquals(firstString, secondString);
-        Assert.assertNotSame(firstString, secondString);
-        final String cached = StringInterner.intern(firstString);
-        Assert.assertSame(cached, StringInterner.intern(secondString));
+    fun sameInstance() {
+        val firstString = "Intern me right away"
+        var secondString = "Intern me"
+        secondString += " right away"
+        Assert.assertEquals(firstString, secondString)
+        Assert.assertNotSame(firstString, secondString)
+        val cached = intern(firstString)
+        Assert.assertSame(cached, intern(secondString))
     }
 
     @Test
-    public void substring() {
-        final String firstString = "Intern me right away";
-        //noinspection RedundantStringConstructorCall
-        final String secondString = new String("Intern me") + " right away";
-        Assert.assertEquals(firstString, secondString);
-        Assert.assertNotSame(firstString, secondString);
-        final String firstCached = StringInterner.intern(firstString.substring(0, 7));
-        final String secondCached = StringInterner.intern(secondString.substring(0, 7));
-        Assert.assertSame(firstCached, secondCached);
+    fun substring() {
+        val firstString = "Intern me right away"
+        var secondString = "Intern me"
+        secondString += " right away"
+        Assert.assertEquals(firstString, secondString)
+        Assert.assertNotSame(firstString, secondString)
+        val firstCached = intern(firstString.substring(0, 7))
+        val secondCached = intern(secondString.substring(0, 7))
+        Assert.assertSame(firstCached, secondCached)
     }
 
     @Test
-    public void customInterner() {
-        final String firstString = "Intern me right away";
-        //noinspection RedundantStringConstructorCall
-        final String secondString = new String("Intern me") + " right away";
-        Assert.assertNotSame(StringInterner.intern(firstString), StringInterner.newInterner(10).doIntern(secondString));
+    fun customInterner() {
+        val firstString = "Intern me right away"
+        var secondString = "Intern me"
+        secondString += " right away"
+        Assert.assertNotSame(intern(firstString), newInterner(10).doIntern(secondString))
     }
 }

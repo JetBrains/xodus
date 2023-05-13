@@ -13,194 +13,203 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.hash;
+package jetbrains.exodus.core.dataStructures.hash
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.Iterator;
-import java.util.Map;
-
-public class LongLinkedHashMapTest {
-
+class LongLinkedHashMapTest {
     @Test
-    public void testPutGet() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i, Long.toString(i));
+    fun testPutGet() {
+        val tested = LongLinkedHashMap<String>()
+        for (i in 0..999) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(java.lang.Long.toString(i.toLong()), tested.get(i.toLong()))
         }
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.put(i, Long.toString(i + 1)));
+        for (i in 0..999) {
+            Assert.assertEquals(
+                java.lang.Long.toString(i.toLong()), tested.put(
+                    i.toLong(), java.lang.Long.toString(
+                        (i + 1).toLong()
+                    )
+                )
+            )
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i + 1), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(java.lang.Long.toString((i + 1).toLong()), tested.get(i.toLong()))
         }
     }
 
     @Test
-    public void testPutGet2() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i - 500, Long.toString(i));
+    fun testPutGet2() {
+        val tested = LongLinkedHashMap<String>()
+        for (i in 0..999) {
+            tested.put((i - 500).toLong(), java.lang.Long.toString(i.toLong()))
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.get(i - 500));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(java.lang.Long.toString(i.toLong()), tested.get(i.toLong() - 500))
         }
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.put(i - 500, Long.toString(i + 1)));
+        for (i in 0..999) {
+            Assert.assertEquals(
+                java.lang.Long.toString(i.toLong()), tested.put(
+                    (i - 500).toLong(), java.lang.Long.toString(
+                        (i + 1).toLong()
+                    )
+                )
+            )
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i + 1), tested.get(i - 500));
-        }
-    }
-
-    @Test
-    public void testPutGetRemove() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i, Long.toString(i));
-        }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; i += 2) {
-            Assert.assertEquals(Long.toString(i), tested.remove(i));
-        }
-        Assert.assertEquals(500, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals((i % 2 == 0) ? null : Long.toString(i), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(java.lang.Long.toString((i + 1).toLong()), tested.get(i.toLong() - 500))
         }
     }
 
     @Test
-    public void keySet() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
-        for (long i = 0; i < 10000; ++i) {
-            tested.put(i, Long.toString(i));
+    fun testPutGetRemove() {
+        val tested = LongLinkedHashMap<String>()
+        for (i in 0..999) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
         }
-        long i = 10000;
-        for (Long key : tested.keySet()) {
-            Assert.assertEquals(--i, key.longValue());
+        Assert.assertEquals(1000, tested.size.toLong())
+        run {
+            var i: Long = 0
+            while (i < 1000) {
+                Assert.assertEquals(java.lang.Long.toString(i), tested.remove(i))
+                i += 2
+            }
+        }
+        Assert.assertEquals(500, tested.size.toLong())
+        for (i in 0L..999) {
+            Assert.assertEquals(if (i % 2 == 0L) null else java.lang.Long.toString(i.toLong()), tested.get(i))
         }
     }
 
     @Test
-    public void keySet2() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
-        for (long i = 0; i < 10000; ++i) {
-            tested.put(i, Long.toString(i));
+    fun keySet() {
+        val tested = LongLinkedHashMap<String>()
+        for (i in 0..9999) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
         }
-        Iterator<Long> it = tested.keySet().iterator();
+        var i: Long = 10000
+        for (key in tested.keys) {
+            Assert.assertEquals(--i, key)
+        }
+    }
+
+    @Test
+    fun keySet2() {
+        val tested = LongLinkedHashMap<String>()
+        for (i in 0..9999) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
+        }
+        var it = tested.keys.iterator()
         while (it.hasNext()) {
-            final long i = it.next();
-            if (i % 2 == 0) {
-                it.remove();
+            val i = it.next()
+            if (i % 2 == 0L) {
+                it.remove()
             }
         }
-
-        Assert.assertEquals(5000, tested.size());
-
-        it = tested.keySet().iterator();
-        for (long i = 9999; i > 0; i -= 2) {
-            Assert.assertTrue(it.hasNext());
-            Assert.assertEquals(i, it.next().longValue());
+        Assert.assertEquals(5000, tested.size.toLong())
+        it = tested.keys.iterator()
+        var i: Long = 9999
+        while (i > 0) {
+            Assert.assertTrue(it.hasNext())
+            Assert.assertEquals(i, it.next())
+            i -= 2
         }
     }
 
     @Test
-    public void lru() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>() {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Long, String> eldest) {
-                return size() > 500;
+    fun lru() {
+        val tested: LongLinkedHashMap<String> = object : LongLinkedHashMap<String>() {
+            override fun removeEldestEntry(eldest: Map.Entry<Long, String>): Boolean {
+                return size > 500
             }
-        };
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i, Long.toString(i));
         }
-        Assert.assertEquals(500, tested.size());
-        for (long i = 0; i < 500; ++i) {
-            Assert.assertNull(tested.remove(i));
+        for (i in 0..999) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
         }
-        Assert.assertEquals(500, tested.size());
-        for (long i = 500; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.remove(i));
+        Assert.assertEquals(500, tested.size.toLong())
+        for (i in 0..499) {
+            Assert.assertNull(tested.remove(i.toLong()))
         }
-        Assert.assertEquals(0, tested.size());
+        Assert.assertEquals(500, tested.size.toLong())
+        for (i in 500..999) {
+            Assert.assertEquals(java.lang.Long.toString(i.toLong()), tested.remove(i.toLong()))
+        }
+        Assert.assertEquals(0, tested.size.toLong())
     }
 
     @Test
-    public void lru2() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>() {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Long, String> eldest) {
-                return size() > 1000;
+    fun lru2() {
+        val tested: LongLinkedHashMap<String> = object : LongLinkedHashMap<String>() {
+            override fun removeEldestEntry(eldest: Map.Entry<Long, String>): Boolean {
+                return size > 1000
             }
-        };
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i, Long.toString(i));
         }
-        Assert.assertEquals(Long.toString(0), tested.get(0));
-        for (long i = 1000; i < 1999; ++i) {
-            tested.put(i, Long.toString(i));
+        for (i in 0..999) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
         }
-        Assert.assertEquals(Long.toString(0), tested.get(0));
-        tested.put(2000, Long.toString(2000));
-        Assert.assertNull(tested.get(1000));
+        Assert.assertEquals(java.lang.Long.toString(0), tested[0])
+        for (i in 1000..1998) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
+        }
+        Assert.assertEquals(java.lang.Long.toString(0), tested[0])
+        tested.put(2000, java.lang.Long.toString(2000))
+        Assert.assertNull(tested[1000])
     }
 
     @Test
-    public void lru3() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<String>() {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Long, String> eldest) {
-                return size() > 1000;
+    fun lru3() {
+        val tested: LongLinkedHashMap<String> = object : LongLinkedHashMap<String>() {
+            override fun removeEldestEntry(eldest: Map.Entry<Long, String>): Boolean {
+                return size > 1000
             }
-        };
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i, Long.toString(i));
         }
-        Assert.assertEquals(Long.toString(999), tested.remove(999));
-        Assert.assertEquals(999, tested.size());
-        Assert.assertEquals(Long.toString(0), tested.get(0));
-        for (long i = 1000; i < 1999; ++i) {
-            tested.put(i, Long.toString(i));
+        for (i in 0..999) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
         }
-        Assert.assertEquals(Long.toString(0), tested.get(0));
-        tested.put(2000, Long.toString(2000));
-        Assert.assertNull(tested.get(1000));
+        Assert.assertEquals(java.lang.Long.toString(999), tested.remove(999))
+        Assert.assertEquals(999, tested.size.toLong())
+        Assert.assertEquals(java.lang.Long.toString(0), tested[0])
+        for (i in 1000..1998) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
+        }
+        Assert.assertEquals(java.lang.Long.toString(0), tested[0])
+        tested.put(2000, java.lang.Long.toString(2000))
+        Assert.assertNull(tested[1000])
     }
 
     @Test
-    public void forEachProcedure() {
-        final LongLinkedHashMap<String> tested = new LongLinkedHashMap<>();
-        for (long i = 0; i < 100000; ++i) {
-            tested.put(i, Long.toString(i));
+    fun forEachProcedure() {
+        val tested = LongLinkedHashMap<String>()
+        for (i in 0..99999) {
+            tested.put(i.toLong(), java.lang.Long.toString(i.toLong()))
         }
-        final int[] ii = {0};
-        tested.forEachKey(object -> {
-            ii[0]++;
-            return true;
-        });
-        tested.forEachValue(object -> {
-            ii[0]++;
-            return true;
-        });
-        Assert.assertEquals(tested.size() * 2, ii[0]);
-        ii[0] = 0;
-        tested.forEachKey(object -> {
-            ii[0]++;
-            return object > 99500;
-        });
-        tested.forEachValue(object -> {
-            ii[0]++;
-            return true;
-        });
-        Assert.assertEquals(tested.size() + 500, ii[0]);
+        val ii = intArrayOf(0)
+        tested.forEachKey { `object`: Long? ->
+            ii[0]++
+            true
+        }
+        tested.forEachValue { `object`: String? ->
+            ii[0]++
+            true
+        }
+        Assert.assertEquals((tested.size * 2).toLong(), ii[0].toLong())
+        ii[0] = 0
+        tested.forEachKey { `object`: Long ->
+            ii[0]++
+            `object` > 99500
+        }
+        tested.forEachValue { `object`: String? ->
+            ii[0]++
+            true
+        }
+        Assert.assertEquals((tested.size + 500).toLong(), ii[0].toLong())
     }
 }

@@ -13,140 +13,149 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.hash;
+package jetbrains.exodus.core.dataStructures.hash
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
-public class LongHashMapTest {
-
+class LongHashMapTest {
     @Test
-    public void testPutGet() {
-        final Map<Long, String> tested = new LongHashMap<>();
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i, Long.toString(i));
+    fun testPutGet() {
+        val tested: MutableMap<Long, String> = LongHashMap()
+        for (i in 0..999) {
+            tested[i.toLong()] = java.lang.Long.toString(i.toLong())
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(java.lang.Long.toString(i.toLong()), tested.get(i.toLong()))
         }
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.put(i, Long.toString(i + 1)));
+        for (i in 0..999) {
+            Assert.assertEquals(
+                java.lang.Long.toString(i.toLong()), tested.put(
+                    i.toLong(), java.lang.Long.toString(
+                        (i + 1).toLong()
+                    )
+                )
+            )
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i + 1), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(java.lang.Long.toString((i + 1).toLong()), tested.get(i.toLong()))
         }
     }
 
     @Test
-    public void testPutGet2() {
-        final Map<Long, String> tested = new LongHashMap<>();
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i - 500, Long.toString(i));
+    fun testPutGet2() {
+        val tested: MutableMap<Long, String> = LongHashMap()
+        for (i in 0..999) {
+            tested[(i - 500).toLong()] = java.lang.Long.toString(i.toLong())
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.get(i - 500));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(java.lang.Long.toString(i.toLong()), tested.get((i - 500).toLong()))
         }
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i), tested.put(i - 500, Long.toString(i + 1)));
+        for (i in 0..999) {
+            Assert.assertEquals(
+                java.lang.Long.toString(i.toLong()), tested.put(
+                    (i - 500).toLong(), java.lang.Long.toString(
+                        (i + 1).toLong()
+                    )
+                )
+            )
         }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals(Long.toString(i + 1), tested.get(i - 500));
-        }
-    }
-
-    @Test
-    public void testPutGetRemove() {
-        final Map<Long, String> tested = new LongHashMap<>();
-        for (long i = 0; i < 1000; ++i) {
-            tested.put(i, Long.toString(i));
-        }
-        Assert.assertEquals(1000, tested.size());
-        for (long i = 0; i < 1000; i += 2) {
-            Assert.assertEquals(Long.toString(i), tested.remove(i));
-        }
-        Assert.assertEquals(500, tested.size());
-        for (long i = 0; i < 1000; ++i) {
-            Assert.assertEquals((i % 2 == 0) ? null : Long.toString(i), tested.get(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        for (i in 0..999) {
+            Assert.assertEquals(java.lang.Long.toString((i + 1).toLong()), tested.get((i - 500).toLong()))
         }
     }
 
     @Test
-    public void keySet() {
-        final Map<Long, String> tested = new LongHashMap<>();
-        final Set<Long> set = new LongHashSet();
-
-        for (long i = 0; i < 10000; ++i) {
-            tested.put(i, Long.toString(i));
-            set.add(i);
+    fun testPutGetRemove() {
+        val tested: MutableMap<Long, String> = LongHashMap()
+        for (i in 0..999) {
+            tested[i.toLong()] = java.lang.Long.toString(i.toLong())
         }
-        for (Long key : tested.keySet()) {
-            Assert.assertTrue(set.remove(key));
-        }
-        Assert.assertEquals(0, set.size());
-    }
-
-    @Test
-    public void keySet2() {
-        final Map<Long, String> tested = new LongHashMap<>();
-        final Set<Long> set = new LongHashSet();
-
-        for (long i = 0; i < 10000; ++i) {
-            tested.put(i, Long.toString(i));
-            set.add(i);
-        }
-        Iterator<Long> it = tested.keySet().iterator();
-        while (it.hasNext()) {
-            final long i = it.next();
-            if (i % 2 == 0) {
-                it.remove();
-                Assert.assertTrue(set.remove(i));
+        Assert.assertEquals(1000, tested.size.toLong())
+        run {
+            var i: Long = 0
+            while (i < 1000) {
+                Assert.assertEquals(java.lang.Long.toString(i), tested.remove(i))
+                i += 2
             }
         }
-
-        Assert.assertEquals(5000, tested.size());
-
-        it = tested.keySet().iterator();
-        for (long i = 9999; i > 0; i -= 2) {
-            Assert.assertTrue(it.hasNext());
-            Assert.assertTrue(it.next() % 2 != 0);
-            Assert.assertTrue(set.remove(i));
+        Assert.assertEquals(500, tested.size.toLong())
+        for (i in 0L..999) {
+            Assert.assertEquals(if (i % 2 == 0L) null else java.lang.Long.toString(i.toLong()), tested.get(i))
         }
-        Assert.assertEquals(0, set.size());
     }
 
     @Test
-    public void forEachProcedure() {
-        final IntHashMap<String> tested = new IntHashMap<>();
-        for (int i = 0; i < 100000; ++i) {
-            tested.put(i, Integer.toString(i));
+    fun keySet() {
+        val tested: MutableMap<Long, String> = LongHashMap()
+        val set: MutableSet<Long> = LongHashSet()
+        for (i in 0..9999) {
+            tested[i.toLong()] = java.lang.Long.toString(i.toLong())
+            set.add(i.toLong())
         }
-        final int[] ii = {0};
-        tested.forEachKey(object -> {
-            ii[0]++;
-            return true;
-        });
-        tested.forEachValue(object -> {
-            ii[0]++;
-            return true;
-        });
-        Assert.assertEquals(tested.size() * 2, ii[0]);
-        ii[0] = 0;
-        tested.forEachKey(object -> {
-            ii[0]++;
-            return object < 500;
-        });
-        tested.forEachValue(object -> {
-            ii[0]++;
-            return true;
-        });
-        Assert.assertEquals(tested.size() + 501, ii[0]);
+        for (key in tested.keys) {
+            Assert.assertTrue(set.remove(key))
+        }
+        Assert.assertEquals(0, set.size.toLong())
+    }
+
+    @Test
+    fun keySet2() {
+        val tested: MutableMap<Long, String> = LongHashMap()
+        val set: MutableSet<Long> = LongHashSet()
+        for (i in 0..9999) {
+            tested[i.toLong()] = java.lang.Long.toString(i.toLong())
+            set.add(i.toLong())
+        }
+        var it = tested.keys.iterator()
+        while (it.hasNext()) {
+            val i = it.next()
+            if (i % 2 == 0L) {
+                it.remove()
+                Assert.assertTrue(set.remove(i))
+            }
+        }
+        Assert.assertEquals(5000, tested.size.toLong())
+        it = tested.keys.iterator()
+        var i: Long = 9999
+        while (i > 0) {
+            Assert.assertTrue(it.hasNext())
+            Assert.assertTrue(it.next() % 2 != 0L)
+            Assert.assertTrue(set.remove(i))
+            i -= 2
+        }
+        Assert.assertEquals(0, set.size.toLong())
+    }
+
+    @Test
+    fun forEachProcedure() {
+        val tested = IntHashMap<String>()
+        for (i in 0..99999) {
+            tested.put(i, Integer.toString(i))
+        }
+        val ii = intArrayOf(0)
+        tested.forEachKey { `object`: Int? ->
+            ii[0]++
+            true
+        }
+        tested.forEachValue { `object`: String? ->
+            ii[0]++
+            true
+        }
+        Assert.assertEquals((tested.size * 2).toLong(), ii[0].toLong())
+        ii[0] = 0
+        tested.forEachKey { `object`: Int ->
+            ii[0]++
+            `object` < 500
+        }
+        tested.forEachValue { `object`: String? ->
+            ii[0]++
+            true
+        }
+        Assert.assertEquals((tested.size + 501).toLong(), ii[0].toLong())
     }
 }
