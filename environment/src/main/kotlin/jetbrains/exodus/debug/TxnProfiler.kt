@@ -20,11 +20,8 @@ import mu.KLogging
 import java.io.PrintStream
 
 class TxnProfiler : KLogging() {
-
-    var gcTransactions: Long = 0L
-        private set
-    var gcMovedBytes: Long = 0L
-        private set
+    private var gcTransactions: Long = 0L
+    private var gcMovedBytes: Long = 0L
     private val readonlyTxns = StackTraceMap()
     private val txnCounts = StackTraceMap()
     private val txnWrittenBytes = StackTraceMap()

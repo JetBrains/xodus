@@ -69,5 +69,5 @@ internal class StackTraceMap {
 
     fun clear() = map.clear()
 
-    private class Entry(val stackTrace: StackTrace, var value: Long = 0L)
+    private class Entry(@JvmField val stackTrace: StackTrace,@JvmField var value: Long = 0L)
 }
