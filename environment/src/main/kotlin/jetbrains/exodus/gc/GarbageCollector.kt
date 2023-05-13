@@ -38,14 +38,19 @@ import mu.KLogging
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class GarbageCollector(internal val environment: EnvironmentImpl) {
+class GarbageCollector(@JvmField internal val environment: EnvironmentImpl) {
 
     // the last time when background cleaning job was invoked
+    @JvmField
     var lastInvocationTime = 0L
     private val ec: EnvironmentConfig = environment.environmentConfig
+
+    @JvmField
     val utilizationProfile = UtilizationProfile(environment, this)
     private val pendingFilesToDelete = PackedLongHashSet()
     private val deletionQueue = ConcurrentLinkedQueue<Long>()
+
+    @JvmField
     internal val cleaner = BackgroundCleaner(this)
     private val openStoresCache = IntHashMap<StoreImpl>()
 
@@ -54,7 +59,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
             override fun blockCreated(block: Block) {
                 utilizationProfile.estimateTotalBytes()
-                if (!cleaner.isCleaning && isTooMuchFreeSpace) {
+                if (!cleaner.isCleaning && isTooMuchFreeSpace()) {
                     wake()
                 }
             }
@@ -62,23 +67,18 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         SharedTimer.registerPeriodicTask(PeriodicGc(this))
     }
 
-    internal val maximumFreeSpacePercent: Int
-        get() = 100 - ec.gcMinUtilization
+    internal fun getMaximumFreeSpacePercent(): Int = 100 - ec.gcMinUtilization
 
-    internal val isTooMuchFreeSpace: Boolean
-        get() = utilizationProfile.totalFreeSpacePercent() > maximumFreeSpacePercent
+    internal fun isTooMuchFreeSpace(): Boolean =
+        utilizationProfile.totalFreeSpacePercent() > getMaximumFreeSpacePercent()
 
-    internal val minFileAge: Int
-        get() = ec.gcFileMinAge
+    internal fun getMinFileAge(): Int = ec.gcFileMinAge
 
-    internal val log: Log
-        get() = environment.log
+    internal fun getLog(): Log = environment.log
 
-    internal val startTime: Long
-        get() = environment.created + ec.gcStartIn
+    internal fun getStartTime(): Long = environment.created + ec.gcStartIn
 
-    val isSuspended: Boolean
-        get() = cleaner.isSuspended
+    fun isSuspended(): Boolean = cleaner.isSuspended()
 
     fun clear() {
         utilizationProfile.clear()
@@ -189,7 +189,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     }
 
     internal fun deletePendingFiles() {
-        if (!cleaner.isCurrentThread) {
+        if (!cleaner.isCurrentThread()) {
             getCleanerJobProcessor().queue(GcJob(this) {
                 cleaner.deletePendingFiles()
             })
@@ -275,7 +275,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         if (cleanedFiles.isNotEmpty()) {
             for (file in cleanedFiles) {
                 if (isTxnExclusive) {
-                    log.clearFileFromLogCache(file)
+                    getLog().clearFileFromLogCache(file)
                 }
                 pendingFilesToDelete.add(file)
                 utilizationProfile.resetFile(file)
@@ -317,7 +317,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             "start cleanFile(${environment.location}${File.separatorChar}${LogUtil.getLogFilename(fileAddress)})" +
                     ", free bytes = ${formatBytes(getFileFreeBytes(fileAddress))}"
         }
-        val log = log
+        val log = getLog()
         if (logger.isDebugEnabled) {
             val high = log.getHighAddress()
             val highFile = log.getHighFileAddress()

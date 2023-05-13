@@ -29,18 +29,17 @@ open class Memory {
     private val data = LongHashMap<Block>()
     private val removedBlocks = LongObjectCache<Block>(100)
 
-    internal val allBlocks: Collection<Block>
-        get() = data.values
+    internal fun getAllBlocks(): Collection<Block> = data.values
 
     internal fun getOrCreateBlockData(address: Long, length: Long): Block {
         return data.synchronized {
             get(address)?.also {
-                if (it.size.toLong() != length) {
+                if (it.size().toLong() != length) {
                     it.setSize(length)
                 }
                 lastBlock = it
             } ?: run {
-                val block = Block(address, lastBlock?.size ?: 2048)
+                val block = Block(address, lastBlock?.size() ?: 2048)
                 lastBlock = block
                 this[address] = lastBlock
                 block
@@ -69,7 +68,7 @@ open class Memory {
             try {
                 val dest = File(location, LogUtil.getLogFilename(key))
                 val output = RandomAccessFile(dest, "rw")
-                output.write(block.data, 0, block.size)
+                output.write(block.getData(), 0, block.size())
                 output.close()
                 // output.getChannel().force(false);
             } catch (e: IOException) {
@@ -85,17 +84,19 @@ open class Memory {
         }
     }
 
-    internal class Block(private val _address: Long, initialSize: Int) : jetbrains.exodus.io.Block {
-        var size: Int = 0
-            private set
-        var data: ByteArray
-            private set
+    internal class Block(private val address: Long, initialSize: Int) : jetbrains.exodus.io.Block {
+        private var size: Int = 0
+        private var data: ByteArray
 
         init {
             data = ByteArray(initialSize)
         }
 
-        override fun getAddress() = _address
+        fun size() = size
+
+        fun getData() = data
+
+        override fun getAddress() = address
 
         override fun length() = size.toLong()
 

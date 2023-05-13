@@ -19,9 +19,9 @@ import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.DataReader
 import mu.KLogging
 
-open class MemoryDataReader(val memory: Memory) : DataReader, KLogging() {
+open class MemoryDataReader(@JvmField val memory: Memory) : DataReader, KLogging() {
 
-    private val memoryBlocks get() = memory.allBlocks.asSequence()
+    private val memoryBlocks get() = memory.getAllBlocks().asSequence()
 
     override fun getBlocks(): Iterable<Block> {
         return memoryBlocks.sortedBy {

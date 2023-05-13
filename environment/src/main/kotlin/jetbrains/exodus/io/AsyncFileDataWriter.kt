@@ -65,14 +65,14 @@ class AsyncFileDataWriter @JvmOverloads constructor(private val reader: FileData
             pair.getSecond().get()
         } catch (e: InterruptedException) {
             if (e.cause is IOException) {
-                if (lockingManager.usableSpace < len) {
+                if (lockingManager.getUsableSpace() < len) {
                     throw OutOfDiskSpaceException(e)
                 }
             }
             throw ExodusException("Can not write into file.", e)
         } catch (e: ExecutionException) {
             if (e.cause is IOException) {
-                if (lockingManager.usableSpace < len) {
+                if (lockingManager.getUsableSpace() < len) {
                     throw OutOfDiskSpaceException(e)
                 }
             }
@@ -85,7 +85,7 @@ class AsyncFileDataWriter @JvmOverloads constructor(private val reader: FileData
         val channel: AsynchronousFileChannel = try {
             ensureChannel("Can't write, AsyncFileDataWriter is closed")
         } catch (e: IOException) {
-            if (lockingManager.usableSpace < len) {
+            if (lockingManager.getUsableSpace() < len) {
                 throw OutOfDiskSpaceException(e)
             }
             throw ExodusException("Can not write into file.", e)
@@ -273,7 +273,7 @@ class AsyncFileDataWriter @JvmOverloads constructor(private val reader: FileData
         }
 
         override fun failed(exc: Throwable, attachment: Void?) {
-            if (lockingManager.usableSpace < len) {
+            if (lockingManager.getUsableSpace() < len) {
                 future.completeExceptionally(OutOfDiskSpaceException(exc))
             } else {
                 future.completeExceptionally(exc)
@@ -296,7 +296,7 @@ class AsyncFileDataWriter @JvmOverloads constructor(private val reader: FileData
 
         private fun removeFileFromFileCache(file: File) {
             try {
-                SharedOpenFilesCache.instance.removeFile(file)
+                SharedOpenFilesCache.getInstance().removeFile(file)
             } catch (e: IOException) {
                 throw ExodusException("Can not remove file " + file.absolutePath, e)
             }

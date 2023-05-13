@@ -24,13 +24,15 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
 
     private val backgroundCleaningJob = BackgroundCleaningJob(gc)
     private var processor: JobProcessorAdapter
+
+    @JvmField
     internal var threadId: Long = 0
 
     @Volatile
-    var isSuspended: Boolean = false
-        private set
+    private var isSuspended: Boolean = false
 
     @Volatile
+    @JvmField
     var isCleaning: Boolean = false
 
     init {
@@ -42,6 +44,8 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
             }
         )
     }
+
+    fun isSuspended() = isSuspended
 
     fun setJobProcessor(processor: JobProcessorAdapter): JobProcessorAdapter {
         if (processor is ThreadJobProcessor) {
@@ -66,9 +70,9 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
 
     fun addBeforeGcAction(action: Runnable) = backgroundCleaningJob.addBeforeGcAction(action)
 
-    val isFinished: Boolean get() = processor.isFinished
+    fun isFinished() = processor.isFinished
 
-    val isCurrentThread: Boolean get() = threadId == Thread.currentThread().id
+    fun isCurrentThread(): Boolean = threadId == Thread.currentThread().id
 
     fun finish() {
         (processor.currentJob as? GcJob)?.cancel()
@@ -123,7 +127,7 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
     }
 
     fun checkThread() {
-        if (!isCurrentThread) {
+        if (!isCurrentThread()) {
             throw ExodusException("Background cleaner thread expected as current one")
         }
     }

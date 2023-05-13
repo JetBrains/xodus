@@ -31,7 +31,7 @@ internal class LockingManager internal constructor(private val dir: File, privat
     private var lockFile: RandomAccessFile? = null
     private var lock: FileLock? = null
 
-    val usableSpace: Long get() = dir.usableSpace
+    fun getUsableSpace(): Long = dir.usableSpace
 
     fun lock(timeout: Long): Boolean {
         val started = System.currentTimeMillis()
@@ -133,7 +133,7 @@ internal class LockingManager internal constructor(private val dir: File, privat
 
 
     private fun throwFailedToLock(e: IOException): Boolean {
-        if (usableSpace < 4096) {
+        if (getUsableSpace() < 4096) {
             throw OutOfDiskSpaceException(e)
         }
         throw ExodusException("Failed to lock file $LOCK_FILE_NAME", e)

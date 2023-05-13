@@ -39,7 +39,7 @@ object SharedTimer : KLogging() {
         processor.queue(object : Job() {
             override fun execute() {
                 registeredTasks.add(object : ExpirablePeriodicTask {
-                    override val isExpired: Boolean get() = false
+                    override fun isExpired(): Boolean = false
                     override fun run() {
                         task()
                     }
@@ -81,8 +81,7 @@ object SharedTimer : KLogging() {
     }
 
     interface ExpirablePeriodicTask : Runnable {
-
-        val isExpired: Boolean
+        fun isExpired(): Boolean
     }
 
     private class Ticker : Job() {
@@ -92,7 +91,7 @@ object SharedTimer : KLogging() {
             try {
                 val expiredTasks = QueueDecorator<ExpirablePeriodicTask>()
                 registeredTasks.forEach { task ->
-                    if (task.isExpired) {
+                    if (task.isExpired()) {
                         expiredTasks.add(task)
                     } else {
                         try {

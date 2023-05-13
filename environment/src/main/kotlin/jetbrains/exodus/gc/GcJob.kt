@@ -24,10 +24,10 @@ open class GcJob(gc: GarbageCollector, private val unitOfWork: (() -> Unit)? = n
 
     private var gcRef = WeakReference(gc)
 
-    protected val gc get() = gcRef.get()
+    protected fun getGc() = gcRef.get()
 
     override fun execute() {
-        gc?.run {
+        getGc()?.run {
             if (!environment.environmentConfig.isGcEnabled) return
             val actualProcessor = cleaner.getJobProcessor()
             if (actualProcessor != processor) {
@@ -49,7 +49,7 @@ open class GcJob(gc: GarbageCollector, private val unitOfWork: (() -> Unit)? = n
         processor.queue(this, Priority.highest)
     }
 
-    override fun getGroup() = gc?.environment?.location ?: "<finished>"
+    override fun getGroup() = getGc()?.environment?.location ?: "<finished>"
 
     /**
      * Cancels job so that it never will be executed again.
@@ -63,7 +63,7 @@ open class GcJob(gc: GarbageCollector, private val unitOfWork: (() -> Unit)? = n
      * If the job has been cancelled it must be renewed before queueing
      */
     internal fun renew(gc: GarbageCollector) {
-        this.gc ?: let {
+        this.getGc() ?: let {
             gcRef = WeakReference(gc)
             processor = gc.cleaner.getJobProcessor()
         }

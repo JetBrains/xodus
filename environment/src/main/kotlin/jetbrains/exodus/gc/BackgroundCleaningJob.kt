@@ -29,9 +29,9 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
     }
 
     override fun doJob() {
-        val gc = this.gc ?: return
+        val gc = this.getGc() ?: return
         val cleaner = gc.cleaner
-        if (!cleaner.isCurrentThread) {
+        if (!cleaner.isCurrentThread()) {
             val processor = cleaner.getJobProcessor()
             GarbageCollector.loggingInfo { "Re-queueing BackgroundCleaningJob[${gc.environment.location}] to thread[${cleaner.threadId}]" }
             reQueue(processor)
@@ -39,7 +39,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
         }
 
         // is invoked too early?
-        val minTimeToInvokeCleaner = gc.startTime
+        val minTimeToInvokeCleaner = gc.getStartTime()
         val currentTime = System.currentTimeMillis()
         if (minTimeToInvokeCleaner > currentTime) {
             wakeAt(gc, minTimeToInvokeCleaner)
@@ -58,7 +58,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
 
         val log = env.log
         // are there enough files in the log?
-        if (gc.minFileAge < log.getNumberOfFiles()) {
+        if (gc.getMinFileAge() < log.getNumberOfFiles()) {
             if (!canContinue()) {
                 wakeAt(gc, System.currentTimeMillis() + gcRunPeriod)
                 return
@@ -66,7 +66,7 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
             cleaner.isCleaning = true
             try {
                 doCleanLog(log, gc)
-                if (gc.isTooMuchFreeSpace) {
+                if (gc.isTooMuchFreeSpace()) {
                     if (gcRunPeriod > 0) {
                         wakeAt(gc, System.currentTimeMillis() + gcRunPeriod)
                     }
@@ -122,13 +122,13 @@ internal class BackgroundCleaningJob(gc: GarbageCollector) : GcJob(gc) {
     private fun cleanFiles(gc: GarbageCollector, fragmentedFiles: Iterator<Long>) = gc.cleanFiles(fragmentedFiles)
 
     private fun canContinue(): Boolean {
-        val gc = this.gc ?: return false
+        val gc = this.getGc() ?: return false
         val cleaner = gc.cleaner
-        if (cleaner.isSuspended || cleaner.isFinished) {
+        if (cleaner.isSuspended() || cleaner.isFinished()) {
             return false
         }
         val ec = gc.environment.environmentConfig
-        return ec.isGcEnabled && !gc.environment.isReadOnly && gc.isTooMuchFreeSpace
+        return ec.isGcEnabled && !gc.environment.isReadOnly && gc.isTooMuchFreeSpace()
     }
 
     private fun wakeAt(gc: GarbageCollector, time: Long) {

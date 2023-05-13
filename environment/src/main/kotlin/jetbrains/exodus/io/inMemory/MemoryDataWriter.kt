@@ -31,12 +31,12 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
     companion object : KLogging()
 
     private var closed = false
-    private lateinit var data: Memory.Block
+    private var data: Memory.Block? = null
 
     override fun write(b: ByteArray, off: Int, len: Int): Block {
         checkClosed()
-        data.write(b, off, len)
-        return data
+        data!!.write(b, off, len)
+        return data!!
     }
 
     override fun removeBlock(blockAddress: Long, @NotNull rbt: RemoveBlockType) {
@@ -60,14 +60,14 @@ open class MemoryDataWriter(private val memory: Memory) : AbstractDataWriter() {
 
     override fun lockInfo(): String? = null
     override fun asyncWrite(b: ByteArray, off: Int, len: Int): Pair<Block, CompletableFuture<LongIntPair>> {
-        val position = data.size
+        val position = data!!.size()
         write(b, off, len)
 
-        return Pair(data, CompletableFuture.completedFuture(LongIntPair(data.address + position.toLong(), len)))
+        return Pair(data, CompletableFuture.completedFuture(LongIntPair(data!!.address + position.toLong(), len)))
     }
 
     override fun position(): Long {
-        return data.size.toLong()
+        return data!!.size().toLong()
     }
 
     override fun syncImpl() {}
