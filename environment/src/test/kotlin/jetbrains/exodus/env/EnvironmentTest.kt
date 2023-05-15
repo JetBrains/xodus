@@ -517,7 +517,7 @@ open class EnvironmentTest : EnvironmentTestsBase() {
                 )
                 additionalEnvironments.add(
                     newEnvironmentInstance(
-                        create(rwPair.getFirst(), rwPair.getSecond()),
+                        create(rwPair.first, rwPair.second),
                         EnvironmentConfig()
                     )
                 )

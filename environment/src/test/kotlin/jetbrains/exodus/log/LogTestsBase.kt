@@ -76,8 +76,8 @@ open class LogTestsBase {
 
         synchronized(this) {
             val logRW = createLogRW()
-            reader = logRW.getFirst()
-            writer = logRW.getSecond()
+            reader = logRW.first
+            writer = logRW.second
         }
     }
 

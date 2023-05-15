@@ -327,8 +327,8 @@ class LogConfig {
             ?: throw InvalidSettingException("Location for DataReader and DataWriter is not specified")
         val provider = getReaderWriterProvider()
         val readerWriter = provider.newReaderWriter(location)
-        reader = readerWriter.getFirst()
-        writer = readerWriter.getSecond()
+        reader = readerWriter.first
+        writer = readerWriter.second
     }
 
     companion object {

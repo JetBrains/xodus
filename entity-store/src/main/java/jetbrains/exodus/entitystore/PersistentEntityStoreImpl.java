@@ -1005,12 +1005,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobInfo == null) {
             return -1;
         }
-        final long blobHandle = blobInfo.getFirst();
+        final long blobHandle = blobInfo.first;
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return 0;
         }
         if (isInPlaceBlobHandle(blobHandle)) {
-            return CompressedUnsignedLongByteIterable.getLong(blobInfo.getSecond());
+            return CompressedUnsignedLongByteIterable.getLong(blobInfo.second);
         }
         final long result = txn.getBlobSize(blobHandle);
         if (result < 0) {
@@ -1027,11 +1027,11 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobStream == null) {
             return null;
         }
-        final long blobHandle = blobStream.getFirst();
+        final long blobHandle = blobStream.first;
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return EMPTY_INPUT_STREAM;
         }
-        InputStream result = blobStream.getSecond();
+        InputStream result = blobStream.second;
         if (result != null) {
             return result;
         }
@@ -1089,12 +1089,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobStream == null) {
             return null;
         }
-        final long blobHandle = blobStream.getFirst();
+        final long blobHandle = blobStream.first;
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             result = "";
         } else {
             try {
-                final InputStream stream = blobStream.getSecond();
+                final InputStream stream = blobStream.second;
                 if (stream == null) {
                     var envTxn = txn.getEnvironmentTransaction();
                     var blobLength = getBlobFileLength(blobHandle, envTxn);
@@ -1202,12 +1202,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         if (blobInfo == null) {
             return null;
         }
-        final long blobHandle = blobInfo.getFirst();
+        final long blobHandle = blobInfo.first;
         if (blobHandle == EMPTY_BLOB_HANDLE) {
             return new Pair<>(blobHandle, null);
         }
         if (isInPlaceBlobHandle(blobHandle)) {
-            final ByteIterator valueIterator = blobInfo.getSecond();
+            final ByteIterator valueIterator = blobInfo.second;
             final int size = (int) CompressedUnsignedLongByteIterable.getLong(valueIterator);
             if (blobHandle == IN_PLACE_BLOB_HANDLE) {
                 return new Pair<>(blobHandle,
@@ -2334,8 +2334,8 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         private TwoColumnTable getTable(@NotNull final PersistentStoreTransaction txn,
                                         final int typeId) {
             final Pair<Integer, LinksTable> lastUsedTable = this.lastUsedTable;
-            if (lastUsedTable.getFirst() == typeId) {
-                return lastUsedTable.getSecond();
+            if (lastUsedTable.first == typeId) {
+                return lastUsedTable.second;
             }
             final LinksTable result = getLinksTable(txn, typeId);
             this.lastUsedTable = new Pair<>(typeId, result);

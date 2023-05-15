@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.core.execution
 
-import jetbrains.exodus.core.dataStructures.decorators.QueueDecorator
 import jetbrains.exodus.core.dataStructures.hash.HashSet
 import mu.KLogging
 
@@ -89,7 +88,7 @@ object SharedTimer : KLogging() {
         override fun execute() {
             val nextTick = System.currentTimeMillis() + PERIOD
             try {
-                val expiredTasks = QueueDecorator<ExpirablePeriodicTask>()
+                val expiredTasks = ArrayList<ExpirablePeriodicTask>()
                 registeredTasks.forEach { task ->
                     if (task.isExpired()) {
                         expiredTasks.add(task)
@@ -105,7 +104,7 @@ object SharedTimer : KLogging() {
                     registeredTasks.remove(expiredTask)
                 }
             } finally {
-                processor.queueAt(this, nextTick)
+                processor!!.queueAt(this, nextTick)
             }
         }
     }

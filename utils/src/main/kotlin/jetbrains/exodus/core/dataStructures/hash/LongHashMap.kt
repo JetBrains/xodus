@@ -44,8 +44,8 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
                 newEntry.hashNext = table[index]
                 table[index] = newEntry
             }
-            _size += 1
-            if (_size > capacity) {
+            internalSize += 1
+            if (internalSize > capacity) {
                 rehash(HashUtil.nextCapacity(capacity))
             }
             return null
@@ -63,7 +63,7 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
                 last = e
                 e = e.hashNext ?: return null
             }
-            _size -= 1
+            internalSize -= 1
             if (last == null) {
                 table[index] = e.hashNext
             } else {
@@ -82,7 +82,7 @@ class LongHashMap<V> @JvmOverloads constructor(capacity: Int = 0, private val lo
         max(capacity, HashUtil.MIN_CAPACITY).let { c ->
             allocateTable(HashUtil.getCeilingPrime((c / loadFactor).toInt()))
             this.capacity = c
-            this._size = 0
+            this.internalSize = 0
         }
     }
 

@@ -140,8 +140,8 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
             val meta: Pair<MetaTreeImpl, Int>
             val expired = ExpiredLoggableCollection.newInstance(log)
             synchronized(commitLock) { meta = MetaTreeImpl.create(this, expired) }
-            metaTreeInternal = meta.getFirst()
-            structureId = AtomicInteger(meta.getSecond())
+            metaTreeInternal = meta.first
+            structureId = AtomicInteger(meta.second)
             txns = TransactionSet()
             txnSafeTasks = LinkedList()
             invalidateStoreGetCache()
@@ -363,8 +363,8 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
                         throwableOnCommit = null
                         val expired = ExpiredLoggableCollection.newInstance(log)
                         val meta: Pair<MetaTreeImpl, Int> = MetaTreeImpl.create(this, expired)
-                        metaTreeInternal = meta.getFirst()
-                        structureId.set(meta.getSecond())
+                        metaTreeInternal = meta.first
+                        structureId.set(meta.second)
                         gc.fetchExpiredLoggables(expired)
                     } finally {
                         metaWriteLock.unlock()

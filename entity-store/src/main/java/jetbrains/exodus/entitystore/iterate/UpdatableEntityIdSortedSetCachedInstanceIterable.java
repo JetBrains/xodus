@@ -51,7 +51,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
             if (!it.hasNext()) {
                 localIds = EMPTY_IDS;
             } else {
-                localIds = EMPTY_IDS.getClone();
+                localIds = EMPTY_IDS.clone;
                 final PersistentLongSet.MutableSet mutableLocalIds = localIds.beginWrite();
                 do {
                     final EntityId entityId = it.nextId();
@@ -74,7 +74,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     protected UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final UpdatableEntityIdSortedSetCachedInstanceIterable source) {
         super(source.getTransaction(), source);
         entityTypeId = source.entityTypeId;
-        localIds = source.localIds.getClone();
+        localIds = source.localIds.clone;
         mutableLocalIds = localIds.beginWrite();
         idSet = null;
         idCollection = null;

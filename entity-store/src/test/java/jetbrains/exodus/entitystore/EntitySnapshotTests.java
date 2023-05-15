@@ -106,7 +106,7 @@ public class EntitySnapshotTests extends EntityStoreTestBase {
         config.setGcEnabled(false);
         final JobProcessor processor = new MultiThreadDelegatingJobProcessor("ConcurrentPutProcessor", 8) {
         };
-        processor.setExceptionHandler((processor1, job, t) -> logger.error("Background exception", t));
+        processor.exceptionHandler = (processor1, job, t) -> logger.error("Background exception", t);
         processor.start();
         final int count = 30000;
         for (int i = 0; i < count; ++i) {

@@ -543,9 +543,9 @@ abstract class TreeCursorDuplicatesTest : TreeBaseTest<ITree, ITreeMutable>() {
                     false
                 }
                 val p = pair[0]
-                val oldSet = p!!.getSecond()
+                val oldSet = p!!.second
                 val oldValue = oldSet.iterator().nextLong()
-                val oldKey = p.getFirst()
+                val oldKey = p.first
                 treeMutable!!.openCursor().use { cursor ->
                     if (!cursor.getSearchBoth(
                             key(oldKey),

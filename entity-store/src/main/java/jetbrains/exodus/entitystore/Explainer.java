@@ -184,16 +184,16 @@ public class Explainer {
         for (String parameter : toRemove) {
             query.remove(parameter);
         }
-        Comparator<Pair<Integer, String>> pairComparator = (p1, p2) -> p2.getFirst().compareTo(p1.getFirst());
+        Comparator<Pair<Integer, String>> pairComparator = (p1, p2) -> p2.first.compareTo(p1.first);
         Collections.sort(byType, pairComparator);
         Collections.sort(byHandle, pairComparator);
         StringBuilder advancesByType = new StringBuilder();
         for (Pair<Integer, String> pair : byType) {
-            advancesByType.append('\n').append(pair.getSecond()).append(": ").append(pair.getFirst());
+            advancesByType.append('\n').append(pair.second).append(": ").append(pair.first);
         }
         StringBuilder advancesByHandle = new StringBuilder();
         for (Pair<Integer, String> pair : byHandle) {
-            advancesByHandle.append('\n').append(pair.getFirst()).append(": ").append(pair.getSecond());
+            advancesByHandle.append('\n').append(pair.first).append(": ").append(pair.second);
         }
         query.put(CURSOR_ADVANCES_BY_TYPE, advancesByType.toString());
         query.put(CURSOR_ADVANCES_BY_HANDLE, advancesByHandle.toString());

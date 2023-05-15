@@ -123,7 +123,7 @@ public class StressTests extends EntityStoreTestBase {
         store.executeInTransaction(txn -> {
             logger.info("Test cache cancel");
 
-            for (int i = 0; i < asyncProcessor.getThreadCount(); i++) {
+            for (int i = 0; i < asyncProcessor.threadCount; i++) {
                 txn.findLinks("Issue", comments[i], "linkvalue").iterator();
             }
 
@@ -181,7 +181,7 @@ public class StressTests extends EntityStoreTestBase {
     private void warmUp(final PersistentEntityStoreImpl store, final Entity[] comments) {
         store.executeInTransaction(txn -> {
             final EntityStoreSharedAsyncProcessor asyncProcessor = store.getAsyncProcessor();
-            for (int i = 0; i < asyncProcessor.getThreadCount(); i++) {
+            for (int i = 0; i < asyncProcessor.threadCount; i++) {
                 txn.findLinks("Issue", comments[i], "linkvalue").iterator();
             }
         });

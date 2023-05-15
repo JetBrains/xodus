@@ -574,7 +574,7 @@ class BufferedDataWriter internal constructor(
                 writer.position() % log.fileLengthBound ==
                         (currentPage!!.pageAddress + currentPage!!.writtenCount) % log.fileLengthBound
             )
-            val block = result.getFirst()
+            val block = result.first
             val blockAddress = block.address
             assert(blockSetMutable != null)
             if (!blockSetMutable!!.contains(blockAddress)) {
@@ -582,7 +582,7 @@ class BufferedDataWriter internal constructor(
                 blockSetWasChanged = false
             }
             page.committedCount = page.writtenCount
-            result.getSecond().whenComplete(writeCompletionHandler)
+            result.second.whenComplete(writeCompletionHandler)
         }
     }
 

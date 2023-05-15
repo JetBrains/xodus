@@ -62,7 +62,7 @@ class AsyncFileDataWriter @JvmOverloads constructor(private val reader: FileData
     override fun write(b: ByteArray, off: Int, len: Int): Block {
         val pair = asyncWrite(b, off, len)
         try {
-            pair.getSecond().get()
+            pair.second.get()
         } catch (e: InterruptedException) {
             if (e.cause is IOException) {
                 if (lockingManager.getUsableSpace() < len) {

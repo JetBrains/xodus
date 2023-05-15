@@ -214,9 +214,9 @@ open class ReadWriteTransaction : TransactionBase {
         var expiredLoggables = ExpiredLoggableCollection.newInstance(log)
         val metaTreeMutable = metaTree!!.tree.getMutableCopy()
         for ((key, value) in removedEntries) {
-            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), key)
+            MetaTreeImpl.removeStore(metaTreeMutable, value.first, key)
             expiredLoggables =
-                expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()!!).trimToSize())
+                expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.second!!).trimToSize())
         }
         removedStores.clear()
         for ((key, value) in createdStores) {

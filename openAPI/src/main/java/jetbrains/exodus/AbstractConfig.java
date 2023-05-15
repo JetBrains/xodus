@@ -47,8 +47,8 @@ public abstract class AbstractConfig {
         listeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
         isMutable = true;
         for (final Pair<String, Object> prop : props) {
-            final String propName = prop.getFirst();
-            final Object defaultValue = prop.getSecond();
+            final String propName = prop.first;
+            final Object defaultValue = prop.second;
             final Object value;
             if (defaultValue == null) { // String is considered default property type
                 value = getString(strategy, propName, null);
