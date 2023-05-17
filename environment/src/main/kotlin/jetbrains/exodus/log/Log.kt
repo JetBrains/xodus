@@ -35,19 +35,12 @@ import java.io.Closeable
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
-import java.lang.IllegalStateException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.AtomicMoveNotSupportedException
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
-import java.util.Arrays
-import java.util.TreeMap
+import java.nio.file.*
+import java.util.*
 import java.util.concurrent.Semaphore
 import kotlin.experimental.xor
-import kotlin.text.StringBuilder
 
 class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, CacheDataProvider {
 
@@ -627,7 +620,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     private fun checkLogConsistency(blockSetMutable: BlockSet.Mutable, loadedDbRootAddress: Long): Long {
-        val blockIterator = reader.blocks.iterator()
+        var blockIterator = reader.blocks.iterator()
         if (!blockIterator.hasNext()) {
             return Long.MIN_VALUE
         }
@@ -636,10 +629,91 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             throw ExodusException("Clean log is expected")
         }
 
-        val blocks = TreeMap<Long, Block>()
-        while (blockIterator.hasNext()) {
-            val block = blockIterator.next()
-            blocks[block.address] = block
+        var blocks = TreeMap<Long, Block>()
+
+        blockLoop@ while (true) {
+            while (blockIterator.hasNext()) {
+                val block = blockIterator.next()
+                blocks[block.address] = block
+
+                if (block is FileDataReader.FileBlock && block.length() > fileLengthBound && !blockIterator.hasNext()) {
+                    logger.warn(
+                        "File ${LogUtil.getLogFilename(block.address)} is too large, " +
+                                "it will be truncated to $fileLengthBound bytes."
+                    )
+
+                    val location = Path.of(this.location)
+
+                    val nextAddress = block.address + fileLengthBound
+                    val nextBlocName = LogUtil.getLogFilename(nextAddress)
+                    val blockLength = block.length()
+
+                    val blockPath = Path.of(block.path)
+                    val blocName = block.name
+
+                    val nextBlockPath = location.resolve(nextBlocName)
+                    val delBlockPath = location.resolve(
+                        blocName.substring(0, blocName.length - LogUtil.LOG_FILE_EXTENSION_LENGTH)
+                                + AsyncFileDataWriter.DELETED_FILE_EXTENSION
+                    )
+
+                    val firstFile = Files.createTempFile(location, "split-1", ".txd")
+                    val secondFile = Files.createTempFile(location, "split-2", ".txd")
+
+                    if (!block.setWritable(true)) {
+                        logger.error("Can't set writable permission for file ${block.path}")
+                    }
+
+                    FileChannel.open(Path.of(block.path)).use { original ->
+                        FileChannel.open(firstFile, StandardOpenOption.WRITE).use {
+                            original.transferTo(0, fileLengthBound, it)
+                            it.force(true)
+                        }
+
+                        FileChannel.open(secondFile, StandardOpenOption.WRITE).use {
+                            original.transferTo(fileLengthBound, blockLength - fileLengthBound, it)
+                            it.force(true)
+                        }
+                    }
+
+                    try {
+                        Files.move(blockPath, delBlockPath, StandardCopyOption.ATOMIC_MOVE)
+                    } catch (ex: AtomicMoveNotSupportedException) {
+                        Files.move(blockPath, delBlockPath)
+                    }
+
+                    try {
+                        Files.move(
+                            firstFile, blockPath, StandardCopyOption.ATOMIC_MOVE
+                        )
+                    } catch (ex: AtomicMoveNotSupportedException) {
+                        Files.move(
+                            firstFile, blockPath
+                        )
+                    }
+
+                    try {
+                        Files.move(
+                            secondFile, nextBlockPath, StandardCopyOption.ATOMIC_MOVE
+                        )
+                    } catch (ex: AtomicMoveNotSupportedException) {
+                        Files.move(
+                            secondFile, nextBlockPath
+                        )
+                    }
+
+                    if (!firstFile.toFile().setReadOnly()) {
+                        logger.error("Error during setting of read only property for file $firstFile")
+                    }
+
+                    blockIterator = reader.blocks.iterator()
+                    blocks = TreeMap<Long, Block>()
+
+                    continue@blockLoop
+                }
+            }
+
+            break
         }
 
         logger.info("Files found in directory $location ...")
