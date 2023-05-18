@@ -72,9 +72,9 @@ public class StartupMetadata {
     private final long fileLengthBoundary;
 
     protected StartupMetadata(final boolean useFirstFile, final long rootAddress,
-                            final boolean isCorrectlyClosed, int pageSize, long currentVersion,
-                            int environmentFormatVersion,
-                            long fileLengthBoundary) {
+                              final boolean isCorrectlyClosed, int pageSize, long currentVersion,
+                              int environmentFormatVersion,
+                              long fileLengthBoundary) {
         this.useFirstFile = useFirstFile;
         this.rootAddress = rootAddress;
         this.isCorrectlyClosed = isCorrectlyClosed;
@@ -123,8 +123,7 @@ public class StartupMetadata {
         store(content, dbPath, useFirstFile);
     }
 
-    public static @Nullable StartupMetadata open(final FileDataReader reader,
-                                                 final boolean isReadOnly, final int pageSize,
+    public static @Nullable StartupMetadata open(final FileDataReader reader, final int pageSize,
                                                  final int environmentFormatVersion,
                                                  final long fileLengthBoundary,
                                                  final boolean logContainsBlocks) throws IOException {
@@ -163,11 +162,11 @@ public class StartupMetadata {
             secondFileContent = null;
         }
 
-        if (firstFileVersion < 0 && firstFileExist && !isReadOnly) {
+        if (firstFileVersion < 0 && firstFileExist) {
             Files.deleteIfExists(firstFilePath);
         }
 
-        if (secondFileVersion < 0 && secondFileExist && !isReadOnly) {
+        if (secondFileVersion < 0 && secondFileExist) {
             Files.deleteIfExists(secondFilePath);
         }
 
@@ -176,7 +175,7 @@ public class StartupMetadata {
         final boolean useFirstFile;
 
         if (firstFileVersion < secondFileVersion) {
-            if (firstFileExist && !isReadOnly) {
+            if (firstFileExist) {
                 Files.deleteIfExists(firstFilePath);
             }
 
@@ -184,7 +183,7 @@ public class StartupMetadata {
             content = secondFileContent;
             useFirstFile = true;
         } else if (secondFileVersion < firstFileVersion) {
-            if (secondFileExist && !isReadOnly) {
+            if (secondFileExist) {
                 Files.deleteIfExists(secondFilePath);
             }
 
@@ -199,7 +198,7 @@ public class StartupMetadata {
 
         if (content == null) {
             if (!logContainsBlocks) {
-                final ByteBuffer updatedMetadata = serialize(1, environmentFormatVersion, -1,
+                final ByteBuffer updatedMetadata = serialize(2, environmentFormatVersion, -1,
                         pageSize, fileLengthBoundary, false);
                 store(updatedMetadata, dbPath, useFirstFile);
             }
@@ -209,11 +208,9 @@ public class StartupMetadata {
 
         final StartupMetadata result = deserialize(content, nextVersion + 1, !useFirstFile);
 
-        if (!isReadOnly) {
-            final ByteBuffer updatedMetadata = serialize(nextVersion, result.environmentFormatVersion, -1,
-                    result.pageSize, result.fileLengthBoundary, false);
-            store(updatedMetadata, dbPath, useFirstFile);
-        }
+        final ByteBuffer updatedMetadata = serialize(nextVersion, result.environmentFormatVersion, -1,
+                result.pageSize, result.fileLengthBoundary, false);
+        store(updatedMetadata, dbPath, useFirstFile);
 
         return result;
     }

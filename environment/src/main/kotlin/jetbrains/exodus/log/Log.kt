@@ -161,7 +161,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             val logContainsBlocks = reader.blocks.iterator().hasNext()
             val metadata = if (reader is FileDataReader) {
                 StartupMetadata.open(
-                    reader, rwIsReadonly, config.cachePageSize, expectedEnvironmentVersion,
+                    reader, config.cachePageSize, expectedEnvironmentVersion,
                     fileLength, logContainsBlocks
                 )
             } else {
