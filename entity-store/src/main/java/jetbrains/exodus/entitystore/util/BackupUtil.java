@@ -146,7 +146,7 @@ public class BackupUtil {
                         int readBufferOffset = 0;
 
                         final String rootName;
-                        if (namePath .getNameCount() == 1) {
+                        if (namePath.getNameCount() == 1) {
                             rootName = "";
                         } else {
                             rootName = namePath.subpath(0, 1).toString();
@@ -165,7 +165,7 @@ public class BackupUtil {
                                 if ((entrySize & (dbMetadata.pageSize - 1)) != 0) {
                                     throw new IllegalStateException("Backup is broken, size of the file " + name +
                                             " should be quantified by " + dbMetadata.pageSize + " size of the file is "
-                                            + dbMetadata.fileLengthBound);
+                                            + entrySize);
                                 }
                             }
 
@@ -291,7 +291,7 @@ public class BackupUtil {
                             || name.endsWith("/" + StartupMetadata.SECOND_FILE_NAME)) {
 
                         final String rootName;
-                        if (namePath .getNameCount() == 1) {
+                        if (namePath.getNameCount() == 1) {
                             rootName = "";
                         } else {
                             rootName = namePath.subpath(0, 1).toString();
