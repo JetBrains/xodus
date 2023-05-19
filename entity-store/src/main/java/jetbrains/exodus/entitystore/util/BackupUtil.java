@@ -165,7 +165,7 @@ public class BackupUtil {
                                 if ((entrySize & (dbMetadata.pageSize - 1)) != 0) {
                                     throw new IllegalStateException("Backup is broken, size of the file " + name +
                                             " should be quantified by " + dbMetadata.pageSize + " size of the file is "
-                                            + dbMetadata.fileLengthBound);
+                                            + entrySize);
                                 }
                             }
 
