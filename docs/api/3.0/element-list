@@ -1,0 +1,10 @@
+jetbrains.exodus
+jetbrains.exodus.backup
+jetbrains.exodus.bindings
+jetbrains.exodus.crypto
+jetbrains.exodus.entitystore
+jetbrains.exodus.entitystore.iterate
+jetbrains.exodus.env
+jetbrains.exodus.io
+jetbrains.exodus.management
+jetbrains.exodus.util

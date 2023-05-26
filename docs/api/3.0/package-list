@@ -1,0 +1,20 @@
+$dokka.format:javadoc-v1
+$dokka.linkExtension:html
+$dokka.location:jetbrains.exodus.backup/BackupStrategy.FileDescriptor///PointingToDeclaration/jetbrains/exodus/backup/BackupStrategy.FileDescriptor.html
+$dokka.location:jetbrains.exodus.bindings/ComparableSet.Consumer///PointingToDeclaration/jetbrains/exodus/bindings/ComparableSet.Consumer.html
+$dokka.location:jetbrains.exodus/ArrayByteIterable.Iterator///PointingToDeclaration/jetbrains/exodus/ArrayByteIterable.Iterator.html
+$dokka.location:jetbrains.exodus/ConfigSettingChangeListener.Adapter///PointingToDeclaration/jetbrains/exodus/ConfigSettingChangeListener.Adapter.html
+jetbrains.exodus
+jetbrains.exodus.backup
+jetbrains.exodus.bindings
+jetbrains.exodus.crypto
+jetbrains.exodus.entitystore
+jetbrains.exodus.entitystore.iterate
+jetbrains.exodus.entitystore.replication
+jetbrains.exodus.env
+jetbrains.exodus.env.replication
+jetbrains.exodus.io
+jetbrains.exodus.log.replication
+jetbrains.exodus.management
+jetbrains.exodus.util
+
