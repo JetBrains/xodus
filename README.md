@@ -1,11 +1,9 @@
 # <a href="https://github.com/JetBrains/xodus/wiki"><img src="https://raw.githubusercontent.com/wiki/jetbrains/xodus/xodus.png" width=160></a>
 
-[![official JetBrains project](https://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jetbrains.xodus/xodus-openAPI/badge.svg)](https://search.maven.org/#search%7Cga%7C1%7Corg.jetbrains.xodus%20-dnq%20-time)
 [![Last Release](https://img.shields.io/github/release-date/jetbrains/xodus.svg?logo=github)](https://github.com/jetbrains/xodus/releases/latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 ![Pure Java + Kotlin](https://img.shields.io/badge/100%25-java%2bkotlin-orange.svg)
-[![Stack Overflow](https://img.shields.io/:stack%20overflow-xodus-brightgreen.svg)](https://stackoverflow.com/questions/tagged/xodus)
 
 JetBrains Xodus is a transactional schema-less embedded database that is written in Java and [Kotlin](https://kotlinlang.org).
 It was initially developed for [JetBrains YouTrack](https://jetbrains.com/youtrack), an issue tracking and project
@@ -39,7 +37,7 @@ dependencies {
 ```
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
 
-There are three different ways to deal with data, which results in three different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments), [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores) and [Virtual File Systems](https://github.com/JetBrains/xodus/wiki/Virtual-File-Systems).
+There are two different ways to deal with data, which results in two different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments) and [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores).
  
 ### Environments
 
@@ -65,25 +63,6 @@ try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/ho
     });
 }
 ```
-### Virtual File Systems
-
-Add dependency on `org.jetbrains.xodus:xodus-vfs:2.0.1` and `org.jetbrains.xodus:xodus-environment:2.0.1`.
-
-```java
-try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
-    final VirtualFileSystem vfs = new VirtualFileSystem(env);
-    env.executeInTransaction(txn -> {
-        final File file = vfs.createFile(txn, "Messages");
-        try (DataOutputStream output = new DataOutputStream(vfs.writeFile(txn, file))) {
-            output.writeUTF("Hello ");
-            output.writeUTF("World!");
-        } catch (IOException e) {
-            throw new ExodusException(e);
-        }
-    });
-    vfs.shutdown();
-}
-```
 
 ## Building from Source
 [Gradle](https://www.gradle.org) is used to build, test, and publish. JDK 1.8 or higher is required. To build the project, run:
@@ -102,7 +81,3 @@ exciting applications you are building, ask for help, or just chat with friends 
 ## Find out More
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
 - [Report an issue](https://youtrack.jetbrains.com/issues/XD)
-- [Stack Overflow](https://stackoverflow.com/questions/tagged/xodus)
-- [Xodus-DNQ: data definition and queries Kotlin DSL over Xodus](https://github.com/JetBrains/xodus-dnq)
-- [EntityStore browser](https://github.com/JetBrains/xodus-entity-browser)
-- [Check out the latest builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
