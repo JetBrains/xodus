@@ -53,7 +53,7 @@ try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
 ```
 ### Entity Stores
 
-Add dependency on `org.jetbrains.xodus:xodus-entity-store:2.0.1`, `org.jetbrains.xodus:xodus-environment:2.0.1` and `org.jetbrains.xodus:xodus-vfs:2.0.1`.
+Add dependency on `org.jetbrains.xodus:xodus-entity-store:2.0.1` and `org.jetbrains.xodus:xodus-environment:2.0.1` .
 
 ```java
 try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/home/me/.myAppData")) {
