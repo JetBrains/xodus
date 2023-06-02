@@ -31,6 +31,7 @@ dependencyResolutionManagement {
             version("commons-io", "2.11.0")
             version("lucene", "8.10.0")
             version("fastutil", "8.5.9")
+            version("commons-rng", "1.5")
 
             version("ksp", "1.8.21-1.0.11")
 
@@ -64,6 +65,11 @@ dependencyResolutionManagement {
             library("fastutil", "it.unimi.dsi", "fastutil").versionRef("fastutil")
 
             library("ksp-api", "com.google.devtools.ksp", "symbol-processing-api").versionRef("ksp")
+
+            library("commons-rng-simple", "org.apache.commons",
+                "commons-rng-simple").versionRef("commons-rng")
+            library("commons-rng-sampling", "org.apache.commons",
+                "commons-rng-sampling").versionRef("commons-rng")
         }
     }
 }
@@ -114,3 +120,6 @@ project(":utils-test").name = "xodus-utils-test"
 
 include("ksp-plugin")
 project(":ksp-plugin").name = "xodus-ksp-plugin"
+
+include("disk-ann")
+project(":disk-ann").name = "xodus-disk-ann"
