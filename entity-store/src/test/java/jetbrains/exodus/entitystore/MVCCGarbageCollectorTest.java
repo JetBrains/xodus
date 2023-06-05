@@ -2,13 +2,13 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
-import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
-import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
+import jetbrains.exodus.newLogConcept.garbageCollector.MVCCGarbageCollector;
+import jetbrains.exodus.newLogConcept.garbageCollector.TransactionGCEntry;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
-import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
-import jetbrains.exodus.newLogConcept.Transaction.Transaction;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.operationLog.OperationReference;
+import jetbrains.exodus.newLogConcept.transaction.Transaction;
+import jetbrains.exodus.newLogConcept.transaction.TransactionState;
 import net.jpountz.xxhash.XXHash64;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.junit.Assert;
@@ -20,7 +20,6 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_FACTORY;
-import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_SEED;
 
 
 // TODO fixme tests - rewrite tests to match the changed logic of the MVCC GC

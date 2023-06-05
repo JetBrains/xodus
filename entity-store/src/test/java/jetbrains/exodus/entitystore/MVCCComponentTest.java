@@ -3,7 +3,7 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
-import jetbrains.exodus.newLogConcept.Transaction.Transaction;
+import jetbrains.exodus.newLogConcept.transaction.Transaction;
 import org.junit.Assert;
 import org.junit.Test;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;

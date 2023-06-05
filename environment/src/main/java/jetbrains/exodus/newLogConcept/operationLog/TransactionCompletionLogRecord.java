@@ -1,6 +1,6 @@
-package jetbrains.exodus.newLogConcept.OperationLog;
+package jetbrains.exodus.newLogConcept.operationLog;
 
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.transaction.TransactionState;
 
 public class TransactionCompletionLogRecord implements OperationLogRecord {
     final boolean isRevertedFlag;

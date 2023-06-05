@@ -1,8 +1,8 @@
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
-import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.garbageCollector.MVCCGarbageCollector;
+import jetbrains.exodus.newLogConcept.garbageCollector.TransactionGCEntry;
+import jetbrains.exodus.newLogConcept.transaction.TransactionState;
 import org.junit.Assert;
 import org.junit.Test;
 

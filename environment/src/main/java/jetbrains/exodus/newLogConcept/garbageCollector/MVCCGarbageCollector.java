@@ -1,11 +1,11 @@
-package jetbrains.exodus.newLogConcept.GarbageCollector;
+package jetbrains.exodus.newLogConcept.garbageCollector;
 
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
-import jetbrains.exodus.newLogConcept.OperationLog.OperationLogRecord;
-import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
-import jetbrains.exodus.newLogConcept.OperationLog.TransactionOperationLogRecord;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.operationLog.OperationLogRecord;
+import jetbrains.exodus.newLogConcept.operationLog.OperationReference;
+import jetbrains.exodus.newLogConcept.operationLog.TransactionOperationLogRecord;
+import jetbrains.exodus.newLogConcept.transaction.TransactionState;
 import org.jctools.maps.NonBlockingHashMapLong;
 
 import java.util.Iterator;

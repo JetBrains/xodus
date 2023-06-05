@@ -1,6 +1,6 @@
-package jetbrains.exodus.newLogConcept.Transaction;
+package jetbrains.exodus.newLogConcept.transaction;
 
-import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
+import jetbrains.exodus.newLogConcept.operationLog.OperationReference;
 
 import java.util.ArrayList;
 

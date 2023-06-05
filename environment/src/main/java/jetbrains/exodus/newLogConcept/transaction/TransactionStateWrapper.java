@@ -1,8 +1,6 @@
-package jetbrains.exodus.newLogConcept.Transaction;
+package jetbrains.exodus.newLogConcept.transaction;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 
 public class TransactionStateWrapper {

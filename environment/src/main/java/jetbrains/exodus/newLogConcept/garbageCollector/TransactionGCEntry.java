@@ -1,4 +1,4 @@
-package jetbrains.exodus.newLogConcept.GarbageCollector;
+package jetbrains.exodus.newLogConcept.garbageCollector;
 
 public class TransactionGCEntry {
 

@@ -1,14 +1,9 @@
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
-import jetbrains.exodus.newLogConcept.GarbageCollector.OperationLogGarbageCollector;
-import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
+import jetbrains.exodus.newLogConcept.garbageCollector.OperationLogGarbageCollector;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
-import jetbrains.exodus.newLogConcept.OperationLog.OperationLogRecord;
-import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
-import jetbrains.exodus.newLogConcept.OperationLog.TransactionOperationLogRecord;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.operationLog.OperationLogRecord;
+import jetbrains.exodus.newLogConcept.operationLog.OperationReference;
 import net.jpountz.xxhash.XXHash64;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.junit.Assert;
@@ -20,7 +15,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_FACTORY;
-import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_SEED;
 
 public class OperationLogGCTest {
     private static final AtomicLong address = new AtomicLong(1);

@@ -4,8 +4,8 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
-import jetbrains.exodus.newLogConcept.Transaction.Transaction;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.transaction.Transaction;
+import jetbrains.exodus.newLogConcept.transaction.TransactionState;
 import org.junit.Assert;
 import org.junit.Test;
 

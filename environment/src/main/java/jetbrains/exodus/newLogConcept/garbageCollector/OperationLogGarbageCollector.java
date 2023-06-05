@@ -1,14 +1,16 @@
-package jetbrains.exodus.newLogConcept.GarbageCollector;
+package jetbrains.exodus.newLogConcept.garbageCollector;
 
+import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
-import jetbrains.exodus.newLogConcept.OperationLog.*;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.operationLog.*;
+import jetbrains.exodus.newLogConcept.transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.tree.TreeEntry;
 import net.jpountz.xxhash.XXHash64;
 import org.jctools.maps.NonBlockingHashMapLong;
 
-import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_FACTORY;
 import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_SEED;
@@ -16,7 +18,8 @@ import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_SEED;
 public class OperationLogGarbageCollector {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
 
-    public HashSet<Long> veryMockBTree;
+    public ConcurrentSkipListSet<TreeEntry> tree = new ConcurrentSkipListSet<>();
+
     public long findAllCommittedAndAbortedAndGetMaxId(Map<Long, OperationLogRecord> operationLog,
                                                       NonBlockingHashMapLong<SpecialRecordData> committedAndAbortedRecordsMap) {
         long lastCommittedAbortedId = -1L;
@@ -72,9 +75,8 @@ public class OperationLogGarbageCollector {
         }
     }
 
-    private void moveToBTree(long txId) {
-        // todo not yet implemented, very mock adding
-        veryMockBTree.add(txId);
+    private void moveToTree(ByteIterable key, ByteIterable value) {
+        tree.add(new TreeEntry(key, value));
     }
 
     private void logRemove(Map<Long, OperationLogRecord> operationLog, long keyOperationRecord, long keySpecialRecord) {
@@ -88,7 +90,10 @@ public class OperationLogGarbageCollector {
                                        Map<Long, OperationLogRecord> operationLog) {
         var lastCommittedTxId = lastCommitted.getTxId();
         if (lastCommitted.getTxId() == targetTxId) {
-            moveToBTree(targetTxId);
+
+            // todo where to get value from? should be key-value pair for the operation in ByteIterable format
+            moveToTree(operationRecord.getKey(), operationRecord.getValue());
+
             logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);
         } else if (lastCommittedTxId > targetTxId) {
             logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);

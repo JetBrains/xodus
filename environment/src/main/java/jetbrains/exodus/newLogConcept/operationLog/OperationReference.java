@@ -1,7 +1,7 @@
-package jetbrains.exodus.newLogConcept.OperationLog;
+package jetbrains.exodus.newLogConcept.operationLog;
 
 
-import jetbrains.exodus.newLogConcept.Transaction.TransactionStateWrapper;
+import jetbrains.exodus.newLogConcept.transaction.TransactionStateWrapper;
 
 public class OperationReference {
     final long operationAddress; // not an array as we have multiple entries of OperationsLinksEntry in queue with same txId

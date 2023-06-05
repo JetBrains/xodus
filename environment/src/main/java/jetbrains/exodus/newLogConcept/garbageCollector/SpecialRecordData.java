@@ -1,6 +1,6 @@
-package jetbrains.exodus.newLogConcept.GarbageCollector;
+package jetbrains.exodus.newLogConcept.garbageCollector;
 
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.transaction.TransactionState;
 
 public class SpecialRecordData {
     TransactionState state;

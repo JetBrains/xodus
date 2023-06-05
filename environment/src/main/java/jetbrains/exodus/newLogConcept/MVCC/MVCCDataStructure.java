@@ -2,17 +2,18 @@ package jetbrains.exodus.newLogConcept.MVCC;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
-import jetbrains.exodus.newLogConcept.GarbageCollector.MVCCGarbageCollector;
-import jetbrains.exodus.newLogConcept.GarbageCollector.OperationLogGarbageCollector;
-import jetbrains.exodus.newLogConcept.GarbageCollector.TransactionGCEntry;
-import jetbrains.exodus.newLogConcept.OperationLog.OperationLogRecord;
-import jetbrains.exodus.newLogConcept.OperationLog.OperationReference;
-import jetbrains.exodus.newLogConcept.OperationLog.TransactionCompletionLogRecord;
-import jetbrains.exodus.newLogConcept.OperationLog.TransactionOperationLogRecord;
-import jetbrains.exodus.newLogConcept.Transaction.Transaction;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionState;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionStateWrapper;
-import jetbrains.exodus.newLogConcept.Transaction.TransactionType;
+import jetbrains.exodus.newLogConcept.garbageCollector.MVCCGarbageCollector;
+import jetbrains.exodus.newLogConcept.garbageCollector.OperationLogGarbageCollector;
+import jetbrains.exodus.newLogConcept.garbageCollector.TransactionGCEntry;
+import jetbrains.exodus.newLogConcept.operationLog.OperationLogRecord;
+import jetbrains.exodus.newLogConcept.operationLog.OperationReference;
+import jetbrains.exodus.newLogConcept.operationLog.TransactionCompletionLogRecord;
+import jetbrains.exodus.newLogConcept.operationLog.TransactionOperationLogRecord;
+import jetbrains.exodus.newLogConcept.transaction.Transaction;
+import jetbrains.exodus.newLogConcept.transaction.TransactionState;
+import jetbrains.exodus.newLogConcept.transaction.TransactionStateWrapper;
+import jetbrains.exodus.newLogConcept.transaction.TransactionType;
+import jetbrains.exodus.newLogConcept.tree.Tree;
 import org.jctools.maps.NonBlockingHashMapLong;
 import net.jpountz.xxhash.XXHash64;
 
@@ -29,6 +30,8 @@ public class MVCCDataStructure {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     private final NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
     private static final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
+
+    private static final Tree tree = new Tree();
 
     public final ConcurrentSkipListMap<Long, TransactionGCEntry> transactionsGCMap = new ConcurrentSkipListMap<>();
 
@@ -64,12 +67,6 @@ public class MVCCDataStructure {
             return new MVCCRecord(new AtomicLong(0), new ConcurrentLinkedQueue<>());
         }
     };
-
-
-    private ByteIterable searchInBTree(ByteIterable key) {
-        // mock method for the search of the operation in B-tree
-        return null;
-    }
 
     // mock method for testing purposes
 //    void doSomething() {
@@ -158,7 +155,7 @@ public class MVCCDataStructure {
         }
 
         if (targetEntry == null) {
-            return searchInBTree(key); // b-tree
+            return tree.searchInTree(key); // should be b-tree, for now just tree
         }
 
         TransactionOperationLogRecord targetOperationInLog =
@@ -191,8 +188,7 @@ public class MVCCDataStructure {
                 }
             }
         }
-        // potentially we can use ArrayList
-        return searchInBTree(key);
+        return tree.searchInTree(key);
     }
 
     private void waitAndAddLinkEntry(OperationReference linkEntry,
