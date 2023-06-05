@@ -90,10 +90,11 @@ public class OperationLogGarbageCollector {
                                        Map<Long, OperationLogRecord> operationLog) {
         var lastCommittedTxId = lastCommitted.getTxId();
         if (lastCommitted.getTxId() == targetTxId) {
-
-            // todo where to get value from? should be key-value pair for the operation in ByteIterable format
-            moveToTree(operationRecord.getKey(), operationRecord.getValue());
-
+            // attention: do not move special records to the tree, this method is called for the operation
+            // records only, therefore we can cast type here
+            ByteIterable value = ((TransactionOperationLogRecord) operationRecord).value;
+            ByteIterable key = ((TransactionOperationLogRecord) operationRecord).key;
+            moveToTree(key, value);
             logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);
         } else if (lastCommittedTxId > targetTxId) {
             logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);
