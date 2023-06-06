@@ -193,6 +193,7 @@ public class MVCCComponentTest {
             });
             thDelete1.get();
 
+
             // check again that the record is null after the commit after thread end
             var thDelete2 = service.submit(() -> {
                 try {
