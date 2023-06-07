@@ -339,6 +339,18 @@ public interface StoreTransaction {
     EntityIterable findWithProp(@NotNull final String entityType, @NotNull final String propertyName);
 
     /**
+     * Returns {@linkplain EntityIterable} with entities of specified type which have not-null property values with
+     * specified name and sorted by value in ascending order. If you wish to sort by value in descending order, use
+     * {@linkplain EntityIterable#reverse()} method.
+     *
+     * @param entityType   entity type
+     * @param propertyName property name
+     * @return {@linkplain EntityIterable} instance
+     * @see EntityIterable
+     */
+    EntityIterable findWithPropSortedByValue(@NotNull final String entityType, @NotNull final String propertyName);
+
+    /**
      * Returns {@linkplain EntityIterable} with entities of specified type which have not-null blob values with
      * specified name.
      *

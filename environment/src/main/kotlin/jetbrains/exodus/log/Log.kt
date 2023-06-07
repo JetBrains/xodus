@@ -393,11 +393,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
 
             if (checkDataConsistency) {
-                logger.warn(
-                    "Environment located at $location has been closed incorrectly. " +
-                            "Data check routine is started to assess data consistency ..."
-                )
-
                 blockSetMutable = BlockSet.Immutable(fileLength).beginWrite()
                 logWasChanged = checkLogConsistencyAndUpdateRootAddress(blockSetMutable)
 
@@ -861,6 +856,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
             } while (hasNext)
         } catch (exception: Exception) {
+            logger.error("Error during verification of database $location", exception)
+
             SharedOpenFilesCache.invalidate()
 
             try {

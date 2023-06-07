@@ -288,7 +288,8 @@ class SortTests : EntityStoreTestBase() {
         issue.setProperty("created", System.currentTimeMillis())
         issue.setProperty("deleted", true)
         txn.flush()
-        val sortedByCreated = txn.sort("Issue", "created", txn.find("Issue", "deleted", true), true) as EntityIterableBase
+        val sortedByCreated =
+            txn.sort("Issue", "created", txn.find("Issue", "deleted", true), true) as EntityIterableBase
         for (i in 0..9999999) {
             Assert.assertTrue(sortedByCreated.iterator().hasNext())
             Thread.yield()
@@ -312,8 +313,10 @@ class SortTests : EntityStoreTestBase() {
         for (i in 0 until count) {
             val issue = txn.newEntity("Issue")
             issue.setProperty("body", (i / 1000).toString())
+
             if (i % 500 == 0) {
                 issue.setProperty("hasComment", true)
+                issue.setProperty("value", i)
             }
         }
         txn.flush()
@@ -325,6 +328,15 @@ class SortTests : EntityStoreTestBase() {
         Assert.assertEquals("0", sorted.first?.getProperty("body"))
         Assert.assertEquals("0", txn.sort("Issue", "no prop", sorted, true).first?.getProperty("body"))
         println("Sorting took " + (System.currentTimeMillis() - start))
+
+        val sortedValues = txn.findWithPropSortedByValue("Issue", "value")
+
+        Assert.assertEquals(0, sortedValues.first!!.getProperty("value"))
+        Assert.assertEquals(49500, sortedValues.last!!.getProperty("value"))
+
+        val sortedNoProp = txn.findWithPropSortedByValue("Issue", "no prop")
+        Assert.assertNull(sortedNoProp.first)
+        Assert.assertNull(sortedNoProp.last)
     }
 
     @TestFor(issue = "XD-670")
@@ -342,6 +354,7 @@ class SortTests : EntityStoreTestBase() {
             issue.setProperty("body", i / 5000)
             if (i % 5000 == 0) {
                 issue.setProperty("hasComment", true)
+                issue.setProperty("value", i)
             }
         }
         txn.flush()
@@ -356,6 +369,15 @@ class SortTests : EntityStoreTestBase() {
         sorted = txn.sort("Issue", "body", unsorted, false)
         Assert.assertNotNull(sorted.first?.getProperty("body"))
         println("Sorting took " + (System.currentTimeMillis() - start))
+
+        val sortedValues = txn.findWithPropSortedByValue("Issue", "value")
+
+        Assert.assertEquals(0, sortedValues.first!!.getProperty("value"))
+        Assert.assertEquals(45000, sortedValues.last!!.getProperty("value"))
+
+        val sortedNoProp = txn.findWithPropSortedByValue("Issue", "no prop")
+        Assert.assertNull(sortedNoProp.first)
+        Assert.assertNull(sortedNoProp.last)
     }
 
     @TestFor(issues = ["XD-670, XD-736"])
