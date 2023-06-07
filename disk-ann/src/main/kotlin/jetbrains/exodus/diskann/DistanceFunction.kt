@@ -1,7 +1,5 @@
 package jetbrains.exodus.diskann
 
-import java.awt.Frame
-
 internal interface DistanceFunction {
     fun computeDistance(firstVector: FloatArray, secondVector: FloatArray): Double
 

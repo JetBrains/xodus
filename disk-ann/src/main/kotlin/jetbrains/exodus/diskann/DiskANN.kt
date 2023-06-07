@@ -27,21 +27,25 @@ internal class DiskANN(
     /**
      * Size of vertex record in bytes.
      *
-     * 1. Graph size, every page of the graph contains the same value.
-     * 2. Vector data (4 bytes * vectorDim)
-     * 3. Vector id (4 bytes)
-     * 4. Real amount of edges (1 byte)
-     * 5. Edges to other vertices (4 bytes * maxConnectionsPerVertex)
+     * 1. Vector data (4 bytes * vectorDim)
+     * 2. Vector id (4 bytes)
+     * 3. Real amount of edges (1 byte)
+     * 4. Edges to other vertices (4 bytes * maxConnectionsPerVertex)
      */
-    private val vertexRecordSize = Float.SIZE_BYTES * vectorDim + Long.SIZE_BYTES * (maxConnectionsPerVertex + 2) + 1
+    private val vertexRecordSize = Float.SIZE_BYTES * vectorDim + Long.SIZE_BYTES * (maxConnectionsPerVertex + 1) + 1
 
-    private val pageSize: Int = if (vertexRecordSize > PAGE_SIZE_MULTIPLIER) {
-        ((vertexRecordSize + PAGE_SIZE_MULTIPLIER - 1) / PAGE_SIZE_MULTIPLIER) * PAGE_SIZE_MULTIPLIER
+    /**
+     * During calculation of the amount of vertices per page we need to take into account that first byte of
+     * each page contains amount of vertices in the index.
+     */
+    private val pageSize: Int = if (vertexRecordSize > PAGE_SIZE_MULTIPLIER - 1) {
+        ((vertexRecordSize + PAGE_SIZE_MULTIPLIER - 1 - Long.SIZE_BYTES) /
+                (PAGE_SIZE_MULTIPLIER - Long.SIZE_BYTES)) * PAGE_SIZE_MULTIPLIER
     } else {
         PAGE_SIZE_MULTIPLIER
     }
 
-    private val verticesPerPage: Int = pageSize / vertexRecordSize
+    private val verticesPerPage: Int = (pageSize - Long.SIZE_BYTES) / vertexRecordSize
     private var diskGraph: Graph? = null
 
     private fun greedySearch(
@@ -65,6 +69,7 @@ internal class DiskANN(
         while (nearestCandidates.isNotEmpty()) {
             val minVertex = nearestCandidates.pollFirst()!!
             visitedVertexIndices.add(minVertex.index)
+            visitedVertices.add(minVertex)
 
             val vertexNeighbours = graph.fetchNeighbours(minVertex.index)
             for (vertexIndex in vertexNeighbours) {
@@ -87,8 +92,11 @@ internal class DiskANN(
         val nearestCandidateIterator = nearestCandidates.iterator()
         visitedVertices.sort()
 
+        val commonSize = min(nearestCandidates.size, visitedVertices.size)
+
         var visitedIndex = 0
-        for (i in 0 until resultSize) {
+        var currentSize = 0
+        for (i in 0 until commonSize) {
             val nearestCandidate = nearestCandidateIterator.next()
             val visitedVertex = visitedVertices[visitedIndex]
 
@@ -98,7 +106,23 @@ internal class DiskANN(
                 nearestVertices[i] = visitedVertex.index
                 visitedIndex++
             }
+
+            currentSize++
         }
+
+        if (currentSize < resultSize) {
+            if (visitedIndex < visitedVertices.size) {
+                for (i in currentSize until nearestVertices.size) {
+                    nearestVertices[i] = visitedVertices[visitedIndex].index
+                    visitedIndex++
+                }
+            } else {
+                for (i in currentSize until nearestVertices.size) {
+                    nearestVertices[i] = nearestCandidateIterator.next().index
+                }
+            }
+        }
+
 
         return Pair(nearestVertices, visitedVertexIndices)
     }
@@ -172,6 +196,7 @@ internal class DiskANN(
         graph.saveToDisk()
 
         diskGraph = DiskGraph(medoid)
+        verticesSize = size
     }
 
     fun nearest(vector: FloatArray, resultSize: Int): LongArray {
@@ -275,19 +300,30 @@ internal class DiskANN(
 
         fun generateRandomEdges() {
             val rnd = ThreadLocalRandom.current()
+            if (size == 1) {
+                return
+            }
 
             for (i in 0 until size) {
                 var edgesOffset = i * (maxConnectionsPerVertex + 1)
 
                 edges[edgesOffset] = maxConnectionsPerVertex.toLong()
-                for (j in 0 until maxConnectionsPerVertex) {
-                    var randomIndex = rnd.nextInt(size)
 
-                    if (randomIndex == i) {
+                val maxEdges = min(size - 1, maxConnectionsPerVertex)
+                val visited = LongOpenHashSet(maxEdges)
+
+                var addedEdges = 0
+                while (addedEdges < maxEdges) {
+                    var randomIndex = rnd.nextInt(size).toLong()
+
+                    if (randomIndex == i.toLong()) {
                         randomIndex = (randomIndex + 1) % size
                     }
 
-                    edges[++edgesOffset] = randomIndex.toLong()
+                    if (visited.add(randomIndex)) {
+                        edges[++edgesOffset] = randomIndex
+                        addedEdges++
+                    }
                 }
             }
         }
@@ -365,10 +401,11 @@ internal class DiskANN(
 
             var edgesOffset = 0
             var vectorsOffset = 0
+            var pageIndex = 0
 
             while (wittenVertices < size) {
                 val page = ByteArray(pageSize)
-                LONG_VIEW_VAR_HANDLE.set(page, size)
+                LONG_VIEW_VAR_HANDLE.set(page, 0, size)
 
                 val verticesToWrite = minOf(verticesPerPage, size - wittenVertices)
                 var dataOffset = Long.SIZE_BYTES
@@ -389,6 +426,7 @@ internal class DiskANN(
                 }
 
                 wittenVertices += verticesToWrite
+                graphPages[(pageIndex++).toLong()] = page
             }
         }
     }
@@ -404,9 +442,9 @@ internal class DiskANN(
             }
 
             val vertexPageIndex = vertexIndex / verticesPerPage
-            val vertexPage = graphPages[vertexPageIndex]
-            val vertexOffset = (vertexPageIndex % verticesPerPage).toInt() * vertexRecordSize
+            val vertexOffset = (vertexPageIndex % verticesPerPage).toInt() * vertexRecordSize + Long.SIZE_BYTES
 
+            val vertexPage = graphPages[vertexPageIndex]
             return LONG_VIEW_VAR_HANDLE.get(vertexPage, vertexOffset + vectorDim * Float.SIZE_BYTES) as Long
         }
 
@@ -417,15 +455,17 @@ internal class DiskANN(
 
             val vertexPageIndex = vertexIndex / verticesPerPage
             val vertexPage = graphPages[vertexPageIndex]
-            val vertexOffset = (vertexPageIndex % verticesPerPage).toInt() * vertexRecordSize
+            val vertexOffset = (vertexPageIndex % verticesPerPage).toInt() * vertexRecordSize + Long.SIZE_BYTES
 
             return fetchVectorData(vertexPage, vertexOffset)
         }
 
         private fun fetchVectorData(page: ByteArray, offset: Int): FloatArray {
             val vectorData = FloatArray(vectorDim)
+
             for (i in 0 until vectorDim) {
-                vectorData[i] = FLOAT_VIEW_VAR_HANDLE.get(page, offset + i * Float.SIZE_BYTES) as Float
+                vectorData[i] =
+                    FLOAT_VIEW_VAR_HANDLE.get(page, offset + i * Float.SIZE_BYTES) as Float
             }
 
             return vectorData
@@ -441,7 +481,7 @@ internal class DiskANN(
 
             val vertexOffset =
                 (vertexPageIndex % verticesPerPage).toInt() * vertexRecordSize +
-                        vectorDim * Float.SIZE_BYTES + Long.SIZE_BYTES + 1
+                        vectorDim * Float.SIZE_BYTES + Long.SIZE_BYTES + 1 + Long.SIZE_BYTES
 
 
             val neighboursSize = vertexPage[vertexOffset - 1].toInt()
