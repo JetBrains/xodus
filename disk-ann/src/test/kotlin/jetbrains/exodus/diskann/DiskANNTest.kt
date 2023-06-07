@@ -7,8 +7,8 @@ import kotlin.random.Random
 class DiskANNTest : TestCase() {
     fun testFindLoadedVertices() {
         val vectorDimensions = 8
-        for (i in 0 until 2) {
-            val seed =  System.nanoTime()
+        for (i in 0 until 3) {
+            val seed =  80692764524400L//System.nanoTime()
             println("Seed : $seed , i : $i")
 
             val rnd = Random(seed)

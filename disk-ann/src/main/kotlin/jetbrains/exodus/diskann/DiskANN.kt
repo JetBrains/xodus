@@ -315,7 +315,7 @@ internal class DiskANN(
                     val randomIndex = shuffledIndexes[shuffleIndex].toLong()
                     shuffleIndex++
 
-                    if (shuffleIndex == size && i < size - 1) {
+                    if (shuffleIndex == size) {
                         PermutationSampler.shuffle(rng, shuffledIndexes)
                         shuffleIndex = 0
                     } else if (randomIndex == i.toLong()) {
