@@ -7,15 +7,14 @@ import kotlin.random.Random
 class DiskANNTest : TestCase() {
     fun testFindLoadedVertices() {
         val vectorDimensions = 8
-        val diskANN = DiskANN(vectorDimensions, L2Distance())
-
-        for (i in 0 until 1) {
-            val seed = System.nanoTime()
+        for (i in 0 until 2) {
+            val seed =  System.nanoTime()
             println("Seed : $seed , i : $i")
 
             val rnd = Random(seed)
             val vectors = Array(i + 1) { FloatArray(vectorDimensions) { rnd.nextFloat() } }
 
+            val diskANN = DiskANN(vectorDimensions, L2Distance())
             diskANN.buildIndex(ArrayVectorReader(vectors))
             for (j in 0..i) {
                 val vector = vectors[j]

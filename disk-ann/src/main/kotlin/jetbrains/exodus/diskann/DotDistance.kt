@@ -15,11 +15,12 @@ internal class DotDistance : DistanceFunction {
         firstVector: FloatArray,
         firstVectorFrom: Int,
         secondVector: FloatArray,
-        secondVectorFrom: Int
+        secondVectorFrom: Int,
+        size: Int
     ): Double {
         var distance = 0.0
 
-        for (i in firstVectorFrom until firstVector.size) {
+        for (i in firstVectorFrom until firstVectorFrom + size) {
             distance += firstVector[i] * secondVector[i - firstVectorFrom + secondVectorFrom]
         }
 

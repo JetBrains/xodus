@@ -10,7 +10,6 @@ import java.lang.invoke.MethodHandles
 import java.lang.invoke.VarHandle
 import java.nio.ByteOrder
 import java.util.*
-import java.util.concurrent.ThreadLocalRandom
 import kotlin.math.min
 
 const val PAGE_SIZE_MULTIPLIER = 4 * 1024
@@ -54,7 +53,7 @@ internal class DiskANN(
         queryVertex: FloatArray,
         maxResultSize: Int
     ): Pair<LongArray, LongOpenHashSet> {
-        val nearestCandidates = TreeSet<GreedyVertex>()
+        val nearestCandidates = PriorityQueue<GreedyVertex>()
 
         val visitedVertexIndices = LongOpenHashSet(maxAmountOfCandidates)
         val visitedVertices = ArrayList<GreedyVertex>(maxAmountOfCandidates)
@@ -67,7 +66,7 @@ internal class DiskANN(
 
         nearestCandidates.add(startVertex)
         while (nearestCandidates.isNotEmpty()) {
-            val minVertex = nearestCandidates.pollFirst()!!
+            val minVertex = nearestCandidates.poll()
             visitedVertexIndices.add(minVertex.index)
             visitedVertices.add(minVertex)
 
@@ -82,14 +81,11 @@ internal class DiskANN(
                     GreedyVertex(vertexIndex, distanceFunction.computeDistance(queryVertex, vertexVector))
                 nearestCandidates.add(vertex)
             }
-
-            break
         }
 
         val resultSize = min(maxResultSize, nearestCandidates.size + visitedVertexIndices.size)
         val nearestVertices = LongArray(resultSize)
 
-        val nearestCandidateIterator = nearestCandidates.iterator()
         visitedVertices.sort()
 
         val commonSize = min(nearestCandidates.size, visitedVertices.size)
@@ -97,11 +93,12 @@ internal class DiskANN(
         var visitedIndex = 0
         var currentSize = 0
         for (i in 0 until commonSize) {
-            val nearestCandidate = nearestCandidateIterator.next()
+            val nearestCandidate = nearestCandidates.peek()
             val visitedVertex = visitedVertices[visitedIndex]
 
             if (nearestCandidate.distance < visitedVertex.distance) {
                 nearestVertices[i] = nearestCandidate.index
+                nearestCandidates.poll()
             } else {
                 nearestVertices[i] = visitedVertex.index
                 visitedIndex++
@@ -118,7 +115,7 @@ internal class DiskANN(
                 }
             } else {
                 for (i in currentSize until nearestVertices.size) {
-                    nearestVertices[i] = nearestCandidateIterator.next().index
+                    nearestVertices[i] = nearestCandidates.poll().index
                 }
             }
         }
@@ -299,31 +296,34 @@ internal class DiskANN(
         }
 
         fun generateRandomEdges() {
-            val rnd = ThreadLocalRandom.current()
             if (size == 1) {
                 return
             }
 
+            val rng = RandomSource.XO_RO_SHI_RO_128_PP.create()
+            val shuffledIndexes = PermutationSampler.natural(size)
+            PermutationSampler.shuffle(rng, shuffledIndexes)
+
+            val maxEdges = min(size - 1, maxConnectionsPerVertex)
+            var shuffleIndex = 0
             for (i in 0 until size) {
                 var edgesOffset = i * (maxConnectionsPerVertex + 1)
-
-                edges[edgesOffset] = maxConnectionsPerVertex.toLong()
-
-                val maxEdges = min(size - 1, maxConnectionsPerVertex)
-                val visited = LongOpenHashSet(maxEdges)
+                edges[edgesOffset] = maxEdges.toLong()
 
                 var addedEdges = 0
                 while (addedEdges < maxEdges) {
-                    var randomIndex = rnd.nextInt(size).toLong()
+                    val randomIndex = shuffledIndexes[shuffleIndex].toLong()
+                    shuffleIndex++
 
-                    if (randomIndex == i.toLong()) {
-                        randomIndex = (randomIndex + 1) % size
+                    if (shuffleIndex == size && i < size - 1) {
+                        PermutationSampler.shuffle(rng, shuffledIndexes)
+                        shuffleIndex = 0
+                    } else if (randomIndex == i.toLong()) {
+                        continue
                     }
 
-                    if (visited.add(randomIndex)) {
-                        edges[++edgesOffset] = randomIndex
-                        addedEdges++
-                    }
+                    edges[++edgesOffset] = randomIndex
+                    addedEdges++
                 }
             }
         }
@@ -361,7 +361,10 @@ internal class DiskANN(
                 var distanceSum = 0.0
                 for (i in 0 until size) {
                     val vectorOffset = i * vectorDim
-                    val distance = distanceFunction.computeDistance(vectors, medoidOffset, vectors, vectorOffset)
+                    val distance = distanceFunction.computeDistance(
+                        vectors, medoidOffset, vectors, vectorOffset,
+                        vectorDim
+                    )
                     val weightedDistance = distance * distance
 
                     distanceSum += weightedDistance
@@ -399,7 +402,6 @@ internal class DiskANN(
 
             var wittenVertices = 0
 
-            var edgesOffset = 0
             var vectorsOffset = 0
             var pageIndex = 0
 
@@ -408,25 +410,36 @@ internal class DiskANN(
                 LONG_VIEW_VAR_HANDLE.set(page, 0, size)
 
                 val verticesToWrite = minOf(verticesPerPage, size - wittenVertices)
-                var dataOffset = Long.SIZE_BYTES
+
 
                 for (i in 0 until verticesToWrite) {
+                    var edgesOffset = wittenVertices * (maxConnectionsPerVertex + 1)
+                    var dataOffset = Long.SIZE_BYTES + i * vertexRecordSize
+
                     for (j in 0 until vectorDim) {
-                        FLOAT_VIEW_VAR_HANDLE.set(page, dataOffset, vectors[vectorsOffset++])
+                        FLOAT_VIEW_VAR_HANDLE.set(page, dataOffset, vectors[vectorsOffset])
+                        vectorsOffset++
                         dataOffset += Float.SIZE_BYTES
                     }
 
-                    val edgesSize = edges[edgesOffset++]
+                    LONG_VIEW_VAR_HANDLE.set(page, dataOffset, ids[wittenVertices])
+                    dataOffset += Long.SIZE_BYTES
+
+                    val edgesSize = edges[edgesOffset]
+                    edgesOffset++
                     page[dataOffset++] = edgesSize.toByte()
 
                     for (j in 0 until edgesSize) {
-                        LONG_VIEW_VAR_HANDLE.set(page, dataOffset, edges[edgesOffset++])
+                        LONG_VIEW_VAR_HANDLE.set(page, dataOffset, edges[edgesOffset])
+                        edgesOffset++
                         dataOffset += Long.SIZE_BYTES
                     }
+
+                    wittenVertices++
                 }
 
-                wittenVertices += verticesToWrite
-                graphPages[(pageIndex++).toLong()] = page
+                graphPages[pageIndex.toLong()] = page
+                pageIndex++
             }
         }
     }
@@ -442,7 +455,7 @@ internal class DiskANN(
             }
 
             val vertexPageIndex = vertexIndex / verticesPerPage
-            val vertexOffset = (vertexPageIndex % verticesPerPage).toInt() * vertexRecordSize + Long.SIZE_BYTES
+            val vertexOffset = (vertexIndex % verticesPerPage).toInt() * vertexRecordSize + Long.SIZE_BYTES
 
             val vertexPage = graphPages[vertexPageIndex]
             return LONG_VIEW_VAR_HANDLE.get(vertexPage, vertexOffset + vectorDim * Float.SIZE_BYTES) as Long
@@ -455,7 +468,7 @@ internal class DiskANN(
 
             val vertexPageIndex = vertexIndex / verticesPerPage
             val vertexPage = graphPages[vertexPageIndex]
-            val vertexOffset = (vertexPageIndex % verticesPerPage).toInt() * vertexRecordSize + Long.SIZE_BYTES
+            val vertexOffset = (vertexIndex % verticesPerPage).toInt() * vertexRecordSize + Long.SIZE_BYTES
 
             return fetchVectorData(vertexPage, vertexOffset)
         }
@@ -480,7 +493,7 @@ internal class DiskANN(
             val vertexPage = graphPages[vertexPageIndex]
 
             val vertexOffset =
-                (vertexPageIndex % verticesPerPage).toInt() * vertexRecordSize +
+                (vertexIndex % verticesPerPage).toInt() * vertexRecordSize +
                         vectorDim * Float.SIZE_BYTES + Long.SIZE_BYTES + 1 + Long.SIZE_BYTES
 
 

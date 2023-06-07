@@ -16,11 +16,12 @@ internal class L2Distance : DistanceFunction {
         firstVector: FloatArray,
         firstVectorFrom: Int,
         secondVector: FloatArray,
-        secondVectorFrom: Int
+        secondVectorFrom: Int,
+        size: Int
     ): Double {
         var distance = 0.0
 
-        for (i in firstVectorFrom until firstVector.size) {
+        for (i in firstVectorFrom until firstVectorFrom + size) {
             val diff = firstVector[i] - secondVector[i - firstVectorFrom + secondVectorFrom]
             distance += diff * diff
         }
