@@ -18,7 +18,6 @@ internal class DiskANN(
     private val vectorDim: Int, private val distanceFunction: DistanceFunction,
     private val distanceMultiplication: Float = 2.0f, private val maxConnectionsPerVertex: Int = 70,
     private val maxAmountOfCandidates: Int = 125,
-    private val kMeansIterationThreshold: Int = 1_000
 ) {
     private var verticesSize: Long = 0
     private val graphPages: Long2ObjectOpenHashMap<ByteArray> = Long2ObjectOpenHashMap()
@@ -53,10 +52,9 @@ internal class DiskANN(
         queryVertex: FloatArray,
         maxResultSize: Int
     ): Pair<LongArray, LongOpenHashSet> {
-        val nearestCandidates = PriorityQueue<GreedyVertex>()
+        val nearestCandidates = TreeSet<GreedyVertex>()
 
         val visitedVertexIndices = LongOpenHashSet(maxAmountOfCandidates)
-        val visitedVertices = ArrayList<GreedyVertex>(maxAmountOfCandidates)
 
         val startVector = graph.fetchVector(startVertexIndex)
 
@@ -65,10 +63,24 @@ internal class DiskANN(
         )
 
         nearestCandidates.add(startVertex)
-        while (nearestCandidates.isNotEmpty()) {
-            val minVertex = nearestCandidates.poll()
-            visitedVertexIndices.add(minVertex.index)
-            visitedVertices.add(minVertex)
+        var candidatesToVisit = 1
+
+        while (candidatesToVisit > 0) {
+            val minVertexIterator = nearestCandidates.iterator()
+
+            var minVertex: GreedyVertex? = null
+
+            while (minVertexIterator.hasNext()) {
+                minVertex = minVertexIterator.next()
+                if(!minVertex.visited) {
+                    break
+                }
+            }
+
+            visitedVertexIndices.add(minVertex!!.index)
+
+            minVertex.visited = true
+            candidatesToVisit--
 
             val vertexNeighbours = graph.fetchNeighbours(minVertex.index)
             for (vertexIndex in vertexNeighbours) {
@@ -80,46 +92,27 @@ internal class DiskANN(
                 val vertex =
                     GreedyVertex(vertexIndex, distanceFunction.computeDistance(queryVertex, vertexVector))
                 nearestCandidates.add(vertex)
+                candidatesToVisit++
+
+                while (nearestCandidates.size > maxAmountOfCandidates) {
+                    val removed = nearestCandidates.pollLast()!!
+
+                    if (!removed.visited) {
+                        candidatesToVisit--
+                    }
+                }
             }
         }
 
-        val resultSize = min(maxResultSize, nearestCandidates.size + visitedVertexIndices.size)
+        assert(nearestCandidates.size <= maxAmountOfCandidates)
+
+        val resultSize = min(maxResultSize, nearestCandidates.size)
         val nearestVertices = LongArray(resultSize)
+        val nearestVerticesIterator = nearestCandidates.iterator()
 
-        visitedVertices.sort()
-
-        val commonSize = min(nearestCandidates.size, visitedVertices.size)
-
-        var visitedIndex = 0
-        var currentSize = 0
-        for (i in 0 until commonSize) {
-            val nearestCandidate = nearestCandidates.peek()
-            val visitedVertex = visitedVertices[visitedIndex]
-
-            if (nearestCandidate.distance < visitedVertex.distance) {
-                nearestVertices[i] = nearestCandidate.index
-                nearestCandidates.poll()
-            } else {
-                nearestVertices[i] = visitedVertex.index
-                visitedIndex++
-            }
-
-            currentSize++
+        for (i in 0 until resultSize) {
+            nearestVertices[i] = nearestVerticesIterator.next().index
         }
-
-        if (currentSize < resultSize) {
-            if (visitedIndex < visitedVertices.size) {
-                for (i in currentSize until nearestVertices.size) {
-                    nearestVertices[i] = visitedVertices[visitedIndex].index
-                    visitedIndex++
-                }
-            } else {
-                for (i in currentSize until nearestVertices.size) {
-                    nearestVertices[i] = nearestCandidates.poll().index
-                }
-            }
-        }
-
 
         return Pair(nearestVertices, visitedVertexIndices)
     }
@@ -224,9 +217,9 @@ internal class DiskANN(
                 if (!neighbourNeighbours.contains(i.toLong())) {
                     if (neighbourNeighbours.size + 1 <= maxConnectionsPerVertex) {
                         graph.appendNeighbour(neighbour, i.toLong())
+                    } else {
+                        robustPrune(graph, neighbour, LongOpenHashSet(longArrayOf(i.toLong())), distanceMultiplication)
                     }
-                } else {
-                    robustPrune(graph, neighbour, LongOpenHashSet(longArrayOf(i.toLong())), distanceMultiplication)
                 }
             }
         }
@@ -346,51 +339,36 @@ internal class DiskANN(
         }
 
         private fun calculateMedoid(): Long {
-            val rng = RandomSource.XO_RO_SHI_RO_128_PP.create(32674)
+            if (size == 1) {
+                return 0
+            }
 
-            var prevMedoidIndex = -1
-            var medoidIndex = rng.nextInt(size)
-            val weightedDistances = DoubleArray(size)
+            val meanVector = FloatArray(vectorDim)
 
-            var iterations = 0
-
-            while (prevMedoidIndex != medoidIndex && iterations < kMeansIterationThreshold) {
-                prevMedoidIndex = medoidIndex
-                val medoidOffset = medoidIndex * vectorDim
-
-                var distanceSum = 0.0
-                for (i in 0 until size) {
-                    val vectorOffset = i * vectorDim
-                    val distance = distanceFunction.computeDistance(
-                        vectors, medoidOffset, vectors, vectorOffset,
-                        vectorDim
-                    )
-                    val weightedDistance = distance * distance
-
-                    distanceSum += weightedDistance
-                    weightedDistances[i] = weightedDistance
+            for (i in 0 until size) {
+                val vector = fetchVector(i.toLong())
+                for (j in 0 until vectorDim) {
+                    meanVector[j] += vector[j]
                 }
+            }
 
-                for (i in 0 until size) {
-                    weightedDistances[i] /= distanceSum
+            for (j in 0 until vectorDim) {
+                meanVector[j] = meanVector[j] / size
+            }
+
+            var minDistance = Double.POSITIVE_INFINITY
+            var medoidIndex = -1
+
+            for (i in 0 until size) {
+                val distance = distanceFunction.computeDistance(
+                    vectors,
+                    i * vectorDim, meanVector, 0, vectorDim
+                )
+
+                if (distance < minDistance) {
+                    minDistance = distance
+                    medoidIndex = i
                 }
-
-                for (i in 1 until size - 1) {
-                    weightedDistances[i] += weightedDistances[i - 1]
-                }
-
-                weightedDistances[size - 1] = 1.0
-
-                val randomValue = rng.nextDouble()
-                medoidIndex = Arrays.binarySearch(weightedDistances, randomValue)
-
-                if (medoidIndex < 0) {
-                    medoidIndex = -medoidIndex - 1
-                }
-
-                assert(medoidIndex in 0 until size)
-
-                iterations++
             }
 
             return medoidIndex.toLong()
