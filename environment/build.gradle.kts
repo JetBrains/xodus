@@ -31,3 +31,7 @@ tasks {
         }
     }
 }
+
+tasks.test {
+    testLogging.showStandardStreams = true
+}
