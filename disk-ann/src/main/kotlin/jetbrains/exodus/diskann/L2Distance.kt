@@ -9,7 +9,7 @@ internal class L2Distance : DistanceFunction {
             distance += diff * diff
         }
 
-        return Math.sqrt(distance)
+        return distance
     }
 
     override fun computeDistance(
@@ -26,6 +26,6 @@ internal class L2Distance : DistanceFunction {
             distance += diff * diff
         }
 
-        return Math.sqrt(distance)
+        return distance
     }
 }
