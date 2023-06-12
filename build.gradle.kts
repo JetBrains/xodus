@@ -149,7 +149,7 @@ subprojects {
         systemProperty("exodus.tests.buildDirectory", project.buildDir)
         minHeapSize = "1g"
         maxHeapSize = "1g"
-        jvmArgs = listOf("-ea", "-XX:+HeapDumpOnOutOfMemoryError")
+        jvmArgs = listOf("-ea", "-XX:+HeapDumpOnOutOfMemoryError", "--add-modules", "jdk.incubator.vector")
     }
 
     tasks.javadoc {
@@ -165,16 +165,17 @@ subprojects {
 
     tasks.compileKotlin {
         kotlinOptions {
-            jvmTarget = "11"
+            jvmTarget = "19"
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
         }
     }
     tasks.compileTestKotlin {
         kotlinOptions {
-            jvmTarget = "11"
+            jvmTarget = "19"
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
+            freeCompilerArgs = listOf("-Xadd-modules=jdk.incubator.vector")
         }
     }
 
@@ -183,7 +184,7 @@ subprojects {
         withSourcesJar()
 
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(11))
+            languageVersion.set(JavaLanguageVersion.of(19))
         }
     }
 

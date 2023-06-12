@@ -3,6 +3,8 @@ package jetbrains.exodus.diskann
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongArrayList
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
+import jdk.incubator.vector.FloatVector
+import jdk.incubator.vector.VectorSpecies
 import mu.KLogging
 import org.apache.commons.rng.sampling.PermutationSampler
 import org.apache.commons.rng.simple.RandomSource
@@ -16,6 +18,7 @@ import kotlin.math.min
 const val PAGE_SIZE_MULTIPLIER = 4 * 1024
 
 internal class DiskANN(
+    val name: String,
     private val vectorDim: Int, private val distanceFunction: DistanceFunction,
     private val distanceMultiplication: Float = 2.1f, private val maxConnectionsPerVertex: Int = 64,
     private val maxAmountOfCandidates: Int = 128,
@@ -46,6 +49,14 @@ internal class DiskANN(
 
     private val verticesPerPage: Int = (pageSize - Long.SIZE_BYTES) / vertexRecordSize
     private var diskGraph: Graph? = null
+
+    init {
+        val species: VectorSpecies<Float> = FloatVector.SPECIES_PREFERRED
+        logger.info {
+            "Vector index '$name' has been initialized. Vector lane count for distance calculation " +
+                    "is ${species.length()}"
+        }
+    }
 
     private fun greedySearch(
         graph: Graph,

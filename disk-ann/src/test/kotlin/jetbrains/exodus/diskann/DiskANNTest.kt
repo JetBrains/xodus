@@ -1,12 +1,13 @@
 package jetbrains.exodus.diskann
 
-import junit.framework.TestCase
 import org.junit.Assert
+import org.junit.Test
 import java.nio.ByteBuffer
 import java.security.SecureRandom
 import kotlin.random.Random
 
-class DiskANNTest : TestCase() {
+class DiskANNTest {
+    @Test
     fun testFindLoadedVertices() {
         val vectorDimensions = 64
 
@@ -34,7 +35,7 @@ class DiskANNTest : TestCase() {
                 } while (!addedVectors.add(FloatArrayHolder(vector)))
             }
 
-            val diskANN = DiskANN(vectorDimensions, L2Distance())
+            val diskANN = DiskANN("test index", vectorDimensions, L2Distance())
             var ts1 = System.nanoTime()
             diskANN.buildIndex(ArrayVectorReader(vectors))
             var ts2 = System.nanoTime()

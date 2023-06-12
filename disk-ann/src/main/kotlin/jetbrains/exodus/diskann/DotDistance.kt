@@ -1,14 +1,31 @@
 package jetbrains.exodus.diskann
 
+import jdk.incubator.vector.FloatVector
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
+
 internal class DotDistance : DistanceFunction {
     override fun computeDistance(firstVector: FloatArray, secondVector: FloatArray): Double {
-        var distance = 0.0
+        var sumVector = FloatVector.zero(species)
+        var index = 0
 
-        for (i in firstVector.indices) {
-            distance += firstVector[i] * secondVector[i]
+        while (index < species.loopBound(firstVector.size)) {
+            val first = FloatVector.fromArray(species, firstVector, index)
+            val second = FloatVector.fromArray(species, secondVector, index)
+            val mul = first.mul(second)
+
+            sumVector = sumVector.add(mul)
+            index += species.length()
         }
 
-        return -distance
+        var sum = sumVector.reduceLanes(VectorOperators.ADD).toDouble()
+
+        while (index < firstVector.size) {
+            sum += firstVector[index] * secondVector[index]
+            index++
+        }
+
+        return -sum
     }
 
     override fun computeDistance(
@@ -18,12 +35,29 @@ internal class DotDistance : DistanceFunction {
         secondVectorFrom: Int,
         size: Int
     ): Double {
-        var distance = 0.0
+        var sumVector = FloatVector.zero(species)
+        var index = 0
 
-        for (i in firstVectorFrom until firstVectorFrom + size) {
-            distance += firstVector[i] * secondVector[i - firstVectorFrom + secondVectorFrom]
+        while (index < species.loopBound(size)) {
+            val first = FloatVector.fromArray(species, firstVector, index + firstVectorFrom)
+            val second = FloatVector.fromArray(species, secondVector, index + secondVectorFrom)
+            val mul = first.mul(second)
+
+            sumVector = sumVector.add(mul)
+            index += species.length()
         }
 
-        return -distance
+        var sum = sumVector.reduceLanes(VectorOperators.ADD).toDouble()
+
+        while (index < size) {
+            sum += firstVector[index + firstVectorFrom] * secondVector[index + secondVectorFrom]
+            index++
+        }
+
+        return -sum
+    }
+
+    companion object {
+        private val species: VectorSpecies<Float> = FloatVector.SPECIES_PREFERRED
     }
 }
