@@ -27,6 +27,7 @@ dependencyResolutionManagement {
             version("jcTools", "4.0.1")
             version("junit", "4.13.2")
             version("commons-compress", "1.22")
+            version("commons-net", "3.9.0")
             version("bouncyCastle", "1.70")
             version("commons-io", "2.11.0")
             version("lucene", "8.10.0")
@@ -45,6 +46,7 @@ dependencyResolutionManagement {
             library("junit", "junit", "junit").versionRef("junit")
 
             library("commons-compress", "org.apache.commons", "commons-compress").versionRef("commons-compress")
+            library("commons-net", "commons-net", "commons-net").versionRef("commons-net")
 
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").versionRef("kotlin")
             library("kotlin-stdlib-jdk8", "org.jetbrains.kotlin", "kotlin-stdlib-jdk8").versionRef("kotlin")
