@@ -12,7 +12,7 @@ fun main() {
 
     BenchUtils.runSiftBenchmarks(
         benchPath, "sift", "sift.tar.gz", "sift_base.fvecs",
-        "query.bvecs",
-        "groundtruth.ivecs", 128
+        "sift_query.bvecs",
+        "sift_groundtruth.ivecs", 128
     )
 }
