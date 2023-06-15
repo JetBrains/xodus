@@ -36,6 +36,8 @@ import jetbrains.exodus.tree.ExpiredLoggableCollection
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
 import java.io.File
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class GarbageCollector(internal val environment: EnvironmentImpl) {
@@ -48,6 +50,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     private val deletionQueue = ConcurrentLinkedQueue<Long>()
     internal val cleaner = BackgroundCleaner(this)
     private val openStoresCache = IntHashMap<StoreImpl>()
+    private val brokenFiles = Collections.newSetFromMap(ConcurrentHashMap<Long, Boolean>())
+    private var lastBrokenMessage = 0L
 
     init {
         environment.log.addBlockListener(object : AbstractBlockListener() {
@@ -243,11 +247,36 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         val isTxnExclusive = txn.isExclusive
         try {
             val started = System.currentTimeMillis()
+            val printBrokenMessage = lastBrokenMessage + 15 * 60 * 1000 < started
+
             while (fragmentedFiles.hasNext()) {
-                fragmentedFiles.next().let { file ->
-                    cleanSingleFile(file, txn)
-                    cleanedFiles.add(file)
+                val file = fragmentedFiles.next()
+
+                if (brokenFiles.contains(file)) {
+                    if (printBrokenMessage) {
+                        logger.error {
+                            "File ${LogUtil.getLogFilename(file)} " +
+                                    "is skipped by GC because it was processed with exception during previous " +
+                                    "iteration of cleaning cycle. " +
+                                    "To avoid given problems in future: please check the log, " +
+                                    "find the log entry which contains the file name and the exception" +
+                                    " and create the issue for the developers."
+                        }
+                        lastBrokenMessage = started
+                    }
+
+                    continue
                 }
+
+                try {
+                    cleanSingleFile(file, txn)
+                } catch (e: Exception) {
+                    brokenFiles.add(file)
+                    throw e
+                }
+
+                cleanedFiles.add(file)
+
                 if (!isTxnExclusive) {
                     break // do not process more than one file in a non-exclusive txn
                 }
