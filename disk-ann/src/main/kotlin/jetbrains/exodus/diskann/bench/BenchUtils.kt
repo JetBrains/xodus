@@ -33,9 +33,8 @@ object BenchUtils {
             val ftpClient = FTPClient()
             ftpClient.connect("ftp.irisa.fr")
             ftpClient.enterLocalPassiveMode()
-            ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
-
             val loggedIdn = ftpClient.login("anonymous", "anonymous")
+            ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
             if (!loggedIdn) {
                 throw IllegalStateException("Failed to login to ftp.irisa.fr")
             }
