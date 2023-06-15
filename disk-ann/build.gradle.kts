@@ -50,4 +50,20 @@ tasks {
 
         javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(19)) })
     }
+
+    register<JavaExec>("runGist1MBench") {
+        group = "application"
+        mainClass = "jetbrains.exodus.diskann.bench.GIST1MBenchKt"
+        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
+        jvmArgs = listOf(
+            "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true"
+        )
+        systemProperties = mapOf(
+            "bench.path" to (project.findProperty("bench.path"))
+        )
+
+
+        javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(19)) })
+    }
 }
