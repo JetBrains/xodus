@@ -8,6 +8,10 @@ plugins {
 dependencies {
     implementation(libs.commons.rng.simple)
     implementation(libs.commons.rng.sampling)
+
+    testImplementation("commons-net:commons-net:3.9.0")
+    testImplementation("org.apache.commons:commons-compress:1.22")
+    testImplementation(project(":xodus-utils-test"))
 }
 
 ksp {
