@@ -12,7 +12,7 @@ fun main() {
 
     BenchUtils.runSiftBenchmarks(
         benchPath, "gist", "gist.tar.gz", "gist_base.fvecs",
-        "gist_query.bvecs",
+        "gist_query.fvecs",
         "gist_groundtruth.ivecs", 960
     )
 }
