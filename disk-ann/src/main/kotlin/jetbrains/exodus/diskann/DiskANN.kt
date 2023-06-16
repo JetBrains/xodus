@@ -1,5 +1,6 @@
 package jetbrains.exodus.diskann
 
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.longs.LongArrayList
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
@@ -76,64 +77,84 @@ internal class DiskANN(
         graph: Graph,
         startVertexIndex: Long,
         queryVertex: FloatArray,
-        maxResultSize: Int
+        maxResultSize: Int,
+        validateVersions: Boolean = false
     ): Pair<LongArray, LongOpenHashSet> {
         val nearestCandidates = TreeSet<GreedyVertex>()
-
         val visitedVertexIndices = LongOpenHashSet(maxAmountOfCandidates)
+        val vertexVersions = Long2LongOpenHashMap(maxAmountOfCandidates)
 
-        val startVector = graph.fetchVector(startVertexIndex)
-        val distanceFunction = distanceFunction
+        traverseLoop@ while (true) {
+            val startVector = graph.fetchVector(startVertexIndex)
+            val distanceFunction = distanceFunction
 
-        val startVertex = GreedyVertex(
-            startVertexIndex, distanceFunction.computeDistance(queryVertex, startVector)
-        )
+            val startVertex = GreedyVertex(
+                startVertexIndex, distanceFunction.computeDistance(queryVertex, startVector)
+            )
 
-        nearestCandidates.add(startVertex)
-        var candidatesToVisit = 1
+            nearestCandidates.add(startVertex)
+            var candidatesToVisit = 1
 
-        while (candidatesToVisit > 0) {
-            assert(candidatesToVisit in 0..maxAmountOfCandidates)
-            assert(assertNearestCandidates(nearestCandidates, candidatesToVisit))
+            while (candidatesToVisit > 0) {
+                assert(candidatesToVisit in 0..maxAmountOfCandidates)
+                assert(assertNearestCandidates(nearestCandidates, candidatesToVisit))
 
-            val minVertexIterator = nearestCandidates.iterator()
+                val minVertexIterator = nearestCandidates.iterator()
 
-            var minVertex: GreedyVertex? = null
+                var minVertex: GreedyVertex? = null
 
-            while (minVertexIterator.hasNext()) {
-                minVertex = minVertexIterator.next()
-                if (!minVertex.visited) {
-                    break
-                }
-            }
-
-            visitedVertexIndices.add(minVertex!!.index)
-
-            minVertex.visited = true
-            candidatesToVisit--
-
-            val vertexNeighbours = graph.fetchNeighbours(minVertex.index)
-            for (vertexIndex in vertexNeighbours) {
-                if (visitedVertexIndices.contains(vertexIndex)) {
-                    continue
-                }
-
-                val vertexVector = graph.fetchVector(vertexIndex)
-                val vertex =
-                    GreedyVertex(vertexIndex, distanceFunction.computeDistance(queryVertex, vertexVector))
-                if (nearestCandidates.add(vertex)) {
-                    candidatesToVisit++
-
-                    while (nearestCandidates.size > maxAmountOfCandidates) {
-                        val removed = nearestCandidates.pollLast()!!
-
-                        if (!removed.visited) {
-                            candidatesToVisit--
-                        }
+                while (minVertexIterator.hasNext()) {
+                    minVertex = minVertexIterator.next()
+                    if (!minVertex.visited) {
+                        break
                     }
                 }
 
-                assert(candidatesToVisit in 0..maxAmountOfCandidates)
+                visitedVertexIndices.add(minVertex!!.index)
+                if (validateVersions) {
+                    vertexVersions.put(minVertex.index, graph.vertexVersion(minVertex.index))
+                }
+
+                minVertex.visited = true
+                candidatesToVisit--
+
+                val vertexNeighbours = graph.fetchNeighbours(minVertex.index)
+                for (vertexIndex in vertexNeighbours) {
+                    if (visitedVertexIndices.contains(vertexIndex)) {
+                        continue
+                    }
+
+                    val vertexVector = graph.fetchVector(vertexIndex)
+                    val vertex =
+                        GreedyVertex(vertexIndex, distanceFunction.computeDistance(queryVertex, vertexVector))
+                    if (nearestCandidates.add(vertex)) {
+                        candidatesToVisit++
+
+                        while (nearestCandidates.size > maxAmountOfCandidates) {
+                            val removed = nearestCandidates.pollLast()!!
+
+                            if (!removed.visited) {
+                                candidatesToVisit--
+                            }
+                        }
+                    }
+
+                    assert(candidatesToVisit in 0..maxAmountOfCandidates)
+                }
+            }
+
+            if (validateVersions) {
+                val vertexVersionsIterator = vertexVersions.long2LongEntrySet().fastIterator()
+                while (vertexVersionsIterator.hasNext()) {
+                    val vertexVersionEntry = vertexVersionsIterator.next()
+                    val vertexIndex = vertexVersionEntry.longKey
+                    val vertexVersion = vertexVersionEntry.longValue
+                    if (graph.validateVertexVersion(vertexIndex, vertexVersion)) {
+                        break@traverseLoop
+                    }
+                }
+            } else {
+                break@traverseLoop
             }
         }
 
@@ -170,69 +191,75 @@ internal class DiskANN(
         neighboursCandidates: LongOpenHashSet,
         distanceMultiplication: Float
     ) {
-        val candidates = if (graph.getNeighboursSize(vertexIndex) > 0) {
-            val newCandidates = neighboursCandidates.clone()
-            newCandidates.addAll(LongArrayList.wrap(graph.getNeighboursAndClear(vertexIndex)))
+        graph.acquireVertex(vertexIndex)
+        try {
+            val candidates = if (graph.getNeighboursSize(vertexIndex) > 0) {
+                val newCandidates = neighboursCandidates.clone()
+                newCandidates.addAll(LongArrayList.wrap(graph.getNeighboursAndClear(vertexIndex)))
 
-            newCandidates
-        } else {
-            neighboursCandidates
-        }
-
-        candidates.remove(vertexIndex)
-
-        val vertexVector = graph.fetchVector(vertexIndex)
-        val candidatesIterator = candidates.longIterator()
-
-        val cachedCandidates = TreeSet<RobustPruneVertex>()
-        while (candidatesIterator.hasNext()) {
-            val candidateIndex = candidatesIterator.nextLong()
-            val candidateVector = graph.fetchVector(candidateIndex)
-
-            val distance = distanceFunction.computeDistance(vertexVector, candidateVector)
-            val candidate = RobustPruneVertex(candidateIndex, candidateVector, distance)
-
-            cachedCandidates.add(candidate)
-        }
-
-
-        val neighbours = LongArrayList(maxConnectionsPerVertex)
-        val removed = ArrayList<RobustPruneVertex>(cachedCandidates.size)
-
-        var currentMultiplication = 1.0
-        neighboursLoop@ while (currentMultiplication <= distanceMultiplication) {
-            if (removed.isNotEmpty()) {
-                cachedCandidates.addAll(removed)
-                removed.clear()
+                newCandidates
+            } else {
+                neighboursCandidates
             }
 
-            while (cachedCandidates.isNotEmpty()) {
-                val min = cachedCandidates.pollFirst()!!
-                neighbours.add(min.index)
+            candidates.remove(vertexIndex)
 
-                if (neighbours.size == maxConnectionsPerVertex) {
-                    break@neighboursLoop
+            val vertexVector = graph.fetchVector(vertexIndex)
+            val candidatesIterator = candidates.longIterator()
+
+            val cachedCandidates = TreeSet<RobustPruneVertex>()
+            while (candidatesIterator.hasNext()) {
+                val candidateIndex = candidatesIterator.nextLong()
+                val candidateVector = graph.fetchVector(candidateIndex)
+
+                val distance = distanceFunction.computeDistance(vertexVector, candidateVector)
+                val candidate = RobustPruneVertex(candidateIndex, candidateVector, distance)
+
+                cachedCandidates.add(candidate)
+            }
+
+
+            val neighbours = LongArrayList(maxConnectionsPerVertex)
+            val removed = ArrayList<RobustPruneVertex>(cachedCandidates.size)
+
+            var currentMultiplication = 1.0
+            neighboursLoop@ while (currentMultiplication <= distanceMultiplication) {
+                if (removed.isNotEmpty()) {
+                    cachedCandidates.addAll(removed)
+                    removed.clear()
                 }
 
-                val iterator = cachedCandidates.iterator()
-                while (iterator.hasNext()) {
-                    val candidate = iterator.next()
-                    val distance = distanceFunction.computeDistance(min.vector, candidate.vector)
+                while (cachedCandidates.isNotEmpty()) {
+                    val min = cachedCandidates.pollFirst()!!
+                    neighbours.add(min.index)
 
-                    if (distance * currentMultiplication <= candidate.distance) {
-                        iterator.remove()
+                    if (neighbours.size == maxConnectionsPerVertex) {
+                        break@neighboursLoop
+                    }
 
-                        if (distanceMultiplication > 1) {
-                            removed.add(candidate)
+                    val iterator = cachedCandidates.iterator()
+                    while (iterator.hasNext()) {
+                        val candidate = iterator.next()
+                        val distance = distanceFunction.computeDistance(min.vector, candidate.vector)
+
+                        if (distance * currentMultiplication <= candidate.distance) {
+                            iterator.remove()
+
+                            if (distanceMultiplication > 1) {
+                                removed.add(candidate)
+                            }
                         }
                     }
                 }
+
+                currentMultiplication *= 1.2
             }
 
-            currentMultiplication *= 1.2
+            graph.setNeighbours(vertexIndex, neighbours.elements(), neighbours.size)
+        } finally {
+            graph.releaseVertex(vertexIndex)
         }
 
-        graph.setNeighbours(vertexIndex, neighbours.elements(), neighbours.size)
     }
 
     fun buildIndex(vectorReader: VectorReader) {
@@ -297,7 +324,12 @@ internal class DiskANN(
 
                         if (!neighbourNeighbours.contains(vertexIndex)) {
                             if (neighbourNeighbours.size + 1 <= maxConnectionsPerVertex) {
-                                graph.appendNeighbour(neighbour, vertexIndex)
+                                graph.acquireVertex(neighbour)
+                                try {
+                                    graph.appendNeighbour(neighbour, vertexIndex)
+                                } finally {
+                                    graph.releaseVertex(neighbour)
+                                }
                             } else {
                                 robustPrune(
                                     graph,
@@ -323,12 +355,20 @@ internal class DiskANN(
                         subFuture.get()
                     }
                 }
-            }
 
-            if ((n + 1) % 1000L == 0L) {
+                mutatorFutures.clear()
                 logger.info { "Graph pruning: ${n + 1} vertices out of $size were processed." }
             }
         }
+
+        for (feature in mutatorFutures) {
+            val subFutures = feature.get()
+            for (subFuture in subFutures) {
+                subFuture.get()
+            }
+        }
+
+        logger.info { "Graph pruning: of $size vertices was processed." }
     }
 
 
@@ -362,22 +402,10 @@ internal class DiskANN(
         }
 
         fun getNeighboursSize(vertexIndex: Long): Int {
-            var initVersion = edgeVersions[vertexIndex.toInt()]
-
-            while (true) {
-                val size = edges[(vertexIndex * (maxConnectionsPerVertex + 1)).toInt()].toInt()
-                assert(size in 0..maxConnectionsPerVertex)
-                val finalVersion = edgeVersions[vertexIndex.toInt()]
-
-                if (validateVersion(finalVersion, initVersion)) {
-                    return size
-                }
-                initVersion = finalVersion
-            }
+            val size = edges[(vertexIndex * (maxConnectionsPerVertex + 1)).toInt()].toInt()
+            assert(size in 0..maxConnectionsPerVertex)
+            return size
         }
-
-        private fun validateVersion(finalVersion: Long, initVersion: Long) =
-            finalVersion == initVersion && initVersion and 1.toLong() == 0.toLong()
 
         override fun fetchId(vertexIndex: Long): Long {
             return ids[vertexIndex.toInt()]
@@ -391,40 +419,30 @@ internal class DiskANN(
         }
 
         override fun fetchNeighbours(vertexIndex: Long): LongArray {
-            var initVersion = edgeVersions[vertexIndex.toInt()]
-            while (true) {
-                val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
-                val size = edges[edgesOffset].toInt()
+            val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
+            val size = edges[edgesOffset].toInt()
 
-                assert(size in 0..maxConnectionsPerVertex)
-                val result = edges.copyOfRange(edgesOffset + 1, edgesOffset + 1 + size)
-                val finalVersion = edgeVersions[vertexIndex.toInt()]
-                if (validateVersion(finalVersion, initVersion)) {
-                    return result
-                }
-                initVersion = finalVersion
-            }
+            assert(size in 0..maxConnectionsPerVertex)
+            return edges.copyOfRange(edgesOffset + 1, edgesOffset + 1 + size)
         }
 
         fun setNeighbours(vertexIndex: Long, neighbours: LongArray, size: Int = neighbours.size) {
-            edgeVersions.incrementAndGet(vertexIndex.toInt())
+            validateLocked(vertexIndex)
             assert(size in 0..maxConnectionsPerVertex)
 
             val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
 
             edges[edgesOffset] = size.toLong()
             neighbours.copyInto(edges, edgesOffset + 1, 0, size)
-            edgeVersions.incrementAndGet(vertexIndex.toInt())
         }
 
         fun appendNeighbour(vertexIndex: Long, neighbour: Long) {
-            edgeVersions.incrementAndGet(vertexIndex.toInt())
+            validateLocked(vertexIndex)
             val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
             val size = edges[edgesOffset].toInt()
 
             edges[edgesOffset] = (size + 1).toLong()
             edges[edgesOffset + size + 1] = neighbour
-            edgeVersions.incrementAndGet(vertexIndex.toInt())
         }
 
         fun generateRandomEdges() {
@@ -461,6 +479,7 @@ internal class DiskANN(
         }
 
         fun getNeighboursAndClear(vertexIndex: Long): LongArray {
+            validateLocked(vertexIndex)
             val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
             val result = fetchNeighbours(vertexIndex)
 
@@ -477,6 +496,46 @@ internal class DiskANN(
             }
 
             return medoid
+        }
+
+        override fun vertexVersion(vertexIndex: Long): Long {
+            return edgeVersions[vertexIndex.toInt()]
+        }
+
+        override fun validateVertexVersion(vertexIndex: Long, version: Long): Boolean {
+            VarHandle.acquireFence()
+            return (edgeVersions[vertexIndex.toInt()] == version) && ((version and 1L) == 0L)
+        }
+
+        override fun acquireVertex(vertexIndex: Long) {
+            while (true) {
+                val version = edgeVersions[vertexIndex.toInt()]
+                if (version and 1L != 0L) {
+                    throw IllegalStateException("Vertex $vertexIndex is already acquired")
+                }
+                if (edgeVersions.compareAndSet(vertexIndex.toInt(), version, version + 1)) {
+                    return
+                }
+            }
+        }
+
+        private fun validateLocked(vertexIndex: Long) {
+            val version = edgeVersions[vertexIndex.toInt()]
+            if (version and 1L != 1L) {
+                throw IllegalStateException("Vertex $vertexIndex is not acquired")
+            }
+        }
+
+        override fun releaseVertex(vertexIndex: Long) {
+            while (true) {
+                val version = edgeVersions[vertexIndex.toInt()]
+                if (version and 1L != 1L) {
+                    throw IllegalStateException("Vertex $vertexIndex is not acquired")
+                }
+                if (edgeVersions.compareAndSet(vertexIndex.toInt(), version, version + 1)) {
+                    return
+                }
+            }
         }
 
         private fun calculateMedoid(): Long {
@@ -567,6 +626,20 @@ internal class DiskANN(
     private inner class DiskGraph(val medoid: Long) : Graph {
         override fun medoid(): Long {
             return medoid
+        }
+
+        override fun vertexVersion(vertexIndex: Long): Long {
+            return 0
+        }
+
+        override fun validateVertexVersion(vertexIndex: Long, version: Long): Boolean {
+            return true
+        }
+
+        override fun acquireVertex(vertexIndex: Long) {
+        }
+
+        override fun releaseVertex(vertexIndex: Long) {
         }
 
         override fun fetchId(vertexIndex: Long): Long {
