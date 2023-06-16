@@ -12,19 +12,24 @@ import java.lang.invoke.MethodHandles
 import java.lang.invoke.VarHandle
 import java.nio.ByteOrder
 import java.util.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.atomic.AtomicLongArray
 import kotlin.collections.ArrayList
 import kotlin.math.min
 
 const val PAGE_SIZE_MULTIPLIER = 4 * 1024
 
 internal class DiskANN(
-    val name: String,
+    private val name: String,
     private val vectorDim: Int, private val distanceFunction: DistanceFunction,
     private val distanceMultiplication: Float = 2.1f, private val maxConnectionsPerVertex: Int = 64,
     private val maxAmountOfCandidates: Int = 128,
 ) {
     private var verticesSize: Long = 0
     private val graphPages: Long2ObjectOpenHashMap<ByteArray> = Long2ObjectOpenHashMap()
+    private val vectorMutationThreads = ArrayList<ExecutorService>()
 
     /**
      * Size of vertex record in bytes.
@@ -56,6 +61,17 @@ internal class DiskANN(
             "Vector index '$name' has been initialized. Vector lane count for distance calculation " +
                     "is ${species.length()}"
         }
+        val cores = Runtime.getRuntime().availableProcessors()
+        logger.info { "Using $cores cores for mutation of vectors" }
+
+        for (i in 0 until cores) {
+            vectorMutationThreads.add(Executors.newSingleThreadExecutor { r ->
+                val thread = Thread(r, "$name - vector mutator-$i")
+                thread.isDaemon = true
+                thread
+            })
+        }
+
     }
 
     private fun greedySearch(
@@ -261,22 +277,43 @@ internal class DiskANN(
 
         logger.info { "Graph pruning started with distance multiplication $distanceMultiplication." }
 
+        val features = ArrayList<Future<*>>(maxConnectionsPerVertex + 1)
+
         for (n in permutation.indices) {
             val vertexIndex = permutation[n].toLong()
             val (_, visited) = greedySearch(graph, medoid, graph.fetchVector(vertexIndex), 1)
-            robustPrune(graph, vertexIndex, visited, distanceMultiplication)
+            val mutatorIndex = (vertexIndex % vectorMutationThreads.size).toInt()
+
+            val mutator = vectorMutationThreads[mutatorIndex]
+            val mutatorFuture = mutator.submit { robustPrune(graph, vertexIndex, visited, distanceMultiplication) }
+            features.add(mutatorFuture)
 
             val neighbours = graph.fetchNeighbours(vertexIndex)
             for (neighbour in neighbours) {
-                val neighbourNeighbours = graph.fetchNeighbours(neighbour)
+                val neighbourMutatorIndex = (neighbour % vectorMutationThreads.size).toInt()
+                val neighbourMutator = vectorMutationThreads[neighbourMutatorIndex]
 
-                if (!neighbourNeighbours.contains(vertexIndex)) {
-                    if (neighbourNeighbours.size + 1 <= maxConnectionsPerVertex) {
-                        graph.appendNeighbour(neighbour, vertexIndex)
-                    } else {
-                        robustPrune(graph, neighbour, LongOpenHashSet(longArrayOf(vertexIndex)), distanceMultiplication)
+                val neighborMutatorFuture = neighbourMutator.submit {
+                    val neighbourNeighbours = graph.fetchNeighbours(neighbour)
+
+                    if (!neighbourNeighbours.contains(vertexIndex)) {
+                        if (neighbourNeighbours.size + 1 <= maxConnectionsPerVertex) {
+                            graph.appendNeighbour(neighbour, vertexIndex)
+                        } else {
+                            robustPrune(
+                                graph,
+                                neighbour,
+                                LongOpenHashSet(longArrayOf(vertexIndex)),
+                                distanceMultiplication
+                            )
+                        }
                     }
                 }
+                features.add(neighborMutatorFuture)
+            }
+
+            for (feature in features) {
+                feature.get()
             }
 
             if ((n + 1) % 1000L == 0L) {
@@ -301,6 +338,7 @@ internal class DiskANN(
         private val ids: LongArray = LongArray(capacity)
 
         private val edges = LongArray((maxConnectionsPerVertex + 1) * capacity)
+        private val edgeVersions = AtomicLongArray(capacity)
 
         private var medoid: Long = -1
 
@@ -315,10 +353,22 @@ internal class DiskANN(
         }
 
         fun getNeighboursSize(vertexIndex: Long): Int {
-            val size = edges[(vertexIndex * (maxConnectionsPerVertex + 1)).toInt()].toInt()
-            assert(size in 0..maxConnectionsPerVertex)
-            return size
+            var initVersion = edgeVersions[vertexIndex.toInt()]
+
+            while (true) {
+                val size = edges[(vertexIndex * (maxConnectionsPerVertex + 1)).toInt()].toInt()
+                assert(size in 0..maxConnectionsPerVertex)
+                val finalVersion = edgeVersions[vertexIndex.toInt()]
+
+                if (validateVersion(finalVersion, initVersion)) {
+                    return size
+                }
+                initVersion = finalVersion
+            }
         }
+
+        private fun validateVersion(finalVersion: Long, initVersion: Long) =
+            finalVersion == initVersion && initVersion and 1.toLong() == 0.toLong()
 
         override fun fetchId(vertexIndex: Long): Long {
             return ids[vertexIndex.toInt()]
@@ -332,29 +382,40 @@ internal class DiskANN(
         }
 
         override fun fetchNeighbours(vertexIndex: Long): LongArray {
-            val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
-            val size = edges[edgesOffset].toInt()
+            var initVersion = edgeVersions[vertexIndex.toInt()]
+            while (true) {
+                val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
+                val size = edges[edgesOffset].toInt()
 
-            assert(size in 0..maxConnectionsPerVertex)
-
-            return edges.copyOfRange(edgesOffset + 1, edgesOffset + 1 + size)
+                assert(size in 0..maxConnectionsPerVertex)
+                val result = edges.copyOfRange(edgesOffset + 1, edgesOffset + 1 + size)
+                val finalVersion = edgeVersions[vertexIndex.toInt()]
+                if (validateVersion(finalVersion, initVersion)) {
+                    return result
+                }
+                initVersion = finalVersion
+            }
         }
 
         fun setNeighbours(vertexIndex: Long, neighbours: LongArray, size: Int = neighbours.size) {
+            edgeVersions.incrementAndGet(vertexIndex.toInt())
             assert(size in 0..maxConnectionsPerVertex)
 
             val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
 
             edges[edgesOffset] = size.toLong()
             neighbours.copyInto(edges, edgesOffset + 1, 0, size)
+            edgeVersions.incrementAndGet(vertexIndex.toInt())
         }
 
         fun appendNeighbour(vertexIndex: Long, neighbour: Long) {
+            edgeVersions.incrementAndGet(vertexIndex.toInt())
             val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
             val size = edges[edgesOffset].toInt()
 
             edges[edgesOffset] = (size + 1).toLong()
             edges[edgesOffset + size + 1] = neighbour
+            edgeVersions.incrementAndGet(vertexIndex.toInt())
         }
 
         fun generateRandomEdges() {
@@ -394,7 +455,9 @@ internal class DiskANN(
             val edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)).toInt()
             val result = fetchNeighbours(vertexIndex)
 
+            edgeVersions.incrementAndGet(vertexIndex.toInt())
             edges[edgesOffset] = 0L
+            edgeVersions.incrementAndGet(vertexIndex.toInt())
 
             return result
         }
