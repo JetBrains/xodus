@@ -12,9 +12,7 @@ import java.lang.invoke.MethodHandles
 import java.lang.invoke.VarHandle
 import java.nio.ByteOrder
 import java.util.*
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
+import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicLongArray
 import kotlin.collections.ArrayList
 import kotlin.math.min
@@ -25,7 +23,7 @@ internal class DiskANN(
     private val name: String,
     private val vectorDim: Int, private val distanceFunction: DistanceFunction,
     private val distanceMultiplication: Float = 2.1f, private val maxConnectionsPerVertex: Int = 64,
-    private val maxAmountOfCandidates: Int = 128,
+    private val maxAmountOfCandidates: Int = 128, private val mutatorsQueueSize: Int = 1024,
 ) {
     private var verticesSize: Long = 0
     private val graphPages: Long2ObjectOpenHashMap<ByteArray> = Long2ObjectOpenHashMap()
@@ -277,43 +275,54 @@ internal class DiskANN(
 
         logger.info { "Graph pruning started with distance multiplication $distanceMultiplication." }
 
-        val features = ArrayList<Future<*>>(maxConnectionsPerVertex + 1)
 
+        val mutatorFutures = ArrayList<Future<ArrayList<Future<*>>>>()
         for (n in permutation.indices) {
             val vertexIndex = permutation[n].toLong()
-            val (_, visited) = greedySearch(graph, medoid, graph.fetchVector(vertexIndex), 1)
             val mutatorIndex = (vertexIndex % vectorMutationThreads.size).toInt()
-
             val mutator = vectorMutationThreads[mutatorIndex]
-            val mutatorFuture = mutator.submit { robustPrune(graph, vertexIndex, visited, distanceMultiplication) }
-            features.add(mutatorFuture)
 
-            val neighbours = graph.fetchNeighbours(vertexIndex)
-            for (neighbour in neighbours) {
-                val neighbourMutatorIndex = (neighbour % vectorMutationThreads.size).toInt()
-                val neighbourMutator = vectorMutationThreads[neighbourMutatorIndex]
+            val mutatorFuture = mutator.submit(Callable {
+                val (_, visited) = greedySearch(graph, medoid, graph.fetchVector(vertexIndex), 1)
+                robustPrune(graph, vertexIndex, visited, distanceMultiplication)
 
-                val neighborMutatorFuture = neighbourMutator.submit {
-                    val neighbourNeighbours = graph.fetchNeighbours(neighbour)
+                val features = ArrayList<Future<*>>(maxConnectionsPerVertex + 1)
+                val neighbours = graph.fetchNeighbours(vertexIndex)
+                for (neighbour in neighbours) {
+                    val neighbourMutatorIndex = (neighbour % vectorMutationThreads.size).toInt()
+                    val neighbourMutator = vectorMutationThreads[neighbourMutatorIndex]
 
-                    if (!neighbourNeighbours.contains(vertexIndex)) {
-                        if (neighbourNeighbours.size + 1 <= maxConnectionsPerVertex) {
-                            graph.appendNeighbour(neighbour, vertexIndex)
-                        } else {
-                            robustPrune(
-                                graph,
-                                neighbour,
-                                LongOpenHashSet(longArrayOf(vertexIndex)),
-                                distanceMultiplication
-                            )
+                    val neighborMutatorFuture = neighbourMutator.submit {
+                        val neighbourNeighbours = graph.fetchNeighbours(neighbour)
+
+                        if (!neighbourNeighbours.contains(vertexIndex)) {
+                            if (neighbourNeighbours.size + 1 <= maxConnectionsPerVertex) {
+                                graph.appendNeighbour(neighbour, vertexIndex)
+                            } else {
+                                robustPrune(
+                                    graph,
+                                    neighbour,
+                                    LongOpenHashSet(longArrayOf(vertexIndex)),
+                                    distanceMultiplication
+                                )
+                            }
                         }
                     }
+                    features.add(neighborMutatorFuture)
                 }
-                features.add(neighborMutatorFuture)
-            }
 
-            for (feature in features) {
-                feature.get()
+                features
+            })
+
+            mutatorFutures.add(mutatorFuture)
+
+            if (mutatorFutures.size == mutatorsQueueSize) {
+                for (feature in mutatorFutures) {
+                    val subFutures = feature.get()
+                    for (subFuture in subFutures) {
+                        subFuture.get()
+                    }
+                }
             }
 
             if ((n + 1) % 1000L == 0L) {
