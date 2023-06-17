@@ -30,6 +30,7 @@ dependencyResolutionManagement {
             version("commons-net", "3.9.0")
             version("bouncyCastle", "1.70")
             version("commons-io", "2.11.0")
+            version("commons-lang", "3.12.0")
             version("lucene", "8.10.0")
             version("fastutil", "8.5.9")
             version("commons-rng", "1.5")
@@ -47,6 +48,7 @@ dependencyResolutionManagement {
 
             library("commons-compress", "org.apache.commons", "commons-compress").versionRef("commons-compress")
             library("commons-net", "commons-net", "commons-net").versionRef("commons-net")
+            library("commons-lang", "org.apache.commons", "commons-lang3").versionRef("commons-lang")
 
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").versionRef("kotlin")
             library("kotlin-stdlib-jdk8", "org.jetbrains.kotlin", "kotlin-stdlib-jdk8").versionRef("kotlin")

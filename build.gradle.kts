@@ -132,8 +132,14 @@ subprojects {
             testImplementation(project(":xodus-crypto"))
         }
     }
-    tasks.withType<JavaCompile> {
+    tasks.compileJava {
         options.encoding = "UTF-8"
+        options.compilerArgs = listOf("--add-modules", "jdk.incubator.vector")
+    }
+
+    tasks.compileTestJava {
+        options.encoding = "UTF-8"
+        options.compilerArgs = listOf("--add-modules", "jdk.incubator.vector")
     }
 
     tasks.jar {

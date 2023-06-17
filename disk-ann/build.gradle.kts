@@ -1,9 +1,4 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import kotlin.io.path.absolute
-
-plugins {
-    id("com.google.devtools.ksp")
-}
 
 dependencies {
     implementation(libs.commons.rng.simple)
@@ -11,6 +6,7 @@ dependencies {
 
     implementation(libs.commons.net)
     implementation(libs.commons.compress)
+    implementation(libs.commons.lang)
 
     testImplementation(project(":xodus-utils-test"))
 }
@@ -24,11 +20,6 @@ dependencies {
 }
 
 
-
-ksp {
-    arg("excludePaths", project.projectDir.toPath().resolve("src").resolve("test").absolute().toString())
-}
-
 tasks {
     named("compileKotlin", KotlinCompile::class) {
         kotlinOptions {
@@ -37,11 +28,12 @@ tasks {
     }
     register<JavaExec>("runSift1MBench") {
         group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.SIFT1MBenchKt"
+        mainClass = "jetbrains.exodus.diskann.bench.SIFT1MBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true"
+            "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
+            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages"
         )
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
@@ -53,11 +45,12 @@ tasks {
 
     register<JavaExec>("runGist1MBench") {
         group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.GIST1MBenchKt"
+        mainClass = "jetbrains.exodus.diskann.bench.GIST1MBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true"
+            "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
+            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages"
         )
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
