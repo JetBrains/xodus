@@ -435,7 +435,7 @@ public final class DiskANN {
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
         var permutation = new PermutationSampler(rng, (int) size, (int) size).sample();
 
-        if (logger.isDebugEnabled()) {
+        if (logger.isInfoEnabled()) {
             logger.info("Graph pruning started with distance multiplication " + distanceMultiplication + ".");
         }
 
