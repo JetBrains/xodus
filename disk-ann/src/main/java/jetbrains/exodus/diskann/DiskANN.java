@@ -440,8 +440,7 @@ public final class DiskANN {
         }
 
         var mutatorFutures = new ArrayList<Future<ArrayList<Future<?>>>>();
-        for (var n = 0; n < permutation.length; n++) {
-            var vertexIndex = permutation[n];
+        for (int vertexIndex : permutation) {
             var mutatorIndex = (vertexIndex % vectorMutationThreads.size());
             var mutator = vectorMutationThreads.get(mutatorIndex);
 
@@ -508,10 +507,6 @@ public final class DiskANN {
                 }
 
                 mutatorFutures.clear();
-                if (logger.isInfoEnabled()) {
-                    logger.info("Graph pruning: " + (n + 1) + " vertices out of " + size + " were processed.");
-                }
-
             }
         }
 
