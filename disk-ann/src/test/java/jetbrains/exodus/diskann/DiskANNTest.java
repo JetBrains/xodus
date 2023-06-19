@@ -78,7 +78,7 @@ public class DiskANNTest {
             Assert.assertTrue(errorPercentage <= 5);
 
         } catch (Throwable e) {
-            System.out.println("Seed: $seed");
+            System.out.println("Seed: " + seed);
             throw e;
         }
     }

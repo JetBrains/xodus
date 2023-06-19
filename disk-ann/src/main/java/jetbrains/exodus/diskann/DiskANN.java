@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
 import jdk.incubator.vector.FloatVector;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
@@ -18,11 +17,9 @@ import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 public final class DiskANN {
@@ -116,12 +113,98 @@ public final class DiskANN {
         }
     }
 
-    private ObjectObjectImmutablePair<long[], LongOpenHashSet> greedySearch(
+    private long[] greedySearchNearest(
             Graph graph,
             long startVertexIndex,
             float[] queryVertex,
-            int maxResultSize,
-            boolean validateVersions
+            int maxResultSize
+    ) {
+        var nearestCandidates = new TreeSet<GreedyVertex>();
+        var visitedVertexIndices = new LongOpenHashSet(maxAmountOfCandidates);
+
+        var startVector = graph.fetchVector(startVertexIndex);
+        var distanceFunction = this.distanceFunction;
+
+        var startVertex = new GreedyVertex(
+                startVertexIndex, distanceFunction.computeDistance(queryVertex, startVector));
+
+        nearestCandidates.add(startVertex);
+        var candidatesToVisit = 1;
+
+        while (candidatesToVisit > 0) {
+            assert candidatesToVisit <= maxAmountOfCandidates;
+            assert assertNearestCandidates(nearestCandidates, candidatesToVisit);
+
+            var minVertexIterator = nearestCandidates.iterator();
+
+            GreedyVertex minVertex = null;
+
+            while (minVertexIterator.hasNext()) {
+                minVertex = minVertexIterator.next();
+                if (!minVertex.visited) {
+                    break;
+                }
+            }
+
+            assert minVertex != null;
+            visitedVertexIndices.add(minVertex.index);
+
+            minVertex.visited = true;
+            candidatesToVisit--;
+
+            candidatesToVisit = filterNeighbours(graph, queryVertex, nearestCandidates,
+                    visitedVertexIndices, distanceFunction, candidatesToVisit, minVertex);
+        }
+
+
+        assert candidatesToVisit == 0;
+        assert nearestCandidates.size() <= maxAmountOfCandidates;
+
+        var resultSize = Math.min(maxResultSize, nearestCandidates.size());
+        var nearestVertices = new long[resultSize];
+        var nearestVerticesIterator = nearestCandidates.iterator();
+
+        for (var i = 0; i < resultSize; i++) {
+            nearestVertices[i] = nearestVerticesIterator.next().index;
+        }
+
+        return nearestVertices;
+    }
+
+    private int filterNeighbours(Graph graph, float[] queryVertex, TreeSet<GreedyVertex> nearestCandidates,
+                                 LongOpenHashSet visitedVertexIndices, DistanceFunction distanceFunction,
+                                 int candidatesToVisit, GreedyVertex minVertex) {
+        var vertexNeighbours = graph.fetchNeighbours(minVertex.index);
+        for (var vertexIndex : vertexNeighbours) {
+            if (visitedVertexIndices.contains(vertexIndex)) {
+                continue;
+            }
+
+            var vertexVector = graph.fetchVector(vertexIndex);
+            var vertex =
+                    new GreedyVertex(vertexIndex, distanceFunction.computeDistance(queryVertex, vertexVector));
+            if (nearestCandidates.add(vertex)) {
+                candidatesToVisit++;
+
+                while (nearestCandidates.size() > maxAmountOfCandidates) {
+                    var removed = nearestCandidates.pollLast();
+
+                    assert removed != null;
+                    if (!removed.visited) {
+                        candidatesToVisit--;
+                    }
+                }
+            }
+
+            assert candidatesToVisit >= 0 && candidatesToVisit <= maxAmountOfCandidates;
+        }
+        return candidatesToVisit;
+    }
+
+    private LongOpenHashSet greedySearchPrune(
+            Graph graph,
+            long startVertexIndex,
+            float[] queryVertex
     ) {
         var nearestCandidates = new TreeSet<GreedyVertex>();
         var visitedVertexIndices = new LongOpenHashSet(maxAmountOfCandidates);
@@ -155,68 +238,32 @@ public final class DiskANN {
 
                 assert minVertex != null;
                 visitedVertexIndices.add(minVertex.index);
-                if (validateVersions) {
-                    vertexVersions.put(minVertex.index, graph.vertexVersion(minVertex.index));
-                }
+                vertexVersions.put(minVertex.index, graph.vertexVersion(minVertex.index));
 
                 minVertex.visited = true;
                 candidatesToVisit--;
 
-                var vertexNeighbours = graph.fetchNeighbours(minVertex.index);
-                for (var vertexIndex : vertexNeighbours) {
-                    if (visitedVertexIndices.contains(vertexIndex)) {
-                        continue;
-                    }
-
-                    var vertexVector = graph.fetchVector(vertexIndex);
-                    var vertex =
-                            new GreedyVertex(vertexIndex, distanceFunction.computeDistance(queryVertex, vertexVector));
-                    if (nearestCandidates.add(vertex)) {
-                        candidatesToVisit++;
-
-                        while (nearestCandidates.size() > maxAmountOfCandidates) {
-                            var removed = nearestCandidates.pollLast();
-
-                            assert removed != null;
-                            if (!removed.visited) {
-                                candidatesToVisit--;
-                            }
-                        }
-                    }
-
-                    assert candidatesToVisit >= 0 && candidatesToVisit <= maxAmountOfCandidates;
-                }
+                candidatesToVisit = filterNeighbours(graph, queryVertex, nearestCandidates,
+                        visitedVertexIndices, distanceFunction, candidatesToVisit, minVertex);
             }
 
-            if (validateVersions) {
-                var vertexVersionsIterator = vertexVersions.long2LongEntrySet().fastIterator();
-                while (vertexVersionsIterator.hasNext()) {
-                    var vertexVersionEntry = vertexVersionsIterator.next();
-                    var vertexIndex = vertexVersionEntry.getLongKey();
-                    var vertexVersion = vertexVersionEntry.getLongValue();
-                    if (graph.validateVertexVersion(vertexIndex, vertexVersion)) {
-                        break traverseLoop;
-                    }
+            var vertexVersionsIterator = vertexVersions.long2LongEntrySet().fastIterator();
+            while (vertexVersionsIterator.hasNext()) {
+                var vertexVersionEntry = vertexVersionsIterator.next();
+                var vertexIndex = vertexVersionEntry.getLongKey();
+                var vertexVersion = vertexVersionEntry.getLongValue();
+                if (graph.validateVertexVersion(vertexIndex, vertexVersion)) {
+                    break traverseLoop;
                 }
-                nearestCandidates.clear();
-                visitedVertexIndices.clear();
-                vertexVersions.clear();
-            } else {
-                break;
             }
+            nearestCandidates.clear();
+            visitedVertexIndices.clear();
+            vertexVersions.clear();
         }
 
         assert nearestCandidates.size() <= maxAmountOfCandidates;
 
-        var resultSize = Math.min(maxResultSize, nearestCandidates.size());
-        var nearestVertices = new long[resultSize];
-        var nearestVerticesIterator = nearestCandidates.iterator();
-
-        for (var i = 0; i < resultSize; i++) {
-            nearestVertices[i] = nearestVerticesIterator.next().index;
-        }
-
-        return new ObjectObjectImmutablePair<>(nearestVertices, visitedVertexIndices);
+        return visitedVertexIndices;
     }
 
     private void robustPrune(
@@ -299,7 +346,7 @@ public final class DiskANN {
 
     }
 
-    private boolean assertNearestCandidates(TreeSet<GreedyVertex> nearestCandidates, int candidatesToVisit) {
+    private boolean assertNearestCandidates(SortedSet<GreedyVertex> nearestCandidates, int candidatesToVisit) {
         var vertexIterator = nearestCandidates.iterator();
         var candidates = 0;
 
@@ -336,8 +383,8 @@ public final class DiskANN {
     }
 
     public long[] nearest(float[] vector, int resultSize) {
-        var nearestVertices = greedySearch(diskGraph, diskGraph.medoid(), vector,
-                resultSize, false).left();
+        var nearestVertices = greedySearchNearest(diskGraph, diskGraph.medoid(), vector,
+                resultSize);
         var ids = new long[nearestVertices.length];
 
         for (var index = 0; index < nearestVertices.length; index++) {
@@ -362,8 +409,7 @@ public final class DiskANN {
             var mutator = vectorMutationThreads.get(mutatorIndex);
 
             var mutatorFuture = mutator.submit(() -> {
-                var visited = greedySearch(graph, medoid, graph.fetchVector(vertexIndex), 1,
-                        true).right();
+                var visited = greedySearchPrune(graph, medoid, graph.fetchVector(vertexIndex));
                 robustPrune(graph, vertexIndex, visited, distanceMultiplication);
 
                 var features = new ArrayList<Future<?>>(maxConnectionsPerVertex + 1);
@@ -421,7 +467,7 @@ public final class DiskANN {
 
                 mutatorFutures.clear();
                 if (logger.isInfoEnabled()) {
-                    logger.info("Graph pruning: " + (n + 1) + "vertices out of " + size + " were processed.");
+                    logger.info("Graph pruning: " + (n + 1) + " vertices out of " + size + " were processed.");
                 }
 
             }
@@ -444,7 +490,7 @@ public final class DiskANN {
         }
 
         if (logger.isInfoEnabled()) {
-            logger.info("Graph pruning: " + size + " vertices out of $size were processed.");
+            logger.info("Graph pruning: " + size + " vertices were processed.");
         }
     }
 
