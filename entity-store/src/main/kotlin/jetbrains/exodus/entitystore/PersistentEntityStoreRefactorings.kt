@@ -44,7 +44,10 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
         if (blobVault is FileSystemBlobVaultOld) {
             logInfo("Deleting redundant blobs...")
 
-            val nextBlobHandle = blobVault.nextHandle()
+            val nextBlobHandle = store.computeInReadonlyTransaction {
+                blobVault.nextHandle()
+            }
+
             blobVault.removeAllBlobsStartingFrom(nextBlobHandle)
         }
     }
@@ -82,7 +85,11 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             txn as PersistentStoreTransaction
                             for (i in 0 until dFieldIds.size()) {
                                 props.delete(
-                                    txn, dLocalIds[i], cursorValueToDelete.notNull, dFieldIds[i], propTypeToDelete.notNull
+                                    txn,
+                                    dLocalIds[i],
+                                    cursorValueToDelete.notNull,
+                                    dFieldIds[i],
+                                    propTypeToDelete.notNull
                                 )
                             }
                         }
@@ -149,8 +156,10 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     while (cursor.next) {
                         val blobHandle = LongBinding.compressedEntryToLong(cursor.value)
                         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-                            store.setBlobFileLength(txn, blobHandle,
-                                diskVault.getBlobLocation(blobHandle).length())
+                            store.setBlobFileLength(
+                                txn, blobHandle,
+                                diskVault.getBlobLocation(blobHandle).length()
+                            )
                         }
                     }
                 }
@@ -363,9 +372,11 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     if (redundantLinksSize > 0 || deleteLinksSize > 0) {
                         store.environment.executeInExclusiveTransaction { txn ->
                             for (redundantLink in redundantLinks) {
-                                deletePair(linksTable.getSecondIndexCursor(txn),
+                                deletePair(
+                                    linksTable.getSecondIndexCursor(txn),
                                     redundantLink.first,
-                                    redundantLink.second)
+                                    redundantLink.second
+                                )
                             }
                             for (deleteLink in deleteLinks) {
                                 deletePair(linksTable.getFirstIndexCursor(txn), deleteLink.first, deleteLink.second)
@@ -445,8 +456,10 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         store.executeInExclusiveTransaction { txn ->
                             txn as PersistentStoreTransaction
                             for (localId in entitiesToDelete) {
-                                store.deleteEntity(txn,
-                                    PersistentEntity(store, PersistentEntityId(entityTypeId, localId)))
+                                store.deleteEntity(
+                                    txn,
+                                    PersistentEntity(store, PersistentEntityId(entityTypeId, localId))
+                                )
                             }
                         }
                     }
@@ -464,9 +477,14 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             for (localId in localIds) {
                                 val propValue = checkNotNull(entitiesToValues[localId])
                                 for (secondaryKey in PropertiesTable.createSecondaryKeys(
-                                    propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.type)) {
+                                    propertyTypes, PropertyTypes.propertyValueToEntry(propValue), propValue.type
+                                )) {
                                     val secondaryValue: ByteIterable = LongBinding.longToCompressedEntry(localId)
-                                    if (valueCursor == null || !valueCursor.getSearchBoth(secondaryKey, secondaryValue)) {
+                                    if (valueCursor == null || !valueCursor.getSearchBoth(
+                                            secondaryKey,
+                                            secondaryValue
+                                        )
+                                    ) {
                                         missingPairs.add(propId to (secondaryKey to secondaryValue))
                                     }
                                 }
@@ -505,7 +523,11 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                     @Suppress("UNCHECKED_CAST")
                                     dataClass = (data as ComparableSet<Comparable<Any>>).itemClass
                                     if (dataClass == null) {
-                                        phantomPairs.add(propId to (ArrayByteIterable(keyEntry) to ArrayByteIterable(valueEntry)))
+                                        phantomPairs.add(
+                                            propId to (ArrayByteIterable(keyEntry) to ArrayByteIterable(
+                                                valueEntry
+                                            ))
+                                        )
                                         continue
                                     }
                                     objectBinding = propertyTypes.getPropertyType(dataClass).binding
@@ -578,7 +600,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         store.executeInExclusiveTransaction { txn ->
                             val envTxn = (txn as PersistentStoreTransaction).environmentTransaction
                             phantomIds.forEach { phantom ->
-                                propTable.allPropsIndex.remove(envTxn,phantom.first, phantom.second)
+                                propTable.allPropsIndex.remove(envTxn, phantom.first, phantom.second)
                             }
                         }
                         logInfo("${phantomIds.size} phantom id pairs found and fixed for [$entityType]")
@@ -606,17 +628,21 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         while (cursor.next) {
                             try {
                                 ArrayByteIterable(cursor.value).let {
-                                    val propertyType = propertyTypes.getPropertyType((it.iterator()
-                                        .next() xor (0x80).toByte()).toInt())
+                                    val propertyType = propertyTypes.getPropertyType(
+                                        (it.iterator()
+                                            .next() xor (0x80).toByte()).toInt()
+                                    )
                                     when (propertyType.typeId) {
                                         ComparableValueType.FLOAT_VALUE_TYPE -> {
                                             props[PropertyKey.entryToPropertyKey(cursor.key)] =
                                                 propertyTypes.entryToPropertyValue(it, FloatBinding.BINDING) to it
                                         }
+
                                         ComparableValueType.DOUBLE_VALUE_TYPE -> {
                                             props[PropertyKey.entryToPropertyKey(cursor.key)] =
                                                 propertyTypes.entryToPropertyValue(it, DoubleBinding.BINDING) to it
                                         }
+
                                         else -> {
                                         }
                                     }
@@ -628,9 +654,11 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     if (props.isNotEmpty()) {
                         props.keys.sortedBy { it.entityLocalId }.forEach { key ->
                             props[key]?.let { (propValue, it) ->
-                                propTable.put(txn, key.entityLocalId,
+                                propTable.put(
+                                    txn, key.entityLocalId,
                                     PropertyTypes.propertyValueToEntry(propValue),
-                                    it, key.propertyId, propValue.type)
+                                    it, key.propertyId, propValue.type
+                                )
                             }
                         }
                         logInfo("${props.size} negative float & double props fixed.")
@@ -648,10 +676,14 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                 txn as PersistentStoreTransaction
                 val blobsTable = store.getBlobsTable(txn, entityTypeId)
                 inPlaceBlobs.forEach { (blobKey, it) ->
-                    blobsTable.put(txn.environmentTransaction,
+                    blobsTable.put(
+                        txn.environmentTransaction,
                         blobKey.entityLocalId, blobKey.propertyId,
-                        CompoundByteIterable(arrayOf(
-                            store.blobHandleToEntry(IN_PLACE_BLOB_HANDLE), it))
+                        CompoundByteIterable(
+                            arrayOf(
+                                store.blobHandleToEntry(IN_PLACE_BLOB_HANDLE), it
+                            )
+                        )
                     )
                 }
             }
@@ -682,6 +714,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                         inPlaceBlobs.clear()
                                     }
                                 }
+
                                 else -> {
                                     blobHandles.add(blobKey to blobHandle)
                                 }
@@ -801,7 +834,8 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                 val envTxn = txn.environmentTransaction
                 val lastApplied = Settings.get(envTxn, settings, settingName)
                 if ((lastApplied?.toLong() ?: 0L) +
-                    (config.refactoringDeduplicateBlobsEvery.toLong() * 24L * 3600L * 1000L) > System.currentTimeMillis()) continue
+                    (config.refactoringDeduplicateBlobsEvery.toLong() * 24L * 3600L * 1000L) > System.currentTimeMillis()
+                ) continue
                 logInfo("Deduplicate in-place blobs for [$entityType]")
                 val entityTypeId = store.getEntityTypeId(txn, entityType, false)
                 val inPlaceBlobs = IntHashMap<PropertyKey>()
@@ -826,7 +860,8 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                         // skip handle
                                         LongBinding.readCompressed(testIt)
                                         // if duplicate
-                                        if (size == CompressedUnsignedLongByteIterable.getLong(testIt).toInt() && stream ==
+                                        if (size == CompressedUnsignedLongByteIterable.getLong(testIt)
+                                                .toInt() && stream ==
                                             ByteArraySizedInputStream(ByteIterableBase.readIterator(testIt, size))
                                         ) {
                                             store.executeInExclusiveTransaction { txn ->
@@ -898,8 +933,10 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
         }
     }
 
-    private fun safeExecuteRefactoringForEachEntityType(message: String,
-                                                        executable: (String, PersistentStoreTransaction) -> Unit) {
+    private fun safeExecuteRefactoringForEachEntityType(
+        message: String,
+        executable: (String, PersistentStoreTransaction) -> Unit
+    ) {
         val entityTypes = store.computeInReadonlyTransaction { txn ->
             store.getEntityTypes(txn as PersistentStoreTransaction)
         }
@@ -924,7 +961,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
         try {
             with(txn.environment) {
                 if (storeExists(name, txn)) {
-                    removeStore(name, txn);
+                    removeStore(name, txn)
                 }
             }
         } catch (e: ExodusException) {
