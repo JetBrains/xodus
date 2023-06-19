@@ -62,7 +62,7 @@ final class BenchUtils {
                     while (entry != null) {
                         var name = entry.getName();
                         if (name.endsWith(".fvecs") || name.endsWith(".ivecs")) {
-                            System.out.println("Extracting $name");
+                            System.out.printf("Extracting %s%n", name);
                             var file = rootDir.resolve(name);
                             if (!Files.exists(file.getParent())) {
                                 Files.createDirectories(file.getParent());
@@ -78,12 +78,13 @@ final class BenchUtils {
             }
         }
 
-        System.out.println("$siftArchiveName extracted");
+        System.out.printf("%s extracted%n", siftArchiveName);
 
         var siftsBaseDir = rootDir.resolve(siftDir);
         var vectors = readFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
 
-        System.out.println(vectors.length + " data vectors loaded with dimension $vectorDimensions, building index...");
+        System.out.printf("%d data vectors loaded with dimension %d, building index...%n",
+                vectors.length, vectorDimensions);
 
         var diskANN = new DiskANN("test index", vectorDimensions, new L2Distance());
         var ts1 = System.nanoTime();
