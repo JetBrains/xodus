@@ -33,7 +33,7 @@ tasks {
         jvmArgs = listOf(
             "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
-            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages"
+            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages", "-XX:+PrintCompilation"
         )
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
