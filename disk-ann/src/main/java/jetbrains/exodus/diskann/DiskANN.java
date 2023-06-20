@@ -345,15 +345,12 @@ public final class DiskANN {
                 var features = new ArrayList<Future<?>>(maxConnectionsPerVertex + 1);
                 var neighbours = graph.fetchNeighbours(vertexIndex);
                 for (var neighbour : neighbours) {
-                    var neighbourMutatorIndex = (int) (neighbour % vectorMutationThreads.size());
-                    var neighbourMutator = vectorMutationThreads.get(neighbourMutatorIndex);
-
-                    var neighborMutatorFuture = neighbourMutator.submit(() -> {
-                        var neighbourNeighbours = graph.fetchNeighbours(neighbour);
-
-
-                        if (!ArrayUtils.contains(neighbourNeighbours, vertexIndex)) {
-                            if (neighbourNeighbours.length + 1 <= maxConnectionsPerVertex) {
+                    var neighbourNeighbours = graph.fetchNeighbours(neighbour);
+                    if (!ArrayUtils.contains(neighbourNeighbours, vertexIndex)) {
+                        var neighbourMutatorIndex = (int) (neighbour % vectorMutationThreads.size());
+                        var neighbourMutator = vectorMutationThreads.get(neighbourMutatorIndex);
+                        var neighborMutatorFuture = neighbourMutator.submit(() -> {
+                            if (graph.getNeighboursSize(neighbour) + 1 <= maxConnectionsPerVertex) {
                                 graph.acquireVertex(neighbour);
                                 try {
                                     graph.appendNeighbour(neighbour, vertexIndex);
@@ -368,9 +365,9 @@ public final class DiskANN {
                                         distanceMultiplication
                                 );
                             }
-                        }
-                    });
-                    features.add(neighborMutatorFuture);
+                        });
+                        features.add(neighborMutatorFuture);
+                    }
                 }
 
                 return features;
@@ -578,9 +575,19 @@ public final class DiskANN {
         }
 
         int getNeighboursSize(long vertexIndex) {
-            var size = (int) edges[(int) (vertexIndex * (maxConnectionsPerVertex + 1))];
-            assert size >= 0 && size <= maxConnectionsPerVertex;
-            return size;
+            var version = edgeVersions.get((int) vertexIndex);
+            while (true) {
+                var size = (int) edges[(int) (vertexIndex * (maxConnectionsPerVertex + 1))];
+                var newVersion = edgeVersions.get((int) vertexIndex);
+
+                VarHandle.acquireFence();
+                if (newVersion == version) {
+                    assert size >= 0 && size <= maxConnectionsPerVertex;
+                    return size;
+                }
+
+                version = newVersion;
+            }
         }
 
         @NotNull
@@ -599,12 +606,13 @@ public final class DiskANN {
                 var edgesOffset = (int) (vertexIndex * (maxConnectionsPerVertex + 1));
                 var size = (int) edges[edgesOffset];
 
-                assert (size >= 0 && size <= maxConnectionsPerVertex);
+
                 var result = Arrays.copyOfRange(edges, edgesOffset + 1, edgesOffset + 1 + size);
                 var newVersion = edgeVersions.get((int) vertexIndex);
 
                 VarHandle.acquireFence();
                 if (newVersion == version) {
+                    assert (size >= 0 && size <= maxConnectionsPerVertex);
                     return result;
                 }
 
@@ -625,9 +633,12 @@ public final class DiskANN {
 
         void appendNeighbour(long vertexIndex, long neighbour) {
             validateLocked(vertexIndex);
+
             var edgesOffset = (int) (vertexIndex * (maxConnectionsPerVertex + 1));
             var size = (int) edges[edgesOffset];
 
+            assert size + 1 <= maxConnectionsPerVertex;
+            
             edges[edgesOffset] = size + 1;
             edges[edgesOffset + size + 1] = neighbour;
         }
