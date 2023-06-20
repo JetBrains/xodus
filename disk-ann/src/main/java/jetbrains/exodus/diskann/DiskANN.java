@@ -448,9 +448,7 @@ public final class DiskANN {
             var first = FloatVector.fromArray(species, firstVector, index);
             var second = FloatVector.fromArray(species, secondVector, index);
             var diff = first.sub(second);
-            var mul = diff.mul(diff);
-
-            sumVector = sumVector.add(mul);
+            sumVector = diff.fma(diff, sumVector);
             index += species.length();
         }
 
@@ -476,9 +474,7 @@ public final class DiskANN {
             var first = FloatVector.fromArray(species, firstVector, index + firstVectorFrom);
             var second = FloatVector.fromArray(species, secondVector, index);
             var diff = first.sub(second);
-            var mul = diff.mul(diff);
-
-            sumVector = sumVector.add(mul);
+            sumVector = diff.fma(diff, sumVector);
             index += species.length();
         }
 
@@ -500,9 +496,7 @@ public final class DiskANN {
         while (index < species.loopBound(firstVector.length)) {
             var first = FloatVector.fromArray(species, firstVector, index);
             var second = FloatVector.fromArray(species, secondVector, index);
-            var mul = first.mul(second);
-
-            sumVector = sumVector.add(mul);
+            sumVector = first.fma(second, sumVector);
             index += species.length();
         }
 
@@ -526,9 +520,7 @@ public final class DiskANN {
         while (index < species.loopBound(size)) {
             var first = FloatVector.fromArray(species, firstVector, index + firstVectorFrom);
             var second = FloatVector.fromArray(species, secondVector, index);
-            var mul = first.mul(second);
-
-            sumVector = sumVector.add(mul);
+            sumVector = first.fma(second, sumVector);
             index += species.length();
         }
 
@@ -638,7 +630,7 @@ public final class DiskANN {
             var size = (int) edges[edgesOffset];
 
             assert size + 1 <= maxConnectionsPerVertex;
-            
+
             edges[edgesOffset] = size + 1;
             edges[edgesOffset + size + 1] = neighbour;
         }
