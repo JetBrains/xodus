@@ -34,8 +34,6 @@ tasks {
             "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
             "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages", "-XX:+TieredCompilation",
-            "-XX:+UnlockDiagnosticVMOptions",
-            "-XX:+PrintInlining",
             "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0"
         )
         systemProperties = mapOf(
@@ -43,7 +41,7 @@ tasks {
         )
 
 
-        javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(19)) })
+        javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(20)) })
     }
 
     register<JavaExec>("runGist1MBench") {
