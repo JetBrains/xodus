@@ -54,7 +54,7 @@ public class DiskANNTest {
                 } while (!addedVectors.add(new FloatArrayHolder(vector)));
             }
 
-            var diskANN = new DiskANN("test index", vectorDimensions, new L2Distance());
+            var diskANN = new DiskANN("test index", vectorDimensions, DiskANN.L2_DISTANCE);
             var ts1 = System.nanoTime();
             diskANN.buildIndex(new ArrayVectorReader(vectors));
             var ts2 = System.nanoTime();
@@ -165,7 +165,7 @@ public class DiskANNTest {
         System.out.printf("%d data vectors loaded with dimension %d, building index...",
                 vectors.length, vectorDimensions);
 
-        var diskANN = new DiskANN("test index", vectorDimensions, new L2Distance());
+        var diskANN = new DiskANN("test index", vectorDimensions, DiskANN.L2_DISTANCE);
         var ts1 = System.nanoTime();
         diskANN.buildIndex(new ArrayVectorReader(vectors));
         var ts2 = System.nanoTime();

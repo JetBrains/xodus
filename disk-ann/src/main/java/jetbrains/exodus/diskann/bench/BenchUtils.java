@@ -10,7 +10,6 @@ import java.nio.file.Path;
 
 import it.unimi.dsi.fastutil.longs.LongObjectImmutablePair;
 import jetbrains.exodus.diskann.DiskANN;
-import jetbrains.exodus.diskann.L2Distance;
 import jetbrains.exodus.diskann.VectorReader;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -86,7 +85,7 @@ final class BenchUtils {
         System.out.printf("%d data vectors loaded with dimension %d, building index...%n",
                 vectors.length, vectorDimensions);
 
-        var diskANN = new DiskANN("test index", vectorDimensions, new L2Distance());
+        var diskANN = new DiskANN("test index", vectorDimensions, DiskANN.L2_DISTANCE);
         var ts1 = System.nanoTime();
         diskANN.buildIndex(new ArrayVectorReader(vectors));
         var ts2 = System.nanoTime();
