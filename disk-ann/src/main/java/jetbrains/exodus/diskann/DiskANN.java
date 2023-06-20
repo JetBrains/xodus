@@ -1,6 +1,5 @@
 package jetbrains.exodus.diskann;
 
-import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -17,10 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLongArray;
 
@@ -129,72 +125,41 @@ public final class DiskANN {
             int maxResultSize
     ) {
         var nearestCandidates = new TreeSet<GreedyVertex>();
+        var processingQueue = new PriorityQueue<GreedyVertex>();
+
         var visitedVertexIndices = new LongOpenHashSet();
 
-
         var startVector = graph.fetchVector(startVertexIndex);
+        processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(startVector, queryVertex)));
 
+        while (!processingQueue.isEmpty()) {
+            assert nearestCandidates.size() <= maxAmountOfCandidates;
+            var currentVertex = processingQueue.poll();
 
-        var startVertex = new GreedyVertex(
-                startVertexIndex, computeDistance(queryVertex, startVector));
-
-        nearestCandidates.add(startVertex);
-        var candidatesToVisit = 1;
-
-        while (candidatesToVisit > 0) {
-            assert candidatesToVisit <= maxAmountOfCandidates;
-            assert assertNearestCandidates(nearestCandidates, candidatesToVisit);
-
-            var minVertexIterator = nearestCandidates.iterator();
-
-            GreedyVertex minVertex = null;
-
-            while (minVertexIterator.hasNext()) {
-                minVertex = minVertexIterator.next();
-                if (!minVertex.visited) {
-                    break;
+            if (nearestCandidates.size() == maxAmountOfCandidates &&
+                    nearestCandidates.last().distance < currentVertex.distance) {
+                break;
+            } else {
+                if (nearestCandidates.size() == maxAmountOfCandidates) {
+                    nearestCandidates.pollLast();
                 }
+                nearestCandidates.add(currentVertex);
             }
 
-            assert minVertex != null;
-            visitedVertexIndices.add(minVertex.index);
-
-            minVertex.visited = true;
-            candidatesToVisit--;
-
-            int candidatesToVisit1 = candidatesToVisit;
-            var vertexNeighbours = graph.fetchNeighbours(minVertex.index);
+            var vertexNeighbours = graph.fetchNeighbours(currentVertex.index);
             for (var vertexIndex : vertexNeighbours) {
-                if (visitedVertexIndices.contains(vertexIndex)) {
-                    continue;
+                if (visitedVertexIndices.add(vertexIndex)) {
+                    //return array and offset instead
+                    var distance = computeDistance(queryVertex, graph.fetchVector(vertexIndex));
+                    processingQueue.add(new GreedyVertex(vertexIndex, distance));
                 }
-
-                var vertexVector = graph.fetchVector(vertexIndex);
-                var vertex =
-                        new GreedyVertex(vertexIndex, computeDistance(queryVertex, vertexVector));
-                if (nearestCandidates.add(vertex)) {
-                    candidatesToVisit1++;
-
-                    while (nearestCandidates.size() > maxAmountOfCandidates) {
-                        var removed = nearestCandidates.pollLast();
-
-                        assert removed != null;
-                        if (!removed.visited) {
-                            candidatesToVisit1--;
-                        }
-                    }
-                }
-
-                assert candidatesToVisit1 >= 0 && candidatesToVisit1 <= maxAmountOfCandidates;
             }
-            candidatesToVisit = candidatesToVisit1;
+
         }
 
-
-        assert candidatesToVisit == 0;
         assert nearestCandidates.size() <= maxAmountOfCandidates;
-
         var resultSize = Math.min(maxResultSize, nearestCandidates.size());
+
         var nearestVertices = new long[resultSize];
         var nearestVerticesIterator = nearestCandidates.iterator();
 
@@ -210,86 +175,41 @@ public final class DiskANN {
             long startVertexIndex,
             long vertexIndexToPrune) {
         float[] queryVertex = graph.fetchVector(vertexIndexToPrune);
+
         var nearestCandidates = new TreeSet<GreedyVertex>();
+        var processingQueue = new PriorityQueue<GreedyVertex>();
+
         var visitedVertexIndices = new LongOpenHashSet();
-        var vertexVersions = new Long2LongOpenHashMap();
 
-        traverseLoop:
-        while (true) {
-            var startVector = graph.fetchVector(startVertexIndex);
 
-            var startVertex = new GreedyVertex(
-                    startVertexIndex, computeDistance(queryVertex, startVector));
+        var startVector = graph.fetchVector(startVertexIndex);
+        processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(startVector, queryVertex)));
 
-            nearestCandidates.add(startVertex);
-            var candidatesToVisit = 1;
+        while (!processingQueue.isEmpty()) {
+            assert nearestCandidates.size() <= maxAmountOfCandidates;
+            var currentVertex = processingQueue.poll();
 
-            while (candidatesToVisit > 0) {
-                assert candidatesToVisit <= maxAmountOfCandidates;
-                assert assertNearestCandidates(nearestCandidates, candidatesToVisit);
-
-                var minVertexIterator = nearestCandidates.iterator();
-
-                GreedyVertex minVertex = null;
-
-                while (minVertexIterator.hasNext()) {
-                    minVertex = minVertexIterator.next();
-                    if (!minVertex.visited) {
-                        break;
-                    }
+            if (nearestCandidates.size() == maxAmountOfCandidates &&
+                    nearestCandidates.last().distance < currentVertex.distance) {
+                break;
+            } else {
+                if (nearestCandidates.size() == maxAmountOfCandidates) {
+                    nearestCandidates.pollLast();
                 }
-
-                assert minVertex != null;
-                visitedVertexIndices.add(minVertex.index);
-                vertexVersions.put(minVertex.index, graph.vertexVersion(minVertex.index));
-
-                minVertex.visited = true;
-                candidatesToVisit--;
-
-                int candidatesToVisit1 = candidatesToVisit;
-                var vertexNeighbours = graph.fetchNeighbours(minVertex.index);
-                for (var vertexIndex : vertexNeighbours) {
-                    if (visitedVertexIndices.contains(vertexIndex)) {
-                        continue;
-                    }
-
-                    var vertexVector = graph.fetchVector(vertexIndex);
-                    var vertex =
-                            new GreedyVertex(vertexIndex, computeDistance(queryVertex, vertexVector));
-                    if (nearestCandidates.add(vertex)) {
-                        candidatesToVisit1++;
-
-                        while (nearestCandidates.size() > maxAmountOfCandidates) {
-                            var removed = nearestCandidates.pollLast();
-
-                            assert removed != null;
-                            if (!removed.visited) {
-                                candidatesToVisit1--;
-                            }
-                        }
-                    }
-
-                    assert candidatesToVisit1 >= 0 && candidatesToVisit1 <= maxAmountOfCandidates;
-                }
-                candidatesToVisit = candidatesToVisit1;
+                nearestCandidates.add(currentVertex);
             }
 
-            var vertexVersionsIterator = vertexVersions.long2LongEntrySet().fastIterator();
-            while (vertexVersionsIterator.hasNext()) {
-                var vertexVersionEntry = vertexVersionsIterator.next();
-                var vertexIndex = vertexVersionEntry.getLongKey();
-                var vertexVersion = vertexVersionEntry.getLongValue();
-                if (graph.validateVertexVersion(vertexIndex, vertexVersion)) {
-                    break traverseLoop;
+            var vertexNeighbours = graph.fetchNeighbours(currentVertex.index);
+            for (var vertexIndex : vertexNeighbours) {
+                if (visitedVertexIndices.add(vertexIndex)) {
+                    //return array and offset instead
+                    var distance = computeDistance(queryVertex, graph.fetchVector(vertexIndex));
+                    processingQueue.add(new GreedyVertex(vertexIndex, distance));
                 }
             }
-            nearestCandidates.clear();
-            visitedVertexIndices.clear();
-            vertexVersions.clear();
         }
 
         assert nearestCandidates.size() <= maxAmountOfCandidates;
-
         robustPrune(graph, vertexIndexToPrune, visitedVertexIndices, distanceMultiplication);
     }
 
@@ -371,21 +291,6 @@ public final class DiskANN {
             graph.releaseVertex(vertexIndex);
         }
 
-    }
-
-    private boolean assertNearestCandidates(SortedSet<GreedyVertex> nearestCandidates, int candidatesToVisit) {
-        var vertexIterator = nearestCandidates.iterator();
-        var candidates = 0;
-
-        while (vertexIterator.hasNext()) {
-            var vertex = vertexIterator.next();
-            if (!vertex.visited) {
-                candidates++;
-            }
-        }
-
-        assert candidates == candidatesToVisit;
-        return true;
     }
 
     public void buildIndex(VectorReader vectorReader) {
@@ -688,11 +593,23 @@ public final class DiskANN {
 
         @NotNull
         public long[] fetchNeighbours(long vertexIndex) {
-            var edgesOffset = (int) (vertexIndex * (maxConnectionsPerVertex + 1));
-            var size = (int) edges[edgesOffset];
+            var version = edgeVersions.get((int) vertexIndex);
 
-            assert (size >= 0 && size <= maxConnectionsPerVertex);
-            return Arrays.copyOfRange(edges, edgesOffset + 1, edgesOffset + 1 + size);
+            while (true) {
+                var edgesOffset = (int) (vertexIndex * (maxConnectionsPerVertex + 1));
+                var size = (int) edges[edgesOffset];
+
+                assert (size >= 0 && size <= maxConnectionsPerVertex);
+                var result = Arrays.copyOfRange(edges, edgesOffset + 1, edgesOffset + 1 + size);
+                var newVersion = edgeVersions.get((int) vertexIndex);
+
+                VarHandle.acquireFence();
+                if (newVersion == version) {
+                    return result;
+                }
+
+                version = newVersion;
+            }
         }
 
         void setNeighbours(long vertexIndex, long[] neighbours, int size) {
@@ -767,15 +684,6 @@ public final class DiskANN {
             }
 
             return medoid;
-        }
-
-        public long vertexVersion(long vertexIndex) {
-            return edgeVersions.get((int) vertexIndex);
-        }
-
-        public boolean validateVertexVersion(long vertexIndex, long version) {
-            VarHandle.acquireFence();
-            return (edgeVersions.get((int) vertexIndex) == version) && ((version & 1L) == 0L);
         }
 
         public void acquireVertex(long vertexIndex) {
