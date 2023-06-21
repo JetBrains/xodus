@@ -48,8 +48,7 @@ fun shouldApplyDokka(project: Project): Boolean {
         "xodus-query",
         "xodus-environment-crash-tests",
         "xodus-environment-test",
-        "xodus-utils-test",
-        "xodus-ksp-plugin"
+        "xodus-utils-test"
     )
 }
 
@@ -134,12 +133,12 @@ subprojects {
     }
     tasks.compileJava {
         options.encoding = "UTF-8"
-        options.compilerArgs = listOf("--add-modules", "jdk.incubator.vector")
+        options.compilerArgs = listOf("--add-modules", "jdk.incubator.vector", "--enable-preview")
     }
 
     tasks.compileTestJava {
         options.encoding = "UTF-8"
-        options.compilerArgs = listOf("--add-modules", "jdk.incubator.vector")
+        options.compilerArgs = listOf("--add-modules", "jdk.incubator.vector", "--enable-preview")
     }
 
     tasks.jar {
@@ -155,7 +154,7 @@ subprojects {
         systemProperty("exodus.tests.buildDirectory", project.buildDir)
         minHeapSize = "1g"
         maxHeapSize = "1g"
-        jvmArgs = listOf("-ea", "-XX:+HeapDumpOnOutOfMemoryError", "--add-modules", "jdk.incubator.vector")
+        jvmArgs = listOf("-ea", "-XX:+HeapDumpOnOutOfMemoryError", "--add-modules", "jdk.incubator.vector", "--enable-preview")
     }
 
     tasks.javadoc {
@@ -171,17 +170,15 @@ subprojects {
 
     tasks.compileKotlin {
         kotlinOptions {
-            jvmTarget = "19"
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
         }
     }
     tasks.compileTestKotlin {
         kotlinOptions {
-            jvmTarget = "19"
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
-            freeCompilerArgs = listOf("-Xadd-modules=jdk.incubator.vector")
+            freeCompilerArgs = listOf("-Xadd-modules=jdk.incubator.vector", "--enable-preview")
         }
     }
 
@@ -190,7 +187,7 @@ subprojects {
         withSourcesJar()
 
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(19))
+            languageVersion.set(JavaLanguageVersion.of(20))
         }
     }
 

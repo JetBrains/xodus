@@ -20,8 +20,6 @@ dependencies {
 }
 
 val jdkHome: String? = findProperty("jdkHome") as String?
-println("jdkHome property : $jdkHome")
-
 tasks {
     named("compileKotlin", KotlinCompile::class) {
         kotlinOptions {
@@ -35,7 +33,7 @@ tasks {
         jvmArgs = listOf(
             "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
-            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages", "-XX:+TieredCompilation"
+            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages", "-XX:+TieredCompilation", "--enable-preview"
         )
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
@@ -55,7 +53,7 @@ tasks {
         jvmArgs = listOf(
             "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
-            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages", "-XX:+TieredCompilation"
+            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages", "-XX:+TieredCompilation", "--enable-preview"
         )
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))

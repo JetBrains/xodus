@@ -1,12 +1,11 @@
 pluginManagement {
     plugins {
-        id("org.jetbrains.kotlin.jvm") version ("1.8.21")
+        id("org.jetbrains.kotlin.jvm") version ("1.9.0-RC")
         id("org.jetbrains.dokka") version ("1.8.10")
         id("com.github.hierynomus.license") version ("0.16.1")
         id("io.codearte.nexus-staging") version ("0.30.0")
         id("com.github.johnrengelman.shadow") version ("8.1.1")
         id("me.champeau.jmh") version ("0.7.1")
-        id("com.google.devtools.ksp") version ("1.8.21-1.0.11")
     }
     repositories {
         maven(url = "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
@@ -17,8 +16,8 @@ pluginManagement {
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
-            version("kotlin-lang", "1.8")
-            version("kotlin", "1.8.21")
+            version("kotlin-lang", "1.9")
+            version("kotlin", "1.9.0-RC")
 
             version("kotlin-logging", "3.0.5")
             version("lz4", "1.8.0")
@@ -34,8 +33,6 @@ dependencyResolutionManagement {
             version("lucene", "8.10.0")
             version("fastutil", "8.5.9")
             version("commons-rng", "1.5")
-
-            version("ksp", "1.8.21-1.0.11")
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
@@ -67,8 +64,6 @@ dependencyResolutionManagement {
             library("lucene-test-framework", "org.apache.lucene", "lucene-test-framework").versionRef("lucene")
 
             library("fastutil", "it.unimi.dsi", "fastutil").versionRef("fastutil")
-
-            library("ksp-api", "com.google.devtools.ksp", "symbol-processing-api").versionRef("ksp")
 
             library("commons-rng-simple", "org.apache.commons",
                 "commons-rng-simple").versionRef("commons-rng")
@@ -121,9 +116,6 @@ project(":environment-test").name = "xodus-environment-test"
 
 include("utils-test")
 project(":utils-test").name = "xodus-utils-test"
-
-include("ksp-plugin")
-project(":ksp-plugin").name = "xodus-ksp-plugin"
 
 include("disk-ann")
 project(":disk-ann").name = "xodus-disk-ann"
