@@ -19,6 +19,7 @@ dependencies {
     "benchDependencies"("org.slf4j:slf4j-simple:2.0.7")
 }
 
+val jdkHome: String? = findProperty("jdkHome") as String?
 
 tasks {
     named("compileKotlin", KotlinCompile::class) {
@@ -39,8 +40,11 @@ tasks {
             "bench.path" to (project.findProperty("bench.path"))
         )
 
-
-        javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+        if (jdkHome != null) {
+            executable = "$jdkHome/bin/java"
+        } else {
+            javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(20)) })
+        }
     }
 
     register<JavaExec>("runGist1MBench") {
@@ -57,6 +61,10 @@ tasks {
         )
 
 
-        javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(20)) })
+        if (jdkHome != null) {
+            executable = "$jdkHome/bin/java"
+        } else {
+            javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(20)) })
+        }
     }
 }
