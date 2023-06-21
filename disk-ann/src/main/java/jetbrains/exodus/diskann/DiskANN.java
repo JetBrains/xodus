@@ -174,7 +174,7 @@ public final class DiskANN {
             InMemoryGraph graph,
             long startVertexIndex,
             long vertexIndexToPrune) {
-        float[] queryVertex = graph.fetchVector(vertexIndexToPrune);
+        float[] vectors = graph.getVectors();
 
         var nearestCandidates = new TreeSet<GreedyVertex>();
         var processingQueue = new PriorityQueue<GreedyVertex>();
@@ -182,8 +182,12 @@ public final class DiskANN {
         var visitedVertexIndices = new LongOpenHashSet();
 
 
-        var startVector = graph.fetchVector(startVertexIndex);
-        processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(startVector, queryVertex)));
+        var startVectorOffset = graph.vectorOffset(startVertexIndex);
+        var queryVertexOffset = graph.vectorOffset(vertexIndexToPrune);
+        var dim = vectorDim;
+
+        processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(vectors, startVectorOffset,
+                vectors, queryVertexOffset, dim)));
 
         while (!processingQueue.isEmpty()) {
             assert nearestCandidates.size() <= maxAmountOfCandidates;
@@ -203,7 +207,8 @@ public final class DiskANN {
             for (var vertexIndex : vertexNeighbours) {
                 if (visitedVertexIndices.add(vertexIndex)) {
                     //return array and offset instead
-                    var distance = computeDistance(queryVertex, graph.fetchVector(vertexIndex));
+                    var distance = computeDistance(vectors, queryVertexOffset, vectors, graph.vectorOffset(vertexIndex),
+                            dim);
                     processingQueue.add(new GreedyVertex(vertexIndex, distance));
                 }
             }
@@ -219,6 +224,9 @@ public final class DiskANN {
             LongOpenHashSet neighboursCandidates,
             float distanceMultiplication
     ) {
+        //TODO: use thread local containers for data instead
+        //TODO: convert neighboursCandidates to long list
+        var dim = vectorDim;
         graph.acquireVertex(vertexIndex);
         try {
             LongOpenHashSet candidates;
@@ -233,16 +241,18 @@ public final class DiskANN {
 
             candidates.remove(vertexIndex);
 
-            var vertexVector = graph.fetchVector(vertexIndex);
+            var vectors = graph.getVectors();
+            var vectorOffset = graph.vectorOffset(vertexIndex);
             var candidatesIterator = candidates.longIterator();
 
+            //TODO: use bounded min-max heap instead
             var cachedCandidates = new TreeSet<RobustPruneVertex>();
             while (candidatesIterator.hasNext()) {
                 var candidateIndex = candidatesIterator.nextLong();
-                var candidateVector = graph.fetchVector(candidateIndex);
 
-                var distance = computeDistance(vertexVector, candidateVector);
-                var candidate = new RobustPruneVertex(candidateIndex, candidateVector, distance);
+                var distance = computeDistance(vectors, vectorOffset, vectors,
+                        graph.vectorOffset(candidateIndex), dim);
+                var candidate = new RobustPruneVertex(candidateIndex, distance);
 
                 cachedCandidates.add(candidate);
             }
@@ -255,6 +265,7 @@ public final class DiskANN {
             neighboursLoop:
             while (currentMultiplication <= distanceMultiplication) {
                 if (!removed.isEmpty()) {
+                    //TODO: seems like candidates already sorted by distance, se we do not need to sort them again
                     cachedCandidates.addAll(removed);
                     removed.clear();
                 }
@@ -268,10 +279,12 @@ public final class DiskANN {
                         break neighboursLoop;
                     }
 
+                    var minOffset = graph.vectorOffset(min.index);
                     var iterator = cachedCandidates.iterator();
                     while (iterator.hasNext()) {
                         var candidate = iterator.next();
-                        var distance = computeDistance(min.vector, candidate.vector);
+                        var distance = computeDistance(vectors, minOffset, vectors, graph.vectorOffset(candidate.index),
+                                dim);
 
                         if (distance * currentMultiplication <= candidate.distance) {
                             iterator.remove();
@@ -290,7 +303,6 @@ public final class DiskANN {
         } finally {
             graph.releaseVertex(vertexIndex);
         }
-
     }
 
     public void buildIndex(VectorReader vectorReader) {
@@ -430,11 +442,12 @@ public final class DiskANN {
     private float computeDistance(float[] firstVector,
                                   int firstVectorFrom,
                                   float[] secondVector,
+                                  int secondVectorFrom,
                                   int size) {
         if (distanceFunction == L2_DISTANCE) {
-            return computeL2Distance(firstVector, firstVectorFrom, secondVector, size);
+            return computeL2Distance(firstVector, firstVectorFrom, secondVector, secondVectorFrom, size);
         } else if (distanceFunction == DOT_DISTANCE) {
-            return computeDotDistance(firstVector, firstVectorFrom, secondVector, size);
+            return computeDotDistance(firstVector, firstVectorFrom, secondVector, secondVectorFrom, size);
         } else {
             throw new IllegalStateException("Unknown distance function: " + distanceFunction);
         }
@@ -466,13 +479,14 @@ public final class DiskANN {
     private static float computeL2Distance(float[] firstVector,
                                            int firstVectorFrom,
                                            float[] secondVector,
+                                           int secondVectorFrom,
                                            int size) {
         var sumVector = FloatVector.zero(species);
         var index = 0;
 
         while (index < species.loopBound(size)) {
             var first = FloatVector.fromArray(species, firstVector, index + firstVectorFrom);
-            var second = FloatVector.fromArray(species, secondVector, index);
+            var second = FloatVector.fromArray(species, secondVector, index + secondVectorFrom);
             var diff = first.sub(second);
             sumVector = diff.fma(diff, sumVector);
             index += species.length();
@@ -481,7 +495,7 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < size) {
-            var diff = firstVector[index + firstVectorFrom] - secondVector[index];
+            var diff = firstVector[index + firstVectorFrom] - secondVector[index + secondVectorFrom];
             sum += diff * diff;
             index++;
         }
@@ -513,13 +527,14 @@ public final class DiskANN {
     private static float computeDotDistance(float[] firstVector,
                                             int firstVectorFrom,
                                             float[] secondVector,
+                                            int secondVectorFrom,
                                             int size) {
         var sumVector = FloatVector.zero(species);
         var index = 0;
 
         while (index < species.loopBound(size)) {
             var first = FloatVector.fromArray(species, firstVector, index + firstVectorFrom);
-            var second = FloatVector.fromArray(species, secondVector, index);
+            var second = FloatVector.fromArray(species, secondVector, index + secondVectorFrom);
             sumVector = first.fma(second, sumVector);
             index += species.length();
         }
@@ -527,7 +542,7 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < size) {
-            sum += firstVector[index + firstVectorFrom] * secondVector[index];
+            sum += firstVector[index + firstVectorFrom] * secondVector[index + secondVectorFrom];
             index++;
         }
 
@@ -564,6 +579,14 @@ public final class DiskANN {
             size++;
 
             medoid = -1;
+        }
+
+        int vectorOffset(long vertexIndex) {
+            return (int) (vertexIndex * vectorDim);
+        }
+
+        float[] getVectors() {
+            return vectors;
         }
 
         int getNeighboursSize(long vertexIndex) {
@@ -744,7 +767,7 @@ public final class DiskANN {
             for (var i = 0; i < size; i++) {
                 var distance = computeDistance(
                         vectors,
-                        i * vectorDim, meanVector, vectorDim
+                        i * vectorDim, meanVector, 0, vectorDim
                 );
 
                 if (distance < minDistance) {
