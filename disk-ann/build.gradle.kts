@@ -20,6 +20,7 @@ dependencies {
 }
 
 val jdkHome: String? = findProperty("jdkHome") as String?
+println("jdkHome property : $jdkHome")
 
 tasks {
     named("compileKotlin", KotlinCompile::class) {
