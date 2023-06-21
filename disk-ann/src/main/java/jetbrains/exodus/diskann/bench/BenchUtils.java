@@ -103,20 +103,24 @@ final class BenchUtils {
 
         System.out.println("Ground truth is read, searching...");
 
-        var errorsCount = 0;
-        ts1 = System.nanoTime();
-        for (var index = 0; index < queryVectors.length; index++) {
-            var vector = queryVectors[index];
-            var result = diskANN.nearest(vector, 1);
-            if (groundTruth[index][0] != result[0]) {
-                errorsCount++;
+        //noinspection InfiniteLoopStatement
+        while (true) {
+            var errorsCount = 0;
+            ts1 = System.nanoTime();
+            for (var index = 0; index < queryVectors.length; index++) {
+                var vector = queryVectors[index];
+                var result = diskANN.nearest(vector, 1);
+                if (groundTruth[index][0] != result[0]) {
+                    errorsCount++;
+                }
             }
-        }
-        ts2 = System.nanoTime();
-        var errorPercentage = errorsCount * 100.0 / queryVectors.length;
+            ts2 = System.nanoTime();
+            var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-        System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
-                errorPercentage);
+            System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
+                    errorPercentage);
+        }
+
     }
 
     private static float[][] readFVectors(Path path, int vectorDimensions) throws IOException {
