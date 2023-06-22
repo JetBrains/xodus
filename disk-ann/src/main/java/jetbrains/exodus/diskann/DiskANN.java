@@ -1,7 +1,7 @@
 package jetbrains.exodus.diskann;
 
 import it.unimi.dsi.fastutil.Hash;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import jdk.incubator.vector.FloatVector;
@@ -15,25 +15,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.foreign.*;
-import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLongArray;
 
-public final class DiskANN {
+public final class DiskANN implements AutoCloseable {
     public static final byte L2_DISTANCE = 0;
     public static final byte DOT_DISTANCE = 1;
 
     private static final VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
 
     private static final int PAGE_SIZE_MULTIPLIER = 4 * 1024;
-
-    private static final VarHandle FLOAT_VIEW_VAR_HANDLE =
-            MethodHandles.byteArrayViewVarHandle(float[].class, ByteOrder.nativeOrder());
-    private static final VarHandle LONG_VIEW_VAR_HANDLE =
-            MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.nativeOrder());
 
     private static final Logger logger = LoggerFactory.getLogger(DiskANN.class);
 
@@ -48,7 +42,10 @@ public final class DiskANN {
     private final int mutatorsQueueSize;
 
     private long verticesSize = 0;
-    private final Long2ObjectOpenHashMap<byte[]> graphPages = new Long2ObjectOpenHashMap<>();
+    private final Long2LongOpenHashMap graphPages = new Long2LongOpenHashMap(1024, Hash.VERY_FAST_LOAD_FACTOR);
+    private final Arena diskCacheArena = Arena.openShared();
+    private MemorySegment diskCache;
+
     private final ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>();
 
     /**
@@ -71,6 +68,12 @@ public final class DiskANN {
     private DiskGraph diskGraph;
 
     private final byte distanceFunction;
+    private final long diskCacheRecordVectorsOffset;
+    private final long diskCacheRecordIdOffset;
+    private final long diskCacheRecordEdgesCountOffset;
+    private final long diskCacheRecordEdgesOffset;
+
+    private final long diskCacheRecordByteAlignment;
 
 
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
@@ -89,7 +92,28 @@ public final class DiskANN {
         this.mutatorsQueueSize = mutatorsQueueSize;
         this.distanceFunction = distanceFunction;
 
-        this.vertexRecordSize = Float.BYTES * vectorDim + Long.BYTES * (maxConnectionsPerVertex + 1) + 1;
+        MemoryLayout diskCacheRecordLayout = MemoryLayout.structLayout(
+                MemoryLayout.sequenceLayout(vectorDim, ValueLayout.JAVA_FLOAT).withName("vector"),
+                ValueLayout.JAVA_LONG.withName("id"),
+                MemoryLayout.sequenceLayout(maxConnectionsPerVertex, ValueLayout.JAVA_LONG).withName("edges"),
+                ValueLayout.JAVA_BYTE.withName("edgesCount")
+        );
+
+        diskCacheRecordByteAlignment = diskCacheRecordLayout.byteAlignment();
+        this.vertexRecordSize = (int) (
+                ((diskCacheRecordLayout.byteSize() + diskCacheRecordByteAlignment - 1)
+                        / diskCacheRecordLayout.byteAlignment()) * diskCacheRecordByteAlignment
+        );
+
+        diskCacheRecordVectorsOffset = diskCacheRecordLayout.byteOffset(
+                MemoryLayout.PathElement.groupElement("vector"));
+        diskCacheRecordIdOffset = diskCacheRecordLayout.byteOffset(
+                MemoryLayout.PathElement.groupElement("id"));
+        diskCacheRecordEdgesCountOffset = diskCacheRecordLayout.byteOffset(
+                MemoryLayout.PathElement.groupElement("edgesCount"));
+        diskCacheRecordEdgesOffset = diskCacheRecordLayout.byteOffset(
+                MemoryLayout.PathElement.groupElement("edges"));
+
 
         if (this.vertexRecordSize > PAGE_SIZE_MULTIPLIER - 1) {
             this.pageSize = ((vertexRecordSize + PAGE_SIZE_MULTIPLIER - 1 - Long.BYTES) /
@@ -97,6 +121,7 @@ public final class DiskANN {
         } else {
             this.pageSize = PAGE_SIZE_MULTIPLIER;
         }
+
 
         this.verticesPerPage = (pageSize - Long.BYTES) / vertexRecordSize;
 
@@ -112,64 +137,13 @@ public final class DiskANN {
         }
 
         for (var i = 0; i < cores; i++) {
+            var id = i;
             vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
-                var thread = new Thread(r, "$name - vector mutator-$i");
+                var thread = new Thread(r, name + "- vector mutator-" + id);
                 thread.setDaemon(true);
                 return thread;
             }));
         }
-    }
-
-    private long[] greedySearchNearest(
-            DiskGraph graph,
-            long startVertexIndex,
-            float[] queryVertex,
-            int maxResultSize
-    ) {
-        var nearestCandidates = new TreeSet<GreedyVertex>();
-        var processingQueue = new PriorityQueue<GreedyVertex>();
-
-        var visitedVertexIndices = new LongOpenHashSet(4 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
-
-        var startVector = graph.fetchVector(startVertexIndex);
-        processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(startVector, queryVertex)));
-
-        while (!processingQueue.isEmpty()) {
-            assert nearestCandidates.size() <= maxAmountOfCandidates;
-            var currentVertex = processingQueue.poll();
-
-            if (nearestCandidates.size() == maxAmountOfCandidates &&
-                    nearestCandidates.last().distance < currentVertex.distance) {
-                break;
-            } else {
-                if (nearestCandidates.size() == maxAmountOfCandidates) {
-                    nearestCandidates.pollLast();
-                }
-                nearestCandidates.add(currentVertex);
-            }
-
-            var vertexNeighbours = graph.fetchNeighbours(currentVertex.index);
-            for (var vertexIndex : vertexNeighbours) {
-                if (visitedVertexIndices.add(vertexIndex)) {
-                    //return array and offset instead
-                    var distance = computeDistance(queryVertex, graph.fetchVector(vertexIndex));
-                    processingQueue.add(new GreedyVertex(vertexIndex, distance));
-                }
-            }
-
-        }
-
-        assert nearestCandidates.size() <= maxAmountOfCandidates;
-        var resultSize = Math.min(maxResultSize, nearestCandidates.size());
-
-        var nearestVertices = new long[resultSize];
-        var nearestVerticesIterator = nearestCandidates.iterator();
-
-        for (var i = 0; i < resultSize; i++) {
-            nearestVertices[i] = nearestVerticesIterator.next().index;
-        }
-
-        return nearestVertices;
     }
 
 
@@ -195,7 +169,7 @@ public final class DiskANN {
     }
 
     public long[] nearest(float[] vector, int resultSize) {
-        var nearestVertices = greedySearchNearest(diskGraph, diskGraph.medoid(), vector,
+        var nearestVertices = diskGraph.greedySearchNearest(vector,
                 resultSize);
         var ids = new long[nearestVertices.length];
 
@@ -296,15 +270,6 @@ public final class DiskANN {
         }
     }
 
-    private float computeDistance(float[] firstVector, float[] secondVector) {
-        if (distanceFunction == L2_DISTANCE) {
-            return computeL2Distance(firstVector, secondVector);
-        } else if (distanceFunction == DOT_DISTANCE) {
-            return computeDotDistance(firstVector, secondVector);
-        } else {
-            throw new IllegalStateException("Unknown distance function: " + distanceFunction);
-        }
-    }
 
     private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, MemorySegment secondSegment,
                                   long secondSegmentFromOffset, int size) {
@@ -346,7 +311,8 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < secondVector.length) {
-            var diff = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset + (long) index * Float.BYTES)
+            var diff = firstSegment.get(ValueLayout.JAVA_FLOAT,
+                    firstSegmentFromOffset + (long) index * Float.BYTES)
                     - secondVector[index];
             sum += diff * diff;
             index++;
@@ -401,8 +367,10 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < size) {
-            var diff = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset + (long) index * Float.BYTES)
-                    - secondSegment.get(ValueLayout.JAVA_FLOAT, secondSegmentFromOffset + (long) index * Float.BYTES);
+            var diff = firstSegment.get(ValueLayout.JAVA_FLOAT,
+                    firstSegmentFromOffset + (long) index * Float.BYTES)
+                    - secondSegment.get(ValueLayout.JAVA_FLOAT,
+                    secondSegmentFromOffset + (long) index * Float.BYTES);
             sum += diff * diff;
             index++;
         }
@@ -431,8 +399,10 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < size) {
-            var mul = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset + (long) index * Float.BYTES)
-                    * secondSegment.get(ValueLayout.JAVA_FLOAT, secondSegmentFromOffset + (long) index * Float.BYTES);
+            var mul = firstSegment.get(ValueLayout.JAVA_FLOAT,
+                    firstSegmentFromOffset + (long) index * Float.BYTES)
+                    * secondSegment.get(ValueLayout.JAVA_FLOAT,
+                    secondSegmentFromOffset + (long) index * Float.BYTES);
             sum += mul;
             index++;
         }
@@ -440,48 +410,10 @@ public final class DiskANN {
         return -sum;
     }
 
-    private static float computeL2Distance(float[] firstVector, float[] secondVector) {
-        var sumVector = FloatVector.zero(species);
-        var index = 0;
 
-        while (index < species.loopBound(firstVector.length)) {
-            var first = FloatVector.fromArray(species, firstVector, index);
-            var second = FloatVector.fromArray(species, secondVector, index);
-            var diff = first.sub(second);
-            sumVector = diff.fma(diff, sumVector);
-            index += species.length();
-        }
-
-        var sum = sumVector.reduceLanes(VectorOperators.ADD);
-
-        while (index < firstVector.length) {
-            var diff = firstVector[index] - secondVector[index];
-            sum += diff * diff;
-            index++;
-        }
-
-        return sum;
-    }
-
-    private static float computeDotDistance(float[] firstVector, float[] secondVector) {
-        var sumVector = FloatVector.zero(species);
-        var index = 0;
-
-        while (index < species.loopBound(firstVector.length)) {
-            var first = FloatVector.fromArray(species, firstVector, index);
-            var second = FloatVector.fromArray(species, secondVector, index);
-            sumVector = first.fma(second, sumVector);
-            index += species.length();
-        }
-
-        var sum = sumVector.reduceLanes(VectorOperators.ADD);
-
-        while (index < firstVector.length) {
-            sum += firstVector[index] * secondVector[index];
-            index++;
-        }
-
-        return -sum;
+    @Override
+    public void close() {
+        diskCacheArena.close();
     }
 
     private final class InMemoryGraph implements AutoCloseable {
@@ -496,11 +428,11 @@ public final class DiskANN {
 
         private long medoid = -1;
 
-        private final Arena arena;
+        private final Arena inMemoryGraphArean;
 
         private InMemoryGraph(int capacity) {
             this.edgeVersions = new AtomicLongArray(capacity);
-            this.arena = Arena.openShared();
+            this.inMemoryGraphArean = Arena.openShared();
 
             var layout = MemoryLayout.structLayout(
                     MemoryLayout.sequenceLayout((long) capacity * vectorDim, ValueLayout.JAVA_FLOAT).withName("vectors"),
@@ -508,7 +440,7 @@ public final class DiskANN {
                     MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
                             ValueLayout.JAVA_LONG).withName("edges")
             );
-            this.struct = arena.allocate(layout);
+            this.struct = inMemoryGraphArean.allocate(layout);
 
             this.vectorsOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("vectors"));
             this.idsOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("ids"));
@@ -536,7 +468,7 @@ public final class DiskANN {
             var nearestCandidates = new TreeSet<GreedyVertex>();
             var processingQueue = new PriorityQueue<GreedyVertex>();
 
-            var visitedVertexIndices = new LongOpenHashSet(4 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
+            var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
 
 
             var startVectorOffset = vectorOffset(startVertexIndex);
@@ -684,7 +616,7 @@ public final class DiskANN {
 
 
         @NotNull
-        public long[] fetchNeighbours(long vertexIndex) {
+        private long[] fetchNeighbours(long vertexIndex) {
             var version = edgeVersions.get((int) vertexIndex);
 
             while (true) {
@@ -851,60 +783,65 @@ public final class DiskANN {
 
 
         private void saveToDisk() {
+            var pagesToWrite = (size + verticesPerPage - 1 / verticesPerPage);
+            diskCache = diskCacheArena.allocate((long) pagesToWrite * pageSize,
+                    diskCacheRecordByteAlignment);
+
             var verticesPerPage = pageSize / vertexRecordSize;
 
             var wittenVertices = 0;
 
             var vectorsIndex = 0;
-            var pageIndex = 0;
+            var pageSegmentOffset = 0;
 
             while (wittenVertices < size) {
-                var page = new byte[pageSize];
-                LONG_VIEW_VAR_HANDLE.set(page, 0, size);
+                diskCache.set(ValueLayout.JAVA_LONG, pageSegmentOffset, size);
 
                 var verticesToWrite = Math.min(verticesPerPage, size - wittenVertices);
-
-
                 for (var i = 0; i < verticesToWrite; i++) {
+                    var recordOffset = (long) i * vertexRecordSize + Long.BYTES + pageSegmentOffset;
+
                     var edgesIndex = wittenVertices * (maxConnectionsPerVertex + 1);
-                    var pageOffset = Long.BYTES + i * vertexRecordSize;
 
                     for (var j = 0; j < vectorDim; j++) {
-                        FLOAT_VIEW_VAR_HANDLE.set(page, pageOffset,
-                                struct.get(ValueLayout.JAVA_FLOAT, vectorsOffset +
-                                        (long) vectorsIndex * Float.BYTES));
+                        var vectorItem = struct.get(ValueLayout.JAVA_FLOAT, vectorsOffset +
+                                (long) vectorsIndex * Float.BYTES);
+                        diskCache.set(ValueLayout.JAVA_FLOAT,
+                                recordOffset + diskCacheRecordVectorsOffset +
+                                        (long) j * Float.BYTES, vectorItem);
                         vectorsIndex++;
-                        pageOffset += Float.BYTES;
                     }
 
-                    LONG_VIEW_VAR_HANDLE.set(page, pageOffset, struct.get(ValueLayout.JAVA_LONG,
-                            idsOffset + (long) wittenVertices * Long.BYTES));
-                    pageOffset += Long.BYTES;
+                    var vectorId = struct.get(ValueLayout.JAVA_LONG,
+                            idsOffset + (long) wittenVertices * Long.BYTES);
+                    diskCache.set(ValueLayout.JAVA_LONG,
+                            recordOffset + diskCacheRecordIdOffset, vectorId);
 
                     var edgesSize = struct.get(ValueLayout.JAVA_LONG,
                             (long) edgesIndex * Long.BYTES + edgesOffset);
                     assert (edgesSize >= 0 && edgesSize <= maxConnectionsPerVertex);
                     edgesIndex++;
-                    page[pageOffset++] = (byte) edgesSize;
 
                     for (var j = 0; j < edgesSize; j++) {
                         var edgesOffset = (long) edgesIndex * Long.BYTES + this.edgesOffset;
-                        LONG_VIEW_VAR_HANDLE.set(page, pageOffset, struct.get(ValueLayout.JAVA_LONG, edgesOffset));
+                        var neighbourIndex = struct.get(ValueLayout.JAVA_LONG, edgesOffset);
+                        diskCache.set(ValueLayout.JAVA_LONG,
+                                recordOffset + diskCacheRecordEdgesOffset + (long) j * Long.BYTES, neighbourIndex);
                         edgesIndex++;
-                        pageOffset += Long.BYTES;
                     }
-
+                    diskCache.set(ValueLayout.JAVA_BYTE,
+                            recordOffset + diskCacheRecordEdgesCountOffset, (byte) edgesSize);
                     wittenVertices++;
                 }
 
-                graphPages.put(pageIndex, page);
-                pageIndex++;
+                graphPages.put(pageSegmentOffset / pageSize, pageSegmentOffset);
+                pageSegmentOffset += pageSize;
             }
         }
 
         @Override
         public void close() {
-            arena.close();
+            inMemoryGraphArean.close();
         }
     }
 
@@ -915,8 +852,57 @@ public final class DiskANN {
             this.medoid = medoid;
         }
 
-        private long medoid() {
-            return medoid;
+        private long[] greedySearchNearest(
+                float[] queryVertex,
+                int maxResultSize
+        ) {
+            var startVertexIndex = medoid;
+            var nearestCandidates = new TreeSet<GreedyVertex>();
+            var processingQueue = new PriorityQueue<GreedyVertex>();
+
+            var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates,
+                    Hash.FAST_LOAD_FACTOR);
+
+            var startVectorOffset = vectorOffset(startVertexIndex);
+            processingQueue.add(new GreedyVertex(startVertexIndex,
+                    computeDistance(diskCache, startVectorOffset, queryVertex)));
+
+            while (!processingQueue.isEmpty()) {
+                assert nearestCandidates.size() <= maxAmountOfCandidates;
+                var currentVertex = processingQueue.poll();
+
+                if (nearestCandidates.size() == maxAmountOfCandidates &&
+                        nearestCandidates.last().distance < currentVertex.distance) {
+                    break;
+                } else {
+                    if (nearestCandidates.size() == maxAmountOfCandidates) {
+                        nearestCandidates.pollLast();
+                    }
+                    nearestCandidates.add(currentVertex);
+                }
+
+                var vertexNeighbours = fetchNeighbours(currentVertex.index);
+                for (var vertexIndex : vertexNeighbours) {
+                    if (visitedVertexIndices.add(vertexIndex)) {
+                        //return array and offset instead
+                        var distance = computeDistance(diskCache, vectorOffset(vertexIndex), queryVertex);
+                        processingQueue.add(new GreedyVertex(vertexIndex, distance));
+                    }
+                }
+
+            }
+
+            assert nearestCandidates.size() <= maxAmountOfCandidates;
+            var resultSize = Math.min(maxResultSize, nearestCandidates.size());
+
+            var nearestVertices = new long[resultSize];
+            var nearestVerticesIterator = nearestCandidates.iterator();
+
+            for (var i = 0; i < resultSize; i++) {
+                nearestVertices[i] = nearestVerticesIterator.next().index;
+            }
+
+            return nearestVertices;
         }
 
         private long fetchId(long vertexIndex) {
@@ -926,14 +912,14 @@ public final class DiskANN {
 
             var vertexPageIndex = vertexIndex / verticesPerPage;
             var vertexOffset = (vertexIndex % verticesPerPage) * vertexRecordSize + Long.BYTES;
+            var vertexPageOffset = graphPages.get(vertexPageIndex);
 
-            var vertexPage = graphPages.get(vertexPageIndex);
-            return (long) LONG_VIEW_VAR_HANDLE.get(vertexPage, (int) (vertexOffset + (long) vectorDim * Float.BYTES));
+            return diskCache.get(ValueLayout.JAVA_LONG,
+                    vertexPageOffset + vertexOffset + diskCacheRecordIdOffset);
         }
 
 
-        @NotNull
-        private float[] fetchVector(long vertexIndex) {
+        private long vectorOffset(long vertexIndex) {
             if (vertexIndex >= verticesSize) {
                 throw new IllegalArgumentException();
             }
@@ -941,17 +927,7 @@ public final class DiskANN {
             var vertexPageIndex = vertexIndex / verticesPerPage;
             var vertexPage = graphPages.get(vertexPageIndex);
             var vertexOffset = (vertexIndex % verticesPerPage) * vertexRecordSize + Long.BYTES;
-            return fetchVectorData(vertexPage, (int) vertexOffset);
-        }
-
-        private float[] fetchVectorData(byte[] page, int offset) {
-            var vectorData = new float[vectorDim];
-
-            for (var i = 0; i < vectorDim; i++) {
-                vectorData[i] = (float) FLOAT_VIEW_VAR_HANDLE.get(page, offset + i * Float.BYTES);
-            }
-
-            return vectorData;
+            return vertexPage + vertexOffset + diskCacheRecordVectorsOffset;
         }
 
         @NotNull
@@ -961,20 +937,18 @@ public final class DiskANN {
             }
 
             var vertexPageIndex = vertexIndex / verticesPerPage;
-            var vertexPage = graphPages.get(vertexPageIndex);
+            var vertexPageOffset = graphPages.get(vertexPageIndex);
+            var vertexOffset = (vertexIndex % verticesPerPage) * vertexRecordSize + Long.BYTES;
 
-            var vertexOffset =
-                    (int) (vertexIndex % verticesPerPage) * vertexRecordSize +
-                            vectorDim * Float.BYTES + Long.BYTES + 1 + Long.BYTES;
+            var neighboursSizeOffset = vertexPageOffset + vertexOffset + diskCacheRecordEdgesCountOffset;
 
-
-            var neighboursSize = Byte.toUnsignedInt(vertexPage[vertexOffset - 1]);
+            var neighboursSize = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
             assert (neighboursSize <= maxConnectionsPerVertex);
 
+            var edgesOffset = vertexPageOffset + vertexOffset + diskCacheRecordEdgesOffset;
             var result = new long[neighboursSize];
             for (var i = 0; i < neighboursSize; i++) {
-                result[i] = (long)
-                        LONG_VIEW_VAR_HANDLE.get(vertexPage, vertexOffset + i * Long.BYTES);
+                result[i] = diskCache.get(ValueLayout.JAVA_LONG, edgesOffset + i * Long.BYTES);
             }
 
             return result;

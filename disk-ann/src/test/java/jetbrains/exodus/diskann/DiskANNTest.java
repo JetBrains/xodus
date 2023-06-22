@@ -54,28 +54,30 @@ public class DiskANNTest {
                 } while (!addedVectors.add(new FloatArrayHolder(vector)));
             }
 
-            var diskANN = new DiskANN("test index", vectorDimensions, DiskANN.L2_DISTANCE);
-            var ts1 = System.nanoTime();
-            diskANN.buildIndex(new ArrayVectorReader(vectors));
-            var ts2 = System.nanoTime();
-            System.out.println("Index built in " + (ts2 - ts1) / 1000000 + " ms");
+            try (var diskANN = new DiskANN("test index", vectorDimensions, DiskANN.L2_DISTANCE)) {
+                var ts1 = System.nanoTime();
+                diskANN.buildIndex(new ArrayVectorReader(vectors));
+                var ts2 = System.nanoTime();
+                System.out.println("Index built in " + (ts2 - ts1) / 1000000 + " ms");
 
-            var errorsCount = 0;
-            ts1 = System.nanoTime();
-            for (var j = 0; j < vectorsCount; j++) {
-                var vector = vectors[j];
-                var result = diskANN.nearest(vector, 1);
-                Assert.assertEquals("j = $j", 1, result.length);
-                if (j != result[0]) {
-                    errorsCount++;
+                var errorsCount = 0;
+                ts1 = System.nanoTime();
+                for (var j = 0; j < vectorsCount; j++) {
+                    var vector = vectors[j];
+                    var result = diskANN.nearest(vector, 1);
+                    Assert.assertEquals("j = $j", 1, result.length);
+                    if (j != result[0]) {
+                        errorsCount++;
+                    }
                 }
+                ts2 = System.nanoTime();
+                var errorPercentage = errorsCount * 100.0 / vectorsCount;
+
+                System.out.printf("Avg. query %d time :  us, errors: %f%%%n", (ts2 - ts1) / 1000 / vectorsCount, errorPercentage);
+
+                Assert.assertTrue(errorPercentage <= 5);
+
             }
-            ts2 = System.nanoTime();
-            var errorPercentage = errorsCount * 100.0 / vectorsCount;
-
-            System.out.printf("Avg. query %d time :  us, errors: %f%%%n", (ts2 - ts1) / 1000 / vectorsCount, errorPercentage);
-
-            Assert.assertTrue(errorPercentage <= 5);
 
         } catch (Throwable e) {
             System.out.println("Seed: " + seed);
@@ -122,7 +124,7 @@ public class DiskANNTest {
 
             try (var fos = new FileOutputStream(siftArchivePath)) {
                 ftpClient.enterLocalPassiveMode();
-                Assert.assertTrue(ftpClient.retrieveFile("/local/texmex/corpus/" + siftArchive , fos));
+                Assert.assertTrue(ftpClient.retrieveFile("/local/texmex/corpus/" + siftArchive, fos));
             } finally {
                 ftpClient.logout();
                 ftpClient.disconnect();
@@ -168,43 +170,45 @@ public class DiskANNTest {
         System.out.printf("%d data vectors loaded with dimension %d, building index...",
                 vectors.length, vectorDimensions);
 
-        var diskANN = new DiskANN("test index", vectorDimensions, DiskANN.L2_DISTANCE);
-        var ts1 = System.nanoTime();
-        diskANN.buildIndex(new ArrayVectorReader(vectors));
-        var ts2 = System.nanoTime();
+        try (var diskANN = new DiskANN("test index", vectorDimensions, DiskANN.L2_DISTANCE)) {
+            var ts1 = System.nanoTime();
+            diskANN.buildIndex(new ArrayVectorReader(vectors));
+            var ts2 = System.nanoTime();
 
-        System.out.printf("Index built in %d ms%n", (ts2 - ts1) / 1000000);
+            System.out.printf("Index built in %d ms%n", (ts2 - ts1) / 1000000);
 
-        System.out.println("Reading queries...");
-        var queryFile = sifSmallFilesDir.resolve(queryFileName);
-        var queryVectors = readFVectors(queryFile.toFile(), vectorDimensions);
+            System.out.println("Reading queries...");
+            var queryFile = sifSmallFilesDir.resolve(queryFileName);
+            var queryVectors = readFVectors(queryFile.toFile(), vectorDimensions);
 
-        System.out.printf("%d queries are read%n", queryVectors.length);
-        System.out.println("Reading ground truth...");
+            System.out.printf("%d queries are read%n", queryVectors.length);
+            System.out.println("Reading ground truth...");
 
-        var groundTruthFile = sifSmallFilesDir.resolve(groundTruthFileName);
-        var groundTruth = readIVectors(groundTruthFile.toFile(), 100);
-        Assert.assertEquals(queryVectors.length, groundTruth.length);
+            var groundTruthFile = sifSmallFilesDir.resolve(groundTruthFileName);
+            var groundTruth = readIVectors(groundTruthFile.toFile(), 100);
+            Assert.assertEquals(queryVectors.length, groundTruth.length);
 
-        System.out.println("Ground truth is read, searching...");
+            System.out.println("Ground truth is read, searching...");
 
-        var errorsCount = 0;
-        ts1 = System.nanoTime();
-        for (var index = 0; index < queryVectors.length; index++) {
-            var vector = queryVectors[index];
-            var result = diskANN.nearest(vector, 1);
-            Assert.assertEquals("j = " + index, 1, result.length);
-            if (groundTruth[index][0] != result[0]) {
-                errorsCount++;
+            var errorsCount = 0;
+            ts1 = System.nanoTime();
+            for (var index = 0; index < queryVectors.length; index++) {
+                var vector = queryVectors[index];
+                var result = diskANN.nearest(vector, 1);
+                Assert.assertEquals("j = " + index, 1, result.length);
+                if (groundTruth[index][0] != result[0]) {
+                    errorsCount++;
+                }
             }
+            ts2 = System.nanoTime();
+            var errorPercentage = errorsCount * 100.0 / queryVectors.length;
+
+            System.out.printf("Avg. query time : %d us, errors: %f%%%n",
+                    (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage);
+
+            Assert.assertTrue(errorPercentage <= 5);
         }
-        ts2 = System.nanoTime();
-        var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-        System.out.printf("Avg. query time : %d us, errors: %f%%%n",
-                (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage);
-
-        Assert.assertTrue(errorPercentage <= 5);
     }
 
     private float[][] readFVectors(File siftSmallBase, int vectorDimensions) throws IOException {
