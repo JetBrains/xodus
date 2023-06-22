@@ -14,9 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
+import java.lang.foreign.*;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
@@ -174,140 +172,6 @@ public final class DiskANN {
         return nearestVertices;
     }
 
-    private void greedySearchPrune(
-            InMemoryGraph graph,
-            long startVertexIndex,
-            long vertexIndexToPrune) {
-        MemorySegment vectors = graph.getVectors();
-
-        var nearestCandidates = new TreeSet<GreedyVertex>();
-        var processingQueue = new PriorityQueue<GreedyVertex>();
-
-        var visitedVertexIndices = new LongOpenHashSet(4 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
-
-
-        var startVectorIndex = graph.vectorIndex(startVertexIndex);
-        var queryVectorIndex = graph.vectorIndex(vertexIndexToPrune);
-        var dim = vectorDim;
-
-        processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(vectors, startVectorIndex,
-                vectors, queryVectorIndex, dim)));
-
-        while (!processingQueue.isEmpty()) {
-            assert nearestCandidates.size() <= maxAmountOfCandidates;
-            var currentVertex = processingQueue.poll();
-
-            if (nearestCandidates.size() == maxAmountOfCandidates &&
-                    nearestCandidates.last().distance < currentVertex.distance) {
-                break;
-            } else {
-                if (nearestCandidates.size() == maxAmountOfCandidates) {
-                    nearestCandidates.pollLast();
-                }
-                nearestCandidates.add(currentVertex);
-            }
-
-            var vertexNeighbours = graph.fetchNeighbours(currentVertex.index);
-            for (var vertexIndex : vertexNeighbours) {
-                if (visitedVertexIndices.add(vertexIndex)) {
-                    //return array and offset instead
-                    var distance = computeDistance(vectors, queryVectorIndex, vectors, graph.vectorIndex(vertexIndex),
-                            dim);
-                    processingQueue.add(new GreedyVertex(vertexIndex, distance));
-                }
-            }
-        }
-
-        assert nearestCandidates.size() <= maxAmountOfCandidates;
-        robustPrune(graph, vertexIndexToPrune, visitedVertexIndices, distanceMultiplication);
-    }
-
-    private void robustPrune(
-            InMemoryGraph graph,
-            long vertexIndex,
-            LongOpenHashSet neighboursCandidates,
-            float distanceMultiplication
-    ) {
-        //TODO: use thread local containers for data instead
-        //TODO: convert neighboursCandidates to long list
-        var dim = vectorDim;
-        graph.acquireVertex(vertexIndex);
-        try {
-            LongOpenHashSet candidates;
-            if (graph.getNeighboursSize(vertexIndex) > 0) {
-                var newCandidates = neighboursCandidates.clone();
-                newCandidates.addAll(LongArrayList.wrap(graph.getNeighboursAndClear(vertexIndex)));
-
-                candidates = newCandidates;
-            } else {
-                candidates = neighboursCandidates;
-            }
-
-            candidates.remove(vertexIndex);
-
-            var vectors = graph.getVectors();
-            var vectorIndex = graph.vectorIndex(vertexIndex);
-            var candidatesIterator = candidates.longIterator();
-
-            //TODO: use bounded min-max heap instead
-            var cachedCandidates = new TreeSet<RobustPruneVertex>();
-            while (candidatesIterator.hasNext()) {
-                var candidateIndex = candidatesIterator.nextLong();
-
-                var distance = computeDistance(vectors, vectorIndex, vectors,
-                        graph.vectorIndex(candidateIndex), dim);
-                var candidate = new RobustPruneVertex(candidateIndex, distance);
-
-                cachedCandidates.add(candidate);
-            }
-
-
-            var neighbours = new LongArrayList(maxConnectionsPerVertex);
-            var removed = new ArrayList<RobustPruneVertex>(cachedCandidates.size());
-
-            var currentMultiplication = 1.0;
-            neighboursLoop:
-            while (currentMultiplication <= distanceMultiplication) {
-                if (!removed.isEmpty()) {
-                    //TODO: seems like candidates already sorted by distance, se we do not need to sort them again
-                    cachedCandidates.addAll(removed);
-                    removed.clear();
-                }
-
-                while (!cachedCandidates.isEmpty()) {
-                    var min = cachedCandidates.pollFirst();
-                    assert min != null;
-                    neighbours.add(min.index);
-
-                    if (neighbours.size() == maxConnectionsPerVertex) {
-                        break neighboursLoop;
-                    }
-
-                    var minIndex = graph.vectorIndex(min.index);
-                    var iterator = cachedCandidates.iterator();
-                    while (iterator.hasNext()) {
-                        var candidate = iterator.next();
-                        var distance = computeDistance(vectors, minIndex, vectors, graph.vectorIndex(candidate.index),
-                                dim);
-
-                        if (distance * currentMultiplication <= candidate.distance) {
-                            iterator.remove();
-
-                            if (distanceMultiplication > 1) {
-                                removed.add(candidate);
-                            }
-                        }
-                    }
-                }
-
-                currentMultiplication *= 1.2;
-            }
-
-            graph.setNeighbours(vertexIndex, neighbours.elements(), neighbours.size());
-        } finally {
-            graph.releaseVertex(vertexIndex);
-        }
-    }
 
     public void buildIndex(VectorReader vectorReader) {
         var size = vectorReader.size();
@@ -356,7 +220,7 @@ public final class DiskANN {
             var mutator = vectorMutationThreads.get(mutatorIndex);
 
             var mutatorFuture = mutator.submit(() -> {
-                greedySearchPrune(graph, medoid, vertexIndex);
+                graph.greedySearchPrune(medoid, vertexIndex);
 
                 var features = new ArrayList<Future<?>>(maxConnectionsPerVertex + 1);
                 var neighbours = graph.fetchNeighbours(vertexIndex);
@@ -374,8 +238,7 @@ public final class DiskANN {
                                     graph.releaseVertex(neighbour);
                                 }
                             } else {
-                                robustPrune(
-                                        graph,
+                                graph.robustPrune(
                                         neighbour,
                                         new LongOpenHashSet(new long[]{vertexIndex}),
                                         distanceMultiplication
@@ -443,36 +306,36 @@ public final class DiskANN {
         }
     }
 
-    private float computeDistance(MemorySegment firstSegment, int firstSegmentFrom, MemorySegment secondSegment,
-                                  int secondSegmentFrom, int size) {
+    private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, MemorySegment secondSegment,
+                                  long secondSegmentFromOffset, int size) {
         if (distanceFunction == L2_DISTANCE) {
-            return computeL2Distance(firstSegment, firstSegmentFrom, secondSegment, secondSegmentFrom,
+            return computeL2Distance(firstSegment, firstSegmentFromOffset, secondSegment, secondSegmentFromOffset,
                     size);
         } else if (distanceFunction == DOT_DISTANCE) {
-            return computeDotDistance(firstSegment, firstSegmentFrom, secondSegment, secondSegmentFrom,
+            return computeDotDistance(firstSegment, firstSegmentFromOffset, secondSegment, secondSegmentFromOffset,
                     size);
         } else {
             throw new IllegalStateException("Unknown distance function: " + distanceFunction);
         }
     }
 
-    private float computeDistance(MemorySegment firstSegment, int firstSegmentFrom, float[] secondVector) {
+    private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
         if (distanceFunction == L2_DISTANCE) {
-            return computeL2Distance(firstSegment, firstSegmentFrom, secondVector);
+            return computeL2Distance(firstSegment, firstSegmentFromOffset, secondVector);
         } else if (distanceFunction == DOT_DISTANCE) {
-            return computeDotDistance(firstSegment, firstSegmentFrom, secondVector);
+            return computeDotDistance(firstSegment, firstSegmentFromOffset, secondVector);
         } else {
             throw new IllegalStateException("Unknown distance function: " + distanceFunction);
         }
     }
 
-    static float computeL2Distance(MemorySegment firstSegment, int firstSegmentFrom, float[] secondVector) {
+    static float computeL2Distance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
         var sumVector = FloatVector.zero(species);
         var index = 0;
 
         while (index < species.loopBound(secondVector.length)) {
             var first = FloatVector.fromMemorySegment(species, firstSegment,
-                    (firstSegmentFrom + (long) index) * Float.BYTES, ByteOrder.nativeOrder());
+                    firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
             var second = FloatVector.fromArray(species, secondVector, index);
 
             var diff = first.sub(second);
@@ -483,7 +346,7 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < secondVector.length) {
-            var diff = firstSegment.get(ValueLayout.JAVA_FLOAT, (firstSegmentFrom + (long) index) * Float.BYTES)
+            var diff = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset + (long) index * Float.BYTES)
                     - secondVector[index];
             sum += diff * diff;
             index++;
@@ -492,13 +355,13 @@ public final class DiskANN {
         return sum;
     }
 
-    static float computeDotDistance(MemorySegment firstSegment, int firstSegmentFrom, float[] secondVector) {
+    static float computeDotDistance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
         var sumVector = FloatVector.zero(species);
         var index = 0;
 
         while (index < species.loopBound(secondVector.length)) {
             var first = FloatVector.fromMemorySegment(species, firstSegment,
-                    (firstSegmentFrom + (long) index) * Float.BYTES, ByteOrder.nativeOrder());
+                    firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
             var second = FloatVector.fromArray(species, secondVector, index);
 
             sumVector = first.fma(second, sumVector);
@@ -508,7 +371,7 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < secondVector.length) {
-            var mul = firstSegment.get(ValueLayout.JAVA_FLOAT, (firstSegmentFrom + (long) index) * Float.BYTES)
+            var mul = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset + (long) index * Float.BYTES)
                     * secondVector[index];
             sum += mul;
             index++;
@@ -517,18 +380,18 @@ public final class DiskANN {
         return -sum;
     }
 
-    static float computeL2Distance(MemorySegment firstSegment, int firstSegmentFrom,
+    static float computeL2Distance(MemorySegment firstSegment, long firstSegmentFromOffset,
                                    MemorySegment secondSegment,
-                                   int secondSegmentFrom, int size) {
+                                   long secondSegmentFromOffset, int size) {
 
         var sumVector = FloatVector.zero(species);
         var index = 0;
 
         while (index < species.loopBound(size)) {
             var first = FloatVector.fromMemorySegment(species, firstSegment,
-                    (firstSegmentFrom + (long) index) * Float.BYTES, ByteOrder.nativeOrder());
+                    firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
             var second = FloatVector.fromMemorySegment(species, secondSegment,
-                    (secondSegmentFrom + (long) index) * Float.BYTES, ByteOrder.nativeOrder());
+                    secondSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
 
             var diff = first.sub(second);
             sumVector = diff.fma(diff, sumVector);
@@ -538,8 +401,8 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < size) {
-            var diff = firstSegment.get(ValueLayout.JAVA_FLOAT, (firstSegmentFrom + (long) index) * Float.BYTES)
-                    - secondSegment.get(ValueLayout.JAVA_FLOAT, (secondSegmentFrom + (long) index) * Float.BYTES);
+            var diff = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset + (long) index * Float.BYTES)
+                    - secondSegment.get(ValueLayout.JAVA_FLOAT, secondSegmentFromOffset + (long) index * Float.BYTES);
             sum += diff * diff;
             index++;
         }
@@ -547,19 +410,19 @@ public final class DiskANN {
         return sum;
     }
 
-    static float computeDotDistance(MemorySegment firstSegment, int firstSegmentFrom,
+    static float computeDotDistance(MemorySegment firstSegment, long firstSegmentFromOffset,
                                     MemorySegment secondSegment,
-                                    int secondSegmentFrom, int size) {
+                                    long secondSegmentFromOffset, int size) {
 
         var sumVector = FloatVector.zero(species);
         var index = 0;
 
         while (index < species.loopBound(size)) {
             var first = FloatVector.fromMemorySegment(species, firstSegment,
-                    (firstSegmentFrom + (long) index) * Float.BYTES,
+                    firstSegmentFromOffset + (long) index * Float.BYTES,
                     ByteOrder.nativeOrder());
             var second = FloatVector.fromMemorySegment(species, secondSegment,
-                    (secondSegmentFrom + (long) index) * Float.BYTES, ByteOrder.nativeOrder());
+                    secondSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
 
             sumVector = first.fma(second, sumVector);
             index += species.length();
@@ -568,8 +431,8 @@ public final class DiskANN {
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < size) {
-            var mul = firstSegment.get(ValueLayout.JAVA_FLOAT, (firstSegmentFrom + (long) index) * Float.BYTES)
-                    * secondSegment.get(ValueLayout.JAVA_FLOAT, (secondSegmentFrom + (long) index) * Float.BYTES);
+            var mul = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset + (long) index * Float.BYTES)
+                    * secondSegment.get(ValueLayout.JAVA_FLOAT, secondSegmentFromOffset + (long) index * Float.BYTES);
             sum += mul;
             index++;
         }
@@ -622,11 +485,13 @@ public final class DiskANN {
     }
 
     private final class InMemoryGraph implements AutoCloseable {
-        int size = 0;
+        private int size = 0;
 
-        private final MemorySegment vectors;
-        private final long[] ids;
-        private final long[] edges;
+        private final MemorySegment struct;
+        private final long vectorsOffset;
+        private final long idsOffset;
+        private final long edgesOffset;
+
         private final AtomicLongArray edgeVersions;
 
         private long medoid = -1;
@@ -634,39 +499,177 @@ public final class DiskANN {
         private final Arena arena;
 
         private InMemoryGraph(int capacity) {
-            this.ids = new long[capacity];
-            this.edges = new long[(maxConnectionsPerVertex + 1) * capacity];
             this.edgeVersions = new AtomicLongArray(capacity);
             this.arena = Arena.openShared();
-            this.vectors = arena.allocate((long) capacity * vectorDim * Float.BYTES, Float.BYTES);
+
+            var layout = MemoryLayout.structLayout(
+                    MemoryLayout.sequenceLayout((long) capacity * vectorDim, ValueLayout.JAVA_FLOAT).withName("vectors"),
+                    MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_LONG).withName("ids"),
+                    MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
+                            ValueLayout.JAVA_LONG).withName("edges")
+            );
+            this.struct = arena.allocate(layout);
+
+            this.vectorsOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("vectors"));
+            this.idsOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("ids"));
+            this.edgesOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("edges"));
         }
 
 
-        void addVector(long id, float[] vector) {
-            var offset = size * vectorDim;
+        private void addVector(long id, float[] vector) {
+            var index = size * vectorDim;
 
             var segment = MemorySegment.ofArray(vector);
-            MemorySegment.copy(segment, 0, vectors, (long) offset * Float.BYTES,
+            MemorySegment.copy(segment, 0, struct, vectorsOffset +
+                            (long) index * Float.BYTES,
                     (long) vectorDim * Float.BYTES);
 
-            ids[size] = id;
+            struct.set(ValueLayout.JAVA_LONG, idsOffset + (long) size * Long.BYTES, id);
             size++;
 
             medoid = -1;
         }
 
-        int vectorIndex(long vertexIndex) {
-            return (int) (vertexIndex * vectorDim);
+        private void greedySearchPrune(
+                long startVertexIndex,
+                long vertexIndexToPrune) {
+            var nearestCandidates = new TreeSet<GreedyVertex>();
+            var processingQueue = new PriorityQueue<GreedyVertex>();
+
+            var visitedVertexIndices = new LongOpenHashSet(4 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
+
+
+            var startVectorOffset = vectorOffset(startVertexIndex);
+            var queryVectorOffset = vectorOffset(vertexIndexToPrune);
+            var dim = vectorDim;
+
+            processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(struct, startVectorOffset,
+                    struct, queryVectorOffset, dim)));
+
+            while (!processingQueue.isEmpty()) {
+                assert nearestCandidates.size() <= maxAmountOfCandidates;
+                var currentVertex = processingQueue.poll();
+
+                if (nearestCandidates.size() == maxAmountOfCandidates &&
+                        nearestCandidates.last().distance < currentVertex.distance) {
+                    break;
+                } else {
+                    if (nearestCandidates.size() == maxAmountOfCandidates) {
+                        nearestCandidates.pollLast();
+                    }
+                    nearestCandidates.add(currentVertex);
+                }
+
+                var vertexNeighbours = fetchNeighbours(currentVertex.index);
+                for (var vertexIndex : vertexNeighbours) {
+                    if (visitedVertexIndices.add(vertexIndex)) {
+                        //return array and offset instead
+                        var distance = computeDistance(struct, queryVectorOffset, struct, vectorOffset(vertexIndex),
+                                dim);
+                        processingQueue.add(new GreedyVertex(vertexIndex, distance));
+                    }
+                }
+            }
+
+            assert nearestCandidates.size() <= maxAmountOfCandidates;
+            robustPrune(vertexIndexToPrune, visitedVertexIndices, distanceMultiplication);
         }
 
-        MemorySegment getVectors() {
-            return vectors;
+        private void robustPrune(
+                long vertexIndex,
+                LongOpenHashSet neighboursCandidates,
+                float distanceMultiplication
+        ) {
+            //TODO: use thread local containers for data instead
+            //TODO: convert neighboursCandidates to long list
+            var dim = vectorDim;
+            acquireVertex(vertexIndex);
+            try {
+                LongOpenHashSet candidates;
+                if (getNeighboursSize(vertexIndex) > 0) {
+                    var newCandidates = neighboursCandidates.clone();
+                    newCandidates.addAll(LongArrayList.wrap(getNeighboursAndClear(vertexIndex)));
+
+                    candidates = newCandidates;
+                } else {
+                    candidates = neighboursCandidates;
+                }
+
+                candidates.remove(vertexIndex);
+
+                var vectorOffset = vectorOffset(vertexIndex);
+                var candidatesIterator = candidates.longIterator();
+
+                //TODO: use bounded min-max heap instead
+                var cachedCandidates = new TreeSet<RobustPruneVertex>();
+                while (candidatesIterator.hasNext()) {
+                    var candidateIndex = candidatesIterator.nextLong();
+
+                    var distance = computeDistance(struct, vectorOffset, struct,
+                            vectorOffset(candidateIndex), dim);
+                    var candidate = new RobustPruneVertex(candidateIndex, distance);
+
+                    cachedCandidates.add(candidate);
+                }
+
+
+                var neighbours = new LongArrayList(maxConnectionsPerVertex);
+                var removed = new ArrayList<RobustPruneVertex>(cachedCandidates.size());
+
+                var currentMultiplication = 1.0;
+                neighboursLoop:
+                while (currentMultiplication <= distanceMultiplication) {
+                    if (!removed.isEmpty()) {
+                        //TODO: seems like candidates already sorted by distance, se we do not need to sort them again
+                        cachedCandidates.addAll(removed);
+                        removed.clear();
+                    }
+
+                    while (!cachedCandidates.isEmpty()) {
+                        var min = cachedCandidates.pollFirst();
+                        assert min != null;
+                        neighbours.add(min.index);
+
+                        if (neighbours.size() == maxConnectionsPerVertex) {
+                            break neighboursLoop;
+                        }
+
+                        var minIndex = vectorOffset(min.index);
+                        var iterator = cachedCandidates.iterator();
+                        while (iterator.hasNext()) {
+                            var candidate = iterator.next();
+                            var distance = computeDistance(struct, minIndex, struct, vectorOffset(candidate.index),
+                                    dim);
+
+                            if (distance * currentMultiplication <= candidate.distance) {
+                                iterator.remove();
+
+                                if (distanceMultiplication > 1) {
+                                    removed.add(candidate);
+                                }
+                            }
+                        }
+                    }
+
+                    currentMultiplication *= 1.2;
+                }
+
+                setNeighbours(vertexIndex, neighbours.elements(), neighbours.size());
+            } finally {
+                releaseVertex(vertexIndex);
+            }
         }
 
-        int getNeighboursSize(long vertexIndex) {
+        private long vectorOffset(long vertexIndex) {
+            return vertexIndex * vectorDim * Float.BYTES + vectorsOffset;
+        }
+
+
+        private int getNeighboursSize(long vertexIndex) {
             var version = edgeVersions.get((int) vertexIndex);
             while (true) {
-                var size = (int) edges[(int) (vertexIndex * (maxConnectionsPerVertex + 1))];
+                var size = (int) struct.get(ValueLayout.JAVA_LONG,
+                        vertexIndex * (maxConnectionsPerVertex + 1) * Long.BYTES + edgesOffset);
                 var newVersion = edgeVersions.get((int) vertexIndex);
 
                 VarHandle.acquireFence();
@@ -685,16 +688,18 @@ public final class DiskANN {
             var version = edgeVersions.get((int) vertexIndex);
 
             while (true) {
-                var edgesOffset = (int) (vertexIndex * (maxConnectionsPerVertex + 1));
-                var size = (int) edges[edgesOffset];
+                var edgesIndex = vertexIndex * (maxConnectionsPerVertex + 1);
+                var size = (int) struct.get(ValueLayout.JAVA_LONG,
+                        edgesIndex * Long.BYTES + edgesOffset);
 
-
-                var result = Arrays.copyOfRange(edges, edgesOffset + 1, edgesOffset + 1 + size);
+                var result = new long[size];
+                MemorySegment.copy(struct, edgesIndex * Long.BYTES + edgesOffset + Long.BYTES,
+                        MemorySegment.ofArray(result), 0L, (long) size * Long.BYTES);
                 var newVersion = edgeVersions.get((int) vertexIndex);
 
                 VarHandle.acquireFence();
                 if (newVersion == version) {
-                    assert (size >= 0 && size <= maxConnectionsPerVertex);
+                    assert size <= maxConnectionsPerVertex;
                     return result;
                 }
 
@@ -702,31 +707,31 @@ public final class DiskANN {
             }
         }
 
-        void setNeighbours(long vertexIndex, long[] neighbours, int size) {
+        private void setNeighbours(long vertexIndex, long[] neighbours, int size) {
             validateLocked(vertexIndex);
             assert (size >= 0 && size <= maxConnectionsPerVertex);
 
-            var edgesOffset = (int) (vertexIndex * (maxConnectionsPerVertex + 1));
+            var edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)) * Long.BYTES + this.edgesOffset;
+            struct.set(ValueLayout.JAVA_LONG, edgesOffset, size);
 
-            edges[edgesOffset] = size;
-
-            System.arraycopy(neighbours, 0, edges, edgesOffset + 1, size);
+            MemorySegment.copy(MemorySegment.ofArray(neighbours), 0L, struct, edgesOffset + Long.BYTES,
+                    (long) size * Long.BYTES);
         }
 
-        void appendNeighbour(long vertexIndex, long neighbour) {
+        private void appendNeighbour(long vertexIndex, long neighbour) {
             validateLocked(vertexIndex);
 
-            var edgesOffset = (int) (vertexIndex * (maxConnectionsPerVertex + 1));
-            var size = (int) edges[edgesOffset];
+            var edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)) * Long.BYTES + this.edgesOffset;
+            var size = (int) struct.get(ValueLayout.JAVA_LONG, edgesOffset);
 
             assert size + 1 <= maxConnectionsPerVertex;
 
-            edges[edgesOffset] = size + 1;
-            edges[edgesOffset + size + 1] = neighbour;
+            struct.set(ValueLayout.JAVA_LONG, edgesOffset, size + 1);
+            struct.set(ValueLayout.JAVA_LONG, edgesOffset + (long) (size + 1) * Long.BYTES, neighbour);
         }
 
 
-        void generateRandomEdges() {
+        private void generateRandomEdges() {
             if (size == 1) {
                 return;
             }
@@ -738,8 +743,8 @@ public final class DiskANN {
             var maxEdges = Math.min(size - 1, maxConnectionsPerVertex);
             var shuffleIndex = 0;
             for (var i = 0; i < size; i++) {
-                var edgesOffset = i * (maxConnectionsPerVertex + 1);
-                edges[edgesOffset] = maxEdges;
+                var edgesOffset = (long) i * (maxConnectionsPerVertex + 1) * Long.BYTES + this.edgesOffset;
+                struct.set(ValueLayout.JAVA_LONG, edgesOffset, maxEdges);
 
                 var addedEdges = 0;
                 while (addedEdges < maxEdges) {
@@ -753,25 +758,26 @@ public final class DiskANN {
                         continue;
                     }
 
-                    edges[++edgesOffset] = randomIndex;
+                    struct.set(ValueLayout.JAVA_LONG, edgesOffset + Long.BYTES, randomIndex);
+                    edgesOffset += Long.BYTES;
                     addedEdges++;
                 }
             }
         }
 
-        long[] getNeighboursAndClear(long vertexIndex) {
+        private long[] getNeighboursAndClear(long vertexIndex) {
             validateLocked(vertexIndex);
-            var edgesOffset = (int) (vertexIndex * (maxConnectionsPerVertex + 1));
+            var edgesOffset = (vertexIndex * (maxConnectionsPerVertex + 1)) * Long.BYTES + this.edgesOffset;
             var result = fetchNeighbours(vertexIndex);
 
             edgeVersions.incrementAndGet((int) vertexIndex);
-            edges[edgesOffset] = 0L;
+            struct.set(ValueLayout.JAVA_LONG, edgesOffset, 0L);
             edgeVersions.incrementAndGet((int) vertexIndex);
 
             return result;
         }
 
-        public long medoid() {
+        private long medoid() {
             if (medoid == -1L) {
                 medoid = calculateMedoid();
             }
@@ -779,7 +785,7 @@ public final class DiskANN {
             return medoid;
         }
 
-        public void acquireVertex(long vertexIndex) {
+        private void acquireVertex(long vertexIndex) {
             while (true) {
                 var version = edgeVersions.get((int) vertexIndex);
                 if ((version & 1L) != 0L) {
@@ -798,7 +804,7 @@ public final class DiskANN {
             }
         }
 
-        public void releaseVertex(long vertexIndex) {
+        private void releaseVertex(long vertexIndex) {
             while (true) {
                 var version = edgeVersions.get((int) vertexIndex);
                 if ((version & 1L) != 1L) {
@@ -818,9 +824,9 @@ public final class DiskANN {
             var meanVector = new float[vectorDim];
 
             for (var i = 0; i < size; i++) {
-                var vectorIndex = vectorIndex(i);
+                var vectorOffset = vectorOffset(i);
                 for (var j = 0; j < vectorDim; j++) {
-                    meanVector[j] += vectors.getAtIndex(ValueLayout.JAVA_FLOAT, vectorIndex + j);
+                    meanVector[j] += struct.get(ValueLayout.JAVA_FLOAT, vectorOffset + (long) j * Float.BYTES);
                 }
             }
 
@@ -832,7 +838,7 @@ public final class DiskANN {
             var medoidIndex = -1;
 
             for (var i = 0; i < size; i++) {
-                var distance = computeDistance(vectors, i * vectorDim, meanVector);
+                var distance = computeDistance(struct, (long) i * vectorDim, meanVector);
 
                 if (distance < minDistance) {
                     minDistance = distance;
@@ -844,7 +850,7 @@ public final class DiskANN {
         }
 
 
-        void saveToDisk() {
+        private void saveToDisk() {
             var verticesPerPage = pageSize / vertexRecordSize;
 
             var wittenVertices = 0;
@@ -860,28 +866,32 @@ public final class DiskANN {
 
 
                 for (var i = 0; i < verticesToWrite; i++) {
-                    var edgesOffset = wittenVertices * (maxConnectionsPerVertex + 1);
-                    var dataOffset = Long.BYTES + i * vertexRecordSize;
+                    var edgesIndex = wittenVertices * (maxConnectionsPerVertex + 1);
+                    var pageOffset = Long.BYTES + i * vertexRecordSize;
 
                     for (var j = 0; j < vectorDim; j++) {
-                        FLOAT_VIEW_VAR_HANDLE.set(page, dataOffset,
-                                vectors.getAtIndex(ValueLayout.JAVA_FLOAT, vectorsIndex));
+                        FLOAT_VIEW_VAR_HANDLE.set(page, pageOffset,
+                                struct.get(ValueLayout.JAVA_FLOAT, vectorsOffset +
+                                        (long) vectorsIndex * Float.BYTES));
                         vectorsIndex++;
-                        dataOffset += Float.BYTES;
+                        pageOffset += Float.BYTES;
                     }
 
-                    LONG_VIEW_VAR_HANDLE.set(page, dataOffset, ids[wittenVertices]);
-                    dataOffset += Long.BYTES;
+                    LONG_VIEW_VAR_HANDLE.set(page, pageOffset, struct.get(ValueLayout.JAVA_LONG,
+                            idsOffset + (long) wittenVertices * Long.BYTES));
+                    pageOffset += Long.BYTES;
 
-                    var edgesSize = edges[edgesOffset];
+                    var edgesSize = struct.get(ValueLayout.JAVA_LONG,
+                            (long) edgesIndex * Long.BYTES + edgesOffset);
                     assert (edgesSize >= 0 && edgesSize <= maxConnectionsPerVertex);
-                    edgesOffset++;
-                    page[dataOffset++] = (byte) edgesSize;
+                    edgesIndex++;
+                    page[pageOffset++] = (byte) edgesSize;
 
                     for (var j = 0; j < edgesSize; j++) {
-                        LONG_VIEW_VAR_HANDLE.set(page, dataOffset, edges[edgesOffset]);
-                        edgesOffset++;
-                        dataOffset += Long.BYTES;
+                        var edgesOffset = (long) edgesIndex * Long.BYTES + this.edgesOffset;
+                        LONG_VIEW_VAR_HANDLE.set(page, pageOffset, struct.get(ValueLayout.JAVA_LONG, edgesOffset));
+                        edgesIndex++;
+                        pageOffset += Long.BYTES;
                     }
 
                     wittenVertices++;
@@ -905,11 +915,11 @@ public final class DiskANN {
             this.medoid = medoid;
         }
 
-        public long medoid() {
+        private long medoid() {
             return medoid;
         }
 
-        public long fetchId(long vertexIndex) {
+        private long fetchId(long vertexIndex) {
             if (vertexIndex >= verticesSize) {
                 throw new IllegalArgumentException();
             }
@@ -923,7 +933,7 @@ public final class DiskANN {
 
 
         @NotNull
-        public float[] fetchVector(long vertexIndex) {
+        private float[] fetchVector(long vertexIndex) {
             if (vertexIndex >= verticesSize) {
                 throw new IllegalArgumentException();
             }
@@ -945,7 +955,7 @@ public final class DiskANN {
         }
 
         @NotNull
-        public long[] fetchNeighbours(long vertexIndex) {
+        private long[] fetchNeighbours(long vertexIndex) {
             if (vertexIndex >= verticesSize) {
                 throw new IllegalArgumentException();
             }

@@ -110,16 +110,19 @@ public class DiskANNTest {
             System.out.printf("Downloading %s from ftp.irisa.fr into %s%n", siftArchive, buildDir);
 
             var ftpClient = new FTPClient();
+
+
             ftpClient.connect("ftp.irisa.fr");
-            ftpClient.enterLocalPassiveMode();
-            ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
 
             var loggedIdn = ftpClient.login("anonymous", "anonymous");
             Assert.assertTrue(loggedIdn);
+            Assert.assertTrue(ftpClient.setFileType(FTP.BINARY_FILE_TYPE));
+
             System.out.println("Logged in to ftp.irisa.fr");
 
             try (var fos = new FileOutputStream(siftArchivePath)) {
-                ftpClient.retrieveFile("/local/texmex/corpus/$siftArchive", fos);
+                ftpClient.enterLocalPassiveMode();
+                Assert.assertTrue(ftpClient.retrieveFile("/local/texmex/corpus/" + siftArchive , fos));
             } finally {
                 ftpClient.logout();
                 ftpClient.disconnect();

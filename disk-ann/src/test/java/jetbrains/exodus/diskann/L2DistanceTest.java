@@ -46,8 +46,8 @@ public class L2DistanceTest {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 2.0f, 3.0f);
             var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 3.0f, 4.0f, 5.0f, 1.0f);
 
-            var distance = DiskANN.computeL2Distance(firstSegment, 1, secondSegment,
-                    2, 2);
+            var distance = DiskANN.computeL2Distance(firstSegment, Float.BYTES, secondSegment,
+                    2 * Float.BYTES, 2);
             Assert.assertEquals(8.0f, distance, 0.0f);
         }
     }
@@ -77,8 +77,8 @@ public class L2DistanceTest {
             }
 
 
-            var distance = DiskANN.computeL2Distance(firstSegment, firstOffset, secondSegment,
-                    secondOffset, count);
+            var distance = DiskANN.computeL2Distance(firstSegment, firstOffset * Float.BYTES, secondSegment,
+                    secondOffset * Float.BYTES, count);
             Assert.assertEquals(sum, distance, 0.0f);
         }
     }
@@ -119,7 +119,7 @@ public class L2DistanceTest {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 2.0f, 3.0f);
             var secondVector = new float[]{4.0f, 5.0f};
 
-            var distance = DiskANN.computeL2Distance(firstSegment, 1, secondVector);
+            var distance = DiskANN.computeL2Distance(firstSegment, Float.BYTES, secondVector);
             Assert.assertEquals(8.0f, distance, 0.0f);
         }
     }
@@ -143,7 +143,7 @@ public class L2DistanceTest {
             }
 
 
-            var distance = DiskANN.computeL2Distance(firstSegment, firstOffset, secondVector);
+            var distance = DiskANN.computeL2Distance(firstSegment, firstOffset * Float.BYTES, secondVector);
             Assert.assertEquals(sum, distance, 0.0f);
         }
     }
