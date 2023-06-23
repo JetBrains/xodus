@@ -451,10 +451,10 @@ public final class DiskANN implements AutoCloseable {
         private void addVector(long id, float[] vector) {
             var index = size * vectorDim;
 
-            var segment = MemorySegment.ofArray(vector);
-            MemorySegment.copy(segment, 0, struct, vectorsOffset +
-                            (long) index * Float.BYTES,
-                    (long) vectorDim * Float.BYTES);
+
+            MemorySegment.copy(vector, 0, struct, ValueLayout.JAVA_FLOAT,
+                    vectorsOffset + (long) index * Float.BYTES,
+                    vectorDim);
 
             struct.set(ValueLayout.JAVA_LONG, idsOffset + (long) size * Long.BYTES, id);
             size++;
@@ -884,11 +884,14 @@ public final class DiskANN implements AutoCloseable {
 
                 var recordOffset = recordOffset(currentVertex.index);
                 var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
-                var neighboursSize = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
+                var neighboursSize =
+                        Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
+                var neighbours = new long[neighboursSize];
 
-                for (var n = 0; n < neighboursSize; n++) {
-                    var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG,
-                            recordOffset + diskCacheRecordEdgesOffset + (long) n * Long.BYTES);
+                MemorySegment.copy(diskCache, ValueLayout.JAVA_LONG, recordOffset + diskCacheRecordEdgesOffset,
+                        neighbours, 0, neighboursSize);
+
+                for (var vertexIndex : neighbours) {
                     if (visitedVertexIndices.add(vertexIndex)) {
                         //return array and offset instead
                         var distance = computeDistance(diskCache,
