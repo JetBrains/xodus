@@ -881,15 +881,21 @@ public final class DiskANN implements AutoCloseable {
                     nearestCandidates.add(currentVertex);
                 }
 
-                var vertexNeighbours = fetchNeighbours(currentVertex.index);
-                for (var vertexIndex : vertexNeighbours) {
+
+                var recordOffset = recordOffset(currentVertex.index);
+                var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
+                var neighboursSize = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
+
+                for (var n = 0; n < neighboursSize; n++) {
+                    var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG,
+                            recordOffset + diskCacheRecordEdgesOffset + (long) n * Long.BYTES);
                     if (visitedVertexIndices.add(vertexIndex)) {
                         //return array and offset instead
-                        var distance = computeDistance(diskCache, vectorOffset(vertexIndex), queryVertex);
+                        var distance = computeDistance(diskCache,
+                                vectorOffset(vertexIndex), queryVertex);
                         processingQueue.add(new GreedyVertex(vertexIndex, distance));
                     }
                 }
-
             }
 
             assert nearestCandidates.size() <= maxAmountOfCandidates;
@@ -920,18 +926,10 @@ public final class DiskANN implements AutoCloseable {
 
 
         private long vectorOffset(long vertexIndex) {
-            if (vertexIndex >= verticesSize) {
-                throw new IllegalArgumentException();
-            }
-
-            var vertexPageIndex = vertexIndex / verticesPerPage;
-            var vertexPage = graphPages.get(vertexPageIndex);
-            var vertexOffset = (vertexIndex % verticesPerPage) * vertexRecordSize + Long.BYTES;
-            return vertexPage + vertexOffset + diskCacheRecordVectorsOffset;
+            return recordOffset(vertexIndex) + diskCacheRecordVectorsOffset;
         }
 
-        @NotNull
-        private long[] fetchNeighbours(long vertexIndex) {
+        private long recordOffset(long vertexIndex) {
             if (vertexIndex >= verticesSize) {
                 throw new IllegalArgumentException();
             }
@@ -939,19 +937,7 @@ public final class DiskANN implements AutoCloseable {
             var vertexPageIndex = vertexIndex / verticesPerPage;
             var vertexPageOffset = graphPages.get(vertexPageIndex);
             var vertexOffset = (vertexIndex % verticesPerPage) * vertexRecordSize + Long.BYTES;
-
-            var neighboursSizeOffset = vertexPageOffset + vertexOffset + diskCacheRecordEdgesCountOffset;
-
-            var neighboursSize = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
-            assert (neighboursSize <= maxConnectionsPerVertex);
-
-            var edgesOffset = vertexPageOffset + vertexOffset + diskCacheRecordEdgesOffset;
-            var result = new long[neighboursSize];
-            for (var i = 0; i < neighboursSize; i++) {
-                result[i] = diskCache.get(ValueLayout.JAVA_LONG, edgesOffset + i * Long.BYTES);
-            }
-
-            return result;
+            return vertexPageOffset + vertexOffset;
         }
 
     }
