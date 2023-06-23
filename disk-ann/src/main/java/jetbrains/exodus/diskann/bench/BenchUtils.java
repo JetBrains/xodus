@@ -119,9 +119,9 @@ final class BenchUtils {
             System.out.println("PID: " + pid);
             System.out.println("Start perf record: perf record -g -p " + pid);
 
-            Runtime.getRuntime().exec(new String[]{
-                    "perf", "record", "-g", "-p", String.valueOf(pid)
-            }, null, null);
+            Runtime.getRuntime().exec(new String[]{"sudo", "-S",
+                            "perf", "record", "-g", "-p", String.valueOf(pid)},
+                    null, null);
 
             ts1 = System.nanoTime();
             var errorsCount = 0;
