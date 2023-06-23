@@ -884,14 +884,14 @@ public final class DiskANN implements AutoCloseable {
 
                 var recordOffset = recordOffset(currentVertex.index);
                 var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
-                var neighboursSize =
-                        Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
-                var neighbours = new long[neighboursSize];
+                var neighboursEnd =
+                        Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset)) * Long.BYTES +
+                                diskCacheRecordEdgesOffset + recordOffset;
 
-                MemorySegment.copy(diskCache, ValueLayout.JAVA_LONG, recordOffset + diskCacheRecordEdgesOffset,
-                        neighbours, 0, neighboursSize);
+                for (var neighboursOffset = recordOffset + diskCacheRecordEdgesOffset;
+                     neighboursOffset < neighboursEnd; neighboursOffset += Long.BYTES) {
+                    var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG, neighboursOffset);
 
-                for (var vertexIndex : neighbours) {
                     if (visitedVertexIndices.add(vertexIndex)) {
                         //return array and offset instead
                         var distance = computeDistance(diskCache,

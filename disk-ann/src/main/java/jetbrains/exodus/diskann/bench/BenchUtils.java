@@ -102,11 +102,22 @@ final class BenchUtils {
             var groundTruth = readIVectors(groundTruthFile, 100);
 
             System.out.println("Ground truth is read, searching...");
+            System.out.println("Warming up ...");
 
-            //noinspection InfiniteLoopStatement
-            while (true) {
-                var errorsCount = 0;
-                ts1 = System.nanoTime();
+            //give GC chance to collect garbage
+            Thread.sleep(60 * 1000);
+
+            for (int i = 0; i < 10; i++) {
+                for (float[] vector : queryVectors) {
+                    diskANN.nearest(vector, 1);
+                }
+            }
+
+            System.out.println("Benchmark ...");
+
+            ts1 = System.nanoTime();
+            var errorsCount = 0;
+            for (int i = 0; i < 10; i++) {
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
                     var result = diskANN.nearest(vector, 1);
@@ -114,12 +125,16 @@ final class BenchUtils {
                         errorsCount++;
                     }
                 }
-                ts2 = System.nanoTime();
-                var errorPercentage = errorsCount * 100.0 / queryVectors.length;
-
-                System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage);
             }
+            ts2 = System.nanoTime();
+            var errorPercentage = errorsCount * 100.0 / queryVectors.length / 10;
+
+            System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length / 10,
+                    errorPercentage);
+
+
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
