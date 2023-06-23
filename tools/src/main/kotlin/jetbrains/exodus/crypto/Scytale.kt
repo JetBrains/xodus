@@ -15,18 +15,22 @@
  */
 package jetbrains.exodus.crypto
 
-import jetbrains.exodus.crypto.convert.*
 import jetbrains.exodus.crypto.streamciphers.CHACHA_CIPHER_ID
 import jetbrains.exodus.crypto.streamciphers.SALSA20_CIPHER_ID
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.env.Reflect
-import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
-import java.io.BufferedOutputStream
+import jetbrains.exodus.entitystore.util.BackupUtil
+import org.apache.commons.compress.archivers.ArchiveEntry
+import org.apache.commons.compress.archivers.ArchiveInputStream
+import org.apache.commons.compress.archivers.ArchiveStreamFactory
+import org.apache.commons.compress.archivers.examples.Expander
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.utils.IOUtils
+import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileOutputStream
+import java.io.InputStream
 import java.lang.Long.parseLong
-import java.util.concurrent.atomic.AtomicLong
-import java.util.zip.GZIPOutputStream
+import java.nio.file.Files
+import java.util.*
+import java.util.zip.GZIPInputStream
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
@@ -36,12 +40,10 @@ fun main(args: Array<String>) {
     var sourcePath: String? = null
     var targetPath: String? = null
     var key: ByteArray? = null
-    var keyString: String? = null
     var basicIV: Long? = null
     var compress = false
     var gzip = false
     var overwrite = false
-    var verbose = false
     var type = "chacha"
 
     for (arg in args) {
@@ -50,7 +52,6 @@ fun main(args: Array<String>) {
                 "g" -> gzip = true
                 "z" -> compress = true
                 "o" -> overwrite = true
-                "v" -> verbose = true
                 else -> {
                     printUsage()
                 }
@@ -62,7 +63,6 @@ fun main(args: Array<String>) {
                 targetPath = arg
             } else if (key == null) {
                 key = toBinaryKey(arg)
-                keyString = arg
             } else if (basicIV == null) {
                 basicIV = parseIV(arg)
             } else {
@@ -108,56 +108,23 @@ fun main(args: Array<String>) {
             }
         }
     }
-
-    val input = if (source.isDirectory) {
-        try {
-            val env = Reflect.openEnvironment(source, !overwrite)
-            PersistentEntityStoreImpl(env, "ignored")
-        } catch (icpe: InvalidCipherParametersException) {
-            val env = Reflect.openEnvironment(source, !overwrite,
-                    cipherId = cipherId, cipherKey = keyString, cipherBasicIV = basicIV)
-            PersistentEntityStoreImpl(env, "ignored")
-        }
+    val enCrypted = if (source.isDirectory) {
+        BackupUtil.reEncryptBackup(FileTreeArchiveInputStream(source), key, basicIV, null, 0, newCipherProvider(cipherId))
     } else {
-        ArchiveBackupableFactory.newBackupable(source, gzip)
+        val stream = ArchiveStreamFactory().createArchiveInputStream(BufferedInputStream(
+            if (gzip) {
+                GZIPInputStream(source.inputStream())
+            } else {
+                source.inputStream()
+            }
+        ))
+        BackupUtil.reEncryptBackup(stream, key, basicIV, null, 0, newCipherProvider(cipherId))
     }
 
-    var archive: TarArchiveOutputStream? = null
-    val output = if (compress) {
-        archive = TarArchiveOutputStream(GZIPOutputStream(BufferedOutputStream(FileOutputStream(target))))
-        ArchiveEncryptListenerFactory.newListener(archive)
+    if (compress) {
+        IOUtils.copy(enCrypted, target.outputStream())
     } else {
-        target.mkdir()
-        DirectoryEncryptListenerFactory.newListener(target)
-    }
-
-    val finalOutput = if (verbose) {
-        val bytesWritten = AtomicLong()
-
-        object : EncryptListener {
-            override fun onFile(header: FileHeader) {
-                output.onFile(header)
-                println(header.path + header.name)
-            }
-
-            override fun onFileEnd(header: FileHeader) {
-                output.onFileEnd(header)
-                println(String.format("MB written: %.2f", bytesWritten.get().toFloat() / (1024 * 1024)))
-            }
-
-            override fun onData(header: FileHeader, size: Int, data: ByteArray) {
-                output.onData(header, size, data)
-                bytesWritten.addAndGet(size.toLong())
-            }
-        }
-    } else {
-        output
-    }
-
-    try {
-        ScytaleEngine(finalOutput, newCipherProvider(cipherId), key, basicIV).encryptBackupable(input)
-    } finally {
-        archive?.close()
+        Expander().expand(TarArchiveInputStream(GZIPInputStream(enCrypted)), target.toPath())
     }
 }
 
@@ -174,7 +141,6 @@ private fun printUsage(): Nothing {
     println("Cipher can be 'Salsa' or 'ChaCha', 'ChaCha' is default")
     println("Options:")
     println("  -g              use gzip compression when opening archive")
-    println("  -v              print verbose progress messages")
     println("  -z              make target an archive")
     println("  -o              overwrite target archive or folder")
     exitProcess(1)
@@ -183,4 +149,37 @@ private fun printUsage(): Nothing {
 private fun abort(message: String): Nothing {
     println(message)
     exitProcess(1)
+}
+
+internal class FileTreeArchiveInputStream(private val directory: File) : ArchiveInputStream() {
+
+    private val fileIterator: Iterator<File> = Files.walk(directory.toPath()).map { it.toFile() }.iterator()
+    private var currentInputStream:InputStream? = null
+
+    override fun read(): Int {
+        val stream = currentInputStream ?: throw IllegalStateException("Virtual entry not found")
+        return stream.read()
+    }
+
+    override fun getNextEntry(): ArchiveEntry? {
+        val nextFile = if (fileIterator.hasNext()){
+            fileIterator.next()
+        } else {
+            return null
+        }
+        currentInputStream?.close()
+        currentInputStream = if (nextFile.isDirectory) null else nextFile.inputStream()
+        return VirtualArchiveEntry(directory, nextFile)
+    }
+
+    internal class VirtualArchiveEntry(private val root: File, private val file: File) : ArchiveEntry {
+        override fun getName() = file.absolutePath.substringAfter(root.absolutePath)
+
+        override fun getSize() = file.length()
+
+        override fun isDirectory() = file.isDirectory
+
+        override fun getLastModifiedDate() = Date(file.lastModified())
+    }
+
 }
