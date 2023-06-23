@@ -115,6 +115,14 @@ final class BenchUtils {
 
             System.out.println("Benchmark ...");
 
+            final long pid = ProcessHandle.current().pid();
+            System.out.println("PID: " + pid);
+            System.out.println("Start perf record: perf record -g -p " + pid);
+
+            Runtime.getRuntime().exec(new String[]{
+                    "perf", "record", "-g", "-p", String.valueOf(pid)
+            }, null, null);
+
             ts1 = System.nanoTime();
             var errorsCount = 0;
             for (int i = 0; i < 10; i++) {

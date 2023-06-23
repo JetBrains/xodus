@@ -31,8 +31,8 @@ tasks {
         mainClass = "jetbrains.exodus.diskann.bench.SIFT1MBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
-            "-server", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
+            "-server", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError", "-XX:+PreserveFramePointer",
+            "-XX:+DumpPerfMapAtExit", "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
             "--enable-preview"
         )
         systemProperties = mapOf(
@@ -51,8 +51,14 @@ tasks {
         mainClass = "jetbrains.exodus.diskann.bench.GIST1MBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
-            "-server", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
+            "-server",
+            "-Xmx16g",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "-XX:+PreserveFramePointer",
+            "-XX:+DumpPerfMapAtExit",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "-Djava.awt.headless=true",
             "--enable-preview"
         )
         systemProperties = mapOf(
