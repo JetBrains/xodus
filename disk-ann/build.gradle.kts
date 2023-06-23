@@ -31,9 +31,9 @@ tasks {
         mainClass = "jetbrains.exodus.diskann.bench.SIFT1MBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
-            "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
+            "-server", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
-            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages", "-XX:+TieredCompilation", "--enable-preview"
+            "--enable-preview"
         )
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
@@ -51,9 +51,9 @@ tasks {
         mainClass = "jetbrains.exodus.diskann.bench.GIST1MBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
-            "-server", "-Xms16g", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
+            "-server", "-Xmx16g", "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules", "jdk.incubator.vector", "-Djava.awt.headless=true",
-            "-XX:+AlwaysPreTouch", "-XX:+UseTransparentHugePages", "-XX:+TieredCompilation", "--enable-preview"
+            "--enable-preview"
         )
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
