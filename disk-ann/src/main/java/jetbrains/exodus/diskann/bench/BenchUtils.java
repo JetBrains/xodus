@@ -118,10 +118,11 @@ final class BenchUtils {
             final long pid = ProcessHandle.current().pid();
             System.out.println("PID: " + pid);
 
-            ts1 = System.nanoTime();
-            var errorsCount = 0;
+
             var iterationsCount = 100_000;
             for (int i = 0; i < iterationsCount; i++) {
+                ts1 = System.nanoTime();
+                var errorsCount = 0;
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
                     var result = diskANN.nearest(vector, 1);
@@ -129,12 +130,13 @@ final class BenchUtils {
                         errorsCount++;
                     }
                 }
-            }
-            ts2 = System.nanoTime();
-            var errorPercentage = errorsCount * 100.0 / queryVectors.length / iterationsCount;
+                ts2 = System.nanoTime();
+                var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-            System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length / iterationsCount,
-                    errorPercentage);
+                System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
+                        errorPercentage);
+
+            }
 
 
         } catch (InterruptedException e) {
