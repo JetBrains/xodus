@@ -119,8 +119,8 @@ final class BenchUtils {
             System.out.println("PID: " + pid);
 
 
-            var iterationsCount = 100_000;
-            for (int i = 0; i < iterationsCount; i++) {
+            //noinspection InfiniteLoopStatement
+            while (true){
                 ts1 = System.nanoTime();
                 var errorsCount = 0;
                 for (var index = 0; index < queryVectors.length; index++) {
