@@ -7,6 +7,7 @@ dependencies {
     implementation(libs.commons.net)
     implementation(libs.commons.compress)
     implementation(libs.commons.lang)
+    implementation(libs.jcTools.core)
 
     testImplementation(project(":xodus-utils-test"))
 }
@@ -37,6 +38,7 @@ tasks {
             "-XX:+HeapDumpOnOutOfMemoryError",
             "-XX:+PreserveFramePointer",
             "-XX:+DumpPerfMapAtExit",
+            "-XX:+DebugNonSafepoints",
             "--add-modules",
             "jdk.incubator.vector",
             "-Djava.awt.headless=true",
@@ -64,6 +66,7 @@ tasks {
             "-XX:+HeapDumpOnOutOfMemoryError",
             "-XX:+PreserveFramePointer",
             "-XX:+DumpPerfMapAtExit",
+            "-XX:+DebugNonSafepoints",
             "--add-modules",
             "jdk.incubator.vector",
             "-Djava.awt.headless=true",
