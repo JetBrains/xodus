@@ -1,7 +1,6 @@
 package jetbrains.exodus.diskann;
 
 import it.unimi.dsi.fastutil.Hash;
-import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import jdk.incubator.vector.FloatVector;
@@ -10,6 +9,7 @@ import jdk.incubator.vector.VectorSpecies;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
+import org.jctools.maps.NonBlockingHashMapLong;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +42,7 @@ public final class DiskANN implements AutoCloseable {
     private final int mutatorsQueueSize;
 
     private long verticesSize = 0;
-    private final Long2LongOpenHashMap graphPages = new Long2LongOpenHashMap(1024, Hash.VERY_FAST_LOAD_FACTOR);
+    private final NonBlockingHashMapLong<Long> graphPages = new NonBlockingHashMapLong<>(1024, false);
     private final Arena diskCacheArena = Arena.openShared();
     private MemorySegment diskCache;
 
@@ -834,7 +834,7 @@ public final class DiskANN implements AutoCloseable {
                     wittenVertices++;
                 }
 
-                graphPages.put(pageSegmentOffset / pageSize, pageSegmentOffset);
+                graphPages.put((long) pageSegmentOffset / pageSize, Long.valueOf(pageSegmentOffset));
                 pageSegmentOffset += pageSize;
             }
         }

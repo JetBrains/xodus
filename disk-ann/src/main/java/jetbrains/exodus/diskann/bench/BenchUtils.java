@@ -117,15 +117,11 @@ final class BenchUtils {
 
             final long pid = ProcessHandle.current().pid();
             System.out.println("PID: " + pid);
-            System.out.println("Start perf record: perf record -g -p " + pid);
-
-            Runtime.getRuntime().exec(new String[]{"sudo", "-S",
-                            "perf", "record", "-g", "-p", String.valueOf(pid)},
-                    null, null);
 
             ts1 = System.nanoTime();
             var errorsCount = 0;
-            for (int i = 0; i < 10; i++) {
+            var iterationsCount = 100_000;
+            for (int i = 0; i < iterationsCount; i++) {
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
                     var result = diskANN.nearest(vector, 1);
@@ -135,9 +131,9 @@ final class BenchUtils {
                 }
             }
             ts2 = System.nanoTime();
-            var errorPercentage = errorsCount * 100.0 / queryVectors.length / 10;
+            var errorPercentage = errorsCount * 100.0 / queryVectors.length / iterationsCount;
 
-            System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length / 10,
+            System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length / iterationsCount,
                     errorPercentage);
 
 
