@@ -158,8 +158,7 @@ public final class DiskANN implements AutoCloseable {
             graph.generateRandomEdges();
             var medoid = graph.medoid();
 
-            pruneIndexPass(size, graph, medoid, 1.0f);
-            pruneIndexPass(size, graph, medoid, distanceMultiplication);
+            pruneIndex(size, graph, medoid, distanceMultiplication);
 
             graph.saveToDisk();
 
@@ -180,7 +179,7 @@ public final class DiskANN implements AutoCloseable {
         return ids;
     }
 
-    private void pruneIndexPass(long size, InMemoryGraph graph, long medoid, float distanceMultiplication) {
+    private void pruneIndex(long size, InMemoryGraph graph, long medoid, float distanceMultiplication) {
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
         var permutation = new PermutationSampler(rng, (int) size, (int) size).sample();
 
