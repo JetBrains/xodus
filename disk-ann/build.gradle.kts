@@ -36,12 +36,13 @@ tasks {
             "-Xmx16g",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+HeapDumpOnOutOfMemoryError",
-            "-XX:+PreserveFramePointer",
-            "-XX:+DumpPerfMapAtExit",
             "-XX:+DebugNonSafepoints",
             "--add-modules",
             "jdk.incubator.vector",
             "-Djava.awt.headless=true",
+            "-XX:+PrintCompilation",
+            "-XX:+PrintInlining",
+            "-XX:CompileCommand=\"print jetbrains.exodus.diskann.DiskANN::computeL2Distance\"",
             "--enable-preview"
         )
         systemProperties = mapOf(
@@ -64,8 +65,6 @@ tasks {
             "-Xmx16g",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+HeapDumpOnOutOfMemoryError",
-            "-XX:+PreserveFramePointer",
-            "-XX:+DumpPerfMapAtExit",
             "-XX:+DebugNonSafepoints",
             "--add-modules",
             "jdk.incubator.vector",
