@@ -44,7 +44,6 @@ tasks {
             "-XX:+PrintInlining",
             "-XX:CompileCommand=print,jetbrains.exodus.diskann/DiskANN.computeL2Distance",
             "-XX:CompileCommand=log,jetbrains.exodus.diskann/*.*",
-            "-XX:CompileCommand=log,jetbrains.exodus.diskann/*.*",
             "-XX:CompileCommand=log,jdk.incubator.vector/*.*",
             "--enable-preview"
         )
