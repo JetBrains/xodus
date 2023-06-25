@@ -34,14 +34,11 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "-XX:+DebugNonSafepoints",
             "--add-modules",
             "jdk.incubator.vector",
             "-Djava.awt.headless=true",
-            "-XX:CompileCommand=print,jetbrains/exodus/diskann/DiskANN.computeL2Distance",
-            "-XX:+LogCompilation",
             "--enable-preview"
         )
         systemProperties = mapOf(
@@ -62,7 +59,6 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "-XX:+DebugNonSafepoints",
             "--add-modules",
