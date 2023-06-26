@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
+import jetbrains.exodus.diskann.collections.BoundedSymmetricMinMaxHeap;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
@@ -856,32 +857,32 @@ public final class DiskANN implements AutoCloseable {
                 int maxResultSize
         ) {
             var startVertexIndex = medoid;
-            var nearestCandidates = new TreeSet<GreedyVertex>();
-            var processingQueue = new PriorityQueue<GreedyVertex>();
+            var nearestCandidates = new BoundedSymmetricMinMaxHeap(maxAmountOfCandidates);
+            var processingQueue = new BoundedSymmetricMinMaxHeap(maxAmountOfCandidates);
 
             var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates,
                     Hash.FAST_LOAD_FACTOR);
 
             var startVectorOffset = vectorOffset(startVertexIndex);
-            processingQueue.add(new GreedyVertex(startVertexIndex,
-                    computeDistance(diskCache, startVectorOffset, queryVertex)));
+            processingQueue.add(startVertexIndex,
+                    computeDistance(diskCache, startVectorOffset, queryVertex));
 
-            while (!processingQueue.isEmpty()) {
+            while (processingQueue.size() != 0) {
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
-                var currentVertex = processingQueue.poll();
+                var currentVertex = processingQueue.removeMin();
+
+                var currentVertexDistance = Double.longBitsToDouble(currentVertex[1]);
+                var currentVertexIndex = currentVertex[0];
 
                 if (nearestCandidates.size() == maxAmountOfCandidates &&
-                        nearestCandidates.last().distance < currentVertex.distance) {
+                        nearestCandidates.maxDistance() < currentVertexDistance) {
                     break;
                 } else {
-                    if (nearestCandidates.size() == maxAmountOfCandidates) {
-                        nearestCandidates.pollLast();
-                    }
-                    nearestCandidates.add(currentVertex);
+                    nearestCandidates.add(currentVertexIndex, currentVertexDistance);
                 }
 
 
-                var recordOffset = recordOffset(currentVertex.index);
+                var recordOffset = recordOffset(currentVertexIndex);
                 var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
                 var neighboursEnd =
                         Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset)) * Long.BYTES +
@@ -895,7 +896,7 @@ public final class DiskANN implements AutoCloseable {
                         //return array and offset instead
                         var distance = computeDistance(diskCache,
                                 vectorOffset(vertexIndex), queryVertex);
-                        processingQueue.add(new GreedyVertex(vertexIndex, distance));
+                        processingQueue.add(vertexIndex, distance);
                     }
                 }
             }
@@ -904,10 +905,9 @@ public final class DiskANN implements AutoCloseable {
             var resultSize = Math.min(maxResultSize, nearestCandidates.size());
 
             var nearestVertices = new long[resultSize];
-            var nearestVerticesIterator = nearestCandidates.iterator();
 
             for (var i = 0; i < resultSize; i++) {
-                nearestVertices[i] = nearestVerticesIterator.next().index;
+                nearestVertices[i] = nearestCandidates.removeMin()[0];
             }
 
             return nearestVertices;
