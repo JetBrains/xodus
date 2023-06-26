@@ -100,10 +100,6 @@ public final class BoundedSymmetricMinMaxHeap {
         return Double.longBitsToDouble(tree[3]);
     }
 
-    public long[] tree() {
-        return tree;
-    }
-
     @NotNull
     public long[] removeMin() {
         if (size == 0) {

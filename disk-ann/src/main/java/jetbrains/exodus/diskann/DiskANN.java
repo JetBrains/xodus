@@ -576,7 +576,7 @@ public final class DiskANN implements AutoCloseable {
                             if (distance * currentMultiplication <= candidate.distance) {
                                 iterator.remove();
 
-                                if (distanceMultiplication > 1) {
+                                if (distance * distanceMultiplication > candidate.distance) {
                                     removed.add(candidate);
                                 }
                             }
@@ -858,21 +858,21 @@ public final class DiskANN implements AutoCloseable {
         ) {
             var startVertexIndex = medoid;
             var nearestCandidates = new BoundedSymmetricMinMaxHeap(maxAmountOfCandidates);
-            var processingQueue = new BoundedSymmetricMinMaxHeap(maxAmountOfCandidates);
+            var processingQueue = new PriorityQueue<GreedyVertex>();
 
             var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates,
                     Hash.FAST_LOAD_FACTOR);
 
             var startVectorOffset = vectorOffset(startVertexIndex);
-            processingQueue.add(startVertexIndex,
-                    computeDistance(diskCache, startVectorOffset, queryVertex));
+            processingQueue.add(new GreedyVertex(startVertexIndex,
+                    computeDistance(diskCache, startVectorOffset, queryVertex)));
 
             while (processingQueue.size() != 0) {
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
-                var currentVertex = processingQueue.removeMin();
+                var currentVertex = processingQueue.poll();
 
-                var currentVertexDistance = Double.longBitsToDouble(currentVertex[1]);
-                var currentVertexIndex = currentVertex[0];
+                var currentVertexDistance = currentVertex.distance;
+                var currentVertexIndex = currentVertex.index;
 
                 if (nearestCandidates.size() == maxAmountOfCandidates &&
                         nearestCandidates.maxDistance() < currentVertexDistance) {
@@ -896,7 +896,7 @@ public final class DiskANN implements AutoCloseable {
                         //return array and offset instead
                         var distance = computeDistance(diskCache,
                                 vectorOffset(vertexIndex), queryVertex);
-                        processingQueue.add(vertexIndex, distance);
+                        processingQueue.add(new GreedyVertex(vertexIndex, distance));
                     }
                 }
             }
