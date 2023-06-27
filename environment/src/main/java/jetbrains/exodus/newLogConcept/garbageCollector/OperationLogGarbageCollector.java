@@ -24,9 +24,9 @@ public class OperationLogGarbageCollector {
                                                       NonBlockingHashMapLong<SpecialRecordData> committedAndAbortedRecordsMap) {
         long lastCommittedAbortedId = -1L;
         for (var operationRecord : operationLog.entrySet()) {
+            if (operationRecord.getValue().getLogRecordType() == LogRecordType.COMPLETION) {
             TransactionCompletionLogRecord compRecord = (TransactionCompletionLogRecord) operationRecord.getValue();
             var currentTxId = compRecord.getTransactionId();
-            if (compRecord.getLogRecordType() == LogRecordType.COMPLETION) {
                 committedAndAbortedRecordsMap.put(currentTxId,
                         new SpecialRecordData(compRecord.getStatus(), operationRecord.getKey()));
                 if (currentTxId > lastCommittedAbortedId){
