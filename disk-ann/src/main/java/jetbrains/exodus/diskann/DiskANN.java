@@ -858,7 +858,7 @@ public final class DiskANN implements AutoCloseable {
         ) {
             var startVertexIndex = medoid;
             var nearestCandidates = new BoundedSymmetricMinMaxHeap(maxAmountOfCandidates);
-            var processingQueue = new PriorityQueue<GreedyVertex>();
+            var processingQueue = new PriorityQueue<GreedyVertex>(2 * maxAmountOfCandidates);
 
             var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates,
                     Hash.FAST_LOAD_FACTOR);
