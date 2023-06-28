@@ -82,6 +82,9 @@ public final class DiskANN implements AutoCloseable {
     private long visitedVerticesSum = 0;
     private long visitedVerticesCount = 0;
 
+    private long testedVerticesSum = 0;
+    private long testedVerticesCount = 0;
+
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
                 64, 128, 1024);
@@ -189,9 +192,19 @@ public final class DiskANN implements AutoCloseable {
         visitedVerticesCount = 0;
     }
 
+    public void resetTestStats() {
+        testedVerticesSum = 0;
+        testedVerticesCount = 0;
+    }
+
     public long getVisitedVerticesAvg() {
         return visitedVerticesSum / visitedVerticesCount;
     }
+
+    public long getTestedVerticesAvg() {
+        return testedVerticesSum / testedVerticesCount;
+    }
+
 
     private void pruneIndex(long size, InMemoryGraph graph, long medoid, float distanceMultiplication) {
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
@@ -876,9 +889,8 @@ public final class DiskANN implements AutoCloseable {
             nearestCandidates.add(new GreedyVertex(startVertexIndex, computeDistance(diskCache, startVectorOffset,
                     queryVertex)));
 
-            var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates);
+            var visitedVertexIndices = new LongOpenHashSet(maxAmountOfCandidates);
             assert nearestCandidates.size() <= maxAmountOfCandidates;
-
 
             while (true) {
                 GreedyVertex currentVertex = null;
@@ -895,8 +907,10 @@ public final class DiskANN implements AutoCloseable {
                 }
 
                 var currentVertexIndex = currentVertex.index;
-                visitedVertexIndices.add(currentVertexIndex);
+
                 currentVertex.visited = true;
+                visitedVerticesCount++;
+                visitedVertexIndices.add(currentVertexIndex);
 
                 var recordOffset = recordOffset(currentVertexIndex);
                 var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
@@ -908,13 +922,20 @@ public final class DiskANN implements AutoCloseable {
                     var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG, neighboursOffset);
 
                     if (!visitedVertexIndices.contains(vertexIndex)) {
+                        testedVerticesSum++;
                         var distance = computeDistance(diskCache,
                                 vectorOffset(vertexIndex), queryVertex);
                         var vertex = new GreedyVertex(vertexIndex, distance);
-                        nearestCandidates.add(vertex);
 
-                        if (nearestCandidates.size() > maxAmountOfCandidates) {
-                            nearestCandidates.pollLast();
+                        if (nearestCandidates.size() == maxAmountOfCandidates) {
+                            var lastVertex = nearestCandidates.last();
+
+                            if (lastVertex.distance >= distance) {
+                                nearestCandidates.add(vertex);
+                                nearestCandidates.pollLast();
+                            }
+                        } else {
+                            nearestCandidates.add(vertex);
                         }
                     }
                 }
@@ -922,6 +943,7 @@ public final class DiskANN implements AutoCloseable {
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
             }
 
+            testedVerticesCount++;
             visitedVerticesCount++;
             visitedVerticesSum += visitedVertexIndices.size();
 
