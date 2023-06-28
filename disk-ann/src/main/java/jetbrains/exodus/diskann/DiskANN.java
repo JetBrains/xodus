@@ -7,19 +7,27 @@ import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
 import jetbrains.exodus.diskann.collections.BoundedSymmetricMinMaxHeap;
+import jetbrains.exodus.diskann.collections.NonBlockingHashMapLongLong;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
-import org.jctools.maps.NonBlockingHashMapLong;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.foreign.*;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.PriorityQueue;
+import java.util.TreeSet;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 public final class DiskANN implements AutoCloseable {
@@ -43,7 +51,7 @@ public final class DiskANN implements AutoCloseable {
     private final int mutatorsQueueSize;
 
     private long verticesSize = 0;
-    private final NonBlockingHashMapLong<Long> graphPages = new NonBlockingHashMapLong<>(1024, false);
+    private final NonBlockingHashMapLongLong graphPages = new NonBlockingHashMapLongLong(1024, false);
     private final Arena diskCacheArena = Arena.openShared();
     private MemorySegment diskCache;
 
@@ -834,7 +842,7 @@ public final class DiskANN implements AutoCloseable {
                     wittenVertices++;
                 }
 
-                graphPages.put((long) pageSegmentOffset / pageSize, Long.valueOf(pageSegmentOffset));
+                graphPages.put(pageSegmentOffset / pageSize, pageSegmentOffset);
                 pageSegmentOffset += pageSize;
             }
         }
