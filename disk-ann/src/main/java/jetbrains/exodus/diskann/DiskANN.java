@@ -889,9 +889,12 @@ public final class DiskANN implements AutoCloseable {
             nearestCandidates.add(new GreedyVertex(startVertexIndex, computeDistance(diskCache, startVectorOffset,
                     queryVertex)));
 
-            var visitedVertexIndices = new LongOpenHashSet(maxAmountOfCandidates);
+            var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates);
             assert nearestCandidates.size() <= maxAmountOfCandidates;
+            visitedVertexIndices.add(startVertexIndex);
+            testedVerticesSum++;
 
+            var visited = 0;
             while (true) {
                 GreedyVertex currentVertex = null;
 
@@ -909,8 +912,7 @@ public final class DiskANN implements AutoCloseable {
                 var currentVertexIndex = currentVertex.index;
 
                 currentVertex.visited = true;
-                visitedVerticesCount++;
-                visitedVertexIndices.add(currentVertexIndex);
+                visited++;
 
                 var recordOffset = recordOffset(currentVertexIndex);
                 var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
@@ -921,7 +923,7 @@ public final class DiskANN implements AutoCloseable {
                      neighboursOffset < neighboursEnd; neighboursOffset += Long.BYTES) {
                     var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG, neighboursOffset);
 
-                    if (!visitedVertexIndices.contains(vertexIndex)) {
+                    if (visitedVertexIndices.add(vertexIndex)) {
                         testedVerticesSum++;
                         var distance = computeDistance(diskCache,
                                 vectorOffset(vertexIndex), queryVertex);
@@ -945,7 +947,8 @@ public final class DiskANN implements AutoCloseable {
 
             testedVerticesCount++;
             visitedVerticesCount++;
-            visitedVerticesSum += visitedVertexIndices.size();
+
+            visitedVerticesSum += visited;
 
             var resultSize = Math.min(maxResultSize, nearestCandidates.size());
             var nearestVertices = new long[resultSize];
