@@ -22,7 +22,6 @@ import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 public final class DiskANN implements AutoCloseable {
@@ -80,14 +79,8 @@ public final class DiskANN implements AutoCloseable {
 
     private final long diskCacheRecordByteAlignment;
 
-    private final ExecutorService nearestSearchExecutor;
-
     private long visitedVerticesSum = 0;
     private long visitedVerticesCount = 0;
-
-    private long workersSum = 0;
-    private long workersCount = 0;
-
 
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
@@ -156,12 +149,6 @@ public final class DiskANN implements AutoCloseable {
                 return thread;
             }));
         }
-
-        nearestSearchExecutor = Executors.newSingleThreadExecutor(r -> {
-            var thread = new Thread(r, name + "- nearest search");
-            thread.setDaemon(true);
-            return thread;
-        });
     }
 
 
@@ -202,17 +189,8 @@ public final class DiskANN implements AutoCloseable {
         visitedVerticesCount = 0;
     }
 
-    public void resetWorkersStats() {
-        workersSum = 0;
-        workersCount = 0;
-    }
-
     public long getVisitedVerticesAvg() {
         return visitedVerticesSum / visitedVerticesCount;
-    }
-
-    public long getWorkersAvg() {
-        return workersSum / workersCount;
     }
 
     private void pruneIndex(long size, InMemoryGraph graph, long medoid, float distanceMultiplication) {
@@ -892,157 +870,65 @@ public final class DiskANN implements AutoCloseable {
                 int maxResultSize
         ) {
             var startVertexIndex = medoid;
-            var globalNearestCandidates = new TreeSet<GreedyVertex>();
-            var globalVisitedVertexIndices = new NonBlockingHashMapLongLong(2 * maxAmountOfCandidates);
-
             var startVectorOffset = vectorOffset(startVertexIndex);
 
-            var workersCount = 1;
-            var maxWorkersCount = CORES;
-
-
-            var processingCandidates = new ArrayList<GreedyVertex>();
-            processingCandidates.add(new GreedyVertex(startVertexIndex, computeDistance(diskCache, startVectorOffset,
+            var nearestCandidates = new TreeSet<GreedyVertex>();
+            nearestCandidates.add(new GreedyVertex(startVertexIndex, computeDistance(diskCache, startVectorOffset,
                     queryVertex)));
 
-            var futures = new Future[maxWorkersCount];
+            var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates);
+            assert nearestCandidates.size() <= maxAmountOfCandidates;
 
 
             while (true) {
-                var candidatesPerWorker = (processingCandidates.size() + workersCount - 1) / workersCount;
-                var mergeFlag = new AtomicBoolean(false);
-                DiskANN.this.workersSum += workersCount;
-                DiskANN.this.workersCount += 1;
+                GreedyVertex currentVertex = null;
 
-                for (int i = 0; i < workersCount; i++) {
-                    var localNearestCandidates = new TreeSet<GreedyVertex>();
-
-                    var start = i * candidatesPerWorker;
-                    var end = Math.min((i + 1) * candidatesPerWorker, processingCandidates.size());
-                    for (var n = start; n < end; n++) {
-                        localNearestCandidates.add(processingCandidates.get(n));
-                    }
-
-                    futures[i] = nearestSearchExecutor.submit(
-                            () -> {
-                                var avgEntryIndex = 0;
-                                var processedEntries = 0;
-
-
-                                while (!mergeFlag.get()) {
-                                    assert localNearestCandidates.size() <= maxAmountOfCandidates;
-
-                                    var iterator = localNearestCandidates.iterator();
-                                    GreedyVertex currentVertex = null;
-
-                                    var entryIndex = 0;
-                                    while (iterator.hasNext()) {
-                                        var vertex = iterator.next();
-                                        if (!vertex.visited) {
-                                            currentVertex = vertex;
-                                            break;
-                                        }
-
-                                        entryIndex++;
-                                    }
-
-                                    if (currentVertex == null) {
-                                        mergeFlag.set(true);
-                                        break;
-                                    }
-
-                                    avgEntryIndex += entryIndex;
-                                    processedEntries++;
-
-                                    if (processedEntries == maxConnectionsPerVertex) {
-                                        avgEntryIndex /= processedEntries;
-
-                                        if (avgEntryIndex >= 0.8 * localNearestCandidates.size()) {
-                                            mergeFlag.set(true);
-                                            break;
-                                        }
-
-                                        processedEntries = 0;
-                                        avgEntryIndex = 0;
-                                    }
-
-                                    var currentVertexIndex = currentVertex.index;
-                                    globalVisitedVertexIndices.put(currentVertexIndex, 1L);
-                                    currentVertex.visited = true;
-
-                                    var recordOffset = recordOffset(currentVertexIndex);
-                                    var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
-                                    var neighboursCount = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
-                                    var neighboursEnd = neighboursCount * Long.BYTES + diskCacheRecordEdgesOffset + recordOffset;
-
-                                    for (var neighboursOffset = recordOffset + diskCacheRecordEdgesOffset;
-                                         neighboursOffset < neighboursEnd; neighboursOffset += Long.BYTES) {
-                                        var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG, neighboursOffset);
-
-                                        if (!globalVisitedVertexIndices.containsKey(vertexIndex)) {
-                                            var distance = computeDistance(diskCache,
-                                                    vectorOffset(vertexIndex), queryVertex);
-                                            var vertex = new GreedyVertex(vertexIndex, distance);
-                                            localNearestCandidates.add(vertex);
-
-                                            if (localNearestCandidates.size() > maxAmountOfCandidates) {
-                                                localNearestCandidates.pollLast();
-                                            }
-                                        }
-                                    }
-                                }
-
-                                assert localNearestCandidates.size() <= maxAmountOfCandidates;
-                                return localNearestCandidates;
-                            });
-                }
-
-                assert globalNearestCandidates.size() <= maxAmountOfCandidates;
-
-                for (int k = 0; k < workersCount; k++) {
-                    try {
-                        @SuppressWarnings("unchecked")
-                        var localNearestCandidates = (TreeSet<GreedyVertex>) futures[k].get();
-                        for (var vertex : localNearestCandidates) {
-                            globalNearestCandidates.add(vertex);
-
-                            if (globalNearestCandidates.size() > maxAmountOfCandidates) {
-                                globalNearestCandidates.pollLast();
-                            }
-
-                        }
-                    } catch (InterruptedException | ExecutionException e) {
-                        throw new IllegalStateException(e);
-                    }
-                }
-
-                assert globalNearestCandidates.size() <= maxAmountOfCandidates;
-
-                processingCandidates.clear();
-                for (var vertex : globalNearestCandidates) {
+                for (GreedyVertex vertex : nearestCandidates) {
                     if (!vertex.visited) {
-                        processingCandidates.add(vertex);
+                        currentVertex = vertex;
+                        break;
                     }
                 }
 
-                if (processingCandidates.isEmpty()) {
+                if (currentVertex == null) {
                     break;
                 }
 
-                if (workersCount < maxWorkersCount) {
-                    workersCount = Math.min(maxWorkersCount, workersCount << 1);
+                var currentVertexIndex = currentVertex.index;
+                visitedVertexIndices.add(currentVertexIndex);
+                currentVertex.visited = true;
+
+                var recordOffset = recordOffset(currentVertexIndex);
+                var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
+                var neighboursCount = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
+                var neighboursEnd = neighboursCount * Long.BYTES + diskCacheRecordEdgesOffset + recordOffset;
+
+                for (var neighboursOffset = recordOffset + diskCacheRecordEdgesOffset;
+                     neighboursOffset < neighboursEnd; neighboursOffset += Long.BYTES) {
+                    var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG, neighboursOffset);
+
+                    if (!visitedVertexIndices.contains(vertexIndex)) {
+                        var distance = computeDistance(diskCache,
+                                vectorOffset(vertexIndex), queryVertex);
+                        var vertex = new GreedyVertex(vertexIndex, distance);
+                        nearestCandidates.add(vertex);
+
+                        if (nearestCandidates.size() > maxAmountOfCandidates) {
+                            nearestCandidates.pollLast();
+                        }
+                    }
                 }
+
+                assert nearestCandidates.size() <= maxAmountOfCandidates;
             }
 
             visitedVerticesCount++;
-            visitedVerticesSum += globalVisitedVertexIndices.size();
+            visitedVerticesSum += visitedVertexIndices.size();
 
-            assert globalNearestCandidates.size() <= maxAmountOfCandidates;
-            var resultSize = Math.min(maxResultSize, globalNearestCandidates.size());
-
+            var resultSize = Math.min(maxResultSize, nearestCandidates.size());
             var nearestVertices = new long[resultSize];
 
-            var nearestCandidatesIterator = globalNearestCandidates.iterator();
+            var nearestCandidatesIterator = nearestCandidates.iterator();
             for (var i = 0; i < resultSize; i++) {
                 nearestVertices[i] = nearestCandidatesIterator.next().index;
             }

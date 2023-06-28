@@ -74,7 +74,7 @@ public class DiskANNTest {
                 var errorPercentage = errorsCount * 100.0 / vectorsCount;
 
                 System.out.printf("Avg. query %d time :  us, errors: %f%%%n", (ts2 - ts1) / 1000 / vectorsCount, errorPercentage);
-                System.out.printf("Visited vertices: %d, workers %d%n", diskANN.getVisitedVerticesAvg(), diskANN.getWorkersAvg());
+                System.out.printf("Visited vertices: %d%n", diskANN.getVisitedVerticesAvg());
 
                 Assert.assertTrue(errorPercentage <= 5);
 
@@ -206,7 +206,7 @@ public class DiskANNTest {
 
             System.out.printf("Avg. query time : %d us, errors: %f%%%n",
                     (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage);
-            System.out.printf("Visited vertices: %d, workers %d%n", diskANN.getVisitedVerticesAvg(), diskANN.getWorkersAvg());
+            System.out.printf("Visited vertices: %d%n", diskANN.getVisitedVerticesAvg());
 
             Assert.assertTrue(errorPercentage <= 5);
         }

@@ -3,7 +3,7 @@ package jetbrains.exodus.diskann;
 final class GreedyVertex implements Comparable<GreedyVertex> {
     final long index;
     final double distance;
-    volatile boolean visited;
+    boolean visited;
 
     GreedyVertex(long index, double distance) {
         this.index = index;

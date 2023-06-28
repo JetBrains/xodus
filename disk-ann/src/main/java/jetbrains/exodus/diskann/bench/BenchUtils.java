@@ -124,7 +124,6 @@ final class BenchUtils {
                 ts1 = System.nanoTime();
                 var errorsCount = 0;
                 diskANN.resetVisitStats();
-                diskANN.resetWorkersStats();
 
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
@@ -136,8 +135,8 @@ final class BenchUtils {
                 ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-                System.out.printf("Avg. query time : %d us, errors: %f%%, visited vertices %d, workers %d%n", (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage, diskANN.getVisitedVerticesAvg(), diskANN.getWorkersAvg());
+                System.out.printf("Avg. query time : %d us, errors: %f%%, visited vertices %d%n", (ts2 - ts1) / 1000 / queryVectors.length,
+                        errorPercentage, diskANN.getVisitedVerticesAvg());
 
             }
 
