@@ -6,7 +6,6 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
-import jetbrains.exodus.diskann.collections.BoundedSymmetricMinMaxHeap;
 import jetbrains.exodus.diskann.collections.NonBlockingHashMapLongLong;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
@@ -21,16 +20,13 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.PriorityQueue;
-import java.util.TreeSet;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 public final class DiskANN implements AutoCloseable {
+    private static final int CORES = Runtime.getRuntime().availableProcessors();
     public static final byte L2_DISTANCE = 0;
     public static final byte DOT_DISTANCE = 1;
 
@@ -83,6 +79,14 @@ public final class DiskANN implements AutoCloseable {
     private final long diskCacheRecordEdgesOffset;
 
     private final long diskCacheRecordByteAlignment;
+
+    private final ExecutorService nearestSearchExecutor;
+
+    private long visitedVerticesSum = 0;
+    private long visitedVerticesCount = 0;
+
+    private long workersSum = 0;
+    private long workersCount = 0;
 
 
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
@@ -140,12 +144,11 @@ public final class DiskANN implements AutoCloseable {
                     "is " + species.length());
         }
 
-        var cores = Runtime.getRuntime().availableProcessors();
         if (logger.isInfoEnabled()) {
-            logger.info("Using " + cores + " cores for mutation of vectors");
+            logger.info("Using " + CORES + " cores for processing of vectors");
         }
 
-        for (var i = 0; i < cores; i++) {
+        for (var i = 0; i < CORES; i++) {
             var id = i;
             vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
                 var thread = new Thread(r, name + "- vector mutator-" + id);
@@ -153,6 +156,12 @@ public final class DiskANN implements AutoCloseable {
                 return thread;
             }));
         }
+
+        nearestSearchExecutor = Executors.newSingleThreadExecutor(r -> {
+            var thread = new Thread(r, name + "- nearest search");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
 
@@ -186,6 +195,24 @@ public final class DiskANN implements AutoCloseable {
         }
 
         return ids;
+    }
+
+    public void resetVisitStats() {
+        visitedVerticesSum = 0;
+        visitedVerticesCount = 0;
+    }
+
+    public void resetWorkersStats() {
+        workersSum = 0;
+        workersCount = 0;
+    }
+
+    public long getVisitedVerticesAvg() {
+        return visitedVerticesSum / visitedVerticesCount;
+    }
+
+    public long getWorkersAvg() {
+        return workersSum / workersCount;
     }
 
     private void pruneIndex(long size, InMemoryGraph graph, long medoid, float distanceMultiplication) {
@@ -865,57 +892,159 @@ public final class DiskANN implements AutoCloseable {
                 int maxResultSize
         ) {
             var startVertexIndex = medoid;
-            var nearestCandidates = new BoundedSymmetricMinMaxHeap(maxAmountOfCandidates);
-            var processingQueue = new PriorityQueue<GreedyVertex>(2 * maxAmountOfCandidates);
-
-            var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates,
-                    Hash.FAST_LOAD_FACTOR);
+            var globalNearestCandidates = new TreeSet<GreedyVertex>();
+            var globalVisitedVertexIndices = new NonBlockingHashMapLongLong(2 * maxAmountOfCandidates);
 
             var startVectorOffset = vectorOffset(startVertexIndex);
-            processingQueue.add(new GreedyVertex(startVertexIndex,
-                    computeDistance(diskCache, startVectorOffset, queryVertex)));
 
-            while (processingQueue.size() != 0) {
-                assert nearestCandidates.size() <= maxAmountOfCandidates;
-                var currentVertex = processingQueue.poll();
+            var workersCount = 1;
+            var maxWorkersCount = CORES;
 
-                var currentVertexDistance = currentVertex.distance;
-                var currentVertexIndex = currentVertex.index;
 
-                if (nearestCandidates.size() == maxAmountOfCandidates &&
-                        nearestCandidates.maxDistance() < currentVertexDistance) {
-                    break;
-                } else {
-                    nearestCandidates.add(currentVertexIndex, currentVertexDistance);
+            var processingCandidates = new ArrayList<GreedyVertex>();
+            processingCandidates.add(new GreedyVertex(startVertexIndex, computeDistance(diskCache, startVectorOffset,
+                    queryVertex)));
+
+            var futures = new Future[maxWorkersCount];
+
+
+            while (true) {
+                var candidatesPerWorker = (processingCandidates.size() + workersCount - 1) / workersCount;
+                var mergeFlag = new AtomicBoolean(false);
+                DiskANN.this.workersSum += workersCount;
+                DiskANN.this.workersCount += 1;
+
+                for (int i = 0; i < workersCount; i++) {
+                    var localNearestCandidates = new TreeSet<GreedyVertex>();
+
+                    var start = i * candidatesPerWorker;
+                    var end = Math.min((i + 1) * candidatesPerWorker, processingCandidates.size());
+                    for (var n = start; n < end; n++) {
+                        localNearestCandidates.add(processingCandidates.get(n));
+                    }
+
+                    futures[i] = nearestSearchExecutor.submit(
+                            () -> {
+                                var avgEntryIndex = 0;
+                                var processedEntries = 0;
+
+
+                                while (!mergeFlag.get()) {
+                                    assert localNearestCandidates.size() <= maxAmountOfCandidates;
+
+                                    var iterator = localNearestCandidates.iterator();
+                                    GreedyVertex currentVertex = null;
+
+                                    var entryIndex = 0;
+                                    while (iterator.hasNext()) {
+                                        var vertex = iterator.next();
+                                        if (!vertex.visited) {
+                                            currentVertex = vertex;
+                                            break;
+                                        }
+
+                                        entryIndex++;
+                                    }
+
+                                    if (currentVertex == null) {
+                                        mergeFlag.set(true);
+                                        break;
+                                    }
+
+                                    avgEntryIndex += entryIndex;
+                                    processedEntries++;
+
+                                    if (processedEntries == maxConnectionsPerVertex) {
+                                        avgEntryIndex /= processedEntries;
+
+                                        if (avgEntryIndex >= 0.8 * localNearestCandidates.size()) {
+                                            mergeFlag.set(true);
+                                            break;
+                                        }
+
+                                        processedEntries = 0;
+                                        avgEntryIndex = 0;
+                                    }
+
+                                    var currentVertexIndex = currentVertex.index;
+                                    globalVisitedVertexIndices.put(currentVertexIndex, 1L);
+                                    currentVertex.visited = true;
+
+                                    var recordOffset = recordOffset(currentVertexIndex);
+                                    var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
+                                    var neighboursCount = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
+                                    var neighboursEnd = neighboursCount * Long.BYTES + diskCacheRecordEdgesOffset + recordOffset;
+
+                                    for (var neighboursOffset = recordOffset + diskCacheRecordEdgesOffset;
+                                         neighboursOffset < neighboursEnd; neighboursOffset += Long.BYTES) {
+                                        var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG, neighboursOffset);
+
+                                        if (!globalVisitedVertexIndices.containsKey(vertexIndex)) {
+                                            var distance = computeDistance(diskCache,
+                                                    vectorOffset(vertexIndex), queryVertex);
+                                            var vertex = new GreedyVertex(vertexIndex, distance);
+                                            localNearestCandidates.add(vertex);
+
+                                            if (localNearestCandidates.size() > maxAmountOfCandidates) {
+                                                localNearestCandidates.pollLast();
+                                            }
+                                        }
+                                    }
+                                }
+
+                                assert localNearestCandidates.size() <= maxAmountOfCandidates;
+                                return localNearestCandidates;
+                            });
                 }
 
+                assert globalNearestCandidates.size() <= maxAmountOfCandidates;
 
-                var recordOffset = recordOffset(currentVertexIndex);
-                var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
-                var neighboursEnd =
-                        Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset)) * Long.BYTES +
-                                diskCacheRecordEdgesOffset + recordOffset;
+                for (int k = 0; k < workersCount; k++) {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        var localNearestCandidates = (TreeSet<GreedyVertex>) futures[k].get();
+                        for (var vertex : localNearestCandidates) {
+                            globalNearestCandidates.add(vertex);
 
-                for (var neighboursOffset = recordOffset + diskCacheRecordEdgesOffset;
-                     neighboursOffset < neighboursEnd; neighboursOffset += Long.BYTES) {
-                    var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG, neighboursOffset);
+                            if (globalNearestCandidates.size() > maxAmountOfCandidates) {
+                                globalNearestCandidates.pollLast();
+                            }
 
-                    if (visitedVertexIndices.add(vertexIndex)) {
-                        //return array and offset instead
-                        var distance = computeDistance(diskCache,
-                                vectorOffset(vertexIndex), queryVertex);
-                        processingQueue.add(new GreedyVertex(vertexIndex, distance));
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new IllegalStateException(e);
                     }
+                }
+
+                assert globalNearestCandidates.size() <= maxAmountOfCandidates;
+
+                processingCandidates.clear();
+                for (var vertex : globalNearestCandidates) {
+                    if (!vertex.visited) {
+                        processingCandidates.add(vertex);
+                    }
+                }
+
+                if (processingCandidates.isEmpty()) {
+                    break;
+                }
+
+                if (workersCount < maxWorkersCount) {
+                    workersCount = Math.min(maxWorkersCount, workersCount << 1);
                 }
             }
 
-            assert nearestCandidates.size() <= maxAmountOfCandidates;
-            var resultSize = Math.min(maxResultSize, nearestCandidates.size());
+            visitedVerticesCount++;
+            visitedVerticesSum += globalVisitedVertexIndices.size();
+
+            assert globalNearestCandidates.size() <= maxAmountOfCandidates;
+            var resultSize = Math.min(maxResultSize, globalNearestCandidates.size());
 
             var nearestVertices = new long[resultSize];
 
+            var nearestCandidatesIterator = globalNearestCandidates.iterator();
             for (var i = 0; i < resultSize; i++) {
-                nearestVertices[i] = nearestCandidates.removeMin()[0];
+                nearestVertices[i] = nearestCandidatesIterator.next().index;
             }
 
             return nearestVertices;

@@ -120,9 +120,12 @@ final class BenchUtils {
 
 
             //noinspection InfiniteLoopStatement
-            while (true){
+            while (true) {
                 ts1 = System.nanoTime();
                 var errorsCount = 0;
+                diskANN.resetVisitStats();
+                diskANN.resetWorkersStats();
+
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
                     var result = diskANN.nearest(vector, 1);
@@ -133,8 +136,8 @@ final class BenchUtils {
                 ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-                System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage);
+                System.out.printf("Avg. query time : %d us, errors: %f%%, visited vertices %d, workers %d%n", (ts2 - ts1) / 1000 / queryVectors.length,
+                        errorPercentage, diskANN.getVisitedVerticesAvg(), diskANN.getWorkersAvg());
 
             }
 

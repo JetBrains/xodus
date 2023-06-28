@@ -88,18 +88,6 @@ public final class BoundedSymmetricMinMaxHeap {
         return builder.toString();
     }
 
-    public double maxDistance() {
-        if (size == 0) {
-            throw new IllegalStateException("Heap is empty");
-        }
-
-        if (size == 1) {
-            return Double.longBitsToDouble(tree[1]);
-        }
-
-        return Double.longBitsToDouble(tree[3]);
-    }
-
     @NotNull
     public long[] removeMin() {
         if (size == 0) {
@@ -194,8 +182,8 @@ public final class BoundedSymmetricMinMaxHeap {
     }
 
     private int adjustGrandChild(int current) {
+        var leftChild = (current << 1) + 1;
         if ((current & 1) == 1) {
-            var leftChild = (current << 1) + 1;
             if (leftChild > size) {
                 return current;
             }
@@ -215,7 +203,6 @@ public final class BoundedSymmetricMinMaxHeap {
                 return child;
             }
         } else {
-            var leftChild = (current << 1) + 1;
             var rightChild = leftChild + 1;
 
             var sibling = current - 1;
