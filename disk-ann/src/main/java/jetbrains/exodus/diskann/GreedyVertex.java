@@ -2,12 +2,15 @@ package jetbrains.exodus.diskann;
 
 final class GreedyVertex implements Comparable<GreedyVertex> {
     final long index;
-    final double distance;
+    double distance;
     boolean visited;
 
-    GreedyVertex(long index, double distance) {
+    boolean isPqDistance;
+
+    GreedyVertex(long index, double distance, boolean isPqDistance) {
         this.index = index;
         this.distance = distance;
+        this.isPqDistance = isPqDistance;
     }
 
     public int compareTo(GreedyVertex other) {

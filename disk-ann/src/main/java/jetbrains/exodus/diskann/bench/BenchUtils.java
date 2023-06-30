@@ -125,6 +125,7 @@ final class BenchUtils {
                 var errorsCount = 0;
                 diskANN.resetVisitStats();
                 diskANN.resetTestStats();
+                diskANN.resetPQDistanceStats();
 
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
@@ -136,8 +137,9 @@ final class BenchUtils {
                 ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-                System.out.printf("Avg. query time : %d us, errors: %f%%, visited vertices %d, tested vertices %d%n", (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage, diskANN.getVisitedVerticesAvg(), diskANN.getTestedVerticesAvg());
+                System.out.printf("Avg. query time : %d us, errors: %f%%, visited vertices %d," +
+                                " tested vertices %d, pq distances error %f%%n", (ts2 - ts1) / 1000 / queryVectors.length,
+                        errorPercentage, diskANN.getVisitedVerticesAvg(), diskANN.getTestedVerticesAvg(), diskANN.getPQDistanceError());
 
             }
 
@@ -234,12 +236,12 @@ final class BenchUtils {
 }
 
 record ArrayVectorReader(float[][] vectors) implements VectorReader {
-    public long size() {
+    public int size() {
         return vectors.length;
     }
 
-    public LongObjectImmutablePair<float[]> read(long index) {
-        return new LongObjectImmutablePair<>(index, vectors[(int) index]);
+    public LongObjectImmutablePair<float[]> read(int index) {
+        return new LongObjectImmutablePair<>(index, vectors[index]);
     }
 }
 

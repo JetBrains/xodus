@@ -1,6 +1,7 @@
 package jetbrains.exodus.diskann;
 
 import it.unimi.dsi.fastutil.Hash;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import jdk.incubator.vector.FloatVector;
@@ -44,6 +45,8 @@ public final class DiskANN implements AutoCloseable {
     private final int maxAmountOfCandidates;
 
     private final int mutatorsQueueSize;
+    private final int pqSubVectorSize;
+    private final int pqQuantizersCount;
 
     private long verticesSize = 0;
     private final NonBlockingHashMapLongLong graphPages = new NonBlockingHashMapLongLong(1024, false);
@@ -85,15 +88,27 @@ public final class DiskANN implements AutoCloseable {
     private long testedVerticesSum = 0;
     private long testedVerticesCount = 0;
 
+    private double pqDistanceError = 0;
+    private int pqDistancesConverted = 0;
+
+    //1st dimension quantizer index
+    //2nd index of code inside code book
+    //3d dimension centroid vector
+    private float[][][] pqCentroids;
+    private byte[] pqVectors;
+
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
-                64, 128, 1024);
+                64, 128, 1024,
+                8);
     }
 
     public DiskANN(String name, int vectorDim, byte distanceFunction,
                    float distanceMultiplication,
                    int maxConnectionsPerVertex,
-                   int maxAmountOfCandidates, int mutatorsQueueSize) {
+                   int maxAmountOfCandidates,
+                   int mutatorsQueueSize,
+                   int pqCompression) {
         this.vectorDim = vectorDim;
         this.distanceMultiplication = distanceMultiplication;
         this.maxConnectionsPerVertex = maxConnectionsPerVertex;
@@ -152,12 +167,29 @@ public final class DiskANN implements AutoCloseable {
                 return thread;
             }));
         }
+
+        pqSubVectorSize = pqCompression / Float.BYTES;
+        pqQuantizersCount = this.vectorDim / pqSubVectorSize;
+
+        if (pqCompression % Float.BYTES != 0) {
+            throw new IllegalArgumentException(
+                    "Vector should be divided during creation of PQ codes without remainder.");
+        }
+
+        if (vectorDim % pqSubVectorSize != 0) {
+            throw new IllegalArgumentException(
+                    "Vector should be divided during creation of PQ codes without remainder.");
+        }
     }
 
 
     public void buildIndex(VectorReader vectorReader) {
+        logger.info("Generating PQ codes for vectors...");
+        generatePQCodes(vectorReader);
+        logger.info("PQ codes for vectors have been generated.");
+
         var size = vectorReader.size();
-        try (var graph = new InMemoryGraph((int) size)) {
+        try (var graph = new InMemoryGraph(size)) {
             for (var i = 0; i < size; i++) {
                 var vertex = vectorReader.read(i);
                 graph.addVector(vertex.leftLong(), vertex.right());
@@ -167,7 +199,6 @@ public final class DiskANN implements AutoCloseable {
             var medoid = graph.medoid();
 
             pruneIndex(size, graph, medoid, distanceMultiplication);
-
             graph.saveToDisk();
 
             diskGraph = new DiskGraph(medoid);
@@ -195,6 +226,15 @@ public final class DiskANN implements AutoCloseable {
     public void resetTestStats() {
         testedVerticesSum = 0;
         testedVerticesCount = 0;
+    }
+
+    public void resetPQDistanceStats() {
+        pqDistanceError = 0;
+        pqDistancesConverted = 0;
+    }
+
+    public double getPQDistanceError() {
+        return pqDistanceError / pqDistancesConverted;
     }
 
     public long getVisitedVerticesAvg() {
@@ -296,6 +336,86 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
+    private void generatePQCodes(VectorReader vectorReader) {
+        pqCentroids = new float[pqQuantizersCount][][];
+        var kMeans = new KMeansMiniBatchSGD[pqQuantizersCount];
+
+        for (int i = 0; i < pqQuantizersCount; i++) {
+            kMeans[i] = new KMeansMiniBatchSGD(1 << Byte.SIZE, i * pqSubVectorSize,
+                    pqSubVectorSize, vectorReader);
+        }
+
+        var finishedCount = 0;
+
+        while (finishedCount < pqQuantizersCount) {
+            for (var km : kMeans) {
+                var iteration = km.nextIteration(16, distanceFunction);
+                if (iteration == 1_000) {
+                    finishedCount++;
+                }
+            }
+        }
+
+        for (int i = 0; i < pqQuantizersCount; i++) {
+            pqCentroids[i] = kMeans[i].centroids;
+        }
+
+        var size = vectorReader.size();
+        pqVectors = new byte[size * pqQuantizersCount];
+
+        for (int n = 0; n < size; n++) {
+            var vector = vectorReader.read(n).right();
+
+            for (int i = 0; i < pqQuantizersCount; i++) {
+                var centroidIndex = findClosestCentroid(distanceFunction, kMeans[i].centroids, vector, i * pqSubVectorSize);
+                pqVectors[n * pqQuantizersCount + i] = (byte) centroidIndex;
+            }
+        }
+    }
+
+    private float[][] buildPQDistanceLookupTable(float[] vector) {
+        var lookupTable = new float[pqQuantizersCount][1 << Byte.SIZE];
+
+        for (int i = 0; i < pqQuantizersCount; i++) {
+            var centroids = pqCentroids[i];
+
+            for (int j = 0; j < centroids.length; j++) {
+                var distance = computeDistance(distanceFunction, centroids[j], vector,
+                        i * pqSubVectorSize);
+                lookupTable[i][j] = distance;
+            }
+        }
+
+        return lookupTable;
+    }
+
+    private float computePQDistance(float[][] lookupTable, int vectorIndex) {
+        var distance = 0f;
+
+        var pqIndex = pqQuantizersCount * vectorIndex;
+        for (int i = pqIndex; i < pqIndex + pqQuantizersCount; i++) {
+            var code = pqVectors[i];
+            distance += lookupTable[i - pqIndex][code & 0xFF];
+        }
+
+        return distance;
+    }
+
+    static int findClosestCentroid(final byte distanceFunction, float[][] centroids, float[] vector, int from) {
+        var minDistance = Float.MAX_VALUE;
+        var minIndex = -1;
+
+        for (int i = 0; i < centroids.length; i++) {
+            var distance = DiskANN.computeDistance(distanceFunction, centroids[i], vector, from);
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                minIndex = i;
+            }
+        }
+
+        return minIndex;
+    }
 
     private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, MemorySegment secondSegment,
                                   long secondSegmentFromOffset, int size) {
@@ -318,6 +438,63 @@ public final class DiskANN implements AutoCloseable {
         } else {
             throw new IllegalStateException("Unknown distance function: " + distanceFunction);
         }
+    }
+
+    static float[] computeGradientStep(float[] centroid, float[] point, int pointOffset, float learningRate) {
+        var result = new float[centroid.length];
+        var index = 0;
+        var learningRateVector = FloatVector.broadcast(species, learningRate);
+        while (index < species.loopBound(centroid.length)) {
+            var centroidVector = FloatVector.fromArray(species, centroid, index);
+            var pointVector = FloatVector.fromArray(species, point, index + pointOffset);
+
+            var diff = pointVector.sub(centroidVector);
+            centroidVector = diff.fma(learningRateVector, centroidVector);
+            centroidVector.intoArray(result, index);
+            index += species.length();
+        }
+
+        while (index < centroid.length) {
+            result[index] = centroid[index] + learningRate * (point[index + pointOffset] - centroid[index]);
+            index++;
+        }
+
+        return result;
+    }
+
+
+    static float computeDistance(final byte distanceFunction, float[] firstVector, float[] secondVector, int secondVectorFrom) {
+        if (distanceFunction == L2_DISTANCE) {
+            return computeL2Distance(firstVector, secondVector, secondVectorFrom);
+        } else if (distanceFunction == DOT_DISTANCE) {
+            return computeDotDistance(firstVector, secondVector, secondVectorFrom);
+        } else {
+            throw new IllegalStateException("Unknown distance function: " + distanceFunction);
+        }
+    }
+
+    static float computeL2Distance(float[] firstVector, float[] secondVector, int secondVectorFrom) {
+        var sumVector = FloatVector.zero(species);
+        var index = 0;
+
+        while (index < species.loopBound(firstVector.length)) {
+            var first = FloatVector.fromArray(species, firstVector, index);
+            var second = FloatVector.fromArray(species, secondVector, index + secondVectorFrom);
+
+            var diff = first.sub(second);
+            sumVector = diff.fma(diff, sumVector);
+            index += species.length();
+        }
+
+        var sum = sumVector.reduceLanes(VectorOperators.ADD);
+
+        while (index < firstVector.length) {
+            var diff = firstVector[index] - secondVector[index + secondVectorFrom];
+            sum += diff * diff;
+            index++;
+        }
+
+        return sum;
     }
 
     static float computeL2Distance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
@@ -345,6 +522,29 @@ public final class DiskANN implements AutoCloseable {
         }
 
         return sum;
+    }
+
+    static float computeDotDistance(float[] firstVector, float[] secondVector, int secondVectorFrom) {
+        var sumVector = FloatVector.zero(species);
+        var index = 0;
+
+        while (index < species.loopBound(firstVector.length)) {
+            var first = FloatVector.fromArray(species, firstVector, index);
+            var second = FloatVector.fromArray(species, secondVector, index + secondVectorFrom);
+
+            sumVector = first.fma(second, sumVector);
+            index += species.length();
+        }
+
+        var sum = sumVector.reduceLanes(VectorOperators.ADD);
+
+        while (index < firstVector.length) {
+            var mul = firstVector[index] * secondVector[index + secondVectorFrom];
+            sum += mul;
+            index++;
+        }
+
+        return -sum;
     }
 
     static float computeDotDistance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
@@ -454,11 +654,11 @@ public final class DiskANN implements AutoCloseable {
 
         private long medoid = -1;
 
-        private final Arena inMemoryGraphArean;
+        private final Arena inMemoryGraphArea;
 
         private InMemoryGraph(int capacity) {
             this.edgeVersions = new AtomicLongArray(capacity);
-            this.inMemoryGraphArean = Arena.openShared();
+            this.inMemoryGraphArea = Arena.openShared();
 
             var layout = MemoryLayout.structLayout(
                     MemoryLayout.sequenceLayout((long) capacity * vectorDim, ValueLayout.JAVA_FLOAT).withName("vectors"),
@@ -466,7 +666,7 @@ public final class DiskANN implements AutoCloseable {
                     MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
                             ValueLayout.JAVA_LONG).withName("edges")
             );
-            this.struct = inMemoryGraphArean.allocate(layout);
+            this.struct = inMemoryGraphArea.allocate(layout);
 
             this.vectorsOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("vectors"));
             this.idsOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("ids"));
@@ -502,7 +702,7 @@ public final class DiskANN implements AutoCloseable {
             var dim = vectorDim;
 
             processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(struct, startVectorOffset,
-                    struct, queryVectorOffset, dim)));
+                    struct, queryVectorOffset, dim), false));
 
             while (!processingQueue.isEmpty()) {
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
@@ -524,7 +724,7 @@ public final class DiskANN implements AutoCloseable {
                         //return array and offset instead
                         var distance = computeDistance(struct, queryVectorOffset, struct, vectorOffset(vertexIndex),
                                 dim);
-                        processingQueue.add(new GreedyVertex(vertexIndex, distance));
+                        processingQueue.add(new GreedyVertex(vertexIndex, distance, false));
                     }
                 }
             }
@@ -867,7 +1067,7 @@ public final class DiskANN implements AutoCloseable {
 
         @Override
         public void close() {
-            inMemoryGraphArean.close();
+            inMemoryGraphArea.close();
         }
     }
 
@@ -879,7 +1079,7 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private long[] greedySearchNearest(
-                float[] queryVertex,
+                float[] queryVector,
                 int maxResultSize
         ) {
             var startVertexIndex = medoid;
@@ -887,20 +1087,44 @@ public final class DiskANN implements AutoCloseable {
 
             var nearestCandidates = new TreeSet<GreedyVertex>();
             nearestCandidates.add(new GreedyVertex(startVertexIndex, computeDistance(diskCache, startVectorOffset,
-                    queryVertex)));
+                    queryVector), false));
 
-            var visitedVertexIndices = new LongOpenHashSet(2 * maxAmountOfCandidates);
+            var visitedVertexIndices = new IntOpenHashSet(2 * maxAmountOfCandidates);
             assert nearestCandidates.size() <= maxAmountOfCandidates;
-            visitedVertexIndices.add(startVertexIndex);
+            visitedVertexIndices.add((int) startVertexIndex);
             testedVerticesSum++;
 
+            float[][] lookupTable = null;
             var visited = 0;
+
             while (true) {
                 GreedyVertex currentVertex = null;
 
-                for (GreedyVertex vertex : nearestCandidates) {
-                    if (!vertex.visited) {
-                        currentVertex = vertex;
+                while (true) {
+                    var nearestIterator = nearestCandidates.iterator();
+                    while (nearestIterator.hasNext()) {
+                        var vertex = nearestIterator.next();
+                        if (!vertex.visited) {
+                            currentVertex = vertex;
+                            break;
+                        }
+                    }
+
+                    if (currentVertex != null && currentVertex.isPqDistance) {
+                        var prevDistance = currentVertex.distance;
+                        currentVertex.distance = computeDistance(diskCache, vectorOffset(currentVertex.index),
+                                queryVector);
+
+                        if (currentVertex.distance != 0) {
+                            pqDistanceError += 100 * Math.abs(prevDistance - currentVertex.distance) / currentVertex.distance;
+                            pqDistancesConverted++;
+                        }
+
+                        currentVertex.isPqDistance = false;
+
+                        nearestIterator.remove();
+                        nearestCandidates.add(currentVertex);
+                    } else {
                         break;
                     }
                 }
@@ -919,25 +1143,34 @@ public final class DiskANN implements AutoCloseable {
                 var neighboursCount = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
                 var neighboursEnd = neighboursCount * Long.BYTES + diskCacheRecordEdgesOffset + recordOffset;
 
+
                 for (var neighboursOffset = recordOffset + diskCacheRecordEdgesOffset;
                      neighboursOffset < neighboursEnd; neighboursOffset += Long.BYTES) {
                     var vertexIndex = diskCache.get(ValueLayout.JAVA_LONG, neighboursOffset);
 
-                    if (visitedVertexIndices.add(vertexIndex)) {
+                    if (visitedVertexIndices.add((int) vertexIndex)) {
                         testedVerticesSum++;
-                        var distance = computeDistance(diskCache,
-                                vectorOffset(vertexIndex), queryVertex);
-                        var vertex = new GreedyVertex(vertexIndex, distance);
 
-                        if (nearestCandidates.size() == maxAmountOfCandidates) {
+                        if (nearestCandidates.size() < maxAmountOfCandidates) {
+                            var distance = computeDistance(diskCache,
+                                    vectorOffset(vertexIndex), queryVector);
+                            var vertex = new GreedyVertex(vertexIndex, distance, false);
+                            nearestCandidates.add(vertex);
+                        } else {
+                            if (lookupTable == null) {
+                                lookupTable = buildPQDistanceLookupTable(queryVector);
+                            }
+
                             var lastVertex = nearestCandidates.last();
+                            var pqDistance = computePQDistance(lookupTable, (int) vertexIndex);
+                            if (lastVertex.distance >= pqDistance) {
+                                var vertex = new GreedyVertex(vertexIndex, pqDistance, true);
 
-                            if (lastVertex.distance >= distance) {
+
                                 nearestCandidates.add(vertex);
                                 nearestCandidates.pollLast();
+
                             }
-                        } else {
-                            nearestCandidates.add(vertex);
                         }
                     }
                 }

@@ -74,8 +74,8 @@ public class DiskANNTest {
                 var errorPercentage = errorsCount * 100.0 / vectorsCount;
 
                 System.out.printf("Avg. query %d time us, errors: %f%%%n", (ts2 - ts1) / 1000 / vectorsCount, errorPercentage);
-                System.out.printf("Visited vertices: %d, tested vertices %d%n", diskANN.getVisitedVerticesAvg(),
-                        diskANN.getVisitedVerticesAvg());
+                System.out.printf("Visited vertices: %d, tested vertices %d, pq distances error %f%%%n", diskANN.getVisitedVerticesAvg(),
+                        diskANN.getVisitedVerticesAvg(), diskANN.getPQDistanceError());
 
                 Assert.assertTrue(errorPercentage <= 5);
 
@@ -207,8 +207,9 @@ public class DiskANNTest {
 
             System.out.printf("Avg. query time : %d us, errors: %f%%%n",
                     (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage);
-            System.out.printf("Visited vertices: %d, tested vertices %d%n",
-                    diskANN.getVisitedVerticesAvg(), diskANN.getTestedVerticesAvg());
+            System.out.printf("Visited vertices: %d, tested vertices %d, pq distances error %f%%%n",
+                    diskANN.getVisitedVerticesAvg(), diskANN.getTestedVerticesAvg(),
+                    diskANN.getPQDistanceError());
 
             Assert.assertTrue(errorPercentage <= 5);
         }
@@ -315,11 +316,11 @@ record FloatArrayHolder(float[] floatArray) {
 }
 
 record ArrayVectorReader(float[][] vectors) implements VectorReader {
-    public long size() {
+    public int size() {
         return vectors.length;
     }
 
-    public LongObjectImmutablePair<float[]> read(long index) {
-        return new LongObjectImmutablePair<>(index, vectors[(int) index]);
+    public LongObjectImmutablePair<float[]> read(int index) {
+        return new LongObjectImmutablePair<>(index, vectors[index]);
     }
 }
