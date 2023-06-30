@@ -167,6 +167,13 @@ object Environments {
                     tempDir.delete()
                     return@let
                 }
+                Files.list(Paths.get(location)).forEach { file ->
+                    if (file.fileName.toString().endsWith(".del")) {
+                        EnvironmentImpl.loggerInfo("File $file is marked as deleted. Deleting it from the file system.")
+                        file.toFile().setWritable(true)
+                        Files.deleteIfExists(file)
+                    }
+                }
                 env.copyTo(tempDir, false, null) { msg ->
                     EnvironmentImpl.loggerInfo(msg.toString())
                 }
