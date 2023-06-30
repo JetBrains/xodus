@@ -100,7 +100,7 @@ public final class DiskANN implements AutoCloseable {
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
                 64, 128, 1024,
-                8);
+                16);
     }
 
     public DiskANN(String name, int vectorDim, byte distanceFunction,
@@ -373,8 +373,8 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private float[][] buildPQDistanceLookupTable(float[] vector) {
-        var lookupTable = new float[pqQuantizersCount][1 << Byte.SIZE];
+    private float[] buildPQDistanceLookupTable(float[] vector) {
+        var lookupTable = new float[pqQuantizersCount * (1 << Byte.SIZE)];
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var centroids = pqCentroids[i];
@@ -382,20 +382,20 @@ public final class DiskANN implements AutoCloseable {
             for (int j = 0; j < centroids.length; j++) {
                 var distance = computeDistance(distanceFunction, centroids[j], vector,
                         i * pqSubVectorSize);
-                lookupTable[i][j] = distance;
+                lookupTable[i * (1 << Byte.SIZE) + j] = distance;
             }
         }
 
         return lookupTable;
     }
 
-    private float computePQDistance(float[][] lookupTable, int vectorIndex) {
+    private float computePQDistance(float[] lookupTable, int vectorIndex) {
         var distance = 0f;
 
         var pqIndex = pqQuantizersCount * vectorIndex;
         for (int i = pqIndex; i < pqIndex + pqQuantizersCount; i++) {
             var code = pqVectors[i];
-            distance += lookupTable[i - pqIndex][code & 0xFF];
+            distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE)  + (code & 0xFF)];
         }
 
         return distance;
@@ -1094,7 +1094,7 @@ public final class DiskANN implements AutoCloseable {
             visitedVertexIndices.add((int) startVertexIndex);
             testedVerticesSum++;
 
-            float[][] lookupTable = null;
+            float[] lookupTable = null;
             var visited = 0;
 
             while (true) {
