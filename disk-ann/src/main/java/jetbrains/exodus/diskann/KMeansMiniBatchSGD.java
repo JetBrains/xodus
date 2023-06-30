@@ -70,16 +70,17 @@ final class KMeansMiniBatchSGD {
         var actualBatchSize = Math.min(currentIndex + batchSize, vectorReader.size()) - currentIndex;
 
         var vectors = new float[actualBatchSize][];
+        var centroidIds = new int[actualBatchSize];
 
         for (int i = 0; i < actualBatchSize; i++) {
             var vector = vectorReader.read(currentIndex + i).right();
             vectors[i] = vector;
+            centroidIds[i] = DiskANN.findClosestCentroid(distanceFunction, centroids, vector, subVecOffset);
         }
 
 
         for (int i = 0; i < actualBatchSize; i++) {
-            var vector = vectors[i];
-            var centroid = DiskANN.findClosestCentroid(distanceFunction, centroids, vector, subVecOffset);
+            var centroid = centroidIds[i];
             centroidsSamplesCount[centroid]++;
 
             var learningRate = 1.0f / centroidsSamplesCount[centroid];
