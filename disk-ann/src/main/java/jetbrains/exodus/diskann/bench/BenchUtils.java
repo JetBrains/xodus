@@ -138,7 +138,7 @@ final class BenchUtils {
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
                 System.out.printf("Avg. query time : %d us, errors: %f%%, visited vertices %d," +
-                                " tested vertices %d, pq distances error %f%%n", (ts2 - ts1) / 1000 / queryVectors.length,
+                                " tested vertices %d, pq distances error %f%% %n", (ts2 - ts1) / 1000 / queryVectors.length,
                         errorPercentage, diskANN.getVisitedVerticesAvg(), diskANN.getTestedVerticesAvg(), diskANN.getPQDistanceError());
 
             }
