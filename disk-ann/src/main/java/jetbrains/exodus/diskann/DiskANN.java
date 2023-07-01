@@ -97,6 +97,8 @@ public final class DiskANN implements AutoCloseable {
     private float[][][] pqCentroids;
     private byte[] pqVectors;
 
+    private final ThreadLocal<float[]> lookupTable;
+
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
                 64, 128, 1024,
@@ -180,6 +182,8 @@ public final class DiskANN implements AutoCloseable {
             throw new IllegalArgumentException(
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
+
+        lookupTable = ThreadLocal.withInitial(() -> new float[pqQuantizersCount * (1 << Byte.SIZE)]);
     }
 
 
@@ -374,7 +378,7 @@ public final class DiskANN implements AutoCloseable {
     }
 
     private float[] buildPQDistanceLookupTable(float[] vector) {
-        var lookupTable = new float[pqQuantizersCount * (1 << Byte.SIZE)];
+        var lookupTable = this.lookupTable.get();
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var centroids = pqCentroids[i];
@@ -395,7 +399,7 @@ public final class DiskANN implements AutoCloseable {
         var pqIndex = pqQuantizersCount * vectorIndex;
         for (int i = pqIndex; i < pqIndex + pqQuantizersCount; i++) {
             var code = pqVectors[i];
-            distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE)  + (code & 0xFF)];
+            distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE) + (code & 0xFF)];
         }
 
         return distance;
