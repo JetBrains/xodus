@@ -98,6 +98,7 @@ public final class DiskANN implements AutoCloseable {
     private byte[] pqVectors;
 
     private final ThreadLocal<float[]> lookupTable;
+    private final ThreadLocal<IntOpenHashSet> visitedVertices;
 
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
@@ -184,6 +185,8 @@ public final class DiskANN implements AutoCloseable {
         }
 
         lookupTable = ThreadLocal.withInitial(() -> new float[pqQuantizersCount * (1 << Byte.SIZE)]);
+        visitedVertices = ThreadLocal.withInitial(() -> new IntOpenHashSet(8 * 1024,
+                Hash.VERY_FAST_LOAD_FACTOR));
     }
 
 
@@ -1086,6 +1089,9 @@ public final class DiskANN implements AutoCloseable {
                 float[] queryVector,
                 int maxResultSize
         ) {
+            var visitedVertexIndices = visitedVertices.get();
+            visitedVertexIndices.clear();
+
             var startVertexIndex = medoid;
             var startVectorOffset = vectorOffset(startVertexIndex);
 
@@ -1093,7 +1099,6 @@ public final class DiskANN implements AutoCloseable {
             nearestCandidates.add(new GreedyVertex(startVertexIndex, computeDistance(diskCache, startVectorOffset,
                     queryVector), false));
 
-            var visitedVertexIndices = new IntOpenHashSet(2 * maxAmountOfCandidates);
             assert nearestCandidates.size() <= maxAmountOfCandidates;
             visitedVertexIndices.add((int) startVertexIndex);
             testedVerticesSum++;
