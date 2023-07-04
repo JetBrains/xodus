@@ -125,6 +125,12 @@ public final class BoundedGreedyVertexPriorityQueue {
             newIndex = binarySearch(newDistance, index + 1, size) - 1;
             assert newIndex >= 0;
         } else {
+            vertices[arrayIndex + 3] = 0;
+
+            if (nextNotCheckedVertex > index) {
+                nextNotCheckedVertex = index;
+            }
+
             return;
         }
 
@@ -139,6 +145,10 @@ public final class BoundedGreedyVertexPriorityQueue {
             vertices[arrayIndex + 1] = newIntDistance2;
             vertices[arrayIndex + 3] = 0;
 
+            if (nextNotCheckedVertex > newIndex) {
+                nextNotCheckedVertex = newIndex;
+            }
+
             return;
         }
 
@@ -148,9 +158,15 @@ public final class BoundedGreedyVertexPriorityQueue {
         if (index < newIndex) {
             System.arraycopy(vertices, arrayIndex + 4, vertices, arrayIndex,
                     newArrayIndex - arrayIndex);
+            if (nextNotCheckedVertex > index && nextNotCheckedVertex <= newIndex) {
+                nextNotCheckedVertex--;
+            }
         } else {
             System.arraycopy(vertices, newArrayIndex, vertices, newArrayIndex + 4,
                     arrayIndex - newArrayIndex);
+            if (nextNotCheckedVertex >= newIndex && nextNotCheckedVertex < index) {
+                nextNotCheckedVertex++;
+            }
         }
 
 
