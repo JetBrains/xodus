@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
+import jetbrains.exodus.diskann.collections.BoundedGreedyVertexPriorityQueue;
 import jetbrains.exodus.diskann.collections.NonBlockingHashMapLongLong;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
@@ -97,8 +98,7 @@ public final class DiskANN implements AutoCloseable {
     private float[][][] pqCentroids;
     private byte[] pqVectors;
 
-    private final ThreadLocal<float[]> lookupTable;
-    private final ThreadLocal<IntOpenHashSet> visitedVertices;
+    private final ThreadLocal<NearestGreedySearchCachedData> nearestGreedySearchCachedDataThreadLocal;
 
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
@@ -184,9 +184,10 @@ public final class DiskANN implements AutoCloseable {
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
 
-        lookupTable = ThreadLocal.withInitial(() -> new float[pqQuantizersCount * (1 << Byte.SIZE)]);
-        visitedVertices = ThreadLocal.withInitial(() -> new IntOpenHashSet(8 * 1024,
-                Hash.VERY_FAST_LOAD_FACTOR));
+        nearestGreedySearchCachedDataThreadLocal = ThreadLocal.withInitial(() -> new NearestGreedySearchCachedData(
+                new IntOpenHashSet(8 * 1024,
+                        Hash.VERY_FAST_LOAD_FACTOR), new float[pqQuantizersCount * (1 << Byte.SIZE)],
+                new BoundedGreedyVertexPriorityQueue(maxAmountOfCandidates)));
     }
 
 
@@ -381,7 +382,7 @@ public final class DiskANN implements AutoCloseable {
     }
 
     private float[] buildPQDistanceLookupTable(float[] vector) {
-        var lookupTable = this.lookupTable.get();
+        var lookupTable = this.nearestGreedySearchCachedDataThreadLocal.get().lookupTable;
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var centroids = pqCentroids[i];
@@ -745,8 +746,6 @@ public final class DiskANN implements AutoCloseable {
                 LongOpenHashSet neighboursCandidates,
                 float distanceMultiplication
         ) {
-            //TODO: use thread local containers for data instead
-            //TODO: convert neighboursCandidates to long list
             var dim = vectorDim;
             acquireVertex(vertexIndex);
             try {
@@ -765,7 +764,6 @@ public final class DiskANN implements AutoCloseable {
                 var vectorOffset = vectorOffset(vertexIndex);
                 var candidatesIterator = candidates.longIterator();
 
-                //TODO: use bounded min-max heap instead
                 var cachedCandidates = new TreeSet<RobustPruneVertex>();
                 while (candidatesIterator.hasNext()) {
                     var candidateIndex = candidatesIterator.nextLong();
@@ -785,7 +783,6 @@ public final class DiskANN implements AutoCloseable {
                 neighboursLoop:
                 while (currentMultiplication <= distanceMultiplication) {
                     if (!removed.isEmpty()) {
-                        //TODO: seems like candidates already sorted by distance, se we do not need to sort them again
                         cachedCandidates.addAll(removed);
                         removed.clear();
                     }
@@ -1085,19 +1082,23 @@ public final class DiskANN implements AutoCloseable {
             this.medoid = medoid;
         }
 
-        private long[] greedySearchNearest(
+        private int[] greedySearchNearest(
                 float[] queryVector,
                 int maxResultSize
         ) {
-            var visitedVertexIndices = visitedVertices.get();
+            var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
+
+            var visitedVertexIndices = threadLocalCache.visistedVertexIndices;
             visitedVertexIndices.clear();
+
+            var nearestCandidates = threadLocalCache.nearestCandidates;
+            nearestCandidates.clear();
 
             var startVertexIndex = medoid;
             var startVectorOffset = vectorOffset(startVertexIndex);
 
-            var nearestCandidates = new TreeSet<GreedyVertex>();
-            nearestCandidates.add(new GreedyVertex(startVertexIndex, computeDistance(diskCache, startVectorOffset,
-                    queryVector), false));
+
+            nearestCandidates.add((int) startVertexIndex, computeDistance(diskCache, startVectorOffset, queryVector), false);
 
             assert nearestCandidates.size() <= maxAmountOfCandidates;
             visitedVertexIndices.add((int) startVertexIndex);
@@ -1107,47 +1108,38 @@ public final class DiskANN implements AutoCloseable {
             var visited = 0;
 
             while (true) {
-                GreedyVertex currentVertex = null;
-
+                int currentVertex = -1;
                 while (true) {
-                    var nearestIterator = nearestCandidates.iterator();
-                    while (nearestIterator.hasNext()) {
-                        var vertex = nearestIterator.next();
-                        if (!vertex.visited) {
-                            currentVertex = vertex;
-                            break;
-                        }
+                    var notCheckedVertex = nearestCandidates.nextNotCheckedVertexIndex();
+                    if (notCheckedVertex < 0) {
+                        break;
                     }
+                    if (nearestCandidates.isPqDistance(notCheckedVertex)) {
+                        var vertexIndex = nearestCandidates.vertexIndex(notCheckedVertex);
+                        var pqDistance = nearestCandidates.vertexDistance(notCheckedVertex);
 
-                    if (currentVertex != null && currentVertex.isPqDistance) {
-                        var prevDistance = currentVertex.distance;
-                        currentVertex.distance = computeDistance(diskCache, vectorOffset(currentVertex.index),
+                        var preciseDistance = computeDistance(diskCache, vectorOffset(vertexIndex),
                                 queryVector);
 
-                        if (currentVertex.distance != 0) {
-                            pqDistanceError += 100 * Math.abs(prevDistance - currentVertex.distance) / currentVertex.distance;
+                        if (preciseDistance != 0) {
+                            pqDistanceError += 100 * Math.abs(pqDistance - preciseDistance) / preciseDistance;
                             pqDistancesConverted++;
                         }
 
-                        currentVertex.isPqDistance = false;
-
-                        nearestIterator.remove();
-                        nearestCandidates.add(currentVertex);
+                        nearestCandidates.resortVertex(notCheckedVertex, preciseDistance);
                     } else {
+                        currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
                         break;
                     }
                 }
 
-                if (currentVertex == null) {
+                if (currentVertex < 0) {
                     break;
                 }
 
-                var currentVertexIndex = currentVertex.index;
-
-                currentVertex.visited = true;
                 visited++;
 
-                var recordOffset = recordOffset(currentVertexIndex);
+                var recordOffset = recordOffset(currentVertex);
                 var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
                 var neighboursCount = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
                 var neighboursEnd = neighboursCount * Long.BYTES + diskCacheRecordEdgesOffset + recordOffset;
@@ -1163,22 +1155,16 @@ public final class DiskANN implements AutoCloseable {
                         if (nearestCandidates.size() < maxAmountOfCandidates) {
                             var distance = computeDistance(diskCache,
                                     vectorOffset(vertexIndex), queryVector);
-                            var vertex = new GreedyVertex(vertexIndex, distance, false);
-                            nearestCandidates.add(vertex);
+                            nearestCandidates.add((int) vertexIndex, distance, false);
                         } else {
                             if (lookupTable == null) {
                                 lookupTable = buildPQDistanceLookupTable(queryVector);
                             }
 
-                            var lastVertex = nearestCandidates.last();
+                            var lastVertexDistance = nearestCandidates.maxDistance();
                             var pqDistance = computePQDistance(lookupTable, (int) vertexIndex);
-                            if (lastVertex.distance >= pqDistance) {
-                                var vertex = new GreedyVertex(vertexIndex, pqDistance, true);
-
-
-                                nearestCandidates.add(vertex);
-                                nearestCandidates.pollLast();
-
+                            if (lastVertexDistance >= pqDistance) {
+                                nearestCandidates.add((int) vertexIndex, pqDistance, true);
                             }
                         }
                     }
@@ -1192,15 +1178,7 @@ public final class DiskANN implements AutoCloseable {
 
             visitedVerticesSum += visited;
 
-            var resultSize = Math.min(maxResultSize, nearestCandidates.size());
-            var nearestVertices = new long[resultSize];
-
-            var nearestCandidatesIterator = nearestCandidates.iterator();
-            for (var i = 0; i < resultSize; i++) {
-                nearestVertices[i] = nearestCandidatesIterator.next().index;
-            }
-
-            return nearestVertices;
+            return nearestCandidates.vertexIndices(maxResultSize);
         }
 
         private long fetchId(long vertexIndex) {
@@ -1232,5 +1210,19 @@ public final class DiskANN implements AutoCloseable {
             return vertexPageOffset + vertexOffset;
         }
 
+    }
+
+    private static final class NearestGreedySearchCachedData {
+        private final IntOpenHashSet visistedVertexIndices;
+        private final float[] lookupTable;
+
+        private final BoundedGreedyVertexPriorityQueue nearestCandidates;
+
+
+        private NearestGreedySearchCachedData(IntOpenHashSet vertexIndices, float[] lookupTable, BoundedGreedyVertexPriorityQueue nearestCandidates) {
+            this.visistedVertexIndices = vertexIndices;
+            this.lookupTable = lookupTable;
+            this.nearestCandidates = nearestCandidates;
+        }
     }
 }
