@@ -63,7 +63,7 @@ public class MVCCComponentTest {
                 // check record is not null after the commit
                 System.out.println("size: " + keyValTransactions.size());
 
-//                checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
+                checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
             });
             th.get();
 

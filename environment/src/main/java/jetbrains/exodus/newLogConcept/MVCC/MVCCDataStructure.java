@@ -15,6 +15,7 @@ import jetbrains.exodus.newLogConcept.transaction.TransactionState;
 import jetbrains.exodus.newLogConcept.transaction.TransactionStateWrapper;
 import jetbrains.exodus.newLogConcept.transaction.TransactionType;
 import jetbrains.exodus.newLogConcept.tree.Tree;
+import jetbrains.exodus.newLogConcept.tree.TreeEntry;
 import org.jctools.maps.NonBlockingHashMapLong;
 import net.jpountz.xxhash.XXHash64;
 
@@ -43,7 +44,8 @@ public class MVCCDataStructure {
     // todo think later ab global mem usage
     private final long transactionsLimit = 1000; // the number of transactions, when reached we run GC
     MVCCGarbageCollector mvccGarbageCollector = new MVCCGarbageCollector();
-    OperationLogGarbageCollector logGarbageCollector = new OperationLogGarbageCollector();
+
+    OperationLogGarbageCollector logGarbageCollector = new OperationLogGarbageCollector(tree.tree);
 
 
     private void compareWithCurrentAndSet(MVCCRecord mvccRecord, long currentTransactionId) {
@@ -162,10 +164,11 @@ public class MVCCDataStructure {
         TransactionOperationLogRecord targetOperationInLog =
                 (TransactionOperationLogRecord) operationLog.get(targetEntry.getOperationAddress());
 
-        // case for error - smth goes wrong
+        // case for error - smth goes wrong -- TODO ask andrey
         if (targetOperationInLog == null) {
-            System.out.println("Error: " + StringBinding.entryToString(key));
-            throw new ExodusException();
+            return tree.searchInTree(key);
+//            System.out.println("Error: " + StringBinding.entryToString(key));
+//            throw new ExodusException();
         }
 
         // case for REMOVE operation

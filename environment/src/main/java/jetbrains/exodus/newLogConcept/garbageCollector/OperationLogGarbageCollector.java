@@ -18,8 +18,12 @@ import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_SEED;
 
 public class OperationLogGarbageCollector {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
+    ConcurrentSkipListSet<TreeEntry> tree;
 
-    public ConcurrentSkipListSet<TreeEntry> tree = new ConcurrentSkipListSet<>();
+    public OperationLogGarbageCollector(ConcurrentSkipListSet<TreeEntry> tree) {
+        this.tree = tree;
+    }
+
 
     public long findAllCommittedAndAbortedAndGetMaxId(Map<Long, OperationLogRecord> operationLog,
                                                       NonBlockingHashMapLong<SpecialRecordData> committedAndAbortedRecordsMap) {
@@ -54,7 +58,6 @@ public class OperationLogGarbageCollector {
         for (var operationRecord : operationLog.entrySet()) {
             if (operationRecord.getValue().getLogRecordType() == LogRecordType.OPERATION) {
                 var committedOrAbortedRecord = committedAndAbortedRecordsMap.get(operationRecord.getValue().getTransactionId());
-
                 if (committedOrAbortedRecord != null && committedOrAbortedRecord.state == TransactionState.REVERTED) {
                     logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);
                 } else if (committedOrAbortedRecord != null && committedOrAbortedRecord.state == TransactionState.COMMITTED) {

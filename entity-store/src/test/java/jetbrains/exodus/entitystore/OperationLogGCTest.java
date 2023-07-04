@@ -4,6 +4,7 @@ import jetbrains.exodus.newLogConcept.garbageCollector.OperationLogGarbageCollec
 import jetbrains.exodus.newLogConcept.MVCC.MVCCRecord;
 import jetbrains.exodus.newLogConcept.operationLog.OperationLogRecord;
 import jetbrains.exodus.newLogConcept.operationLog.OperationReference;
+import jetbrains.exodus.newLogConcept.tree.TreeEntry;
 import net.jpountz.xxhash.XXHash64;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.junit.Assert;
@@ -12,12 +13,15 @@ import org.junit.Test;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static jetbrains.exodus.log.BufferedDataWriter.XX_HASH_FACTORY;
 
 public class OperationLogGCTest {
     private static final AtomicLong address = new AtomicLong(1);
+    public ConcurrentSkipListSet<TreeEntry> tree = new ConcurrentSkipListSet<>();
+
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
 
     @Test
@@ -51,7 +55,7 @@ public class OperationLogGCTest {
 //            operationLog.put(recordAddress, new TransactionOperationLogRecord(key, value, operationType, snapshot));
         }
 
-        var collector = new OperationLogGarbageCollector();
+        var collector = new OperationLogGarbageCollector(tree);
         collector.clean(operationLog, hashMap);
 
         Assert.assertTrue(hashMap.get(3L).linksToOperationsQueue.stream().anyMatch(it -> it.getTxId() == 4L));
