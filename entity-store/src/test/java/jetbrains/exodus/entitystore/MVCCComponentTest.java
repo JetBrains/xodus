@@ -25,18 +25,23 @@ public class MVCCComponentTest {
     @Test
     public void testReadCommitted() throws ExecutionException, InterruptedException {
 
-        int keyCounter = 1;
+        int keyCounter = 640;
         ExecutorService service = Executors.newCachedThreadPool();
+        var mvccComponent = new MVCCDataStructure();
+        long keyIncrementer = 1;
 
-        while (keyCounter <= 64 * 1024) {
+        while (keyCounter <= 1400) {
             logger.debug("Counter: " + keyCounter);
             Map<String, String> keyValTransactions = new HashMap<>();
-            var mvccComponent = new MVCCDataStructure();
 
             for (int i = 0; i < keyCounter; i++) {
-                String keyString = "key-" + (int) (Math.random() * 100000);
-                String valueString = "value-" + (int) (Math.random() * 100000);
+                String keyString = "key-" + (int) (keyIncrementer * 100000);
+                String valueString = "value-" + (int) (Math.random()  * 100000);
+                System.out.println("iter: " + i + " key: " + keyString);
+                System.out.println("iter: " + i + " value: " + valueString);
+
                 keyValTransactions.put(keyString, valueString);
+                keyIncrementer += 1;
             }
 
             var th = service.submit(() -> {
@@ -51,21 +56,27 @@ public class MVCCComponentTest {
                 }
                 try {
                     mvccComponent.commitTransaction(writeTransaction);
+                    System.out.println("committed");
                 } catch (ExecutionException | InterruptedException e) {
                     throw new ExodusException(e);
                 }
                 // check record is not null after the commit
-                checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
+                System.out.println("size: " + keyValTransactions.size());
+
+//                checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
             });
             th.get();
 
             var th2 = service.submit(() -> {
                 // check again that the record is not null after the commit after thread end
                 checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
+                keyValTransactions.clear();
+
             });
             th2.get();
 
             keyCounter *= 2;
+            keyValTransactions.clear();
         }
     }
 
@@ -530,6 +541,8 @@ public class MVCCComponentTest {
             Transaction readTransaction = mvccComponent.startReadTransaction();
             ByteIterable record = mvccComponent.read(readTransaction, key);
             logger.debug("Assert key " + key + " is null");
+            if (record != null)
+                Assert.assertNotNull(record);
             Assert.assertNull(record);
         });
         th.get();

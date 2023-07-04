@@ -2,6 +2,7 @@ package jetbrains.exodus.newLogConcept.MVCC;
 
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.newLogConcept.garbageCollector.MVCCGarbageCollector;
 import jetbrains.exodus.newLogConcept.garbageCollector.OperationLogGarbageCollector;
 import jetbrains.exodus.newLogConcept.garbageCollector.TransactionGCEntry;
@@ -163,6 +164,7 @@ public class MVCCDataStructure {
 
         // case for error - smth goes wrong
         if (targetOperationInLog == null) {
+            System.out.println("Error: " + StringBinding.entryToString(key));
             throw new ExodusException();
         }
 
@@ -293,10 +295,11 @@ public class MVCCDataStructure {
                 });
                 logGCThread.get();
                 // return to the MVCC GC to finish cleanup of minMaxId if needed
-                var handleMinMaxThread = service.submit(() -> {
-                    mvccGarbageCollector.handleMaxMinTransactionId(snapshotId.get(), hashMap, transactionsGCMap, operationLog);
-                });
-                handleMinMaxThread.get();
+                // todo uncomment
+//                var handleMinMaxThread = service.submit(() -> {
+//                    mvccGarbageCollector.handleMaxMinTransactionId(snapshotId.get(), hashMap, transactionsGCMap, operationLog);
+//                });
+//                handleMinMaxThread.get();
             }
         }
     }

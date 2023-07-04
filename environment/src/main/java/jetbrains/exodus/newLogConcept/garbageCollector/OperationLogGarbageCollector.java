@@ -9,6 +9,7 @@ import jetbrains.exodus.newLogConcept.tree.TreeEntry;
 import net.jpountz.xxhash.XXHash64;
 import org.jctools.maps.NonBlockingHashMapLong;
 
+import java.util.AbstractMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListSet;
 
@@ -62,7 +63,7 @@ public class OperationLogGarbageCollector {
                             record.key.getLength(), XX_HASH_SEED);
                     MVCCRecord mvccRecord = mvccHashMap.compute(keyHashCode, (key, val) -> val);
                     if (mvccRecord == null) {
-                        throw new ExodusException();
+                        throw new ExodusException(); //todo replace it with "go search in tree" logic ?
                     }
                     var lastCommittedOperationReference = findLastCommitted(mvccRecord, keyHashCode, lastCommittedAbortedId);
                     assert lastCommittedOperationReference != null;
@@ -92,8 +93,9 @@ public class OperationLogGarbageCollector {
         if (lastCommitted.getTxId() == targetTxId) {
             // attention: do not move special records to the tree, this method is called for the operation
             // records only, therefore we can cast type here
-            ByteIterable value = ((TransactionOperationLogRecord) operationRecord).value;
-            ByteIterable key = ((TransactionOperationLogRecord) operationRecord).key;
+            var rec = (TransactionOperationLogRecord)(operationRecord.getValue());
+            ByteIterable value = rec.value;
+            ByteIterable key = rec.key;
             moveToTree(key, value);
             logRemove(operationLog, operationRecord.getKey(), committedOrAbortedRecord.address);
         } else if (lastCommittedTxId > targetTxId) {
