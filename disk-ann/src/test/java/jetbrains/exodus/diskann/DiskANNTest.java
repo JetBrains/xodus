@@ -64,7 +64,8 @@ public class DiskANNTest {
                 ts1 = System.nanoTime();
                 for (var j = 0; j < vectorsCount; j++) {
                     var vector = vectors[j];
-                    var result = diskANN.nearest(vector, 1);
+                    var result = new long[1];
+                    diskANN.nearest(vector, result, 1);
                     Assert.assertEquals("j = $j", 1, result.length);
                     if (j != result[0]) {
                         errorsCount++;
@@ -196,7 +197,9 @@ public class DiskANNTest {
             ts1 = System.nanoTime();
             for (var index = 0; index < queryVectors.length; index++) {
                 var vector = queryVectors[index];
-                var result = diskANN.nearest(vector, 1);
+                var result = new long[1];
+                diskANN.nearest(vector, result, 1);
+
                 Assert.assertEquals("j = " + index, 1, result.length);
                 if (groundTruth[index][0] != result[0]) {
                     errorsCount++;

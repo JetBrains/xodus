@@ -214,16 +214,12 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    public long[] nearest(float[] vector, int resultSize) {
-        var nearestVertices = diskGraph.greedySearchNearest(vector,
+    public void nearest(float[] vector, long[] result, int resultSize) {
+        diskGraph.greedySearchNearest(vector,result,
                 resultSize);
-        var ids = new long[nearestVertices.length];
-
-        for (var index = 0; index < nearestVertices.length; index++) {
-            ids[index] = diskGraph.fetchId(nearestVertices[index]);
+        for (var index = 0; index < resultSize; index++) {
+            result[index] = diskGraph.fetchId(result[index]);
         }
-
-        return ids;
     }
 
     public void resetVisitStats() {
@@ -1082,9 +1078,10 @@ public final class DiskANN implements AutoCloseable {
             this.medoid = medoid;
         }
 
-        private int[] greedySearchNearest(
+        private void greedySearchNearest(
                 float[] queryVector,
-                int maxResultSize
+                long[] result,
+                int k
         ) {
             var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
 
@@ -1178,7 +1175,7 @@ public final class DiskANN implements AutoCloseable {
 
             visitedVerticesSum += visited;
 
-            return nearestCandidates.vertexIndices(maxResultSize);
+            nearestCandidates.vertexIndices(result, k);
         }
 
         private long fetchId(long vertexIndex) {

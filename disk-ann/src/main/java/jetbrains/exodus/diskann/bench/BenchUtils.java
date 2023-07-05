@@ -107,9 +107,10 @@ final class BenchUtils {
             //give GC chance to collect garbage
             Thread.sleep(60 * 1000);
 
+            var result = new long[1];
             for (int i = 0; i < 10; i++) {
                 for (float[] vector : queryVectors) {
-                    diskANN.nearest(vector, 1);
+                    diskANN.nearest(vector, result, 1);
                 }
             }
 
@@ -129,7 +130,7 @@ final class BenchUtils {
 
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
-                    var result = diskANN.nearest(vector, 1);
+                    diskANN.nearest(vector, result, 1);
                     if (groundTruth[index][0] != result[0]) {
                         errorsCount++;
                     }

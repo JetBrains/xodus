@@ -189,13 +189,11 @@ public final class BoundedGreedyVertexPriorityQueue {
         return size;
     }
 
-    public int[] vertexIndices(int maxResultSize) {
-        var result = new int[Math.min(size, maxResultSize)];
-        for (int i = 0, arrayIndex = 2; i < result.length; i++, arrayIndex += 4) {
+    public void vertexIndices(long[] result, int maxResultSize) {
+        var resultSize = Math.min(size, maxResultSize);
+        for (int i = 0, arrayIndex = 2; i < resultSize; i++, arrayIndex += 4) {
             result[i] = vertices[arrayIndex];
         }
-
-        return result;
     }
 
     public void clear() {
