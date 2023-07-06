@@ -25,20 +25,18 @@ public class MVCCComponentTest {
     @Test
     public void testReadCommitted() throws ExecutionException, InterruptedException {
 
-        int keyCounter = 640;
+        int keyCounter = 1;
         ExecutorService service = Executors.newCachedThreadPool();
         var mvccComponent = new MVCCDataStructure();
         long keyIncrementer = 1;
 
-        while (keyCounter <= 1400) {
+        while (keyCounter <= 64 * 1024) {
             logger.debug("Counter: " + keyCounter);
             Map<String, String> keyValTransactions = new HashMap<>();
 
             for (int i = 0; i < keyCounter; i++) {
                 String keyString = "key-" + (int) (keyIncrementer * 100000);
                 String valueString = "value-" + (int) (Math.random()  * 100000);
-                System.out.println("iter: " + i + " key: " + keyString);
-                System.out.println("iter: " + i + " value: " + valueString);
 
                 keyValTransactions.put(keyString, valueString);
                 keyIncrementer += 1;
@@ -56,13 +54,10 @@ public class MVCCComponentTest {
                 }
                 try {
                     mvccComponent.commitTransaction(writeTransaction);
-                    System.out.println("committed");
                 } catch (ExecutionException | InterruptedException e) {
                     throw new ExodusException(e);
                 }
                 // check record is not null after the commit
-                System.out.println("size: " + keyValTransactions.size());
-
                 checkReadAllRecordsInMapAreNotNull(keyValTransactions, mvccComponent);
             });
             th.get();
@@ -135,17 +130,20 @@ public class MVCCComponentTest {
     public void putDeleteInAnotherTransactionTest() throws ExecutionException, InterruptedException {
 
         int keyCounter = 1;
+        long keyIncrementer = 1;
         ExecutorService service = Executors.newCachedThreadPool();
+        var mvccComponent = new MVCCDataStructure();
+
 
         while (keyCounter <= 64 * 1024) {
             logger.debug("Counter: " + keyCounter);
             Map<String, String> keyValTransactions = new HashMap<>();
-            var mvccComponent = new MVCCDataStructure();
 
             for (int i = 0; i < keyCounter; i++) {
-                String keyString = "key-" + (int) (Math.random() * 100000);
-                String valueString = "value-" + (int) (Math.random() * 100000);
+                String keyString = "key-" + (int) (keyIncrementer * 100000);
+                String valueString = "value-" + (int) (Math.random()  * 100000);
                 keyValTransactions.put(keyString, valueString);
+                keyIncrementer++;
             }
 
             //-----------------start PUT part check--------------------------------------
@@ -211,6 +209,8 @@ public class MVCCComponentTest {
                     for (var entry : keyValTransactions.entrySet()) {
                         checkReadRecordIsNull(mvccComponent, StringBinding.stringToEntry(entry.getKey()), service);
                     }
+                    keyValTransactions.clear();
+
                 } catch (ExecutionException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
@@ -230,11 +230,11 @@ public class MVCCComponentTest {
 
         int keyCounter = 1;
         ExecutorService service = Executors.newCachedThreadPool();
+        var mvccComponent = new MVCCDataStructure();
 
         while (keyCounter <= 64 * 1024) {
             logger.debug("Counter: " + keyCounter);
             Map<String, String> keyValTransactions = new HashMap<>();
-            var mvccComponent = new MVCCDataStructure();
 
             for (int i = 0; i < keyCounter; i++) {
                 String keyString = "key-" + (int) (Math.random() * 100000);
@@ -305,11 +305,11 @@ public class MVCCComponentTest {
     public void getPutKeysPartlyTest() throws ExecutionException, InterruptedException {
         int keyCounter = 1;
         ExecutorService service = Executors.newCachedThreadPool();
+        var mvccComponent = new MVCCDataStructure();
 
         while (keyCounter <= 64 * 1024) {
             logger.debug("Counter: " + keyCounter);
             Map<String, String> keyValTransactions = new HashMap<>();
-            var mvccComponent = new MVCCDataStructure();
 
             for (int i = 0; i < keyCounter; i++) {
                 String keyString = "key-" + (int) (Math.random() * 100000);
@@ -541,8 +541,6 @@ public class MVCCComponentTest {
             Transaction readTransaction = mvccComponent.startReadTransaction();
             ByteIterable record = mvccComponent.read(readTransaction, key);
             logger.debug("Assert key " + key + " is null");
-            if (record != null)
-                Assert.assertNotNull(record);
             Assert.assertNull(record);
         });
         th.get();

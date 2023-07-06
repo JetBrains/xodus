@@ -42,7 +42,8 @@ public class MVCCDataStructure {
     private final AtomicLong writeTxSnapshotId = new AtomicLong(snapshotId.get()); // todo test
 
     // todo think later ab global mem usage
-    private final long transactionsLimit = 1000; // the number of transactions, when reached we run GC
+    private final long transactionsLimit = 1000; // the number of transactions, when reached we run MVCC GC
+    private final long operationsLimit = 100_000; // the number of operations, when reached we run OL GC
     MVCCGarbageCollector mvccGarbageCollector = new MVCCGarbageCollector();
 
     OperationLogGarbageCollector logGarbageCollector = new OperationLogGarbageCollector(tree.tree);
@@ -164,11 +165,9 @@ public class MVCCDataStructure {
         TransactionOperationLogRecord targetOperationInLog =
                 (TransactionOperationLogRecord) operationLog.get(targetEntry.getOperationAddress());
 
-        // case for error - smth goes wrong -- TODO ask andrey
+        // case for error - smth goes wrong -- TODO verify
         if (targetOperationInLog == null) {
-            return tree.searchInTree(key);
-//            System.out.println("Error: " + StringBinding.entryToString(key));
-//            throw new ExodusException();
+            throw new ExodusException();
         }
 
         // case for REMOVE operation
@@ -248,6 +247,7 @@ public class MVCCDataStructure {
                         latchRef.countDown();
                         wrapper.operationsCountLatchRef = null;
                     }
+                    mvccRecord.linksToOperationsQueue.remove(operation); // TODO verify
 
                     //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
                     throw new ExodusException(); // rollback
@@ -291,18 +291,19 @@ public class MVCCDataStructure {
                     }
                 }
             }
-            if (operationLog.size() > transactionsLimit) {
+            // todo TODO verify
+            var maxMinId = mvccGarbageCollector.findMaxMinId(transactionsGCMap, snapshotId.get());
+            if ((operationLog.size() > operationsLimit) && (maxMinId != null)) {
                 ExecutorService service = Executors.newCachedThreadPool();
                 var logGCThread = service.submit(() -> {
                     logGarbageCollector.clean(operationLog, hashMap);
                 });
                 logGCThread.get();
                 // return to the MVCC GC to finish cleanup of minMaxId if needed
-                // todo uncomment
-//                var handleMinMaxThread = service.submit(() -> {
-//                    mvccGarbageCollector.handleMaxMinTransactionId(snapshotId.get(), hashMap, transactionsGCMap, operationLog);
-//                });
-//                handleMinMaxThread.get();
+                var handleMinMaxThread = service.submit(() -> {
+                    mvccGarbageCollector.handleMaxMinTransactionId(snapshotId.get(), hashMap, transactionsGCMap, operationLog);
+                });
+                handleMinMaxThread.get();
             }
         }
     }
