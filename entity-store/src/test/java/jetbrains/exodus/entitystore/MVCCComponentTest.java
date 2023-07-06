@@ -306,18 +306,21 @@ public class MVCCComponentTest {
         int keyCounter = 1;
         ExecutorService service = Executors.newCachedThreadPool();
         var mvccComponent = new MVCCDataStructure();
-
+        long keyIncrementer = 1;
         while (keyCounter <= 64 * 1024) {
             logger.debug("Counter: " + keyCounter);
             Map<String, String> keyValTransactions = new HashMap<>();
 
             for (int i = 0; i < keyCounter; i++) {
-                String keyString = "key-" + (int) (Math.random() * 100000);
-                String valueString = "value-" + (int) (Math.random() * 100000);
+                String keyString = "key-" + (int) (keyIncrementer * 100000);
+                String valueString = "value-" + (int) (Math.random()  * 100000);
+
                 keyValTransactions.put(keyString, valueString);
+                keyIncrementer += 1;
             }
 
             //-----------------start first 1/2 PUT part check--------------------------------------
+
             var transactionsSubMap = getSubmap(keyValTransactions);
 
             var thPut1 = service.submit(() -> {
