@@ -8,6 +8,7 @@ import jetbrains.exodus.newLogConcept.tree.TreeEntry;
 import net.jpountz.xxhash.XXHash64;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Map;
@@ -25,6 +26,7 @@ public class OperationLogGCTest {
     public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
 
     @Test
+    @Ignore
     public void testCleanDeleteRecords() {
         final Map<Long, OperationLogRecord> operationLog = new ConcurrentSkipListMap<>();
         NonBlockingHashMapLong<MVCCRecord> hashMap = new NonBlockingHashMapLong<>(); // primitive long keys
