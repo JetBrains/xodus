@@ -184,8 +184,8 @@ public final class DiskANN implements AutoCloseable {
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
 
-        logger.info("PQ quantizers count is " + pqQuantizersCount + " and sub vector size is " + pqSubVectorSize
-                + " for index " + name);
+        logger.info("PQ quantizers count is " + pqQuantizersCount + " sub vector size is " + pqSubVectorSize +
+                " compression is " + pqCompression + " for index " + name);
         nearestGreedySearchCachedDataThreadLocal = ThreadLocal.withInitial(() -> new NearestGreedySearchCachedData(
                 new IntOpenHashSet(8 * 1024,
                         Hash.VERY_FAST_LOAD_FACTOR), new float[pqQuantizersCount * (1 << Byte.SIZE)],
