@@ -1,6 +1,5 @@
 package jetbrains.exodus.diskann;
 
-import it.unimi.dsi.fastutil.longs.LongObjectImmutablePair;
 import jetbrains.exodus.TestUtil;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -323,7 +322,7 @@ record ArrayVectorReader(float[][] vectors) implements VectorReader {
         return vectors.length;
     }
 
-    public LongObjectImmutablePair<float[]> read(int index) {
-        return new LongObjectImmutablePair<>(index, vectors[index]);
+    public float[] read(int index) {
+        return vectors[index];
     }
 }

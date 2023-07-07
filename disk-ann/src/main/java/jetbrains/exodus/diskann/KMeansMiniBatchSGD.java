@@ -24,13 +24,13 @@ final class KMeansMiniBatchSGD {
         this.centroidsSamplesCount = new int[k];
 
 
-        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create(42);
 
         var size = vectorReader.size();
         if (size <= k) {
             centroids = new float[size][subVecSize];
             for (int i = 0; i < size; i++) {
-                var vector = vectorReader.read(i).right();
+                var vector = vectorReader.read(i);
                 centroids[i] = Arrays.copyOfRange(vector, subVecOffset, subVecOffset + subVecSize);
             }
         } else if (size < 4 * k) {
@@ -45,7 +45,7 @@ final class KMeansMiniBatchSGD {
 
             for (int i = 0; i < k; i++) {
                 var centroidIndex = indexes[i];
-                var vector = vectorReader.read(centroidIndex).right();
+                var vector = vectorReader.read(centroidIndex);
                 centroids[i] = Arrays.copyOfRange(vector, subVecOffset, subVecOffset + subVecSize);
             }
         } else {
@@ -58,7 +58,7 @@ final class KMeansMiniBatchSGD {
                 } while (bitSet.get(centroidIndex));
                 bitSet.set(centroidIndex);
 
-                var vector = vectorReader.read(centroidIndex).right();
+                var vector = vectorReader.read(centroidIndex);
                 centroids[i] = Arrays.copyOfRange(vector, subVecOffset, subVecOffset + subVecSize);
             }
         }
@@ -73,7 +73,7 @@ final class KMeansMiniBatchSGD {
         var centroidIds = new int[actualBatchSize];
 
         for (int i = 0; i < actualBatchSize; i++) {
-            var vector = vectorReader.read(currentIndex + i).right();
+            var vector = vectorReader.read(currentIndex + i);
             vectors[i] = vector;
             centroidIds[i] = DiskANN.findClosestCentroid(distanceFunction, centroids, vector, subVecOffset);
         }

@@ -8,7 +8,6 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import it.unimi.dsi.fastutil.longs.LongObjectImmutablePair;
 import jetbrains.exodus.diskann.DiskANN;
 import jetbrains.exodus.diskann.VectorReader;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -241,8 +240,8 @@ record ArrayVectorReader(float[][] vectors) implements VectorReader {
         return vectors.length;
     }
 
-    public LongObjectImmutablePair<float[]> read(int index) {
-        return new LongObjectImmutablePair<>(index, vectors[index]);
+    public float[] read(int index) {
+        return vectors[index];
     }
 }
 

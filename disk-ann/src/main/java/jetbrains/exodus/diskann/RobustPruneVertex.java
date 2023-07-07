@@ -1,10 +1,10 @@
 package jetbrains.exodus.diskann;
 
 final class RobustPruneVertex implements Comparable<RobustPruneVertex> {
-    final long index;
+    final int index;
     final double distance;
 
-    RobustPruneVertex(long index, double distance) {
+    RobustPruneVertex(int index, double distance) {
         this.index = index;
         this.distance = distance;
     }
