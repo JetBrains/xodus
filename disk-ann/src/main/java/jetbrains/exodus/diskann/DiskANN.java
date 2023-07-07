@@ -51,7 +51,7 @@ public final class DiskANN implements AutoCloseable {
 
     private long verticesSize = 0;
     private final NonBlockingHashMapLongLong graphPages = new NonBlockingHashMapLongLong(1024, false);
-    private final Arena diskCacheArena = Arena.openShared();
+    private final Arena arena = Arena.openShared();
     private MemorySegment diskCache;
 
     private final ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>();
@@ -96,7 +96,7 @@ public final class DiskANN implements AutoCloseable {
     //2nd index of code inside code book
     //3d dimension centroid vector
     private float[][][] pqCentroids;
-    private byte[] pqVectors;
+    private MemorySegment pqVectors;
 
     private final ThreadLocal<NearestGreedySearchCachedData> nearestGreedySearchCachedDataThreadLocal;
 
@@ -367,14 +367,14 @@ public final class DiskANN implements AutoCloseable {
         }
 
         var size = vectorReader.size();
-        pqVectors = new byte[size * pqQuantizersCount];
+        pqVectors = arena.allocate((long) size * pqQuantizersCount);
 
         for (int n = 0; n < size; n++) {
             var vector = vectorReader.read(n).right();
 
             for (int i = 0; i < pqQuantizersCount; i++) {
                 var centroidIndex = findClosestCentroid(distanceFunction, kMeans[i].centroids, vector, i * pqSubVectorSize);
-                pqVectors[n * pqQuantizersCount + i] = (byte) centroidIndex;
+                pqVectors.set(ValueLayout.JAVA_BYTE, (long) n * pqQuantizersCount + i, (byte) centroidIndex);
             }
         }
     }
@@ -400,8 +400,8 @@ public final class DiskANN implements AutoCloseable {
 
         var pqIndex = pqQuantizersCount * vectorIndex;
         for (int i = pqIndex; i < pqIndex + pqQuantizersCount; i++) {
-            var code = pqVectors[i];
-            distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE) + (code & 0xFF)];
+            var code = pqVectors.get(ValueLayout.JAVA_BYTE, i) & 0xFF;
+            distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE) + code];
         }
 
         return distance;
@@ -645,7 +645,7 @@ public final class DiskANN implements AutoCloseable {
 
     @Override
     public void close() {
-        diskCacheArena.close();
+        arena.close();
     }
 
     private final class InMemoryGraph implements AutoCloseable {
@@ -1012,7 +1012,7 @@ public final class DiskANN implements AutoCloseable {
 
         private void saveToDisk() {
             var pagesToWrite = (size + verticesPerPage - 1 / verticesPerPage);
-            diskCache = diskCacheArena.allocate((long) pagesToWrite * pageSize,
+            diskCache = arena.allocate((long) pagesToWrite * pageSize,
                     diskCacheRecordByteAlignment);
 
             var verticesPerPage = pageSize / vertexRecordSize;
