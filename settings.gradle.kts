@@ -1,7 +1,7 @@
 pluginManagement {
     plugins {
-        id("org.jetbrains.kotlin.jvm") version ("1.8.21")
-        id("org.jetbrains.dokka") version ("1.8.10")
+        id("org.jetbrains.kotlin.jvm") version ("1.9.0")
+        id("org.jetbrains.dokka") version ("1.8.20")
         id("com.github.hierynomus.license") version ("0.16.1")
         id("io.codearte.nexus-staging") version ("0.30.0")
         id("com.github.johnrengelman.shadow") version ("8.1.1")
@@ -16,8 +16,8 @@ pluginManagement {
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
-            version("kotlin-lang", "1.8")
-            version("kotlin", "1.8.21")
+            version("kotlin-lang", "1.9")
+            version("kotlin", "1.9.0")
 
             version("kotlin-logging", "3.0.5")
             version("lz4", "1.8.0")
@@ -29,7 +29,7 @@ dependencyResolutionManagement {
             version("bouncyCastle", "1.70")
             version("commons-io", "2.11.0")
             version("lucene", "8.10.0")
-            version("fastutil", "8.5.9")
+            version("fastutil", "8.5.12")
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
@@ -43,8 +43,6 @@ dependencyResolutionManagement {
             library("commons-compress", "org.apache.commons", "commons-compress").versionRef("commons-compress")
 
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").versionRef("kotlin")
-            library("kotlin-stdlib-jdk8", "org.jetbrains.kotlin", "kotlin-stdlib-jdk8").versionRef("kotlin")
-
             library("kotlin-logging", "io.github.microutils", "kotlin-logging").versionRef("kotlin-logging")
 
             library("commons-io", "commons-io", "commons-io").versionRef("commons-io")

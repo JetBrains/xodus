@@ -107,7 +107,7 @@ subprojects {
         implementation(rootProject.libs.lz4)
         implementation(rootProject.libs.fastutil)
         implementation(rootProject.libs.jcTools.core)
-        implementation(rootProject.libs.kotlin.stdlib.jdk8)
+        implementation(rootProject.libs.kotlin.stdlib)
 
         testImplementation(rootProject.libs.junit)
         testImplementation(rootProject.libs.slf4j.simple)
