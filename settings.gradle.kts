@@ -1,7 +1,7 @@
 pluginManagement {
     plugins {
         id("org.jetbrains.kotlin.jvm") version ("1.9.0")
-        id("org.jetbrains.dokka") version ("1.8.20")
+        id("org.jetbrains.dokka") version ("1.8.10")
         id("com.github.hierynomus.license") version ("0.16.1")
         id("io.codearte.nexus-staging") version ("0.30.0")
         id("com.github.johnrengelman.shadow") version ("8.1.1")
