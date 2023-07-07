@@ -165,9 +165,9 @@ public class MVCCDataStructure {
         TransactionOperationLogRecord targetOperationInLog =
                 (TransactionOperationLogRecord) operationLog.get(targetEntry.getOperationAddress());
 
-        // case for error - smth goes wrong -- TODO verify
+
         if (targetOperationInLog == null) {
-            throw new ExodusException();
+            return tree.searchInTree(key);
         }
 
         // case for REMOVE operation
@@ -247,7 +247,7 @@ public class MVCCDataStructure {
                         latchRef.countDown();
                         wrapper.operationsCountLatchRef = null;
                     }
-                    mvccRecord.linksToOperationsQueue.remove(operation); // TODO verify
+                    mvccRecord.linksToOperationsQueue.remove(operation);
 
                     //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
                     throw new ExodusException(); // rollback
@@ -291,7 +291,6 @@ public class MVCCDataStructure {
                     }
                 }
             }
-            // todo TODO verify
             var maxMinId = mvccGarbageCollector.findMaxMinId(transactionsGCMap, snapshotId.get());
             if ((operationLog.size() > operationsLimit) && (maxMinId != null)) {
                 ExecutorService service = Executors.newCachedThreadPool();
