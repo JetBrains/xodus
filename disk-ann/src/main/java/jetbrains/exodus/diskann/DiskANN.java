@@ -103,7 +103,7 @@ public final class DiskANN implements AutoCloseable {
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
                 64, 128, 1024,
-                16);
+                32);
     }
 
     public DiskANN(String name, int vectorDim, byte distanceFunction,
@@ -184,6 +184,8 @@ public final class DiskANN implements AutoCloseable {
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
 
+        logger.info("PQ quantizers count is " + pqQuantizersCount + " and sub vector size is " + pqSubVectorSize
+                + " for index " + name);
         nearestGreedySearchCachedDataThreadLocal = ThreadLocal.withInitial(() -> new NearestGreedySearchCachedData(
                 new IntOpenHashSet(8 * 1024,
                         Hash.VERY_FAST_LOAD_FACTOR), new float[pqQuantizersCount * (1 << Byte.SIZE)],
@@ -215,7 +217,7 @@ public final class DiskANN implements AutoCloseable {
     }
 
     public void nearest(float[] vector, long[] result, int resultSize) {
-        diskGraph.greedySearchNearest(vector,result,
+        diskGraph.greedySearchNearest(vector, result,
                 resultSize);
         for (var index = 0; index < resultSize; index++) {
             result[index] = diskGraph.fetchId(result[index]);
