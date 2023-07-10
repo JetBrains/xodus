@@ -768,7 +768,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                 val blockDataIterator = BlockDataIterator(
                     this, block, startBlockAddress,
-                    formatWithHashCodeIsUsed, !hasNext
+                    formatWithHashCodeIsUsed
                 )
                 while (blockDataIterator.hasNext()) {
                     val loggableAddress = blockDataIterator.address
@@ -883,14 +883,25 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         )
                     }
 
-                    logger.error(
-                        "Data corruption was detected. Reason : ${exception.message} . " +
-                                "Environment log $location will be truncated till address : $dbRootEndAddress"
-                    )
 
                     val endBlock = blocksToTruncateIterator.next()
                     val endBlockLength = dbRootEndAddress % fileLengthBound
                     val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
+
+                    logger.error(
+                        "Data corruption was detected. Reason : ${exception.message} . " +
+                                "Environment log $location will be truncated till address : $dbRootEndAddress. " +
+                                "File: ${LogUtil.getLogFilename(endBlockAddress)})}. " +
+                                "Initial file size ${endBlock.length()} bytes, final file size $endBlockLength bytes."
+                    )
+
+                    if (blocksToTruncate.size > 1) {
+                        logger.error(
+                            "The following segments will be deleted : " +
+                                    blocksToTruncate.keys.asSequence().drop(1)
+                                        .joinToString(", ") { LogUtil.getLogFilename(it) }
+                        )
+                    }
 
 
                     if (endBlock is FileDataReader.FileBlock && !endBlock.canWrite()) {
@@ -928,10 +939,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     } else {
                         null
                     }
-
-                    logger.warn(
-                        "File ${LogUtil.getLogFilename(endBlock.address)} is going to be truncated till length ${position + cachePageSize}"
-                    )
 
                     when (reader) {
                         is FileDataReader -> {

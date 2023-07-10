@@ -42,21 +42,17 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
 
     private final LogConfig config;
 
-    private final boolean lastBlock;
-
     private final MessageDigest sha256;
 
     private boolean throwCorruptionException = false;
 
-    public BlockDataIterator(Log log, Block block, long startAddress, boolean checkPage, boolean lastBlock) {
+    public BlockDataIterator(Log log, Block block, long startAddress, boolean checkPage) {
         this.checkPage = checkPage;
         this.log = log;
         this.block = block;
         this.position = startAddress;
         this.end = block.getAddress() + block.length();
         this.pageSize = log.getCachePageSize();
-        this.lastBlock = lastBlock;
-
         config = log.getConfig();
 
         cipherProvider = config.getCipherProvider();
@@ -130,10 +126,6 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
 
         if (checkPage) {
             if (currentPageSize != pageSize) {
-                if (!lastBlock) {
-                    DataCorruptionException.raise("Incorrect page size -  " + currentPageSize, log, position);
-                }
-
                 if (cipherProvider != null) {
                     EnvKryptKt.cryptBlocksMutable(
                             cipherProvider, config.getCipherKey(), config.getCipherBasicIV(),
@@ -141,15 +133,17 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
                     );
                 }
 
-                final int validPageSize = BufferedDataWriter.checkLastPageConsistency(sha256,
-                        position, result, pageSize, log);
-
-                this.currentPage = Arrays.copyOfRange(result, 0, validPageSize);
-                this.end = position + validPageSize;
-                throwCorruptionException = true;
+                extractValidPartOfThePage(result, "Page is broken. Expected and calculated" +
+                        " sizes of the page are different current page size " + currentPageSize +
+                        " vs. expected page size " + pageSize +
+                        LogUtil.getWrongAddressErrorMessage(position, log.getFileLengthBound()));
                 return;
             } else {
-                BufferedDataWriter.checkPageConsistency(position, result, pageSize, log);
+                var errorMessage = BufferedDataWriter.validatePageConsistency(position, result, pageSize, log);
+                if (errorMessage != null) {
+                    extractValidPartOfThePage(result, errorMessage);
+                    return;
+                }
             }
         }
 
@@ -168,6 +162,15 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
         }
 
         this.currentPage = result;
+    }
+
+    private void extractValidPartOfThePage(byte[] result, String errorMessage) {
+        final int validPageSize = BufferedDataWriter.findValidPagePart(sha256,
+                position, result, pageSize, errorMessage);
+
+        this.currentPage = Arrays.copyOfRange(result, 0, validPageSize);
+        this.end = position + validPageSize;
+        throwCorruptionException = true;
     }
 
     @Override

@@ -17,13 +17,9 @@ package jetbrains.exodus.log;
 
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class DataCorruptionException extends ExodusException {
-
-
-    DataCorruptionException(@NotNull final String message) {
+    public DataCorruptionException(@NotNull final String message) {
         super(message);
     }
 

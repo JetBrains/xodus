@@ -25,7 +25,7 @@ public class BackupMetadata extends StartupMetadata {
 
     static final int LAST_FILE_ADDRESS = StartupMetadata.FILE_SIZE;
     static final int LAST_FILE_OFFSET = LAST_FILE_ADDRESS + Long.BYTES;
-    static final int FILE_SIZE = LAST_FILE_OFFSET + Long.BYTES;
+    public static final int FILE_SIZE = LAST_FILE_OFFSET + Long.BYTES;
 
     private final long lastFileAddress;
     private final long lastFileOffset;

@@ -288,40 +288,49 @@ public final class BufferedDataWriter {
         }
     }
 
-    public static int checkLastPageConsistency(MessageDigest sha256, long pageAddress, byte @NotNull [] bytes, int pageSize, Log log) {
+    @Nullable
+    public static String validatePageConsistency(long pageAddress, byte @NotNull [] bytes, int pageSize, Log log) {
         if (pageSize != bytes.length) {
-            int lastHashBlock = -1;
-            for (int i = 0; i <
-                    Math.min(bytes.length - (Byte.BYTES + Long.BYTES),
-                            pageSize - HASH_CODE_SIZE - (Byte.BYTES + Long.BYTES)); i++) {
-                var type = (byte) (((byte) 0x80) ^ bytes[i]);
-                if (HashCodeLoggable.isHashCodeLoggable(type)) {
-                    var loggable = new HashCodeLoggable(pageAddress + i, i, bytes);
-
-                    var hash = calculateHashRecordHashCode(sha256, bytes, i);
-                    if (hash == loggable.getHashCode()) {
-                        lastHashBlock = i;
-                    }
-                }
-            }
-
-            if (lastHashBlock > 0) {
-                return lastHashBlock;
-            }
-
-            DataCorruptionException.raise("Unexpected page size (bytes). {expected " + pageSize
-                    + ": , actual : " + bytes.length + "}", log, pageAddress);
+            return "Unexpected page size (bytes). {expected " + pageSize
+                    + ": , actual : " + bytes.length + "} " + LogUtil.getWrongAddressErrorMessage(pageAddress,
+                    log.getFileLengthBound());
         }
 
         final long calculatedHash = calculatePageHashCode(bytes, 0, pageSize - HASH_CODE_SIZE);
         final long storedHash = BindingUtils.readLong(bytes, pageSize - HASH_CODE_SIZE);
 
         if (storedHash != calculatedHash) {
-            DataCorruptionException.raise("Page is broken. Expected and calculated hash codes are different.",
-                    log, pageAddress);
+            return "Page is broken. Expected and calculated hash codes are different. " +
+                    LogUtil.getWrongAddressErrorMessage(pageAddress,
+                            log.getFileLengthBound());
         }
 
-        return pageSize;
+        return null;
+    }
+
+    public static int findValidPagePart(MessageDigest sha256, long pageAddress, byte @NotNull [] bytes,
+                                        int pageSize, String errorMessage) {
+
+        int lastHashBlock = -1;
+        for (int i = 0; i <
+                Math.min(bytes.length - (Byte.BYTES + Long.BYTES),
+                        pageSize - HASH_CODE_SIZE - (Byte.BYTES + Long.BYTES)); i++) {
+            var type = (byte) (((byte) 0x80) ^ bytes[i]);
+            if (HashCodeLoggable.isHashCodeLoggable(type)) {
+                var loggable = new HashCodeLoggable(pageAddress + i, i, bytes);
+
+                var hash = calculateHashRecordHashCode(sha256, bytes, i);
+                if (hash == loggable.getHashCode()) {
+                    lastHashBlock = i;
+                }
+            }
+        }
+
+        if (lastHashBlock > 0) {
+            return lastHashBlock;
+        }
+
+        throw new DataCorruptionException(errorMessage);
     }
 
     private static long calculateHashRecordHashCode(MessageDigest sha256, byte @NotNull [] bytes, int len) {

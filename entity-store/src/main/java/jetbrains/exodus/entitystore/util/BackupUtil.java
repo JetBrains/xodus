@@ -20,6 +20,7 @@ import jetbrains.exodus.crypto.*;
 import jetbrains.exodus.entitystore.FileSystemBlobVault;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.env.EnvironmentImpl;
+import jetbrains.exodus.log.BackupMetadata;
 import jetbrains.exodus.log.BufferedDataWriter;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.StartupMetadata;
@@ -123,6 +124,7 @@ public class BackupUtil {
                         inputEntry = archiveStream.getNextEntry();
                         continue;
                     }
+
                     var name = inputEntry.getName();
 
                     var outputArchiveEntry = new TarArchiveEntry(name);
@@ -145,18 +147,25 @@ public class BackupUtil {
                         int processed = 0;
                         int readBufferOffset = 0;
 
-                        final String rootName;
-                        if (namePath.getNameCount() == 1) {
-                            rootName = "";
-                        } else {
-                            rootName = namePath.subpath(0, 1).toString();
-                        }
+                        final String rootName = extractRootName(namePath);
                         DbMetadata dbMetadata = metadataMap.get(rootName);
 
                         final long fileAddress = LogUtil.getAddress(namePath.getFileName().toString());
 
                         while (processed < entrySize) {
-                            if (dbMetadata != null && dbMetadata.binaryFormatVersion == EnvironmentImpl.CURRENT_FORMAT_VERSION) {
+                            if (dbMetadata != null &&
+                                    dbMetadata.binaryFormatVersion == EnvironmentImpl.CURRENT_FORMAT_VERSION) {
+                                if (dbMetadata.backupMetadata != null) {
+                                    var backupMetadata = dbMetadata.backupMetadata;
+                                    var rootAddress = backupMetadata.getRootAddress();
+
+                                    if (fileAddress + processed > rootAddress && (
+                                            (dbMetadata.fileLengthBound >= 0 && entrySize > dbMetadata.fileLengthBound)
+                                                    || ((entrySize & (dbMetadata.pageSize - 1)) != 0))) {
+                                        break;
+                                    }
+                                }
+
                                 if (dbMetadata.fileLengthBound >= 0 && entrySize > dbMetadata.fileLengthBound) {
                                     throw new IllegalStateException("Backup is broken, size of the file " + name +
                                             " should not exceed " + dbMetadata.fileLengthBound);
@@ -169,7 +178,8 @@ public class BackupUtil {
                                 }
                             }
 
-                            final int readSize = (int) Math.min(entrySize - processed, readBuffer.length - readBufferOffset);
+                            final int readSize = (int) Math.min(
+                                    entrySize - processed, readBuffer.length - readBufferOffset);
                             assert dbMetadata == null ||
                                     dbMetadata.binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION ||
                                     ((readSize + readBufferOffset) & (dbMetadata.pageSize - 1)) == 0;
@@ -287,15 +297,10 @@ public class BackupUtil {
 
                         IOUtils.copyLarge(entryInputStream, entryOutputStream, readBuffer);
                     } else if (name.equals(StartupMetadata.FIRST_FILE_NAME) ||
-                            name.endsWith("/" + StartupMetadata.FIRST_FILE_NAME) || name.equals(StartupMetadata.SECOND_FILE_NAME)
-                            || name.endsWith("/" + StartupMetadata.SECOND_FILE_NAME)) {
-
-                        final String rootName;
-                        if (namePath.getNameCount() == 1) {
-                            rootName = "";
-                        } else {
-                            rootName = namePath.subpath(0, 1).toString();
-                        }
+                            name.endsWith("/" + StartupMetadata.FIRST_FILE_NAME) ||
+                            name.equals(StartupMetadata.SECOND_FILE_NAME) ||
+                            name.endsWith("/" + StartupMetadata.SECOND_FILE_NAME)) {
+                        final String rootName = extractRootName(namePath);
                         DbMetadata dbMetadata = metadataMap.get(rootName);
 
                         if (dbMetadata != null && dbMetadata.binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION) {
@@ -328,6 +333,44 @@ public class BackupUtil {
                         }
 
                         tarArchiveOutputStream.write(readBuffer, 0, StartupMetadata.FILE_SIZE);
+                    } else if (name.equals(BackupMetadata.BACKUP_METADATA_FILE_NAME)) {
+                        final String rootName = extractRootName(namePath);
+                        DbMetadata dbMetadata = metadataMap.get(rootName);
+
+                        if (dbMetadata != null && dbMetadata.binaryFormatVersion < EnvironmentImpl.CURRENT_FORMAT_VERSION) {
+                            throw new IllegalStateException("Backup is broken please fix backup consistency by " +
+                                    "opening it in database and correctly closing database. " +
+                                    "Database will restore data automatically.");
+                        }
+
+
+                        IOUtils.readFully(archiveStream, readBuffer, 0, BackupMetadata.FILE_SIZE);
+                        var buffer = ByteBuffer.wrap(readBuffer);
+                        buffer.limit(BackupMetadata.FILE_SIZE);
+
+                        var backupMetadata = BackupMetadata.deserialize(buffer, 0, false);
+                        if (backupMetadata != null) {
+                            if (dbMetadata == null) {
+                                dbMetadata = new DbMetadata();
+                                dbMetadata.binaryFormatVersion = EnvironmentImpl.CURRENT_FORMAT_VERSION;
+
+                                dbMetadata.pageSize = backupMetadata.getPageSize();
+                                dbMetadata.fileLengthBound = backupMetadata.getFileLengthBoundary();
+                                metadataMap.put(rootName, dbMetadata);
+                            } else {
+                                if (dbMetadata.pageSize != backupMetadata.getPageSize() ||
+                                        dbMetadata.fileLengthBound != backupMetadata.getFileLengthBoundary() ||
+                                        dbMetadata.backupMetadata != null) {
+                                    throw new IllegalStateException("Backup is broken please fix backup consistency by " +
+                                            "opening it in database and correctly closing database. " +
+                                            "Database will restore data automatically.");
+                                }
+                            }
+
+                            dbMetadata.backupMetadata = backupMetadata;
+                        }
+
+                        tarArchiveOutputStream.write(readBuffer, 0, BackupMetadata.FILE_SIZE);
                     } else {
                         IOUtils.copyLarge(archiveStream, tarArchiveOutputStream, readBuffer);
                     }
@@ -356,6 +399,17 @@ public class BackupUtil {
         });
 
         return errorAwareInputStream;
+    }
+
+    @NotNull
+    private static String extractRootName(Path namePath) {
+        final String rootName;
+        if (namePath.getNameCount() == 1) {
+            rootName = "";
+        } else {
+            rootName = namePath.subpath(0, 1).toString();
+        }
+        return rootName;
     }
 
     private static boolean validateBackupContent(byte[] data, int pageSize,
@@ -531,6 +585,7 @@ public class BackupUtil {
         private int binaryFormatVersion = -1;
         private int pageSize = -1;
         private long fileLengthBound = -1;
+        private BackupMetadata backupMetadata = null;
     }
 
 }

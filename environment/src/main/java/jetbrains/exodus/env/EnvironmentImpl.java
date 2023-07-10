@@ -682,7 +682,6 @@ public class EnvironmentImpl implements Environment {
     }
 
 
-
     public void prepareForBackup() {
         if (isOpen()) {
             gc.suspend();
