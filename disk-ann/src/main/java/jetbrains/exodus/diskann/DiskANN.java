@@ -273,8 +273,7 @@ public final class DiskANN implements AutoCloseable {
             var mutator = vectorMutationThreads.get(mutatorIndex);
 
             var mutatorFuture = mutator.submit(() -> {
-                graph.greedySearchPrune(medoid, vertexIndex, new IntOpenHashSet(),
-                        new IntOpenHashSet());
+                graph.greedySearchPrune(medoid, vertexIndex, new IntOpenHashSet());
 
                 var features = new ArrayList<Future<?>>(maxConnectionsPerVertex + 1);
                 var neighbours = graph.fetchNeighbours(vertexIndex);
@@ -700,8 +699,7 @@ public final class DiskANN implements AutoCloseable {
         private void greedySearchPrune(
                 int startVertexIndex,
                 int vertexIndexToPrune,
-                IntOpenHashSet localVisitedVertexIndices,
-                IntOpenHashSet checkedVertexIndices) {
+                IntOpenHashSet localVisitedVertexIndices) {
             var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
 
             var visitedVertexIndices = threadLocalCache.visistedVertexIndices;
@@ -718,7 +716,6 @@ public final class DiskANN implements AutoCloseable {
 
             assert nearestCandidates.size() <= maxAmountOfCandidates;
             visitedVertexIndices.add(startVertexIndex);
-            checkedVertexIndices.add(startVertexIndex);
 
             while (true) {
                 int currentVertex = -1;
@@ -736,7 +733,6 @@ public final class DiskANN implements AutoCloseable {
                     break;
                 }
 
-                checkedVertexIndices.add(currentVertex);
                 visitedVertexIndices.addAll(localVisitedVertexIndices);
                 long vertexVersion;
                 boolean retry = false;
@@ -768,7 +764,7 @@ public final class DiskANN implements AutoCloseable {
             }
 
             candidateNeighborsSearchesCount.increment();
-            robustPrune(vertexIndexToPrune, checkedVertexIndices, distanceMultiplication);
+            robustPrune(vertexIndexToPrune, visitedVertexIndices, distanceMultiplication);
         }
 
         private void robustPrune(
