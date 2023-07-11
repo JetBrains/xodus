@@ -89,7 +89,9 @@ final class BenchUtils {
             diskANN.buildIndex(new ArrayVectorReader(vectors));
             var ts2 = System.nanoTime();
 
-            System.out.println("Index built in " + (ts2 - ts1) / 1000000 + "  ms");
+            System.out.printf("Index built in %d ms. Retries percent %f%n", (ts2 - ts1) / 1000000,
+                    diskANN.getCandidatesRetriesPercentAvg());
+            diskANN.resetCandidatesRetriesStat();
 
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);

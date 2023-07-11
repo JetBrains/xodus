@@ -24,7 +24,7 @@ final class KMeansMiniBatchSGD {
         this.centroidsSamplesCount = new int[k];
 
 
-        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create(42);
+        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
 
         var size = vectorReader.size();
         if (size <= k) {
