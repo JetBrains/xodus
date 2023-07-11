@@ -686,8 +686,6 @@ public final class DiskANN implements AutoCloseable {
         private void greedySearchPrune(
                 int startVertexIndex,
                 int vertexIndexToPrune) {
-            var processingQueue = new PriorityQueue<GreedyVertex>();
-
             var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
             var visitedVertexIndices = threadLocalCache.visistedVertexIndices;
             visitedVertexIndices.clear();
@@ -695,33 +693,31 @@ public final class DiskANN implements AutoCloseable {
             var nearestCandidates = threadLocalCache.nearestCandidates;
             nearestCandidates.clear();
 
-            var checkedVertices = new IntOpenHashSet(2 * maxAmountOfCandidates);
+            var checkedVertices = new IntOpenHashSet(2 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
+
             var startVectorOffset = vectorOffset(startVertexIndex);
             var queryVectorOffset = vectorOffset(vertexIndexToPrune);
             var dim = vectorDim;
 
-            processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(struct, startVectorOffset,
-                    struct, queryVectorOffset, dim), false));
-
-            while (!processingQueue.isEmpty()) {
-                assert nearestCandidates.size() <= maxAmountOfCandidates;
-                var currentVertex = processingQueue.poll();
-
-                if (nearestCandidates.size() == maxAmountOfCandidates &&
-                        nearestCandidates.maxDistance() < currentVertex.distance) {
+            nearestCandidates.add(startVertexIndex, computeDistance(struct, startVectorOffset,
+                    struct, queryVectorOffset, dim), false);
+            while (true) {
+                var notCheckedVertexPointer = nearestCandidates.nextNotCheckedVertexIndex();
+                if (notCheckedVertexPointer < 0) {
                     break;
-                } else {
-                    nearestCandidates.add(currentVertex.index, currentVertex.distance, false);
                 }
-                checkedVertices.add(currentVertex.index);
 
-                var vertexNeighbours = fetchNeighbours(currentVertex.index);
+                var currentVertexIndex = nearestCandidates.vertexIndex(notCheckedVertexPointer);
+                assert nearestCandidates.size() <= maxAmountOfCandidates;
+
+                checkedVertices.add(currentVertexIndex);
+
+                var vertexNeighbours = fetchNeighbours(currentVertexIndex);
                 for (var vertexIndex : vertexNeighbours) {
                     if (visitedVertexIndices.add(vertexIndex)) {
-                        //return array and offset instead
                         var distance = computeDistance(struct, queryVectorOffset, struct, vectorOffset(vertexIndex),
                                 dim);
-                        processingQueue.add(new GreedyVertex(vertexIndex, distance, false));
+                        nearestCandidates.add(vertexIndex, distance, false);
                     }
                 }
             }
