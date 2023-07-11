@@ -1,9 +1,7 @@
 package jetbrains.exodus.diskann;
 
 import it.unimi.dsi.fastutil.Hash;
-import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.*;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
@@ -24,6 +22,7 @@ import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
@@ -47,7 +46,6 @@ public final class DiskANN implements AutoCloseable {
 
     private final int maxAmountOfCandidates;
 
-    private final int mutatorsQueueSize;
     private final int pqSubVectorSize;
     private final int pqQuantizersCount;
 
@@ -102,7 +100,7 @@ public final class DiskANN implements AutoCloseable {
 
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
         this(name, vectorDim, distanceFunction, 2.1f,
-                64, 128, 1024,
+                64, 128,
                 32);
     }
 
@@ -110,13 +108,11 @@ public final class DiskANN implements AutoCloseable {
                    float distanceMultiplication,
                    int maxConnectionsPerVertex,
                    int maxAmountOfCandidates,
-                   int mutatorsQueueSize,
                    int pqCompression) {
         this.vectorDim = vectorDim;
         this.distanceMultiplication = distanceMultiplication;
         this.maxConnectionsPerVertex = maxConnectionsPerVertex;
         this.maxAmountOfCandidates = maxAmountOfCandidates;
-        this.mutatorsQueueSize = mutatorsQueueSize;
         this.distanceFunction = distanceFunction;
 
         MemoryLayout diskCacheRecordLayout = MemoryLayout.structLayout(
@@ -247,90 +243,111 @@ public final class DiskANN implements AutoCloseable {
     }
 
 
-    private void pruneIndex(long size, InMemoryGraph graph, int medoid, float distanceMultiplication) {
+    private void pruneIndex(int size, InMemoryGraph graph, int medoid, float distanceMultiplication) {
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-        var permutation = new PermutationSampler(rng, (int) size, (int) size).sample();
+        var permutation = new PermutationSampler(rng, size, size).sample();
 
         if (logger.isInfoEnabled()) {
             logger.info("Graph pruning started with distance multiplication " + distanceMultiplication + ".");
         }
 
-        var mutatorFutures = new ArrayList<Future<ArrayList<Future<?>>>>();
-        for (int vertexIndex : permutation) {
-            var mutatorIndex = (vertexIndex % vectorMutationThreads.size());
-            var mutator = vectorMutationThreads.get(mutatorIndex);
-
-            var mutatorFuture = mutator.submit(() -> {
-                graph.greedySearchPrune(medoid, vertexIndex);
-
-                var features = new ArrayList<Future<?>>(maxConnectionsPerVertex + 1);
-                var neighbours = graph.fetchNeighbours(vertexIndex);
-                for (var neighbour : neighbours) {
-                    var neighbourNeighbours = graph.fetchNeighbours(neighbour);
-                    if (!ArrayUtils.contains(neighbourNeighbours, vertexIndex)) {
-                        var neighbourMutatorIndex = neighbour % vectorMutationThreads.size();
-                        var neighbourMutator = vectorMutationThreads.get(neighbourMutatorIndex);
-                        var neighborMutatorFuture = neighbourMutator.submit(() -> {
-                            if (graph.getNeighboursSize(neighbour) + 1 <= maxConnectionsPerVertex) {
-                                graph.acquireVertex(neighbour);
-                                try {
-                                    graph.appendNeighbour(neighbour, vertexIndex);
-                                } finally {
-                                    graph.releaseVertex(neighbour);
-                                }
-                            } else {
-                                var neighbourSingleton = new Int2FloatOpenHashMap(1);
-                                neighbourSingleton.put(vertexIndex, Float.NaN);
-                                graph.robustPrune(
-                                        neighbour,
-                                        neighbourSingleton,
-                                        distanceMultiplication
-                                );
-                            }
-                        });
-                        features.add(neighborMutatorFuture);
-                    }
-                }
-
-                return features;
-            });
-
-            mutatorFutures.add(mutatorFuture);
-
-            if (mutatorFutures.size() == mutatorsQueueSize) {
-                for (var feature : mutatorFutures) {
-                    ArrayList<Future<?>> subFutures;
-                    try {
-                        subFutures = feature.get();
-                    } catch (InterruptedException | ExecutionException e) {
-                        throw new IllegalStateException(e);
-                    }
-                    for (var subFuture : subFutures) {
-                        try {
-                            subFuture.get();
-                        } catch (InterruptedException | ExecutionException e) {
-                            throw new IllegalStateException(e);
-                        }
-                    }
-                }
-
-                mutatorFutures.clear();
-            }
+        var mutatorFutures = new ArrayList<Future<?>>();
+        var itemsPerThread = size / vectorMutationThreads.size();
+        if (itemsPerThread == 0) {
+            itemsPerThread = 1;
         }
 
-        for (var feature : mutatorFutures) {
-            ArrayList<Future<?>> subFutures;
-            try {
-                subFutures = feature.get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new IllegalStateException(e);
+        var neighborsMap = new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<IntIntImmutablePair>>(size, Hash.VERY_FAST_LOAD_FACTOR);
+
+        var mutatorsCompleted = new AtomicInteger(0);
+        var mutatorsCount = Math.min(vectorMutationThreads.size(), size);
+
+        var mutatorsVectorIndexes = new IntArrayList[mutatorsCount];
+
+        for (var index : permutation) {
+            var mutatorId = index % mutatorsCount;
+
+            var vertexList = mutatorsVectorIndexes[mutatorId];
+            if (vertexList == null) {
+                vertexList = new IntArrayList(itemsPerThread);
+                mutatorsVectorIndexes[mutatorId] = vertexList;
             }
-            for (var subFuture : subFutures) {
-                try {
-                    subFuture.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new IllegalStateException(e);
+            vertexList.add(index);
+        }
+
+        for (var i = 0; i < mutatorsCount; i++) {
+            var vectorIndexes = mutatorsVectorIndexes[i];
+            var mutator = vectorMutationThreads.get(i);
+
+            var mutatorId = i;
+            var mutatorFuture = mutator.submit(() -> {
+                var index = 0;
+                while (true) {
+                    var neighbourPairs = neighborsMap.get(mutatorId);
+
+                    if (neighbourPairs != null) {
+                        if (!neighborsMap.remove(mutatorId, neighbourPairs)) {
+                            continue;
+                        }
+                    }
+
+                    if (neighbourPairs != null) {
+                        for (var neighbourPair : neighbourPairs) {
+                            var vertexIndex = neighbourPair.leftInt();
+                            var neighbourIndex = neighbourPair.rightInt();
+                            var neighbours = graph.fetchNeighbours(vertexIndex);
+
+                            if (!ArrayUtils.contains(neighbours, vertexIndex)) {
+                                if (graph.getNeighboursSize(vertexIndex) + 1 <= maxConnectionsPerVertex) {
+                                    graph.acquireVertex(vertexIndex);
+                                    try {
+                                        graph.appendNeighbour(vertexIndex, neighbourIndex);
+                                    } finally {
+                                        graph.releaseVertex(vertexIndex);
+                                    }
+                                } else {
+                                    var neighbourSingleton = new Int2FloatOpenHashMap(1);
+                                    neighbourSingleton.put(neighbourIndex, Float.NaN);
+                                    graph.robustPrune(
+                                            vertexIndex,
+                                            neighbourSingleton,
+                                            distanceMultiplication
+                                    );
+                                }
+                            }
+                        }
+                    } else if (mutatorsCompleted.get() == mutatorsCount) {
+                        break;
+                    }
+
+                    if (index < vectorIndexes.size()) {
+                        var vectorIndex = vectorIndexes.getInt(index);
+                        graph.greedySearchPrune(medoid, vectorIndex);
+                        var neighbourNeighbours = graph.fetchNeighbours(vectorIndex);
+                        assert vectorIndex % mutatorsCount == mutatorId;
+
+                        for (var neighbourIndex : neighbourNeighbours) {
+                            var neighbourMutatorIndex = neighbourIndex % mutatorsCount;
+                            var neighboursList = neighborsMap.computeIfAbsent(neighbourMutatorIndex,
+                                    k -> new ConcurrentLinkedQueue<>());
+                            neighboursList.add(new IntIntImmutablePair(neighbourIndex, vectorIndex));
+                        }
+                        index++;
+                    } else if (index == vectorIndexes.size()) {
+                        index = Integer.MAX_VALUE;
+                        mutatorsCompleted.incrementAndGet();
+                    }
                 }
+                return null;
+            });
+            mutatorFutures.add(mutatorFuture);
+        }
+
+        for (var mutatorFuture : mutatorFutures) {
+            try {
+                mutatorFuture.get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
             }
         }
 
@@ -797,10 +814,7 @@ public final class DiskANN implements AutoCloseable {
 
                             if (distance * currentMultiplication <= candidate.distance) {
                                 iterator.remove();
-
-                                if (distance * distanceMultiplication > candidate.distance) {
-                                    removed.add(candidate);
-                                }
+                                removed.add(candidate);
                             }
                         }
                     }
