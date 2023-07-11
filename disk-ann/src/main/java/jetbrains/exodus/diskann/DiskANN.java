@@ -1,6 +1,7 @@
 package jetbrains.exodus.diskann;
 
 import it.unimi.dsi.fastutil.Hash;
+import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import jdk.incubator.vector.FloatVector;
@@ -278,9 +279,11 @@ public final class DiskANN implements AutoCloseable {
                                     graph.releaseVertex(neighbour);
                                 }
                             } else {
+                                var neighbourSingleton = new Int2FloatOpenHashMap(1);
+                                neighbourSingleton.put(vertexIndex, Float.NaN);
                                 graph.robustPrune(
                                         neighbour,
-                                        new IntOpenHashSet(new int[]{vertexIndex}),
+                                        neighbourSingleton,
                                         distanceMultiplication
                                 );
                             }
@@ -693,7 +696,7 @@ public final class DiskANN implements AutoCloseable {
             var nearestCandidates = threadLocalCache.nearestCandidates;
             nearestCandidates.clear();
 
-            var checkedVertices = new IntOpenHashSet(2 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
+            var checkedVertices = new Int2FloatOpenHashMap(2 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
 
             var startVectorOffset = vectorOffset(startVertexIndex);
             var queryVectorOffset = vectorOffset(vertexIndexToPrune);
@@ -710,7 +713,7 @@ public final class DiskANN implements AutoCloseable {
                 var currentVertexIndex = nearestCandidates.vertexIndex(notCheckedVertexPointer);
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
 
-                checkedVertices.add(currentVertexIndex);
+                checkedVertices.put(currentVertexIndex, nearestCandidates.vertexDistance(notCheckedVertexPointer));
 
                 var vertexNeighbours = fetchNeighbours(currentVertexIndex);
                 for (var vertexIndex : vertexNeighbours) {
@@ -728,38 +731,42 @@ public final class DiskANN implements AutoCloseable {
 
         private void robustPrune(
                 int vertexIndex,
-                IntOpenHashSet neighboursCandidates,
+                Int2FloatOpenHashMap neighboursCandidates,
                 float distanceMultiplication
         ) {
             var dim = vectorDim;
             acquireVertex(vertexIndex);
             try {
-                IntOpenHashSet candidates;
+                Int2FloatOpenHashMap candidates;
                 if (getNeighboursSize(vertexIndex) > 0) {
                     var newCandidates = neighboursCandidates.clone();
-                    newCandidates.addAll(IntArrayList.wrap(getNeighboursAndClear(vertexIndex)));
+                    for (var neighbourIndex : getNeighboursAndClear(vertexIndex)) {
+                        newCandidates.putIfAbsent(neighbourIndex, Float.NaN);
+                    }
 
                     candidates = newCandidates;
                 } else {
                     candidates = neighboursCandidates;
                 }
 
-                candidates.remove(vertexIndex);
-
                 var vectorOffset = vectorOffset(vertexIndex);
-                var candidatesIterator = candidates.intIterator();
+                var candidatesIterator = candidates.int2FloatEntrySet().fastIterator();
 
                 var cachedCandidates = new TreeSet<RobustPruneVertex>();
                 while (candidatesIterator.hasNext()) {
-                    var candidateIndex = candidatesIterator.nextInt();
+                    var entry = candidatesIterator.next();
+                    var candidateIndex = entry.getIntKey();
+                    var distance = entry.getFloatValue();
 
-                    var distance = computeDistance(struct, vectorOffset, struct,
-                            vectorOffset(candidateIndex), dim);
+                    if (Float.isNaN(distance)) {
+                        distance = computeDistance(struct, vectorOffset, struct,
+                                vectorOffset(candidateIndex), dim);
+                        entry.setValue(distance);
+                    }
+
                     var candidate = new RobustPruneVertex(candidateIndex, distance);
-
                     cachedCandidates.add(candidate);
                 }
-
 
                 var neighbours = new IntArrayList(maxConnectionsPerVertex);
                 var removed = new ArrayList<RobustPruneVertex>(cachedCandidates.size());
