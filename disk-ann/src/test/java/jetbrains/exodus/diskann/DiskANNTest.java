@@ -57,9 +57,7 @@ public class DiskANNTest {
                 var ts1 = System.nanoTime();
                 diskANN.buildIndex(new ArrayVectorReader(vectors));
                 var ts2 = System.nanoTime();
-                System.out.printf("Index built in %d ms. Retries percent %f%n", (ts2 - ts1) / 1000000,
-                        diskANN.getCandidatesRetriesPercentAvg());
-                diskANN.resetCandidatesRetriesStat();
+                System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
                 var errorsCount = 0;
                 ts1 = System.nanoTime();
@@ -179,10 +177,7 @@ public class DiskANNTest {
             diskANN.buildIndex(new ArrayVectorReader(vectors));
             var ts2 = System.nanoTime();
 
-            System.out.printf("Index built in %d ms. Retries percent %f%n", (ts2 - ts1) / 1000000,
-                    diskANN.getCandidatesRetriesPercentAvg());
-            diskANN.resetCandidatesRetriesStat();
-
+            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
             System.out.println("Reading queries...");
             var queryFile = sifSmallFilesDir.resolve(queryFileName);
             var queryVectors = readFVectors(queryFile.toFile(), vectorDimensions);

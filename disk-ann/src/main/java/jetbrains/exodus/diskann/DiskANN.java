@@ -91,11 +91,6 @@ public final class DiskANN implements AutoCloseable {
     private final DoubleAdder pqDistanceError = new DoubleAdder();
     private final LongAdder pqDistancesConverted = new LongAdder();
 
-    private final LongAdder candidateNeighborsSearchesCount = new LongAdder();
-
-    private final LongAdder candidateNeighborsRetriesCount = new LongAdder();
-
-
     //1st dimension quantizer index
     //2nd index of code inside code book
     //3d dimension centroid vector
@@ -237,10 +232,6 @@ public final class DiskANN implements AutoCloseable {
         pqDistancesConverted.reset();
     }
 
-    public void resetCandidatesRetriesStat() {
-        candidateNeighborsSearchesCount.reset();
-        candidateNeighborsRetriesCount.reset();
-    }
 
     public double getPQDistanceError() {
         return pqDistanceError.sum() / pqDistancesConverted.sum();
@@ -252,10 +243,6 @@ public final class DiskANN implements AutoCloseable {
 
     public long getTestedVerticesAvg() {
         return testedVerticesSum.sum() / testedVerticesCount.sum();
-    }
-
-    public double getCandidatesRetriesPercentAvg() {
-        return 100.0 * candidateNeighborsRetriesCount.sum() / candidateNeighborsSearchesCount.sum();
     }
 
 
@@ -273,7 +260,7 @@ public final class DiskANN implements AutoCloseable {
             var mutator = vectorMutationThreads.get(mutatorIndex);
 
             var mutatorFuture = mutator.submit(() -> {
-                graph.greedySearchPrune(medoid, vertexIndex, new IntOpenHashSet());
+                graph.greedySearchPrune(medoid, vertexIndex);
 
                 var features = new ArrayList<Future<?>>(maxConnectionsPerVertex + 1);
                 var neighbours = graph.fetchNeighbours(vertexIndex);
@@ -698,73 +685,49 @@ public final class DiskANN implements AutoCloseable {
 
         private void greedySearchPrune(
                 int startVertexIndex,
-                int vertexIndexToPrune,
-                IntOpenHashSet localVisitedVertexIndices) {
-            var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
+                int vertexIndexToPrune) {
+            var processingQueue = new PriorityQueue<GreedyVertex>();
 
+            var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
             var visitedVertexIndices = threadLocalCache.visistedVertexIndices;
             visitedVertexIndices.clear();
 
             var nearestCandidates = threadLocalCache.nearestCandidates;
             nearestCandidates.clear();
 
+            var checkedVertices = new IntOpenHashSet(2 * maxAmountOfCandidates);
             var startVectorOffset = vectorOffset(startVertexIndex);
-            var vectorToPruneOffset = vectorOffset(vertexIndexToPrune);
+            var queryVectorOffset = vectorOffset(vertexIndexToPrune);
+            var dim = vectorDim;
 
-            nearestCandidates.add(startVertexIndex, computeDistance(struct, startVectorOffset,
-                    struct, vectorToPruneOffset, vectorDim), false);
+            processingQueue.add(new GreedyVertex(startVertexIndex, computeDistance(struct, startVectorOffset,
+                    struct, queryVectorOffset, dim), false));
 
-            assert nearestCandidates.size() <= maxAmountOfCandidates;
-            visitedVertexIndices.add(startVertexIndex);
-
-            while (true) {
-                int currentVertex = -1;
-
-                while (true) {
-                    var notCheckedVertex = nearestCandidates.nextNotCheckedVertexIndex();
-                    if (notCheckedVertex < 0) {
-                        break;
-                    }
-
-                    currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
-                }
-
-                if (currentVertex < 0) {
-                    break;
-                }
-
-                visitedVertexIndices.addAll(localVisitedVertexIndices);
-                long vertexVersion;
-                boolean retry = false;
-                do {
-                    localVisitedVertexIndices.clear();
-                    if (retry) {
-                        candidateNeighborsRetriesCount.increment();
-                    }
-
-                    vertexVersion = getVertexVersion(currentVertex);
-                    var neighboursCountOffset = edgesSizeOffset(currentVertex);
-                    var neighboursCount = struct.get(ValueLayout.JAVA_INT, neighboursCountOffset);
-
-
-                    for (var neighboursOffset = neighboursCountOffset + Integer.BYTES;
-                         neighboursOffset < neighboursCountOffset + (long) Integer.BYTES * (neighboursCount + 1); neighboursOffset += Integer.BYTES) {
-                        var vertexIndex = struct.get(ValueLayout.JAVA_INT, neighboursOffset);
-                        var vectorOffset = vectorOffset(vertexIndex);
-                        var distance = computeDistance(struct, vectorOffset, struct, vectorToPruneOffset, vectorDim);
-
-                        if (localVisitedVertexIndices.add(vertexIndex) && !visitedVertexIndices.contains(vertexIndex)) {
-                            nearestCandidates.add(vertexIndex, distance, false);
-                        }
-                    }
-                    retry = true;
-                } while (!validateVersion(vertexVersion, currentVertex));
-
+            while (!processingQueue.isEmpty()) {
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
+                var currentVertex = processingQueue.poll();
+
+                if (nearestCandidates.size() == maxAmountOfCandidates &&
+                        nearestCandidates.maxDistance() < currentVertex.distance) {
+                    break;
+                } else {
+                    nearestCandidates.add(currentVertex.index, currentVertex.distance, false);
+                }
+                checkedVertices.add(currentVertex.index);
+
+                var vertexNeighbours = fetchNeighbours(currentVertex.index);
+                for (var vertexIndex : vertexNeighbours) {
+                    if (visitedVertexIndices.add(vertexIndex)) {
+                        //return array and offset instead
+                        var distance = computeDistance(struct, queryVectorOffset, struct, vectorOffset(vertexIndex),
+                                dim);
+                        processingQueue.add(new GreedyVertex(vertexIndex, distance, false));
+                    }
+                }
             }
 
-            candidateNeighborsSearchesCount.increment();
-            robustPrune(vertexIndexToPrune, visitedVertexIndices, distanceMultiplication);
+            assert nearestCandidates.size() <= maxAmountOfCandidates;
+            robustPrune(vertexIndexToPrune, checkedVertices, distanceMultiplication);
         }
 
         private void robustPrune(
@@ -874,11 +837,6 @@ public final class DiskANN implements AutoCloseable {
             return (long) vertexIndex * (maxConnectionsPerVertex + 1) * Integer.BYTES + edgesOffset;
         }
 
-        private long getVertexVersion(int vertexIndex) {
-            return edgeVersions.get(vertexIndex);
-        }
-
-
         @NotNull
         private int[] fetchNeighbours(int vertexIndex) {
             var version = edgeVersions.get(vertexIndex);
@@ -900,11 +858,6 @@ public final class DiskANN implements AutoCloseable {
 
                 version = newVersion;
             }
-        }
-
-        private boolean validateVersion(long version, int vertexIndex) {
-            VarHandle.acquireFence();
-            return edgeVersions.get(vertexIndex) == version;
         }
 
         private void setNeighbours(int vertexIndex, int[] neighbours, int size) {
