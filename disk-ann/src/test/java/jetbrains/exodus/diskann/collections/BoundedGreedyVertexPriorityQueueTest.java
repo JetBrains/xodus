@@ -13,7 +13,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
     @Test
     public void testAddOne() {
         var queue = new BoundedGreedyVertexPriorityQueue(1);
-        queue.add(2, 1.0, true);
+        queue.add(2, 1.0f, true);
 
         Assert.assertEquals(1, queue.size());
         Assert.assertEquals(0, queue.nextNotCheckedVertexIndex());
@@ -26,7 +26,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
         queue.vertexIndices(result, 10);
         Assert.assertArrayEquals(new long[]{2, 0, 0, 0, 0, 0, 0, 0, 0, 0}, result);
 
-        queue.add(3, 2.0, false);
+        queue.add(3, 2.0f, false);
 
         Assert.assertEquals(1, queue.size());
         Assert.assertEquals(-1, queue.nextNotCheckedVertexIndex());
@@ -38,7 +38,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
         queue.vertexIndices(result, 1);
         Assert.assertArrayEquals(new long[]{2}, result);
 
-        queue.add(4, 0.5, false);
+        queue.add(4, 0.5f, false);
 
         Assert.assertEquals(1, queue.size());
         Assert.assertEquals(0, queue.nextNotCheckedVertexIndex());
@@ -61,10 +61,10 @@ public class BoundedGreedyVertexPriorityQueueTest {
 
         Assert.assertEquals(0, queue.size());
 
-        queue.add(1, 1.3, true);
+        queue.add(1, 1.3f, true);
         Assert.assertEquals(1, queue.size());
 
-        queue.add(2, 1.0, false);
+        queue.add(2, 1.0f, false);
 
         Assert.assertEquals(2, queue.size());
 
@@ -75,13 +75,13 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(2, queue.vertexIndex(0));
         Assert.assertEquals(1, queue.vertexIndex(1));
 
-        Assert.assertEquals(1.0, queue.vertexDistance(0), 0.0);
-        Assert.assertEquals(1.3, queue.vertexDistance(1), 0.0);
+        Assert.assertEquals(1.0f, queue.vertexDistance(0), 0.0);
+        Assert.assertEquals(1.3f, queue.vertexDistance(1), 0.0);
 
         Assert.assertFalse(queue.isPqDistance(0));
         Assert.assertTrue(queue.isPqDistance(1));
 
-        Assert.assertEquals(1.3, queue.maxDistance(), 0.0);
+        Assert.assertEquals(1.3f, queue.maxDistance(), 0.0);
         var result = new long[10];
         queue.vertexIndices(result, 10);
         Assert.assertArrayEquals(new long[]{2, 1, 0, 0, 0, 0, 0, 0, 0, 0}, result);
@@ -95,10 +95,10 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(2, queue.vertexIndex(0));
         Assert.assertEquals(1, queue.vertexIndex(1));
 
-        Assert.assertEquals(1.0, queue.vertexDistance(0), 0.0);
-        Assert.assertEquals(1.3, queue.vertexDistance(1), 0.0);
+        Assert.assertEquals(1.0f, queue.vertexDistance(0), 0.0);
+        Assert.assertEquals(1.3f, queue.vertexDistance(1), 0.0);
 
-        Assert.assertEquals(1.3, queue.maxDistance(), 0.0);
+        Assert.assertEquals(1.3, queue.maxDistance(), 0.01);
         result = new long[1];
         queue.vertexIndices(result, 1);
 
@@ -113,8 +113,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
 
         Assert.assertArrayEquals(new long[]{2, 1, 0, 0, 0, 0, 0, 0, 0, 0}, result);
 
-
-        queue.add(3, 0.5, false);
+        queue.add(3, 0.5f, false);
 
         Assert.assertEquals(2, queue.size());
         Assert.assertEquals(0, queue.nextNotCheckedVertexIndex());
@@ -123,8 +122,8 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(3, queue.vertexIndex(0));
         Assert.assertEquals(2, queue.vertexIndex(1));
 
-        Assert.assertEquals(0.5, queue.vertexDistance(0), 0.0);
-        Assert.assertEquals(1.0, queue.vertexDistance(1), 0.0);
+        Assert.assertEquals(0.5f, queue.vertexDistance(0), 0.01);
+        Assert.assertEquals(1.0f, queue.vertexDistance(1), 0.01);
 
         Assert.assertFalse(queue.isPqDistance(0));
         Assert.assertFalse(queue.isPqDistance(1));
@@ -135,10 +134,10 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertArrayEquals(new long[]{3, 2, 0, 0, 0, 0, 0, 0, 0, 0}, result);
         Assert.assertEquals(1.0, queue.maxDistance(), 0.0);
 
-        queue.add(4, 0.75, true);
+        queue.add(4, 0.75f, true);
         Assert.assertEquals(4, queue.vertexIndex(1));
 
-        queue.resortVertex(1, 0.25);
+        queue.resortVertex(1, 0.25f);
 
         Assert.assertEquals(4, queue.vertexIndex(0));
         Assert.assertEquals(0.25, queue.vertexDistance(0), 0.0);
@@ -162,13 +161,13 @@ public class BoundedGreedyVertexPriorityQueueTest {
         var queue = new BoundedGreedyVertexPriorityQueue(3);
         Assert.assertEquals(0, queue.size());
 
-        queue.add(1, 1.3, true);
+        queue.add(1, 1.3f, true);
         Assert.assertEquals(1, queue.size());
 
-        queue.add(2, 1.0, false);
+        queue.add(2, 1.0f, false);
         Assert.assertEquals(2, queue.size());
 
-        queue.add(3, 0.5, true);
+        queue.add(3, 0.5f, true);
         Assert.assertEquals(3, queue.size());
 
 
@@ -181,7 +180,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(2, queue.vertexIndex(1));
         Assert.assertEquals(1, queue.vertexIndex(2));
 
-        queue.resortVertex(1, 0.9);
+        queue.resortVertex(1, 0.9f);
 
         Assert.assertEquals(3, queue.vertexIndex(0));
         Assert.assertEquals(2, queue.vertexIndex(1));
@@ -190,7 +189,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(1, queue.nextNotCheckedVertexIndex());
         Assert.assertEquals(-1, queue.nextNotCheckedVertexIndex());
 
-        queue.resortVertex(1, 1.1);
+        queue.resortVertex(1, 1.1f);
 
         Assert.assertEquals(3, queue.vertexIndex(0));
         Assert.assertEquals(2, queue.vertexIndex(1));
@@ -199,7 +198,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(1, queue.nextNotCheckedVertexIndex());
         Assert.assertEquals(-1, queue.nextNotCheckedVertexIndex());
 
-        queue.resortVertex(2, 0.75);
+        queue.resortVertex(2, 0.75f);
 
         Assert.assertEquals(3, queue.vertexIndex(0));
         Assert.assertEquals(1, queue.vertexIndex(1));
@@ -221,7 +220,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
 
         for (int i = 0; i < 400; i++) {
             var vertexIndex = rnd.nextInt(Integer.MAX_VALUE);
-            var distance = 10 * rnd.nextDouble();
+            var distance = 10 * rnd.nextFloat();
             var isPqDistance = rnd.nextBoolean();
 
             if (treeSet.add(new IntDoubleImmutablePair(vertexIndex, distance))) {
@@ -252,7 +251,7 @@ public class BoundedGreedyVertexPriorityQueueTest {
         for (var index : indexes) {
             var distance = queue.vertexDistance(index);
             var vertexIndex = queue.vertexIndex(index);
-            var newDistance = 10 * rnd.nextDouble();
+            var newDistance = 10 * rnd.nextFloat();
 
             queue.resortVertex(index, newDistance);
 

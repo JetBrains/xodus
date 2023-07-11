@@ -49,7 +49,6 @@ tasks {
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
                 languageVersion.set(JavaLanguageVersion.of(20))
-                vendor.set(JvmVendorSpec.GRAAL_VM)
             })
         }
     }
@@ -77,7 +76,6 @@ tasks {
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
                 languageVersion.set(JavaLanguageVersion.of(20))
-                vendor.set(JvmVendorSpec.GRAAL_VM)
             })
         }
     }
