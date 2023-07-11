@@ -559,43 +559,43 @@ public final class DiskANN implements AutoCloseable {
         var segmentStep = step * Float.BYTES;
 
         for (int i = 0; i < iterations; i++) {
-            var first = FloatVector.fromMemorySegment(species, firstSegment,
+            var first_1 = FloatVector.fromMemorySegment(species, firstSegment,
                     firstSegmentFromOffset, ByteOrder.nativeOrder());
-            var second = FloatVector.fromArray(species, secondVector, arrayOffset);
-
-            var diff = first.sub(second);
-            sumVector = diff.fma(diff, sumVector);
+            var second_1 = FloatVector.fromArray(species, secondVector, arrayOffset);
 
             arrayOffset += step;
             firstSegmentFromOffset += segmentStep;
 
-            first = FloatVector.fromMemorySegment(species, firstSegment,
+            var first_2 = FloatVector.fromMemorySegment(species, firstSegment,
                     firstSegmentFromOffset, ByteOrder.nativeOrder());
-            second = FloatVector.fromArray(species, secondVector, arrayOffset);
-            diff = first.sub(second);
-            sumVector = diff.fma(diff, sumVector);
+            var second_2 = FloatVector.fromArray(species, secondVector, arrayOffset);
 
             arrayOffset += step;
             firstSegmentFromOffset += segmentStep;
 
-            first = FloatVector.fromMemorySegment(species, firstSegment,
+            var first_3 = FloatVector.fromMemorySegment(species, firstSegment,
                     firstSegmentFromOffset, ByteOrder.nativeOrder());
-            second = FloatVector.fromArray(species, secondVector, arrayOffset);
-            diff = first.sub(second);
-            sumVector = diff.fma(diff, sumVector);
+            var second_3 = FloatVector.fromArray(species, secondVector, arrayOffset);
 
             arrayOffset += step;
             firstSegmentFromOffset += segmentStep;
 
-            first = FloatVector.fromMemorySegment(species, firstSegment,
+            var first_4 = FloatVector.fromMemorySegment(species, firstSegment,
                     firstSegmentFromOffset, ByteOrder.nativeOrder());
-            second = FloatVector.fromArray(species, secondVector, arrayOffset);
-
-            diff = first.sub(second);
-            sumVector = diff.fma(diff, sumVector);
+            var second_4 = FloatVector.fromArray(species, secondVector, arrayOffset);
 
             arrayOffset += step;
             firstSegmentFromOffset += segmentStep;
+
+            var diff_1 = first_1.sub(second_1);
+            var diff_2 = first_2.sub(second_2);
+            var diff_3 = first_3.sub(second_3);
+            var diff_4 = first_4.sub(second_4);
+
+            sumVector = diff_1.fma(diff_1, sumVector);
+            sumVector = diff_2.fma(diff_2, sumVector);
+            sumVector = diff_3.fma(diff_3, sumVector);
+            sumVector = diff_4.fma(diff_4, sumVector);
         }
 
         return sumVector.reduceLanes(VectorOperators.ADD);
