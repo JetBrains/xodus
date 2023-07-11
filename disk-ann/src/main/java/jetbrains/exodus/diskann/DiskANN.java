@@ -519,31 +519,24 @@ public final class DiskANN implements AutoCloseable {
         var sumVector = FloatVector.zero(species);
         var index = 0;
 
-        var step = species.length();
-        var loopBound = species.loopBound(secondVector.length);
-        var segmentStep = step * Float.BYTES;
-
-        while (index < loopBound) {
+        while (index < species.loopBound(secondVector.length)) {
             var first = FloatVector.fromMemorySegment(species, firstSegment,
-                    firstSegmentFromOffset, ByteOrder.nativeOrder());
+                    firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
             var second = FloatVector.fromArray(species, secondVector, index);
 
             var diff = first.sub(second);
             sumVector = diff.fma(diff, sumVector);
-
-            index += step;
-            firstSegmentFromOffset += segmentStep;
+            index += species.length();
         }
 
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < secondVector.length) {
             var diff = firstSegment.get(ValueLayout.JAVA_FLOAT,
-                    firstSegmentFromOffset)
+                    firstSegmentFromOffset + (long) index * Float.BYTES)
                     - secondVector[index];
             sum += diff * diff;
             index++;
-            firstSegmentFromOffset += Float.BYTES;
         }
 
         return sum;
