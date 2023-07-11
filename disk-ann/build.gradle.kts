@@ -47,7 +47,10 @@ tasks {
         if (jdkHome != null) {
             executable = "$jdkHome/bin/java"
         } else {
-            javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(20)) })
+            javaLauncher.set(rootProject.javaToolchains.launcherFor {
+                languageVersion.set(JavaLanguageVersion.of(20))
+                vendor.set(JvmVendorSpec.GRAAL_VM)
+            })
         }
     }
 
@@ -72,7 +75,10 @@ tasks {
         if (jdkHome != null) {
             executable = "$jdkHome/bin/java"
         } else {
-            javaLauncher.set(rootProject.javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(20)) })
+            javaLauncher.set(rootProject.javaToolchains.launcherFor {
+                languageVersion.set(JavaLanguageVersion.of(20))
+                vendor.set(JvmVendorSpec.GRAAL_VM)
+            })
         }
     }
 }
