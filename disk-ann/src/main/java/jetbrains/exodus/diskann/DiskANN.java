@@ -22,10 +22,7 @@ import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLongArray;
-import java.util.concurrent.atomic.DoubleAdder;
-import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.atomic.*;
 
 public final class DiskANN implements AutoCloseable {
     private static final int CORES = Runtime.getRuntime().availableProcessors();
@@ -257,7 +254,10 @@ public final class DiskANN implements AutoCloseable {
             itemsPerThread = 1;
         }
 
-        var neighborsMap = new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<IntIntImmutablePair>>(size, Hash.VERY_FAST_LOAD_FACTOR);
+        var neighborsArray = new ConcurrentLinkedQueue[size];
+        for (int i = 0; i < size; i++) {
+            neighborsArray[i] = new ConcurrentLinkedQueue<>();
+        }
 
         var mutatorsCompleted = new AtomicInteger(0);
         var mutatorsCount = Math.min(vectorMutationThreads.size(), size);
@@ -283,16 +283,12 @@ public final class DiskANN implements AutoCloseable {
             var mutatorFuture = mutator.submit(() -> {
                 var index = 0;
                 while (true) {
-                    var neighbourPairs = neighborsMap.get(mutatorId);
+                    @SuppressWarnings("unchecked")
+                    var neighbourPairs = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
 
-                    if (neighbourPairs != null) {
-                        if (!neighborsMap.remove(mutatorId, neighbourPairs)) {
-                            continue;
-                        }
-                    }
-
-                    if (neighbourPairs != null) {
-                        for (var neighbourPair : neighbourPairs) {
+                    if (!neighbourPairs.isEmpty()) {
+                        var neighbourPair = neighbourPairs.poll();
+                        do {
                             var vertexIndex = neighbourPair.leftInt();
                             var neighbourIndex = neighbourPair.rightInt();
                             var neighbours = graph.fetchNeighbours(vertexIndex);
@@ -315,7 +311,8 @@ public final class DiskANN implements AutoCloseable {
                                     );
                                 }
                             }
-                        }
+                            neighbourPair = neighbourPairs.poll();
+                        } while (neighbourPair != null);
                     } else if (mutatorsCompleted.get() == mutatorsCount) {
                         break;
                     }
@@ -328,8 +325,9 @@ public final class DiskANN implements AutoCloseable {
 
                         for (var neighbourIndex : neighbourNeighbours) {
                             var neighbourMutatorIndex = neighbourIndex % mutatorsCount;
-                            var neighboursList = neighborsMap.computeIfAbsent(neighbourMutatorIndex,
-                                    k -> new ConcurrentLinkedQueue<>());
+
+                            @SuppressWarnings("unchecked")
+                            var neighboursList = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
                             neighboursList.add(new IntIntImmutablePair(neighbourIndex, vectorIndex));
                         }
                         index++;
