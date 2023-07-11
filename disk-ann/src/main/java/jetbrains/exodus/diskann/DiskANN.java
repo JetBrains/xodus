@@ -516,30 +516,20 @@ public final class DiskANN implements AutoCloseable {
     }
 
     static float computeL2Distance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
-
+        var sumVector = FloatVector.zero(species);
         var index = 0;
 
-        var step = species.length();
-        var iterations = secondVector.length / (4 * step);
+        while (index < species.loopBound(secondVector.length)) {
+            var first = FloatVector.fromMemorySegment(species, firstSegment,
+                    firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
+            var second = FloatVector.fromArray(species, secondVector, index);
 
-        var sum = computeL2Distance4Batch(firstSegment, firstSegmentFromOffset, secondVector, iterations, step);
-        index += iterations * 4 * step;
-
-        var loopBound = species.loopBound(secondVector.length);
-        if (index < loopBound) {
-            var sumVector = FloatVector.zero(species);
-            while (index < loopBound) {
-                var first = FloatVector.fromMemorySegment(species, firstSegment,
-                        firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
-                var second = FloatVector.fromArray(species, secondVector, index);
-
-                var diff = first.sub(second);
-                sumVector = diff.fma(diff, sumVector);
-                index += step;
-            }
-
-            sum += sumVector.reduceLanes(VectorOperators.ADD);
+            var diff = first.sub(second);
+            sumVector = diff.fma(diff, sumVector);
+            index += species.length();
         }
+
+        var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
         while (index < secondVector.length) {
             var diff = firstSegment.get(ValueLayout.JAVA_FLOAT,
@@ -550,55 +540,6 @@ public final class DiskANN implements AutoCloseable {
         }
 
         return sum;
-    }
-
-    static float computeL2Distance4Batch(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector,
-                                         int iterations, int step) {
-        var sumVector = FloatVector.zero(species);
-        var arrayOffset = 0;
-        var segmentStep = step * Float.BYTES;
-
-        for (int i = 0; i < iterations; i++) {
-            var first_1 = FloatVector.fromMemorySegment(species, firstSegment,
-                    firstSegmentFromOffset, ByteOrder.nativeOrder());
-            var second_1 = FloatVector.fromArray(species, secondVector, arrayOffset);
-
-            arrayOffset += step;
-            firstSegmentFromOffset += segmentStep;
-
-            var first_2 = FloatVector.fromMemorySegment(species, firstSegment,
-                    firstSegmentFromOffset, ByteOrder.nativeOrder());
-            var second_2 = FloatVector.fromArray(species, secondVector, arrayOffset);
-
-            arrayOffset += step;
-            firstSegmentFromOffset += segmentStep;
-
-            var first_3 = FloatVector.fromMemorySegment(species, firstSegment,
-                    firstSegmentFromOffset, ByteOrder.nativeOrder());
-            var second_3 = FloatVector.fromArray(species, secondVector, arrayOffset);
-
-            arrayOffset += step;
-            firstSegmentFromOffset += segmentStep;
-
-            var first_4 = FloatVector.fromMemorySegment(species, firstSegment,
-                    firstSegmentFromOffset, ByteOrder.nativeOrder());
-            var second_4 = FloatVector.fromArray(species, secondVector, arrayOffset);
-
-            arrayOffset += step;
-            firstSegmentFromOffset += segmentStep;
-
-            var diff_1 = first_1.sub(second_1);
-            var diff_2 = first_2.sub(second_2);
-            var diff_3 = first_3.sub(second_3);
-            var diff_4 = first_4.sub(second_4);
-
-            sumVector = diff_1.fma(diff_1, sumVector);
-            sumVector = diff_2.fma(diff_2, sumVector);
-            sumVector = diff_3.fma(diff_3, sumVector);
-            sumVector = diff_4.fma(diff_4, sumVector);
-        }
-
-        return sumVector.reduceLanes(VectorOperators.ADD);
     }
 
     static float computeDotDistance(float[] firstVector, float[] secondVector, int secondVectorFrom) {
