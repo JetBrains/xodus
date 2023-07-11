@@ -99,7 +99,7 @@ public final class DiskANN implements AutoCloseable {
     private final ThreadLocal<NearestGreedySearchCachedData> nearestGreedySearchCachedDataThreadLocal;
 
     public DiskANN(String name, int vectorDim, byte distanceFunction) {
-        this(name, vectorDim, distanceFunction, 2.1f,
+        this(name, vectorDim, distanceFunction, 1.2f,
                 64, 128,
                 32);
     }
