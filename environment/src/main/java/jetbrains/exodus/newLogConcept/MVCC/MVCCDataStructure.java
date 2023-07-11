@@ -248,9 +248,8 @@ public class MVCCDataStructure {
                         wrapper.operationsCountLatchRef = null;
                     }
                     mvccRecord.linksToOperationsQueue.remove(operation);
-
-                    //pay att here - might require delete from mvccRecord.linksToOperationsQueue here
-                    throw new ExodusException(); // rollback
+                    throw new ExodusException("Transaction reverted, txSnapId = "
+                            + transactionSnapId + ",  mvccRecord.maxTxId = " + mvccRecord.maxTransactionId.get()); // rollback
                 }
 
                 while (true) {
