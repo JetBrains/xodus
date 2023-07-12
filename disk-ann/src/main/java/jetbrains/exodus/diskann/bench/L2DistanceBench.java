@@ -26,7 +26,7 @@ public class L2DistanceBench {
     private MemorySegment segment1;
     private MemorySegment segment2;
 
-    private final Arena arena = Arena.openShared();
+    private Arena arena;
 
     @Setup(Level.Iteration)
     public void init() {
@@ -38,6 +38,8 @@ public class L2DistanceBench {
             vector1[i] = rnd.nextFloat();
             vector2[i] = rnd.nextFloat();
         }
+
+        arena = Arena.openShared();
 
         segment1 = arena.allocate(Float.BYTES * VECTOR_SIZE, Float.BYTES);
         segment2 = arena.allocate(Float.BYTES * VECTOR_SIZE, Float.BYTES);
