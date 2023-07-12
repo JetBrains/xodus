@@ -89,7 +89,7 @@ public class L2DistanceBench {
 
         var sumVector = diff.mul(diff);
 
-        var loopBound = species.loopBound(vector1.length);
+        var loopBound = species.loopBound(VECTOR_SIZE);
         var step = species.length();
         var segmentStep = step * Float.BYTES;
         var segmentOffset = segmentStep;

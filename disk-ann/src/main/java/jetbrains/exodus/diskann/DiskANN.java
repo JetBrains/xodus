@@ -834,7 +834,12 @@ public final class DiskANN implements AutoCloseable {
                     currentMultiplication *= 1.2;
                 }
 
-                setNeighbours(vertexIndex, neighbours.elements(), neighbours.size());
+                var elements = neighbours.elements();
+                var elementsSize = neighbours.size();
+
+                ArrayUtils.reverse(elements, 0, elementsSize);
+
+                setNeighbours(vertexIndex, elements, elementsSize);
             } finally {
                 releaseVertex(vertexIndex);
             }
