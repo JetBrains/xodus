@@ -486,12 +486,24 @@ public final class DiskANN implements AutoCloseable {
                 sumVector = diffVector.fma(diffVector, sumVector);
             }
 
-            sum = sumVector.reduceLanes(VectorOperators.ADD);
-        }
+            if (index < firstVector.length) {
+                var mask = SPECIES.indexInRange(index, firstVector.length);
 
-        for (; index < firstVector.length; index++) {
-            var diff = firstVector[index] - secondVector[index + secondVectorFrom];
-            sum += diff * diff;
+                first = FloatVector.fromArray(SPECIES, firstVector, index, mask);
+                second = FloatVector.fromArray(SPECIES, secondVector, index + secondVectorFrom, mask);
+
+                diffVector = first.sub(second);
+                sumVector = diffVector.fma(diffVector, sumVector);
+            }
+
+            sum = sumVector.reduceLanes(VectorOperators.ADD);
+        } else {
+            var first = FloatVector.fromArray(SPECIES, firstVector, 0);
+            var second = FloatVector.fromArray(SPECIES, secondVector, index + secondVectorFrom);
+
+            var diffVector = first.sub(second);
+            var sumVector = diffVector.mul(diffVector);
+            sum = sumVector.reduceLanes(VectorOperators.ADD);
         }
 
         return sum;
