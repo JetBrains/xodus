@@ -34,13 +34,6 @@ public class L2DistanceBench {
     @Benchmark
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
-    public float baseLine() {
-        return 0.0f;
-    }
-
-    @Benchmark
-    @OutputTimeUnit(TimeUnit.NANOSECONDS)
-    @BenchmarkMode(Mode.AverageTime)
     public float computeL2DistancePlain() {
         float sum = 0;
         for (int i = 0; i < vector1.length; i++) {
