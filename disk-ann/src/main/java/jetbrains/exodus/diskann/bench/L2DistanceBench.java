@@ -55,11 +55,11 @@ public class L2DistanceBench {
     @BenchmarkMode(Mode.AverageTime)
     public float computeL2DistanceVector() {
         var sumVector = FloatVector.zero(species);
-        var index = 0;
+
         var loopBound = species.loopBound(vector1.length);
         var step = species.length();
 
-        for (; index < loopBound; index += step) {
+        for ( var index = 0; index < loopBound; index += step) {
             var first = FloatVector.fromArray(species, vector1, index);
             var second = FloatVector.fromArray(species, vector2, index);
 
@@ -79,32 +79,28 @@ public class L2DistanceBench {
         var sumVector_3 = FloatVector.zero(species);
         var sumVector_4 = FloatVector.zero(species);
 
-        var index = 0;
         var loopBound = species.loopBound(vector1.length);
-        var subStep = species.length();
-        var step = 4 * subStep;
-
-
-        for (; index < loopBound; index += step) {
+        var step = species.length();
+        for (var index = 0; index < loopBound;) {
             var v_1_1 = FloatVector.fromArray(species, vector1, index);
             var v_2_1 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_2 = FloatVector.fromArray(species, vector1, index);
             var v_2_2 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_3 = FloatVector.fromArray(species, vector1, index);
             var v_2_3 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_4 = FloatVector.fromArray(species, vector1, index);
             var v_2_4 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var diff_1 = v_1_1.sub(v_2_1);
             var diff_2 = v_1_2.sub(v_2_2);
@@ -133,52 +129,50 @@ public class L2DistanceBench {
         var sumVector_7 = FloatVector.zero(species);
         var sumVector_8 = FloatVector.zero(species);
 
-        var index = 0;
         var loopBound = species.loopBound(vector1.length);
-        var subStep = species.length();
-        var step = 8 * subStep;
+        var step = species.length();
 
 
-        for (; index < loopBound; index += step) {
+        for (var index = 0; index < loopBound;) {
             var v_1_1 = FloatVector.fromArray(species, vector1, index);
             var v_2_1 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_2 = FloatVector.fromArray(species, vector1, index);
             var v_2_2 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_3 = FloatVector.fromArray(species, vector1, index);
             var v_2_3 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_4 = FloatVector.fromArray(species, vector1, index);
             var v_2_4 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_5 = FloatVector.fromArray(species, vector1, index);
             var v_2_5 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_6 = FloatVector.fromArray(species, vector1, index);
             var v_2_6 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_7 = FloatVector.fromArray(species, vector1, index);
             var v_2_7 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var v_1_8 = FloatVector.fromArray(species, vector1, index);
             var v_2_8 = FloatVector.fromArray(species, vector2, index);
 
-            index += subStep;
+            index += step;
 
             var diff_1 = v_1_1.sub(v_2_1);
             var diff_2 = v_1_2.sub(v_2_2);
