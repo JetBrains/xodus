@@ -29,7 +29,7 @@ public final class DiskANN implements AutoCloseable {
     public static final byte L2_DISTANCE = 0;
     public static final byte DOT_DISTANCE = 1;
 
-    private static final VectorSpecies<Float> species = FloatVector.SPECIES_PREFERRED;
+    private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
 
     private static final int PAGE_SIZE_MULTIPLIER = 4 * 1024;
 
@@ -77,15 +77,6 @@ public final class DiskANN implements AutoCloseable {
     private final long diskCacheRecordEdgesOffset;
 
     private final long diskCacheRecordByteAlignment;
-
-    private final LongAdder visitedVerticesSum = new LongAdder();
-    private final LongAdder visitedVerticesCount = new LongAdder();
-
-    private final LongAdder testedVerticesSum = new LongAdder();
-    private final LongAdder testedVerticesCount = new LongAdder();
-
-    private final DoubleAdder pqDistanceError = new DoubleAdder();
-    private final LongAdder pqDistancesConverted = new LongAdder();
 
     //1st dimension quantizer index
     //2nd index of code inside code book
@@ -145,7 +136,7 @@ public final class DiskANN implements AutoCloseable {
 
         if (logger.isInfoEnabled()) {
             logger.info("Vector index " + name + " has been initialized. Vector lane count for distance calculation " +
-                    "is " + species.length());
+                    "is " + SPECIES.length());
         }
 
         if (logger.isInfoEnabled()) {
@@ -219,35 +210,6 @@ public final class DiskANN implements AutoCloseable {
         diskGraph.greedySearchNearest(vector, result,
                 resultSize);
     }
-
-    public void resetVisitStats() {
-        visitedVerticesSum.reset();
-        visitedVerticesCount.reset();
-    }
-
-    public void resetTestStats() {
-        testedVerticesSum.reset();
-        testedVerticesCount.reset();
-    }
-
-    public void resetPQDistanceStats() {
-        pqDistanceError.reset();
-        pqDistancesConverted.reset();
-    }
-
-
-    public double getPQDistanceError() {
-        return pqDistanceError.sum() / pqDistancesConverted.sum();
-    }
-
-    public long getVisitedVerticesAvg() {
-        return visitedVerticesSum.sum() / visitedVerticesCount.sum();
-    }
-
-    public long getTestedVerticesAvg() {
-        return testedVerticesSum.sum() / testedVerticesCount.sum();
-    }
-
 
     private void pruneIndex(int size, InMemoryGraph graph, int medoid, float distanceMultiplication) {
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
@@ -470,20 +432,21 @@ public final class DiskANN implements AutoCloseable {
     static float[] computeGradientStep(float[] centroid, float[] point, int pointOffset, float learningRate) {
         var result = new float[centroid.length];
         var index = 0;
-        var learningRateVector = FloatVector.broadcast(species, learningRate);
-        while (index < species.loopBound(centroid.length)) {
-            var centroidVector = FloatVector.fromArray(species, centroid, index);
-            var pointVector = FloatVector.fromArray(species, point, index + pointOffset);
+        var learningRateVector = FloatVector.broadcast(SPECIES, learningRate);
+        var loopBound = SPECIES.loopBound(centroid.length);
+        var step = SPECIES.length();
+
+        for (; index < loopBound; index += step) {
+            var centroidVector = FloatVector.fromArray(SPECIES, centroid, index);
+            var pointVector = FloatVector.fromArray(SPECIES, point, index + pointOffset);
 
             var diff = pointVector.sub(centroidVector);
             centroidVector = diff.fma(learningRateVector, centroidVector);
             centroidVector.intoArray(result, index);
-            index += species.length();
         }
 
-        while (index < centroid.length) {
+        for (; index < centroid.length; index++) {
             result[index] = centroid[index] + learningRate * (point[index + pointOffset] - centroid[index]);
-            index++;
         }
 
         return result;
@@ -501,66 +464,92 @@ public final class DiskANN implements AutoCloseable {
     }
 
     static float computeL2Distance(float[] firstVector, float[] secondVector, int secondVectorFrom) {
-        var sumVector = FloatVector.zero(species);
+        var step = SPECIES.length();
         var index = 0;
+        var sum = 0.0f;
 
-        while (index < species.loopBound(firstVector.length)) {
-            var first = FloatVector.fromArray(species, firstVector, index);
-            var second = FloatVector.fromArray(species, secondVector, index + secondVectorFrom);
+        if (firstVector.length >= step) {
+            var first = FloatVector.fromArray(SPECIES, firstVector, 0);
+            var second = FloatVector.fromArray(SPECIES, secondVector, secondVectorFrom);
 
-            var diff = first.sub(second);
-            sumVector = diff.fma(diff, sumVector);
-            index += species.length();
+            var diffVector = first.sub(second);
+            var sumVector = diffVector.mul(diffVector);
+
+            var loopBound = SPECIES.loopBound(firstVector.length);
+            index = step;
+
+            for (; index < loopBound; index += step) {
+                first = FloatVector.fromArray(SPECIES, firstVector, index);
+                second = FloatVector.fromArray(SPECIES, secondVector, index + secondVectorFrom);
+
+                diffVector = first.sub(second);
+                sumVector = diffVector.fma(diffVector, sumVector);
+            }
+
+            sum = sumVector.reduceLanes(VectorOperators.ADD);
         }
 
-        var sum = sumVector.reduceLanes(VectorOperators.ADD);
-
-        while (index < firstVector.length) {
+        for (; index < firstVector.length; index++) {
             var diff = firstVector[index] - secondVector[index + secondVectorFrom];
             sum += diff * diff;
-            index++;
         }
 
         return sum;
     }
 
     static float computeL2Distance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
-        var sumVector = FloatVector.zero(species);
+
+        var step = SPECIES.length();
         var index = 0;
+        var sum = 0.0f;
+        if (secondVector.length >= step) {
+            var first = FloatVector.fromMemorySegment(SPECIES, firstSegment,
+                    firstSegmentFromOffset, ByteOrder.nativeOrder());
+            var second = FloatVector.fromArray(SPECIES, secondVector, 0);
 
-        while (index < species.loopBound(secondVector.length)) {
-            var first = FloatVector.fromMemorySegment(species, firstSegment,
-                    firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
-            var second = FloatVector.fromArray(species, secondVector, index);
+            var diffVector = first.sub(second);
+            var sumVector = diffVector.mul(diffVector);
 
-            var diff = first.sub(second);
-            sumVector = diff.fma(diff, sumVector);
-            index += species.length();
+            var loopBound = SPECIES.loopBound(secondVector.length);
+
+            var segmentStep = step * Float.BYTES;
+            firstSegmentFromOffset += segmentStep;
+
+            index = step;
+
+            for (; index < loopBound; index += step, firstSegmentFromOffset += segmentStep) {
+                first = FloatVector.fromMemorySegment(SPECIES, firstSegment,
+                        firstSegmentFromOffset, ByteOrder.nativeOrder());
+                second = FloatVector.fromArray(SPECIES, secondVector, index);
+
+                diffVector = first.sub(second);
+                sumVector = diffVector.fma(diffVector, sumVector);
+            }
+
+            sum = sumVector.reduceLanes(VectorOperators.ADD);
         }
 
-        var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
-        while (index < secondVector.length) {
+        for (; index < secondVector.length; index++, firstSegmentFromOffset += Float.BYTES) {
             var diff = firstSegment.get(ValueLayout.JAVA_FLOAT,
-                    firstSegmentFromOffset + (long) index * Float.BYTES)
+                    firstSegmentFromOffset)
                     - secondVector[index];
             sum += diff * diff;
-            index++;
         }
 
         return sum;
     }
 
     static float computeDotDistance(float[] firstVector, float[] secondVector, int secondVectorFrom) {
-        var sumVector = FloatVector.zero(species);
+        var sumVector = FloatVector.zero(SPECIES);
         var index = 0;
 
-        while (index < species.loopBound(firstVector.length)) {
-            var first = FloatVector.fromArray(species, firstVector, index);
-            var second = FloatVector.fromArray(species, secondVector, index + secondVectorFrom);
+        while (index < SPECIES.loopBound(firstVector.length)) {
+            var first = FloatVector.fromArray(SPECIES, firstVector, index);
+            var second = FloatVector.fromArray(SPECIES, secondVector, index + secondVectorFrom);
 
             sumVector = first.fma(second, sumVector);
-            index += species.length();
+            index += SPECIES.length();
         }
 
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
@@ -575,25 +564,24 @@ public final class DiskANN implements AutoCloseable {
     }
 
     static float computeDotDistance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
-        var sumVector = FloatVector.zero(species);
+        var sumVector = FloatVector.zero(SPECIES);
         var index = 0;
 
-        while (index < species.loopBound(secondVector.length)) {
-            var first = FloatVector.fromMemorySegment(species, firstSegment,
+        while (index < SPECIES.loopBound(secondVector.length)) {
+            var first = FloatVector.fromMemorySegment(SPECIES, firstSegment,
                     firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
-            var second = FloatVector.fromArray(species, secondVector, index);
+            var second = FloatVector.fromArray(SPECIES, secondVector, index);
 
             sumVector = first.fma(second, sumVector);
-            index += species.length();
+            index += SPECIES.length();
         }
 
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
 
-        while (index < secondVector.length) {
-            var mul = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset + (long) index * Float.BYTES)
+        for (; index < secondVector.length; index++, firstSegmentFromOffset += Float.BYTES) {
+            var mul = firstSegment.get(ValueLayout.JAVA_FLOAT, firstSegmentFromOffset)
                     * secondVector[index];
             sum += mul;
-            index++;
         }
 
         return -sum;
@@ -603,29 +591,46 @@ public final class DiskANN implements AutoCloseable {
                                    MemorySegment secondSegment,
                                    long secondSegmentFromOffset, int size) {
 
-        var sumVector = FloatVector.zero(species);
+        var step = SPECIES.length();
+
+        var sum = 0.0f;
         var index = 0;
+        if (size >= step) {
 
-        while (index < species.loopBound(size)) {
-            var first = FloatVector.fromMemorySegment(species, firstSegment,
-                    firstSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
-            var second = FloatVector.fromMemorySegment(species, secondSegment,
-                    secondSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
+            var first = FloatVector.fromMemorySegment(SPECIES, firstSegment,
+                    firstSegmentFromOffset, ByteOrder.nativeOrder());
+            var second = FloatVector.fromMemorySegment(SPECIES, secondSegment,
+                    secondSegmentFromOffset, ByteOrder.nativeOrder());
 
-            var diff = first.sub(second);
-            sumVector = diff.fma(diff, sumVector);
-            index += species.length();
+            var diffVector = first.sub(second);
+
+            var sumVector = diffVector.mul(diffVector);
+
+
+            index = step;
+            var segmentStep = step * Float.BYTES;
+            var loopBound = SPECIES.loopBound(size);
+            firstSegmentFromOffset += segmentStep;
+            secondSegmentFromOffset += segmentStep;
+            for (; index < loopBound; index += step, firstSegmentFromOffset += segmentStep, secondSegmentFromOffset += segmentStep) {
+                first = FloatVector.fromMemorySegment(SPECIES, firstSegment,
+                        firstSegmentFromOffset, ByteOrder.nativeOrder());
+                second = FloatVector.fromMemorySegment(SPECIES, secondSegment,
+                        secondSegmentFromOffset, ByteOrder.nativeOrder());
+
+                diffVector = first.sub(second);
+                sumVector = diffVector.fma(diffVector, sumVector);
+            }
+
+            sum = sumVector.reduceLanes(VectorOperators.ADD);
         }
 
-        var sum = sumVector.reduceLanes(VectorOperators.ADD);
-
-        while (index < size) {
+        for (; index < size; index++, firstSegmentFromOffset += Float.BYTES, secondSegmentFromOffset += Float.BYTES) {
             var diff = firstSegment.get(ValueLayout.JAVA_FLOAT,
-                    firstSegmentFromOffset + (long) index * Float.BYTES)
+                    firstSegmentFromOffset)
                     - secondSegment.get(ValueLayout.JAVA_FLOAT,
-                    secondSegmentFromOffset + (long) index * Float.BYTES);
+                    secondSegmentFromOffset);
             sum += diff * diff;
-            index++;
         }
 
         return sum;
@@ -635,18 +640,18 @@ public final class DiskANN implements AutoCloseable {
                                     MemorySegment secondSegment,
                                     long secondSegmentFromOffset, int size) {
 
-        var sumVector = FloatVector.zero(species);
+        var sumVector = FloatVector.zero(SPECIES);
         var index = 0;
 
-        while (index < species.loopBound(size)) {
-            var first = FloatVector.fromMemorySegment(species, firstSegment,
+        while (index < SPECIES.loopBound(size)) {
+            var first = FloatVector.fromMemorySegment(SPECIES, firstSegment,
                     firstSegmentFromOffset + (long) index * Float.BYTES,
                     ByteOrder.nativeOrder());
-            var second = FloatVector.fromMemorySegment(species, secondSegment,
+            var second = FloatVector.fromMemorySegment(SPECIES, secondSegment,
                     secondSegmentFromOffset + (long) index * Float.BYTES, ByteOrder.nativeOrder());
 
             sumVector = first.fma(second, sumVector);
-            index += species.length();
+            index += SPECIES.length();
         }
 
         var sum = sumVector.reduceLanes(VectorOperators.ADD);
@@ -1114,11 +1119,8 @@ public final class DiskANN implements AutoCloseable {
 
             assert nearestCandidates.size() <= maxAmountOfCandidates;
             visitedVertexIndices.add((int) startVertexIndex);
-            testedVerticesSum.increment();
 
             float[] lookupTable = null;
-            var visited = 0;
-
             while (true) {
                 int currentVertex = -1;
                 while (true) {
@@ -1128,16 +1130,8 @@ public final class DiskANN implements AutoCloseable {
                     }
                     if (nearestCandidates.isPqDistance(notCheckedVertex)) {
                         var vertexIndex = nearestCandidates.vertexIndex(notCheckedVertex);
-                        var pqDistance = nearestCandidates.vertexDistance(notCheckedVertex);
-
                         var preciseDistance = computeDistance(diskCache, vectorOffset(vertexIndex),
                                 queryVector);
-
-                        if (preciseDistance != 0) {
-                            pqDistanceError.add(100 * Math.abs(pqDistance - preciseDistance) / preciseDistance);
-                            pqDistancesConverted.increment();
-                        }
-
                         nearestCandidates.resortVertex(notCheckedVertex, preciseDistance);
                     } else {
                         currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
@@ -1148,8 +1142,6 @@ public final class DiskANN implements AutoCloseable {
                 if (currentVertex < 0) {
                     break;
                 }
-
-                visited++;
 
                 var recordOffset = recordOffset(currentVertex);
                 var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
@@ -1162,8 +1154,6 @@ public final class DiskANN implements AutoCloseable {
                     var vertexIndex = diskCache.get(ValueLayout.JAVA_INT, neighboursOffset);
 
                     if (visitedVertexIndices.add(vertexIndex)) {
-                        testedVerticesSum.increment();
-
                         if (nearestCandidates.size() < maxAmountOfCandidates) {
                             var distance = computeDistance(diskCache,
                                     vectorOffset(vertexIndex), queryVector);
@@ -1184,11 +1174,6 @@ public final class DiskANN implements AutoCloseable {
 
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
             }
-
-            testedVerticesCount.increment();
-            visitedVerticesCount.increment();
-
-            visitedVerticesSum.add(visited);
 
             nearestCandidates.vertexIndices(result, k);
         }
