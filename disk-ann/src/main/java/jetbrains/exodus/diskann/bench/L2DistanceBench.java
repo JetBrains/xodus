@@ -4,6 +4,7 @@ import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.profile.LinuxPerfAsmProfiler;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
@@ -52,7 +53,7 @@ public class L2DistanceBench {
         var loopBound = species.loopBound(vector1.length);
         var step = species.length();
 
-        for ( var index = 0; index < loopBound; index += step) {
+        for (var index = 0; index < loopBound; index += step) {
             var first = FloatVector.fromArray(species, vector1, index);
             var second = FloatVector.fromArray(species, vector2, index);
 
@@ -74,7 +75,7 @@ public class L2DistanceBench {
 
         var loopBound = species.loopBound(vector1.length);
         var step = species.length();
-        for (var index = 0; index < loopBound;) {
+        for (var index = 0; index < loopBound; ) {
             var v_1_1 = FloatVector.fromArray(species, vector1, index);
             var v_2_1 = FloatVector.fromArray(species, vector2, index);
 
@@ -126,7 +127,7 @@ public class L2DistanceBench {
         var step = species.length();
 
 
-        for (var index = 0; index < loopBound;) {
+        for (var index = 0; index < loopBound; ) {
             var v_1_1 = FloatVector.fromArray(species, vector1, index);
             var v_2_1 = FloatVector.fromArray(species, vector2, index);
 
@@ -194,7 +195,7 @@ public class L2DistanceBench {
 
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()
-                .include(L2DistanceBench.class.getSimpleName())
+                .include(L2DistanceBench.class.getSimpleName()).addProfiler(LinuxPerfAsmProfiler.class)
                 .build();
         new Runner(opt).run();
     }
