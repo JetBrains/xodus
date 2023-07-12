@@ -232,7 +232,7 @@ public class L2DistanceBench {
 
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()
-                .include(L2DistanceBench.class.getSimpleName()).addProfiler(LinuxPerfAsmProfiler.class)
+                .include(L2DistanceBench.class.getSimpleName())
                 .build();
         new Runner(opt).run();
     }
