@@ -48,16 +48,20 @@ public class L2DistanceBench {
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
     public float computeL2DistanceVector() {
-        var sumVector = FloatVector.zero(species);
+        var first = FloatVector.fromArray(species, vector1, 0);
+        var second = FloatVector.fromArray(species, vector2, 0);
+        var diff = first.sub(second);
+
+        var sumVector = diff.mul(diff);
 
         var loopBound = species.loopBound(vector1.length);
         var step = species.length();
 
-        for (var index = 0; index < loopBound; index += step) {
-            var first = FloatVector.fromArray(species, vector1, index);
-            var second = FloatVector.fromArray(species, vector2, index);
+        for (var index = step; index < loopBound; index += step) {
+            first = FloatVector.fromArray(species, vector1, index);
+            second = FloatVector.fromArray(species, vector2, index);
 
-            var diff = first.sub(second);
+            diff = first.sub(second);
             sumVector = diff.fma(diff, sumVector);
         }
 
@@ -68,43 +72,54 @@ public class L2DistanceBench {
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
     public float computeL2DistanceVector4Accumulators() {
-        var sumVector_1 = FloatVector.zero(species);
-        var sumVector_2 = FloatVector.zero(species);
-        var sumVector_3 = FloatVector.zero(species);
-        var sumVector_4 = FloatVector.zero(species);
+        var step = species.length();
+
+        var v_1 = FloatVector.fromArray(species, vector1, 0);
+        var v_2 = FloatVector.fromArray(species, vector2, 0);
+        var diff = v_1.sub(v_2);
+        var sumVector_1 = diff.mul(diff);
+
+        v_1 = FloatVector.fromArray(species, vector1, step);
+        v_2 = FloatVector.fromArray(species, vector2, step);
+        diff = v_1.sub(v_2);
+        var sumVector_2 = diff.mul(diff);
+
+        v_1 = FloatVector.fromArray(species, vector1, 2 * step);
+        v_2 = FloatVector.fromArray(species, vector2, 2 * step);
+        diff = v_1.sub(v_2);
+        var sumVector_3 = diff.mul(diff);
+
+        v_1 = FloatVector.fromArray(species, vector1, 3 * step);
+        v_2 = FloatVector.fromArray(species, vector2, 3 * step);
+        diff = v_1.sub(v_2);
+        var sumVector_4 = diff.mul(diff);
 
         var loopBound = species.loopBound(vector1.length);
-        var step = species.length();
-        for (var index = 0; index < loopBound; ) {
-            var v_1_1 = FloatVector.fromArray(species, vector1, index);
-            var v_2_1 = FloatVector.fromArray(species, vector2, index);
-
+        for (var index = 4 * step; index < loopBound; ) {
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_1 = diff.fma(diff, sumVector_1);
             index += step;
 
-            var v_1_2 = FloatVector.fromArray(species, vector1, index);
-            var v_2_2 = FloatVector.fromArray(species, vector2, index);
-
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_2 = diff.fma(diff, sumVector_2);
             index += step;
 
-            var v_1_3 = FloatVector.fromArray(species, vector1, index);
-            var v_2_3 = FloatVector.fromArray(species, vector2, index);
-
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_3 = diff.fma(diff, sumVector_3);
             index += step;
 
-            var v_1_4 = FloatVector.fromArray(species, vector1, index);
-            var v_2_4 = FloatVector.fromArray(species, vector2, index);
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_4 = diff.fma(diff, sumVector_4);
 
             index += step;
-
-            var diff_1 = v_1_1.sub(v_2_1);
-            var diff_2 = v_1_2.sub(v_2_2);
-            var diff_3 = v_1_3.sub(v_2_3);
-            var diff_4 = v_1_4.sub(v_2_4);
-
-            sumVector_1 = diff_1.fma(diff_1, sumVector_1);
-            sumVector_2 = diff_2.fma(diff_2, sumVector_2);
-            sumVector_3 = diff_3.fma(diff_3, sumVector_3);
-            sumVector_4 = diff_4.fma(diff_4, sumVector_4);
         }
 
         return sumVector_1.add(sumVector_2).add(sumVector_3).add(sumVector_4).reduceLanes(VectorOperators.ADD);
@@ -114,77 +129,99 @@ public class L2DistanceBench {
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
     public float computeL2DistanceVector8Accumulators() {
-        var sumVector_1 = FloatVector.zero(species);
-        var sumVector_2 = FloatVector.zero(species);
-        var sumVector_3 = FloatVector.zero(species);
-        var sumVector_4 = FloatVector.zero(species);
-        var sumVector_5 = FloatVector.zero(species);
-        var sumVector_6 = FloatVector.zero(species);
-        var sumVector_7 = FloatVector.zero(species);
-        var sumVector_8 = FloatVector.zero(species);
-
-        var loopBound = species.loopBound(vector1.length);
         var step = species.length();
 
+        var v_1 = FloatVector.fromArray(species, vector1, 0);
+        var v_2 = FloatVector.fromArray(species, vector2, 0);
+        var diff = v_1.sub(v_2);
+        var sumVector_1 = diff.mul(diff);
 
-        for (var index = 0; index < loopBound; ) {
-            var v_1_1 = FloatVector.fromArray(species, vector1, index);
-            var v_2_1 = FloatVector.fromArray(species, vector2, index);
+        v_1 = FloatVector.fromArray(species, vector1, step);
+        v_2 = FloatVector.fromArray(species, vector2, step);
+        diff = v_1.sub(v_2);
+        var sumVector_2 = diff.mul(diff);
 
+        v_1 = FloatVector.fromArray(species, vector1, 2 * step);
+        v_2 = FloatVector.fromArray(species, vector2, 2 * step);
+        diff = v_1.sub(v_2);
+        var sumVector_3 = diff.mul(diff);
+
+        v_1 = FloatVector.fromArray(species, vector1, 3 * step);
+        v_2 = FloatVector.fromArray(species, vector2, 3 * step);
+        diff = v_1.sub(v_2);
+        var sumVector_4 = diff.mul(diff);
+
+        v_1 = FloatVector.fromArray(species, vector1, 4 * step);
+        v_2 = FloatVector.fromArray(species, vector2, 4 * step);
+        diff = v_1.sub(v_2);
+        var sumVector_5 = diff.mul(diff);
+
+        v_1 = FloatVector.fromArray(species, vector1, 5 * step);
+        v_2 = FloatVector.fromArray(species, vector2, 5 * step);
+        diff = v_1.sub(v_2);
+        var sumVector_6 = diff.mul(diff);
+
+        v_1 = FloatVector.fromArray(species, vector1, 6 * step);
+        v_2 = FloatVector.fromArray(species, vector2, 6 * step);
+        diff = v_1.sub(v_2);
+        var sumVector_7 = diff.mul(diff);
+
+        v_1 = FloatVector.fromArray(species, vector1, 7 * step);
+        v_2 = FloatVector.fromArray(species, vector2, 7 * step);
+        diff = v_1.sub(v_2);
+        var sumVector_8 = diff.mul(diff);
+
+        var loopBound = species.loopBound(vector1.length);
+        for (var index = 8 * step; index < loopBound; ) {
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+
+            sumVector_1 = diff.fma(diff, sumVector_1);
             index += step;
 
-            var v_1_2 = FloatVector.fromArray(species, vector1, index);
-            var v_2_2 = FloatVector.fromArray(species, vector2, index);
-
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_2 = diff.fma(diff, sumVector_2);
             index += step;
 
-            var v_1_3 = FloatVector.fromArray(species, vector1, index);
-            var v_2_3 = FloatVector.fromArray(species, vector2, index);
-
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_3 = diff.fma(diff, sumVector_3);
             index += step;
 
-            var v_1_4 = FloatVector.fromArray(species, vector1, index);
-            var v_2_4 = FloatVector.fromArray(species, vector2, index);
-
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_4 = diff.fma(diff, sumVector_4);
             index += step;
 
-            var v_1_5 = FloatVector.fromArray(species, vector1, index);
-            var v_2_5 = FloatVector.fromArray(species, vector2, index);
-
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_5 = diff.fma(diff, sumVector_5);
             index += step;
 
-            var v_1_6 = FloatVector.fromArray(species, vector1, index);
-            var v_2_6 = FloatVector.fromArray(species, vector2, index);
-
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_6 = diff.fma(diff, sumVector_6);
             index += step;
 
-            var v_1_7 = FloatVector.fromArray(species, vector1, index);
-            var v_2_7 = FloatVector.fromArray(species, vector2, index);
-
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_7 = diff.fma(diff, sumVector_7);
             index += step;
 
-            var v_1_8 = FloatVector.fromArray(species, vector1, index);
-            var v_2_8 = FloatVector.fromArray(species, vector2, index);
+            v_1 = FloatVector.fromArray(species, vector1, index);
+            v_2 = FloatVector.fromArray(species, vector2, index);
+            diff = v_1.sub(v_2);
+            sumVector_8 = diff.fma(diff, sumVector_8);
 
             index += step;
-
-            var diff_1 = v_1_1.sub(v_2_1);
-            var diff_2 = v_1_2.sub(v_2_2);
-            var diff_3 = v_1_3.sub(v_2_3);
-            var diff_4 = v_1_4.sub(v_2_4);
-            var diff_5 = v_1_5.sub(v_2_5);
-            var diff_6 = v_1_6.sub(v_2_6);
-            var diff_7 = v_1_7.sub(v_2_7);
-            var diff_8 = v_1_8.sub(v_2_8);
-
-            sumVector_1 = diff_1.fma(diff_1, sumVector_1);
-            sumVector_2 = diff_2.fma(diff_2, sumVector_2);
-            sumVector_3 = diff_3.fma(diff_3, sumVector_3);
-            sumVector_4 = diff_4.fma(diff_4, sumVector_4);
-            sumVector_5 = diff_5.fma(diff_5, sumVector_5);
-            sumVector_6 = diff_6.fma(diff_6, sumVector_6);
-            sumVector_7 = diff_7.fma(diff_7, sumVector_7);
-            sumVector_8 = diff_8.fma(diff_8, sumVector_8);
         }
 
         return sumVector_1.add(sumVector_2).add(sumVector_3).add(sumVector_4).
