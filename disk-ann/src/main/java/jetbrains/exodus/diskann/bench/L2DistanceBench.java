@@ -80,7 +80,7 @@ public class L2DistanceBench {
         var sumVector_4 = FloatVector.zero(species);
 
         var index = 0;
-        var loopBound = species.loopBound(vector1.length) / 4;
+        var loopBound = species.loopBound(vector1.length);
         var subStep = species.length();
         var step = 4 * subStep;
 
@@ -134,7 +134,7 @@ public class L2DistanceBench {
         var sumVector_8 = FloatVector.zero(species);
 
         var index = 0;
-        var loopBound = species.loopBound(vector1.length) / 8;
+        var loopBound = species.loopBound(vector1.length);
         var subStep = species.length();
         var step = 8 * subStep;
 
