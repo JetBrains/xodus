@@ -4,11 +4,14 @@ import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.*;
-import org.openjdk.jmh.profile.LinuxPerfAsmProfiler;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+import java.nio.ByteOrder;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -20,6 +23,11 @@ public class L2DistanceBench {
     private float[] vector1;
     private float[] vector2;
 
+    private MemorySegment segment1;
+    private MemorySegment segment2;
+
+    private final Arena arena = Arena.openShared();
+
     @Setup(Level.Iteration)
     public void init() {
         var rnd = ThreadLocalRandom.current();
@@ -30,18 +38,19 @@ public class L2DistanceBench {
             vector1[i] = rnd.nextFloat();
             vector2[i] = rnd.nextFloat();
         }
+
+        segment1 = arena.allocate(Float.BYTES * VECTOR_SIZE, Float.BYTES);
+        segment2 = arena.allocate(Float.BYTES * VECTOR_SIZE, Float.BYTES);
+
+        for (int i = 0; i < VECTOR_SIZE; i++) {
+            segment1.setAtIndex(ValueLayout.JAVA_FLOAT, i, vector1[i]);
+            segment2.setAtIndex(ValueLayout.JAVA_FLOAT, i, vector2[i]);
+        }
     }
 
-    @Benchmark
-    @OutputTimeUnit(TimeUnit.NANOSECONDS)
-    @BenchmarkMode(Mode.AverageTime)
-    public float computeL2DistancePlain() {
-        float sum = 0;
-        for (int i = 0; i < vector1.length; i++) {
-            float diff = vector1[i] - vector2[i];
-            sum += diff * diff;
-        }
-        return sum;
+    @TearDown(Level.Iteration)
+    public void tearDown() {
+        arena.close();
     }
 
     @Benchmark
@@ -71,164 +80,28 @@ public class L2DistanceBench {
     @Benchmark
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
-    public float computeL2DistanceVector4Accumulators() {
-        var step = species.length();
+    public float computeL2DistanceVectorMemorySegment() {
+        var first = FloatVector.fromMemorySegment(species, segment1, 0, ByteOrder.nativeOrder());
+        var second = FloatVector.fromMemorySegment(species, segment2, 0, ByteOrder.nativeOrder());
+        var diff = first.sub(second);
 
-        var v_1 = FloatVector.fromArray(species, vector1, 0);
-        var v_2 = FloatVector.fromArray(species, vector2, 0);
-        var diff = v_1.sub(v_2);
-        var sumVector_1 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, step);
-        v_2 = FloatVector.fromArray(species, vector2, step);
-        diff = v_1.sub(v_2);
-        var sumVector_2 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, 2 * step);
-        v_2 = FloatVector.fromArray(species, vector2, 2 * step);
-        diff = v_1.sub(v_2);
-        var sumVector_3 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, 3 * step);
-        v_2 = FloatVector.fromArray(species, vector2, 3 * step);
-        diff = v_1.sub(v_2);
-        var sumVector_4 = diff.mul(diff);
+        var sumVector = diff.mul(diff);
 
         var loopBound = species.loopBound(vector1.length);
-        for (var index = 4 * step; index < loopBound; ) {
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_1 = diff.fma(diff, sumVector_1);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_2 = diff.fma(diff, sumVector_2);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_3 = diff.fma(diff, sumVector_3);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_4 = diff.fma(diff, sumVector_4);
-
-            index += step;
-        }
-
-        return sumVector_1.add(sumVector_2).add(sumVector_3).add(sumVector_4).reduceLanes(VectorOperators.ADD);
-    }
-
-    @Benchmark
-    @OutputTimeUnit(TimeUnit.NANOSECONDS)
-    @BenchmarkMode(Mode.AverageTime)
-    public float computeL2DistanceVector8Accumulators() {
         var step = species.length();
+        var segmentStep = step * Float.BYTES;
+        var segmentOffset = segmentStep;
 
-        var v_1 = FloatVector.fromArray(species, vector1, 0);
-        var v_2 = FloatVector.fromArray(species, vector2, 0);
-        var diff = v_1.sub(v_2);
-        var sumVector_1 = diff.mul(diff);
+        for (var index = step; index < loopBound; index += step, segmentOffset += segmentStep) {
+            first = FloatVector.fromMemorySegment(species, segment1, segmentOffset, ByteOrder.nativeOrder());
+            second = FloatVector.fromMemorySegment(species, segment2, segmentOffset, ByteOrder.nativeOrder());
 
-        v_1 = FloatVector.fromArray(species, vector1, step);
-        v_2 = FloatVector.fromArray(species, vector2, step);
-        diff = v_1.sub(v_2);
-        var sumVector_2 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, 2 * step);
-        v_2 = FloatVector.fromArray(species, vector2, 2 * step);
-        diff = v_1.sub(v_2);
-        var sumVector_3 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, 3 * step);
-        v_2 = FloatVector.fromArray(species, vector2, 3 * step);
-        diff = v_1.sub(v_2);
-        var sumVector_4 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, 4 * step);
-        v_2 = FloatVector.fromArray(species, vector2, 4 * step);
-        diff = v_1.sub(v_2);
-        var sumVector_5 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, 5 * step);
-        v_2 = FloatVector.fromArray(species, vector2, 5 * step);
-        diff = v_1.sub(v_2);
-        var sumVector_6 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, 6 * step);
-        v_2 = FloatVector.fromArray(species, vector2, 6 * step);
-        diff = v_1.sub(v_2);
-        var sumVector_7 = diff.mul(diff);
-
-        v_1 = FloatVector.fromArray(species, vector1, 7 * step);
-        v_2 = FloatVector.fromArray(species, vector2, 7 * step);
-        diff = v_1.sub(v_2);
-        var sumVector_8 = diff.mul(diff);
-
-        var loopBound = species.loopBound(vector1.length);
-        for (var index = 8 * step; index < loopBound; ) {
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-
-            sumVector_1 = diff.fma(diff, sumVector_1);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_2 = diff.fma(diff, sumVector_2);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_3 = diff.fma(diff, sumVector_3);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_4 = diff.fma(diff, sumVector_4);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_5 = diff.fma(diff, sumVector_5);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_6 = diff.fma(diff, sumVector_6);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_7 = diff.fma(diff, sumVector_7);
-            index += step;
-
-            v_1 = FloatVector.fromArray(species, vector1, index);
-            v_2 = FloatVector.fromArray(species, vector2, index);
-            diff = v_1.sub(v_2);
-            sumVector_8 = diff.fma(diff, sumVector_8);
-
-            index += step;
+            diff = first.sub(second);
+            sumVector = diff.fma(diff, sumVector);
         }
 
-        return sumVector_1.add(sumVector_2).add(sumVector_3).add(sumVector_4).
-                add(sumVector_5).add(sumVector_6).add(sumVector_7).add(sumVector_8).
-                reduceLanes(VectorOperators.ADD);
+        return sumVector.reduceLanes(VectorOperators.ADD);
     }
-
 
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()
