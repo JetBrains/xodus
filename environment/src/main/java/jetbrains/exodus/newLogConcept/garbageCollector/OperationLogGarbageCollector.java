@@ -66,7 +66,7 @@ public class OperationLogGarbageCollector {
                             record.key.getLength(), XX_HASH_SEED);
                     MVCCRecord mvccRecord = mvccHashMap.compute(keyHashCode, (key, val) -> val);
                     if (mvccRecord == null) {
-                        throw new ExodusException(); //todo replace it with "go search in tree" logic ? VERIFY
+                        throw new ExodusException(); // todo error, search in tree? or just move and remove record?
                     }
                     var lastCommittedOperationReference = findLastCommitted(mvccRecord, keyHashCode, lastCommittedAbortedId);
                     assert lastCommittedOperationReference != null;

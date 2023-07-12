@@ -30,6 +30,7 @@ public class MVCCGarbageCollector {
                 } else {
                     return maxMinId;
                 }
+
             } else {
                 return maxMinId;
             }
