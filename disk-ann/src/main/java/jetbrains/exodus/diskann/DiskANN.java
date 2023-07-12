@@ -1159,17 +1159,14 @@ public final class DiskANN implements AutoCloseable {
                     var vertexIndex = diskCache.get(ValueLayout.JAVA_INT, neighboursOffset);
 
                     if (visitedVertexIndices.add(vertexIndex)) {
+                        if (lookupTable == null) {
+                            lookupTable = buildPQDistanceLookupTable(queryVector);
+                        }
+                        var pqDistance = computePQDistance(lookupTable, vertexIndex);
                         if (nearestCandidates.size() < maxAmountOfCandidates) {
-                            var distance = computeDistance(diskCache,
-                                    vectorOffset(vertexIndex), queryVector);
-                            nearestCandidates.add(vertexIndex, distance, false);
+                            nearestCandidates.add(vertexIndex, pqDistance, true);
                         } else {
-                            if (lookupTable == null) {
-                                lookupTable = buildPQDistanceLookupTable(queryVector);
-                            }
-
                             var lastVertexDistance = nearestCandidates.maxDistance();
-                            var pqDistance = computePQDistance(lookupTable, vertexIndex);
                             if (lastVertexDistance >= pqDistance) {
                                 nearestCandidates.add(vertexIndex, pqDistance, true);
                             }
