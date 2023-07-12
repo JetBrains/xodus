@@ -185,8 +185,11 @@ public final class DiskANN implements AutoCloseable {
 
     public void buildIndex(VectorReader vectorReader) {
         logger.info("Generating PQ codes for vectors...");
+        var startPQ = System.nanoTime();
         generatePQCodes(vectorReader);
-        logger.info("PQ codes for vectors have been generated.");
+        var endPQ = System.nanoTime();
+        logger.info("PQ codes for vectors have been generated. Time spent " + (endPQ - startPQ) / 1_000_000.0 +
+                " ms.");
 
         var size = vectorReader.size();
         try (var graph = new InMemoryGraph(size)) {
@@ -195,10 +198,16 @@ public final class DiskANN implements AutoCloseable {
                 graph.addVector(vector);
             }
 
+
             graph.generateRandomEdges();
             var medoid = graph.medoid();
 
+            logger.info("Search graph has been built. Pruning...");
+            var startPrune = System.nanoTime();
             pruneIndex(size, graph, medoid, distanceMultiplication);
+            var endPrune = System.nanoTime();
+            logger.info("Search graph has been pruned. Time spent " + (endPrune - startPrune) / 1_000_000.0 + " ms.");
+
             graph.saveToDisk();
 
             diskGraph = new DiskGraph(medoid);
