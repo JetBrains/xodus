@@ -10,7 +10,6 @@ import jetbrains.exodus.diskann.collections.NonBlockingHashMapLongLong;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
-import org.jctools.queues.MpscUnboundedArrayQueue;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -226,10 +225,10 @@ public final class DiskANN implements AutoCloseable {
             itemsPerThread = 1;
         }
 
-        var neighborsArray = new MpscUnboundedArrayQueue[size];
+        var neighborsArray = new ConcurrentLinkedQueue[size];
         for (int i = 0; i < size; i++) {
             //noinspection rawtypes
-            neighborsArray[i] = new MpscUnboundedArrayQueue(CORES * maxConnectionsPerVertex);
+            neighborsArray[i] = new ConcurrentLinkedQueue();
         }
 
         var mutatorsCompleted = new AtomicInteger(0);
@@ -257,7 +256,7 @@ public final class DiskANN implements AutoCloseable {
                 var index = 0;
                 while (true) {
                     @SuppressWarnings("unchecked")
-                    var neighbourPairs = (MpscUnboundedArrayQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
+                    var neighbourPairs = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
 
                     if (!neighbourPairs.isEmpty()) {
                         var neighbourPair = neighbourPairs.poll();
@@ -301,7 +300,7 @@ public final class DiskANN implements AutoCloseable {
 
                             @SuppressWarnings("unchecked")
                             var neighboursList =
-                                    (MpscUnboundedArrayQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
+                                    (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
                             neighboursList.add(new IntIntImmutablePair(neighbourIndex, vectorIndex));
                         }
                         index++;
@@ -509,22 +508,51 @@ public final class DiskANN implements AutoCloseable {
 
         if (step == 16) {
             var loopBound = FloatVector.SPECIES_512.loopBound(size);
-            sum += computeL2Distance512(firstVector, firstVectorOffset, secondVector,
-                    secondVectorOffset, loopBound);
-            size -= loopBound;
-            firstVectorOffset += loopBound;
-            secondVectorOffset += loopBound;
+            var batchStep = 4 * step;
+            if (loopBound >= batchStep) {
+                var batchLoopBound = loopBound & (-batchStep);
+
+                sum += computeL2Distance512Batch(firstVector, firstVectorOffset, secondVector,
+                        secondVectorOffset, batchLoopBound);
+                size -= batchLoopBound;
+                firstVectorOffset += batchLoopBound;
+                secondVectorOffset += batchLoopBound;
+                loopBound -= batchLoopBound;
+            }
+
+            if (loopBound > 0) {
+                sum += computeL2Distance512(firstVector, firstVectorOffset, secondVector,
+                        secondVectorOffset, loopBound);
+                size -= loopBound;
+                firstVectorOffset += loopBound;
+                secondVectorOffset += loopBound;
+            }
 
             step = closestSIMDStep(8, size);
         }
+
         if (step == 8) {
             var loopBound = FloatVector.SPECIES_256.loopBound(size);
-            sum += computeL2Distance256(firstVector, firstVectorOffset, secondVector,
-                    secondVectorOffset, loopBound);
-            size -= loopBound;
+            var batchStep = 4 * step;
+            if (loopBound >= batchStep) {
+                var batchLoopBound = loopBound & (-batchStep);
 
-            firstVectorOffset += loopBound;
-            secondVectorOffset += loopBound;
+                sum += computeL2Distance256Batch(firstVector, firstVectorOffset, secondVector,
+                        secondVectorOffset, batchLoopBound);
+                size -= batchLoopBound;
+                firstVectorOffset += batchLoopBound;
+                secondVectorOffset += batchLoopBound;
+                loopBound -= batchLoopBound;
+            }
+
+            if (loopBound > 0) {
+                sum += computeL2Distance256(firstVector, firstVectorOffset, secondVector,
+                        secondVectorOffset, loopBound);
+                size -= loopBound;
+
+                firstVectorOffset += loopBound;
+                secondVectorOffset += loopBound;
+            }
         }
 
         if (size > 0) {
@@ -632,6 +660,97 @@ public final class DiskANN implements AutoCloseable {
         }
 
         return sumVector.reduceLanes(VectorOperators.ADD);
+    }
+
+    static float computeL2Distance512Batch(final float[] firstVector, int firstVectorOffset,
+                                           final float[] secondVector, int secondVectorOffset, int size) {
+        assert size == FloatVector.SPECIES_512.loopBound(size);
+
+        var firstVectorOffset_1 = firstVectorOffset;
+        var firstVectorOffset_2 = firstVectorOffset + 16;
+        var firstVectorOffset_3 = firstVectorOffset + 32;
+        var firstVectorOffset_4 = firstVectorOffset + 48;
+
+        var secondVectorOffset_1 = secondVectorOffset;
+        var secondVectorOffset_2 = secondVectorOffset + 16;
+        var secondVectorOffset_3 = secondVectorOffset + 32;
+        var secondVectorOffset_4 = secondVectorOffset + 48;
+
+        var first_1 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                firstVectorOffset_1);
+        var second_1 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                secondVectorOffset_1);
+        var diffVector_1 = first_1.sub(second_1);
+        var sumVector_1 = diffVector_1.mul(diffVector_1);
+
+        var first_2 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                firstVectorOffset_2);
+        var second_2 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                secondVectorOffset_2);
+        var diffVector_2 = first_2.sub(second_2);
+        var sumVector_2 = diffVector_2.mul(diffVector_2);
+
+        var first_3 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                firstVectorOffset_3);
+        var second_3 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                secondVectorOffset_3);
+        var diffVector_3 = first_3.sub(second_3);
+        var sumVector_3 = diffVector_3.mul(diffVector_3);
+
+        var first_4 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                firstVectorOffset_4);
+        var second_4 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                secondVectorOffset_4);
+        var diffVector_4 = first_4.sub(second_4);
+        var sumVector_4 = diffVector_4.mul(diffVector_4);
+
+        firstVectorOffset_1 = firstVectorOffset_1 + 16;
+        firstVectorOffset_2 = firstVectorOffset_2 + 16;
+        firstVectorOffset_3 = firstVectorOffset_3 + 16;
+        firstVectorOffset_4 = firstVectorOffset_4 + 16;
+
+        secondVectorOffset_1 = secondVectorOffset_1 + 16;
+        secondVectorOffset_2 = secondVectorOffset_2 + 16;
+        secondVectorOffset_3 = secondVectorOffset_3 + 16;
+        secondVectorOffset_4 = secondVectorOffset_4 + 16;
+
+
+        for (var index = 64; index < size; index += 64,
+                firstVectorOffset_1 += 16, firstVectorOffset_2 += 16,
+                firstVectorOffset_3 += 16, firstVectorOffset_4 += 16,
+                secondVectorOffset_1 += 16, secondVectorOffset_2 += 16,
+                secondVectorOffset_3 += 16, secondVectorOffset_4 += 16) {
+            first_1 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                    firstVectorOffset_1);
+            second_1 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                    secondVectorOffset_1);
+
+            diffVector_1 = first_1.sub(second_1);
+            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+
+            first_2 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                    firstVectorOffset_2);
+            second_2 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                    secondVectorOffset_2);
+            diffVector_2 = first_2.sub(second_2);
+            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+
+            first_3 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                    firstVectorOffset_3);
+            second_3 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                    secondVectorOffset_3);
+            diffVector_3 = first_3.sub(second_3);
+            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
+
+            first_4 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                    firstVectorOffset_4);
+            second_4 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                    secondVectorOffset_4);
+            diffVector_4 = first_4.sub(second_4);
+            sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
+        }
+
+        return sumVector_1.add(sumVector_2).add(sumVector_3).add(sumVector_4).reduceLanes(VectorOperators.ADD);
     }
 
     static float computeL2Distance512(final MemorySegment firstSegment, long firstSegmentOffset,
@@ -753,6 +872,96 @@ public final class DiskANN implements AutoCloseable {
         }
 
         return sumVector.reduceLanes(VectorOperators.ADD);
+    }
+
+    static float computeL2Distance256Batch(final float[] firstVector, int firstVectorOffset,
+                                           final float[] secondVector, int secondVectorOffset, int size) {
+        assert size == FloatVector.SPECIES_256.loopBound(size);
+
+        var firstVectorOffset_1 = firstVectorOffset;
+        var firstVectorOffset_2 = firstVectorOffset + 8;
+        var firstVectorOffset_3 = firstVectorOffset + 16;
+        var firstVectorOffset_4 = firstVectorOffset + 24;
+
+        var secondVectorOffset_1 = secondVectorOffset;
+        var secondVectorOffset_2 = secondVectorOffset + 8;
+        var secondVectorOffset_3 = secondVectorOffset + 8;
+        var secondVectorOffset_4 = secondVectorOffset + 8;
+
+        var first_1 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                firstVectorOffset_1);
+        var second_1 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                secondVectorOffset_1);
+        var diffVector_1 = first_1.sub(second_1);
+        var sumVector_1 = diffVector_1.mul(diffVector_1);
+
+        var first_2 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                firstVectorOffset_2);
+        var second_2 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                secondVectorOffset_2);
+        var diffVector_2 = first_2.sub(second_2);
+        var sumVector_2 = diffVector_2.mul(diffVector_2);
+
+        var first_3 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                firstVectorOffset_3);
+        var second_3 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                secondVectorOffset_3);
+        var diffVector_3 = first_3.sub(second_3);
+        var sumVector_3 = diffVector_3.mul(diffVector_3);
+
+        var first_4 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                firstVectorOffset_4);
+        var second_4 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                secondVectorOffset_4);
+        var diffVector_4 = first_4.sub(second_4);
+        var sumVector_4 = diffVector_4.mul(diffVector_4);
+
+        firstVectorOffset_1 = firstVectorOffset_1 + 8;
+        firstVectorOffset_2 = firstVectorOffset_2 + 8;
+        firstVectorOffset_3 = firstVectorOffset_3 + 8;
+        firstVectorOffset_4 = firstVectorOffset_4 + 8;
+
+        secondVectorOffset_1 = secondVectorOffset_1 + 8;
+        secondVectorOffset_2 = secondVectorOffset_2 + 8;
+        secondVectorOffset_3 = secondVectorOffset_3 + 8;
+        secondVectorOffset_4 = secondVectorOffset_4 + 8;
+
+        for (var index = 32; index < size; index += 32,
+                firstVectorOffset_1 += 8, firstVectorOffset_2 += 8,
+                firstVectorOffset_3 += 8, firstVectorOffset_4 += 8,
+                secondVectorOffset_1 += 8, secondVectorOffset_2 += 8,
+                secondVectorOffset_3 += 8, secondVectorOffset_4 += 8) {
+            first_1 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                    firstVectorOffset_1);
+            second_1 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                    secondVectorOffset_1);
+
+            diffVector_1 = first_1.sub(second_1);
+            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+
+            first_2 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                    firstVectorOffset_2);
+            second_2 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                    secondVectorOffset_2);
+            diffVector_2 = first_2.sub(second_2);
+            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+
+            first_3 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                    firstVectorOffset_3);
+            second_3 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                    secondVectorOffset_3);
+            diffVector_3 = first_3.sub(second_3);
+            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
+
+            first_4 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                    firstVectorOffset_4);
+            second_4 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                    secondVectorOffset_4);
+            diffVector_4 = first_4.sub(second_4);
+            sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
+        }
+
+        return sumVector_1.add(sumVector_2).add(sumVector_3).add(sumVector_4).reduceLanes(VectorOperators.ADD);
     }
 
     static float computeL2Distance128(final MemorySegment firstSegment, long firstSegmentOffset,

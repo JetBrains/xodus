@@ -120,6 +120,13 @@ public class L2DistanceBench {
         return DiskANN.computeL2Distance(segment1, 0, segment2, 0, VECTOR_SIZE);
     }
 
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.NANOSECONDS)
+    @BenchmarkMode(Mode.AverageTime)
+    public float computeL2DistanceVectorMemorySegmentDiskANNSegmentVector() {
+        return DiskANN.computeL2Distance(segment1, 0, vector2, 0);
+    }
+
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()
                 .include(L2DistanceBench.class.getSimpleName())
