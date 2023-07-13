@@ -10,6 +10,7 @@ import jetbrains.exodus.diskann.collections.NonBlockingHashMapLongLong;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
+import org.jctools.queues.MpscUnboundedArrayQueue;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -225,9 +226,10 @@ public final class DiskANN implements AutoCloseable {
             itemsPerThread = 1;
         }
 
-        var neighborsArray = new ConcurrentLinkedQueue[size];
+        var neighborsArray = new MpscUnboundedArrayQueue[size];
         for (int i = 0; i < size; i++) {
-            neighborsArray[i] = new ConcurrentLinkedQueue<>();
+            //noinspection rawtypes
+            neighborsArray[i] = new MpscUnboundedArrayQueue(CORES * maxConnectionsPerVertex);
         }
 
         var mutatorsCompleted = new AtomicInteger(0);
@@ -255,7 +257,7 @@ public final class DiskANN implements AutoCloseable {
                 var index = 0;
                 while (true) {
                     @SuppressWarnings("unchecked")
-                    var neighbourPairs = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
+                    var neighbourPairs = (MpscUnboundedArrayQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
 
                     if (!neighbourPairs.isEmpty()) {
                         var neighbourPair = neighbourPairs.poll();
@@ -298,7 +300,8 @@ public final class DiskANN implements AutoCloseable {
                             var neighbourMutatorIndex = neighbourIndex % mutatorsCount;
 
                             @SuppressWarnings("unchecked")
-                            var neighboursList = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
+                            var neighboursList =
+                                    (MpscUnboundedArrayQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
                             neighboursList.add(new IntIntImmutablePair(neighbourIndex, vectorIndex));
                         }
                         index++;
