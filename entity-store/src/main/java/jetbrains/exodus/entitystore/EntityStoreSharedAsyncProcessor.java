@@ -19,14 +19,21 @@ import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.JobProcessorExceptionHandler;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.function.Function;
 
 public final class EntityStoreSharedAsyncProcessor extends MultiThreadDelegatingJobProcessor {
 
     private static final String THREAD_NAME = EntityStoreSharedAsyncProcessor.class.getSimpleName();
     private static final Logger logger = LoggerFactory.getLogger(EntityStoreSharedAsyncProcessor.class);
     private static final JobProcessorExceptionHandler EXCEPTION_HANDLER = new EntityStoreSharedAsyncProcessorExceptionHandler();
+
+    private volatile Function<Job, Void> beforeJobHandler = null;
+    private volatile Function<Job, Void> afterJobHandler = null;
+
 
     public EntityStoreSharedAsyncProcessor(final int threadCount) {
         super(THREAD_NAME, assertEven(threadCount));
@@ -46,5 +53,31 @@ public final class EntityStoreSharedAsyncProcessor extends MultiThreadDelegating
             throw new EntityStoreException("EntityStoreSharedAsyncProcessor threadCount should be even");
         }
         return threadCount;
+    }
+
+    @SuppressWarnings("unused")
+    public void setBeforeJobHandler(Function<Job, Void> beforeJobHandler) {
+        this.beforeJobHandler = beforeJobHandler;
+    }
+
+    @SuppressWarnings("unused")
+    public void setAfterJobHandler(Function<Job, Void> afterJobHandler) {
+        this.afterJobHandler = afterJobHandler;
+    }
+
+    @Override
+    public void beforeProcessingJob(@NotNull Job job) {
+        super.beforeProcessingJob(job);
+        if (beforeJobHandler != null) {
+            beforeJobHandler.apply(job);
+        }
+    }
+
+    @Override
+    public void afterProcessingJob(@NotNull Job job) {
+        super.afterProcessingJob(job);
+        if (afterJobHandler != null) {
+            afterJobHandler.apply(job);
+        }
     }
 }
