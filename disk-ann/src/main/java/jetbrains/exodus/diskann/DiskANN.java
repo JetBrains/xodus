@@ -371,8 +371,9 @@ public final class DiskANN implements AutoCloseable {
             var centroids = pqCentroids[i];
 
             for (int j = 0; j < centroids.length; j++) {
-                var distance = computeDistance(distanceFunction, centroids[j], vector,
-                        i * pqSubVectorSize);
+                var centroid = centroids[j];
+                var distance = computeDistance(distanceFunction, centroid, vector,
+                        i * pqSubVectorSize, centroid.length);
                 lookupTable[i * (1 << Byte.SIZE) + j] = distance;
             }
         }
@@ -397,7 +398,9 @@ public final class DiskANN implements AutoCloseable {
         var minIndex = -1;
 
         for (int i = 0; i < centroids.length; i++) {
-            var distance = DiskANN.computeDistance(distanceFunction, centroids[i], vector, from);
+            var centroid = centroids[i];
+            var distance = DiskANN.computeDistance(distanceFunction, centroid, vector, from,
+                    centroid.length);
 
             if (distance < minDistance) {
                 minDistance = distance;
@@ -455,9 +458,10 @@ public final class DiskANN implements AutoCloseable {
     }
 
 
-    static float computeDistance(final byte distanceFunction, float[] firstVector, float[] secondVector, int secondVectorFrom) {
+    static float computeDistance(final byte distanceFunction, float[] firstVector, float[] secondVector,
+                                 int secondVectorFrom, int size) {
         if (distanceFunction == L2_DISTANCE) {
-            return computeL2Distance(firstVector, 0, secondVector, secondVectorFrom);
+            return computeL2Distance(firstVector, 0, secondVector, secondVectorFrom, size);
         } else if (distanceFunction == DOT_DISTANCE) {
             return computeDotDistance(firstVector, secondVector, secondVectorFrom);
         } else {
@@ -500,10 +504,10 @@ public final class DiskANN implements AutoCloseable {
     }
 
     public static float computeL2Distance(final float[] firstVector, int firstVectorOffset,
-                                          final float[] secondVector, int secondVectorOffset) {
+                                          final float[] secondVector, int secondVectorOffset,
+                                          int size) {
         var sum = 0.0f;
 
-        var size = firstVector.length;
         var step = closestSIMDStep(SPECIES.length(), size);
 
         if (step == 16) {
@@ -567,7 +571,7 @@ public final class DiskANN implements AutoCloseable {
                                           final float[] secondVector, int secondVectorOffset) {
         var sum = 0.0f;
 
-        var size = secondVector.length;
+        var size = secondVector.length - secondVectorOffset;
         var step = closestSIMDStep(SPECIES.length(), size);
 
         if (step == 16) {
@@ -678,30 +682,31 @@ public final class DiskANN implements AutoCloseable {
 
         var first_1 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                 firstVectorOffset_1);
-        var second_1 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
-                secondVectorOffset_1);
-        var diffVector_1 = first_1.sub(second_1);
-        var sumVector_1 = diffVector_1.mul(diffVector_1);
-
         var first_2 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                 firstVectorOffset_2);
-        var second_2 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
-                secondVectorOffset_2);
-        var diffVector_2 = first_2.sub(second_2);
-        var sumVector_2 = diffVector_2.mul(diffVector_2);
-
         var first_3 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                 firstVectorOffset_3);
-        var second_3 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
-                secondVectorOffset_3);
-        var diffVector_3 = first_3.sub(second_3);
-        var sumVector_3 = diffVector_3.mul(diffVector_3);
-
         var first_4 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                 firstVectorOffset_4);
+
+        var second_1 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                secondVectorOffset_1);
+        var second_2 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                secondVectorOffset_2);
+        var second_3 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                secondVectorOffset_3);
         var second_4 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
                 secondVectorOffset_4);
+
+        var diffVector_1 = first_1.sub(second_1);
+        var diffVector_2 = first_2.sub(second_2);
+        var diffVector_3 = first_3.sub(second_3);
         var diffVector_4 = first_4.sub(second_4);
+
+
+        var sumVector_1 = diffVector_1.mul(diffVector_1);
+        var sumVector_2 = diffVector_2.mul(diffVector_2);
+        var sumVector_3 = diffVector_3.mul(diffVector_3);
         var sumVector_4 = diffVector_4.mul(diffVector_4);
 
         firstVectorOffset_1 = firstVectorOffset_1 + 16;
@@ -722,31 +727,30 @@ public final class DiskANN implements AutoCloseable {
                 secondVectorOffset_3 += 16, secondVectorOffset_4 += 16) {
             first_1 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                     firstVectorOffset_1);
-            second_1 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
-                    secondVectorOffset_1);
-
-            diffVector_1 = first_1.sub(second_1);
-            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
-
             first_2 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                     firstVectorOffset_2);
-            second_2 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
-                    secondVectorOffset_2);
-            diffVector_2 = first_2.sub(second_2);
-            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
-
             first_3 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                     firstVectorOffset_3);
-            second_3 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
-                    secondVectorOffset_3);
-            diffVector_3 = first_3.sub(second_3);
-            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
-
             first_4 = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                     firstVectorOffset_4);
+
+            second_1 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                    secondVectorOffset_1);
+            second_2 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                    secondVectorOffset_2);
+            second_3 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                    secondVectorOffset_3);
             second_4 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
                     secondVectorOffset_4);
+
+            diffVector_2 = first_2.sub(second_2);
+            diffVector_1 = first_1.sub(second_1);
+            diffVector_3 = first_3.sub(second_3);
             diffVector_4 = first_4.sub(second_4);
+
+            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
             sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
         }
 
@@ -885,35 +889,37 @@ public final class DiskANN implements AutoCloseable {
 
         var secondVectorOffset_1 = secondVectorOffset;
         var secondVectorOffset_2 = secondVectorOffset + 8;
-        var secondVectorOffset_3 = secondVectorOffset + 8;
-        var secondVectorOffset_4 = secondVectorOffset + 8;
+        var secondVectorOffset_3 = secondVectorOffset + 16;
+        var secondVectorOffset_4 = secondVectorOffset + 24;
 
         var first_1 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                 firstVectorOffset_1);
-        var second_1 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
-                secondVectorOffset_1);
-        var diffVector_1 = first_1.sub(second_1);
-        var sumVector_1 = diffVector_1.mul(diffVector_1);
-
         var first_2 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                 firstVectorOffset_2);
-        var second_2 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
-                secondVectorOffset_2);
-        var diffVector_2 = first_2.sub(second_2);
-        var sumVector_2 = diffVector_2.mul(diffVector_2);
-
         var first_3 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                 firstVectorOffset_3);
-        var second_3 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
-                secondVectorOffset_3);
-        var diffVector_3 = first_3.sub(second_3);
-        var sumVector_3 = diffVector_3.mul(diffVector_3);
-
         var first_4 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                 firstVectorOffset_4);
+
+        var second_1 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                secondVectorOffset_1);
+        var second_2 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                secondVectorOffset_2);
+        var second_3 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                secondVectorOffset_3);
         var second_4 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
                 secondVectorOffset_4);
+
+
+        var diffVector_1 = first_1.sub(second_1);
+        var diffVector_2 = first_2.sub(second_2);
+        var diffVector_3 = first_3.sub(second_3);
         var diffVector_4 = first_4.sub(second_4);
+
+
+        var sumVector_1 = diffVector_1.mul(diffVector_1);
+        var sumVector_2 = diffVector_2.mul(diffVector_2);
+        var sumVector_3 = diffVector_3.mul(diffVector_3);
         var sumVector_4 = diffVector_4.mul(diffVector_4);
 
         firstVectorOffset_1 = firstVectorOffset_1 + 8;
@@ -933,31 +939,30 @@ public final class DiskANN implements AutoCloseable {
                 secondVectorOffset_3 += 8, secondVectorOffset_4 += 8) {
             first_1 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                     firstVectorOffset_1);
-            second_1 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
-                    secondVectorOffset_1);
-
-            diffVector_1 = first_1.sub(second_1);
-            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
-
             first_2 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                     firstVectorOffset_2);
-            second_2 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
-                    secondVectorOffset_2);
-            diffVector_2 = first_2.sub(second_2);
-            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
-
             first_3 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                     firstVectorOffset_3);
-            second_3 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
-                    secondVectorOffset_3);
-            diffVector_3 = first_3.sub(second_3);
-            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
-
             first_4 = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                     firstVectorOffset_4);
+
+            second_1 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                    secondVectorOffset_1);
+            second_2 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                    secondVectorOffset_2);
+            second_3 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                    secondVectorOffset_3);
             second_4 = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
                     secondVectorOffset_4);
+
+            diffVector_1 = first_1.sub(second_1);
+            diffVector_2 = first_2.sub(second_2);
+            diffVector_3 = first_3.sub(second_3);
             diffVector_4 = first_4.sub(second_4);
+
+            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
             sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
         }
 
@@ -1001,7 +1006,7 @@ public final class DiskANN implements AutoCloseable {
             }
 
             if (index < size) {
-                var mask = FloatVector.SPECIES_128.indexInRange(index, size);
+                var mask = FloatVector.SPECIES_128.indexInRange(index, index + size);
 
                 first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                         firstSegmentOffset, ByteOrder.nativeOrder(), mask);
@@ -1014,7 +1019,7 @@ public final class DiskANN implements AutoCloseable {
 
             sum = sumVector.reduceLanes(VectorOperators.ADD);
         } else {
-            var mask = FloatVector.SPECIES_128.indexInRange(index, size);
+            var mask = FloatVector.SPECIES_128.indexInRange(index, index + size);
 
             var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder(), mask);
@@ -1066,7 +1071,7 @@ public final class DiskANN implements AutoCloseable {
             }
 
             if (index < size) {
-                var mask = FloatVector.SPECIES_128.indexInRange(index, size);
+                var mask = FloatVector.SPECIES_128.indexInRange(index, index + size);
 
                 first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                         firstSegmentOffset, ByteOrder.nativeOrder(), mask);
@@ -1079,7 +1084,7 @@ public final class DiskANN implements AutoCloseable {
 
             sum = sumVector.reduceLanes(VectorOperators.ADD);
         } else {
-            var mask = FloatVector.SPECIES_128.indexInRange(index, size);
+            var mask = FloatVector.SPECIES_128.indexInRange(index, index + size);
 
             var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder(), mask);
@@ -1126,7 +1131,7 @@ public final class DiskANN implements AutoCloseable {
             }
 
             if (index < size) {
-                var mask = FloatVector.SPECIES_128.indexInRange(index, size);
+                var mask = FloatVector.SPECIES_128.indexInRange(index, index + size);
 
                 first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
                         firstVectorOffset, mask);
@@ -1139,7 +1144,7 @@ public final class DiskANN implements AutoCloseable {
 
             sum = sumVector.reduceLanes(VectorOperators.ADD);
         } else {
-            var mask = FloatVector.SPECIES_128.indexInRange(index, size);
+            var mask = FloatVector.SPECIES_128.indexInRange(index, index + size);
 
             var first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
                     firstVectorOffset, mask);

@@ -109,21 +109,21 @@ public class L2DistanceBench {
     @Benchmark
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
-    public float computeL2DistanceVectorMemorySegmentDiskANNVector() {
-        return DiskANN.computeL2Distance(vector1, 0, vector2, 0);
+    public float computeL2DistanceDiskANNVector() {
+        return DiskANN.computeL2Distance(vector1, 0, vector2, 0, VECTOR_SIZE);
     }
 
     @Benchmark
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
-    public float computeL2DistanceVectorMemorySegmentDiskANNSegment() {
+    public float computeL2DistanceDiskANNSegment() {
         return DiskANN.computeL2Distance(segment1, 0, segment2, 0, VECTOR_SIZE);
     }
 
     @Benchmark
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
-    public float computeL2DistanceVectorMemorySegmentDiskANNSegmentVector() {
+    public float computeL2DistanceDiskANNSegmentVector() {
         return DiskANN.computeL2Distance(segment1, 0, vector2, 0);
     }
 

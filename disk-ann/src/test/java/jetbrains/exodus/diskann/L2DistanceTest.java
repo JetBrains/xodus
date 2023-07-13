@@ -148,4 +148,71 @@ public class L2DistanceTest {
             Assert.assertEquals(sum, distance, 0.0f);
         }
     }
+
+    @Test
+    public void testSmallVectorsZeroOffset() {
+        var firstVector = new float[]{2.0f, 3.0f};
+        var secondVector = new float[]{4.0f, 5.0f};
+
+        var distance = DiskANN.computeL2Distance(firstVector, 0, secondVector, 0, 2);
+        Assert.assertEquals(8.0f, distance, 0.0f);
+    }
+
+    @Test
+    public void testBigVectorsZeroOffset() {
+        var count = 43;
+        var firstVector = new float[count];
+        var secondVector = new float[count];
+
+        var sum = 0.0f;
+        for (var i = 0; i < count; i++) {
+            firstVector[i] = 1.0f * i;
+            secondVector[i] = 3.0f * i;
+            sum += 4.0 * i * i;
+        }
+
+
+        var distance = DiskANN.computeL2Distance(firstVector, 0, secondVector, 0, count);
+        Assert.assertEquals(sum, distance, 0.0f);
+    }
+
+    @Test
+    public void testSmallVectorsNonZeroOffset() {
+        var firstVector = new float[]{42.0f, 2.0f, 3.0f};
+        var secondVector = new float[]{42.0f, 3.0f, 4.0f, 5.0f};
+
+        var distance = DiskANN.computeL2Distance(firstVector, 1, secondVector,
+                2, 2);
+        Assert.assertEquals(8.0f, distance, 0.0f);
+    }
+
+    @Test
+    public void testBigVectorsOffset() {
+        var count = 43;
+
+        var firstVector = new float[count + 5];
+        var secondVector = new float[count + 5];
+
+        firstVector[0] = 42.0f;
+        secondVector[0] = 24.0f;
+
+        firstVector[1] = 32.0f;
+        secondVector[1] = 23.0f;
+
+        secondVector[2] = 3.0f;
+
+        var sum = 0.0f;
+        var firstOffset = 2;
+        var secondOffset = 3;
+        for (var i = 0; i < count; i++) {
+            firstVector[i + firstOffset] = 1.0f * i;
+            secondVector[i + secondOffset] = 3.0f * i;
+            sum += 4.0 * i * i;
+        }
+
+
+        var distance = DiskANN.computeL2Distance(firstVector, firstOffset, secondVector,
+                secondOffset, count);
+        Assert.assertEquals(sum, distance, 0.0f);
+    }
 }
