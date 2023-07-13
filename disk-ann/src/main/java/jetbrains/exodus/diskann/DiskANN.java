@@ -477,22 +477,49 @@ public final class DiskANN implements AutoCloseable {
 
         if (step == 16) {
             var loopBound = FloatVector.SPECIES_512.loopBound(size);
-            sum += computeL2Distance512(firstSegment, firstSegmentOffset, secondSegment,
-                    secondSegmentOffset, loopBound);
-            size -= loopBound;
-            firstSegmentOffset += (long) loopBound * Float.BYTES;
-            secondSegmentOffset += (long) loopBound * Float.BYTES;
+            var batchStep = 4 * step;
+            if (loopBound >= batchStep) {
+                var batchLoopBound = loopBound & (-batchStep);
 
-            step = closestSIMDStep(8, size);
+                sum += computeL2Distance512Batch(firstSegment, firstSegmentOffset, secondSegment,
+                        secondSegmentOffset, batchLoopBound);
+                size -= batchLoopBound;
+                firstSegmentOffset += (long) batchLoopBound * Float.BYTES;
+                secondSegmentOffset += (long) batchLoopBound * Float.BYTES;
+                loopBound -= batchLoopBound;
+            }
+
+            if (loopBound > 0) {
+                sum += computeL2Distance512(firstSegment, firstSegmentOffset, secondSegment,
+                        secondSegmentOffset, loopBound);
+                size -= loopBound;
+                firstSegmentOffset += (long) loopBound * Float.BYTES;
+                secondSegmentOffset += (long) loopBound * Float.BYTES;
+            }
         }
         if (step == 8) {
             var loopBound = FloatVector.SPECIES_256.loopBound(size);
-            sum += computeL2Distance256(firstSegment, firstSegmentOffset, secondSegment,
-                    secondSegmentOffset, loopBound);
-            size -= loopBound;
+            var batchStep = 4 * step;
+            if (loopBound >= batchStep) {
+                var batchLoopBound = loopBound & (-batchStep);
 
-            firstSegmentOffset += (long) loopBound * Float.BYTES;
-            secondSegmentOffset += (long) loopBound * Float.BYTES;
+                sum += computeL2Distance256Batch(firstSegment, firstSegmentOffset, secondSegment,
+                        secondSegmentOffset, batchLoopBound);
+                size -= batchLoopBound;
+
+                firstSegmentOffset += (long) batchLoopBound * Float.BYTES;
+                secondSegmentOffset += (long) batchLoopBound * Float.BYTES;
+                loopBound -= batchLoopBound;
+            }
+
+            if (loopBound > 0) {
+                sum += computeL2Distance256(firstSegment, firstSegmentOffset, secondSegment,
+                        secondSegmentOffset, loopBound);
+                size -= loopBound;
+
+                firstSegmentOffset += (long) loopBound * Float.BYTES;
+                secondSegmentOffset += (long) loopBound * Float.BYTES;
+            }
         }
 
         if (size > 0) {
@@ -639,6 +666,96 @@ public final class DiskANN implements AutoCloseable {
         return sumVector.reduceLanes(VectorOperators.ADD);
     }
 
+    static float computeL2Distance512Batch(final MemorySegment firstSegment, long firstSegmentOffset,
+                                           final MemorySegment secondSegment, long secondSegmentOffset, int size) {
+        assert size == FloatVector.SPECIES_512.loopBound(size);
+
+        var firstSegmentOffset_1 = firstSegmentOffset;
+        var firstSegmentOffset_2 = firstSegmentOffset + 16 * Float.BYTES;
+        var firstSegmentOffset_3 = firstSegmentOffset + 32 * Float.BYTES;
+        var firstSegmentOffset_4 = firstSegmentOffset + 48 * Float.BYTES;
+
+        var secondSegmentOffset_1 = secondSegmentOffset;
+        var secondSegmentOffset_2 = secondSegmentOffset + 16 * Float.BYTES;
+        var secondSegmentOffset_3 = secondSegmentOffset + 32 * Float.BYTES;
+        var secondSegmentOffset_4 = secondSegmentOffset + 48 * Float.BYTES;
+
+        var first_1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                firstSegmentOffset_1, ByteOrder.nativeOrder());
+        var first_2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                firstSegmentOffset_2, ByteOrder.nativeOrder());
+        var first_3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                firstSegmentOffset_3, ByteOrder.nativeOrder());
+        var first_4 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                firstSegmentOffset_4, ByteOrder.nativeOrder());
+
+        var second_1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
+                secondSegmentOffset_1, ByteOrder.nativeOrder());
+        var second_2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
+                secondSegmentOffset_2, ByteOrder.nativeOrder());
+        var second_3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
+                secondSegmentOffset_3, ByteOrder.nativeOrder());
+        var second_4 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
+                secondSegmentOffset_4, ByteOrder.nativeOrder());
+
+        var diffVector_1 = first_1.sub(second_1);
+        var diffVector_2 = first_2.sub(second_2);
+        var diffVector_3 = first_3.sub(second_3);
+        var diffVector_4 = first_4.sub(second_4);
+
+
+        var sumVector_1 = diffVector_1.mul(diffVector_1);
+        var sumVector_2 = diffVector_2.mul(diffVector_2);
+        var sumVector_3 = diffVector_3.mul(diffVector_3);
+        var sumVector_4 = diffVector_4.mul(diffVector_4);
+
+        firstSegmentOffset_1 = firstSegmentOffset_1 + 16 * Float.BYTES;
+        firstSegmentOffset_2 = firstSegmentOffset_2 + 16 * Float.BYTES;
+        firstSegmentOffset_3 = firstSegmentOffset_3 + 16 * Float.BYTES;
+        firstSegmentOffset_4 = firstSegmentOffset_4 + 16 * Float.BYTES;
+
+        secondSegmentOffset_1 = secondSegmentOffset_1 + 16 * Float.BYTES;
+        secondSegmentOffset_2 = secondSegmentOffset_2 + 16 * Float.BYTES;
+        secondSegmentOffset_3 = secondSegmentOffset_3 + 16 * Float.BYTES;
+        secondSegmentOffset_4 = secondSegmentOffset_4 + 16 * Float.BYTES;
+
+        for (var index = 64 * Float.BYTES; index < size; index += 64 * Float.BYTES,
+                firstSegmentOffset_1 += 16 * Float.BYTES, firstSegmentOffset_2 += 16 * Float.BYTES,
+                firstSegmentOffset_3 += 16 * Float.BYTES, firstSegmentOffset_4 += 16 * Float.BYTES,
+                secondSegmentOffset_1 += 16 * Float.BYTES, secondSegmentOffset_2 += 16 * Float.BYTES,
+                secondSegmentOffset_3 += 16 * Float.BYTES, secondSegmentOffset_4 += 16 * Float.BYTES) {
+            first_1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                    firstSegmentOffset_1, ByteOrder.nativeOrder());
+            first_2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                    firstSegmentOffset_2, ByteOrder.nativeOrder());
+            first_3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                    firstSegmentOffset_3, ByteOrder.nativeOrder());
+            first_4 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                    firstSegmentOffset_4, ByteOrder.nativeOrder());
+
+            second_1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
+                    secondSegmentOffset_1, ByteOrder.nativeOrder());
+            second_2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
+                    secondSegmentOffset_2, ByteOrder.nativeOrder());
+            second_3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
+                    secondSegmentOffset_3, ByteOrder.nativeOrder());
+            second_4 = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
+                    secondSegmentOffset_4, ByteOrder.nativeOrder());
+
+            diffVector_1 = first_1.sub(second_1);
+            diffVector_2 = first_2.sub(second_2);
+            diffVector_3 = first_3.sub(second_3);
+            diffVector_4 = first_4.sub(second_4);
+
+            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
+            sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
+        }
+
+        return sumVector_1.add(sumVector_2).add(sumVector_3).add(sumVector_4).reduceLanes(VectorOperators.ADD);
+    }
+
     static float computeL2Distance512(final float[] firstVector, int firstVectorOffset,
                                       final float[] secondVector, int secondVectorOffset, int size) {
         var step = 16;
@@ -719,7 +836,6 @@ public final class DiskANN implements AutoCloseable {
         secondVectorOffset_3 = secondVectorOffset_3 + 16;
         secondVectorOffset_4 = secondVectorOffset_4 + 16;
 
-
         for (var index = 64; index < size; index += 64,
                 firstVectorOffset_1 += 16, firstVectorOffset_2 += 16,
                 firstVectorOffset_3 += 16, firstVectorOffset_4 += 16,
@@ -743,8 +859,8 @@ public final class DiskANN implements AutoCloseable {
             second_4 = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
                     secondVectorOffset_4);
 
-            diffVector_2 = first_2.sub(second_2);
             diffVector_1 = first_1.sub(second_1);
+            diffVector_2 = first_2.sub(second_2);
             diffVector_3 = first_3.sub(second_3);
             diffVector_4 = first_4.sub(second_4);
 
@@ -819,6 +935,97 @@ public final class DiskANN implements AutoCloseable {
         }
 
         return sumVector.reduceLanes(VectorOperators.ADD);
+    }
+
+    static float computeL2Distance256Batch(final MemorySegment firstSegment, long firstSegmentOffset,
+                                           final MemorySegment secondSegment, long secondSegmentOffset, int size) {
+        assert size == FloatVector.SPECIES_256.loopBound(size);
+
+        var firstSegmentOffset_1 = firstSegmentOffset;
+        var firstSegmentOffset_2 = firstSegmentOffset + 8 * Float.BYTES;
+        var firstSegmentOffset_3 = firstSegmentOffset + 16 * Float.BYTES;
+        var firstSegmentOffset_4 = firstSegmentOffset + 24 * Float.BYTES;
+
+        var secondSegmentOffset_1 = secondSegmentOffset;
+        var secondSegmentOffset_2 = secondSegmentOffset + 8 * Float.BYTES;
+        var secondSegmentOffset_3 = secondSegmentOffset + 16 * Float.BYTES;
+        var secondSegmentOffset_4 = secondSegmentOffset + 24 * Float.BYTES;
+
+        var first_1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
+                firstSegmentOffset_1, ByteOrder.nativeOrder());
+        var first_2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
+                firstSegmentOffset_2, ByteOrder.nativeOrder());
+        var first_3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
+                firstSegmentOffset_3, ByteOrder.nativeOrder());
+        var first_4 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
+                firstSegmentOffset_4, ByteOrder.nativeOrder());
+
+        var second_1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
+                secondSegmentOffset_1, ByteOrder.nativeOrder());
+        var second_2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
+                secondSegmentOffset_2, ByteOrder.nativeOrder());
+        var second_3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
+                secondSegmentOffset_3, ByteOrder.nativeOrder());
+        var second_4 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
+                secondSegmentOffset_4, ByteOrder.nativeOrder());
+
+
+        var diffVector_1 = first_1.sub(second_1);
+        var diffVector_2 = first_2.sub(second_2);
+        var diffVector_3 = first_3.sub(second_3);
+        var diffVector_4 = first_4.sub(second_4);
+
+
+        var sumVector_1 = diffVector_1.mul(diffVector_1);
+        var sumVector_2 = diffVector_2.mul(diffVector_2);
+        var sumVector_3 = diffVector_3.mul(diffVector_3);
+        var sumVector_4 = diffVector_4.mul(diffVector_4);
+
+        firstSegmentOffset_1 = firstSegmentOffset_1 + 8 * Float.BYTES;
+        firstSegmentOffset_2 = firstSegmentOffset_2 + 8 * Float.BYTES;
+        firstSegmentOffset_3 = firstSegmentOffset_3 + 8 * Float.BYTES;
+        firstSegmentOffset_4 = firstSegmentOffset_4 + 8 * Float.BYTES;
+
+        secondSegmentOffset_1 = secondSegmentOffset_1 + 8 * Float.BYTES;
+        secondSegmentOffset_2 = secondSegmentOffset_2 + 8 * Float.BYTES;
+        secondSegmentOffset_3 = secondSegmentOffset_3 + 8 * Float.BYTES;
+        secondSegmentOffset_4 = secondSegmentOffset_4 + 8 * Float.BYTES;
+
+        for (var index = 32; index < size; index += 32,
+                firstSegmentOffset_1 += 8 * Float.BYTES, firstSegmentOffset_2 += 8 * Float.BYTES,
+                firstSegmentOffset_3 += 8 * Float.BYTES, firstSegmentOffset_4 += 8 * Float.BYTES,
+                secondSegmentOffset_1 += 8 * Float.BYTES, secondSegmentOffset_2 += 8 * Float.BYTES,
+                secondSegmentOffset_3 += 8 * Float.BYTES, secondSegmentOffset_4 += 8 * Float.BYTES) {
+            first_1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
+                    firstSegmentOffset_1, ByteOrder.nativeOrder());
+            first_2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
+                    firstSegmentOffset_2, ByteOrder.nativeOrder());
+            first_3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
+                    firstSegmentOffset_3, ByteOrder.nativeOrder());
+            first_4 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
+                    firstSegmentOffset_4, ByteOrder.nativeOrder());
+
+            second_1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
+                    secondSegmentOffset_1, ByteOrder.nativeOrder());
+            second_2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
+                    secondSegmentOffset_2, ByteOrder.nativeOrder());
+            second_3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
+                    secondSegmentOffset_3, ByteOrder.nativeOrder());
+            second_4 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
+                    secondSegmentOffset_4, ByteOrder.nativeOrder());
+
+            diffVector_1 = first_1.sub(second_1);
+            diffVector_2 = first_2.sub(second_2);
+            diffVector_3 = first_3.sub(second_3);
+            diffVector_4 = first_4.sub(second_4);
+
+            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
+            sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
+        }
+
+        return sumVector_1.add(sumVector_2).add(sumVector_3).add(sumVector_4).reduceLanes(VectorOperators.ADD);
     }
 
     static float computeL2Distance256(final MemorySegment firstSegment, long firstSegmentOffset,
