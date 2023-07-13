@@ -473,7 +473,7 @@ public final class DiskANN implements AutoCloseable {
     }
 
     public static float computeL2Distance(final MemorySegment firstSegment, long firstSegmentOffset,
-                                   final MemorySegment secondSegment, long secondSegmentOffset, int size) {
+                                          final MemorySegment secondSegment, long secondSegmentOffset, int size) {
         var sum = 0.0f;
 
         var step = closestSIMDStep(SPECIES.length(), size);
@@ -636,38 +636,6 @@ public final class DiskANN implements AutoCloseable {
         }
 
         return sum;
-    }
-
-    static float computeL2Distance64(final MemorySegment firstSegment, long firstSegmentOffset,
-                                     final MemorySegment secondSegment, long secondSegmentOffset,
-                                     int size) {
-        var step = 2;
-        var segmentStep = 2 * Float.BYTES;
-
-        assert size == FloatVector.SPECIES_64.loopBound(size);
-
-        var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_64, firstSegment,
-                firstSegmentOffset, ByteOrder.nativeOrder());
-        var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_64, secondSegment,
-                secondSegmentOffset, ByteOrder.nativeOrder());
-        var diffVector = first.sub(second);
-        var sumVector = diffVector.mul(diffVector);
-
-        firstSegmentOffset += segmentStep;
-        secondSegmentOffset += segmentStep;
-
-        for (var index = step; index < size; index += step, firstSegmentOffset += segmentStep,
-                secondSegmentOffset += segmentStep) {
-            first = FloatVector.fromMemorySegment(FloatVector.SPECIES_64, firstSegment,
-                    firstSegmentOffset, ByteOrder.nativeOrder());
-            second = FloatVector.fromMemorySegment(FloatVector.SPECIES_64, secondSegment,
-                    secondSegmentOffset, ByteOrder.nativeOrder());
-            diffVector = first.sub(second);
-
-            sumVector = diffVector.fma(diffVector, sumVector);
-        }
-
-        return sumVector.reduceLanes(VectorOperators.ADD);
     }
 
     static float computeL2Distance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
