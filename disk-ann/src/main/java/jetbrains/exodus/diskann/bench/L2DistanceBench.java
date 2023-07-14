@@ -37,6 +37,9 @@ public class L2DistanceBench {
         var rnd = ThreadLocalRandom.current();
         vector1 = new float[VECTOR_SIZE];
         vector2 = new float[VECTOR_SIZE];
+        vector3 = new float[VECTOR_SIZE];
+        vector4 = new float[VECTOR_SIZE];
+        vector5 = new float[VECTOR_SIZE];
 
         for (int i = 0; i < VECTOR_SIZE; i++) {
             vector1[i] = rnd.nextFloat();
