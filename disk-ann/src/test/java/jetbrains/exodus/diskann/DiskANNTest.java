@@ -73,7 +73,8 @@ public class DiskANNTest {
                 ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / vectorsCount;
 
-                System.out.printf("Avg. query %d time us, errors: %f%%%n", (ts2 - ts1) / 1000 / vectorsCount, errorPercentage);
+                System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%%n",
+                        (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg());
                 Assert.assertTrue(errorPercentage <= 5);
 
             }
@@ -203,8 +204,8 @@ public class DiskANNTest {
             ts2 = System.nanoTime();
             var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-            System.out.printf("Avg. query time : %d us, errors: %f%%%n",
-                    (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage);
+            System.out.printf("Avg. query time : %d us, errors: %f%%  pq error %f%%%n",
+                    (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage, diskANN.getPQErrorAvg());
             Assert.assertTrue(errorPercentage <= 5);
         }
 

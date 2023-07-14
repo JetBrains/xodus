@@ -133,8 +133,9 @@ final class BenchUtils {
                 ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-                System.out.printf("Avg. query time : %d us, errors: %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage);
+                System.out.printf("Avg. query time : %d us, errors: %f%% pq error %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
+                        errorPercentage, diskANN.getPQErrorAvg());
+                diskANN.resetPQErrorStat();
 
             }
 

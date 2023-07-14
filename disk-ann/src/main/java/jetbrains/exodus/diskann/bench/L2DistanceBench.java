@@ -3,7 +3,7 @@ package jetbrains.exodus.diskann.bench;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
-import jetbrains.exodus.diskann.DiskANN;
+import jetbrains.exodus.diskann.L2Distance;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.options.Options;
@@ -110,21 +110,21 @@ public class L2DistanceBench {
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
     public float computeL2DistanceDiskANNVector() {
-        return DiskANN.computeL2Distance(vector1, 0, vector2, 0, VECTOR_SIZE);
+        return L2Distance.computeL2Distance(vector1, 0, vector2, 0, VECTOR_SIZE);
     }
 
     @Benchmark
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
     public float computeL2DistanceDiskANNSegment() {
-        return DiskANN.computeL2Distance(segment1, 0, segment2, 0, VECTOR_SIZE);
+        return L2Distance.computeL2Distance(segment1, 0, segment2, 0, VECTOR_SIZE);
     }
 
     @Benchmark
     @OutputTimeUnit(TimeUnit.NANOSECONDS)
     @BenchmarkMode(Mode.AverageTime)
     public float computeL2DistanceDiskANNSegmentVector() {
-        return DiskANN.computeL2Distance(segment1, 0, vector2, 0);
+        return L2Distance.computeL2Distance(segment1, 0, vector2, 0);
     }
 
     public static void main(String[] args) throws Exception {
