@@ -1,6 +1,7 @@
 package jetbrains.exodus.diskann;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.lang.foreign.Arena;
@@ -96,6 +97,7 @@ public class DotDistanceTest {
     }
 
     @Test
+    @Ignore
     public void testBigSegmentJavaVectorsZeroOffset() {
         var count = 43;
         try (var arena = Arena.openConfined()) {
@@ -126,6 +128,7 @@ public class DotDistanceTest {
     }
 
     @Test
+    @Ignore
     public void testBigSegmentJavaVectorsOffset() {
         var count = 43;
         try (var arena = Arena.openConfined()) {

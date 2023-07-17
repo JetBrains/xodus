@@ -8,9 +8,6 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -26,11 +23,6 @@ public class L2DistanceBench {
     private float[] vector3;
     private float[] vector4;
     private float[] vector5;
-
-    private MemorySegment segment1;
-    private MemorySegment segment2;
-
-    private Arena arena;
 
     @Setup(Level.Iteration)
     public void init() {
@@ -49,20 +41,6 @@ public class L2DistanceBench {
             vector5[i] = rnd.nextFloat();
         }
 
-        arena = Arena.openShared();
-
-        segment1 = arena.allocate(Float.BYTES * VECTOR_SIZE, Float.BYTES);
-        segment2 = arena.allocate(Float.BYTES * VECTOR_SIZE, Float.BYTES);
-
-        for (int i = 0; i < VECTOR_SIZE; i++) {
-            segment1.setAtIndex(ValueLayout.JAVA_FLOAT, i, vector1[i]);
-            segment2.setAtIndex(ValueLayout.JAVA_FLOAT, i, vector2[i]);
-        }
-    }
-
-    @TearDown(Level.Iteration)
-    public void tearDown() {
-        arena.close();
     }
 
     @Benchmark
@@ -139,52 +117,6 @@ public class L2DistanceBench {
         bh.consume(sumVector_4.reduceLanes(VectorOperators.ADD));
     }
 
-//    @Benchmark
-//    @OutputTimeUnit(TimeUnit.NANOSECONDS)
-//    @BenchmarkMode(Mode.AverageTime)
-//    public float computeL2DistanceVectorMemorySegment() {
-//        var first = FloatVector.fromMemorySegment(species, segment1, 0, ByteOrder.nativeOrder());
-//        var second = FloatVector.fromMemorySegment(species, segment2, 0, ByteOrder.nativeOrder());
-//        var diff = first.sub(second);
-//
-//        var sumVector = diff.mul(diff);
-//
-//        var loopBound = species.loopBound(VECTOR_SIZE);
-//        var step = species.length();
-//        var segmentStep = step * Float.BYTES;
-//        var segmentOffset = segmentStep;
-//
-//        for (var index = step; index < loopBound; index += step, segmentOffset += segmentStep) {
-//            first = FloatVector.fromMemorySegment(species, segment1, segmentOffset, ByteOrder.nativeOrder());
-//            second = FloatVector.fromMemorySegment(species, segment2, segmentOffset, ByteOrder.nativeOrder());
-//
-//            diff = first.sub(second);
-//            sumVector = diff.fma(diff, sumVector);
-//        }
-//
-//        return sumVector.reduceLanes(VectorOperators.ADD);
-//    }
-//
-//    @Benchmark
-//    @OutputTimeUnit(TimeUnit.NANOSECONDS)
-//    @BenchmarkMode(Mode.AverageTime)
-//    public float computeL2DistanceDiskANNVector() {
-//        return L2Distance.computeL2Distance(vector1, 0, vector2, 0, VECTOR_SIZE);
-//    }
-//
-//    @Benchmark
-//    @OutputTimeUnit(TimeUnit.NANOSECONDS)
-//    @BenchmarkMode(Mode.AverageTime)
-//    public float computeL2DistanceDiskANNSegment() {
-//        return L2Distance.computeL2Distance(segment1, 0, segment2, 0, VECTOR_SIZE);
-//    }
-//
-//    @Benchmark
-//    @OutputTimeUnit(TimeUnit.NANOSECONDS)
-//    @BenchmarkMode(Mode.AverageTime)
-//    public float computeL2DistanceDiskANNSegmentVector() {
-//        return L2Distance.computeL2Distance(segment1, 0, vector2, 0);
-//    }
 
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()

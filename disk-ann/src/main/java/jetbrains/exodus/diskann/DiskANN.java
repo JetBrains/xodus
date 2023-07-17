@@ -436,6 +436,22 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
+    private void computeDistance(MemorySegment originSegment, long originSegmentOffset,
+                                 MemorySegment firstSegment, long firstSegmentOffset,
+                                 MemorySegment secondSegment, long secondSegmentOffset,
+                                 MemorySegment thirdSegment, long thirdSegmentOffset,
+                                 MemorySegment fourthSegment, long fourthSegmentOffset,
+                                 int size, float[] result) {
+        if (distanceFunction == L2_DISTANCE) {
+            L2Distance.computeL2Distance(originSegment, originSegmentOffset,
+                    firstSegment, firstSegmentOffset, secondSegment, secondSegmentOffset,
+                    thirdSegment, thirdSegmentOffset, fourthSegment, fourthSegmentOffset, size, result);
+
+        } else {
+            throw new IllegalStateException("Unknown distance function: " + distanceFunction);
+        }
+    }
+
     private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
         if (distanceFunction == L2_DISTANCE) {
             return L2Distance.computeL2Distance(firstSegment, firstSegmentFromOffset, secondVector, 0);
@@ -626,6 +642,10 @@ public final class DiskANN implements AutoCloseable {
 
             nearestCandidates.add(startVertexIndex, computeDistance(struct, startVectorOffset,
                     struct, queryVectorOffset, dim), false);
+
+            var result = new float[4];
+            var vectorsToCheck = new IntArrayList(4);
+
             while (true) {
                 var notCheckedVertexPointer = nearestCandidates.nextNotCheckedVertexIndex();
                 if (notCheckedVertexPointer < 0) {
@@ -638,12 +658,43 @@ public final class DiskANN implements AutoCloseable {
                 checkedVertices.put(currentVertexIndex, nearestCandidates.vertexDistance(notCheckedVertexPointer));
 
                 var vertexNeighbours = fetchNeighbours(currentVertexIndex);
+
                 for (var vertexIndex : vertexNeighbours) {
                     if (visitedVertexIndices.add(vertexIndex)) {
-                        var distance = computeDistance(struct, queryVectorOffset, struct, vectorOffset(vertexIndex),
-                                dim);
+                        vectorsToCheck.add(vertexIndex);
+                        if (vectorsToCheck.size() == 4) {
+                            var vertexIndexes = vectorsToCheck.elements();
+
+                            var vectorOffset1 = vectorOffset(vertexIndexes[0]);
+                            var vectorOffset2 = vectorOffset(vertexIndexes[1]);
+                            var vectorOffset3 = vectorOffset(vertexIndexes[2]);
+                            var vectorOffset4 = vectorOffset(vertexIndexes[3]);
+
+                            computeDistance(struct, queryVectorOffset, struct, vectorOffset1,
+                                    struct, vectorOffset2, struct, vectorOffset3, struct, vectorOffset4, dim,
+                                    result);
+
+                            nearestCandidates.add(vertexIndexes[0], result[0], false);
+                            nearestCandidates.add(vertexIndexes[1], result[1], false);
+                            nearestCandidates.add(vertexIndexes[2], result[2], false);
+                            nearestCandidates.add(vertexIndexes[3], result[3], false);
+
+                            vectorsToCheck.clear();
+                        }
+                    }
+                }
+
+                var size = vectorsToCheck.size();
+                if (size > 0) {
+                    var vertexIndexes = vectorsToCheck.elements();
+                    for (int i = 0; i < size; i++) {
+                        var vertexIndex = vertexIndexes[i];
+                        var vectorOffset = vectorOffset(vertexIndex);
+
+                        var distance = computeDistance(struct, queryVectorOffset, struct, vectorOffset, dim);
                         nearestCandidates.add(vertexIndex, distance, false);
                     }
+                    vectorsToCheck.clear();
                 }
             }
 
@@ -672,23 +723,61 @@ public final class DiskANN implements AutoCloseable {
                 }
 
                 var vectorOffset = vectorOffset(vertexIndex);
-                var candidatesIterator = candidates.int2FloatEntrySet().fastIterator();
 
+                var candidatesIterator = candidates.int2FloatEntrySet().fastIterator();
                 var cachedCandidates = new TreeSet<RobustPruneVertex>();
+
+                var vectorsToCalculate = new IntArrayList(4);
+                var result = new float[4];
+
                 while (candidatesIterator.hasNext()) {
                     var entry = candidatesIterator.next();
                     var candidateIndex = entry.getIntKey();
                     var distance = entry.getFloatValue();
 
                     if (Float.isNaN(distance)) {
-                        distance = computeDistance(struct, vectorOffset, struct,
-                                vectorOffset(candidateIndex), dim);
-                        entry.setValue(distance);
+                        vectorsToCalculate.add(candidateIndex);
+                        if (vectorsToCalculate.size() == 4) {
+                            var vectorIndexes = vectorsToCalculate.elements();
+
+                            var vectorOffset1 = vectorOffset(vectorIndexes[0]);
+                            var vectorOffset2 = vectorOffset(vectorIndexes[1]);
+                            var vectorOffset3 = vectorOffset(vectorIndexes[2]);
+                            var vectorOffset4 = vectorOffset(vectorIndexes[3]);
+
+                            computeDistance(struct, vectorOffset, struct, vectorOffset1,
+                                    struct, vectorOffset2, struct, vectorOffset3, struct, vectorOffset4, dim,
+                                    result);
+
+                            cachedCandidates.add(new RobustPruneVertex(vectorIndexes[0], result[0]));
+                            cachedCandidates.add(new RobustPruneVertex(vectorIndexes[1], result[1]));
+                            cachedCandidates.add(new RobustPruneVertex(vectorIndexes[2], result[2]));
+                            cachedCandidates.add(new RobustPruneVertex(vectorIndexes[3], result[3]));
+
+                            vectorsToCalculate.clear();
+                        }
+                    } else {
+                        var candidate = new RobustPruneVertex(candidateIndex, distance);
+                        cachedCandidates.add(candidate);
+                    }
+                }
+
+                if (vectorsToCalculate.size() > 0) {
+                    var size = vectorsToCalculate.size();
+                    var vectorIndexes = vectorsToCalculate.elements();
+                    for (int i = 0; i < size; i++) {
+                        var vectorIndex = vectorIndexes[i];
+
+                        var vectorOff = vectorOffset(vectorIndex);
+                        var distance = computeDistance(struct, vectorOffset, struct, vectorOff, dim);
+                        cachedCandidates.add(new RobustPruneVertex(vectorIndex, distance));
                     }
 
-                    var candidate = new RobustPruneVertex(candidateIndex, distance);
-                    cachedCandidates.add(candidate);
+                    vectorsToCalculate.clear();
                 }
+
+                var candidatesToCalculate = new ArrayList<RobustPruneVertex>(4);
+                var removedCandidates = new ArrayList<RobustPruneVertex>(cachedCandidates.size());
 
                 var neighbours = new IntArrayList(maxConnectionsPerVertex);
                 var removed = new ArrayList<RobustPruneVertex>(cachedCandidates.size());
@@ -711,17 +800,57 @@ public final class DiskANN implements AutoCloseable {
                         }
 
                         var minIndex = vectorOffset(min.index);
-                        var iterator = cachedCandidates.iterator();
-                        while (iterator.hasNext()) {
-                            var candidate = iterator.next();
-                            var distance = computeDistance(struct, minIndex, struct, vectorOffset(candidate.index),
-                                    dim);
+                        for (RobustPruneVertex candidate : cachedCandidates) {
+                            candidatesToCalculate.add(candidate);
 
-                            if (distance * currentMultiplication <= candidate.distance) {
-                                iterator.remove();
-                                removed.add(candidate);
+                            if (candidatesToCalculate.size() == 4) {
+                                var candidate1 = candidatesToCalculate.get(0);
+                                var candidate2 = candidatesToCalculate.get(1);
+                                var candidate3 = candidatesToCalculate.get(2);
+                                var candidate4 = candidatesToCalculate.get(3);
+
+                                var vectorOffset1 = vectorOffset(candidate1.index);
+                                var vectorOffset2 = vectorOffset(candidate2.index);
+                                var vectorOffset3 = vectorOffset(candidate3.index);
+                                var vectorOffset4 = vectorOffset(candidate4.index);
+
+                                computeDistance(struct, minIndex, struct, vectorOffset1,
+                                        struct, vectorOffset2, struct, vectorOffset3,
+                                        struct, vectorOffset4, dim, result);
+
+                                if (result[0] * currentMultiplication <= candidate1.distance) {
+                                    removedCandidates.add(candidate1);
+                                }
+                                if (result[1] * currentMultiplication <= candidate2.distance) {
+                                    removedCandidates.add(candidate2);
+                                }
+                                if (result[2] * currentMultiplication <= candidate3.distance) {
+                                    removedCandidates.add(candidate3);
+                                }
+                                if (result[3] * currentMultiplication <= candidate4.distance) {
+                                    removedCandidates.add(candidate3);
+                                }
+
+
+                                candidatesToCalculate.clear();
                             }
                         }
+
+                        if (candidatesToCalculate.size() > 1) {
+                            for (RobustPruneVertex candidate : candidatesToCalculate) {
+                                var distance = computeDistance(struct, minIndex, struct, vectorOffset(candidate.index), dim);
+                                if (distance * currentMultiplication <= candidate.distance) {
+                                    removedCandidates.add(candidate);
+                                }
+                            }
+                        }
+
+                        for(var removedCandidate : removedCandidates) {
+                            cachedCandidates.remove(removedCandidate);
+                        }
+
+                        removed.addAll(removedCandidates);
+                        removedCandidates.clear();
                     }
 
                     currentMultiplication *= 1.2;
