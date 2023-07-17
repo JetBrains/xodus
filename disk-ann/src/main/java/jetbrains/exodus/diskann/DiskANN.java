@@ -803,6 +803,8 @@ public final class DiskANN implements AutoCloseable {
                         for (RobustPruneVertex candidate : cachedCandidates) {
                             candidatesToCalculate.add(candidate);
 
+                            assert candidatesToCalculate.size() <= 4;
+
                             if (candidatesToCalculate.size() == 4) {
                                 var candidate1 = candidatesToCalculate.get(0);
                                 var candidate2 = candidatesToCalculate.get(1);
@@ -843,9 +845,10 @@ public final class DiskANN implements AutoCloseable {
                                     removedCandidates.add(candidate);
                                 }
                             }
+                            candidatesToCalculate.clear();
                         }
 
-                        for(var removedCandidate : removedCandidates) {
+                        for (var removedCandidate : removedCandidates) {
                             cachedCandidates.remove(removedCandidate);
                         }
 
