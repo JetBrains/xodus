@@ -122,7 +122,7 @@ public class L2DistanceBench {
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()
                 .include(L2DistanceBench.class.getSimpleName()).addProfiler(LinuxPerfProfiler.class,
-                        "events=fp_ret_sse_avx_ops.all;delay=1000")
+                        "events=fp_ret_sse_avx_ops.all;delay=100")
                 .build();
         new Runner(opt).run();
     }
