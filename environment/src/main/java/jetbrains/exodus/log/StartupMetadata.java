@@ -260,7 +260,7 @@ public class StartupMetadata {
             return -1;
         }
 
-        return content.getInt(FORMAT_VERSION_OFFSET);
+        return content.getLong(FILE_VERSION_OFFSET);
     }
 
     public static StartupMetadata deserialize(ByteBuffer content, long version, boolean useFirstFile) {
