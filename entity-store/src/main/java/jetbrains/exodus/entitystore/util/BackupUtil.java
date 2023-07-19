@@ -63,7 +63,6 @@ public class BackupUtil {
         return reEncryptBackup(zipStream, firstKey, firstIv, secondKey, secondIv, cipherProvider);
     }
 
-
     /**
      * Takes a backup archive stream and re-encrypts it with the given keys.
      * Backup archive could contain any amount of databases and additional files.
@@ -84,7 +83,15 @@ public class BackupUtil {
     public static InputStream reEncryptBackup(final ArchiveInputStream archiveStream,
                                               final byte[] firstKey, final long firstIv,
                                               final byte[] secondKey, final long secondIv,
-                                              final StreamCipherProvider cipherProvider)
+                                              final StreamCipherProvider cipherProvider) throws IOException {
+        return reEncryptBackup(archiveStream, firstKey, firstIv, secondKey, secondIv, cipherProvider, false);
+    }
+
+    public static InputStream reEncryptBackup(final ArchiveInputStream archiveStream,
+                                              final byte[] firstKey, final long firstIv,
+                                              final byte[] secondKey, final long secondIv,
+                                              final StreamCipherProvider cipherProvider,
+                                              final boolean ignorePageSizeCheck)
             throws IOException {
         var pipedInputStream = new PipedInputStream(1024 * 1024);
         var pipedOutputStream = new PipedOutputStream(pipedInputStream);
@@ -112,6 +119,11 @@ public class BackupUtil {
 
         executor.submit(() -> {
             try {
+                if (ignorePageSizeCheck) {
+                    logger.warn("Because flag ignorePageSizeCheck is set, database will be marked is incorrectly closed " +
+                            "and will be recovered on next startup. This is not a problem if you are going to see " +
+                            "database restore routine.");
+                }
                 final byte[] readBuffer = new byte[1024 * 1024];
                 final int pageStep = 4 * 1024;
                 final int pageMaxSize = 256 * 1024;
@@ -135,13 +147,27 @@ public class BackupUtil {
                                 " supported. Entry " + name + " should provide size to be re-encrypted");
                     }
 
+                    final Path namePath = Path.of(name);
+
+                    if (ignorePageSizeCheck && name.endsWith(LogUtil.LOG_FILE_EXTENSION)) {
+                        final String rootName = extractRootName(namePath);
+                        DbMetadata dbMetadata = metadataMap.get(rootName);
+
+                        if (dbMetadata != null && (entrySize & (dbMetadata.pageSize - 1)) != 0) {
+                            //rounding file size to the page size
+                            var newEntrySize = entrySize & -dbMetadata.pageSize;
+                            logger.error("File {} size {} is not multiple of page size {}. Rounding to {} because flag " +
+                                            "ignorePageSizeCheck is set to true. ",
+                                    name, entrySize, dbMetadata.pageSize, newEntrySize);
+                            entrySize = newEntrySize;
+                        }
+                    }
+
                     outputArchiveEntry.setSize(entrySize);
                     outputArchiveEntry.setModTime(inputEntry.getLastModifiedDate());
 
                     tarArchiveOutputStream.putArchiveEntry(outputArchiveEntry);
 
-
-                    final Path namePath = Path.of(name);
 
                     if (name.endsWith(LogUtil.LOG_FILE_EXTENSION)) {
                         int processed = 0;
@@ -313,8 +339,11 @@ public class BackupUtil {
                         var buffer = ByteBuffer.wrap(readBuffer);
                         buffer.limit(StartupMetadata.FILE_SIZE);
 
-                        if (StartupMetadata.getFileVersion(buffer) >= 0) {
-                            var startupMetadata = StartupMetadata.deserialize(buffer, 0, false);
+                        StartupMetadata startupMetadata = null;
+                        var fileVersion = StartupMetadata.getFileVersion(buffer);
+
+                        if (fileVersion >= 0) {
+                            startupMetadata = StartupMetadata.deserialize(buffer, 0, false);
 
                             if (dbMetadata == null) {
                                 dbMetadata = new DbMetadata();
@@ -332,7 +361,17 @@ public class BackupUtil {
                             }
                         }
 
-                        tarArchiveOutputStream.write(readBuffer, 0, StartupMetadata.FILE_SIZE);
+
+                        if (ignorePageSizeCheck && startupMetadata != null) {
+                            var serializedBuffer = StartupMetadata.serialize(fileVersion,
+                                    EnvironmentImpl.CURRENT_FORMAT_VERSION, startupMetadata.getRootAddress(),
+                                    startupMetadata.getPageSize(), startupMetadata.getFileLengthBoundary(),
+                                    false);
+                            tarArchiveOutputStream.write(serializedBuffer.array(), 0, StartupMetadata.FILE_SIZE);
+                        } else {
+                            tarArchiveOutputStream.write(readBuffer, 0, StartupMetadata.FILE_SIZE);
+                        }
+
                     } else if (name.equals(BackupMetadata.BACKUP_METADATA_FILE_NAME)) {
                         final String rootName = extractRootName(namePath);
                         DbMetadata dbMetadata = metadataMap.get(rootName);
