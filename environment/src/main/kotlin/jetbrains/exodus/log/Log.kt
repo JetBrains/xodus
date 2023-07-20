@@ -38,6 +38,8 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.*
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.Semaphore
 import kotlin.experimental.xor
@@ -183,8 +185,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 needToPerformMigration = logContainsBlocks
             }
 
+            val backupLocation = Path.of(location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
             if (!needToPerformMigration && !startupMetadata.isCorrectlyClosed) {
-                val backupLocation = Path.of(location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
                 if (Files.exists(backupLocation)) {
                     logger.info("Database $location : trying to restore from dynamic backup...")
                     val backupMetadataBuffer = ByteBuffer.allocate(BackupMetadata.FILE_SIZE)
@@ -218,7 +220,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             logger.info(
                                 "Found dynamic backup. " +
                                         "Database $location will be restored till file $lastFileName, " +
-                                        "last file length ${backupMetadata.lastFileOffset}. DB root address ${backupMetadata.rootAddress}"
+                                        " file length will be set too " +
+                                        "${backupMetadata.lastFileOffset}. DB root address ${backupMetadata.rootAddress}"
                             )
 
                             SharedOpenFilesCache.invalidate()
@@ -233,11 +236,16 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     blocks[block.address] = block as FileDataReader.FileBlock
                                 }
 
+                                logger.info("Files in database: $location")
                                 val blockAddressIterator = blocks.keys.iterator()
                                 while (blockAddressIterator.hasNext()) {
                                     val address = blockAddressIterator.next()
                                     logger.info(LogUtil.getLogFilename(address))
                                 }
+
+                                copyFilesInRestoreTempDir(
+                                    blocks.tailMap(backupMetadata.lastFileAddress, true).values.iterator()
+                                )
 
                                 val blocksToTruncateIterator = blocks.tailMap(
                                     backupMetadata.lastFileAddress,
@@ -522,6 +530,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 warmup()
             }
 
+            Files.deleteIfExists(backupLocation)
+
             if (needToPerformMigration) {
                 switchToReadOnlyMode()
             }
@@ -530,6 +540,29 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             throw ex
         }
     }
+
+    private fun copyFilesInRestoreTempDir(files: Iterator<FileDataReader.FileBlock>) {
+        val tempDir = createTempRestoreDirectoryWithDate()
+        logger.info("Database $location - copying files into the temp directory $tempDir before data restore.")
+
+        while (files.hasNext()) {
+            val file = files.next()
+            logger.info("Database $location - file $file is copied into the temp directory $tempDir")
+            Files.copy(file.toPath(), tempDir.resolve(file.toPath().fileName))
+        }
+
+        logger.info("Database $location - copying of files into the temp directory $tempDir is completed.")
+    }
+
+    private fun createTempRestoreDirectoryWithDate(): Path {
+        val dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy-HH-mm-ss")
+        val now = LocalDateTime.now()
+        val date = dtf.format(now)
+
+        val dirName = "restore-$date-"
+        return Files.createTempDirectory(dirName).toAbsolutePath()
+    }
+
 
     private fun checkLogConsistencyAndUpdateRootAddress(
         blockSetMutable: BlockSet.Mutable,
@@ -869,7 +902,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 if (dbRootEndAddress > 0) {
                     val endBlockAddress = getFileAddress(dbRootEndAddress)
                     val blocksToTruncate = blocks.tailMap(endBlockAddress, true)
-                    val blocksToTruncateIterator = blocksToTruncate.values.iterator()
+
 
                     if (!config.isProceedDataRestoreAtAnyCost && blocksToTruncate.size > 2) {
                         throw DataCorruptionException(
@@ -883,7 +916,15 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         )
                     }
 
+                    if (reader is FileDataReader) {
+                        @Suppress("UNCHECKED_CAST")
+                        copyFilesInRestoreTempDir(
+                            (blocksToTruncate.values
+                                    as NavigableSet<FileDataReader.FileBlock>).iterator()
+                        )
+                    }
 
+                    val blocksToTruncateIterator = blocksToTruncate.values.iterator()
                     val endBlock = blocksToTruncateIterator.next()
                     val endBlockLength = dbRootEndAddress % fileLengthBound
                     val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
@@ -1443,6 +1484,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         if (cache is SeparateLogCache) {
             cache.clear()
         }
+
+        val backupLocation = Path.of(location).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME)
+        Files.deleteIfExists(backupLocation)
 
         release()
     }
