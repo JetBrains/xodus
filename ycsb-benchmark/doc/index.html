@@ -1,0 +1,90 @@
+<html>
+<!-- 
+Copyright (c) 2010 Yahoo! Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you
+may not use this file except in compliance with the License. You
+may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing
+permissions and limitations under the License. See accompanying
+LICENSE file.
+-->
+
+<head>
+<title>YCSB - Yahoo! Cloud Serving Benchmark</title>
+</head>
+<body>
+<H1><img src="images/ycsb.jpg" width=150> Yahoo! Cloud Serving Benchmark</H1>
+<H3>Version 0.1.2</H3>
+<hr>
+<A HREF="index.html">Home</A> - <A href="coreworkloads.html">Core workloads</A> - <a href="tipsfaq.html">Tips and FAQ</A>
+<HR>
+<UL>
+<LI><A href="#overview">Overview</A>
+<LI><A href="#download">Download YCSB</A>
+<LI><A href="#gettingstarted">Getting started</A>
+<LI><A href="#extending">Extending YCSB</A>
+</UL>
+<HR>
+<A name="overview">
+<H2>Overview</H2>
+There are many new serving databases available, including:
+<ul>
+<LI>BigTable
+<LI><A HREF="http://hadoop.apache.org/hbase/">HBase</A>
+<LI><A HREF="http://www.microsoft.com/windowsazure/">Azure</A>
+<LI><A HREF="http://incubator.apache.org/cassandra/">Cassandra</A>
+<LI><A HREF="http://couchdb.apache.org/">CouchDB</A>
+<LI><A HREF=http://wiki.github.com/cliffmoon/dynomite/dynomite-framework">Dynomite</A>
+<li>...and many others
+</ul>
+It is difficult to decide which system is right for your application, partially because the features differ between 
+systems, and partially because there is not an easy way to compare the performance of one system versus another.
+<P>
+The goal of the YCSB project is to develop a framework and common set of workloads for evaluating the performance of
+different "key-value" and "cloud" serving stores. The project comprises two things:
+<ul>
+<LI>The YCSB Client, an extensible workload generator
+<LI>The Core workloads, a set of workload scenarios to be executed by the generator
+</UL>
+Although the core workloads provide a well rounded picture of a system's performance, the Client is extensible so that
+you can define new and different workloads to examine system aspects, or application scenarios, not adequately covered by
+the core workload. Similarly, the Client is extensible to support benchmarking different databases. Although we include
+sample code for benchmarking HBase and Cassandra, it is straightforward to write a new interface layer to benchmark
+your favorite database.
+<P>
+A common use of the tool is to benchmark multiple systems and compare them. For example, you can install multiple systems
+on the same hardward configuration, and run the same workloads against each system. Then you can plot the performance 
+of each system (for example, as latency versus throughput curves) to see when one system does better than another.
+<HR>
+<A name="download">
+<H2>Download YCSB</H2>
+YCSB is available
+at <A HREF="http://wiki.github.com/brianfrankcooper/YCSB/">http://wiki.github.com/brianfrankcooper/YCSB/</A>. 
+<HR>
+<a name="gettingstarted">
+<H2>Getting started</H2>
+Detailed instructions for using YCSB are available on the GitHub wiki:
+<A HREF="http://wiki.github.com/brianfrankcooper/YCSB/getting-started">http://wiki.github.com/brianfrankcooper/YCSB/getting-started</A>.
+<HR>
+<A name="extending">
+<H1>Extending YCSB</H1>
+YCSB is designed to be extensible. It is easy to add a new database interface layer to support benchmarking a new database. It is also easy to define new workloads.
+<ul>
+<li><A HREF="dblayer.html">DB Interface Layer</a>
+<li><A HREF="workload.html">Implementing new workloads</a>
+</UL>
+More details about the entire class structure of YCSB is available here:
+<UL>
+<LI><A HREF="javadoc/index.html">YCSB javadoc documentation</A>
+</ul>  
+<HR>
+YCSB - Yahoo! Research - Contact cooperb@yahoo-inc.com.
+</body>
+</html>
