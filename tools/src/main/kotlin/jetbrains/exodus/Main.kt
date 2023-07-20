@@ -33,6 +33,7 @@ fun main(args: Array<String>) {
         "scytale" -> jetbrains.exodus.crypto.main(args.skipFirst)
         "parbackup" -> jetbrains.exodus.parallelbackup.parallelBackup(args.skipFirst)
         "backuppost" -> jetbrains.exodus.parallelbackup.parallelBackupPostProcessing(args.skipFirst)
+        "space" -> jetbrains.exodus.env.checkSpaceConsumption(args.skipFirst[0])
         else -> printUsage()
     }
     exitProcess(0)
