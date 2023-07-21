@@ -3,7 +3,7 @@
  */
 
 plugins {
-    id 'site.ycsb.java-conventions'
+//    id 'site.ycsb.java-conventions'
     id 'java'
 }
 
@@ -12,8 +12,9 @@ dependencies {
     implementation 'org.jetbrains.xodus:xodus-openAPI:2.0.1'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.2.2'
     implementation 'io.github.microutils:kotlin-logging:1.7.9'
-    implementation project(':core')
-    implementation project(path: ':core')
+//    implementation project(':core')
+    implementation project(':ycsb-benchmark:core')
+    implementation project(':environment')
 
 }
 

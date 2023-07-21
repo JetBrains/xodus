@@ -1,0 +1,151 @@
+plugins {
+    id 'java'
+}
+
+//group 'site.ycsb'
+version '0.18.0-SNAPSHOT'
+
+description 'YCSB Datastore Binding Parent'
+
+subprojects {
+    apply plugin: 'java'
+
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        testCompile group: 'junit', name: 'junit', version: '4.12'
+    }
+
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    task copyDependencies(type: Copy) {
+        from configurations.runtime
+        into "${buildDir}/libs"
+    }
+}
+
+project(':ycsb-benchmark:datastore-specific-descriptor') {
+    // Add any specific configuration for the 'datastore-specific-descriptor' project here if needed.
+}
+
+configurations {
+    provided
+}
+
+//task stageDependencies(type: Copy) {
+//    from configurations.runtime
+//    into "${buildDir}/libs"
+//}
+
+// Profiles
+def skipJDK9Tests = false
+def skipJDK10Tests = false
+def skipJDK11Tests = false
+
+// Profile: datastore-binding
+project.afterEvaluate {
+    if (file("README.md").exists()) {
+        assemble.dependsOn createAssembly
+    }
+}
+
+// Profile: tests-on-jdk9
+gradle.taskGraph.beforeTask { Task task ->
+    if (task.name == 'test' && JavaVersion.current() == JavaVersion.VERSION_1_9) {
+        test {
+            ignoreFailures = skipJDK9Tests
+        }
+    }
+}
+
+// Profile: tests-on-jdk10
+gradle.taskGraph.beforeTask { Task task ->
+    if (task.name == 'test' && JavaVersion.current() == JavaVersion.VERSION_10) {
+        test {
+            ignoreFailures = skipJDK10Tests
+        }
+    }
+}
+
+// Profile: tests-on-jdk11
+gradle.taskGraph.beforeTask { Task task ->
+    if (task.name == 'test' && JavaVersion.current() == JavaVersion.VERSION_11) {
+        test {
+            ignoreFailures = skipJDK11Tests
+        }
+    }
+}
+
+// Profile: ycsb-release
+if (project.hasProperty('ycsbRelease')) {
+    gradle.taskGraph.whenReady { taskGraph ->
+        taskGraph.getAllTasks().each { task ->
+            if (task.name.startsWith('publish') || task.name == 'deploy') {
+                task.enabled = false
+            }
+        }
+    }
+}
+
+// Configurations for plugins
+//plugins {
+//    id 'maven-publish'
+//}
+
+//publishing {
+//    publications {
+//        mavenJava(MavenPublication) {
+//            from components.java
+//
+//            groupId = project.group
+//            version = project.version
+//            artifactId = project.name
+//
+//            pom {
+//                name = project.name
+//                description = project.description
+//                url = 'https://github.com/YCSB/YCSB'
+//                licenses {
+//                    license {
+//                        name = 'Apache License, Version 2.0'
+//                        url = 'http://www.apache.org/licenses/LICENSE-2.0'
+//                    }
+//                }
+//            }
+//        }
+//    }
+//
+//    repositories {
+//        mavenLocal()
+//    }
+//}
+
+// Apply plugin configurations
+//apply plugin: 'maven-assembly'
+apply plugin: 'checkstyle'
+
+// Plugin-specific configurations
+configurations {
+    assembly
+}
+
+dependencies {
+    assembly "site.ycsb:datastore-specific-descriptor:$version"
+}
+
+//assembly {
+//    descriptorRef 'datastore-specific-assembly'
+//    appendix = false
+//    tarLongFileMode = 'posix'
+//}
+
+checkstyle {
+    configFile file('../checkstyle.xml')
+}

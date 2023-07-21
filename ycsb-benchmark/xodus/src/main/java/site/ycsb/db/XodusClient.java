@@ -4,6 +4,7 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.*;
+import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
 import site.ycsb.*;
 
 import java.util.HashMap;

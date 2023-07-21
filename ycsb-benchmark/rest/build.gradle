@@ -3,7 +3,7 @@
  */
 
 plugins {
-    id 'site.ycsb.java-conventions'
+//    id 'site.ycsb.java-conventions'
     id 'war'
 }
 
@@ -22,7 +22,7 @@ dependencies {
     implementation 'org.apache.tomcat.embed:tomcat-embed-jasper:8.0.28'
     implementation 'org.apache.tomcat.embed:tomcat-embed-websocket:8.0.28'
     testImplementation 'junit:junit:4.12'
-    providedCompile project(':core')
+    providedCompile project(':ycsb-benchmark:core')
 }
 
 

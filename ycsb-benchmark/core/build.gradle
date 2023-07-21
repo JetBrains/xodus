@@ -3,7 +3,7 @@
  */
 
 plugins {
-    id 'site.ycsb.java-conventions'
+//    id 'site.ycsb.java-conventions'
 }
 
 dependencies {

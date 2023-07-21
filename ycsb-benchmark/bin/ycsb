@@ -172,12 +172,11 @@ def find_and_get_next_line(text, search_string):
 # Given module is full module name eg. 'core' or 'couchbase-binding'
 def get_classpath_from_maven(module):
     try:
-        debug("./gradlew :xodus-binding:printRuntimeClasspath")
-        gradle_output = check_output(["./gradlew", ":xodus-binding:printRuntimeClasspath"])
+        debug("Execute ./gradlew :ycsb-benchmark:xodus-binding:printRuntimeClasspath")
+        gradle_output = check_output(["./gradlew", ":ycsb-benchmark:xodus-binding:printRuntimeClasspath"])
         # the above outputs classpath for each module
         # the last module will be the datastore binding
-
-        last_line = find_and_get_next_line(gradle_output, "> Task :xodus-binding:printRuntimeClasspath")
+        last_line = find_and_get_next_line(gradle_output, "> Task :ycsb-benchmark:xodus-binding:printRuntimeClasspath")
         return last_line
     except subprocess.CalledProcessError, err:
         error("Attempting to generate a classpath from Maven failed "

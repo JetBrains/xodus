@@ -3,11 +3,11 @@
  */
 
 plugins {
-    id 'site.ycsb.java-conventions'
+//    id 'site.ycsb.java-conventions'
 }
 
 dependencies {
-    implementation project(':core')
+    implementation project(':ycsb-benchmark:core')
 }
 
 description = 'Per Datastore Binding descriptor'

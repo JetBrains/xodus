@@ -23,3 +23,13 @@ include 'utils',
         'tools'
 include 'environment-crash-tests'
 
+include(':ycsb-benchmark:core')
+include(':ycsb-benchmark:datastore-specific-descriptor')
+include(':ycsb-benchmark:xodus-binding')
+include(':ycsb-benchmark:rest-binding')
+include(':ycsb-benchmark:ycsb')
+include(':ycsb-benchmark:binding-parent')
+project(":ycsb-benchmark:datastore-specific-descriptor").projectDir = file('ycsb-benchmark/binding-parent/datastore-specific-descriptor')
+project(":ycsb-benchmark:xodus-binding").projectDir = file('ycsb-benchmark/xodus')
+project(":ycsb-benchmark:rest-binding").projectDir = file('ycsb-benchmark/rest')
+project(":ycsb-benchmark:ycsb").projectDir = file('ycsb-benchmark/distribution')
