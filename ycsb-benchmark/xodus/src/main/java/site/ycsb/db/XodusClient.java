@@ -7,6 +7,7 @@ import jetbrains.exodus.env.*;
 import jetbrains.exodus.newLogConcept.MVCC.MVCCDataStructure;
 import site.ycsb.*;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -24,8 +25,7 @@ public class XodusClient extends DB {
   private static final ThreadLocal<Store> STORE_THREAD_LOCAL = new ThreadLocal<>();
   private static final String STORE_NAME = "store";
 
-  //  private static final String DB_PATH = "/home/alinaboshchenko/.myAppData";
-  private static final String DB_PATH = "/home/alinaboshchenko/WorkJB/benchmarking-experimental/YCSB/data";
+  private static final String DB_PATH = new File("").getAbsolutePath() + "/data";
 
   @Override
   public void init() {
