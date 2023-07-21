@@ -51,6 +51,79 @@ public final class L2Distance {
         return sum;
     }
 
+    public static void computeL2Distance(final float[] originVector, int originVectorOffset,
+                                         final float[] firstVector, int firstVectorOffset,
+                                         final float[] secondVector, int secondVectorOffset,
+                                         final float[] thirdVector, int thirdVectorOffset,
+                                         final float[] fourthVector, int fourthVectorOffset,
+                                         final float[] result,
+                                         int size) {
+        computeL2Distance(originVector, originVectorOffset, firstVector, firstVectorOffset,
+                secondVector, secondVectorOffset,
+                thirdVector, thirdVectorOffset,
+                fourthVector, fourthVectorOffset,
+                result,
+                size,
+                PREFERRED_SPECIES_LENGTH);
+    }
+
+    static void computeL2Distance(float[] originVector, int originVectorOffset,
+                                  float[] firstVector, int firstVectorOffset,
+                                  float[] secondVector, int secondVectorOffset,
+                                  float[] thirdVector, int thirdVectorOffset,
+                                  float[] fourthVector, int fourthVectorOffset,
+                                  final float[] result,
+                                  int size, int speciesLength) {
+        Arrays.fill(result, 0.0f);
+
+        var step = closestSIMDStep(speciesLength, size);
+
+        if (step == 16) {
+            var loopBound = FloatVector.SPECIES_512.loopBound(size);
+            computeL2Distance512(originVector, originVectorOffset, firstVector, firstVectorOffset,
+                    secondVector, secondVectorOffset,
+                    thirdVector, thirdVectorOffset,
+                    fourthVector, fourthVectorOffset,
+                    result,
+                    loopBound);
+            size -= loopBound;
+
+            originVectorOffset += loopBound;
+            firstVectorOffset += loopBound;
+            secondVectorOffset += loopBound;
+            thirdVectorOffset += loopBound;
+            fourthVectorOffset += loopBound;
+
+            step = closestSIMDStep(8, size);
+        }
+
+        if (step == 8) {
+            var loopBound = FloatVector.SPECIES_256.loopBound(size);
+            computeL2Distance256(originVector, originVectorOffset, firstVector, firstVectorOffset,
+                    secondVector, secondVectorOffset,
+                    thirdVector, thirdVectorOffset,
+                    fourthVector, fourthVectorOffset,
+                    result,
+                    loopBound);
+            size -= loopBound;
+
+            originVectorOffset += loopBound;
+            firstVectorOffset += loopBound;
+            secondVectorOffset += loopBound;
+            thirdVectorOffset += loopBound;
+            fourthVectorOffset += loopBound;
+        }
+
+        if (size > 0) {
+            computeL2Distance128(originVector, originVectorOffset, firstVector, firstVectorOffset,
+                    secondVector, secondVectorOffset,
+                    thirdVector, thirdVectorOffset,
+                    fourthVector, fourthVectorOffset,
+                    result,
+                    size);
+        }
+    }
+
     public static float computeL2Distance(final MemorySegment firstSegment, long firstSegmentOffset,
                                           final float[] secondVector, int secondVectorOffset) {
 
@@ -295,10 +368,15 @@ public final class L2Distance {
             sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
         }
 
-        result[0] = sumVector_1.reduceLanes(VectorOperators.ADD);
-        result[1] = sumVector_2.reduceLanes(VectorOperators.ADD);
-        result[2] = sumVector_3.reduceLanes(VectorOperators.ADD);
-        result[3] = sumVector_4.reduceLanes(VectorOperators.ADD);
+        var res_1 = sumVector_1.reduceLanes(VectorOperators.ADD);
+        var res_2 = sumVector_2.reduceLanes(VectorOperators.ADD);
+        var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
+        var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
+
+        result[0] = res_1;
+        result[1] = res_2;
+        result[2] = res_3;
+        result[3] = res_4;
     }
 
 
@@ -330,6 +408,80 @@ public final class L2Distance {
         }
 
         return sumVector.reduceLanes(VectorOperators.ADD);
+    }
+
+    private static void computeL2Distance512(final float[] originVector, int originVectorOffset,
+                                             final float[] firstVector, int firstVectorOffset,
+                                             final float[] secondVector, int secondVectorOffset,
+                                             final float[] thirdVector, int thirdVectorOffset,
+                                             final float[] fourthVector, int fourthVectorOffset,
+                                             final float[] result,
+                                             final int size) {
+        var step = 16;
+        assert size == FloatVector.SPECIES_512.loopBound(size);
+
+        var origin = FloatVector.fromArray(FloatVector.SPECIES_512, originVector,
+                originVectorOffset);
+        var first = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                firstVectorOffset);
+        var second = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                firstVectorOffset);
+        var third = FloatVector.fromArray(FloatVector.SPECIES_512, thirdVector,
+                firstVectorOffset);
+        var fourth = FloatVector.fromArray(FloatVector.SPECIES_512, fourthVector,
+                firstVectorOffset);
+
+        var diffVector_1 = origin.sub(first);
+        var diffVector_2 = origin.sub(second);
+        var diffVector_3 = origin.sub(third);
+        var diffVector_4 = origin.sub(fourth);
+
+        var sumVector_1 = diffVector_1.mul(diffVector_1);
+        var sumVector_2 = diffVector_2.mul(diffVector_2);
+        var sumVector_3 = diffVector_3.mul(diffVector_3);
+        var sumVector_4 = diffVector_4.mul(diffVector_4);
+
+        originVectorOffset += step;
+        firstVectorOffset += step;
+        secondVectorOffset += step;
+        thirdVectorOffset += step;
+        fourthVectorOffset += step;
+
+        for (var index = step; index < size; index += step, originVectorOffset += step,
+                firstVectorOffset += step, secondVectorOffset += step, thirdVectorOffset += step,
+                fourthVectorOffset += step) {
+            origin = FloatVector.fromArray(FloatVector.SPECIES_512, originVector,
+                    originVectorOffset);
+
+            first = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
+                    firstVectorOffset);
+            second = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
+                    secondVectorOffset);
+            third = FloatVector.fromArray(FloatVector.SPECIES_512, thirdVector,
+                    thirdVectorOffset);
+            fourth = FloatVector.fromArray(FloatVector.SPECIES_512, fourthVector,
+                    fourthVectorOffset);
+
+            diffVector_1 = origin.sub(first);
+            diffVector_2 = origin.sub(second);
+            diffVector_3 = origin.sub(third);
+            diffVector_4 = origin.sub(fourth);
+
+            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
+            sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
+        }
+
+        var res_1 = sumVector_1.reduceLanes(VectorOperators.ADD);
+        var res_2 = sumVector_2.reduceLanes(VectorOperators.ADD);
+        var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
+        var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
+
+        result[0] = res_1;
+        result[1] = res_2;
+        result[2] = res_3;
+        result[3] = res_4;
     }
 
     private static float computeL2Distance512(final MemorySegment firstSegment, long firstSegmentOffset,
@@ -462,10 +614,15 @@ public final class L2Distance {
             sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
         }
 
-        result[0] += sumVector_1.reduceLanes(VectorOperators.ADD);
-        result[1] += sumVector_2.reduceLanes(VectorOperators.ADD);
-        result[2] += sumVector_3.reduceLanes(VectorOperators.ADD);
-        result[3] += sumVector_4.reduceLanes(VectorOperators.ADD);
+        var res_1 = sumVector_1.reduceLanes(VectorOperators.ADD);
+        var res_2 = sumVector_2.reduceLanes(VectorOperators.ADD);
+        var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
+        var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
+
+        result[0] += res_1;
+        result[1] += res_2;
+        result[2] += res_3;
+        result[3] += res_4;
     }
 
     private static float computeL2Distance256(final MemorySegment firstSegment, long firstSegmentOffset,
@@ -526,6 +683,82 @@ public final class L2Distance {
         }
 
         return sumVector.reduceLanes(VectorOperators.ADD);
+    }
+
+    private static void computeL2Distance256(final float[] originVector, int originVectorOffset,
+                                             final float[] firstVector, int firstVectorOffset,
+                                             final float[] secondVector, int secondVectorOffset,
+                                             final float[] thirdVector, int thirdVectorOffset,
+                                             final float[] fourthVector, int fourthVectorOffset,
+                                             final float[] result,
+                                             int size) {
+
+        var step = 8;
+        assert size == FloatVector.SPECIES_256.loopBound(size);
+
+        var origin = FloatVector.fromArray(FloatVector.SPECIES_256, originVector,
+                originVectorOffset);
+        var first = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                firstVectorOffset);
+        var second = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                secondVectorOffset);
+        var third = FloatVector.fromArray(FloatVector.SPECIES_256, thirdVector,
+                thirdVectorOffset);
+        var fourth = FloatVector.fromArray(FloatVector.SPECIES_256, fourthVector,
+                fourthVectorOffset);
+
+        var diffVector_1 = origin.sub(first);
+        var diffVector_2 = origin.sub(second);
+        var diffVector_3 = origin.sub(third);
+        var diffVector_4 = origin.sub(fourth);
+
+        var sumVector_1 = diffVector_1.mul(diffVector_1);
+        var sumVector_2 = diffVector_2.mul(diffVector_2);
+        var sumVector_3 = diffVector_3.mul(diffVector_3);
+        var sumVector_4 = diffVector_4.mul(diffVector_4);
+
+
+        originVectorOffset += step;
+        firstVectorOffset += step;
+        secondVectorOffset += step;
+        thirdVectorOffset += step;
+        fourthVectorOffset += step;
+
+        for (var index = step; index < size; index += step, originVectorOffset += step,
+                firstVectorOffset += step, secondVectorOffset += step, thirdVectorOffset += step,
+                fourthVectorOffset += step) {
+            origin = FloatVector.fromArray(FloatVector.SPECIES_256, originVector,
+                    originVectorOffset);
+            first = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
+                    firstVectorOffset);
+            second = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
+                    secondVectorOffset);
+            third = FloatVector.fromArray(FloatVector.SPECIES_256, thirdVector,
+                    thirdVectorOffset);
+            fourth = FloatVector.fromArray(FloatVector.SPECIES_256, fourthVector,
+                    fourthVectorOffset);
+
+
+            diffVector_1 = origin.sub(first);
+            diffVector_2 = origin.sub(second);
+            diffVector_3 = origin.sub(third);
+            diffVector_4 = origin.sub(fourth);
+
+            sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+            sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+            sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
+            sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
+        }
+
+        var res_1 = sumVector_1.reduceLanes(VectorOperators.ADD);
+        var res_2 = sumVector_2.reduceLanes(VectorOperators.ADD);
+        var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
+        var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
+
+        result[0] += res_1;
+        result[1] += res_2;
+        result[2] += res_3;
+        result[3] += res_4;
     }
 
     private static float computeL2Distance128(final MemorySegment firstSegment, long firstSegmentOffset,
@@ -689,10 +922,15 @@ public final class L2Distance {
                 sumVector_4 = diffVector_4.mul(diffVector_4, mask).add(sumVector_4);
             }
 
-            result[0] += sumVector_1.reduceLanes(VectorOperators.ADD);
-            result[1] += sumVector_2.reduceLanes(VectorOperators.ADD);
-            result[2] += sumVector_3.reduceLanes(VectorOperators.ADD);
-            result[3] += sumVector_4.reduceLanes(VectorOperators.ADD);
+            var res_1 = sumVector_1.reduceLanes(VectorOperators.ADD);
+            var res_2 = sumVector_2.reduceLanes(VectorOperators.ADD);
+            var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
+            var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
+
+            result[0] += res_1;
+            result[1] += res_2;
+            result[2] += res_3;
+            result[3] += res_4;
         } else {
             var mask = FloatVector.SPECIES_128.indexInRange(index, size);
 
@@ -718,10 +956,15 @@ public final class L2Distance {
             var sumVector_3 = diffVector_3.mul(diffVector_3, mask);
             var sumVector_4 = diffVector_4.mul(diffVector_4, mask);
 
-            result[0] += sumVector_1.reduceLanes(VectorOperators.ADD, mask);
-            result[1] += sumVector_2.reduceLanes(VectorOperators.ADD, mask);
-            result[2] += sumVector_3.reduceLanes(VectorOperators.ADD, mask);
-            result[3] += sumVector_4.reduceLanes(VectorOperators.ADD, mask);
+            var res_1 = sumVector_1.reduceLanes(VectorOperators.ADD, mask);
+            var res_2 = sumVector_2.reduceLanes(VectorOperators.ADD, mask);
+            var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD, mask);
+            var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD, mask);
+
+            result[0] += res_1;
+            result[1] += res_2;
+            result[2] += res_3;
+            result[3] += res_4;
         }
     }
 
@@ -848,5 +1091,149 @@ public final class L2Distance {
         }
 
         return sum;
+    }
+
+    private static void computeL2Distance128(final float[] originVector, int originVectorOffset,
+                                             final float[] firstVector, int firstVectorOffset,
+                                             final float[] secondVector, int secondVectorOffset,
+                                             final float[] thirdVector, int thirdVectorOffset,
+                                             final float[] fourthVector, int fourthVectorOffset,
+                                             final float[] result,
+                                             int size) {
+        var step = 4;
+        var index = 0;
+
+        if (size >= step) {
+            var origin = FloatVector.fromArray(FloatVector.SPECIES_128, originVector,
+                    originVectorOffset);
+            var first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
+                    firstVectorOffset);
+            var second = FloatVector.fromArray(FloatVector.SPECIES_128, secondVector,
+                    secondVectorOffset);
+            var third = FloatVector.fromArray(FloatVector.SPECIES_128, thirdVector,
+                    thirdVectorOffset);
+            var fourth = FloatVector.fromArray(FloatVector.SPECIES_128, fourthVector,
+                    fourthVectorOffset);
+
+            var diffVector_1 = origin.sub(first);
+            var diffVector_2 = origin.sub(second);
+            var diffVector_3 = origin.sub(third);
+            var diffVector_4 = origin.sub(fourth);
+
+            var sumVector_1 = diffVector_1.mul(diffVector_1);
+            var sumVector_2 = diffVector_2.mul(diffVector_2);
+            var sumVector_3 = diffVector_3.mul(diffVector_3);
+            var sumVector_4 = diffVector_4.mul(diffVector_4);
+
+            index = step;
+            originVectorOffset += step;
+            firstVectorOffset += step;
+            secondVectorOffset += step;
+            thirdVectorOffset += step;
+            fourthVectorOffset += step;
+
+            var loopBound = FloatVector.SPECIES_128.loopBound(size);
+
+            for (; index < loopBound; index += step, originVectorOffset += step,
+                    firstVectorOffset += step, secondVectorOffset += step, thirdVectorOffset += step,
+                    fourthVectorOffset += step) {
+                origin = FloatVector.fromArray(FloatVector.SPECIES_128, originVector,
+                        originVectorOffset);
+                first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
+                        firstVectorOffset);
+                second = FloatVector.fromArray(FloatVector.SPECIES_128, secondVector,
+                        secondVectorOffset);
+                third = FloatVector.fromArray(FloatVector.SPECIES_128, thirdVector,
+                        thirdVectorOffset);
+                fourth = FloatVector.fromArray(FloatVector.SPECIES_128, fourthVector,
+                        fourthVectorOffset);
+
+                diffVector_1 = origin.sub(first);
+                diffVector_2 = origin.sub(second);
+                diffVector_3 = origin.sub(third);
+                diffVector_4 = origin.sub(fourth);
+
+
+                sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
+                sumVector_2 = diffVector_2.fma(diffVector_2, sumVector_2);
+                sumVector_3 = diffVector_3.fma(diffVector_3, sumVector_3);
+                sumVector_4 = diffVector_4.fma(diffVector_4, sumVector_4);
+            }
+
+            if (index < size) {
+                var mask = FloatVector.SPECIES_128.indexInRange(index, size);
+
+                origin = FloatVector.fromArray(FloatVector.SPECIES_128, originVector,
+                        originVectorOffset, mask);
+                first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
+                        firstVectorOffset, mask);
+                second = FloatVector.fromArray(FloatVector.SPECIES_128, secondVector,
+                        secondVectorOffset, mask);
+                third = FloatVector.fromArray(FloatVector.SPECIES_128, thirdVector,
+                        thirdVectorOffset, mask);
+                fourth = FloatVector.fromArray(FloatVector.SPECIES_128, fourthVector,
+                        fourthVectorOffset, mask);
+
+                diffVector_1 = origin.sub(first, mask);
+                diffVector_2 = origin.sub(second, mask);
+                diffVector_3 = origin.sub(third, mask);
+                diffVector_4 = origin.sub(fourth, mask);
+
+                var mul_1 = diffVector_1.mul(diffVector_1, mask);
+                var mul_2 = diffVector_2.mul(diffVector_2, mask);
+                var mul_3 = diffVector_3.mul(diffVector_3, mask);
+                var mul_4 = diffVector_4.mul(diffVector_4, mask);
+
+                sumVector_1 = mul_1.add(sumVector_1);
+                sumVector_2 = mul_2.add(sumVector_2);
+                sumVector_3 = mul_3.add(sumVector_3);
+                sumVector_4 = mul_4.add(sumVector_4);
+            }
+
+
+            var res_1 = sumVector_1.reduceLanes(VectorOperators.ADD);
+            var res_2 = sumVector_2.reduceLanes(VectorOperators.ADD);
+            var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
+            var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
+
+            result[0] += res_1;
+            result[1] += res_2;
+            result[2] += res_3;
+            result[3] += res_4;
+        } else {
+            var mask = FloatVector.SPECIES_128.indexInRange(index, size);
+
+            var origin = FloatVector.fromArray(FloatVector.SPECIES_128, originVector,
+                    originVectorOffset, mask);
+            var first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
+                    firstVectorOffset, mask);
+            var second = FloatVector.fromArray(FloatVector.SPECIES_128, secondVector,
+                    secondVectorOffset, mask);
+            var third = FloatVector.fromArray(FloatVector.SPECIES_128, thirdVector,
+                    thirdVectorOffset, mask);
+            var fourth = FloatVector.fromArray(FloatVector.SPECIES_128, fourthVector,
+                    fourthVectorOffset, mask);
+
+
+            var diffVector_1 = origin.sub(first, mask);
+            var diffVector_2 = origin.sub(second, mask);
+            var diffVector_3 = origin.sub(third, mask);
+            var diffVector_4 = origin.sub(fourth, mask);
+
+            var sumVector_1 = diffVector_1.mul(diffVector_1, mask);
+            var sumVector_2 = diffVector_2.mul(diffVector_2, mask);
+            var sumVector_3 = diffVector_3.mul(diffVector_3, mask);
+            var sumVector_4 = diffVector_4.mul(diffVector_4, mask);
+
+            var res_1 = sumVector_1.reduceLanes(VectorOperators.ADD, mask);
+            var res_2 = sumVector_2.reduceLanes(VectorOperators.ADD, mask);
+            var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD, mask);
+            var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD, mask);
+
+            result[0] += res_1;
+            result[1] += res_2;
+            result[2] += res_3;
+            result[3] += res_4;
+        }
     }
 }

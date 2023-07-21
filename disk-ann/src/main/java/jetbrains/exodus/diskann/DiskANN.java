@@ -423,6 +423,56 @@ public final class DiskANN implements AutoCloseable {
         return minIndex;
     }
 
+    static void findClosestCentroid(final byte distanceFunction, float[][] centroids, float[] vector1,
+                                    float[] vector2, float[] vector3, float[] vector4,
+                                    int from, int[] result) {
+        var minDistance_1 = Float.MAX_VALUE;
+        var minDistance_2 = Float.MAX_VALUE;
+        var minDistance_3 = Float.MAX_VALUE;
+        var minDistance_4 = Float.MAX_VALUE;
+
+        var minIndex_1 = -1;
+        var minIndex_2 = -1;
+        var minIndex_3 = -1;
+        var minIndex_4 = -1;
+
+        var distance = new float[4];
+
+        for (int i = 0; i < centroids.length; i++) {
+            var centroid = centroids[i];
+
+            DiskANN.computeDistance(distanceFunction, centroid, 0,
+                    vector1, from,
+                    vector2, from,
+                    vector3, from,
+                    vector4, from,
+                    distance,
+                    centroid.length);
+
+            if (distance[0] < minDistance_1) {
+                minDistance_1 = distance[0];
+                minIndex_1 = i;
+            }
+            if (distance[1] < minDistance_2) {
+                minDistance_2 = distance[1];
+                minIndex_2 = i;
+            }
+            if (distance[2] < minDistance_3) {
+                minDistance_3 = distance[2];
+                minIndex_3 = i;
+            }
+            if (distance[3] < minDistance_4) {
+                minDistance_4 = distance[3];
+                minIndex_4 = i;
+            }
+        }
+
+        result[0] = minIndex_1;
+        result[1] = minIndex_2;
+        result[2] = minIndex_3;
+        result[3] = minIndex_4;
+    }
+
     private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, MemorySegment secondSegment,
                                   long secondSegmentFromOffset, int size) {
         if (distanceFunction == L2_DISTANCE) {
@@ -492,6 +542,26 @@ public final class DiskANN implements AutoCloseable {
             return L2Distance.computeL2Distance(firstVector, 0, secondVector, secondVectorFrom, size);
         } else if (distanceFunction == DOT_DISTANCE) {
             return computeDotDistance(firstVector, secondVector, secondVectorFrom);
+        } else {
+            throw new IllegalStateException("Unknown distance function: " + distanceFunction);
+        }
+    }
+
+    static void computeDistance(final byte distanceFunction, float[] originVector,
+                                @SuppressWarnings("SameParameterValue") int originVectorOffset,
+                                float[] firstVector, int firstVectorOffset,
+                                float[] secondVector, int secondVectorOffset,
+                                float[] thirdVector, int thirdVectorOffset,
+                                float[] fourthVector, int fourthVectorOffset,
+                                final float[] result,
+                                int size) {
+        if (distanceFunction == L2_DISTANCE) {
+            L2Distance.computeL2Distance(originVector, originVectorOffset, firstVector, firstVectorOffset,
+                    secondVector, secondVectorOffset,
+                    thirdVector, thirdVectorOffset,
+                    fourthVector, fourthVectorOffset,
+                    result,
+                    size);
         } else {
             throw new IllegalStateException("Unknown distance function: " + distanceFunction);
         }

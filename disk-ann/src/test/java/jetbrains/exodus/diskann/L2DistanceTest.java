@@ -516,6 +516,25 @@ public class L2DistanceTest {
     }
 
     @Test
+    public void testSmallVectorsZeroOffset4Batch() {
+        var originVector = new float[]{2.0f, 3.0f};
+        var firstVector = new float[]{4.0f, 5.0f};
+        var secondVector = new float[]{5.0f, 6.0f};
+        var thirdVector = new float[]{7.0f, 8.0f};
+        var fourthVector = new float[]{9.0f, 10.0f};
+
+        var result = new float[4];
+        for (int i = 16; i >= 1; i /= 2) {
+            L2Distance.computeL2Distance(originVector,
+                    0, firstVector, 0,
+                    secondVector, 0, thirdVector, 0,
+                    fourthVector, 0, result, 2, i);
+
+            Assert.assertArrayEquals(new float[]{8.0f, 18.0f, 50.0f, 98.0f}, result, 0.0f);
+        }
+    }
+
+    @Test
     public void testBigVectorsZeroOffset() {
         var count = 43;
         var firstVector = new float[count];
@@ -533,6 +552,42 @@ public class L2DistanceTest {
             var distance = L2Distance.computeL2Distance(firstVector, 0,
                     secondVector, 0, count, i);
             Assert.assertEquals(sum, distance, 0.0f);
+        }
+    }
+
+    @Test
+    public void testBigVectorsZeroOffset4Batch() {
+        var count = 43;
+        var originalVector = new float[count];
+        var firstVector = new float[count];
+        var secondVector = new float[count];
+        var thirdVector = new float[count];
+        var fourthVector = new float[count];
+
+        var sum = new float[4];
+        for (var i = 0; i < count; i++) {
+            originalVector[i] = 1.0f * i;
+            firstVector[i] = 3.0f * i;
+            secondVector[i] = 4.0f * i;
+            thirdVector[i] = 5.0f * i;
+            fourthVector[i] = 6.0f * i;
+
+
+            sum[0] += 4.0 * i * i;
+            sum[1] += 9.0 * i * i;
+            sum[2] += 16.0 * i * i;
+            sum[3] += 25.0 * i * i;
+        }
+
+        var result = new float[4];
+        for (int i = 16; i >= 1; i /= 2) {
+            L2Distance.computeL2Distance(originalVector, 0,
+                    firstVector, 0,
+                    secondVector, 0,
+                    thirdVector, 0,
+                    fourthVector, 0,
+                    result, count, i);
+            Assert.assertArrayEquals(sum, result, 0.0f);
         }
     }
 
@@ -557,7 +612,44 @@ public class L2DistanceTest {
                 Assert.assertEquals(sum, distance, 0.0f);
             }
         }
+    }
 
+    @Test
+    public void testHugeVectorsZeroOffset4Batch() {
+        var count = 107;
+        var originalVector = new float[count];
+
+        var firstVector = new float[count];
+        var secondVector = new float[count];
+        var thirdVector = new float[count];
+        var fourthVector = new float[count];
+
+        var sum = new float[4];
+        for (var i = 0; i < count; i++) {
+            originalVector[i] = 1.0f * i;
+            firstVector[i] = 3.0f * i;
+            secondVector[i] = 4.0f * i;
+            thirdVector[i] = 5.0f * i;
+            fourthVector[i] = 6.0f * i;
+
+            sum[0] += 4.0 * i * i;
+            sum[1] += 9.0 * i * i;
+            sum[2] += 16.0 * i * i;
+            sum[3] += 25.0 * i * i;
+        }
+
+
+        var result = new float[4];
+        for (int i = 16; i >= 1; i /= 2) {
+            L2Distance.computeL2Distance(originalVector, 0,
+                    firstVector, 0,
+                    secondVector, 0,
+                    thirdVector, 0,
+                    fourthVector, 0,
+                    result,
+                    count, i);
+            Assert.assertArrayEquals(sum, result, 0.0f);
+        }
     }
 
     @Test
@@ -569,6 +661,27 @@ public class L2DistanceTest {
             var distance = L2Distance.computeL2Distance(firstVector, 1, secondVector,
                     2, 2, i);
             Assert.assertEquals(8.0f, distance, 0.0f);
+        }
+    }
+
+    @Test
+    public void testSmallVectorsNonZeroOffset4Batch() {
+        var originVector = new float[]{42.0f, 2.0f, 3.0f};
+        var firstVector = new float[]{42.0f, 3.0f, 4.0f, 5.0f};
+        var secondVector = new float[]{42.0f, 3.0f, 6.0f, 7.0f};
+        var thirdVector = new float[]{42.0f, 3.0f, 8.0f, 9.0f};
+        var fourthVector = new float[]{42.0f, 3.0f, 10.0f, 11.0f};
+
+        var result = new float[4];
+        for (int i = 16; i >= 1; i /= 2) {
+            L2Distance.computeL2Distance(originVector, 1,
+                    firstVector, 2,
+                    secondVector, 2,
+                    thirdVector, 2,
+                    fourthVector, 2,
+                    result,
+                    2, i);
+            Assert.assertArrayEquals(new float[]{8.0f, 32.0f, 72.0f, 128.0f}, result, 0.0f);
         }
     }
 
@@ -603,6 +716,65 @@ public class L2DistanceTest {
     }
 
     @Test
+    public void testBigVectorsOffset4Batch() {
+        var count = 43;
+
+        var originVector = new float[count + 5];
+        var firstVector = new float[count + 5];
+        var secondVector = new float[count + 5];
+        var thirdVector = new float[count + 5];
+        var fourthVector = new float[count + 5];
+
+        originVector[0] = 42.0f;
+        firstVector[0] = 24.0f;
+        secondVector[0] = 24.0f;
+        thirdVector[0] = 24.0f;
+        fourthVector[0] = 24.0f;
+
+        originVector[1] = 32.0f;
+        firstVector[1] = 23.0f;
+        secondVector[1] = 23.0f;
+        thirdVector[1] = 23.0f;
+        fourthVector[1] = 23.0f;
+
+        firstVector[2] = 3.0f;
+        secondVector[2] = 3.0f;
+        thirdVector[2] = 3.0f;
+        fourthVector[2] = 3.0f;
+
+        var sum = new float[4];
+
+        var originOffset = 2;
+        var nextOffset = 3;
+
+        for (var i = 0; i < count; i++) {
+            originVector[i + originOffset] = 1.0f * i;
+
+            firstVector[i + nextOffset] = 3.0f * i;
+            secondVector[i + nextOffset] = 4.0f * i;
+            thirdVector[i + nextOffset] = 5.0f * i;
+            fourthVector[i + nextOffset] = 6.0f * i;
+
+            sum[0] += 4.0 * i * i;
+            sum[1] += 9.0 * i * i;
+            sum[2] += 16.0 * i * i;
+            sum[3] += 25.0 * i * i;
+        }
+
+        var result = new float[4];
+        for (int i = 16; i >= 1; i /= 2) {
+            L2Distance.computeL2Distance(originVector, originOffset,
+                    firstVector, nextOffset,
+                    secondVector, nextOffset,
+                    thirdVector, nextOffset,
+                    fourthVector, nextOffset,
+                    result,
+                    count, i);
+            Assert.assertArrayEquals(sum, result, 0.0f);
+        }
+    }
+
+    @Test
     public void testHugeVectorsOffset() {
         for (int k = 1; k <= 3; k++) {
             var count = 107 * k;
@@ -633,6 +805,62 @@ public class L2DistanceTest {
                 Assert.assertEquals(sum, distance, 0.0f);
             }
         }
+    }
 
+    @Test
+    public void testHugeVectorsOffset4Batch() {
+        var count = 107;
+
+        var originVector = new float[count + 5];
+        var firstVector = new float[count + 5];
+        var secondVector = new float[count + 5];
+        var thirdVector = new float[count + 5];
+        var fourthVector = new float[count + 5];
+
+        originVector[0] = 42.0f;
+        firstVector[0] = 24.0f;
+        secondVector[0] = 24.0f;
+        thirdVector[0] = 24.0f;
+        fourthVector[0] = 24.0f;
+
+        originVector[1] = 32.0f;
+        firstVector[1] = 23.0f;
+        secondVector[1] = 23.0f;
+        thirdVector[1] = 23.0f;
+        fourthVector[1] = 23.0f;
+
+        firstVector[2] = 3.0f;
+        secondVector[2] = 3.0f;
+        thirdVector[2] = 3.0f;
+        fourthVector[2] = 3.0f;
+
+        var sum = new float[4];
+        var originOffset = 2;
+        var nextOffset = 3;
+
+        for (var i = 0; i < count; i++) {
+            originVector[i + originOffset] = 1.0f * i;
+            firstVector[i + nextOffset] = 3.0f * i;
+            secondVector[i + nextOffset] = 4.0f * i;
+            thirdVector[i + nextOffset] = 5.0f * i;
+            fourthVector[i + nextOffset] = 6.0f * i;
+
+            sum[0] += 4.0 * i * i;
+            sum[1] += 9.0 * i * i;
+            sum[2] += 16.0 * i * i;
+            sum[3] += 25.0 * i * i;
+        }
+
+        var result = new float[4];
+        for (int i = 16; i >= 1; i /= 2) {
+            L2Distance.computeL2Distance(originVector, originOffset,
+                    firstVector, nextOffset,
+                    secondVector, nextOffset,
+                    thirdVector, nextOffset,
+                    fourthVector, nextOffset,
+                    result,
+                    count, i);
+            Assert.assertArrayEquals(sum, result, 0.0f);
+        }
     }
 }
