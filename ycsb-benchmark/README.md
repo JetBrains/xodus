@@ -20,7 +20,7 @@ YCSB
 ====================================
 [![Build Status](https://travis-ci.org/brianfrankcooper/YCSB.png?branch=master)](https://travis-ci.org/brianfrankcooper/YCSB)
 
-
+This is the part of the original benchmark by Yahoo! integrated to the Xodus repository for convinience. 
 
 Links
 -----
@@ -28,32 +28,20 @@ Links
 * [Our project docs](https://github.com/brianfrankcooper/YCSB/wiki)
 * [The original announcement from Yahoo!](https://labs.yahoo.com/news/yahoo-cloud-serving-benchmark/)
 
-Getting Started
+Benchmark
 ---------------
 
-1. Download the [latest release of YCSB](https://github.com/brianfrankcooper/YCSB/releases/latest):
+1. Set up a database to benchmark. To change the core methods such as insert/scan/etc. use XodusClient class.
+
+2. Assemble the benchmark by running command from the ycsb-benchmark directory.
+    ```sh
+    ./gradlew assemble
+    ```
+3. Run YCSB load and run commands. 
 
     ```sh
-    curl -O --location https://github.com/brianfrankcooper/YCSB/releases/download/0.17.0/ycsb-0.17.0.tar.gz
-    tar xfvz ycsb-0.17.0.tar.gz
-    cd ycsb-0.17.0
-    ```
-    
-2. Set up a database to benchmark. There is a README file under each binding 
-   directory.
-
-3. Run YCSB command. 
-
-    On Linux:
-    ```sh
-    bin/ycsb.sh load basic -P workloads/workloada
-    bin/ycsb.sh run basic -P workloads/workloada
-    ```
-
-    On Windows:
-    ```bat
-    bin/ycsb.bat load basic -P workloads\workloada
-    bin/ycsb.bat run basic -P workloads\workloada
+    bin/ycsb load xodus -P workloads/workloada -s  > load.dat 
+    bin/ycsb run xodus -P workloads/workloada -s  > run.dat
     ```
 
   Running the `ycsb` command without any argument will print the usage. 
@@ -64,17 +52,3 @@ Getting Started
   See https://github.com/brianfrankcooper/YCSB/wiki/Core-Properties for 
   the list of available workload properties.
 
-
-Building from source
---------------------
-
-YCSB requires the use of Maven 3; if you use Maven 2, you may see [errors
-such as these](https://github.com/brianfrankcooper/YCSB/issues/406).
-
-To build the full distribution, with all database bindings:
-
-    mvn clean package
-
-To build a single database binding:
-
-    mvn -pl site.ycsb:mongodb-binding -am clean package

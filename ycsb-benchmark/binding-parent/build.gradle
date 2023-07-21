@@ -39,11 +39,6 @@ configurations {
     provided
 }
 
-//task stageDependencies(type: Copy) {
-//    from configurations.runtime
-//    into "${buildDir}/libs"
-//}
-
 // Profiles
 def skipJDK9Tests = false
 def skipJDK10Tests = false
@@ -94,39 +89,6 @@ if (project.hasProperty('ycsbRelease')) {
     }
 }
 
-// Configurations for plugins
-//plugins {
-//    id 'maven-publish'
-//}
-
-//publishing {
-//    publications {
-//        mavenJava(MavenPublication) {
-//            from components.java
-//
-//            groupId = project.group
-//            version = project.version
-//            artifactId = project.name
-//
-//            pom {
-//                name = project.name
-//                description = project.description
-//                url = 'https://github.com/YCSB/YCSB'
-//                licenses {
-//                    license {
-//                        name = 'Apache License, Version 2.0'
-//                        url = 'http://www.apache.org/licenses/LICENSE-2.0'
-//                    }
-//                }
-//            }
-//        }
-//    }
-//
-//    repositories {
-//        mavenLocal()
-//    }
-//}
-
 // Apply plugin configurations
 //apply plugin: 'maven-assembly'
 apply plugin: 'checkstyle'
@@ -140,11 +102,6 @@ dependencies {
     assembly "site.ycsb:datastore-specific-descriptor:$version"
 }
 
-//assembly {
-//    descriptorRef 'datastore-specific-assembly'
-//    appendix = false
-//    tarLongFileMode = 'posix'
-//}
 
 checkstyle {
     configFile file('../checkstyle.xml')
