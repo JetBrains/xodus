@@ -400,16 +400,18 @@ public final class L2Distance {
 
         var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
                 firstSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_1 = original.sub(first);
+
         var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
                 secondSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_2 = original.sub(second);
+
         var third = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, thirdSegment,
                 thirdSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_3 = original.sub(third);
+
         var fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, fourthSegment,
                 fourthSegmentOffset, ByteOrder.nativeOrder());
-
-        var diffVector_1 = original.sub(first);
-        var diffVector_2 = original.sub(second);
-        var diffVector_3 = original.sub(third);
         var diffVector_4 = original.sub(fourth);
 
         var sumVector_1 = diffVector_1.mul(diffVector_1);
@@ -431,16 +433,18 @@ public final class L2Distance {
                     originalSegmentOffset, ByteOrder.nativeOrder());
             first = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_1 = original.sub(first);
+
             second = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
                     secondSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_2 = original.sub(second);
+
             third = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, thirdSegment,
                     thirdSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_3 = original.sub(third);
+
             fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, fourthSegment,
                     fourthSegmentOffset, ByteOrder.nativeOrder());
-
-            diffVector_1 = original.sub(first);
-            diffVector_2 = original.sub(second);
-            diffVector_3 = original.sub(third);
             diffVector_4 = original.sub(fourth);
 
             sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
@@ -505,16 +509,18 @@ public final class L2Distance {
                 originVectorOffset);
         var first = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                 firstVectorOffset);
+        var diffVector_1 = origin.sub(first);
+
         var second = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
                 firstVectorOffset);
+        var diffVector_2 = origin.sub(second);
+
         var third = FloatVector.fromArray(FloatVector.SPECIES_512, thirdVector,
                 firstVectorOffset);
+        var diffVector_3 = origin.sub(third);
+
         var fourth = FloatVector.fromArray(FloatVector.SPECIES_512, fourthVector,
                 firstVectorOffset);
-
-        var diffVector_1 = origin.sub(first);
-        var diffVector_2 = origin.sub(second);
-        var diffVector_3 = origin.sub(third);
         var diffVector_4 = origin.sub(fourth);
 
         var sumVector_1 = diffVector_1.mul(diffVector_1);
@@ -536,16 +542,18 @@ public final class L2Distance {
 
             first = FloatVector.fromArray(FloatVector.SPECIES_512, firstVector,
                     firstVectorOffset);
+            diffVector_1 = origin.sub(first);
+
             second = FloatVector.fromArray(FloatVector.SPECIES_512, secondVector,
                     secondVectorOffset);
+            diffVector_2 = origin.sub(second);
+
             third = FloatVector.fromArray(FloatVector.SPECIES_512, thirdVector,
                     thirdVectorOffset);
+            diffVector_3 = origin.sub(third);
+
             fourth = FloatVector.fromArray(FloatVector.SPECIES_512, fourthVector,
                     fourthVectorOffset);
-
-            diffVector_1 = origin.sub(first);
-            diffVector_2 = origin.sub(second);
-            diffVector_3 = origin.sub(third);
             diffVector_4 = origin.sub(fourth);
 
             sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
@@ -609,16 +617,18 @@ public final class L2Distance {
                 originVectorOffst);
         var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
                 firstSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_1 = origin.sub(first);
+
         var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
                 secondSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_2 = origin.sub(second);
+
         var third = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, thirdSegment,
                 thirdSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_3 = origin.sub(third);
+
         var fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, fourthSegment,
                 fourthSegmentOffset, ByteOrder.nativeOrder());
-
-        var diffVector_1 = origin.sub(first);
-        var diffVector_2 = origin.sub(second);
-        var diffVector_3 = origin.sub(third);
         var diffVector_4 = origin.sub(fourth);
 
         var sumVector_1 = diffVector_1.mul(diffVector_1);
@@ -639,17 +649,18 @@ public final class L2Distance {
 
             first = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_1 = origin.sub(first);
+
             second = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, secondSegment,
                     secondSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_2 = origin.sub(second);
+
             third = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, thirdSegment,
                     thirdSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_3 = origin.sub(third);
+
             fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, fourthSegment,
                     fourthSegmentOffset, ByteOrder.nativeOrder());
-
-
-            diffVector_1 = origin.sub(first);
-            diffVector_2 = origin.sub(second);
-            diffVector_3 = origin.sub(third);
             diffVector_4 = origin.sub(fourth);
 
             sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
@@ -719,16 +730,18 @@ public final class L2Distance {
 
         var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
                 firstSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_1 = original.sub(first);
+
         var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
                 secondSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_2 = original.sub(second);
+
         var third = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, thirdSegment,
                 thirdSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_3 = original.sub(third);
+
         var fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, fourthSegment,
                 fourthSegmentOffset, ByteOrder.nativeOrder());
-
-        var diffVector_1 = original.sub(first);
-        var diffVector_2 = original.sub(second);
-        var diffVector_3 = original.sub(third);
         var diffVector_4 = original.sub(fourth);
 
         var sumVector_1 = diffVector_1.mul(diffVector_1);
@@ -749,16 +762,18 @@ public final class L2Distance {
                     orginalSegmentOffset, ByteOrder.nativeOrder());
             first = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_1 = original.sub(first);
+
             second = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
                     secondSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_2 = original.sub(second);
+
             third = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, thirdSegment,
                     thirdSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_3 = original.sub(third);
+
             fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, fourthSegment,
                     fourthSegmentOffset, ByteOrder.nativeOrder());
-
-            diffVector_1 = original.sub(first);
-            diffVector_2 = original.sub(second);
-            diffVector_3 = original.sub(third);
             diffVector_4 = original.sub(fourth);
 
             sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
@@ -824,16 +839,18 @@ public final class L2Distance {
 
         var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
                 firstSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_1 = origin.sub(first);
+
         var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
                 secondSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_2 = origin.sub(second);
+
         var third = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, thirdSegment,
                 thirdSegmentOffset, ByteOrder.nativeOrder());
+        var diffVector_3 = origin.sub(third);
+
         var fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, fourthSegment,
                 fourthSegmentOffset, ByteOrder.nativeOrder());
-
-        var diffVector_1 = origin.sub(first);
-        var diffVector_2 = origin.sub(second);
-        var diffVector_3 = origin.sub(third);
         var diffVector_4 = origin.sub(fourth);
 
         var sumVector_1 = diffVector_1.mul(diffVector_1);
@@ -855,17 +872,18 @@ public final class L2Distance {
 
             first = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_1 = origin.sub(first);
+
             second = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, secondSegment,
                     secondSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_2 = origin.sub(second);
+
             third = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, thirdSegment,
                     thirdSegmentOffset, ByteOrder.nativeOrder());
+            diffVector_3 = origin.sub(third);
+
             fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, fourthSegment,
                     fourthSegmentOffset, ByteOrder.nativeOrder());
-
-
-            diffVector_1 = origin.sub(first);
-            diffVector_2 = origin.sub(second);
-            diffVector_3 = origin.sub(third);
             diffVector_4 = origin.sub(fourth);
 
             sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
@@ -930,16 +948,18 @@ public final class L2Distance {
                 originVectorOffset);
         var first = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                 firstVectorOffset);
+        var diffVector_1 = origin.sub(first);
+
         var second = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
                 secondVectorOffset);
+        var diffVector_2 = origin.sub(second);
+
         var third = FloatVector.fromArray(FloatVector.SPECIES_256, thirdVector,
                 thirdVectorOffset);
+        var diffVector_3 = origin.sub(third);
+
         var fourth = FloatVector.fromArray(FloatVector.SPECIES_256, fourthVector,
                 fourthVectorOffset);
-
-        var diffVector_1 = origin.sub(first);
-        var diffVector_2 = origin.sub(second);
-        var diffVector_3 = origin.sub(third);
         var diffVector_4 = origin.sub(fourth);
 
         var sumVector_1 = diffVector_1.mul(diffVector_1);
@@ -961,17 +981,18 @@ public final class L2Distance {
                     originVectorOffset);
             first = FloatVector.fromArray(FloatVector.SPECIES_256, firstVector,
                     firstVectorOffset);
+            diffVector_1 = origin.sub(first);
+
             second = FloatVector.fromArray(FloatVector.SPECIES_256, secondVector,
                     secondVectorOffset);
+            diffVector_2 = origin.sub(second);
+
             third = FloatVector.fromArray(FloatVector.SPECIES_256, thirdVector,
                     thirdVectorOffset);
+            diffVector_3 = origin.sub(third);
+
             fourth = FloatVector.fromArray(FloatVector.SPECIES_256, fourthVector,
                     fourthVectorOffset);
-
-
-            diffVector_1 = origin.sub(first);
-            diffVector_2 = origin.sub(second);
-            diffVector_3 = origin.sub(third);
             diffVector_4 = origin.sub(fourth);
 
             sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
@@ -1072,16 +1093,18 @@ public final class L2Distance {
                     originalSegmentOffset, ByteOrder.nativeOrder());
             var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder());
+            var diffVector_1 = original.sub(first);
+
             var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, secondSegment,
                     secondSegmentOffset, ByteOrder.nativeOrder());
+            var diffVector_2 = original.sub(second);
+
             var third = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, thirdSegment,
                     thirdSegmentOffset, ByteOrder.nativeOrder());
+            var diffVector_3 = original.sub(third);
+
             var fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, fourthSegment,
                     fourthSegmentOffset, ByteOrder.nativeOrder());
-
-            var diffVector_1 = original.sub(first);
-            var diffVector_2 = original.sub(second);
-            var diffVector_3 = original.sub(third);
             var diffVector_4 = original.sub(fourth);
 
             var sumVector_1 = diffVector_1.mul(diffVector_1);
@@ -1107,17 +1130,18 @@ public final class L2Distance {
                         originalSegmentOffset, ByteOrder.nativeOrder());
                 first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                         firstSegmentOffset, ByteOrder.nativeOrder());
+                diffVector_1 = original.sub(first);
+
                 second = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, secondSegment,
                         secondSegmentOffset, ByteOrder.nativeOrder());
+                diffVector_2 = original.sub(second);
+
                 third = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, thirdSegment,
                         thirdSegmentOffset, ByteOrder.nativeOrder());
+                diffVector_3 = original.sub(third);
+
                 fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, fourthSegment,
                         fourthSegmentOffset, ByteOrder.nativeOrder());
-
-
-                diffVector_1 = original.sub(first);
-                diffVector_2 = original.sub(second);
-                diffVector_3 = original.sub(third);
                 diffVector_4 = original.sub(fourth);
 
                 sumVector_1 = diffVector_1.fma(diffVector_1, sumVector_1);
@@ -1133,17 +1157,18 @@ public final class L2Distance {
                         originalSegmentOffset, ByteOrder.nativeOrder(), mask);
                 first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                         firstSegmentOffset, ByteOrder.nativeOrder(), mask);
+                diffVector_1 = original.sub(first, mask);
+
                 second = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, secondSegment, secondSegmentOffset,
                         ByteOrder.nativeOrder(), mask);
+                diffVector_2 = original.sub(second, mask);
+
                 third = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, thirdSegment, thirdSegmentOffset,
                         ByteOrder.nativeOrder(), mask);
+                diffVector_3 = original.sub(third, mask);
+
                 fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, fourthSegment, fourthSegmentOffset,
                         ByteOrder.nativeOrder(), mask);
-
-
-                diffVector_1 = original.sub(first, mask);
-                diffVector_2 = original.sub(second, mask);
-                diffVector_3 = original.sub(third, mask);
                 diffVector_4 = original.sub(fourth, mask);
 
                 sumVector_1 = diffVector_1.mul(diffVector_1, mask).add(sumVector_1);
@@ -1168,17 +1193,18 @@ public final class L2Distance {
                     originalSegmentOffset, ByteOrder.nativeOrder(), mask);
             var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder(), mask);
+            var diffVector_1 = original.sub(first, mask);
+
             var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, secondSegment,
                     secondSegmentOffset, ByteOrder.nativeOrder(), mask);
+            var diffVector_2 = original.sub(second, mask);
+
             var third = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, thirdSegment, thirdSegmentOffset,
                     ByteOrder.nativeOrder(), mask);
+            var diffVector_3 = original.sub(third, mask);
+
             var fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, fourthSegment, fourthSegmentOffset,
                     ByteOrder.nativeOrder(), mask);
-
-
-            var diffVector_1 = original.sub(first, mask);
-            var diffVector_2 = original.sub(second, mask);
-            var diffVector_3 = original.sub(third, mask);
             var diffVector_4 = original.sub(fourth, mask);
 
             var sumVector_1 = diffVector_1.mul(diffVector_1, mask);
@@ -1280,16 +1306,18 @@ public final class L2Distance {
                     originVectorOffset);
             var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder());
+            var diffVector_1 = origin.sub(first);
+
             var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, secondSegment,
                     secondSegmentOffset, ByteOrder.nativeOrder());
+            var diffVector_2 = origin.sub(second);
+
             var third = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, thirdSegment,
                     thirdSegmentOffset, ByteOrder.nativeOrder());
+            var diffVector_3 = origin.sub(third);
+
             var fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, fourthSegment,
                     fourthSegmentOffset, ByteOrder.nativeOrder());
-
-            var diffVector_1 = origin.sub(first);
-            var diffVector_2 = origin.sub(second);
-            var diffVector_3 = origin.sub(third);
             var diffVector_4 = origin.sub(fourth);
 
 
@@ -1317,16 +1345,18 @@ public final class L2Distance {
                         originVectorOffset);
                 first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                         firstSegmentOffset, ByteOrder.nativeOrder());
+                diffVector_1 = origin.sub(first);
+
                 second = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, secondSegment,
                         secondSegmentOffset, ByteOrder.nativeOrder());
+                diffVector_2 = origin.sub(second);
+
                 third = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, thirdSegment,
                         thirdSegmentOffset, ByteOrder.nativeOrder());
+                diffVector_3 = origin.sub(third);
+
                 fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, fourthSegment,
                         fourthSegmentOffset, ByteOrder.nativeOrder());
-
-                diffVector_1 = origin.sub(first);
-                diffVector_2 = origin.sub(second);
-                diffVector_3 = origin.sub(third);
                 diffVector_4 = origin.sub(fourth);
 
 
@@ -1343,16 +1373,18 @@ public final class L2Distance {
                         originVectorOffset, mask);
                 first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                         firstSegmentOffset, ByteOrder.nativeOrder(), mask);
+                diffVector_1 = origin.sub(first, mask);
+
                 second = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, secondSegment,
                         secondSegmentOffset, ByteOrder.nativeOrder(), mask);
+                diffVector_2 = origin.sub(second, mask);
+
                 third = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, thirdSegment,
                         thirdSegmentOffset, ByteOrder.nativeOrder(), mask);
+                diffVector_3 = origin.sub(third, mask);
+
                 fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, fourthSegment,
                         fourthSegmentOffset, ByteOrder.nativeOrder(), mask);
-
-                diffVector_1 = origin.sub(first, mask);
-                diffVector_2 = origin.sub(second, mask);
-                diffVector_3 = origin.sub(third, mask);
                 diffVector_4 = origin.sub(fourth, mask);
 
                 var mulVector_1 = diffVector_1.mul(diffVector_1, mask);
@@ -1383,16 +1415,18 @@ public final class L2Distance {
                     originVectorOffset, mask);
             var first = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, firstSegment,
                     firstSegmentOffset, ByteOrder.nativeOrder(), mask);
+            var diffVector_1 = origin.sub(first, mask);
+
             var second = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, secondSegment,
                     secondSegmentOffset, ByteOrder.nativeOrder(), mask);
+            var diffVector_2 = origin.sub(second, mask);
+
             var third = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, thirdSegment,
                     thirdSegmentOffset, ByteOrder.nativeOrder(), mask);
+            var diffVector_3 = origin.sub(third, mask);
+
             var fourth = FloatVector.fromMemorySegment(FloatVector.SPECIES_128, fourthSegment,
                     fourthSegmentOffset, ByteOrder.nativeOrder(), mask);
-
-            var diffVector_1 = origin.sub(first, mask);
-            var diffVector_2 = origin.sub(second, mask);
-            var diffVector_3 = origin.sub(third, mask);
             var diffVector_4 = origin.sub(fourth, mask);
 
             var sumVector_1 = diffVector_1.mul(diffVector_1, mask);
@@ -1487,16 +1521,18 @@ public final class L2Distance {
                     originVectorOffset);
             var first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
                     firstVectorOffset);
+            var diffVector_1 = origin.sub(first);
+
             var second = FloatVector.fromArray(FloatVector.SPECIES_128, secondVector,
                     secondVectorOffset);
+            var diffVector_2 = origin.sub(second);
+
             var third = FloatVector.fromArray(FloatVector.SPECIES_128, thirdVector,
                     thirdVectorOffset);
+            var diffVector_3 = origin.sub(third);
+
             var fourth = FloatVector.fromArray(FloatVector.SPECIES_128, fourthVector,
                     fourthVectorOffset);
-
-            var diffVector_1 = origin.sub(first);
-            var diffVector_2 = origin.sub(second);
-            var diffVector_3 = origin.sub(third);
             var diffVector_4 = origin.sub(fourth);
 
             var sumVector_1 = diffVector_1.mul(diffVector_1);
@@ -1520,16 +1556,18 @@ public final class L2Distance {
                         originVectorOffset);
                 first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
                         firstVectorOffset);
+                diffVector_1 = origin.sub(first);
+
                 second = FloatVector.fromArray(FloatVector.SPECIES_128, secondVector,
                         secondVectorOffset);
+                diffVector_2 = origin.sub(second);
+
                 third = FloatVector.fromArray(FloatVector.SPECIES_128, thirdVector,
                         thirdVectorOffset);
+                diffVector_3 = origin.sub(third);
+
                 fourth = FloatVector.fromArray(FloatVector.SPECIES_128, fourthVector,
                         fourthVectorOffset);
-
-                diffVector_1 = origin.sub(first);
-                diffVector_2 = origin.sub(second);
-                diffVector_3 = origin.sub(third);
                 diffVector_4 = origin.sub(fourth);
 
 
@@ -1546,16 +1584,18 @@ public final class L2Distance {
                         originVectorOffset, mask);
                 first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
                         firstVectorOffset, mask);
+                diffVector_1 = origin.sub(first, mask);
+
                 second = FloatVector.fromArray(FloatVector.SPECIES_128, secondVector,
                         secondVectorOffset, mask);
+                diffVector_2 = origin.sub(second, mask);
+
                 third = FloatVector.fromArray(FloatVector.SPECIES_128, thirdVector,
                         thirdVectorOffset, mask);
+                diffVector_3 = origin.sub(third, mask);
+
                 fourth = FloatVector.fromArray(FloatVector.SPECIES_128, fourthVector,
                         fourthVectorOffset, mask);
-
-                diffVector_1 = origin.sub(first, mask);
-                diffVector_2 = origin.sub(second, mask);
-                diffVector_3 = origin.sub(third, mask);
                 diffVector_4 = origin.sub(fourth, mask);
 
                 var mul_1 = diffVector_1.mul(diffVector_1, mask);
@@ -1586,17 +1626,18 @@ public final class L2Distance {
                     originVectorOffset, mask);
             var first = FloatVector.fromArray(FloatVector.SPECIES_128, firstVector,
                     firstVectorOffset, mask);
+            var diffVector_1 = origin.sub(first, mask);
+
             var second = FloatVector.fromArray(FloatVector.SPECIES_128, secondVector,
                     secondVectorOffset, mask);
+            var diffVector_2 = origin.sub(second, mask);
+
             var third = FloatVector.fromArray(FloatVector.SPECIES_128, thirdVector,
                     thirdVectorOffset, mask);
+            var diffVector_3 = origin.sub(third, mask);
+
             var fourth = FloatVector.fromArray(FloatVector.SPECIES_128, fourthVector,
                     fourthVectorOffset, mask);
-
-
-            var diffVector_1 = origin.sub(first, mask);
-            var diffVector_2 = origin.sub(second, mask);
-            var diffVector_3 = origin.sub(third, mask);
             var diffVector_4 = origin.sub(fourth, mask);
 
             var sumVector_1 = diffVector_1.mul(diffVector_1, mask);
