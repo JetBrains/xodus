@@ -4,7 +4,6 @@ import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.*;
-import org.openjdk.jmh.profile.LinuxPerfProfiler;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
@@ -173,8 +172,7 @@ public class L2DistanceBench {
 
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()
-                .include(L2DistanceBench.class.getSimpleName()).addProfiler(LinuxPerfProfiler.class,
-                        "events=fp_ret_sse_avx_ops.all;delay=0")
+                .include(L2DistanceBench.class.getSimpleName())
                 .build();
         new Runner(opt).run();
     }
