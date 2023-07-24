@@ -146,13 +146,15 @@ public class L2DistanceBench {
             origin = FloatVector.fromArray(species, vector1, index);
 
             first = FloatVector.fromArray(species, vector2, index);
-            second = FloatVector.fromArray(species, vector3, index);
-            third = FloatVector.fromArray(species, vector4, index);
-            fourth = FloatVector.fromArray(species, vector5, index);
-
             diff_1 = origin.sub(first);
+
+            second = FloatVector.fromArray(species, vector3, index);
             diff_2 = origin.sub(second);
+
+            third = FloatVector.fromArray(species, vector4, index);
             diff_3 = origin.sub(third);
+
+            fourth = FloatVector.fromArray(species, vector5, index);
             diff_4 = origin.sub(fourth);
 
             sumVector_1 = diff_1.fma(diff_1, sumVector_1);
