@@ -84,15 +84,16 @@ public class BackupUtil {
                                               final byte[] firstKey, final long firstIv,
                                               final byte[] secondKey, final long secondIv,
                                               final StreamCipherProvider cipherProvider) throws IOException {
-        return reEncryptBackup(archiveStream, firstKey, firstIv, secondKey, secondIv, cipherProvider, false);
+        return reEncryptBackup(archiveStream, firstKey, firstIv, secondKey, secondIv, cipherProvider,
+                false, -1);
     }
 
     public static InputStream reEncryptBackup(final ArchiveInputStream archiveStream,
                                               final byte[] firstKey, final long firstIv,
                                               final byte[] secondKey, final long secondIv,
                                               final StreamCipherProvider cipherProvider,
-                                              final boolean ignorePageSizeCheck)
-            throws IOException {
+                                              final boolean ignorePageSizeCheck,
+                                              final int pageSize) throws IOException {
         var pipedInputStream = new PipedInputStream(1024 * 1024);
         var pipedOutputStream = new PipedOutputStream(pipedInputStream);
 
@@ -119,11 +120,16 @@ public class BackupUtil {
 
         executor.submit(() -> {
             try {
+                if (ignorePageSizeCheck && pageSize <= 0) {
+                    throw new IllegalStateException("Page size should be specified if ignorePageSizeCheck is set");
+                }
+
                 if (ignorePageSizeCheck) {
                     logger.warn("Because flag ignorePageSizeCheck is set, database will be marked is incorrectly closed " +
                             "and will be recovered on next startup. This is not a problem if you are going to see " +
                             "database restore routine.");
                 }
+
                 final byte[] readBuffer = new byte[1024 * 1024];
                 final int pageStep = 4 * 1024;
                 final int pageMaxSize = 256 * 1024;
@@ -150,15 +156,12 @@ public class BackupUtil {
                     final Path namePath = Path.of(name);
 
                     if (ignorePageSizeCheck && name.endsWith(LogUtil.LOG_FILE_EXTENSION)) {
-                        final String rootName = extractRootName(namePath);
-                        DbMetadata dbMetadata = metadataMap.get(rootName);
-
-                        if (dbMetadata != null && (entrySize & (dbMetadata.pageSize - 1)) != 0) {
+                        if ((entrySize &  pageSize) != 0) {
                             //rounding file size to the page size
-                            var newEntrySize = entrySize & -dbMetadata.pageSize;
+                            var newEntrySize = entrySize & -pageSize;
                             logger.error("File {} size {} is not multiple of page size {}. Rounding to {} because flag " +
                                             "ignorePageSizeCheck is set to true. ",
-                                    name, entrySize, dbMetadata.pageSize, newEntrySize);
+                                    name, entrySize, pageSize, newEntrySize);
                             entrySize = newEntrySize;
                         }
                     }
