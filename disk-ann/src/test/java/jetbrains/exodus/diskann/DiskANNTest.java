@@ -198,6 +198,7 @@ public class DiskANNTest {
 
                 Assert.assertEquals("j = " + index, 1, result.length);
                 if (groundTruth[index][0] != result[0]) {
+                    diskANN.nearest(vector, result, 1);
                     errorsCount++;
                 }
             }

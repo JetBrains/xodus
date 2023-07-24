@@ -512,6 +512,21 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
+    private void computeDistance(float[] originVector, @SuppressWarnings("SameParameterValue") int originVectorOffset,
+                                 MemorySegment firstSegment,
+                                 long firstSegmentFromOffset, MemorySegment secondSegment, long secondSegmentFromOffset,
+                                 MemorySegment thirdSegment, long thirdSegmentFromOffset,
+                                 MemorySegment fourthSegment, long fourthSegmentFromOffset,
+                                 float[] result) {
+        if (distanceFunction == L2_DISTANCE) {
+            L2Distance.computeL2Distance(originVector, originVectorOffset, firstSegment, firstSegmentFromOffset,
+                    secondSegment, secondSegmentFromOffset, thirdSegment, thirdSegmentFromOffset,
+                    fourthSegment, fourthSegmentFromOffset, vectorDim, result);
+        } else {
+            throw new IllegalStateException("Unknown distance function: " + distanceFunction);
+        }
+    }
+
     static float[] computeGradientStep(float[] centroid, float[] point, int pointOffset, float learningRate) {
         var result = new float[centroid.length];
         var index = 0;
@@ -1220,31 +1235,47 @@ public final class DiskANN implements AutoCloseable {
             assert nearestCandidates.size() <= maxAmountOfCandidates;
             visitedVertexIndices.add((int) startVertexIndex);
 
+            var vertexIndexesToCheck = new IntArrayList();
+            var distanceResult = new float[4];
+
             float[] lookupTable = null;
+
             while (true) {
                 int currentVertex = -1;
-                while (true) {
-                    var notCheckedVertex = nearestCandidates.nextNotCheckedVertexIndex();
-                    if (notCheckedVertex < 0) {
-                        break;
-                    }
-                    if (nearestCandidates.isPqDistance(notCheckedVertex)) {
-                        var vertexIndex = nearestCandidates.vertexIndex(notCheckedVertex);
-                        var preciseDistance = computeDistance(diskCache, vectorOffset(vertexIndex),
-                                queryVector);
-                        var pqDistance = nearestCandidates.vertexDistance(notCheckedVertex);
 
-                        if (preciseDistance != 0) {
-                            pqReCalculated++;
-                            pqReCalculationError += 100.0 * Math.abs(preciseDistance - pqDistance) / preciseDistance;
+                vertexRecalculationLoop:
+                while (true) {
+                    vertexIndexesToCheck.clear();
+
+                    while (vertexIndexesToCheck.size() < 4) {
+                        var notCheckedVertex = nearestCandidates.nextNotCheckedVertexIndex();
+
+                        if (notCheckedVertex < 0) {
+                            if (vertexIndexesToCheck.isEmpty()) {
+                                break vertexRecalculationLoop;
+                            }
+
+                            recalculateDistances(queryVector, nearestCandidates,
+                                    vertexIndexesToCheck, distanceResult);
+                            continue;
                         }
 
-                        nearestCandidates.resortVertex(notCheckedVertex, preciseDistance);
-                    } else {
-                        currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
-                        break;
+                        if (nearestCandidates.isPqDistance(notCheckedVertex)) {
+                            vertexIndexesToCheck.add(notCheckedVertex);
+                        } else {
+                            if (!vertexIndexesToCheck.isEmpty()) {
+                                recalculateDistances(queryVector, nearestCandidates,
+                                        vertexIndexesToCheck, distanceResult);
+                                continue;
+                            }
+                            currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
+                            break vertexRecalculationLoop;
+                        }
                     }
+                    recalculateDistances(queryVector, nearestCandidates,
+                            vertexIndexesToCheck, distanceResult);
                 }
+
 
                 if (currentVertex < 0) {
                     break;
@@ -1280,6 +1311,116 @@ public final class DiskANN implements AutoCloseable {
             }
 
             nearestCandidates.vertexIndices(result, k);
+        }
+
+        private void recalculateDistances(float[] queryVector, BoundedGreedyVertexPriorityQueue nearestCandidates,
+                                          IntArrayList vertexIndexesToCheck, float[] distanceResult) {
+            var elements = vertexIndexesToCheck.elements();
+            var size = vertexIndexesToCheck.size();
+
+            if (size < 4) {
+                for (int i = 0; i < size; i++) {
+                    var notCheckedVertex = elements[i];
+
+                    var vertexIndex = nearestCandidates.vertexIndex(notCheckedVertex);
+                    var preciseDistance = computeDistance(diskCache, vectorOffset(vertexIndex),
+                            queryVector);
+                    var pqDistance = nearestCandidates.vertexDistance(notCheckedVertex);
+                    var newVertexIndex = nearestCandidates.resortVertex(notCheckedVertex, preciseDistance);
+
+                    for (int  k = i + 1; k < size; k++) {
+                        elements[k] = elements[k] - ((elements[k] - newVertexIndex - 1) >>> (Integer.SIZE - 1));
+                    }
+
+                    if (preciseDistance != 0) {
+                        pqReCalculated++;
+                        pqReCalculationError += 100.0 * Math.abs(preciseDistance - pqDistance) / preciseDistance;
+                    }
+                }
+            } else {
+                var notCheckedVertex1 = elements[0];
+                var notCheckedVertex2 = elements[1];
+                var notCheckedVertex3 = elements[2];
+                var notCheckedVertex4 = elements[3];
+
+                var vertexIndex1 = nearestCandidates.vertexIndex(notCheckedVertex1);
+                var vertexIndex2 = nearestCandidates.vertexIndex(notCheckedVertex2);
+                var vertexIndex3 = nearestCandidates.vertexIndex(notCheckedVertex3);
+                var vertexIndex4 = nearestCandidates.vertexIndex(notCheckedVertex4);
+
+                assert notCheckedVertex1 < notCheckedVertex2;
+                assert notCheckedVertex2 < notCheckedVertex3;
+                assert notCheckedVertex3 < notCheckedVertex4;
+
+                var vectorOffset1 = vectorOffset(vertexIndex1);
+                var vectorOffset2 = vectorOffset(vertexIndex2);
+                var vectorOffset3 = vectorOffset(vertexIndex3);
+                var vectorOffset4 = vectorOffset(vertexIndex4);
+
+                var pqDistance1 = nearestCandidates.vertexDistance(notCheckedVertex1);
+                var pqDistance2 = nearestCandidates.vertexDistance(notCheckedVertex2);
+                var pqDistance3 = nearestCandidates.vertexDistance(notCheckedVertex3);
+                var pqDistance4 = nearestCandidates.vertexDistance(notCheckedVertex4);
+
+                computeDistance(queryVector, 0, diskCache, vectorOffset1,
+                        diskCache, vectorOffset2, diskCache, vectorOffset3, diskCache, vectorOffset4,
+                        distanceResult);
+
+                //preventing branch miss predictions using bit shift and subtraction
+                var newVertexIndex1 = nearestCandidates.resortVertex(notCheckedVertex1, distanceResult[0]);
+                assert vertexIndex1 == nearestCandidates.vertexIndex(newVertexIndex1);
+
+                //if newVertexIndex1 >= notCheckedVertex1 then -1 else 0, the same logic
+                //is applied for the rest follow-up indexes
+                notCheckedVertex2 = notCheckedVertex2 -
+                        ((notCheckedVertex2  - newVertexIndex1 - 1) >>> (Integer.SIZE - 1));
+                notCheckedVertex3 = notCheckedVertex3 -
+                        ((notCheckedVertex3 - newVertexIndex1 - 1) >>> (Integer.SIZE - 1));
+                notCheckedVertex4 = notCheckedVertex4 -
+                        ((notCheckedVertex4 - newVertexIndex1 - 1) >>> (Integer.SIZE - 1));
+                assert vertexIndex2 == nearestCandidates.vertexIndex(notCheckedVertex2);
+                assert vertexIndex3 == nearestCandidates.vertexIndex(notCheckedVertex3);
+                assert vertexIndex4 == nearestCandidates.vertexIndex(notCheckedVertex4);
+
+                var newVertexIndex2 = nearestCandidates.resortVertex(notCheckedVertex2, distanceResult[1]);
+                assert vertexIndex2 == nearestCandidates.vertexIndex(newVertexIndex2);
+
+                notCheckedVertex3 = notCheckedVertex3 - ((notCheckedVertex3 - newVertexIndex2 - 1) >>> (Integer.SIZE - 1));
+                notCheckedVertex4 = notCheckedVertex4 - ((notCheckedVertex4 - newVertexIndex2 - 1) >>> (Integer.SIZE - 1));
+                assert vertexIndex3 == nearestCandidates.vertexIndex(notCheckedVertex3);
+                assert vertexIndex4 == nearestCandidates.vertexIndex(notCheckedVertex4);
+
+                var newVertexIndex3 = nearestCandidates.resortVertex(notCheckedVertex3, distanceResult[2]);
+                assert vertexIndex3 == nearestCandidates.vertexIndex(newVertexIndex3);
+
+                notCheckedVertex4 = notCheckedVertex4 - ((notCheckedVertex4 - newVertexIndex3 - 1)
+                        >>> (Integer.SIZE - 1));
+                assert vertexIndex4 == nearestCandidates.vertexIndex(notCheckedVertex4);
+
+                nearestCandidates.resortVertex(notCheckedVertex4, distanceResult[3]);
+
+                if (distanceResult[0] != 0) {
+                    pqReCalculated++;
+                    pqReCalculationError += 100.0 * Math.abs(distanceResult[0] - pqDistance1) / distanceResult[0];
+                }
+
+                if (distanceResult[1] != 0) {
+                    pqReCalculated++;
+                    pqReCalculationError += 100.0 * Math.abs(distanceResult[1] - pqDistance2) / distanceResult[1];
+                }
+
+                if (distanceResult[2] != 0) {
+                    pqReCalculated++;
+                    pqReCalculationError += 100.0 * Math.abs(distanceResult[2] - pqDistance3) / distanceResult[2];
+                }
+
+                if (distanceResult[3] != 0) {
+                    pqReCalculated++;
+                    pqReCalculationError += 100.0 * Math.abs(distanceResult[3] - pqDistance4) / distanceResult[3];
+                }
+            }
+
+            vertexIndexesToCheck.clear();
         }
 
         private long vectorOffset(long vertexIndex) {

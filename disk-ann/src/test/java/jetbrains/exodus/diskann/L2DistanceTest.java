@@ -369,7 +369,6 @@ public class L2DistanceTest {
         }
     }
 
-
     @Test
     public void testSmallSegmentJavaVectorsZeroOffset() {
         try (var arena = Arena.openConfined()) {
@@ -383,6 +382,32 @@ public class L2DistanceTest {
             }
         }
     }
+
+    @Test
+    public void testSmallSegmentJavaVectorsZeroOffset4Batch() {
+        try (var arena = Arena.openConfined()) {
+            var originVector = new float[]{2.0f, 3.0f};
+
+            var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 4.0f, 5.0f);
+            var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 6.0f, 7.0f);
+            var thirdSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 8.0f, 9.0f);
+            var fourthSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 10.0f, 11.0f);
+
+            var result = new float[4];
+            for (int i = 16; i >= 1; i /= 2) {
+                L2Distance.computeL2Distance(originVector, 0,
+                        firstSegment, 0,
+                        secondSegment, 0,
+                        thirdSegment, 0,
+                        fourthSegment, 0,
+                        2,
+                        result,
+                        i);
+                Assert.assertArrayEquals(new float[]{8.0f, 32.0f, 72.0f, 128.0f}, result, 0.0f);
+            }
+        }
+    }
+
 
     @Test
     public void testBigSegmentJavaVectorsZeroOffset() {
@@ -402,6 +427,48 @@ public class L2DistanceTest {
                 var distance = L2Distance.computeL2Distance(firstSegment, 0,
                         secondVector, 0, i);
                 Assert.assertEquals(sum, distance, 0.0f);
+            }
+        }
+    }
+
+    @Test
+    public void testBigSegmentJavaVectorsZeroOffset4Batch() {
+        var count = 43;
+        try (var arena = Arena.openConfined()) {
+            var originVector = new float[count];
+
+            var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var thirdSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var fourthSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+
+            var sum = new float[4];
+            for (var i = 0; i < count; i++) {
+
+                originVector[i] = 1.0f * i;
+
+                firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
+                secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 4.0f * i);
+                thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
+                fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
+
+                sum[0] += 4.0 * i * i;
+                sum[1] += 9.0 * i * i;
+                sum[2] += 16.0 * i * i;
+                sum[3] += 25.0 * i * i;
+            }
+
+            var result = new float[4];
+            for (int i = 16; i >= 1; i /= 2) {
+                L2Distance.computeL2Distance(originVector, 0,
+                        firstSegment, 0,
+                        secondSegment, 0,
+                        thirdSegment, 0,
+                        fourthSegment, 0,
+                        count,
+                        result,
+                        i);
+                Assert.assertArrayEquals(sum, result, 0.0f);
             }
         }
     }
@@ -432,6 +499,48 @@ public class L2DistanceTest {
     }
 
     @Test
+    public void testHugeSegmentJavaVectorsZeroOffset4Batch() {
+        var count = 107;
+        try (var arena = Arena.openConfined()) {
+            var originSegment = new float[count];
+
+            var firstVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var secondVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var thirdVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var fourthVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+
+            var sum = new float[4];
+            for (var i = 0; i < count; i++) {
+                originSegment[i] = 1.0f * i;
+
+                firstVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
+                secondVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 4.0f * i);
+                thirdVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
+                fourthVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
+
+                sum[0] += 4.0 * i * i;
+                sum[1] += 9.0 * i * i;
+                sum[2] += 16.0 * i * i;
+                sum[3] += 25.0 * i * i;
+            }
+
+            var result = new float[4];
+            for (int i = 16; i >= 1; i /= 2) {
+                L2Distance.computeL2Distance(originSegment, 0,
+                        firstVector, 0,
+                        secondVector, 0,
+                        thirdVector, 0,
+                        fourthVector, 0,
+                        count,
+                        result,
+                        i);
+
+                Assert.assertArrayEquals(sum, result, 0.0f);
+            }
+        }
+    }
+
+    @Test
     public void testSmallSegmentJavaVectorsNonZeroOffset() {
         try (var arena = Arena.openConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 2.0f, 3.0f);
@@ -444,6 +553,33 @@ public class L2DistanceTest {
             }
         }
     }
+
+    @Test
+    public void testSmallSegmentJavaVectorsNonZeroOffset4Batch() {
+        try (var arena = Arena.openConfined()) {
+            var originVector = new float[]{42.0f, 2.0f, 3.0f};
+
+            var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 4.0f, 5.0f);
+            var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 6.0f, 7.0f);
+            var thirdSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 8.0f, 9.0f);
+            var fourthSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 10.0f, 11.0f);
+
+
+            var result = new float[4];
+            for (int i = 16; i >= 1; i /= 2) {
+                L2Distance.computeL2Distance(originVector, 1,
+                        firstSegment, 0,
+                        secondSegment, 0,
+                        thirdSegment, 0,
+                        fourthSegment, 0,
+                        2,
+                        result,
+                        i);
+                Assert.assertArrayEquals(new float[]{8.0f, 32.0f, 72.0f, 128.0f}, result, 0.0f);
+            }
+        }
+    }
+
 
     @Test
     public void testBigSegmentJavaVectorsOffset() {
@@ -473,6 +609,54 @@ public class L2DistanceTest {
     }
 
     @Test
+    public void testBigSegmentJavaVectorsOffset4Batch() {
+        var count = 43;
+        try (var arena = Arena.openConfined()) {
+            var originVector = new float[count + 5];
+
+            var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var thirdSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var fourthSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+
+            originVector[0] = 42.0f;
+            originVector[1] = 32.0f;
+
+            var sum = new float[4];
+
+            var originOffset = 2;
+            for (var i = 0; i < count; i++) {
+                originVector[i + originOffset] = 1.0f * i;
+
+                firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
+                secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 4.0f * i);
+                thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
+                fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
+
+                sum[0] += 4.0 * i * i;
+                sum[1] += 9.0 * i * i;
+                sum[2] += 16.0 * i * i;
+                sum[3] += 25.0 * i * i;
+            }
+
+
+            var result = new float[4];
+            for (int i = 16; i >= 1; i /= 2) {
+                L2Distance.computeL2Distance(originVector, originOffset,
+                        firstSegment, 0,
+                        secondSegment, 0,
+                        thirdSegment, 0,
+                        fourthSegment, 0,
+                        count,
+                        result,
+                        i);
+                Assert.assertArrayEquals(sum, result, 0.0f);
+            }
+        }
+    }
+
+
+    @Test
     public void testHugeSegmentJavaVectorsOffset() {
         for (int k = 1; k <= 3; k++) {
             var count = 107 * k;
@@ -500,8 +684,55 @@ public class L2DistanceTest {
                 }
             }
         }
-
     }
+
+    @Test
+    public void testHugeSegmentJavaVectorsOffset4Batch() {
+        var count = 107;
+
+        try (var arena = Arena.openConfined()) {
+            var originSegment = new float[count + 5];
+
+            var firstVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var secondVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var thirdVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+            var fourthVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
+
+            originSegment[0] = 42.0f;
+            originSegment[1] = 32.0f;
+
+            var sum = new float[4];
+            var firstOffset = 2;
+            for (var i = 0; i < count; i++) {
+                originSegment[i + firstOffset] = 1.0f * i;
+
+                firstVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
+                secondVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 4.0f * i);
+                thirdVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
+                fourthVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
+
+                sum[0] += 4.0f * i * i;
+                sum[1] += 9.0f * i * i;
+                sum[2] += 16.0f * i * i;
+                sum[3] += 25.0f * i * i;
+            }
+
+
+            var result = new float[4];
+            for (int i = 16; i >= 1; i /= 2) {
+                L2Distance.computeL2Distance(originSegment, firstOffset,
+                        firstVector, 0,
+                        secondVector, 0,
+                        thirdVector, 0,
+                        fourthVector, 0,
+                        count,
+                        result,
+                        i);
+                Assert.assertArrayEquals(sum, result, 0.0f);
+            }
+        }
+    }
+
 
     @Test
     public void testSmallVectorsZeroOffset() {

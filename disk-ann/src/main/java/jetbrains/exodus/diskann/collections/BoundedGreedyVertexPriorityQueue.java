@@ -98,7 +98,7 @@ public final class BoundedGreedyVertexPriorityQueue {
         return Float.intBitsToFloat(vertices[arrayIndex]);
     }
 
-    public void resortVertex(int index, float newDistance) {
+    public int resortVertex(int index, float newDistance) {
         if (index >= size) {
             throw new IndexOutOfBoundsException();
         }
@@ -120,7 +120,7 @@ public final class BoundedGreedyVertexPriorityQueue {
                 nextNotCheckedVertex = index;
             }
 
-            return;
+            return index;
         }
 
         assert newIndex < size;
@@ -135,7 +135,7 @@ public final class BoundedGreedyVertexPriorityQueue {
                 nextNotCheckedVertex = newIndex;
             }
 
-            return;
+            return newIndex;
         }
 
         var vertexIndex = vertices[arrayIndex + 1];
@@ -163,6 +163,8 @@ public final class BoundedGreedyVertexPriorityQueue {
         if (nextNotCheckedVertex > newIndex) {
             nextNotCheckedVertex = newIndex;
         }
+
+        return newIndex;
     }
 
     public boolean isPqDistance(int index) {
