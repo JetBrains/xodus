@@ -1313,14 +1313,14 @@ public final class DiskANN implements AutoCloseable {
             var startVertexIndex = medoid;
             var startVectorOffset = vectorOffset(startVertexIndex);
 
+            var distanceResult = threadLocalCache.distanceResult;
+            var vertexIndexesToCheck = threadLocalCache.vertexIndexesToCheck;
+            vertexIndexesToCheck.clear();
 
             nearestCandidates.add((int) startVertexIndex, computeDistance(diskCache, startVectorOffset, queryVector), false);
 
             assert nearestCandidates.size() <= maxAmountOfCandidates;
             visitedVertexIndices.add((int) startVertexIndex);
-
-            var vertexIndexesToCheck = new IntArrayList();
-            var distanceResult = new float[4];
 
             float[] lookupTable = null;
 
@@ -1541,11 +1541,16 @@ public final class DiskANN implements AutoCloseable {
 
         private final BoundedGreedyVertexPriorityQueue nearestCandidates;
 
+        private final float[] distanceResult;
+
+        private final IntArrayList vertexIndexesToCheck = new IntArrayList();
+
 
         private NearestGreedySearchCachedData(IntOpenHashSet vertexIndices, float[] lookupTable, BoundedGreedyVertexPriorityQueue nearestCandidates) {
             this.visistedVertexIndices = vertexIndices;
             this.lookupTable = lookupTable;
             this.nearestCandidates = nearestCandidates;
+            this.distanceResult = new float[4];
         }
     }
 }
