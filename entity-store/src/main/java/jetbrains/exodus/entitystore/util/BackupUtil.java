@@ -156,7 +156,7 @@ public class BackupUtil {
                     final Path namePath = Path.of(name);
 
                     if (ignorePageSizeCheck && name.endsWith(LogUtil.LOG_FILE_EXTENSION)) {
-                        if ((entrySize &  pageSize) != 0) {
+                        if ((entrySize &  (pageSize - 1)) != 0) {
                             //rounding file size to the page size
                             var newEntrySize = entrySize & -pageSize;
                             logger.error("File {} size {} is not multiple of page size {}. Rounding to {} because flag " +
