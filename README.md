@@ -65,25 +65,6 @@ try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/ho
     });
 }
 ```
-### Virtual File Systems
-
-Add dependency on `org.jetbrains.xodus:xodus-vfs:2.0.1` and `org.jetbrains.xodus:xodus-environment:2.0.1`.
-
-```java
-try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
-    final VirtualFileSystem vfs = new VirtualFileSystem(env);
-    env.executeInTransaction(txn -> {
-        final File file = vfs.createFile(txn, "Messages");
-        try (DataOutputStream output = new DataOutputStream(vfs.writeFile(txn, file))) {
-            output.writeUTF("Hello ");
-            output.writeUTF("World!");
-        } catch (IOException e) {
-            throw new ExodusException(e);
-        }
-    });
-    vfs.shutdown();
-}
-```
 
 ## Building from Source
 [Gradle](https://www.gradle.org) is used to build, test, and publish. JDK 1.8 or higher is required. To build the project, run:
