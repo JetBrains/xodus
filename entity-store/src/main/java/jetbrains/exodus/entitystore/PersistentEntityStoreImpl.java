@@ -42,6 +42,7 @@ import jetbrains.exodus.util.ByteArraySizedInputStream;
 import jetbrains.exodus.util.IOUtil;
 import jetbrains.exodus.util.LightByteArrayOutputStream;
 import jetbrains.exodus.util.UTFUtil;
+import org.jctools.maps.NonBlockingHashMapLong;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -102,7 +103,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     @NotNull
     private final Map<String, PersistentSequence> allSequences;
     @NotNull
-    private final IntHashMap<PersistentSequence> entitiesSequences;
+    private final NonBlockingHashMapLong<PersistentSequence> entitiesSequences;
 
     private PersistentSequentialDictionary entityTypes;
     private PersistentSequentialDictionary propertyIds;
@@ -184,7 +185,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         linkDataGetter = config.isDebugLinkDataGetter() ? new DebugLinkDataGetter() : nonDebugLinkDataGetter;
         blobDataGetter = new BlobDataGetter();
         allSequences = new HashMap<>();
-        entitiesSequences = new IntHashMap<>();
+        entitiesSequences = new NonBlockingHashMapLong<>();
         propertyTypes = new PropertyTypes();
 
         init();
@@ -2173,8 +2174,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     PersistentSequence getEntitiesSequence(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
+        PersistentSequence result = entitiesSequences.get(entityTypeId);
+        if (result != null) {
+            return result;
+        }
+
         synchronized (entitiesSequences) {
-            PersistentSequence result = entitiesSequences.get(entityTypeId);
+            result = entitiesSequences.get(entityTypeId);
             if (result == null) {
                 result = getSequence(txn, namingRulez.getEntitiesSequenceName(entityTypeId));
                 entitiesSequences.put(entityTypeId, result);

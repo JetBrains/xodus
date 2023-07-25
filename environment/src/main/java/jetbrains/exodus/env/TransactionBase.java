@@ -16,11 +16,11 @@
 package jetbrains.exodus.env;
 
 import jetbrains.exodus.core.dataStructures.decorators.HashMapDecorator;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.debug.StackTrace;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.tree.ITree;
 import jetbrains.exodus.tree.TreeMetaInfo;
+import org.jctools.maps.NonBlockingHashMapLong;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -43,7 +43,7 @@ public abstract class TransactionBase implements Transaction {
     private final Thread creatingThread;
     private MetaTreeImpl metaTree;
     @NotNull
-    private final IntHashMap<ITree> immutableTrees;
+    private final NonBlockingHashMapLong<ITree> immutableTrees;
     @NotNull
     private final Map<Object, Object> userObjects;
     @Nullable
@@ -56,15 +56,12 @@ public abstract class TransactionBase implements Transaction {
     private StackTraceElement[] traceFinish;
     private boolean disableStoreGetCache;
 
-    @Nullable
-    private Runnable beforeTransactionFlushAction;
-
     public TransactionBase(@NotNull final EnvironmentImpl env, final boolean isExclusive) {
         this.env = env;
         this.creatingThread = Thread.currentThread();
         this.isExclusive = isExclusive;
         wasCreatedExclusive = isExclusive;
-        immutableTrees = new IntHashMap<>();
+        immutableTrees = new NonBlockingHashMapLong<>();
         userObjects = new HashMapDecorator<>();
         trace = env.transactionTimeout() > 0 || env.getEnvironmentConfig().getProfilerEnabled() ? new StackTrace() : null;
         created = System.currentTimeMillis();
@@ -136,9 +133,13 @@ public abstract class TransactionBase implements Transaction {
         final int structureId = store.getStructureId();
         ITree result = immutableTrees.get(structureId);
         if (result == null) {
-            result = store.openImmutableTree(getMetaTree());
             synchronized (immutableTrees) {
-                immutableTrees.put(structureId, result);
+                result = immutableTrees.get(structureId);
+
+                if (result == null) {
+                    result = store.openImmutableTree(getMetaTree());
+                    immutableTrees.put(structureId, result);
+                }
             }
         }
         return result;
@@ -240,16 +241,6 @@ public abstract class TransactionBase implements Transaction {
     protected void clearImmutableTrees() {
         synchronized (immutableTrees) {
             immutableTrees.clear();
-        }
-    }
-
-    public void setBeforeTransactionFlushAction(@NotNull Runnable exec) {
-        this.beforeTransactionFlushAction = exec;
-    }
-
-    void executeBeforeTransactionFlushAction() {
-        if (beforeTransactionFlushAction != null) {
-            beforeTransactionFlushAction.run();
         }
     }
 

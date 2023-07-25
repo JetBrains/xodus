@@ -508,7 +508,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     }
                     val phantomPairs = ArrayList<Pair<Int, Pair<ByteIterable, ByteIterable>>>()
                     for ((propId, value1) in propTable.valueIndices) {
-                        val entitiesToValues = props[propId] ?: continue
+                        val entitiesToValues = props[propId.toInt()] ?: continue
                         val c = value1.openCursor(envTxn)
                         while (c.next) {
                             val keyEntry = c.key
@@ -524,7 +524,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                     dataClass = (data as ComparableSet<Comparable<Any>>).itemClass
                                     if (dataClass == null) {
                                         phantomPairs.add(
-                                            propId to (ArrayByteIterable(keyEntry) to ArrayByteIterable(
+                                            propId.toInt() to (ArrayByteIterable(keyEntry) to ArrayByteIterable(
                                                 valueEntry
                                             ))
                                         )
@@ -551,7 +551,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                     throwJVMError(t)
                                 }
                             }
-                            phantomPairs.add(propId to (ArrayByteIterable(keyEntry) to ArrayByteIterable(valueEntry)))
+                            phantomPairs.add(propId.toInt() to (ArrayByteIterable(keyEntry) to ArrayByteIterable(valueEntry)))
                         }
                         c.close()
                     }

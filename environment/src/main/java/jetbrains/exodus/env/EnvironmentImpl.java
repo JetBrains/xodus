@@ -894,8 +894,6 @@ public class EnvironmentImpl implements Environment {
                 return false;
             }
 
-            txn.executeBeforeTransactionFlushAction();
-
             if (wasUpSaved) {
                 up.setDirty(false);
             }

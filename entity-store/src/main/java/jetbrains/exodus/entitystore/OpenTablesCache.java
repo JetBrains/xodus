@@ -15,23 +15,20 @@
  */
 package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure;
 import jetbrains.exodus.entitystore.tables.Table;
+import org.jctools.maps.NonBlockingHashMapLong;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.Map;
 
 class OpenTablesCache {
 
     private final TableCreator creator;
     private final Object lock;
-    private IntHashMap<Table> cache;
+    private NonBlockingHashMapLong<Table> cache;
 
     OpenTablesCache(@NotNull final TableCreator creator) {
         this.creator = creator;
         lock = new Object();
-        cache = new IntHashMap<>();
+        cache = new NonBlockingHashMapLong<>();
     }
 
     Table get(@NotNull final PersistentStoreTransaction txn, final int entityTypeId) {
@@ -44,7 +41,7 @@ class OpenTablesCache {
             if (result == null) {
                 result = creator.createTable(txn, entityTypeId);
                 if (result.canBeCached()) {
-                    final IntHashMap<Table> newCache = cloneCache();
+                    var newCache = cloneCache();
                     newCache.put(entityTypeId, result);
                     cache = newCache;
                 }
@@ -56,20 +53,17 @@ class OpenTablesCache {
     void remove(final int entityTypeId) {
         synchronized (lock) {
             if (cache.containsKey(entityTypeId)) {
-                final IntHashMap<Table> newCache = cloneCache();
+                var newCache = cloneCache();
                 newCache.remove(entityTypeId);
                 cache = newCache;
             }
         }
     }
 
-    private IntHashMap<Table> cloneCache() {
-        final IntHashMap<Table> currentCache = cache;
-        final IntHashMap<Table> result = new IntHashMap<>(currentCache.size());
-        currentCache.forEachEntry((ObjectProcedure<Map.Entry<Integer, Table>>) entry -> {
-            result.put(entry.getKey(), entry.getValue());
-            return true;
-        });
+    private NonBlockingHashMapLong<Table> cloneCache() {
+        final var currentCache = cache;
+        final var result = new NonBlockingHashMapLong<Table>(currentCache.size());
+        result.putAll(currentCache);
         return result;
     }
 

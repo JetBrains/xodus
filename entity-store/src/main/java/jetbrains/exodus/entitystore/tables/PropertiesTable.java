@@ -20,11 +20,11 @@ import jetbrains.exodus.bindings.ComparableBinding;
 import jetbrains.exodus.bindings.ComparableSet;
 import jetbrains.exodus.bindings.ComparableValueType;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.entitystore.EntityStoreException;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.env.*;
+import org.jctools.maps.NonBlockingHashMapLong;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -44,7 +44,7 @@ public final class PropertiesTable extends Table {
     @NotNull
     private final PersistentEntityStoreImpl store;
     private final Store primaryStore;
-    private final IntHashMap<Store> valueIndexes;
+    private final NonBlockingHashMapLong<Store> valueIndexes;
     private final FieldIndex allPropsIndex;
 
     public PropertiesTable(@NotNull final PersistentStoreTransaction txn,
@@ -56,7 +56,7 @@ public final class PropertiesTable extends Table {
         primaryStore = env.openStore(name, primaryConfig, envTxn);
         allPropsIndex = FieldIndex.fieldIndex(txn, name);
         store.trackTableCreation(primaryStore, txn);
-        valueIndexes = new IntHashMap<>();
+        valueIndexes = new NonBlockingHashMapLong<>();
     }
 
     @Nullable
@@ -111,7 +111,7 @@ public final class PropertiesTable extends Table {
         final ByteIterable secondaryValue = LongBinding.longToCompressedEntry(localId);
         primaryStore.delete(envTxn, key);
         deleteFromStore(envTxn, getOrCreateValueIndex(txn, propertyId),
-            secondaryValue, createSecondaryKeys(store.getPropertyTypes(), value, type));
+                secondaryValue, createSecondaryKeys(store.getPropertyTypes(), value, type));
         allPropsIndex.remove(envTxn, propertyId, localId);
     }
 
@@ -125,9 +125,14 @@ public final class PropertiesTable extends Table {
 
     @Nullable
     public Store getValueIndex(@NotNull final PersistentStoreTransaction txn, final int propertyId, final boolean creationRequired) {
-        Store valueIndex;
+        Store valueIndex = valueIndexes.get(propertyId);
+        if (valueIndex != null) {
+            return valueIndex;
+        }
+
         synchronized (valueIndexes) {
             valueIndex = valueIndexes.get(propertyId);
+
             if (valueIndex == null) {
                 final Transaction envTxn = txn.getEnvironmentTransaction();
                 valueIndex = envTxn.getEnvironment().openStore(
@@ -151,7 +156,7 @@ public final class PropertiesTable extends Table {
     }
 
     @NotNull
-    public Collection<Map.Entry<Integer, Store>> getValueIndices() {
+    public Collection<Map.Entry<Long, Store>> getValueIndices() {
         synchronized (valueIndexes) {
             return new ArrayList<>(valueIndexes.entrySet());
         }
