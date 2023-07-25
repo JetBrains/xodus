@@ -19,12 +19,15 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.io.Block;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class BlockDataIterator implements ByteIteratorWithAddress {
+    private static final Logger logger = LoggerFactory.getLogger(BlockDataIterator.class);
 
     private final Log log;
     private final Block block;
@@ -165,12 +168,19 @@ public class BlockDataIterator implements ByteIteratorWithAddress {
     }
 
     private void extractValidPartOfThePage(byte[] result, String errorMessage) {
+        logger.warn("Database: {}. Page with address {} contained in file {} is broken. Extracting valid part of the page.",
+                log.getLocation(), position, LogUtil.getLogFilename(log.getFileAddress(position)));
+
         final int validPageSize = BufferedDataWriter.findValidPagePart(sha256,
                 position, result, pageSize, errorMessage);
 
         this.currentPage = Arrays.copyOfRange(result, 0, validPageSize);
         this.end = position + validPageSize;
         throwCorruptionException = true;
+        logger.warn("Database: {}. The valid part of the page with address {} contained in file {} has been extracted. " +
+                        "Page size is {} bytes. Last address of the file is {}.",
+                log.getLocation(), position,
+                LogUtil.getLogFilename(log.getFileAddress(position)), validPageSize, end);
     }
 
     @Override
