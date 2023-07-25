@@ -75,15 +75,7 @@ To assemble JARs and skip running tests, run:
 
     ./gradlew assemble
 
-## Join our Xodus community!
-
-If you are interested in Xodus, consider joining our [Xodus](https://xodus.zulipchat.com/) community. Tell us about
-exciting applications you are building, ask for help, or just chat with friends 😃
 
 ## Find out More
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
 - [Report an issue](https://youtrack.jetbrains.com/issues/XD)
-- [Stack Overflow](https://stackoverflow.com/questions/tagged/xodus)
-- [Xodus-DNQ: data definition and queries Kotlin DSL over Xodus](https://github.com/JetBrains/xodus-dnq)
-- [EntityStore browser](https://github.com/JetBrains/xodus-entity-browser)
-- [Check out the latest builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
