@@ -930,15 +930,15 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
 
                     logger.error(
-                        "Data corruption was detected. Reason : ${exception.message} . " +
-                                "Environment log $location will be truncated till address : $dbRootEndAddress. " +
-                                "File: ${LogUtil.getLogFilename(endBlockAddress)})}. " +
+                        "Data corruption was detected. Reason : \"${exception.message}\". " +
+                                "Database '$location' will be truncated till address : $dbRootEndAddress. " +
+                                "Name of the file to be truncated : ${LogUtil.getLogFilename(endBlockAddress)}. " +
                                 "Initial file size ${endBlock.length()} bytes, final file size $endBlockLength bytes."
                     )
 
                     if (blocksToTruncate.size > 1) {
                         logger.error(
-                            "The following segments will be deleted : " +
+                            "The following files will be deleted : " +
                                     blocksToTruncate.keys.asSequence().drop(1)
                                         .joinToString(", ") { LogUtil.getLogFilename(it) }
                         )
