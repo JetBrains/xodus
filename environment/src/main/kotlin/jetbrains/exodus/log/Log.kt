@@ -920,7 +920,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         @Suppress("UNCHECKED_CAST")
                         copyFilesInRestoreTempDir(
                             (blocksToTruncate.values
-                                    as NavigableSet<FileDataReader.FileBlock>).iterator()
+                                    as Collection<FileDataReader.FileBlock>).iterator()
                         )
                     }
 

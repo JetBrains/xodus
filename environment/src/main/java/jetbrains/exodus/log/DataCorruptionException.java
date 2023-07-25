@@ -23,15 +23,16 @@ public class DataCorruptionException extends ExodusException {
         super(message);
     }
 
-    private DataCorruptionException(@NotNull final String message, final long address, final long fileLengthBound) {
-        this(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound));
+    private DataCorruptionException(@NotNull final String message, final long address, final long fileLengthBound, final String logLocation) {
+        this(message + LogUtil.getWrongAddressErrorMessage(address, fileLengthBound) +
+                ", database location: " + logLocation);
     }
 
     public static void raise(@NotNull final String message, @NotNull final Log log, final long address) {
         checkLogIsClosing(log);
         log.switchToReadOnlyMode();
 
-        throw new DataCorruptionException(message, address, log.getFileLengthBound());
+        throw new DataCorruptionException(message, address, log.getFileLengthBound(), log.getLocation());
     }
 
     static void checkLogIsClosing(@NotNull final Log log) {
