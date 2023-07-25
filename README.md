@@ -39,7 +39,7 @@ dependencies {
 ```
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
 
-There are three different ways to deal with data, which results in three different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments), [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores) and [Virtual File Systems](https://github.com/JetBrains/xodus/wiki/Virtual-File-Systems).
+There are two different ways to deal with data, which results in two different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments) and [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores).
  
 ### Environments
 
