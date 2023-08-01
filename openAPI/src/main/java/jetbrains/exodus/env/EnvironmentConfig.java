@@ -560,6 +560,11 @@ public class EnvironmentConfig extends AbstractConfig {
     public static final String ENV_COMPACT_ON_OPEN = "exodus.env.compactOnOpen";
 
     /**
+     * Internal property. Not for public use.
+     */
+    public static final String ENV_COMPACT_IN_SINGLE_BATCH_ON_OPEN = "exodus.env.compactInSingleBatchOnOpen";
+
+    /**
      * Defines the maximum size of page of B+Tree. Default value is {@code 128}.
      * <p>Mutable at runtime: yes
      */
@@ -817,6 +822,7 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_SKIP_INVALID_LOGGALE_TYPE, false),
                 new Pair(LOG_FORCE_CHECK_DATA_CONSISTENCY, false),
                 new Pair(LOG_PROCEED_DATA_RESTORE_AT_ANY_COST, false),
+                new Pair(ENV_COMPACT_IN_SINGLE_BATCH_ON_OPEN, false),
         }, strategy);
     }
 
@@ -2191,6 +2197,21 @@ public class EnvironmentConfig extends AbstractConfig {
     public EnvironmentConfig setEnvCompactOnOpen(final boolean compactOnOpen) {
         return setSetting(ENV_COMPACT_ON_OPEN, compactOnOpen);
     }
+
+    /**
+     * Internal property. Not for public use.
+     */
+    public boolean getEnvCompactInSingleBatchOnOpen() {
+        return (Boolean) getSetting(ENV_COMPACT_IN_SINGLE_BATCH_ON_OPEN);
+    }
+
+    /**
+     * Internal property. Not for public use.
+     */
+    public EnvironmentConfig setEnvCompactInSingleBatchOnOpen(final boolean compactInSingleBatchOnOpen) {
+        return setSetting(ENV_COMPACT_IN_SINGLE_BATCH_ON_OPEN, compactInSingleBatchOnOpen);
+    }
+
 
     /**
      * Returns the maximum size of page of B+Tree. Default value is {@code 128}.

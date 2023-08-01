@@ -99,6 +99,7 @@ private fun calculateUsingStores(env: EnvironmentImpl) {
         for ((storeName, size) in sizeByStoreName) {
             println("$storeName,$size")
         }
+        println("Space calculation was completed")
     }
 }
 

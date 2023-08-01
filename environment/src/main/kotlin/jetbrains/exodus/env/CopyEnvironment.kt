@@ -22,7 +22,12 @@ import java.io.File
 import java.util.*
 import kotlin.math.min
 
-fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = null, progress: ((Any?) -> Unit)? = null) {
+fun Environment.copyTo(
+    there: File,
+    forcePrefixing: Boolean,
+    logger: KLogger? = null,
+    progress: ((Any?) -> Unit)? = null
+) {
     if (there.list().run { this != null && isNotEmpty() }) {
         progress?.invoke("Target environment path is expected to be an empty directory: $there")
         return
@@ -47,7 +52,10 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
 
                             val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                             val targetConfig = sourceStore.config.let { sourceConfig ->
-                                if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
+                                if (forcePrefixing) StoreConfig.getStoreConfig(
+                                    sourceConfig.duplicates,
+                                    true
+                                ) else sourceConfig
                             }
                             val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
                             storeSize = sourceStore.count(sourceTxn)
@@ -56,7 +64,15 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                                 if ((it + 1) % 100_000 == 0 || guard.isItCloseToOOM()) {
                                     targetTxn.flush()
                                     guard.reset()
-                                    print(copyStoreMessage(started, name, i + 1, storesCount, (it.toLong() * 100L / storeSize)))
+                                    print(
+                                        copyStoreMessage(
+                                            started,
+                                            name,
+                                            i + 1,
+                                            storesCount,
+                                            (it.toLong() * 100L / storeSize)
+                                        )
+                                    )
                                 }
 
                             }
@@ -80,7 +96,10 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
                             executeInReadonlyTransaction { sourceTxn ->
                                 val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                                 val targetConfig = sourceStore.config.let { sourceConfig ->
-                                    if (forcePrefixing) StoreConfig.getStoreConfig(sourceConfig.duplicates, true) else sourceConfig
+                                    if (forcePrefixing) StoreConfig.getStoreConfig(
+                                        sourceConfig.duplicates,
+                                        true
+                                    ) else sourceConfig
                                 }
                                 val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
                                 storeSize = sourceStore.count(sourceTxn)
@@ -117,4 +136,55 @@ fun Environment.copyTo(there: File, forcePrefixing: Boolean, logger: KLogger? = 
     }
 }
 
-private fun copyStoreMessage(started: Date, name: String, n: Int, totalCount: Int, percent: Long) = "\r$started Copying store $name ($n of $totalCount): $percent%"
+fun Environment.copyToAsWhole(
+    there: File,
+    forcePrefixing: Boolean,
+    progress: ((Any?) -> Unit)? = null
+) {
+    if (there.list().run { this != null && isNotEmpty() }) {
+        progress?.invoke("Target environment path is expected to be an empty directory: $there")
+        return
+    }
+
+    Environments.newInstance(there, environmentConfig).use { newEnv ->
+        progress?.invoke("Copying environment to " + newEnv.location)
+        val names = computeInReadonlyTransaction { txn -> getAllStoreNames(txn) }
+        val storesCount = names.size
+        progress?.invoke("Stores found: $storesCount")
+
+
+        newEnv.executeInExclusiveTransaction { targetTxn ->
+            executeInReadonlyTransaction { sourceTxn ->
+                names.forEachIndexed { i, name ->
+                    val started = Date()
+                    print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
+
+
+                    val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
+                    val targetConfig = sourceStore.config.let { sourceConfig ->
+                        if (forcePrefixing) StoreConfig.getStoreConfig(
+                            sourceConfig.duplicates,
+                            true
+                        ) else sourceConfig
+                    }
+                    val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
+                    sourceStore.openCursor(sourceTxn).forEach {
+                        targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
+                    }
+
+                    val actualSize = newEnv.computeInReadonlyTransaction { txn ->
+                        if (newEnv.storeExists(name, txn)) {
+                            newEnv.openStore(name, StoreConfig.USE_EXISTING, txn).count(txn)
+                        } else 0L
+
+                    }
+                    progress?.invoke("\r$started Copying store $name (${i + 1} of $storesCount): number of pairs = $actualSize")
+                }
+            }
+        }
+    }
+}
+
+
+private fun copyStoreMessage(started: Date, name: String, n: Int, totalCount: Int, percent: Long) =
+    "\r$started Copying store $name ($n of $totalCount): $percent%"
