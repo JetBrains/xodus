@@ -143,7 +143,7 @@ object Environments {
         val needsToBeMigrated = !env.log.formatWithHashCodeIsUsed
 
         if (ec.logDataReaderWriterProvider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER &&
-            ec.envCompactOnOpen && env.log.numberOfFiles > 1 || needsToBeMigrated
+            (ec.envCompactOnOpen || ec.envCompactInSingleBatchOnOpen) && env.log.numberOfFiles > 1 || needsToBeMigrated
         ) {
             if (needsToBeMigrated) {
                 EnvironmentImpl.loggerInfo(
@@ -174,9 +174,16 @@ object Environments {
                         Files.deleteIfExists(file)
                     }
                 }
-                env.copyTo(tempDir, false, null) { msg ->
-                    EnvironmentImpl.loggerInfo(msg.toString())
+                if (ec.envCompactInSingleBatchOnOpen) {
+                    env.copyToAsWhole(tempDir, false) { msg ->
+                        EnvironmentImpl.loggerInfo(msg.toString())
+                    }
+                } else {
+                    env.copyTo(tempDir, false) { msg ->
+                        EnvironmentImpl.loggerInfo(msg.toString())
+                    }
                 }
+
                 env.close()
 
                 LogUtil.listFiles(File(location)).forEach { file ->
