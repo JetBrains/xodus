@@ -13,16 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.log
+package jetbrains.exodus.log;
 
-import jetbrains.exodus.io.Block
+import jetbrains.exodus.io.Block;
 
-interface BlockListener {
+public abstract class AbstractBlockListener implements BlockListener {
+    @Override
+    public void blockCreated(Block block) {
+    }
 
-    fun blockCreated(block: Block)
+    @Override
+    public void beforeBlockDeleted(Block block) {
+    }
 
-    fun beforeBlockDeleted(block: Block)
-    fun afterBlockDeleted(address: Long)
+    @Override
+    public void afterBlockDeleted(long address) {
+    }
 
-    fun blockModified(block: Block)
+    @Override
+    public void blockModified(Block block) {
+    }
 }
