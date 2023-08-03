@@ -32,7 +32,6 @@ import jetbrains.exodus.util.Random
 import org.junit.Assert
 import org.junit.Test
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.util.concurrent.BrokenBarrierException
 import java.util.concurrent.CyclicBarrier
 
@@ -77,7 +76,6 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
                 Thread.sleep(0)
             }
         } catch (t: Throwable) {
-            memory.dump(File(System.getProperty("user.home"), "dump"))
             logger.error("User code exception: ", t)
             Assert.fail()
         }
@@ -128,7 +126,6 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
                 Thread.sleep(0)
             }
         } catch (t: Throwable) {
-            memory.dump(File(System.getProperty("user.home"), "dump"))
             logger.error("User code exception: ", t)
             Assert.fail()
         }
@@ -224,7 +221,6 @@ open class GarbageCollectorTestInMemory : GarbageCollectorTest() {
         }
         val t = throwable
         if (t != null) {
-            memory.dump(File(System.getProperty("user.home"), "dump"))
             logger.error("User code exception: ", t)
             Assert.fail()
         }

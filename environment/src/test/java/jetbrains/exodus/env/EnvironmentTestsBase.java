@@ -347,7 +347,6 @@ public class EnvironmentTestsBase {
         Log.invalidateSharedCacheTestsOnly();
         try {
             SharedOpenFilesCache.invalidate();
-            SharedMappedFilesCache.invalidate();
         } catch (IOException ignore) {
         }
     }

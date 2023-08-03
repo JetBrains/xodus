@@ -58,6 +58,6 @@ open class MemoryDataReader(val memory: Memory) : DataReader, KLogging() {
 
         override fun refresh() = this
 
-        fun truncate(newLength: Int) = data.truncate(newLength)
+        fun truncate(newLength: Int) = data.truncate(newLength.toLong())
     }
 }
