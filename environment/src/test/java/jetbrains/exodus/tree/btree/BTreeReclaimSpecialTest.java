@@ -26,6 +26,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Iterator;
+import java.util.Objects;
 
 public class BTreeReclaimSpecialTest extends BTreeTestBase {
     private static final int COUNT = 145;
@@ -59,20 +60,20 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         reloadMutableTree(saved);
         Assert.assertEquals(4, log.getNumberOfFiles());
         final long address = 0L;
-        log.forgetFile(address);
+        log.forgetFileTestsOnly(address);
         log.removeFile(address); // emulate gc of first file
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(log.getFileAddress(fileSize * 2));
-        tm.reclaim(loggables.next(), loggables); // reclaim third file
+        tm.reclaim(Objects.requireNonNull(loggables.next()), loggables); // reclaim third file
         saved = saveTree();
         reloadMutableTree(saved);
-        log.forgetFile(fileSize * 2);
+        log.forgetFileTestsOnly(fileSize * 2);
         log.removeFile(fileSize * 2); // remove reclaimed file
         loggables = log.getLoggableIterator(log.getFileAddress(fileSize));
-        tm.reclaim(loggables.next(), loggables); // reclaim second file
+        tm.reclaim(Objects.requireNonNull(loggables.next()), loggables); // reclaim second file
         saved = saveTree();
         reloadMutableTree(saved);
         Assert.assertTrue(log.getNumberOfFiles() > 2); // make sure that some files were added
-        log.forgetFile(fileSize);
+        log.forgetFileTestsOnly(fileSize);
         log.removeFile(fileSize); // remove reclaimed file
         try (ITreeCursor cursor = tm.openCursor()) {
             Assert.assertTrue(cursor.getNext()); // access minimum key
@@ -90,10 +91,10 @@ public class BTreeReclaimSpecialTest extends BTreeTestBase {
         tm.put(key("k"), value("v3"));
         saveTree();
         Iterator<RandomAccessLoggable> loggables = log.getLoggableIterator(0);
-        tm.reclaim(loggables.next(), loggables);
+        tm.reclaim(Objects.requireNonNull(loggables.next()), loggables);
         loggables = log.getLoggableIterator(firstAddress);
         loggables.next();
-        tm.reclaim(loggables.next(), loggables);
+        tm.reclaim(Objects.requireNonNull(loggables.next()), loggables);
     }
 
     private void reloadMutableTree(long address) {

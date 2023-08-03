@@ -19,10 +19,13 @@ import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public abstract class TreeDeleteTest extends TreeBaseTest {
 
@@ -74,10 +77,10 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
         reopen();
         t = openTree(a, false);
 
-        assertEquals(1, tm.getSize());
-        assertNull(tm.get(key("111")));
-        assertNull(tm.get(key("11")));
-        valueEquals("1", tm.get(key("1")));
+        assertEquals(1, t.getSize());
+        assertNull(t.get(key("111")));
+        assertNull(t.get(key("11")));
+        valueEquals("1", Objects.requireNonNull(t.get(key("1"))));
     }
 
     /*@Test
@@ -246,7 +249,7 @@ public abstract class TreeDeleteTest extends TreeBaseTest {
             for (final Map.Entry<Integer, String> entry : map.entrySet()) {
                 final Integer key = entry.getKey();
                 final String value = entry.getValue();
-                valueEquals(value, t.get(key(Integer.toString(key))));
+                valueEquals(value, Objects.requireNonNull(t.get(key(Integer.toString(key)))));
             }
         });
 

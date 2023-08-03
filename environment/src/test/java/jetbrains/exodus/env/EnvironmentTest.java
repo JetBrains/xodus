@@ -248,8 +248,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         reopenEnvironment();
         final LogTestConfig testConfig = new LogTestConfig();
         testConfig.setMaxHighAddress(10470);
-        //noinspection deprecation
-        env.getLog().setLogTestConfig(testConfig);
+        env.getLog().setLogTestConfigTestOnly(testConfig);
         try {
             for (int i = 0; i < 23; ++i) {
                 env.executeInTransaction(txn -> {
@@ -273,8 +272,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                     store3.put(txn, IntegerBinding.intToCompressedEntry(i), IntegerBinding.intToCompressedEntry(i));
                 }
             }), ExodusException.class);
-            //noinspection deprecation
-            env.getLog().setLogTestConfig(null);
+            env.getLog().setLogTestConfigTestOnly(null);
             AbstractConfig.suppressConfigChangeListenersForThread();
             try {
                 reopenEnvironment();
@@ -283,8 +281,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             }
             env.executeInTransaction(txn -> env.getAllStoreNames(txn));
         } finally {
-            //noinspection deprecation
-            env.getLog().setLogTestConfig(null);
+            env.getLog().setLogTestConfigTestOnly(null);
         }
     }
 
@@ -369,6 +366,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void mappedFileNotUnmapped() {
         File tempDir = TestUtil.createTempDir();
         try {
+            Log.invalidateSharedCacheTestsOnly();
             final Environment env = Environments.newInstance(tempDir,
                     new EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024).setLogCacheShared(false));
             final Store store = env.computeInTransaction(txn -> env.openStore("0", StoreConfig.WITHOUT_DUPLICATES, txn));
@@ -393,8 +391,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         }
     }
 
-    @SuppressWarnings("deprecation")
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = ExodusException.class)
     @TestFor(issue = "XD-628")
     public void readCloseRace() {
         final Store store = openStoreAutoCommit("new_store", StoreConfig.WITHOUT_DUPLICATES);
@@ -405,8 +402,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         });
 
         env.getEnvironmentConfig().setEnvCloseForcedly(true);
-        //noinspection deprecation
-        env.getLog().clearCache();
+        env.getLog().clearCacheTestsOnly();
 
         env.executeInReadonlyTransaction(txn -> {
             try (Cursor cursor = store.openCursor(txn)) {

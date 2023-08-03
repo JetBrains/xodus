@@ -38,9 +38,6 @@ public class LogConfig {
     private DataReader reader;
     private DataWriter writer;
     private boolean isDurableWrite;
-    private boolean sharedCache;
-    private boolean nonBlockingCache;
-    private boolean cacheUseSoftReferences;
     private int cacheGenerationCount;
     private int cacheReadAheadMultiple;
     private int cachePageSize;
@@ -74,6 +71,7 @@ public class LogConfig {
         return forceDataCheckOnStart;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setForceDataCheckOnStart(boolean forceDataCheckOnStart) {
         this.forceDataCheckOnStart = forceDataCheckOnStart;
         return this;
@@ -83,6 +81,7 @@ public class LogConfig {
         return proceedDataRestoreAtAnyCost;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setProceedDataRestoreAtAnyCost(boolean proceedDataRestoreAtAnyCost) {
         this.proceedDataRestoreAtAnyCost = proceedDataRestoreAtAnyCost;
         return this;
@@ -98,6 +97,7 @@ public class LogConfig {
         return this;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setSkipInvalidLoggableType(boolean skipInvalidLoggableType) {
         this.skipInvalidLoggableType = skipInvalidLoggableType;
         return this;
@@ -129,10 +129,12 @@ public class LogConfig {
         return this;
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean isLockIgnored() {
         return lockIgnored;
     }
 
+    @SuppressWarnings("unused")
     public void setLockIgnored(boolean lockIgnored) {
         this.lockIgnored = lockIgnored;
     }
@@ -203,34 +205,7 @@ public class LogConfig {
         return this;
     }
 
-    public boolean isSharedCache() {
-        return sharedCache;
-    }
-
     @SuppressWarnings("unused")
-    public LogConfig setSharedCache(boolean sharedCache) {
-        this.sharedCache = sharedCache;
-        return this;
-    }
-
-    public boolean isNonBlockingCache() {
-        return nonBlockingCache;
-    }
-
-    public LogConfig setNonBlockingCache(boolean nonBlockingCache) {
-        this.nonBlockingCache = nonBlockingCache;
-        return this;
-    }
-
-    public boolean getCacheUseSoftReferences() {
-        return cacheUseSoftReferences;
-    }
-
-    @SuppressWarnings("unused")
-    public LogConfig setCacheUseSoftReferences(boolean cacheUseSoftReferences) {
-        this.cacheUseSoftReferences = cacheUseSoftReferences;
-        return this;
-    }
 
     public int getCacheGenerationCount() {
         if (cacheGenerationCount == 0) {
@@ -357,6 +332,7 @@ public class LogConfig {
         return cipherBasicIV;
     }
 
+    @SuppressWarnings("unused")
     public LogConfig setCipherBasicIV(long basicIV) {
         this.cipherBasicIV = basicIV;
         return this;
@@ -368,14 +344,12 @@ public class LogConfig {
             readerWriterProviderInstance = DataReaderWriterProvider.getProvider(readerWriterProvider);
             if (readerWriterProviderInstance == null) {
                 switch (readerWriterProvider) {
-                    case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new AsyncFileDataReaderWriterProvider();
-                        break;
-                    case DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER:
-                        readerWriterProviderInstance = new MemoryDataReaderWriterProvider();
-                        break;
-                    default:
-                        throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
+                    case DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER ->
+                            readerWriterProviderInstance = new AsyncFileDataReaderWriterProvider();
+                    case DataReaderWriterProvider.IN_MEMORY_READER_WRITER_PROVIDER ->
+                            readerWriterProviderInstance = new MemoryDataReaderWriterProvider();
+                    default ->
+                            throw new InvalidSettingException("Unknown DataReaderWriterProvider: " + readerWriterProvider);
                 }
             }
         }

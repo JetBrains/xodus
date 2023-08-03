@@ -160,14 +160,14 @@ subprojects {
 
     tasks.compileKotlin {
         kotlinOptions {
-            jvmTarget = "11"
+            jvmTarget = "17"
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
         }
     }
     tasks.compileTestKotlin {
         kotlinOptions {
-            jvmTarget = "11"
+            jvmTarget = "17"
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
         }
@@ -178,7 +178,7 @@ subprojects {
         withSourcesJar()
 
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(11))
+            languageVersion.set(JavaLanguageVersion.of(17))
         }
     }
 

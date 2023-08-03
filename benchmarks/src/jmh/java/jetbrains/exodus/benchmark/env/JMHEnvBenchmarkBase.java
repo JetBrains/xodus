@@ -32,7 +32,7 @@ public abstract class JMHEnvBenchmarkBase {
     public Store store;
 
     public void setup() throws IOException {
-        Log.invalidateSharedCache();
+        Log.invalidateSharedCacheTestsOnly();
         temporaryFolder = new TemporaryFolder();
         temporaryFolder.create();
         final File testsDirectory = temporaryFolder.newFolder("data");

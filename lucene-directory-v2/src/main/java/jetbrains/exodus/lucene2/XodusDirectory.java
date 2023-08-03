@@ -103,18 +103,13 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             throw new ExodusException("Path " + path + " does not exist in file system.");
         }
 
-        if (logConfig.isSharedCache()) {
-            sharedLogCache = (SharedLogCache) log.cache;
-        } else {
-            throw new ExodusException("Lucene directory : " + log.getLocation() +
-                    " . Only environments with shared cache are supported.");
-        }
+        sharedLogCache = (SharedLogCache) log.getCache();
 
 
         this.cipherProvider = logConfig.getCipherProvider();
         this.cipherKey = logConfig.getCipherKey();
 
-        this.identity = Log.Companion.getIdentityGenerator().nextId();
+        this.identity = Log.getIdentityGenerator().nextId();
 
         this.luceneOutputPath = path.resolve("luceneOutput");
         this.luceneIndex = path.resolve("luceneIndex");
@@ -340,14 +335,14 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 return null;
             }
 
-            return Long.valueOf(result);
+            return result;
         });
 
         if (address == null) {
             throw new FileNotFoundException("File " + name + " does not exist");
         }
 
-        return address.longValue();
+        return address;
     }
 
     @Override
@@ -367,7 +362,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             return Boolean.FALSE;
         });
 
-        if (exist.booleanValue()) {
+        if (exist) {
             throw new FileAlreadyExistsException("File " + name + " already exists");
         }
 
@@ -504,14 +499,14 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 return null;
             }
 
-            return Long.valueOf(address);
+            return address;
         });
 
         if (addr == null) {
             throw new FileNotFoundException("File " + name + " does not exist");
         }
 
-        var indexFile = DirUtil.getFileNameByAddress(addr.longValue());
+        var indexFile = DirUtil.getFileNameByAddress(addr);
         pendingDeletes.put(name, luceneIndex.resolve(indexFile));
         privateDeleteFile(name);
 

@@ -35,11 +35,6 @@ final class TreeAwareNodeDecorator extends NodeBase {
         this.decorated = decorated;
     }
 
-    @NotNull
-    PatriciaTreeBase getTree() {
-        return tree;
-    }
-
     @Override
     long getAddress() {
         return decorated.getAddress();
@@ -95,11 +90,11 @@ final class TreeAwareNodeDecorator extends NodeBase {
     }
 
     private static void dump(PatriciaTreeBase tree, NodeBase node, PrintStream out, int level, @Nullable ToString renderer) {
-        out.println(String.format("node %s%s] %s",
+        out.printf("node %s%s] %s%n",
                 node.isMutable() ? "(m) [" : '[',
                 node.getChildrenCount(),
                 renderer == null ? node.toString() : renderer.toString(node)
-        ));
+        );
         for (ChildReference child : node.getChildren()) {
             indent(out, level);
             final long childAddress = child.suffixAddress;

@@ -22,71 +22,28 @@ import jetbrains.exodus.core.dataStructures.ObjectCacheBase.DEFAULT_SIZE
 class SharedLogCache : LogCache {
 
     private val pagesCache: LongObjectCacheBase<CachedValue>
-    internal val useSoftReferences: Boolean
 
     constructor(
         memoryUsage: Long,
         pageSize: Int,
-        nonBlocking: Boolean,
-        useSoftReferences: Boolean,
         cacheGenerationCount: Int
     ) : super(memoryUsage, pageSize) {
-        this.useSoftReferences = useSoftReferences
         val pagesCount = (memoryUsage / (pageSize +  /* each page consumes additionally 96 bytes in the cache */
                 96)).toInt()
-        pagesCache = if (nonBlocking) {
-            if (useSoftReferences) {
-                SoftConcurrentLongObjectCache(pagesCount, cacheGenerationCount)
-            } else {
-                ConcurrentLongObjectCache(pagesCount, cacheGenerationCount)
-            }
-        } else {
-            if (useSoftReferences) {
-                SoftLongObjectCache(pagesCount)
-            } else {
-                LongObjectCache(pagesCount)
-            }
-        }
+        pagesCache = ConcurrentLongObjectCache(pagesCount, cacheGenerationCount)
     }
 
     constructor(
         memoryUsagePercentage: Int,
         pageSize: Int,
-        nonBlocking: Boolean,
-        useSoftReferences: Boolean,
         cacheGenerationCount: Int
     ) : super(memoryUsagePercentage, pageSize) {
-        this.useSoftReferences = useSoftReferences
         pagesCache = if (memoryUsage == Long.MAX_VALUE) {
-            if (nonBlocking) {
-                if (useSoftReferences) {
-                    SoftConcurrentLongObjectCache(DEFAULT_SIZE, cacheGenerationCount)
-                } else {
-                    ConcurrentLongObjectCache(DEFAULT_SIZE, cacheGenerationCount)
-                }
-            } else {
-                if (useSoftReferences) {
-                    SoftLongObjectCache(DEFAULT_SIZE)
-                } else {
-                    LongObjectCache()
-                }
-            }
+            ConcurrentLongObjectCache(DEFAULT_SIZE, cacheGenerationCount)
         } else {
             val pagesCount = (memoryUsage / (pageSize +  /* each page consumes additionally some bytes in the cache */
-                    if (useSoftReferences) 160 else 96)).toInt()
-            if (nonBlocking) {
-                if (useSoftReferences) {
-                    SoftConcurrentLongObjectCache(pagesCount, cacheGenerationCount)
-                } else {
-                    ConcurrentLongObjectCache(pagesCount, cacheGenerationCount)
-                }
-            } else {
-                if (useSoftReferences) {
-                    SoftLongObjectCache(pagesCount)
-                } else {
-                    LongObjectCache(pagesCount)
-                }
-            }
+                    96)).toInt()
+            ConcurrentLongObjectCache(pagesCount, cacheGenerationCount)
         }
     }
 
@@ -149,13 +106,13 @@ class SharedLogCache : LogCache {
             return ArrayByteIterable(cachedValue.page, adjustedPageSize)
         }
 
-        val page = cacheDataProvider.readPage(pageAddress, - 1)
+        val page = cacheDataProvider.readPage(pageAddress, -1)
         cachePage(key, logIdentity, pageAddress, page)
 
         return ArrayByteIterable(page, adjustedPageSize)
     }
 
-    override fun removePage( cacheDataProvider: CacheDataProvider, pageAddress: Long) {
+    override fun removePage(cacheDataProvider: CacheDataProvider, pageAddress: Long) {
         val key = getLogPageFingerPrint(cacheDataProvider.identity, pageAddress)
         pagesCache.removeLocked(key)
     }

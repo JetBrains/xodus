@@ -52,9 +52,10 @@ public abstract class EntityStoreTestBase extends TestBase {
 
     @Override
     protected void setUp() throws Exception {
-        Log.invalidateSharedCache();
+        Log.invalidateSharedCacheTestsOnly();
         isPartiallyTornDown = false;
         shouldCleanopOnTearDown = true;
+        //noinspection resource
         openStore();
         if (needsImplicitTxn()) {
             txn = store.beginTransaction();
@@ -171,7 +172,7 @@ public abstract class EntityStoreTestBase extends TestBase {
 
     @NotNull
     private static StoreTransactionalExecutable wrap(@NotNull final EntityStoreTestBase.PersistentStoreTransactionalExecutable executable) {
-        return (StoreTransactionalExecutable) txn -> executable.execute((PersistentStoreTransaction) txn);
+        return txn -> executable.execute((PersistentStoreTransaction) txn);
     }
 
     public interface PersistentStoreTransactionalExecutable {

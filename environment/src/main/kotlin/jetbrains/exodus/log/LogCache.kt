@@ -85,7 +85,7 @@ abstract class LogCache {
        formatWithHashCodeIsUsed: Boolean
    ): ArrayByteIterable
 
-    internal abstract fun removePage( cacheDataProvider: CacheDataProvider, pageAddress: Long)
+    abstract fun removePage( cacheDataProvider: CacheDataProvider, pageAddress: Long)
 
     companion object {
 

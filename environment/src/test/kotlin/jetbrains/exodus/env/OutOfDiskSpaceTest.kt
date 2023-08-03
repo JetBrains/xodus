@@ -37,7 +37,7 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
             val logTestConfig = LogTestConfig().apply {
                 maxHighAddress = l
             }
-            env.log.setLogTestConfig(logTestConfig)
+            env.log.setLogTestConfigTestOnly(logTestConfig)
             try {
                 env.executeInTransaction { txn ->
                     for (i in 10..100) {
@@ -59,7 +59,7 @@ open class OutOfDiskSpaceTest : EnvironmentTestsBase() {
                 env.openStore("store1", StoreConfig.WITHOUT_DUPLICATES, txn)
             }
 
-            env.log.setLogTestConfig(null)
+            env.log.setLogTestConfigTestOnly(null)
             env.executeInTransaction { txn ->
                 store0.put(txn, StringBinding.stringToEntry(" "), ArrayByteIterable(ByteArray(4)))
             }

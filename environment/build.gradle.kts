@@ -24,10 +24,4 @@ tasks {
         options.isWarnings = true
         options.compilerArgs.add("-Werror")
     }
-
-    named("compileKotlin", KotlinCompile::class) {
-        kotlinOptions {
-            allWarningsAsErrors = true
-        }
-    }
 }

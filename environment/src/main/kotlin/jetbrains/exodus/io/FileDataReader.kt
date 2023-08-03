@@ -65,11 +65,6 @@ class FileDataReader(val dir: File) : DataReader, KLogging() {
         return dir.path
     }
 
-    internal fun useNio(freePhysicalMemoryThreshold: Long) {
-        useNio = true
-        SharedMappedFilesCache.createInstance(freePhysicalMemoryThreshold)
-    }
-
     private fun toBlocks(files: LongArrayList) =
             files.toArray().asSequence().map { address -> FileBlock(address, this) }.asIterable()
 

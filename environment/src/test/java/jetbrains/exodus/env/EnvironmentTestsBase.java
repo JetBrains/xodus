@@ -222,10 +222,12 @@ public class EnvironmentTestsBase {
         assertLoggableTypes(Integer.MAX_VALUE, it, types);
     }
 
+    @SuppressWarnings("SameParameterValue")
     protected static void assertLoggableTypes(final Log log, final int address, final int... types) {
         assertLoggableTypes(Integer.MAX_VALUE, log.getLoggableIterator(address), types);
     }
 
+    @SuppressWarnings("SameParameterValue")
     protected static void assertLoggableTypes(final int max, final Iterator<RandomAccessLoggable> it, final int... types) {
         int i = 0;
         for (int type : types) {
@@ -342,7 +344,7 @@ public class EnvironmentTestsBase {
     }
 
     protected void invalidateSharedCaches() {
-        Log.invalidateSharedCache();
+        Log.invalidateSharedCacheTestsOnly();
         try {
             SharedOpenFilesCache.invalidate();
             SharedMappedFilesCache.invalidate();

@@ -71,9 +71,14 @@ class LogTestsBase {
 
     void initLog(final LogConfig config) {
         if (log == null) {
+            Log.invalidateSharedCacheTestsOnly();
             synchronized (this) {
                 if (log == null) {
-                    log = new Log(config.setReaderWriter(reader, writer), EnvironmentImpl.CURRENT_FORMAT_VERSION);
+                    try {
+                        log = new Log(config.setReaderWriter(reader, writer), EnvironmentImpl.CURRENT_FORMAT_VERSION);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
@@ -81,9 +86,14 @@ class LogTestsBase {
 
     protected Log getLog() {
         if (log == null) {
+            Log.invalidateSharedCacheTestsOnly();
             synchronized (this) {
                 if (log == null) {
-                    log = new Log(LogConfig.create(reader, writer), EnvironmentImpl.CURRENT_FORMAT_VERSION);
+                    try {
+                        log = new Log(LogConfig.create(reader, writer), EnvironmentImpl.CURRENT_FORMAT_VERSION);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
@@ -92,7 +102,11 @@ class LogTestsBase {
 
     void closeLog() {
         if (log != null) {
-            log.close();
+            try {
+                log.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             log = null;
         }
     }

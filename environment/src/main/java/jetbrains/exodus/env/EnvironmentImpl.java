@@ -529,6 +529,8 @@ public class EnvironmentImpl implements Environment {
                 }
 
                 log.close();
+            } catch (IOException e) {
+                throw new ExodusException("Error of closing database " + log.getLocation(), e);
             } finally {
                 log.release();
             }
@@ -828,24 +830,6 @@ public class EnvironmentImpl implements Environment {
         return ec.getEnvMonitorTxnsExpirationTimeout();
     }
 
-    /**
-     * Tries to load meta tree located at specified rootAddress.
-     *
-     * @param rootAddress tree root address.
-     * @return tree instance or null if the address is not valid.
-     */
-    @Nullable
-    BTree loadMetaTree(final long rootAddress, final long highAddress) {
-        if (rootAddress < 0 || rootAddress >= highAddress) return null;
-        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
-            @NotNull
-            @Override
-            public DataIterator getDataIterator(long address) {
-                return new DataIterator(log, address);
-            }
-        };
-    }
-
     @Nullable
     BTree loadMetaTree(final long rootAddress) {
         return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
@@ -975,11 +959,6 @@ public class EnvironmentImpl implements Environment {
 
     MetaTreeImpl getMetaTreeInternal() {
         return metaTree;
-    }
-
-    // unsafe
-    void setMetaTreeInternal(MetaTreeImpl metaTree) {
-        this.metaTree = metaTree;
     }
 
     /**

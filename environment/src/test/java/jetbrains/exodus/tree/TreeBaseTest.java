@@ -31,11 +31,13 @@ import org.junit.Assert;
 import org.junit.Before;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.Assert.*;
 
@@ -71,7 +73,7 @@ public abstract class TreeBaseTest {
     @Before
     public void start() {
         final String userHome = System.getProperty("user.home");
-        if (userHome == null || userHome.length() == 0) {
+        if (userHome == null || userHome.isEmpty()) {
             throw new ExodusException("user.home is undefined.");
         }
         tempFolder = TestUtil.createTempDir();
@@ -85,19 +87,27 @@ public abstract class TreeBaseTest {
     }
 
     protected LogConfig createLogConfig() {
-        return new LogConfig().setNonBlockingCache(true).setReaderWriterProvider(
+        return new LogConfig().setReaderWriterProvider(
                 EnvironmentConfig.DEFAULT.getLogDataReaderWriterProvider());
     }
 
     @After
     public void end() {
-        log.close();
+        try {
+            log.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         IOUtil.deleteRecursively(tempFolder);
         IOUtil.deleteFile(tempFolder);
     }
 
     protected void reopen() {
-        log.close();
+        try {
+            log.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         createLog();
     }
 
@@ -153,7 +163,7 @@ public abstract class TreeBaseTest {
     }
 
     public static void assertMatchesIterator(ITree actual, List<INode> expected) {
-        assertMatchesIterator(actual, expected.toArray(new INode[expected.size()]));
+        assertMatchesIterator(actual, expected.toArray(new INode[0]));
     }
 
     public static void assertMatchesIteratorAndExists(ITree actual, INode... expected) {
@@ -171,11 +181,11 @@ public abstract class TreeBaseTest {
             act.add(new LeafNodeKV(it1.getKey(), it1.getValue()));
         }
 
-        Assert.assertArrayEquals(expected, act.toArray(new INode[act.size()]));
+        Assert.assertArrayEquals(expected, act.toArray(new INode[0]));
 
         if (checkExists) {
             for (INode leafNode : expected) {
-                assertTrue(actual.hasPair(leafNode.getKey(), leafNode.getValue()));
+                assertTrue(actual.hasPair(leafNode.getKey(), Objects.requireNonNull(leafNode.getValue())));
             }
         }
     }
@@ -255,6 +265,7 @@ public abstract class TreeBaseTest {
         return checkTree(bt, "v", s, u);
     }
 
+    @SuppressWarnings("SameParameterValue")
     protected TreeAwareRunnable checkTree(ITree bt, final String valuePrefix, final int s, final int u) {
         return new TreeAwareRunnable(bt) {
             @Override
@@ -273,20 +284,6 @@ public abstract class TreeBaseTest {
         return result;
     }
 
-    public void dump(ITree t) {
-        /*t.dump(System.out, new INode.ToString() {
-            @Override
-            public String toString(INode ln) {
-                final StringBuilder sb = new StringBuilder(16);
-                sb.append(new String(ln.getKey().getBytesUnsafe(), 0, ln.getKey().getLength()));
-                if (ln.hasValue()) {
-                    sb.append(':');
-                    sb.append(new String(ln.getValue().getBytesUnsafe(), 0, ln.getValue().getLength()));
-                }
-                return sb.toString();
-            }
-        });*/
-    }
 
     public static void doDeleteViaCursor(@NotNull TreeBaseTest testCase, @NotNull ByteIterable key) {
         final ITreeCursor cursor = testCase.tm.openCursor();

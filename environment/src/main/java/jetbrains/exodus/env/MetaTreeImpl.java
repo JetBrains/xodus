@@ -28,6 +28,7 @@ import jetbrains.exodus.tree.btree.BTreeEmpty;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -83,7 +84,12 @@ final class MetaTreeImpl implements MetaTree {
             try {
                 DataCorruptionException.raise("No valid root has found in the database", log, rootAddress);
             } finally {
-                log.close();
+                try {
+                    log.close();
+                } catch (IOException e) {
+                    //noinspection ThrowFromFinallyBlock
+                    throw new RuntimeException("Database " + log.getLocation() + ". Error during creation of meta tree", e);
+                }
             }
         }
         // no roots found: the database is empty

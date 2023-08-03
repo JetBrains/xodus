@@ -99,7 +99,7 @@ public final class BufferedDataWriter {
         this.log = log;
         this.writer = writer;
 
-        logCache = log.cache;
+        logCache = log.getCache();
         this.calculateHashCode = calculateHashCode;
 
         pageSize = log.getCachePageSize();
@@ -145,6 +145,7 @@ public final class BufferedDataWriter {
             var result = writtenInPage.addAndGet(written);
 
             if (result == pageSize) {
+                logCache.cachePage(log, pageAddress, pageHolder.page);
                 writeCache.remove(pageAddress);
             }
 
@@ -221,7 +222,8 @@ public final class BufferedDataWriter {
     private void addPageToWriteCache(long pageAddress, int writtenCount, byte @NotNull [] bytes) {
         var holder = writeCache.get(pageAddress);
         if (holder == null) {
-            writeCache.put(pageAddress, new PageHolder(bytes, writtenCount));
+            var oldHolder = writeCache.put(pageAddress, new PageHolder(bytes, writtenCount));
+            assert oldHolder == null;
         } else {
             holder.page = bytes;
         }
@@ -479,6 +481,8 @@ public final class BufferedDataWriter {
         }
     }
 
+
+
     Block getBlock(long blockAddress) {
         return blockSet.getBlock(blockAddress);
     }
@@ -545,7 +549,6 @@ public final class BufferedDataWriter {
             var bytes = currentPage.bytes;
 
             addPageToWriteCache(pageAddress, 0, bytes);
-            logCache.cachePage(log, pageAddress, bytes);
         }
     }
 
@@ -841,7 +844,6 @@ public final class BufferedDataWriter {
                     (currentPage.pageAddress + currentPage.committedCount) % log.getFileLengthBound();
 
             addPageToWriteCache(pageAddress, 0, bytes);
-            logCache.cachePage(log, pageAddress, bytes);
 
             Pair<Block, CompletableFuture<LongIntPair>> result;
             if (cipherProvider != null) {
@@ -976,37 +978,6 @@ public final class BufferedDataWriter {
             }
         }
     }
-
-    BlockSet.Mutable mutableBlocksUnsafe() {
-        return blockSet.beginWrite();
-    }
-
-    void updateBlockSetHighAddressUnsafe(final long prevHighAddress, final long highAddress, final BlockSet.Immutable blockSet) {
-        ensureWritesAreCompleted();
-
-        if (currentHighAddress != committedHighAddress || blockSetMutable != null ||
-                currentPage.committedCount < currentPage.writtenCount) {
-            throw new ExodusException("Can not update high address and block set once they are changing");
-        }
-
-        if (currentHighAddress != prevHighAddress) {
-            throw new ExodusException("High address was changed and can not be updated");
-        }
-
-        this.currentHighAddress = highAddress;
-        this.committedHighAddress = highAddress;
-        this.lastSyncedAddress = 0;
-
-        var pageOffset = (int) highAddress & (pageSize - 1);
-        var pageAddress = highAddress - pageOffset;
-
-        var page = logCache.getPage(log, pageAddress, -1);
-
-        initCurrentPage(blockSet, highAddress, page);
-
-        assert currentHighAddress == currentPage.pageAddress + currentPage.writtenCount;
-    }
-
 
     private int doPadWholePageWithNulls() {
         final int writtenInPage = currentPage.writtenCount;

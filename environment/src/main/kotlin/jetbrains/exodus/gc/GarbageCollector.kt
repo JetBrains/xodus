@@ -304,7 +304,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         if (cleanedFiles.isNotEmpty()) {
             for (file in cleanedFiles) {
                 if (isTxnExclusive) {
-                    log.clearFileFromLogCache(file)
+                    log.clearFileFromLogCache(file, 0)
                 }
                 pendingFilesToDelete.add(file)
                 utilizationProfile.resetFile(file)

@@ -27,7 +27,7 @@ import java.nio.channels.FileLock;
 public class LogLockingTests extends LogTestsBase {
 
     @Test
-    public void testLock() throws IOException {
+    public void testLock() {
         initLog(1, 1024);
         File xdLockFile = new File(getLogDirectory(), "xd.lck");
         Assert.assertTrue(xdLockFile.exists());
@@ -58,7 +58,11 @@ public class LogLockingTests extends LogTestsBase {
             alreadyLockedEx = true;
         }
         Assert.assertTrue(alreadyLockedEx);
-        prevLog.close();
+        try {
+            prevLog.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         closeLog();
     }
 
@@ -83,7 +87,7 @@ public class LogLockingTests extends LogTestsBase {
         closeLog();
     }
 
-    private static boolean canWrite(File xdLockFile) throws IOException {
+    private static boolean canWrite(File xdLockFile) {
         boolean can = xdLockFile.canWrite();
         if (can) {
             FileOutputStream stream = null;
@@ -114,7 +118,6 @@ public class LogLockingTests extends LogTestsBase {
                 } else {
                     can = false;
                 }
-                file.close();
             } catch (Throwable ignore) {
                 can = false;
             }

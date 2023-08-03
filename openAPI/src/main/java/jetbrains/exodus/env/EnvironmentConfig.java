@@ -247,6 +247,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * If is set to {@code true} the LogCache uses lock-free data structures. Default value is {@code true}.
      * <p>Mutable at runtime: no
      */
+    @Deprecated
     public static final String LOG_CACHE_NON_BLOCKING = "exodus.log.cache.nonBlocking";
 
     /**
@@ -266,6 +267,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * Default value is {@code false}.
      * <p>Mutable at runtime: no
      */
+    @Deprecated
     public static final String LOG_CACHE_USE_SOFT_REFERENCES = "exodus.log.cache.useSoftReferences";
 
     /**
@@ -763,9 +765,7 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(LOG_CACHE_USE_NIO, false),
                 new Pair(LOG_CACHE_FREE_PHYSICAL_MEMORY_THRESHOLD, 1_000_000_000L), // ~1GB
                 new Pair(LOG_CACHE_SHARED, true),
-                new Pair(LOG_CACHE_NON_BLOCKING, true),
                 new Pair(LOG_CACHE_GENERATION_COUNT, 2),
-                new Pair(LOG_CACHE_USE_SOFT_REFERENCES, false),
                 new Pair(LOG_CACHE_READ_AHEAD_MULTIPLE, 1),
                 new Pair(LOG_CACHE_WARMUP, false),
                 new Pair(LOG_CLEAN_DIRECTORY_EXPECTED, false),
@@ -1345,6 +1345,8 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @return {@code true} if the LogCache should use lock-free data structures
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     public boolean isLogCacheNonBlocking() {
         return (Boolean) getSetting(LOG_CACHE_NON_BLOCKING);
     }
@@ -1357,6 +1359,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @param nonBlocking {@code true} if the LogCache should use lock-free data structures
      * @return this {@code EnvironmentConfig} instance
      */
+    @Deprecated
     public EnvironmentConfig setLogCacheNonBlocking(final boolean nonBlocking) {
         return setSetting(LOG_CACHE_NON_BLOCKING, nonBlocking);
     }
@@ -1399,6 +1402,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * @return {@code true} if LogCache should use {@linkplain java.lang.ref.SoftReference soft references} for
      * holding cached pages
      */
+    @Deprecated
     public boolean getLogCacheUseSoftReferences() {
         return (Boolean) getSetting(LOG_CACHE_USE_SOFT_REFERENCES);
     }
@@ -1416,6 +1420,7 @@ public class EnvironmentConfig extends AbstractConfig {
      *                          {@linkplain java.lang.ref.SoftReference soft references} for holding cached pages
      * @return this {@code EnvironmentConfig} instance
      */
+    @Deprecated
     public EnvironmentConfig setLogCacheUseSoftReferences(final boolean useSoftReferences) {
         return setSetting(LOG_CACHE_USE_SOFT_REFERENCES, useSoftReferences);
     }

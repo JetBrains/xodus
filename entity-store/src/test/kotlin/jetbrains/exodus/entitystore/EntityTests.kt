@@ -23,6 +23,7 @@ import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
 import jetbrains.exodus.kotlin.notNull
+import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.TooBigLoggableException
 import jetbrains.exodus.util.ByteArraySizedInputStream
 import jetbrains.exodus.util.DeferredIO
@@ -606,6 +607,7 @@ class EntityTests : EntityStoreTestBase() {
     fun testTooBigProperty() {
         val dir = initTempFolder()
         try {
+            Log.invalidateSharedCacheTestsOnly()
             PersistentEntityStores.newInstance(Environments.newInstance(dir, newEnvironmentConfig {
                 isLogCacheShared = false
                 logCachePageSize = 1024

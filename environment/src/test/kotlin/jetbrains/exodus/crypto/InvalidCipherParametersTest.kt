@@ -37,20 +37,19 @@ import java.io.File
 private const val ENTRIES = 1000
 private val expectedException = InvalidCipherParametersException::class.java
 
-@Suppress("DEPRECATION")
 class InvalidCipherParametersTest {
 
     private lateinit var dir: File
 
     @Before
     fun setUp() {
-        Log.invalidateSharedCache()
+        Log.invalidateSharedCacheTestsOnly()
         dir = TestUtil.createTempDir()
     }
 
     @After
     fun tearDown() {
-        Log.invalidateSharedCache()
+        Log.invalidateSharedCacheTestsOnly()
     }
 
     @TestFor(issue = "XD-666")

@@ -156,7 +156,7 @@ public abstract class AbstractConfig {
                 errorMessage.append(clazz);
             }
         }
-        if (errorMessage.length() > 0) {
+        if (!errorMessage.isEmpty()) {
             throw new InvalidSettingException(errorMessage.toString());
         }
     }
@@ -188,8 +188,7 @@ public abstract class AbstractConfig {
                                       @NotNull final String propName,
                                       final boolean defaultValue) {
         final String value = strategy.getProperty(propName);
-        //noinspection deprecation,UnnecessaryBoxing,BooleanConstructorCall
-        return value == null ? defaultValue : new Boolean("true".equalsIgnoreCase(value));
+        return value == null ? defaultValue : Boolean.parseBoolean(value);
     }
 
     private static Integer getInteger(@NotNull final ConfigurationStrategy strategy,
@@ -198,8 +197,7 @@ public abstract class AbstractConfig {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
-                //noinspection CachedNumberConstructorCall,deprecation,BoxingBoxedValue
-                return new Integer(Integer.decode(v));
+                return Integer.decode(v);
             } catch (NumberFormatException ignored) {
             }
         }
@@ -212,8 +210,7 @@ public abstract class AbstractConfig {
         final String v = strategy.getProperty(propName);
         if (v != null) {
             try {
-                //noinspection CachedNumberConstructorCall,deprecation,BoxingBoxedValue
-                return new Long(Long.decode(v));
+                return Long.decode(v);
             } catch (NumberFormatException ignored) {
             }
         }
@@ -229,7 +226,7 @@ public abstract class AbstractConfig {
     }
 
     private static void appendLineFeed(@NotNull final StringBuilder builder) {
-        if (builder.length() > 0) {
+        if (!builder.isEmpty()) {
             builder.append('\n');
         }
     }
