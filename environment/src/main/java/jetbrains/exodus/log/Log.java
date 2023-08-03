@@ -526,7 +526,7 @@ public final class Log implements Closeable, CacheDataProvider {
         var processor = DeferredIO.getJobProcessor();
         processor.queue(new RunnableJob(() -> {
             // number of files to walk through at maximum
-            var maxFiles = cache.getMemoryUsage$xodus_environment() / fileLengthBound;
+            var maxFiles = cache.getMemoryUsage() / fileLengthBound;
             var fileAddresses = getAllFileAddresses();
             var filesCount = (int) Math.min(fileAddresses.length, Math.max(1, maxFiles));
             var files = Arrays.copyOfRange(fileAddresses, fileAddresses.length - filesCount, fileAddresses.length);
@@ -1793,7 +1793,7 @@ public final class Log implements Closeable, CacheDataProvider {
     }
 
     private static void checkCachePageSize(int pageSize, LogCache cache) {
-        var cachePageSize = cache.getPageSize$xodus_environment();
+        var cachePageSize = cache.getPageSize();
         if (cachePageSize != pageSize) {
             throw new ExodusException(
                     "SharedLogCache was created with page size " + cachePageSize +
