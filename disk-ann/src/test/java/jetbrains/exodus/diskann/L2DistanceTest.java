@@ -1,3 +1,18 @@
+/*
+ * Copyright 2010 - 2023 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package jetbrains.exodus.diskann;
 
 import org.junit.Assert;
@@ -59,7 +74,7 @@ public class L2DistanceTest {
             for (var i = 0; i < count; i++) {
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
-                sum += 4.0 * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
             for (int i = 16; i >= 1; i /= 2) {
@@ -90,10 +105,10 @@ public class L2DistanceTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 7.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 9.0f * i);
 
-                sum[0] += 4.0 * i * i;
-                sum[1] += 16.0 * i * i;
-                sum[2] += 36.0 * i * i;
-                sum[3] += 64.0 * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (16.0 * i * i);
+                sum[2] += (float) (36.0 * i * i);
+                sum[3] += (float) (64.0 * i * i);
             }
 
             var result = new float[4];
@@ -118,7 +133,7 @@ public class L2DistanceTest {
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
-                    sum += 4.0 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
@@ -151,10 +166,10 @@ public class L2DistanceTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 4.0 * i * i;
-                sum[1] += 9.0 * i * i;
-                sum[2] += 16.0 * i * i;
-                sum[3] += 25.0 * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
             var result = new float[4];
@@ -228,7 +243,7 @@ public class L2DistanceTest {
             for (var i = 0; i < count; i++) {
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + secondOffset, 3.0f * i);
-                sum += 4.0 * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
             for (int i = 16; i >= 1; i /= 2) {
@@ -271,25 +286,25 @@ public class L2DistanceTest {
 
             var sum = new float[4];
 
-            var origingOffset = 2;
+            var originOffset = 2;
             var otherOffset = 3;
             for (var i = 0; i < count; i++) {
-                originSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + origingOffset, 1.0f * i);
+                originSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + originOffset, 1.0f * i);
 
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 3.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 4.0f * i);
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 6.0f * i);
 
-                sum[0] += 4.0 * i * i;
-                sum[1] += 9.0 * i * i;
-                sum[2] += 16.0 * i * i;
-                sum[3] += 25.0 * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                L2Distance.computeL2Distance(originSegment, origingOffset * Float.BYTES,
+                L2Distance.computeL2Distance(originSegment, originOffset * Float.BYTES,
                         firstSegment, otherOffset * Float.BYTES,
                         secondSegment, otherOffset * Float.BYTES,
                         thirdSegment, otherOffset * Float.BYTES,
@@ -323,7 +338,7 @@ public class L2DistanceTest {
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + secondOffset, 3.0f * i);
-                    sum += 4.0 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
@@ -357,7 +372,7 @@ public class L2DistanceTest {
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + secondOffset, 3.0f * i);
-                    sum += 4.0 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
@@ -420,7 +435,7 @@ public class L2DistanceTest {
             for (var i = 0; i < count; i++) {
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                 secondVector[i] = 3.0f * i;
-                sum += 4.0 * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
             for (int i = 16; i >= 1; i /= 2) {
@@ -452,10 +467,10 @@ public class L2DistanceTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 4.0 * i * i;
-                sum[1] += 9.0 * i * i;
-                sum[2] += 16.0 * i * i;
-                sum[3] += 25.0 * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
             var result = new float[4];
@@ -485,7 +500,7 @@ public class L2DistanceTest {
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                     secondVector[i] = 3.0f * i;
-                    sum += 4.0 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
@@ -518,10 +533,10 @@ public class L2DistanceTest {
                 thirdVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 4.0 * i * i;
-                sum[1] += 9.0 * i * i;
-                sum[2] += 16.0 * i * i;
-                sum[3] += 25.0 * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
             var result = new float[4];
@@ -596,7 +611,7 @@ public class L2DistanceTest {
             for (var i = 0; i < count; i++) {
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                 secondVector[i] = 3.0f * i;
-                sum += 4.0 * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
 
@@ -633,10 +648,10 @@ public class L2DistanceTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 4.0 * i * i;
-                sum[1] += 9.0 * i * i;
-                sum[2] += 16.0 * i * i;
-                sum[3] += 25.0 * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
 
@@ -673,7 +688,7 @@ public class L2DistanceTest {
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                     secondVector[i] = 3.0f * i;
-                    sum += 4.0 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
 
@@ -775,7 +790,7 @@ public class L2DistanceTest {
         for (var i = 0; i < count; i++) {
             firstVector[i] = 1.0f * i;
             secondVector[i] = 3.0f * i;
-            sum += 4.0 * i * i;
+            sum += (float) (4.0 * i * i);
         }
 
 
@@ -804,10 +819,10 @@ public class L2DistanceTest {
             fourthVector[i] = 6.0f * i;
 
 
-            sum[0] += 4.0 * i * i;
-            sum[1] += 9.0 * i * i;
-            sum[2] += 16.0 * i * i;
-            sum[3] += 25.0 * i * i;
+            sum[0] += (float) (4.0 * i * i);
+            sum[1] += (float) (9.0 * i * i);
+            sum[2] += (float) (16.0 * i * i);
+            sum[3] += (float) (25.0 * i * i);
         }
 
         var result = new float[4];
@@ -833,7 +848,7 @@ public class L2DistanceTest {
             for (var i = 0; i < count; i++) {
                 firstVector[i] = 1.0f * i;
                 secondVector[i] = 3.0f * i;
-                sum += 4.0 * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
 
@@ -863,10 +878,10 @@ public class L2DistanceTest {
             thirdVector[i] = 5.0f * i;
             fourthVector[i] = 6.0f * i;
 
-            sum[0] += 4.0 * i * i;
-            sum[1] += 9.0 * i * i;
-            sum[2] += 16.0 * i * i;
-            sum[3] += 25.0 * i * i;
+            sum[0] += (float) (4.0 * i * i);
+            sum[1] += (float) (9.0 * i * i);
+            sum[2] += (float) (16.0 * i * i);
+            sum[3] += (float) (25.0 * i * i);
         }
 
 
@@ -937,7 +952,7 @@ public class L2DistanceTest {
         for (var i = 0; i < count; i++) {
             firstVector[i + firstOffset] = 1.0f * i;
             secondVector[i + secondOffset] = 3.0f * i;
-            sum += 4.0 * i * i;
+            sum += (float) (4.0 * i * i);
         }
         for (int i = 16; i >= 1; i /= 2) {
             var distance = L2Distance.computeL2Distance(firstVector, firstOffset, secondVector,
@@ -986,10 +1001,10 @@ public class L2DistanceTest {
             thirdVector[i + nextOffset] = 5.0f * i;
             fourthVector[i + nextOffset] = 6.0f * i;
 
-            sum[0] += 4.0 * i * i;
-            sum[1] += 9.0 * i * i;
-            sum[2] += 16.0 * i * i;
-            sum[3] += 25.0 * i * i;
+            sum[0] += (float) (4.0 * i * i);
+            sum[1] += (float) (9.0 * i * i);
+            sum[2] += (float) (16.0 * i * i);
+            sum[3] += (float) (25.0 * i * i);
         }
 
         var result = new float[4];
@@ -1027,7 +1042,7 @@ public class L2DistanceTest {
             for (var i = 0; i < count; i++) {
                 firstVector[i + firstOffset] = 1.0f * i;
                 secondVector[i + secondOffset] = 3.0f * i;
-                sum += 4.0 * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
             for (int i = 16; i >= 1; i /= 2) {
@@ -1076,10 +1091,10 @@ public class L2DistanceTest {
             thirdVector[i + nextOffset] = 5.0f * i;
             fourthVector[i + nextOffset] = 6.0f * i;
 
-            sum[0] += 4.0 * i * i;
-            sum[1] += 9.0 * i * i;
-            sum[2] += 16.0 * i * i;
-            sum[3] += 25.0 * i * i;
+            sum[0] += (float) (4.0 * i * i);
+            sum[1] += (float) (9.0 * i * i);
+            sum[2] += (float) (16.0 * i * i);
+            sum[3] += (float) (25.0 * i * i);
         }
 
         var result = new float[4];

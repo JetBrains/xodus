@@ -13,6 +13,7 @@ dependencies {
     implementation("org.openjdk.jmh:jmh-core:1.36")
 
     testImplementation(project(":xodus-utils-test"))
+    testImplementation("org.apache.commons:commons-math3:3.6.1")
 }
 
 configurations {

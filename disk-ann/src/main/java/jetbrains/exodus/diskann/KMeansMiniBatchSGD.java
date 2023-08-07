@@ -1,5 +1,22 @@
+/*
+ * Copyright 2010 - 2023 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package jetbrains.exodus.diskann;
 
+import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.VectorSpecies;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.simple.RandomSource;
 
@@ -7,6 +24,8 @@ import java.util.Arrays;
 import java.util.BitSet;
 
 final class KMeansMiniBatchSGD {
+    private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
+
     final float[][] centroids;
     final int k;
     final VectorReader vectorReader;
@@ -86,7 +105,7 @@ final class KMeansMiniBatchSGD {
         for (int i = 0; i < batchSize; i++) {
             var vector = vectorReader.read(currentIndex + i);
             vectors[i] = vector;
-            centroidIds[i] = DiskANN.findClosestCentroid(distanceFunction, centroids, vector, subVecOffset);
+            centroidIds[i] = Distance.findClosestVector(distanceFunction, centroids, vector, subVecOffset);
         }
 
 
@@ -96,7 +115,7 @@ final class KMeansMiniBatchSGD {
 
             var learningRate = 1.0f / centroidsSamplesCount[centroid];
 
-            var after = DiskANN.computeGradientStep(centroids[centroid], vectors[i], subVecOffset, learningRate);
+            var after = computeGradientStep(centroids[centroid], vectors[i], subVecOffset, learningRate);
             centroids[centroid] = after;
         }
 
@@ -126,7 +145,7 @@ final class KMeansMiniBatchSGD {
             vectors[i + 2] = vector_3;
             vectors[i + 3] = vector_4;
 
-            DiskANN.findClosestCentroid(distanceFunction, centroids, vector_1, vector_2,
+            Distance.findClosestVector(distanceFunction, centroids, vector_1, vector_2,
                     vector_3, vector_4, subVecOffset, result);
 
             centroidIds[i] = result[0];
@@ -142,7 +161,7 @@ final class KMeansMiniBatchSGD {
 
             var learningRate = 1.0f / centroidsSamplesCount[centroid];
 
-            var after = DiskANN.computeGradientStep(centroids[centroid], vectors[i], subVecOffset, learningRate);
+            var after = computeGradientStep(centroids[centroid], vectors[i], subVecOffset, learningRate);
             centroids[centroid] = after;
         }
 
@@ -154,5 +173,26 @@ final class KMeansMiniBatchSGD {
         return iteration;
     }
 
+    static float[] computeGradientStep(float[] centroid, float[] point, int pointOffset, float learningRate) {
+        var result = new float[centroid.length];
+        var index = 0;
+        var learningRateVector = FloatVector.broadcast(SPECIES, learningRate);
+        var loopBound = SPECIES.loopBound(centroid.length);
+        var step = SPECIES.length();
 
+        for (; index < loopBound; index += step) {
+            var centroidVector = FloatVector.fromArray(SPECIES, centroid, index);
+            var pointVector = FloatVector.fromArray(SPECIES, point, index + pointOffset);
+
+            var diff = pointVector.sub(centroidVector);
+            centroidVector = diff.fma(learningRateVector, centroidVector);
+            centroidVector.intoArray(result, index);
+        }
+
+        for (; index < centroid.length; index++) {
+            result[index] = centroid[index] + learningRate * (point[index + pointOffset] - centroid[index]);
+        }
+
+        return result;
+    }
 }

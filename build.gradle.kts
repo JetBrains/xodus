@@ -152,6 +152,8 @@ subprojects {
 
     tasks.test {
         systemProperty("exodus.tests.buildDirectory", project.buildDir)
+        systemProperty("org.slf4j.simpleLogger.log.jetbrains.exodus", "debug")
+
         minHeapSize = "1g"
         maxHeapSize = "1g"
         jvmArgs = listOf("-ea", "-XX:+HeapDumpOnOutOfMemoryError", "--add-modules", "jdk.incubator.vector", "--enable-preview")
@@ -178,7 +180,7 @@ subprojects {
         kotlinOptions {
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
-            freeCompilerArgs = listOf("-Xadd-modules=jdk.incubator.vector", "--enable-preview")
+            freeCompilerArgs = listOf("-Xadd-modules=jdk.incubator.vector")
         }
     }
 
