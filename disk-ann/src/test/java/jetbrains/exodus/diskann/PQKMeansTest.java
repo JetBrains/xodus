@@ -143,7 +143,7 @@ public class PQKMeansTest {
 
             for (float[] vector : vectors) {
                 var clusterIndex = findClosestCentroid(centroids, pqResult.pqCentroids, vector,
-                        pqQuantizersCount, pqSubVectorSize, Distance.L2_DISTANCE);
+                        pqQuantizersCount, pqSubVectorSize);
                 vectorsByClusters.get(clusterIndex).add(vector);
             }
 
@@ -316,14 +316,13 @@ public class PQKMeansTest {
     }
 
     private static int findClosestCentroid(byte[] centroids, float[][][] pqCentroids, float[] vector,
-                                           int pqQuantizersCount, int pqSubVectorSize,
-                                           byte distanceFunction) {
+                                           int pqQuantizersCount, int pqSubVectorSize) {
         var minDistance = Float.MAX_VALUE;
         var minIndex = -1;
 
         var lookupTable = PQ.blankLookupTable(pqQuantizersCount);
         PQ.buildPQDistanceLookupTable(vector, lookupTable, pqCentroids, pqQuantizersCount, pqSubVectorSize,
-                distanceFunction);
+                Distance.L2_DISTANCE);
 
         for (int centroidIndex = 0, index = 0; centroidIndex < centroids.length; centroidIndex += pqQuantizersCount, index++) {
             var distance = PQ.computePQDistance(centroids, lookupTable, index, pqQuantizersCount);
