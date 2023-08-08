@@ -35,11 +35,7 @@ internal class BackgroundCleaner(private val gc: GarbageCollector) {
 
     init {
         processor = setJobProcessor(
-            if (gc.environment.environmentConfig.isLogCacheShared) {
-                DelegatingJobProcessor(ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared background cleaner"))
-            } else {
-                ThreadJobProcessor("Exodus background cleaner for " + gc.environment.location)
-            }
+            DelegatingJobProcessor(ThreadJobProcessorPool.getOrCreateJobProcessor("Exodus shared background cleaner"))
         )
     }
 

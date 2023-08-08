@@ -26,9 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.CompletionHandler;
@@ -230,27 +228,6 @@ public class AsyncFileDataWriter extends AbstractDataWriter {
                         name.substring(0, name.indexOf(LogUtil.LOG_FILE_EXTENSION)) + DELETED_FILE_EXTENSION
                 )
         );
-    }
-
-    @Override
-    @Deprecated
-    public void truncateBlock(long blockAddress, long length) {
-        var block = new FileDataReader.FileBlock(blockAddress, reader);
-        removeFileFromFileCache(block);
-
-        if (block.exists() && !block.setWritable(true)) {
-            throw new ExodusException("File " + block.getAbsolutePath() + " is protected from write.");
-        }
-
-        try (var file = new RandomAccessFile(block, "rw")) {
-            file.setLength(length);
-        } catch (FileNotFoundException e) {
-            throw new ExodusException("File " + block.getAbsolutePath() + " was not found", e);
-        } catch (IOException e) {
-            throw new ExodusException("Can not truncate file " + block.getAbsolutePath(), e);
-        }
-
-        logger.info("Truncated file " + block.getAbsolutePath() + " to length = " + length);
     }
 
     private static void removeFileFromFileCache(File file) {

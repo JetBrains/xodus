@@ -23,7 +23,9 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
-import jetbrains.exodus.io.*;
+import jetbrains.exodus.io.Block;
+import jetbrains.exodus.io.DataWriter;
+import jetbrains.exodus.io.RemoveBlockType;
 import net.jpountz.xxhash.StreamingXXHash64;
 import net.jpountz.xxhash.XXHash64;
 import net.jpountz.xxhash.XXHashFactory;
@@ -37,16 +39,17 @@ import java.io.File;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 public final class BufferedDataWriter {
     private static final Logger logger = LoggerFactory.getLogger(BufferedDataWriter.class);
 
-    public static final long XX_HASH_SEED = 0xADEF1279AL;
-    public static final XXHashFactory XX_HASH_FACTORY = XXHashFactory.fastestJavaInstance();
-    public static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
+    static final long XX_HASH_SEED = 0xADEF1279AL;
+    private static final XXHashFactory XX_HASH_FACTORY = XXHashFactory.fastestJavaInstance();
+    static final XXHash64 xxHash = XX_HASH_FACTORY.hash64();
     public static final int HASH_CODE_SIZE = Long.BYTES;
     @NotNull
     private final Log log;
@@ -262,7 +265,7 @@ public final class BufferedDataWriter {
         return committedHighAddress;
     }
 
-    public boolean needsToBeSynchronized() {
+    boolean needsToBeSynchronized() {
         return doNeedsToBeSynchronized(this.committedHighAddress);
     }
 
@@ -291,7 +294,7 @@ public final class BufferedDataWriter {
     }
 
     @Nullable
-    public static String validatePageConsistency(long pageAddress, byte @NotNull [] bytes, int pageSize, Log log) {
+    static String validatePageConsistency(long pageAddress, byte @NotNull [] bytes, int pageSize, Log log) {
         if (pageSize != bytes.length) {
             return "Unexpected page size (bytes). {expected " + pageSize
                     + ": , actual : " + bytes.length + "} " + LogUtil.getWrongAddressErrorMessage(pageAddress,
@@ -310,8 +313,8 @@ public final class BufferedDataWriter {
         return null;
     }
 
-    public static int findValidPagePart(MessageDigest sha256, long pageAddress, byte @NotNull [] bytes,
-                                        int pageSize, String errorMessage) {
+    static int findValidPagePart(MessageDigest sha256, long pageAddress, byte @NotNull [] bytes,
+                                 int pageSize, String errorMessage) {
 
         int lastHashBlock = -1;
         for (int i = 0; i <
@@ -363,7 +366,7 @@ public final class BufferedDataWriter {
         BindingUtils.writeLong(hash, bytes, offset + len);
     }
 
-    public static byte[] generateNullPage(int pageSize) {
+    static byte[] generateNullPage(int pageSize) {
         final byte[] data = new byte[pageSize];
         Arrays.fill(data, 0, pageSize - HASH_CODE_SIZE, (byte) 0x80);
 
@@ -480,7 +483,6 @@ public final class BufferedDataWriter {
             log.notifyAfterBlockDeleted(blockAddress);
         }
     }
-
 
 
     Block getBlock(long blockAddress) {
@@ -934,13 +936,7 @@ public final class BufferedDataWriter {
             var lastFile = blockSet.getMaximum();
             if (lastFile != null) {
                 var block = blockSet.getBlock(lastFile);
-
-                var refreshed = block.refresh();
-                if (block != refreshed) {
-                    blockSet.add(lastFile, refreshed);
-                }
-
-                var length = refreshed.length();
+                var length = block.length();
                 if (length < fileLengthBound) {
                     throw new IllegalStateException(
                             "File's too short (" + LogUtil.getLogFilename(lastFile)
@@ -1025,13 +1021,13 @@ public final class BufferedDataWriter {
         private final byte @NotNull [] bytes;
         private final long pageAddress;
 
-        int committedCount;
-        int writtenCount;
+        private int committedCount;
+        private int writtenCount;
 
-        final StreamingXXHash64 xxHash64;
+        private final StreamingXXHash64 xxHash64;
 
-        MutablePage(final byte @NotNull [] page,
-                    final long pageAddress, final int writtenCount, final int committedCount) {
+        private MutablePage(final byte @NotNull [] page,
+                            final long pageAddress, final int writtenCount, final int committedCount) {
             assert committedCount <= writtenCount;
             this.bytes = page;
             this.pageAddress = pageAddress;

@@ -27,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 /**
  * {@code DataWriter} defines the way how data is written to {@code Log}, how {@linkplain Block blocks} appear in
  * the log and how they are removed from the log.
- *
  * {@code Log} blocks can be mutable and immutable. All blocks having length equal to {@linkplain EnvironmentConfig#getLogFileSize()
  * maximum log block size} are immutable. In any moment, only one block can be mutable. This has maximum {@linkplain
  * Block#getAddress() address}. {@code DataWriter} always writes to a single mutable block, that makes {@code log}
@@ -106,17 +105,6 @@ public interface DataWriter extends Closeable {
     void removeBlock(long blockAddress, @NotNull RemoveBlockType rbt);
 
     /**
-     * Truncates existing {@linkplain Block block} to specified length. Does nothing is specified length is greater
-     * than or equal to physical {@linkplain Block block} length.
-     *
-     * @param blockAddress address of {@linkplain Block block} to truncate
-     * @param length       {@linkplain Block block} length
-     * @deprecated data files are not designed to be truncated
-     */
-    @Deprecated
-    void truncateBlock(long blockAddress, long length);
-
-    /**
      * If applicable, tries to acquire writer's lock in specified time. If the lock is acquired, returns {@code true}.
      * Successfully acquired lock guarantees that {@code Log} cannot be opened in parallel (within same
      * JVM or not) unless it is released by the writer.
@@ -149,7 +137,6 @@ public interface DataWriter extends Closeable {
      * Asynchronously writes binary data to {@code Log}.
      * Returns new {@linkplain Block} instance representing mutable block and completable future which will be executed
      * once asynchronous write was executed.
-     *
      * This method is not thread safe and can not be used by multiple threads without external synchronization.
      *
      * @param b   binary data array

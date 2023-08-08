@@ -18,18 +18,16 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.env.EnvironmentConfig;
 import jetbrains.exodus.env.Environments;
 
-import static jetbrains.exodus.entitystore.StressTests.xd_347_like;
-
 public class SmallLogStressTests extends EntityStoreTestBase {
     private static final int LOG_SIZE = 4; // kb
 
     @Override
     protected PersistentEntityStoreImpl createStoreInternal(String dbTempFolder) {
-        EnvironmentConfig cfg = new EnvironmentConfig().setLogFileSize(LOG_SIZE).setLogCachePageSize(LOG_SIZE * 1024).setLogCacheShared(false);
+        EnvironmentConfig cfg = new EnvironmentConfig().setLogFileSize(LOG_SIZE).setLogCachePageSize(LOG_SIZE * 1024);
         return PersistentEntityStores.newInstance(Environments.newInstance(dbTempFolder, cfg));
     }
 
     public void test_xd_347_like() {
-        xd_347_like(getEntityStore(), 30);
+        StressTests.xd_347_like(getEntityStore(), 30);
     }
 }

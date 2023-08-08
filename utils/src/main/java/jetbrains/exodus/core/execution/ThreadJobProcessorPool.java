@@ -18,10 +18,6 @@ package jetbrains.exodus.core.execution;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import org.jetbrains.annotations.NotNull;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Map;
 
 @SuppressWarnings({"UtilityClassWithoutPrivateConstructor"/* public constructor is necessary for hosted server */})
@@ -49,7 +45,7 @@ public class ThreadJobProcessorPool {
                         SPAWNER.waitForLatchJob(new LatchJob() {
                             @Override
                             protected void execute() {
-                                resultContainer.thread = AccessController.doPrivileged((PrivilegedAction<Thread>) () -> new Thread(body, name));
+                                resultContainer.thread = new Thread(body, name);
                                 release();
                             }
                         }, 100);
@@ -69,12 +65,6 @@ public class ThreadJobProcessorPool {
             }
         }
         return result;
-    }
-
-    public static Collection<JobProcessor> getProcessors() {
-        synchronized (PROCESSORS) {
-            return new ArrayList<>(PROCESSORS.values());
-        }
     }
 
     private static class ThreadContainer {

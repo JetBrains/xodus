@@ -15,7 +15,12 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.*;
+import jetbrains.exodus.AbstractConfig;
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ConfigSettingChangeListener;
+import jetbrains.exodus.ConfigurationStrategy;
+import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.InvalidSettingException;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.crypto.KryptKt;
 import jetbrains.exodus.crypto.StreamCipher;
@@ -241,6 +246,8 @@ public class EnvironmentConfig extends AbstractConfig {
      * By default, the LogCache is shared.
      * <p>Mutable at runtime: no
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     public static final String LOG_CACHE_SHARED = "exodus.log.cache.shared";
 
     /**
@@ -1320,7 +1327,10 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @return {@code true} if the LogCache is shared
+     * @deprecated
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     public boolean isLogCacheShared() {
         return (Boolean) getSetting(LOG_CACHE_SHARED);
     }
@@ -1333,7 +1343,9 @@ public class EnvironmentConfig extends AbstractConfig {
      *
      * @param shared {@code true} if the LogCache should be shared
      * @return this {@code EnvironmentConfig} instance
+     * @deprecated
      */
+    @Deprecated
     public EnvironmentConfig setLogCacheShared(final boolean shared) {
         return setSetting(LOG_CACHE_SHARED, shared);
     }

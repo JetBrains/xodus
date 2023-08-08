@@ -15,15 +15,26 @@
  */
 package jetbrains.exodus.env;
 
-import jetbrains.exodus.*;
+import jetbrains.exodus.AbstractConfig;
+import jetbrains.exodus.ArrayByteIterable;
+import jetbrains.exodus.ByteIterable;
+import jetbrains.exodus.ExodusException;
+import jetbrains.exodus.TestFor;
+import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.execution.locks.Latch;
-import jetbrains.exodus.io.*;
-import jetbrains.exodus.log.*;
+import jetbrains.exodus.io.AsyncFileDataWriter;
+import jetbrains.exodus.io.DataReader;
+import jetbrains.exodus.io.DataWriter;
+import jetbrains.exodus.io.FileDataReader;
+import jetbrains.exodus.log.Log;
+import jetbrains.exodus.log.LogConfig;
+import jetbrains.exodus.log.LogTestConfig;
+import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.tree.btree.BTreeBase;
 import jetbrains.exodus.util.IOUtil;
@@ -33,10 +44,12 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.util.*;
-
-import static jetbrains.exodus.env.EnvironmentStatistics.Type.*;
-import static org.junit.Assert.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeSet;
 
 @SuppressWarnings({"ObjectAllocationInLoop", "MethodCallInLoopCondition"})
 public class EnvironmentTest extends EnvironmentTestsBase {
@@ -51,7 +64,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     @Test
     public void testStatisticsBytesWritten() {
         testEmptyEnvironment();
-        assertTrue(env.getStatistics().getStatisticsItem(BYTES_WRITTEN).getTotal() > 0L);
+        Assert.assertTrue(env.getStatistics().getStatisticsItem(EnvironmentStatistics.Type.BYTES_WRITTEN).getTotal() > 0L);
     }
 
     @Test
@@ -66,27 +79,27 @@ public class EnvironmentTest extends EnvironmentTestsBase {
     public void testStatisticsTransactions() {
         testCreateSingleStore();
         final EnvironmentStatistics statistics = env.getStatistics();
-        assertTrue(statistics.getStatisticsItem(TRANSACTIONS).getTotal() > 0L);
-        assertTrue(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS).getTotal() > 0L);
+        Assert.assertTrue(statistics.getStatisticsItem(EnvironmentStatistics.Type.TRANSACTIONS).getTotal() > 0L);
+        Assert.assertTrue(statistics.getStatisticsItem(EnvironmentStatistics.Type.FLUSHED_TRANSACTIONS).getTotal() > 0L);
     }
 
     @Test
     public void testStatisticsItemNames() {
         testStatisticsTransactions();
         final EnvironmentStatistics statistics = env.getStatistics();
-        assertNotNull(statistics.getStatisticsItem(BYTES_WRITTEN));
-        assertNotNull(statistics.getStatisticsItem(BYTES_READ));
-        assertNotNull(statistics.getStatisticsItem(BYTES_MOVED_BY_GC));
-        assertNotNull(statistics.getStatisticsItem(TRANSACTIONS));
-        assertNotNull(statistics.getStatisticsItem(READONLY_TRANSACTIONS));
-        assertNotNull(statistics.getStatisticsItem(GC_TRANSACTIONS));
-        assertNotNull(statistics.getStatisticsItem(ACTIVE_TRANSACTIONS));
-        assertNotNull(statistics.getStatisticsItem(FLUSHED_TRANSACTIONS));
-        assertNotNull(statistics.getStatisticsItem(TRANSACTIONS_DURATION));
-        assertNotNull(statistics.getStatisticsItem(READONLY_TRANSACTIONS_DURATION));
-        assertNotNull(statistics.getStatisticsItem(GC_TRANSACTIONS_DURATION));
-        assertNotNull(statistics.getStatisticsItem(DISK_USAGE));
-        assertNotNull(statistics.getStatisticsItem(UTILIZATION_PERCENT));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.BYTES_WRITTEN));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.BYTES_READ));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.BYTES_MOVED_BY_GC));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.READONLY_TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.GC_TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.ACTIVE_TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.FLUSHED_TRANSACTIONS));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.TRANSACTIONS_DURATION));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.READONLY_TRANSACTIONS_DURATION));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.GC_TRANSACTIONS_DURATION));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.DISK_USAGE));
+        Assert.assertNotNull(statistics.getStatisticsItem(EnvironmentStatistics.Type.UTILIZATION_PERCENT));
     }
 
 
@@ -117,7 +130,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         env.executeInTransaction(txn -> {
             final StoreImpl store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
             store.put(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0"));
-            assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+            Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
             final Throwable[] th = {null};
             // asynchronously clear the environment
             try {
@@ -134,10 +147,10 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 latch.acquire();
             } catch (InterruptedException ignore) {
                 Thread.currentThread().interrupt();
-                fail();
+                Assert.fail();
             }
             Assert.assertNull(th[0]);
-            assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
+            Assert.assertTrue(store.exists(txn, StringBinding.stringToEntry("0"), StringBinding.stringToEntry("0")));
         });
         latch.acquire();
         env.executeInExclusiveTransaction(txn -> {
@@ -340,13 +353,13 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             store.put(txn, StringBinding.stringToEntry("key2"), StringBinding.stringToEntry("A2"));
             store.put(txn, StringBinding.stringToEntry("key1"), StringBinding.stringToEntry("B1"));
             final ByteIterable value1 = store.get(txn, StringBinding.stringToEntry("key1"));
-            assertNotNull(value1);
+            Assert.assertNotNull(value1);
             Assert.assertEquals("B1", StringBinding.entryToString(value1));
         });
         // 4) using third transaction : reload key 1 , value is A1 !=B1   !!!!! Error.
         env.executeInTransaction(txn -> {
             final ByteIterable value1 = store.get(txn, StringBinding.stringToEntry("key1"));
-            assertNotNull(value1);
+            Assert.assertNotNull(value1);
             Assert.assertEquals("B1", StringBinding.entryToString(value1));
         });
     }
@@ -368,7 +381,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         try {
             Log.invalidateSharedCacheTestsOnly();
             final Environment env = Environments.newInstance(tempDir,
-                    new EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024).setLogCacheShared(false));
+                    new EnvironmentConfig().setLogFileSize(1).setLogCachePageSize(1024));
             final Store store = env.computeInTransaction(txn -> env.openStore("0", StoreConfig.WITHOUT_DUPLICATES, txn));
             env.executeInTransaction(txn -> {
                 store.put(txn, StringBinding.stringToEntry("k"), StringBinding.stringToEntry("v"));
@@ -385,7 +398,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
             Assert.assertEquals("v", reopenedEnv.computeInTransaction(txn -> StringBinding.entryToString(
                     Objects.requireNonNull(reopenedStore.get(txn, StringBinding.stringToEntry("k"))))));
             reopenedEnv.close();
-            assertTrue(new File(tempDir, LogUtil.getLogFilename(0)).renameTo(new File(tempDir, LogUtil.getLogFilename(0x1000000))));
+            Assert.assertTrue(new File(tempDir, LogUtil.getLogFilename(0)).renameTo(new File(tempDir, LogUtil.getLogFilename(0x1000000))));
         } finally {
             IOUtil.deleteRecursively(tempDir);
         }
@@ -417,8 +430,8 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                 } catch (InterruptedException ignore) {
                 }
                 while (cursor.getNext()) {
-                    assertNotNull(cursor.getKey());
-                    assertNotNull(cursor.getValue());
+                    Assert.assertNotNull(cursor.getKey());
+                    Assert.assertNotNull(cursor.getValue());
                 }
             }
         });
@@ -434,10 +447,10 @@ public class EnvironmentTest extends EnvironmentTestsBase {
         });
         env.executeInTransaction(txn -> {
             try (Cursor cursor = store.openCursor(txn)) {
-                assertTrue(cursor.getNext());
+                Assert.assertTrue(cursor.getNext());
                 Assert.assertEquals(0, IntegerBinding.entryToInt(cursor.getKey()));
                 store.put(txn, IntegerBinding.intToEntry(2), StringBinding.stringToEntry(Integer.toString(2)));
-                assertTrue(txn.flush());
+                Assert.assertTrue(txn.flush());
                 TestUtil.runWithExpectedException(cursor::getNext, ExodusException.class);
                 TestUtil.runWithExpectedException(cursor::getPrev, ExodusException.class);
                 TestUtil.runWithExpectedException(cursor::getKey, ExodusException.class);
@@ -448,7 +461,6 @@ public class EnvironmentTest extends EnvironmentTestsBase {
 
     @Test
     public void testSharedCache() throws InterruptedException, IOException {
-        env.getEnvironmentConfig().setLogCacheShared(true);
         reopenEnvironment();
         final Set<Environment> additionalEnvironments = new HashSet<>();
         try {
@@ -493,7 +505,7 @@ public class EnvironmentTest extends EnvironmentTestsBase {
                         final Store store = env.openStore("store", StoreConfig.WITHOUT_DUPLICATES, txn);
                         for (int i1 = 0; i1 < 10000; ++i1) {
                             final ByteIterable bi = store.get(txn, IntegerBinding.intToEntry(i1));
-                            assertNotNull(bi);
+                            Assert.assertNotNull(bi);
                             Assert.assertEquals(i1, IntegerBinding.entryToInt(bi));
                         }
                     } finally {

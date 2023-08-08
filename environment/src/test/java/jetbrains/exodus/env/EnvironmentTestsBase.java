@@ -25,7 +25,11 @@ import jetbrains.exodus.core.execution.Job;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.ThreadJobProcessor;
 import jetbrains.exodus.core.execution.locks.Latch;
-import jetbrains.exodus.io.*;
+import jetbrains.exodus.io.AsyncFileDataWriter;
+import jetbrains.exodus.io.DataReader;
+import jetbrains.exodus.io.DataWriter;
+import jetbrains.exodus.io.FileDataReader;
+import jetbrains.exodus.io.SharedOpenFilesCache;
 import jetbrains.exodus.log.HashCodeLoggable;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogConfig;
@@ -117,7 +121,7 @@ public class EnvironmentTestsBase {
     }
 
     protected static EnvironmentImpl newEnvironmentInstance(final LogConfig config) {
-        return (EnvironmentImpl) Environments.newInstance(config, new EnvironmentConfig().setLogCacheShared(false));
+        return (EnvironmentImpl) Environments.newInstance(config, new EnvironmentConfig());
     }
 
     protected static EnvironmentImpl newEnvironmentInstance(final LogConfig config, final EnvironmentConfig ec) {
@@ -299,7 +303,7 @@ public class EnvironmentTestsBase {
     }
 
     protected void setLogFileSize(int kilobytes) {
-        EnvironmentConfig environmentConfig = new EnvironmentConfig().setLogCacheShared(false);
+        EnvironmentConfig environmentConfig = new EnvironmentConfig();
 
         if (environmentConfig.getLogFileSize() != kilobytes) {
             final EnvironmentConfig envConfig = env.getEnvironmentConfig();
