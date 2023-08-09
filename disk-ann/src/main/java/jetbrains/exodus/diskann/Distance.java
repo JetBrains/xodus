@@ -21,32 +21,18 @@ public final class Distance {
     public static final byte L2_DISTANCE = 0;
     public static final byte DOT_DISTANCE = 1;
 
-    public static float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, MemorySegment secondSegment,
-                                  long secondSegmentFromOffset, byte distanceFunction, int size) {
-        if (distanceFunction == L2_DISTANCE) {
-            return L2Distance.computeL2Distance(firstSegment, firstSegmentFromOffset, secondSegment, secondSegmentFromOffset,
-                    size);
-        } else if (distanceFunction == DOT_DISTANCE) {
-            return DotDistance.computeDotDistance(firstSegment, firstSegmentFromOffset, secondSegment, secondSegmentFromOffset,
-                    size);
-        } else {
-            throw new IllegalStateException("Unknown distance function: " + distanceFunction);
-        }
-    }
-
     public static void computeDistance(MemorySegment originSegment, long originSegmentOffset,
-                                 MemorySegment firstSegment, long firstSegmentOffset,
-                                 MemorySegment secondSegment, long secondSegmentOffset,
-                                 MemorySegment thirdSegment, long thirdSegmentOffset,
-                                 MemorySegment fourthSegment, long fourthSegmentOffset,
-                                 byte distanceFunction,
-                                 int size, float[] result) {
+                                       MemorySegment firstSegment, long firstSegmentOffset,
+                                       MemorySegment secondSegment, long secondSegmentOffset,
+                                       MemorySegment thirdSegment, long thirdSegmentOffset,
+                                       MemorySegment fourthSegment, long fourthSegmentOffset,
+                                       int size, float[] result, byte distanceFunction) {
         if (distanceFunction == L2_DISTANCE) {
             L2Distance.computeL2Distance(originSegment, originSegmentOffset,
                     firstSegment, firstSegmentOffset, secondSegment, secondSegmentOffset,
                     thirdSegment, thirdSegmentOffset, fourthSegment, fourthSegmentOffset, size, result);
 
-        } else if(distanceFunction == DOT_DISTANCE) {
+        } else if (distanceFunction == DOT_DISTANCE) {
             DotDistance.computeDotDistance(originSegment, originSegmentOffset,
                     firstSegment, firstSegmentOffset, secondSegment, secondSegmentOffset,
                     thirdSegment, thirdSegmentOffset, fourthSegment, fourthSegmentOffset, size, result);
@@ -55,24 +41,25 @@ public final class Distance {
         }
     }
 
-    public static float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector, byte distanceFunction) {
+    public static float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset,
+                                        float[] secondVector, int secondVectorOffset, int size, byte distanceFunction) {
         if (distanceFunction == L2_DISTANCE) {
-            return L2Distance.computeL2Distance(firstSegment, firstSegmentFromOffset, secondVector, 0);
+            return L2Distance.computeL2Distance(firstSegment, firstSegmentFromOffset, secondVector,
+                    secondVectorOffset, size);
         } else if (distanceFunction == DOT_DISTANCE) {
-            return DotDistance.computeDotDistance(firstSegment, firstSegmentFromOffset, secondVector, 0);
+            return DotDistance.computeDotDistance(firstSegment, firstSegmentFromOffset, secondVector,
+                    secondVectorOffset, size);
         } else {
             throw new IllegalStateException("Unknown distance function: " + distanceFunction);
         }
     }
 
     public static void computeDistance(float[] originVector, @SuppressWarnings("SameParameterValue") int originVectorOffset,
-                                 MemorySegment firstSegment,
-                                 long firstSegmentFromOffset, MemorySegment secondSegment, long secondSegmentFromOffset,
-                                 MemorySegment thirdSegment, long thirdSegmentFromOffset,
-                                 MemorySegment fourthSegment, long fourthSegmentFromOffset,
-                                 byte distanceFunction,
-                                 int size,
-                                 float[] result) {
+                                       MemorySegment firstSegment,
+                                       long firstSegmentFromOffset, MemorySegment secondSegment, long secondSegmentFromOffset,
+                                       MemorySegment thirdSegment, long thirdSegmentFromOffset,
+                                       MemorySegment fourthSegment, long fourthSegmentFromOffset,
+                                       int size, float[] result, byte distanceFunction) {
         if (distanceFunction == L2_DISTANCE) {
             L2Distance.computeL2Distance(originVector, originVectorOffset, firstSegment, firstSegmentFromOffset,
                     secondSegment, secondSegmentFromOffset, thirdSegment, thirdSegmentFromOffset,
@@ -87,8 +74,8 @@ public final class Distance {
     }
 
 
-    public static float computeDistance(final byte distanceFunction, float[] firstVector, float[] secondVector,
-                                 int secondVectorFrom, int size) {
+    public static float computeDistance(float[] firstVector, float[] secondVector, int secondVectorFrom, int size,
+                                        final byte distanceFunction) {
         if (distanceFunction == L2_DISTANCE) {
             return L2Distance.computeL2Distance(firstVector, 0, secondVector, secondVectorFrom, size);
         } else if (distanceFunction == DOT_DISTANCE) {
@@ -98,14 +85,12 @@ public final class Distance {
         }
     }
 
-    public static void computeDistance(final byte distanceFunction, float[] originVector,
-                                @SuppressWarnings("SameParameterValue") int originVectorOffset,
-                                float[] firstVector, int firstVectorOffset,
-                                float[] secondVector, int secondVectorOffset,
-                                float[] thirdVector, int thirdVectorOffset,
-                                float[] fourthVector, int fourthVectorOffset,
-                                final float[] result,
-                                int size) {
+    public static void computeDistance(float[] originVector, @SuppressWarnings("SameParameterValue") int originVectorOffset,
+                                       float[] firstVector, int firstVectorOffset, float[] secondVector,
+                                       int secondVectorOffset, float[] thirdVector,
+                                       int thirdVectorOffset, float[] fourthVector,
+                                       int fourthVectorOffset, final float[] result,
+                                       int size, final byte distanceFunction) {
         if (distanceFunction == L2_DISTANCE) {
             L2Distance.computeL2Distance(originVector, originVectorOffset, firstVector, firstVectorOffset,
                     secondVector, secondVectorOffset,
@@ -118,15 +103,16 @@ public final class Distance {
         }
     }
 
-
-    public static int findClosestVector(final byte distanceFunction, float[][] vectors, float[] vector, int from) {
+    public static int findClosestVector(float[] vectors, MemorySegment vector, int from, int size, final byte distanceFunction) {
         var minDistance = Float.MAX_VALUE;
         var minIndex = -1;
 
-        for (int i = 0; i < vectors.length; i++) {
-            var centroid = vectors[i];
-            var distance = computeDistance(distanceFunction, centroid, vector, from,
-                    centroid.length);
+        var numVectors = vectors.length / size;
+        var vectorFrom = from * Float.BYTES;
+
+        for (int i = 0; i < numVectors; i++) {
+            var distance = computeDistance(vector, vectorFrom, vectors,
+                    i * size, size, distanceFunction);
 
             if (distance < minDistance) {
                 minDistance = distance;
@@ -137,9 +123,10 @@ public final class Distance {
         return minIndex;
     }
 
-    public static void findClosestVector(final byte distanceFunction, float[][] vectors, float[] vector1,
-                                         float[] vector2, float[] vector3, float[] vector4,
-                                         int from, int[] result) {
+
+    public static void findClosestVector(float[] vectors, MemorySegment vector1, MemorySegment vector2,
+                                         MemorySegment vector3, MemorySegment vector4,
+                                         int from, int size, int[] result, final byte distanceFunction) {
         var minDistance_1 = Float.MAX_VALUE;
         var minDistance_2 = Float.MAX_VALUE;
         var minDistance_3 = Float.MAX_VALUE;
@@ -152,16 +139,16 @@ public final class Distance {
 
         var distance = new float[4];
 
-        for (int i = 0; i < vectors.length; i++) {
-            var centroid = vectors[i];
-
-            computeDistance(distanceFunction, centroid, 0,
-                    vector1, from,
-                    vector2, from,
-                    vector3, from,
-                    vector4, from,
-                    distance,
-                    centroid.length);
+        var numVectors = vectors.length / size;
+        var vectorFrom = from * Float.BYTES;
+        for (int i = 0; i < numVectors; i++) {
+            computeDistance(vectors,
+                    i * size,
+                    vector1, vectorFrom,
+                    vector2, vectorFrom,
+                    vector3, vectorFrom,
+                    vector4, vectorFrom, size,
+                    distance, distanceFunction);
 
             if (distance[0] < minDistance_1) {
                 minDistance_1 = distance[0];

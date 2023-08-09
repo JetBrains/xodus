@@ -17,6 +17,7 @@ package jetbrains.exodus.diskann.bench;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -31,6 +32,7 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
+import org.jetbrains.annotations.NotNull;
 
 final class BenchUtils {
     static void runSiftBenchmarks(
@@ -95,7 +97,7 @@ final class BenchUtils {
         System.out.printf("%s extracted%n", siftArchiveName);
 
         var siftsBaseDir = rootDir.resolve(siftDir);
-        var vectors = readFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
+        var vectors = readRawFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
 
         System.out.printf("%d data vectors loaded with dimension %d, building index...%n",
                 vectors.length, vectorDimensions);
@@ -199,6 +201,49 @@ final class BenchUtils {
         }
     }
 
+    private static byte[][] readRawFVectors(Path path, int vectorDimensions) throws IOException {
+        try (var channel = FileChannel.open(path)) {
+
+            var vectorBuffer = ByteBuffer.allocate(Float.BYTES * vectorDimensions + Integer.BYTES);
+            vectorBuffer.order(ByteOrder.LITTLE_ENDIAN);
+
+            readFully(channel, vectorBuffer);
+            vectorBuffer.rewind();
+
+            var vectorsCount =
+                    (int) (channel.size() / (Float.BYTES * vectorDimensions + Integer.BYTES));
+
+            var vectors = new byte[vectorsCount][];
+            {
+                var vector = readFloatVector(vectorDimensions, vectorBuffer);
+                vectors[0] = vector;
+            }
+
+            for (var i = 1; i < vectorsCount; i++) {
+                vectorBuffer.clear();
+                readFully(channel, vectorBuffer);
+                vectorBuffer.rewind();
+
+                vectorBuffer.position(Integer.BYTES);
+
+                var vector = readFloatVector(vectorDimensions, vectorBuffer);
+                vectors[i] = vector;
+            }
+            return vectors;
+        }
+    }
+
+    @NotNull
+    private static byte[] readFloatVector(int vectorDimensions, ByteBuffer vectorBuffer) {
+        var vector = new byte[vectorDimensions * Float.BYTES];
+        for (var i = 0; i < vector.length; i++) {
+            for (var j = 0; j < Float.BYTES; j++) {
+                vector[i * Float.BYTES + j] = vectorBuffer.get();
+            }
+        }
+        return vector;
+    }
+
     @SuppressWarnings("SameParameterValue")
     private static int[][] readIVectors(Path siftSmallBase, int vectorDimensions) throws IOException {
         try (var channel = FileChannel.open(siftSmallBase)) {
@@ -247,13 +292,13 @@ final class BenchUtils {
     }
 }
 
-record ArrayVectorReader(float[][] vectors) implements VectorReader {
+record ArrayVectorReader(byte[][] vectors) implements VectorReader {
     public int size() {
         return vectors.length;
     }
 
-    public float[] read(int index) {
-        return vectors[index];
+    public MemorySegment read(int index) {
+        return MemorySegment.ofArray(vectors[index]);
     }
 }
 

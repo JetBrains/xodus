@@ -1,3 +1,18 @@
+/*
+ * Copyright 2010 - 2023 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package jetbrains.exodus.diskann;
 
 import it.unimi.dsi.fastutil.Hash;
@@ -447,7 +462,8 @@ public final class DiskANN implements AutoCloseable {
 
     private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, float[] secondVector) {
         if (distanceFunction == L2_DISTANCE) {
-            return L2Distance.computeL2Distance(firstSegment, firstSegmentFromOffset, secondVector, 0);
+            return L2Distance.computeL2Distance(firstSegment, firstSegmentFromOffset, secondVector,
+                    0, secondVector.length);
         } else if (distanceFunction == DOT_DISTANCE) {
             return computeDotDistance(firstSegment, firstSegmentFromOffset, secondVector);
         } else {
@@ -563,13 +579,13 @@ public final class DiskANN implements AutoCloseable {
         }
 
 
-        private void addVector(float[] vector) {
+        private void addVector(MemorySegment vector) {
             var index = size * vectorDim;
 
 
-            MemorySegment.copy(vector, 0, struct, ValueLayout.JAVA_FLOAT,
+            MemorySegment.copy(vector, 0, struct,
                     vectorsOffset + (long) index * Float.BYTES,
-                    vectorDim);
+                    (long) vectorDim * Float.BYTES);
             size++;
             medoid = -1;
         }
@@ -622,8 +638,8 @@ public final class DiskANN implements AutoCloseable {
 
                             Distance.computeDistance(struct, queryVectorOffset, struct, vectorOffset1,
                                     struct, vectorOffset2, struct, vectorOffset3, struct, vectorOffset4,
-                                    distanceFunction, dim,
-                                    result);
+                                    dim, result, distanceFunction
+                            );
 
                             nearestCandidates.add(vertexIndexes[0], result[0], false);
                             nearestCandidates.add(vertexIndexes[1], result[1], false);
@@ -698,8 +714,8 @@ public final class DiskANN implements AutoCloseable {
 
                             Distance.computeDistance(struct, vectorOffset, struct, vectorOffset1,
                                     struct, vectorOffset2, struct, vectorOffset3, struct, vectorOffset4,
-                                    distanceFunction, dim,
-                                    result);
+                                    dim, result, distanceFunction
+                            );
 
                             cachedCandidates.add(new RobustPruneVertex(vectorIndexes[0], result[0]));
                             cachedCandidates.add(new RobustPruneVertex(vectorIndexes[1], result[1]));
@@ -770,7 +786,7 @@ public final class DiskANN implements AutoCloseable {
 
                                 Distance.computeDistance(struct, minIndex, struct, vectorOffset1,
                                         struct, vectorOffset2, struct, vectorOffset3,
-                                        struct, vectorOffset4, distanceFunction, dim, result);
+                                        struct, vectorOffset4, dim, result, distanceFunction);
 
                                 if (result[0] * currentMultiplication <= candidate1.distance) {
                                     removedCandidates.add(candidate1);

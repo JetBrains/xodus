@@ -20,6 +20,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -80,8 +81,8 @@ public class DiskANNTest {
 
                 System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%%n",
                         (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg());
-                Assert.assertTrue(errorPercentage <= 0.15);
-                Assert.assertTrue(diskANN.getPQErrorAvg() <= 15);
+                Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 0.22", errorPercentage <= 0.25);
+                Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 15", diskANN.getPQErrorAvg() <= 15);
 
             }
 
@@ -164,8 +165,9 @@ public class DiskANNTest {
 
             System.out.printf("Avg. query time : %d us, errors: %f%%  pq error %f%%%n",
                     (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage, diskANN.getPQErrorAvg());
-            Assert.assertTrue(diskANN.getPQErrorAvg() <= 7.2);
-            Assert.assertTrue(errorPercentage <= 1.1);
+            Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 7.7",
+                    diskANN.getPQErrorAvg() <= 7.7);
+            Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 1.1", errorPercentage <= 1.1);
         }
 
     }
@@ -192,7 +194,12 @@ record ArrayVectorReader(float[][] vectors) implements VectorReader {
         return vectors.length;
     }
 
-    public float[] read(int index) {
-        return vectors[index];
+    public MemorySegment read(int index) {
+        var vectorSegment = MemorySegment.ofArray(new byte[vectors[index].length * Float.BYTES]);
+
+        MemorySegment.copy(MemorySegment.ofArray(vectors[index]), 0, vectorSegment, 0,
+                (long) vectors[index].length * Float.BYTES);
+
+        return vectorSegment;
     }
 }

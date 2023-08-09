@@ -140,15 +140,14 @@ public final class DotDistance {
     }
 
     public static float computeDotDistance(final MemorySegment firstSegment, long firstSegmentOffset,
-                                           final float[] secondVector, int secondVectorOffset) {
+                                           final float[] secondVector, int secondVectorOffset, int size) {
 
-        return computeDotDistance(firstSegment, firstSegmentOffset, secondVector, secondVectorOffset,
-                PREFERRED_SPECIES_LENGTH);
+        return computeDotDistance(firstSegment, firstSegmentOffset, secondVector, secondVectorOffset
+                , size, PREFERRED_SPECIES_LENGTH);
     }
 
     static float computeDotDistance(MemorySegment firstSegment, long firstSegmentOffset, float[] secondVector,
-                                    int secondVectorOffset, int speciesLength) {
-        var size = secondVector.length - secondVectorOffset;
+                                    int secondVectorOffset, int size, int speciesLength) {
         var step = closestSIMDStep(speciesLength, size);
         var sum = 0.0f;
 
@@ -259,12 +258,6 @@ public final class DotDistance {
                     result,
                     size);
         }
-    }
-
-    public static float computeDotDistance(final MemorySegment firstSegment, long firstSegmentOffset,
-                                           final MemorySegment secondSegment, long secondSegmentOffset, int size) {
-        return computeDotDistance(firstSegment, firstSegmentOffset, secondSegment, secondSegmentOffset, size,
-                PREFERRED_SPECIES_LENGTH);
     }
 
     public static void computeDotDistance(final MemorySegment originSegment, long originSegmentOffset,

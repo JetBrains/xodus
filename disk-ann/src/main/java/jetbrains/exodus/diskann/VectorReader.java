@@ -15,8 +15,10 @@
  */
 package jetbrains.exodus.diskann;
 
+import java.lang.foreign.MemorySegment;
+
 public interface VectorReader {
     int size();
 
-    float[] read(int index);
+    MemorySegment read(int index);
 }

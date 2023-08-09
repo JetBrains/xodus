@@ -42,26 +42,47 @@ public final class PQ {
     public static PQCodes generatePQCodes(int pqQuantizersCount,
                                           int pqSubVectorSize, byte distanceFunction,
                                           VectorReader vectorReader, Arena arena) {
-        float[][][] pqCentroids = new float[pqQuantizersCount][][];
-        var kMeans = new KMeansMiniBatchSGD[pqQuantizersCount];
+
+        var kMeans = new KMeansMiniBatchGD[pqQuantizersCount];
+        var kMeansFinished = new boolean[pqQuantizersCount];
 
         for (int i = 0; i < pqQuantizersCount; i++) {
-            kMeans[i] = new KMeansMiniBatchSGD(PQ_CODE_BASE_SIZE,
-                    i * pqSubVectorSize, pqSubVectorSize, vectorReader);
+            kMeans[i] = new KMeansMiniBatchGD(i, PQ_CODE_BASE_SIZE,
+                    50, i * pqSubVectorSize, pqSubVectorSize,
+                    vectorReader);
         }
+
+        var codeBaseSize = Math.min(PQ_CODE_BASE_SIZE, vectorReader.size());
+        float[][][] pqCentroids = new float[pqQuantizersCount][codeBaseSize][pqSubVectorSize];
+
+        var minBatchSize = 16;
+        var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * pqSubVectorSize));
+        System.out.printf("Batch size: %d\n", batchSize);
 
         var finishedCount = 0;
         while (finishedCount < pqQuantizersCount) {
-            for (var km : kMeans) {
-                var iteration = km.nextIteration(16, distanceFunction);
-                if (iteration == 1_000) {
+            for (int i = 0; i < kMeans.length; i++) {
+                if (kMeansFinished[i]) {
+                    continue;
+                }
+
+                var km = kMeans[i];
+                var finished = km.nextBatch(minBatchSize, batchSize, distanceFunction);
+                kMeansFinished[i] = finished;
+                if (finished) {
                     finishedCount++;
                 }
             }
         }
 
         for (int i = 0; i < pqQuantizersCount; i++) {
-            pqCentroids[i] = kMeans[i].centroids;
+            var centroids = kMeans[i].centroids;
+
+            var index = 0;
+            for (int j = 0; j < codeBaseSize; j++) {
+                System.arraycopy(centroids, index, pqCentroids[i][j], 0, pqSubVectorSize);
+                index += pqSubVectorSize;
+            }
         }
 
         var size = vectorReader.size();
@@ -71,7 +92,8 @@ public final class PQ {
             var vector = vectorReader.read(n);
 
             for (int i = 0; i < pqQuantizersCount; i++) {
-                var centroidIndex = Distance.findClosestVector(distanceFunction, kMeans[i].centroids, vector, i * pqSubVectorSize);
+                var centroidIndex = Distance.findClosestVector(kMeans[i].centroids, vector, i * pqSubVectorSize,
+                        pqSubVectorSize, distanceFunction);
                 pqVectors.set(ValueLayout.JAVA_BYTE, (long) n * pqQuantizersCount + i, (byte) centroidIndex);
             }
         }
@@ -92,8 +114,8 @@ public final class PQ {
 
             for (int j = 0; j < centroids.length; j++) {
                 var centroid = centroids[j];
-                var distance = Distance.computeDistance(distanceFunction, centroid, vector,
-                        i * pqSubVectorSize, centroid.length);
+                var distance = Distance.computeDistance(centroid, vector, i * pqSubVectorSize, centroid.length, distanceFunction
+                );
                 lookupTable[i * (1 << Byte.SIZE) + j] = distance;
             }
         }

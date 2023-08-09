@@ -393,7 +393,7 @@ public class DotDistanceTest {
 
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistance.computeDotDistance(firstSegment, 0,
-                        secondVector, 0, i);
+                        secondVector, 0, 2, i);
                 Assert.assertEquals(23.0f, distance, 0.0f);
             }
         }
@@ -441,7 +441,7 @@ public class DotDistanceTest {
 
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistance.computeDotDistance(firstSegment, 0,
-                        secondVector, 0, i);
+                        secondVector, 0, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
         }
@@ -506,7 +506,7 @@ public class DotDistanceTest {
 
                 for (int i = 16; i >= 1; i /= 2) {
                     var distance = DotDistance.computeDotDistance(firstSegment, 0,
-                            secondVector, 0, i);
+                            secondVector, 0, count, i);
                     Assert.assertEquals(sum, distance, 0.0f);
                 }
             }
@@ -564,7 +564,7 @@ public class DotDistanceTest {
 
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistance.computeDotDistance(firstSegment, Float.BYTES,
-                        secondVector, 0, i);
+                        secondVector, 0, 2, i);
                 Assert.assertEquals(23.0f, distance, 0.0f);
             }
         }
@@ -618,7 +618,7 @@ public class DotDistanceTest {
 
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistance.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
-                        secondVector, 0, i);
+                        secondVector, 0, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
         }
@@ -695,7 +695,7 @@ public class DotDistanceTest {
 
                 for (int i = 16; i >= 1; i /= 2) {
                     var distance = DotDistance.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
-                            secondVector, 0, i);
+                            secondVector, 0, count, i);
                     Assert.assertEquals(sum, distance, 0.0f);
                 }
             }

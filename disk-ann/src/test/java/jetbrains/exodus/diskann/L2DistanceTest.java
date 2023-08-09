@@ -392,7 +392,7 @@ public class L2DistanceTest {
 
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = L2Distance.computeL2Distance(firstSegment, 0,
-                        secondVector, 0, i);
+                        secondVector, 0, 2, i);
                 Assert.assertEquals(8.0f, distance, 0.0f);
             }
         }
@@ -440,7 +440,7 @@ public class L2DistanceTest {
 
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = L2Distance.computeL2Distance(firstSegment, 0,
-                        secondVector, 0, i);
+                        secondVector, 0, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
         }
@@ -505,7 +505,7 @@ public class L2DistanceTest {
 
                 for (int i = 16; i >= 1; i /= 2) {
                     var distance = L2Distance.computeL2Distance(firstSegment, 0,
-                            secondVector, 0, i);
+                            secondVector, 0, count, i);
                     Assert.assertEquals(sum, distance, 0.0f);
                 }
             }
@@ -563,7 +563,7 @@ public class L2DistanceTest {
 
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = L2Distance.computeL2Distance(firstSegment, Float.BYTES,
-                        secondVector, 0, i);
+                        secondVector, 0, 2, i);
                 Assert.assertEquals(8.0f, distance, 0.0f);
             }
         }
@@ -617,7 +617,7 @@ public class L2DistanceTest {
 
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = L2Distance.computeL2Distance(firstSegment, firstOffset * Float.BYTES,
-                        secondVector, 0, i);
+                        secondVector, 0, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
         }
@@ -694,7 +694,7 @@ public class L2DistanceTest {
 
                 for (int i = 16; i >= 1; i /= 2) {
                     var distance = L2Distance.computeL2Distance(firstSegment, firstOffset * Float.BYTES,
-                            secondVector, 0, i);
+                            secondVector, 0, count, i);
                     Assert.assertEquals(sum, distance, 0.0f);
                 }
             }

@@ -15,19 +15,12 @@
  */
 package jetbrains.exodus.diskann;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class PQKMeans {
-    private static final Logger logger = LoggerFactory.getLogger(PQKMeans.class);
-
-    private static final boolean DEBUG_ENABLED = logger.isDebugEnabled();
-
     public static byte[] calculatePartitions(float[][][] centroids,
                                              MemorySegment pqVectors,
                                              int numClusters,
@@ -62,10 +55,6 @@ public final class PQKMeans {
                 PQ.PQ_CODE_BASE_SIZE, 0, 0, 1);
 
         for (int n = 0; n < iterations; n++) {
-            if (DEBUG_ENABLED && n % 10 == 0) {
-                logger.debug("Iteration {}", n);
-            }
-
             boolean assignedDifferently = false;
             for (int i = 0; i < numVectors; i++) {
                 var prevIndex = centroidIndexes[i];
@@ -76,10 +65,6 @@ public final class PQKMeans {
             }
 
             if (!assignedDifferently) {
-                if (DEBUG_ENABLED) {
-                    logger.debug("No changes in assignments of vectors in iteration {}. Stopping.", n);
-                }
-
                 break;
             }
 
@@ -104,9 +89,6 @@ public final class PQKMeans {
             }
 
             if (!assignedDifferently) {
-                if (DEBUG_ENABLED) {
-                    logger.debug("No changes in calculation of centroids in iteration {}. Stopping.", n);
-                }
                 break;
             }
         }
@@ -158,9 +140,8 @@ public final class PQKMeans {
                     var vector3 = centroids[n][j + 2];
                     var vector4 = centroids[n][j + 3];
 
-                    Distance.computeDistance(distanceFunction, origin, 0, vector1, 0,
-                            vector2, 0, vector3, 0, vector4, 0,
-                            batchResult, vecSize);
+                    Distance.computeDistance(origin, 0, vector1, 0, vector2, 0, vector3, 0, vector4, 0, batchResult, vecSize, distanceFunction
+                    );
 
                     var offset = baseOffset + j;
                     result[offset] = batchResult[0];
@@ -174,8 +155,8 @@ public final class PQKMeans {
                     var origin = centroids[n][i];
                     var vector = centroids[n][j];
 
-                    result[baseOffset + j] = Distance.computeDistance(distanceFunction, origin, vector,
-                            0, vecSize);
+                    result[baseOffset + j] = Distance.computeDistance(origin, vector, 0, vecSize, distanceFunction
+                    );
                 }
             }
 
