@@ -36,7 +36,7 @@ public final class PQ {
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
 
-        return new PQParameters(pqQuantizersCount, pqSubVectorSize);
+        return new PQParameters(pqSubVectorSize, pqQuantizersCount);
     }
 
     public static PQCodes generatePQCodes(int pqQuantizersCount,

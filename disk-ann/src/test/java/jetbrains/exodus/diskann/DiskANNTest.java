@@ -80,7 +80,8 @@ public class DiskANNTest {
 
                 System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%%n",
                         (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg());
-                Assert.assertTrue(errorPercentage <= 5);
+                Assert.assertTrue(errorPercentage <= 0.15);
+                Assert.assertTrue(diskANN.getPQErrorAvg() <= 15);
 
             }
 
@@ -163,7 +164,8 @@ public class DiskANNTest {
 
             System.out.printf("Avg. query time : %d us, errors: %f%%  pq error %f%%%n",
                     (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage, diskANN.getPQErrorAvg());
-            Assert.assertTrue(errorPercentage <= 5);
+            Assert.assertTrue(diskANN.getPQErrorAvg() <= 7.2);
+            Assert.assertTrue(errorPercentage <= 1.1);
         }
 
     }
