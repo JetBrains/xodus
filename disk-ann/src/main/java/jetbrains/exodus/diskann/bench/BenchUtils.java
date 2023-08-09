@@ -237,9 +237,7 @@ final class BenchUtils {
     private static byte[] readFloatVector(int vectorDimensions, ByteBuffer vectorBuffer) {
         var vector = new byte[vectorDimensions * Float.BYTES];
         for (var i = 0; i < vector.length; i++) {
-            for (var j = 0; j < Float.BYTES; j++) {
-                vector[i * Float.BYTES + j] = vectorBuffer.get();
-            }
+            vector[i] = vectorBuffer.get();
         }
         return vector;
     }
