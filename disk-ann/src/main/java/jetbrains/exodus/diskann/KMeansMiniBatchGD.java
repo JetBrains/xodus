@@ -226,7 +226,7 @@ final class KMeansMiniBatchGD {
 
         for (; index < vectorSize; index++) {
             centroids[centroidOffset + index] = centroids[centroidOffset + index] +
-                    learningRate * (vector.getAtIndex(ValueLayout.JAVA_FLOAT, index + vectorOffset)
+                    learningRate * (vector.getAtIndex(ValueLayout.JAVA_FLOAT_UNALIGNED, index + vectorOffset)
                             - centroids[centroidOffset + index]);
         }
     }
