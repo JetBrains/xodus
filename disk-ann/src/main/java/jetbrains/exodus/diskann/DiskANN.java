@@ -234,12 +234,12 @@ public final class DiskANN implements AutoCloseable {
             logger.info("Saving graph to disk under the path {} ...", filePath.toAbsolutePath());
 
             var startSave = System.nanoTime();
-            if (Files.exists(path)) {
+            if (Files.exists(filePath)) {
                 logger.warn("File {} already exists and will be deleted.", path);
-                Files.delete(path);
+                Files.delete(filePath);
             }
 
-            initFile(path, size);
+            initFile(filePath, size);
             graph.saveToDisk();
 
             var endSave = System.nanoTime();
