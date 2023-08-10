@@ -552,30 +552,27 @@ public final class DiskANN implements AutoCloseable {
     private final class InMemoryGraph implements AutoCloseable {
         private int size = 0;
 
-        private final MemorySegment struct;
-        private final long vectorsOffset;
-        private final long edgesOffset;
+        private final MemorySegment edges;
+        private final MemorySegment vectors;
 
         private final AtomicLongArray edgeVersions;
 
         private int medoid = -1;
 
-        private final Arena inMemoryGraphArea;
+        private final Arena edgesArea;
+        private volatile Arena vectorsArea;
 
         private InMemoryGraph(int capacity) {
             this.edgeVersions = new AtomicLongArray(capacity);
-            this.inMemoryGraphArea = Arena.openShared();
+            this.edgesArea = Arena.openShared();
+            this.vectorsArea = Arena.openShared();
 
-            var layout = MemoryLayout.structLayout(
-                    MemoryLayout.sequenceLayout((long) capacity * vectorDim, ValueLayout.JAVA_FLOAT).
-                            withName("vectors"),
-                    MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
-                            ValueLayout.JAVA_INT).withName("edges")
-            );
-            this.struct = inMemoryGraphArea.allocate(layout);
+            var edgesLayout = MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
+                    ValueLayout.JAVA_INT);
+            var vectorsLayout = MemoryLayout.sequenceLayout((long) capacity * vectorDim, ValueLayout.JAVA_FLOAT);
 
-            this.vectorsOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("vectors"));
-            this.edgesOffset = layout.byteOffset(MemoryLayout.PathElement.groupElement("edges"));
+            this.vectors = vectorsArea.allocate(vectorsLayout);
+            this.edges = edgesArea.allocate(edgesLayout);
         }
 
 
@@ -583,8 +580,8 @@ public final class DiskANN implements AutoCloseable {
             var index = size * vectorDim;
 
 
-            MemorySegment.copy(vector, 0, struct,
-                    vectorsOffset + (long) index * Float.BYTES,
+            MemorySegment.copy(vector, 0, vectors,
+                    (long) index * Float.BYTES,
                     (long) vectorDim * Float.BYTES);
             size++;
             medoid = -1;
@@ -606,8 +603,8 @@ public final class DiskANN implements AutoCloseable {
             var queryVectorOffset = vectorOffset(vertexIndexToPrune);
             var dim = vectorDim;
 
-            nearestCandidates.add(startVertexIndex, computeDistance(struct, startVectorOffset,
-                    struct, queryVectorOffset, dim), false);
+            nearestCandidates.add(startVertexIndex, computeDistance(vectors, startVectorOffset,
+                    vectors, queryVectorOffset, dim), false);
 
             var result = new float[4];
             var vectorsToCheck = new IntArrayList(4);
@@ -636,8 +633,8 @@ public final class DiskANN implements AutoCloseable {
                             var vectorOffset3 = vectorOffset(vertexIndexes[2]);
                             var vectorOffset4 = vectorOffset(vertexIndexes[3]);
 
-                            Distance.computeDistance(struct, queryVectorOffset, struct, vectorOffset1,
-                                    struct, vectorOffset2, struct, vectorOffset3, struct, vectorOffset4,
+                            Distance.computeDistance(vectors, queryVectorOffset, vectors, vectorOffset1,
+                                    vectors, vectorOffset2, vectors, vectorOffset3, vectors, vectorOffset4,
                                     dim, result, distanceFunction
                             );
 
@@ -658,7 +655,7 @@ public final class DiskANN implements AutoCloseable {
                         var vertexIndex = vertexIndexes[i];
                         var vectorOffset = vectorOffset(vertexIndex);
 
-                        var distance = computeDistance(struct, queryVectorOffset, struct, vectorOffset, dim);
+                        var distance = computeDistance(vectors, queryVectorOffset, vectors, vectorOffset, dim);
                         nearestCandidates.add(vertexIndex, distance, false);
                     }
                     vectorsToCheck.clear();
@@ -712,8 +709,8 @@ public final class DiskANN implements AutoCloseable {
                             var vectorOffset3 = vectorOffset(vectorIndexes[2]);
                             var vectorOffset4 = vectorOffset(vectorIndexes[3]);
 
-                            Distance.computeDistance(struct, vectorOffset, struct, vectorOffset1,
-                                    struct, vectorOffset2, struct, vectorOffset3, struct, vectorOffset4,
+                            Distance.computeDistance(vectors, vectorOffset, vectors, vectorOffset1,
+                                    vectors, vectorOffset2, vectors, vectorOffset3, vectors, vectorOffset4,
                                     dim, result, distanceFunction
                             );
 
@@ -737,7 +734,7 @@ public final class DiskANN implements AutoCloseable {
                         var vectorIndex = vectorIndexes[i];
 
                         var vectorOff = vectorOffset(vectorIndex);
-                        var distance = computeDistance(struct, vectorOffset, struct, vectorOff, dim);
+                        var distance = computeDistance(vectors, vectorOffset, vectors, vectorOff, dim);
                         cachedCandidates.add(new RobustPruneVertex(vectorIndex, distance));
                     }
 
@@ -784,9 +781,9 @@ public final class DiskANN implements AutoCloseable {
                                 var vectorOffset3 = vectorOffset(candidate3.index);
                                 var vectorOffset4 = vectorOffset(candidate4.index);
 
-                                Distance.computeDistance(struct, minIndex, struct, vectorOffset1,
-                                        struct, vectorOffset2, struct, vectorOffset3,
-                                        struct, vectorOffset4, dim, result, distanceFunction);
+                                Distance.computeDistance(vectors, minIndex, vectors, vectorOffset1,
+                                        vectors, vectorOffset2, vectors, vectorOffset3,
+                                        vectors, vectorOffset4, dim, result, distanceFunction);
 
                                 if (result[0] * currentMultiplication <= candidate1.distance) {
                                     removedCandidates.add(candidate1);
@@ -808,7 +805,7 @@ public final class DiskANN implements AutoCloseable {
 
                         if (candidatesToCalculate.size() > 1) {
                             for (RobustPruneVertex candidate : candidatesToCalculate) {
-                                var distance = computeDistance(struct, minIndex, struct, vectorOffset(candidate.index), dim);
+                                var distance = computeDistance(vectors, minIndex, vectors, vectorOffset(candidate.index), dim);
                                 if (distance * currentMultiplication <= candidate.distance) {
                                     removedCandidates.add(candidate);
                                 }
@@ -839,14 +836,14 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private long vectorOffset(int vertexIndex) {
-            return (long) vertexIndex * vectorDim * Float.BYTES + vectorsOffset;
+            return (long) vertexIndex * vectorDim * Float.BYTES;
         }
 
 
         private int getNeighboursSize(int vertexIndex) {
             var version = edgeVersions.get(vertexIndex);
             while (true) {
-                var size = struct.get(ValueLayout.JAVA_INT, edgesSizeOffset(vertexIndex));
+                var size = edges.get(ValueLayout.JAVA_INT, edgesSizeOffset(vertexIndex));
                 var newVersion = edgeVersions.get(vertexIndex);
 
                 VarHandle.acquireFence();
@@ -861,7 +858,7 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private long edgesSizeOffset(int vertexIndex) {
-            return (long) vertexIndex * (maxConnectionsPerVertex + 1) * Integer.BYTES + edgesOffset;
+            return (long) vertexIndex * (maxConnectionsPerVertex + 1) * Integer.BYTES;
         }
 
         @NotNull
@@ -870,10 +867,10 @@ public final class DiskANN implements AutoCloseable {
 
             while (true) {
                 var edgesIndex = vertexIndex * (maxConnectionsPerVertex + 1);
-                var size = struct.get(ValueLayout.JAVA_INT, (long) edgesIndex * Integer.BYTES + edgesOffset);
+                var size = edges.get(ValueLayout.JAVA_INT, (long) edgesIndex * Integer.BYTES);
 
                 var result = new int[size];
-                MemorySegment.copy(struct, (long) edgesIndex * Integer.BYTES + edgesOffset + Integer.BYTES,
+                MemorySegment.copy(edges, (long) edgesIndex * Integer.BYTES + Integer.BYTES,
                         MemorySegment.ofArray(result), 0L, (long) size * Integer.BYTES);
                 var newVersion = edgeVersions.get(vertexIndex);
 
@@ -891,10 +888,10 @@ public final class DiskANN implements AutoCloseable {
             validateLocked(vertexIndex);
             assert (size >= 0 && size <= maxConnectionsPerVertex);
 
-            var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES + this.edgesOffset;
-            struct.set(ValueLayout.JAVA_INT, edgesOffset, size);
+            var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES;
+            edges.set(ValueLayout.JAVA_INT, edgesOffset, size);
 
-            MemorySegment.copy(MemorySegment.ofArray(neighbours), 0L, struct,
+            MemorySegment.copy(MemorySegment.ofArray(neighbours), 0L, edges,
                     edgesOffset + Integer.BYTES,
                     (long) size * Integer.BYTES);
         }
@@ -902,13 +899,13 @@ public final class DiskANN implements AutoCloseable {
         private void appendNeighbour(int vertexIndex, int neighbour) {
             validateLocked(vertexIndex);
 
-            var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES + this.edgesOffset;
-            var size = struct.get(ValueLayout.JAVA_INT, edgesOffset);
+            var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES;
+            var size = edges.get(ValueLayout.JAVA_INT, edgesOffset);
 
             assert size + 1 <= maxConnectionsPerVertex;
 
-            struct.set(ValueLayout.JAVA_INT, edgesOffset, size + 1);
-            struct.set(ValueLayout.JAVA_INT, edgesOffset + (long) (size + 1) * Integer.BYTES, neighbour);
+            edges.set(ValueLayout.JAVA_INT, edgesOffset, size + 1);
+            edges.set(ValueLayout.JAVA_INT, edgesOffset + (long) (size + 1) * Integer.BYTES, neighbour);
         }
 
 
@@ -925,7 +922,7 @@ public final class DiskANN implements AutoCloseable {
             var shuffleIndex = 0;
             for (var i = 0; i < size; i++) {
                 var edgesOffset = edgesSizeOffset(i);
-                struct.set(ValueLayout.JAVA_INT, edgesOffset, maxEdges);
+                edges.set(ValueLayout.JAVA_INT, edgesOffset, maxEdges);
 
                 var addedEdges = 0;
                 while (addedEdges < maxEdges) {
@@ -939,7 +936,7 @@ public final class DiskANN implements AutoCloseable {
                         continue;
                     }
 
-                    struct.set(ValueLayout.JAVA_INT, edgesOffset + Integer.BYTES, randomIndex);
+                    edges.set(ValueLayout.JAVA_INT, edgesOffset + Integer.BYTES, randomIndex);
                     edgesOffset += Integer.BYTES;
                     addedEdges++;
                 }
@@ -948,11 +945,11 @@ public final class DiskANN implements AutoCloseable {
 
         private int[] getNeighboursAndClear(int vertexIndex) {
             validateLocked(vertexIndex);
-            var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES + this.edgesOffset;
+            var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES;
             var result = fetchNeighbours(vertexIndex);
 
             edgeVersions.incrementAndGet(vertexIndex);
-            struct.set(ValueLayout.JAVA_INT, edgesOffset, 0);
+            edges.set(ValueLayout.JAVA_INT, edgesOffset, 0);
             edgeVersions.incrementAndGet(vertexIndex);
 
             return result;
@@ -1007,7 +1004,7 @@ public final class DiskANN implements AutoCloseable {
             for (var i = 0; i < size; i++) {
                 var vectorOffset = vectorOffset(i);
                 for (var j = 0; j < vectorDim; j++) {
-                    meanVector[j] += struct.get(ValueLayout.JAVA_FLOAT, vectorOffset + (long) j * Float.BYTES);
+                    meanVector[j] += vectors.get(ValueLayout.JAVA_FLOAT, vectorOffset + (long) j * Float.BYTES);
                 }
             }
 
@@ -1019,7 +1016,7 @@ public final class DiskANN implements AutoCloseable {
             var medoidIndex = -1;
 
             for (var i = 0; i < size; i++) {
-                var distance = computeDistance(struct, (long) i * vectorDim, meanVector);
+                var distance = computeDistance(vectors, (long) i * vectorDim, meanVector);
 
                 if (distance < minDistance) {
                     minDistance = distance;
@@ -1053,7 +1050,7 @@ public final class DiskANN implements AutoCloseable {
                     var edgesIndex = wittenVertices * (maxConnectionsPerVertex + 1);
 
                     for (var j = 0; j < vectorDim; j++) {
-                        var vectorItem = struct.get(ValueLayout.JAVA_FLOAT, vectorsOffset +
+                        var vectorItem = vectors.get(ValueLayout.JAVA_FLOAT,
                                 (long) vectorsIndex * Float.BYTES);
                         diskCache.set(ValueLayout.JAVA_FLOAT,
                                 recordOffset + diskCacheRecordVectorsOffset +
@@ -1061,14 +1058,14 @@ public final class DiskANN implements AutoCloseable {
                         vectorsIndex++;
                     }
 
-                    var edgesSize = struct.get(ValueLayout.JAVA_INT,
-                            (long) edgesIndex * Integer.BYTES + edgesOffset);
+                    var edgesSize = edges.get(ValueLayout.JAVA_INT,
+                            (long) edgesIndex * Integer.BYTES);
                     assert (edgesSize >= 0 && edgesSize <= maxConnectionsPerVertex);
                     edgesIndex++;
 
                     for (var j = 0; j < edgesSize; j++) {
-                        var edgesOffset = (long) edgesIndex * Integer.BYTES + this.edgesOffset;
-                        var neighbourIndex = struct.get(ValueLayout.JAVA_INT, edgesOffset);
+                        var edgesOffset = (long) edgesIndex * Integer.BYTES;
+                        var neighbourIndex = edges.get(ValueLayout.JAVA_INT, edgesOffset);
                         diskCache.set(ValueLayout.JAVA_INT,
                                 recordOffset + diskCacheRecordEdgesOffset + (long) j * Integer.BYTES, neighbourIndex);
                         edgesIndex++;
@@ -1085,7 +1082,12 @@ public final class DiskANN implements AutoCloseable {
 
         @Override
         public void close() {
-            inMemoryGraphArea.close();
+            if (vectorsArea != null) {
+                vectorsArea.close();
+                vectorsArea = null;
+            }
+
+            edgesArea.close();
         }
     }
 
