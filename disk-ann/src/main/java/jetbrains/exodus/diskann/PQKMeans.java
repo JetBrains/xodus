@@ -27,7 +27,7 @@ public final class PQKMeans {
                                              int iterations,
                                              byte distanceFunction) {
         var quantizersCount = centroids.length;
-        assert centroids[0].length == PQ.PQ_CODE_BASE_SIZE;
+        var codeBaseSize = centroids[0].length;
 
         var numVectors = (int) (pqVectors.byteSize() / quantizersCount);
         var centroidIndexes = new int[numVectors];
@@ -47,19 +47,19 @@ public final class PQKMeans {
         }
 
 
-        var histogram = new float[numClusters * quantizersCount * PQ.PQ_CODE_BASE_SIZE];
-        var v = new float[PQ.PQ_CODE_BASE_SIZE];
+        var histogram = new float[numClusters * quantizersCount * codeBaseSize];
+        var v = new float[codeBaseSize];
         var mulBuffer = new float[4];
 
         var histogramStep = MatrixOperations.threeDMatrixIndex(quantizersCount,
-                PQ.PQ_CODE_BASE_SIZE, 0, 0, 1);
+                codeBaseSize, 0, 0, 1);
 
         for (int n = 0; n < iterations; n++) {
             boolean assignedDifferently = false;
             for (int i = 0; i < numVectors; i++) {
                 var prevIndex = centroidIndexes[i];
                 var centroidIndex = findClosestCentroid(pqVectors, i, pqCentroids, distanceTables,
-                        quantizersCount);
+                        quantizersCount, codeBaseSize);
                 centroidIndexes[i] = centroidIndex;
                 assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
             }
@@ -68,19 +68,19 @@ public final class PQKMeans {
                 break;
             }
 
-            generateHistogram(pqVectors, centroidIndexes, quantizersCount, histogram);
+            generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize, histogram);
 
             assignedDifferently = false;
             for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++,
                     histogramOffset += histogramStep) {
                 for (int q = 0; q < quantizersCount; q++) {
-                    var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(PQ.PQ_CODE_BASE_SIZE,
-                            PQ.PQ_CODE_BASE_SIZE, q, 0, 0);
+                    var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize,
+                            codeBaseSize, q, 0, 0);
                     MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset,
-                            PQ.PQ_CODE_BASE_SIZE, PQ.PQ_CODE_BASE_SIZE, histogram, histogramOffset,
+                            codeBaseSize, codeBaseSize, histogram, histogramOffset,
                             v, mulBuffer);
                     var minIndex = MatrixOperations.minIndex(v, 0, quantizersCount);
-                    assert minIndex < PQ.PQ_CODE_BASE_SIZE;
+                    assert minIndex < codeBaseSize;
 
                     var prevIndex = pqCentroids[centroidIndex];
                     pqCentroids[centroidIndex] = (byte) minIndex;
@@ -100,6 +100,7 @@ public final class PQKMeans {
     static void generateHistogram(final MemorySegment pqVectors,
                                   final int[] clusters,
                                   final int quantizersCount,
+                                  final int codeBaseSize,
                                   final float[] histogram) {
         Arrays.fill(histogram, 0.0f);
         var numCodes = pqVectors.byteSize();
@@ -110,7 +111,7 @@ public final class PQKMeans {
             for (int i = 0; i < quantizersCount; i++) {
                 var code = Byte.toUnsignedInt(pqVectors.get(ValueLayout.JAVA_BYTE, codeIndex));
                 var histogramIndex = MatrixOperations.threeDMatrixIndex(quantizersCount,
-                        PQ.PQ_CODE_BASE_SIZE, clusterIndex, i, code);
+                        codeBaseSize, clusterIndex, i, code);
                 histogram[histogramIndex]++;
                 codeIndex++;
             }
@@ -174,7 +175,7 @@ public final class PQKMeans {
     }
 
     static float symmetricDistance(MemorySegment dmPqVectors, int dmVectorIndex, byte[] heapPqCentroids,
-                                   int heapVectorIndex, float[] distanceTables, int quantizersCount) {
+                                   int heapVectorIndex, float[] distanceTables, int quantizersCount, int codeBaseSize) {
         float result = 0.0f;
 
         var firstPqBase = MatrixOperations.twoDMatrixIndex(quantizersCount, dmVectorIndex, 0);
@@ -184,7 +185,7 @@ public final class PQKMeans {
             var firstPqCode = Byte.toUnsignedInt(dmPqVectors.get(ValueLayout.JAVA_BYTE, firstPqBase + i));
             var secondPwCode = Byte.toUnsignedInt(heapPqCentroids[secondPqBase + i]);
 
-            var distanceIndex = MatrixOperations.threeDMatrixIndex(PQ.PQ_CODE_BASE_SIZE, PQ.PQ_CODE_BASE_SIZE,
+            var distanceIndex = MatrixOperations.threeDMatrixIndex(codeBaseSize, codeBaseSize,
                     i, firstPqCode, secondPwCode);
             result += distanceTables[distanceIndex];
         }
@@ -193,14 +194,14 @@ public final class PQKMeans {
     }
 
     static int findClosestCentroid(final MemorySegment pqVectors, final int vectorIndex, final byte[] centroids,
-                                   final float[] distanceTable, final int quantizersCount) {
+                                   final float[] distanceTable, final int quantizersCount, int codeBaseSize) {
         int minIndex = 0;
         float minDistance = Float.MAX_VALUE;
 
         for (int centroidsIndex = 0, index = 0; centroidsIndex < centroids.length;
              centroidsIndex += quantizersCount, index++) {
             var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable,
-                    quantizersCount);
+                    quantizersCount, codeBaseSize);
             if (distance < minDistance) {
                 minDistance = distance;
                 minIndex = index;

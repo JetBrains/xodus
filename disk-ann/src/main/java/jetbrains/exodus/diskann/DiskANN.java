@@ -215,14 +215,43 @@ public final class DiskANN implements AutoCloseable {
                 " ms.");
 
         var size = vectorReader.size();
+
+        logger.info("Calculation of graph search entry point ...");
+        var startPQCentroid = System.nanoTime();
+
+        var pqCentroid =
+                PQKMeans.calculatePartitions(pqCentroids, pqVectors, 1, 1, distanceFunction);
+        var centroid = new float[vectorDim];
+        for (int i = 0, pqCentroidVectorOffset = 0; i < pqQuantizersCount; i++,
+                pqCentroidVectorOffset += pqSubVectorSize) {
+            var pqCentroidVector = Byte.toUnsignedInt(pqCentroid[i]);
+
+            System.arraycopy(pqCentroids[i][pqCentroidVector], 0, centroid,
+                    pqCentroidVectorOffset, pqSubVectorSize);
+        }
+
+        var endPQCentroid = System.nanoTime();
+        logger.info("Calculation of graph search entry point has been finished. Time spent {} ms.",
+                (endPQCentroid - startPQCentroid) / 1_000_000.0);
+
+        var medoidMindIndex = Integer.MAX_VALUE;
+        var medoidMinDistance = Float.MAX_VALUE;
+
         try (var graph = new InMemoryGraph(size)) {
             for (var i = 0; i < size; i++) {
                 var vector = vectorReader.read(i);
                 graph.addVector(i, vector);
+
+                var distance = Distance.computeDistance(vector, 0,
+                        centroid, 0, vectorDim, distanceFunction);
+                if (distance < medoidMinDistance) {
+                    medoidMinDistance = distance;
+                    medoidMindIndex = i;
+                }
             }
 
+            var medoid = medoidMindIndex;
             graph.generateRandomEdges();
-            var medoid = graph.medoid();
 
             logger.info("Search graph has been built. Pruning...");
             var startPrune = System.nanoTime();
@@ -601,8 +630,6 @@ public final class DiskANN implements AutoCloseable {
 
         private final AtomicLongArray edgeVersions;
 
-        private int medoid = -1;
-
         private final Arena edgesArena;
 
         private Arena vectorsArena;
@@ -632,7 +659,6 @@ public final class DiskANN implements AutoCloseable {
             globalIndexes.setAtIndex(ValueLayout.JAVA_INT, size, globalIndex);
 
             size++;
-            medoid = -1;
         }
 
         private void greedySearchPrune(
@@ -1003,14 +1029,6 @@ public final class DiskANN implements AutoCloseable {
             return result;
         }
 
-        private int medoid() {
-            if (medoid == -1L) {
-                medoid = calculateMedoid();
-            }
-
-            return medoid;
-        }
-
         private void acquireVertex(long vertexIndex) {
             while (true) {
                 var version = edgeVersions.get((int) vertexIndex);
@@ -1040,39 +1058,6 @@ public final class DiskANN implements AutoCloseable {
                     return;
                 }
             }
-        }
-
-        private int calculateMedoid() {
-            if (size == 1) {
-                return 0;
-            }
-
-            var meanVector = new float[vectorDim];
-
-            for (var i = 0; i < size; i++) {
-                var vectorOffset = vectorOffset(i);
-                for (var j = 0; j < vectorDim; j++) {
-                    meanVector[j] += vectors.get(ValueLayout.JAVA_FLOAT, vectorOffset + (long) j * Float.BYTES);
-                }
-            }
-
-            for (var j = 0; j < vectorDim; j++) {
-                meanVector[j] = meanVector[j] / size;
-            }
-
-            var minDistance = Double.POSITIVE_INFINITY;
-            var medoidIndex = -1;
-
-            for (var i = 0; i < size; i++) {
-                var distance = computeDistance(vectors, (long) i * vectorDim, meanVector);
-
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    medoidIndex = i;
-                }
-            }
-
-            return medoidIndex;
         }
 
         private void saveVectorsToDisk() throws IOException {

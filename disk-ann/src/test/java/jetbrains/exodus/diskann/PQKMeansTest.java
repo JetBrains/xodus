@@ -89,7 +89,7 @@ public class PQKMeansTest {
                     }
 
                     var actualDistance = PQKMeans.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
-                            flatDistanceTables, quantizersCount);
+                            flatDistanceTables, quantizersCount, PQ.PQ_CODE_BASE_SIZE);
                     Assert.assertEquals(expectedDistance, actualDistance, 0.0f);
                 }
             }
