@@ -105,7 +105,7 @@ final class BenchUtils {
         System.out.printf("%d data vectors loaded with dimension %d, building index in directory %s...%n",
                 vectors.length, vectorDimensions, dbDir.toAbsolutePath());
 
-        try (var diskANN = new DiskANN("test index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
             var ts1 = System.nanoTime();
             diskANN.buildIndex(new ArrayVectorReader(vectors));
             var ts2 = System.nanoTime();

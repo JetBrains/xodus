@@ -576,7 +576,7 @@ public final class DiskANN implements AutoCloseable {
             var channel = rwFile.getChannel();
             diskCache = channel.map(FileChannel.MapMode.READ_WRITE, 0, fileLength, arena.scope());
 
-            for (int i = 0, pageOffset = 0; i < pagesToWrite; i++, pageOffset += pageSize) {
+            for (long i = 0, pageOffset = 0; i < pagesToWrite; i++, pageOffset += pageSize) {
                 diskCache.set(ValueLayout.JAVA_INT, pageOffset, globalVertexCount);
             }
         }
