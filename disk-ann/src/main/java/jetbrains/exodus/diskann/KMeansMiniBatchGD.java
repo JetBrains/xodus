@@ -117,72 +117,73 @@ final class KMeansMiniBatchGD {
         }
     }
 
-    boolean nextBatch(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize, byte distanceFunction) {
+    void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize, byte distanceFunction) {
         if ((minBatchSize & 3) != 0) {
             throw new IllegalArgumentException("Batch size must be a multiple of 3");
         }
 
-        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-        var toIndex = Math.min(currentIndex + batchSize, vectorReader.size());
+        var size = vectorReader.size();
+        do {
+            var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+            var toIndex = Math.min(currentIndex + batchSize, size);
 
-        var vectors = new MemorySegment[minBatchSize];
-        var clusterIndexes = new int[minBatchSize];
-        var batches = (toIndex - currentIndex + minBatchSize - 1) / minBatchSize;
-        var closestCentroids = new int[minBatchSize];
+            var vectors = new MemorySegment[minBatchSize];
+            var clusterIndexes = new int[minBatchSize];
+            var batches = (toIndex - currentIndex + minBatchSize - 1) / minBatchSize;
+            var closestCentroids = new int[minBatchSize];
 
-        var shuffledBatches = PermutationSampler.natural(batches);
-        PermutationSampler.shuffle(rng, shuffledBatches);
+            var shuffledBatches = PermutationSampler.natural(batches);
+            PermutationSampler.shuffle(rng, shuffledBatches);
 
-        var clustersChangedLimit = (int) ((toIndex - currentIndex) * 0.001);
-        int clustersChanged = clustersChangedLimit + 1;
+            var clustersChangedLimit = (int) ((toIndex - currentIndex) * 0.001);
+            int clustersChanged = clustersChangedLimit + 1;
 
 
-        for (int iteration = 0; iteration < iterations && clustersChanged > clustersChangedLimit; iteration++) {
-            clustersChanged = 0;
-            for (var batchIndex : shuffledBatches) {
-                var localIndexFrom = currentIndex + batchIndex * minBatchSize;
-                var actualBatchSize = Math.min(localIndexFrom + minBatchSize, toIndex) - localIndexFrom;
+            for (int iteration = 0; iteration < iterations && clustersChanged > clustersChangedLimit; iteration++) {
+                clustersChanged = 0;
+                for (var batchIndex : shuffledBatches) {
+                    var localIndexFrom = currentIndex + batchIndex * minBatchSize;
+                    var actualBatchSize = Math.min(localIndexFrom + minBatchSize, toIndex) - localIndexFrom;
 
-                if ((actualBatchSize & 3) == 0) {
-                    findClosestCentroidsFastPath(actualBatchSize, distanceFunction, vectors, clusterIndexes,
-                            closestCentroids);
-                } else {
-                    for (int i = 0; i < actualBatchSize; i++) {
-                        var vector = vectorReader.read(localIndexFrom + i);
+                    if ((actualBatchSize & 3) == 0) {
+                        findClosestCentroidsFastPath(actualBatchSize, distanceFunction, vectors, clusterIndexes,
+                                closestCentroids);
+                    } else {
+                        for (int i = 0; i < actualBatchSize; i++) {
+                            var vector = vectorReader.read(localIndexFrom + i);
 
-                        vectors[i] = vector;
-                        clusterIndexes[i] = Distance.findClosestVector(centroids, vector, subVecOffset, subVecSize, distanceFunction
-                        );
-                    }
-                }
-
-                for (int i = 0; i < actualBatchSize; i++) {
-                    var clusterIndex = clusterIndexes[i];
-
-                    var prevClusterIndex = clusterIndexesPerVector[i + localIndexFrom];
-                    clusterIndexesPerVector[i + localIndexFrom] = clusterIndex;
-                    centroidsSamplesCount[clusterIndex]++;
-
-                    if (prevClusterIndex != clusterIndex) {
-                        clustersChanged++;
-
-                        if (prevClusterIndex >= 0) {
-                            centroidsSamplesCount[prevClusterIndex]--;
+                            vectors[i] = vector;
+                            clusterIndexes[i] = Distance.findClosestVector(centroids, vector, subVecOffset, subVecSize, distanceFunction
+                            );
                         }
                     }
 
-                    var learningRate = 1.0f / centroidsSamplesCount[clusterIndex];
+                    for (int i = 0; i < actualBatchSize; i++) {
+                        var clusterIndex = clusterIndexes[i];
 
-                    computeGradientStep(centroids, clusterIndex * subVecSize, vectors[i], subVecOffset, subVecSize,
-                            learningRate);
+                        var prevClusterIndex = clusterIndexesPerVector[i + localIndexFrom];
+                        clusterIndexesPerVector[i + localIndexFrom] = clusterIndex;
+                        centroidsSamplesCount[clusterIndex]++;
+
+                        if (prevClusterIndex != clusterIndex) {
+                            clustersChanged++;
+
+                            if (prevClusterIndex >= 0) {
+                                centroidsSamplesCount[prevClusterIndex]--;
+                            }
+                        }
+
+                        var learningRate = 1.0f / centroidsSamplesCount[clusterIndex];
+
+                        computeGradientStep(centroids, clusterIndex * subVecSize, vectors[i], subVecOffset, subVecSize,
+                                learningRate);
+                    }
                 }
+                currentIndex = toIndex;
+                assert currentIndex <= vectorReader.size();
             }
-        }
 
-
-        currentIndex = toIndex;
-        assert currentIndex <= vectorReader.size();
-        return currentIndex == vectorReader.size();
+        } while (currentIndex < size);
     }
 
     private void findClosestCentroidsFastPath(int batchSize, byte distanceFunction,

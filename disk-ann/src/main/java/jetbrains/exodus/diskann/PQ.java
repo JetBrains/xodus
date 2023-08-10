@@ -18,6 +18,8 @@ package jetbrains.exodus.diskann;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public final class PQ {
     public static final int PQ_CODE_BASE_SIZE = 256;
@@ -44,7 +46,6 @@ public final class PQ {
                                           VectorReader vectorReader, Arena arena) {
 
         var kMeans = new KMeansMiniBatchGD[pqQuantizersCount];
-        var kMeansFinished = new boolean[pqQuantizersCount];
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             kMeans[i] = new KMeansMiniBatchGD(PQ_CODE_BASE_SIZE,
@@ -56,21 +57,23 @@ public final class PQ {
         float[][][] pqCentroids = new float[pqQuantizersCount][codeBaseSize][pqSubVectorSize];
 
         var minBatchSize = 16;
-        var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * pqSubVectorSize));
 
-        var finishedCount = 0;
-        while (finishedCount < pqQuantizersCount) {
-            for (int i = 0; i < kMeans.length; i++) {
-                if (kMeansFinished[i]) {
-                    continue;
-                }
+        var cores = Math.min(Runtime.getRuntime().availableProcessors(), pqQuantizersCount);
+        var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * pqSubVectorSize)) / cores;
 
-                var km = kMeans[i];
-                var finished = km.nextBatch(minBatchSize, batchSize, distanceFunction);
-                kMeansFinished[i] = finished;
-                if (finished) {
-                    finishedCount++;
-                }
+        var executors = Executors.newFixedThreadPool(cores);
+        var futures = new Future[pqQuantizersCount];
+
+        for (int i = 0; i < pqQuantizersCount; i++) {
+            var km = kMeans[i];
+            futures[i] = executors.submit(() -> km.calculate(minBatchSize, batchSize, distanceFunction));
+        }
+
+        for (var future : futures) {
+            try {
+                future.get();
+            } catch (Exception e) {
+                throw new RuntimeException("Error during KMeans clustering of indexed data.", e);
             }
         }
 
