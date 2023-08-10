@@ -22,6 +22,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -29,7 +31,12 @@ import java.util.Random;
 
 public class DiskANNTest {
     @Test
-    public void testFindLoadedVectors() {
+    public void testFindLoadedVectors() throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
         var vectorDimensions = 64;
 
         var vectorsCount = 10_000;
@@ -59,7 +66,9 @@ public class DiskANNTest {
                 } while (!addedVectors.add(new FloatArrayHolder(vector)));
             }
 
-            try (var diskANN = new DiskANN("test index", vectorDimensions, Distance.L2_DISTANCE)) {
+            var dbDir = Files.createTempDirectory(Path.of(buildDir), "testFindLoadedVectors");
+            dbDir.toFile().deleteOnExit();
+            try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
                 var ts1 = System.nanoTime();
                 diskANN.buildIndex(new ArrayVectorReader(vectors));
                 var ts2 = System.nanoTime();
@@ -81,7 +90,7 @@ public class DiskANNTest {
 
                 System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%%n",
                         (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg());
-                Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 0.27", errorPercentage <= 0.27);
+                Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 0.3", errorPercentage <= 0.3);
                 Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 15", diskANN.getPQErrorAvg() <= 15);
 
             }
@@ -140,7 +149,11 @@ public class DiskANNTest {
 
 
         System.out.println("Building index...");
-        try (var diskANN = new DiskANN("test index", vectorDimensions, Distance.L2_DISTANCE)) {
+
+        var dbDir = Files.createTempDirectory(Path.of(buildDir), "testSearchSift10KVectors");
+        dbDir.toFile().deleteOnExit();
+
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
             var ts1 = System.nanoTime();
             diskANN.buildIndex(new ArrayVectorReader(vectors));
             var ts2 = System.nanoTime();

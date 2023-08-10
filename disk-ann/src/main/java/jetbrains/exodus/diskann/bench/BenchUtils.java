@@ -99,10 +99,13 @@ final class BenchUtils {
         var siftsBaseDir = rootDir.resolve(siftDir);
         var vectors = readRawFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
 
-        System.out.printf("%d data vectors loaded with dimension %d, building index...%n",
-                vectors.length, vectorDimensions);
+        var dbDir = Files.createTempDirectory("vectoriadb-bench");
+        dbDir.toFile().deleteOnExit();
 
-        try (var diskANN = new DiskANN("test index", vectorDimensions, Distance.L2_DISTANCE)) {
+        System.out.printf("%d data vectors loaded with dimension %d, building index in directory %s...%n",
+                vectors.length, vectorDimensions, dbDir.toAbsolutePath());
+
+        try (var diskANN = new DiskANN("test index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
             var ts1 = System.nanoTime();
             diskANN.buildIndex(new ArrayVectorReader(vectors));
             var ts2 = System.nanoTime();
