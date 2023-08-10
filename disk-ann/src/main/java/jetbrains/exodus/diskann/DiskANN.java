@@ -240,7 +240,10 @@ public final class DiskANN implements AutoCloseable {
             }
 
             initFile(filePath, size);
-            graph.saveToDisk();
+
+            graph.saveVectorsToDisk();
+            graph.sortEdgesByGlobalIndex();
+            graph.saveEdgesToDisk();
 
             var endSave = System.nanoTime();
 
@@ -602,7 +605,7 @@ public final class DiskANN implements AutoCloseable {
 
         private final Arena edgesArena;
 
-        private volatile Arena vectorsArena;
+        private Arena vectorsArena;
 
         private InMemoryGraph(int capacity) {
             this.edgeVersions = new AtomicLongArray(capacity);
@@ -1072,8 +1075,7 @@ public final class DiskANN implements AutoCloseable {
             return medoidIndex;
         }
 
-
-        private void saveToDisk() throws IOException {
+        private void saveVectorsToDisk() throws IOException {
             var verticesPerPage = pageSize / vertexRecordSize;
             for (int i = 0, vectorsIndex = 0; i < size; i++) {
                 var vertexGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
@@ -1082,7 +1084,6 @@ public final class DiskANN implements AutoCloseable {
                 var pageOffset = (vertexGlobalIndex / verticesPerPage) * pageSize;
 
                 var recordOffset = (long) localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
-                var edgesIndex = i * (maxConnectionsPerVertex + 1);
 
                 for (var j = 0; j < vectorDim; j++, vectorsIndex++) {
                     var vectorItem = vectors.get(ValueLayout.JAVA_FLOAT,
@@ -1091,6 +1092,65 @@ public final class DiskANN implements AutoCloseable {
                             recordOffset + diskCacheRecordVectorsOffset +
                                     (long) j * Float.BYTES, vectorItem);
                 }
+            }
+
+            vectorsArena.close();
+            vectorsArena = null;
+        }
+
+        private void sortEdgesByGlobalIndex() {
+            var objectIndexes = new Integer[size];
+            for (var i = 0; i < size; i++) {
+                objectIndexes[i] = i;
+            }
+
+            Arrays.sort(objectIndexes,
+                    Comparator.comparingInt((Integer i) -> globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i)));
+
+            var indexes = new int[size];
+            for (var i = 0; i < size; i++) {
+                indexes[i] = objectIndexes[i];
+            }
+
+            for (var i = 0; i < size; i++) {
+                var vertexIndex = indexes[i];
+                if (vertexIndex != i) {
+                    swapEdgesAndGlobalIndexes(vertexIndex, i);
+                }
+            }
+        }
+
+
+        private void swapEdgesAndGlobalIndexes(int first, int second) {
+            var firstGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, first);
+            var secondGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, second);
+
+            globalIndexes.setAtIndex(ValueLayout.JAVA_INT, first, secondGlobalIndex);
+            globalIndexes.setAtIndex(ValueLayout.JAVA_INT, second, firstGlobalIndex);
+
+            var firstEdgesOffset = (long) first * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+            var secondEdgesOffset = (long) second * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+
+            for (var i = 0; i < maxConnectionsPerVertex + 1; i++) {
+                var firstEdge = edges.get(ValueLayout.JAVA_INT, firstEdgesOffset + (long) i * Integer.BYTES);
+                var secondEdge = edges.get(ValueLayout.JAVA_INT, secondEdgesOffset + (long) i * Integer.BYTES);
+
+                edges.set(ValueLayout.JAVA_INT, firstEdgesOffset + (long) i * Integer.BYTES, secondEdge);
+                edges.set(ValueLayout.JAVA_INT, secondEdgesOffset + (long) i * Integer.BYTES, firstEdge);
+            }
+        }
+
+
+        private void saveEdgesToDisk() throws IOException {
+            var verticesPerPage = pageSize / vertexRecordSize;
+            for (int i = 0; i < size; i++) {
+                assert i == globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
+
+                var localPageOffset = i % verticesPerPage;
+                var pageOffset = (i / verticesPerPage) * pageSize;
+
+                var recordOffset = (long) localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
+                var edgesIndex = i * (maxConnectionsPerVertex + 1);
 
                 var edgesSize = edges.get(ValueLayout.JAVA_INT,
                         (long) edgesIndex * Integer.BYTES);
@@ -1106,13 +1166,13 @@ public final class DiskANN implements AutoCloseable {
                             recordOffset + diskCacheRecordEdgesOffset + (long) j * Integer.BYTES, globalNeighbourIndex);
                     edgesIndex++;
                 }
+
                 diskCache.set(ValueLayout.JAVA_BYTE,
                         recordOffset + diskCacheRecordEdgesCountOffset, (byte) edgesSize);
-
-                diskCache.force();
             }
-        }
 
+            diskCache.force();
+        }
 
         @Override
         public void close() {
