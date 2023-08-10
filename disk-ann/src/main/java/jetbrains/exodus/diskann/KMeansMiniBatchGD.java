@@ -28,7 +28,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 
 final class KMeansMiniBatchGD {
-    private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
+    private final VectorSpecies<Float> species;
 
     final float[] centroids;
     final int k;
@@ -43,10 +43,7 @@ final class KMeansMiniBatchGD {
 
     private final int subVecSize;
 
-    private final int id;
-
-    KMeansMiniBatchGD(int id, int k, int iterations, int subVecOffset, int subVecSize, VectorReader vectorReader) {
-        this.id = id;
+    KMeansMiniBatchGD(int k, int iterations, int subVecOffset, int subVecSize, VectorReader vectorReader) {
         this.vectorReader = vectorReader;
         this.subVecOffset = subVecOffset;
         this.centroidsSamplesCount = new int[k];
@@ -100,6 +97,23 @@ final class KMeansMiniBatchGD {
                 MemorySegment.copy(vector, ValueLayout.JAVA_FLOAT_UNALIGNED, (long) subVecOffset * Float.BYTES,
                         centroids, i * subVecSize, subVecSize);
             }
+        }
+
+        var subVectorBits = subVecSize * Float.SIZE;
+        var preferredSpecies = FloatVector.SPECIES_PREFERRED;
+
+        if (preferredSpecies.length() > subVectorBits) {
+            if (subVectorBits >= 512) {
+                species = FloatVector.SPECIES_512;
+            } else if (subVectorBits >= 256) {
+                species = FloatVector.SPECIES_256;
+            } else if (subVectorBits >= 128) {
+                species = FloatVector.SPECIES_128;
+            } else {
+                species = FloatVector.SPECIES_64;
+            }
+        } else {
+            species = preferredSpecies;
         }
     }
 
@@ -163,12 +177,6 @@ final class KMeansMiniBatchGD {
                             learningRate);
                 }
             }
-
-            if (clustersChanged <= clustersChangedLimit) {
-                System.out.printf("KMeans preliminary completed for %d, iteration %d, clusters changed %d," +
-                                "  limit of changed clusters %d%n",
-                        id, iteration, clustersChanged, clustersChangedLimit);
-            }
         }
 
 
@@ -201,22 +209,22 @@ final class KMeansMiniBatchGD {
         }
     }
 
-    static void computeGradientStep(float[] centroids,
-                                    int centroidOffset,
-                                    MemorySegment vector,
-                                    int vectorOffset,
-                                    int vectorSize,
-                                    float learningRate) {
+    void computeGradientStep(float[] centroids,
+                             int centroidOffset,
+                             MemorySegment vector,
+                             int vectorOffset,
+                             int vectorSize,
+                             float learningRate) {
         var index = 0;
-        var learningRateVector = FloatVector.broadcast(SPECIES, learningRate);
-        var loopBound = SPECIES.loopBound(vectorSize);
-        var step = SPECIES.length();
+        var learningRateVector = FloatVector.broadcast(species, learningRate);
+        var loopBound = species.loopBound(vectorSize);
+        var step = species.length();
 
         var vectorBytesOffset = (long) vectorOffset * Float.BYTES;
         var vectorStep = loopBound * Float.BYTES;
         for (; index < loopBound; index += step, vectorBytesOffset += vectorStep) {
-            var centroidVector = FloatVector.fromArray(SPECIES, centroids, centroidOffset + index);
-            var pointVector = FloatVector.fromMemorySegment(SPECIES, vector, vectorBytesOffset,
+            var centroidVector = FloatVector.fromArray(species, centroids, centroidOffset + index);
+            var pointVector = FloatVector.fromMemorySegment(species, vector, vectorBytesOffset,
                     ByteOrder.nativeOrder());
 
             var diff = pointVector.sub(centroidVector);
@@ -224,10 +232,12 @@ final class KMeansMiniBatchGD {
             centroidVector.intoArray(centroids, centroidOffset + index);
         }
 
-        for (; index < vectorSize; index++) {
-            centroids[centroidOffset + index] = centroids[centroidOffset + index] +
-                    learningRate * (vector.getAtIndex(ValueLayout.JAVA_FLOAT_UNALIGNED, index + vectorOffset)
-                            - centroids[centroidOffset + index]);
-        }
+        var centroidMask = species.indexInRange(index, vectorSize);
+        var centroidVector = FloatVector.fromArray(species, centroids, centroidOffset + index, centroidMask);
+        var pointVector = FloatVector.fromMemorySegment(species, vector, vectorBytesOffset,
+                ByteOrder.nativeOrder(), centroidMask);
+        var diff = pointVector.sub(centroidVector, centroidMask);
+        centroidVector = diff.fma(learningRateVector, centroidVector);
+        centroidVector.intoArray(centroids, centroidOffset + index, centroidMask);
     }
 }

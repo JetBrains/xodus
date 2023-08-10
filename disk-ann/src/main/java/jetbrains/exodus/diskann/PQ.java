@@ -47,7 +47,7 @@ public final class PQ {
         var kMeansFinished = new boolean[pqQuantizersCount];
 
         for (int i = 0; i < pqQuantizersCount; i++) {
-            kMeans[i] = new KMeansMiniBatchGD(i, PQ_CODE_BASE_SIZE,
+            kMeans[i] = new KMeansMiniBatchGD(PQ_CODE_BASE_SIZE,
                     50, i * pqSubVectorSize, pqSubVectorSize,
                     vectorReader);
         }
@@ -57,7 +57,6 @@ public final class PQ {
 
         var minBatchSize = 16;
         var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * pqSubVectorSize));
-        System.out.printf("Batch size: %d\n", batchSize);
 
         var finishedCount = 0;
         while (finishedCount < pqQuantizersCount) {

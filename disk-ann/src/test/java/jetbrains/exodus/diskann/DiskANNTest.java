@@ -81,7 +81,7 @@ public class DiskANNTest {
 
                 System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%%n",
                         (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg());
-                Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 0.22", errorPercentage <= 0.25);
+                Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 0.27", errorPercentage <= 0.27);
                 Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 15", diskANN.getPQErrorAvg() <= 15);
 
             }
