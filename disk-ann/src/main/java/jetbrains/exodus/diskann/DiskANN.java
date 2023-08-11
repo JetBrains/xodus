@@ -238,7 +238,7 @@ public final class DiskANN implements AutoCloseable {
         var medoidMinDistance = Float.MAX_VALUE;
 
         try (var graph = new InMemoryGraph(size)) {
-            for (var i = 0; i < size; i++) {
+            for (var i = size - 1; i >= 0; i--) {
                 var vector = vectorReader.read(i);
                 graph.addVector(i, vector);
 
@@ -250,12 +250,12 @@ public final class DiskANN implements AutoCloseable {
                 }
             }
 
-            var medoid = medoidMindIndex;
+            var globalMedoid = medoidMindIndex;
             graph.generateRandomEdges();
 
             logger.info("Search graph has been built. Pruning...");
             var startPrune = System.nanoTime();
-            pruneIndex(size, graph, medoid, distanceMultiplication);
+            pruneIndex(size, graph, graph.medoid(), distanceMultiplication);
             var endPrune = System.nanoTime();
             logger.info("Search graph has been pruned. Time spent " + (endPrune - startPrune) / 1_000_000.0 + " ms.");
 
@@ -271,6 +271,7 @@ public final class DiskANN implements AutoCloseable {
             initFile(filePath, size);
 
             graph.saveVectorsToDisk();
+            graph.convertLocalEdgesToGlobal();
             graph.sortEdgesByGlobalIndex();
             graph.saveEdgesToDisk();
 
@@ -279,7 +280,7 @@ public final class DiskANN implements AutoCloseable {
             logger.info("Graph has been saved to the disk under the path {}. Time spent {} ms.",
                     filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
 
-            diskGraph = new DiskGraph(medoid);
+            diskGraph = new DiskGraph(globalMedoid);
             verticesSize = size;
         } catch (IOException e) {
             throw new RuntimeException("Error during creation of search graph for database " + name, e);
@@ -634,6 +635,8 @@ public final class DiskANN implements AutoCloseable {
 
         private Arena vectorsArena;
 
+        private int medoid = -1;
+
         private InMemoryGraph(int capacity) {
             this.edgeVersions = new AtomicLongArray(capacity);
             this.edgesArena = Arena.openShared();
@@ -647,6 +650,47 @@ public final class DiskANN implements AutoCloseable {
             this.vectors = vectorsArena.allocate(vectorsLayout);
             this.edges = edgesArena.allocate(edgesLayout);
             this.globalIndexes = edgesArena.allocate(globalIndexesLayout);
+        }
+
+        private int medoid() {
+            if (medoid == -1) {
+                medoid = calculateMedoid();
+            }
+
+            return medoid;
+        }
+
+        private int calculateMedoid() {
+            if (size == 1) {
+                return 0;
+            }
+
+            var meanVector = new float[vectorDim];
+
+            for (var i = 0; i < size; i++) {
+                var vectorOffset = vectorOffset(i);
+                for (var j = 0; j < vectorDim; j++) {
+                    meanVector[j] += vectors.get(ValueLayout.JAVA_FLOAT, vectorOffset + (long) j * Float.BYTES);
+                }
+            }
+
+            for (var j = 0; j < vectorDim; j++) {
+                meanVector[j] = meanVector[j] / size;
+            }
+
+            var minDistance = Double.POSITIVE_INFINITY;
+            var medoidIndex = -1;
+
+            for (var i = 0; i < size; i++) {
+                var distance = computeDistance(vectors, (long) i * vectorDim, meanVector);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    medoidIndex = i;
+                }
+            }
+
+            return medoidIndex;
         }
 
 
@@ -958,6 +1002,28 @@ public final class DiskANN implements AutoCloseable {
             }
         }
 
+        private int fetchNeighbours(int vertexIndex, int[] neighbours) {
+            var version = edgeVersions.get(vertexIndex);
+
+            while (true) {
+                var edgesIndex = vertexIndex * (maxConnectionsPerVertex + 1);
+                var size = edges.get(ValueLayout.JAVA_INT, (long) edgesIndex * Integer.BYTES);
+
+
+                MemorySegment.copy(edges, (long) edgesIndex * Integer.BYTES + Integer.BYTES,
+                        MemorySegment.ofArray(neighbours), 0L, (long) size * Integer.BYTES);
+                var newVersion = edgeVersions.get(vertexIndex);
+
+                VarHandle.acquireFence();
+                if (newVersion == version) {
+                    assert size <= maxConnectionsPerVertex;
+                    return size;
+                }
+
+                version = newVersion;
+            }
+        }
+
         private void setNeighbours(int vertexIndex, int[] neighbours, int size) {
             validateLocked(vertexIndex);
             assert (size >= 0 && size <= maxConnectionsPerVertex);
@@ -1033,7 +1099,7 @@ public final class DiskANN implements AutoCloseable {
             while (true) {
                 var version = edgeVersions.get((int) vertexIndex);
                 if ((version & 1L) != 0L) {
-                    throw new IllegalStateException("Vertex $vertexIndex is already acquired");
+                    throw new IllegalStateException("Vertex " + vertexIndex + " is already acquired");
                 }
                 if (edgeVersions.compareAndSet((int) vertexIndex, version, version + 1)) {
                     return;
@@ -1044,7 +1110,7 @@ public final class DiskANN implements AutoCloseable {
         private void validateLocked(long vertexIndex) {
             var version = edgeVersions.get((int) vertexIndex);
             if ((version & 1L) != 1L) {
-                throw new IllegalStateException("Vertex $vertexIndex is not acquired");
+                throw new IllegalStateException("Vertex " + vertexIndex + " is not acquired");
             }
         }
 
@@ -1052,7 +1118,7 @@ public final class DiskANN implements AutoCloseable {
             while (true) {
                 var version = edgeVersions.get((int) vertexIndex);
                 if ((version & 1L) != 1L) {
-                    throw new IllegalStateException("Vertex $vertexIndex is not acquired");
+                    throw new IllegalStateException("Vertex " + vertexIndex + " is not acquired");
                 }
                 if (edgeVersions.compareAndSet((int) vertexIndex, version, version + 1)) {
                     return;
@@ -1083,6 +1149,26 @@ public final class DiskANN implements AutoCloseable {
             vectorsArena = null;
         }
 
+        private void convertLocalEdgesToGlobal() {
+            var neighbours = new int[maxConnectionsPerVertex];
+            for (int i = 0; i < size; i++) {
+                var neighboursSize = fetchNeighbours(i, neighbours);
+
+                for (int j = 0; j < neighboursSize; j++) {
+                    var neighbour = neighbours[j];
+                    var globalNeighbour = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, neighbour);
+                    neighbours[j] = globalNeighbour;
+                }
+
+                acquireVertex(i);
+                try {
+                    setNeighbours(i, neighbours, neighboursSize);
+                } finally {
+                    releaseVertex(i);
+                }
+            }
+        }
+
         private void sortEdgesByGlobalIndex() {
             var objectIndexes = new Integer[size];
             for (var i = 0; i < size; i++) {
@@ -1097,34 +1183,50 @@ public final class DiskANN implements AutoCloseable {
                 indexes[i] = objectIndexes[i];
             }
 
+            var invertedIndexesMap = new Int2IntOpenHashMap(size, Hash.FAST_LOAD_FACTOR);
             for (var i = 0; i < size; i++) {
-                var vertexIndex = indexes[i];
-                if (vertexIndex != i) {
-                    swapEdgesAndGlobalIndexes(vertexIndex, i);
+                invertedIndexesMap.put(indexes[i], i);
+            }
+
+            var processedIndexes = new boolean[size];
+
+            var neighboursToAssign = new int[maxConnectionsPerVertex];
+            var tpmNeighboursToAssign = new int[maxConnectionsPerVertex];
+
+            for (int i = 0; i < size; i++) {
+                if (!processedIndexes[i]) {
+                    var currentIndexToProcess = i;
+                    var indexToFetch = indexes[currentIndexToProcess];
+
+                    var globalIndexToAssign = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, indexToFetch);
+                    var neighboursToAssignSize = fetchNeighbours(indexToFetch, neighboursToAssign);
+
+                    while (!processedIndexes[currentIndexToProcess]) {
+                        int tmpNeighboursSize = fetchNeighbours(currentIndexToProcess, tpmNeighboursToAssign);
+                        int tmpGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, currentIndexToProcess);
+
+                        globalIndexes.setAtIndex(ValueLayout.JAVA_INT, currentIndexToProcess, globalIndexToAssign);
+                        acquireVertex(currentIndexToProcess);
+                        try {
+                            setNeighbours(currentIndexToProcess, neighboursToAssign, neighboursToAssignSize);
+                        } finally {
+                            releaseVertex(currentIndexToProcess);
+                        }
+
+                        var tmp = neighboursToAssign;
+                        neighboursToAssign = tpmNeighboursToAssign;
+                        tpmNeighboursToAssign = tmp;
+
+                        neighboursToAssignSize = tmpNeighboursSize;
+                        globalIndexToAssign = tmpGlobalIndex;
+
+
+                        processedIndexes[currentIndexToProcess] = true;
+                        currentIndexToProcess = invertedIndexesMap.get(currentIndexToProcess);
+                    }
                 }
             }
         }
-
-
-        private void swapEdgesAndGlobalIndexes(int first, int second) {
-            var firstGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, first);
-            var secondGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, second);
-
-            globalIndexes.setAtIndex(ValueLayout.JAVA_INT, first, secondGlobalIndex);
-            globalIndexes.setAtIndex(ValueLayout.JAVA_INT, second, firstGlobalIndex);
-
-            var firstEdgesOffset = (long) first * (maxConnectionsPerVertex + 1) * Integer.BYTES;
-            var secondEdgesOffset = (long) second * (maxConnectionsPerVertex + 1) * Integer.BYTES;
-
-            for (var i = 0; i < maxConnectionsPerVertex + 1; i++) {
-                var firstEdge = edges.get(ValueLayout.JAVA_INT, firstEdgesOffset + (long) i * Integer.BYTES);
-                var secondEdge = edges.get(ValueLayout.JAVA_INT, secondEdgesOffset + (long) i * Integer.BYTES);
-
-                edges.set(ValueLayout.JAVA_INT, firstEdgesOffset + (long) i * Integer.BYTES, secondEdge);
-                edges.set(ValueLayout.JAVA_INT, secondEdgesOffset + (long) i * Integer.BYTES, firstEdge);
-            }
-        }
-
 
         private void saveEdgesToDisk() throws IOException {
             var verticesPerPage = pageSize / vertexRecordSize;
@@ -1144,11 +1246,11 @@ public final class DiskANN implements AutoCloseable {
 
                 for (var j = 0; j < edgesSize; j++) {
                     var edgesOffset = (long) edgesIndex * Integer.BYTES;
-                    var localNeighbourIndex = edges.get(ValueLayout.JAVA_INT, edgesOffset);
-                    var globalNeighbourIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, localNeighbourIndex);
+                    var globalNeighbourIndex = edges.get(ValueLayout.JAVA_INT, edgesOffset);
 
                     diskCache.set(ValueLayout.JAVA_INT,
-                            recordOffset + diskCacheRecordEdgesOffset + (long) j * Integer.BYTES, globalNeighbourIndex);
+                            recordOffset + diskCacheRecordEdgesOffset + (long) j * Integer.BYTES,
+                            globalNeighbourIndex);
                     edgesIndex++;
                 }
 
