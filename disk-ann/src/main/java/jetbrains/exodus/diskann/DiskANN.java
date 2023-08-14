@@ -90,9 +90,9 @@ public final class DiskANN implements AutoCloseable {
     private DiskGraph diskGraph;
 
     private final byte distanceFunction;
-    private final long diskCacheRecordVectorsOffset;
-    private final long diskCacheRecordEdgesCountOffset;
-    private final long diskCacheRecordEdgesOffset;
+    private final long diskRecordVectorsOffset;
+    private final long diskRecordEdgesCountOffset;
+    private final long diskRecordEdgesOffset;
 
     private long pqReCalculated = 0;
     private double pqReCalculationError = 0.0;
@@ -140,11 +140,11 @@ public final class DiskANN implements AutoCloseable {
                         / diskCacheRecordByteAlignment) * diskCacheRecordByteAlignment
         );
 
-        diskCacheRecordVectorsOffset = diskCacheRecordLayout.byteOffset(
+        diskRecordVectorsOffset = diskCacheRecordLayout.byteOffset(
                 MemoryLayout.PathElement.groupElement("vector"));
-        diskCacheRecordEdgesCountOffset = diskCacheRecordLayout.byteOffset(
+        diskRecordEdgesCountOffset = diskCacheRecordLayout.byteOffset(
                 MemoryLayout.PathElement.groupElement("edgesCount"));
-        diskCacheRecordEdgesOffset = diskCacheRecordLayout.byteOffset(
+        diskRecordEdgesOffset = diskCacheRecordLayout.byteOffset(
                 MemoryLayout.PathElement.groupElement("edges"));
 
 
@@ -339,21 +339,13 @@ public final class DiskANN implements AutoCloseable {
                 graphs[i] = graph;
             }
 
-            logger.info("Merging {} search graph partitions into the single graph ...", partitions);
-            var startMerge = System.nanoTime();
 
-            try (var mergedGraph = mergePartitions(graphs)) {
-                var endMerge = System.nanoTime();
-                logger.info("Search graph has been merged. Time spent {} ms.", (endMerge - startMerge) / 1_000_000.0);
-
-                logger.info("Saving vectors of search graph on disk under the path {} ...", filePath.toAbsolutePath());
-                var startSave = System.nanoTime();
-                mergedGraph.saveEdgesToDisk();
-                var endSave = System.nanoTime();
-                logger.info("Vectors of search graph have been saved to the disk under the path {}. Time spent {} ms.",
-                        filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
-            }
-
+            logger.info("Merging and storing search graph partitions on disk under the path {} ...", filePath.toAbsolutePath());
+            var startSave = System.nanoTime();
+            mergeAndStorePartitionsOnDisk(graphs);
+            var endSave = System.nanoTime();
+            logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms.",
+                    filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
 
             diskGraph = new DiskGraph(medoidMindIndex);
             verticesSize = size;
@@ -362,15 +354,12 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private InMemoryGraph mergePartitions(InMemoryGraph[] partitions) {
+    private void mergeAndStorePartitionsOnDisk(InMemoryGraph[] partitions) {
         assert partitions.length > 0;
 
         if (partitions.length == 1) {
-            return partitions[0];
+            return;
         }
-
-        var uniqueSize = 0;
-
 
         var completedPartitions = new boolean[partitions.length];
         for (var i = 0; i < partitions.length; i++) {
@@ -379,24 +368,14 @@ public final class DiskANN implements AutoCloseable {
             if (partition.size == 0) {
                 completedPartitions[i] = true;
             }
-
-            uniqueSize += partition.uniqueSize;
         }
 
-        var newGraph = new InMemoryGraph(uniqueSize, true);
-
-        MemorySegment resultGlobalIndexes = newGraph.globalIndexes;
-        MemorySegment resultEdges = newGraph.edges;
-
-        var edgesStep = (maxConnectionsPerVertex + 1) * Integer.BYTES;
         var edgeSet = new IntOpenHashSet(maxConnectionsPerVertex, Hash.FAST_LOAD_FACTOR);
 
         int resultIndex = 0;
-        long resultEdgesOffset = 0;
 
         var heapGlobalIndexes = new LongHeapPriorityQueue(partitions.length,
                 (globalIndex1, globalIndex2) -> Integer.compare((int) globalIndex1, (int) globalIndex2));
-
 
         var partitionsIndexes = new int[partitions.length];
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
@@ -420,16 +399,27 @@ public final class DiskANN implements AutoCloseable {
             assert partition.globalIndexes.getAtIndex(ValueLayout.JAVA_INT,
                     vertexIndexInsidePartition) == globalIndex;
 
-            resultGlobalIndexes.setAtIndex(ValueLayout.JAVA_INT, resultIndex, globalIndex);
+            assert resultIndex == globalIndex;
             var edgesOffset = (long) vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
 
-            var localEdgesOffset = resultEdgesOffset;
+            var localPageOffset = globalIndex % verticesPerPage;
+            var pageOffset = (globalIndex / verticesPerPage) * pageSize;
+
+            var recordOffset = (long) localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
+
+            var resultEdgesOffset = recordOffset + diskRecordEdgesOffset;
+            var resultEdgesCountOffset = recordOffset + diskRecordEdgesCountOffset;
+
             if (heapGlobalIndexes.isEmpty() || globalIndex != (int) heapGlobalIndexes.firstLong()) {
+                var edgesSize = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
+                assert edgesSize <= maxConnectionsPerVertex;
+
+                edgesOffset += Integer.BYTES;
+                diskCache.set(ValueLayout.JAVA_BYTE, resultEdgesCountOffset, (byte) edgesSize);
+
                 MemorySegment.copy(partition.edges,
                         edgesOffset,
-                        resultEdges, localEdgesOffset, edgesStep);
-
-
+                        diskCache, resultEdgesOffset, (long) edgesSize * Integer.BYTES);
             } else {
                 edgeSet.clear();
 
@@ -470,8 +460,7 @@ public final class DiskANN implements AutoCloseable {
 
 
                 if (edgesCount > maxConnectionsPerVertex) {
-                    resultEdges.set(ValueLayout.JAVA_INT, localEdgesOffset, maxConnectionsPerVertex);
-                    localEdgesOffset += Integer.BYTES;
+                    diskCache.set(ValueLayout.JAVA_INT, resultEdgesCountOffset, maxConnectionsPerVertex);
 
                     var fullNeighbours = new int[edgesCount];
                     var edgesIterator = edgeSet.iterator();
@@ -481,37 +470,35 @@ public final class DiskANN implements AutoCloseable {
 
                     PermutationSampler.shuffle(rng, fullNeighbours);
 
-                    for (int n = 0; n < maxConnectionsPerVertex; n++, localEdgesOffset += Integer.BYTES) {
+                    assert resultEdgesCountOffset - resultEdgesOffset == 256;
+                    for (int n = 0; n < maxConnectionsPerVertex; n++, resultEdgesOffset += Integer.BYTES) {
                         var neighbour = fullNeighbours[n];
-                        resultEdges.set(ValueLayout.JAVA_INT, localEdgesOffset,
+                        diskCache.set(ValueLayout.JAVA_INT, resultEdgesOffset,
                                 neighbour);
                     }
                 } else {
-                    resultEdges.set(ValueLayout.JAVA_INT, localEdgesOffset, edgesCount);
-                    localEdgesOffset += Integer.BYTES;
+                    diskCache.set(ValueLayout.JAVA_INT, resultEdgesCountOffset, edgesCount);
 
                     var edgesIterator = edgeSet.intIterator();
                     while (edgesIterator.hasNext()) {
                         var neighbour = edgesIterator.nextInt();
-                        resultEdges.set(ValueLayout.JAVA_INT, localEdgesOffset,
+                        diskCache.set(ValueLayout.JAVA_INT, resultEdgesOffset,
                                 neighbour);
-                        localEdgesOffset += Integer.BYTES;
+                        resultEdgesOffset += Integer.BYTES;
                     }
                 }
             }
 
+            assert diskCache.get(ValueLayout.JAVA_BYTE, resultEdgesCountOffset) <= maxConnectionsPerVertex;
+
             resultIndex++;
-            resultEdgesOffset += edgesStep;
         }
 
         for (var partition : partitions) {
             partition.close();
         }
 
-        newGraph.uniqueSize = resultIndex;
-        newGraph.size = resultIndex;
-
-        return newGraph;
+        diskCache.force();
     }
 
     private static void addPartitionEdgeToHeap(boolean[] completedPartitions, int partitionIndex,
@@ -874,7 +861,6 @@ public final class DiskANN implements AutoCloseable {
 
     private final class InMemoryGraph implements AutoCloseable {
         private int size = 0;
-        private int uniqueSize = 0;
 
         private final MemorySegment edges;
         private final MemorySegment vectors;
@@ -1389,7 +1375,7 @@ public final class DiskANN implements AutoCloseable {
 
         private void saveVectorsToDisk() throws IOException {
             var verticesPerPage = pageSize / vertexRecordSize;
-            var uniqueSize = 0;
+
 
             for (int i = 0, vectorsIndex = 0; i < size; i++) {
                 var vertexGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
@@ -1399,25 +1385,19 @@ public final class DiskANN implements AutoCloseable {
 
                 var recordOffset = (long) localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
 
-                var newItem = false;
                 for (var j = 0; j < vectorDim; j++, vectorsIndex++) {
                     var vectorItem = vectors.get(ValueLayout.JAVA_FLOAT,
                             (long) vectorsIndex * Float.BYTES);
-                    var storedVectorItemOffset = recordOffset + diskCacheRecordVectorsOffset + (long) j * Float.BYTES;
+                    var storedVectorItemOffset = recordOffset + diskRecordVectorsOffset + (long) j * Float.BYTES;
                     var storedVectorItem = diskCache.get(ValueLayout.JAVA_FLOAT, storedVectorItemOffset);
 
+                    //avoid unnecessary flushes to the disk
                     if (vectorItem != storedVectorItem) {
                         diskCache.set(ValueLayout.JAVA_FLOAT, storedVectorItemOffset, vectorItem);
-                        newItem = true;
                     }
-                }
-
-                if (newItem) {
-                    uniqueSize++;
                 }
             }
 
-            this.uniqueSize = uniqueSize;
             vectorsArena.close();
             vectorsArena = null;
         }
@@ -1499,38 +1479,6 @@ public final class DiskANN implements AutoCloseable {
                     }
                 }
             }
-        }
-
-        private void saveEdgesToDisk() throws IOException {
-            var verticesPerPage = pageSize / vertexRecordSize;
-            for (int i = 0; i < size; i++) {
-                assert i == globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
-                var localPageOffset = i % verticesPerPage;
-                var pageOffset = (i / verticesPerPage) * pageSize;
-
-                var recordOffset = (long) localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
-                var edgesIndex = i * (maxConnectionsPerVertex + 1);
-
-                var edgesSize = edges.get(ValueLayout.JAVA_INT,
-                        (long) edgesIndex * Integer.BYTES);
-                assert (edgesSize >= 0 && edgesSize <= maxConnectionsPerVertex);
-                edgesIndex++;
-
-                for (var j = 0; j < edgesSize; j++) {
-                    var edgesOffset = (long) edgesIndex * Integer.BYTES;
-                    var globalNeighbourIndex = edges.get(ValueLayout.JAVA_INT, edgesOffset);
-
-                    diskCache.set(ValueLayout.JAVA_INT,
-                            recordOffset + diskCacheRecordEdgesOffset + (long) j * Integer.BYTES,
-                            globalNeighbourIndex);
-                    edgesIndex++;
-                }
-
-                diskCache.set(ValueLayout.JAVA_BYTE,
-                        recordOffset + diskCacheRecordEdgesCountOffset, (byte) edgesSize);
-            }
-
-            diskCache.force();
         }
 
         @Override
@@ -1621,13 +1569,13 @@ public final class DiskANN implements AutoCloseable {
                 }
 
                 var recordOffset = recordOffset(currentVertex);
-                var neighboursSizeOffset = recordOffset + diskCacheRecordEdgesCountOffset;
+                var neighboursSizeOffset = recordOffset + diskRecordEdgesCountOffset;
                 var neighboursCount = Byte.toUnsignedInt(diskCache.get(ValueLayout.JAVA_BYTE, neighboursSizeOffset));
-                var neighboursEnd = neighboursCount * Integer.BYTES + diskCacheRecordEdgesOffset + recordOffset;
+                var neighboursEnd = neighboursCount * Integer.BYTES + diskRecordEdgesOffset + recordOffset;
 
 
                 assert vertexIndexesToCheck.isEmpty();
-                for (var neighboursOffset = recordOffset + diskCacheRecordEdgesOffset;
+                for (var neighboursOffset = recordOffset + diskRecordEdgesOffset;
                      neighboursOffset < neighboursEnd; neighboursOffset += Integer.BYTES) {
                     var vertexIndex = diskCache.get(ValueLayout.JAVA_INT, neighboursOffset);
 
@@ -1775,7 +1723,7 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private long vectorOffset(long vertexIndex) {
-            return recordOffset(vertexIndex) + diskCacheRecordVectorsOffset;
+            return recordOffset(vertexIndex) + diskRecordVectorsOffset;
         }
 
         private long recordOffset(long vertexIndex) {
