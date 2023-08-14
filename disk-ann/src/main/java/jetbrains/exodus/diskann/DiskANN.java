@@ -40,6 +40,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -292,13 +293,13 @@ public final class DiskANN implements AutoCloseable {
 
             initFile(filePath, size);
 
-            var graphs = new InMemoryGraph[partitions];
+            var graphs = new MMapedGraph[partitions];
             for (int i = 0; i < partitions; i++) {
                 var partition = vectorsByPartitions[i];
                 var partitionSize = partition.size();
 
                 logger.info("Building search graph for partition {} with {} vectors...", i, partitionSize);
-                var graph = new InMemoryGraph(partitionSize);
+                var graph = new MMapedGraph(partitionSize, i, name, path);
                 for (int j = 0; j < partitionSize; j++) {
                     var vectorIndex = partition.getInt(j);
 
@@ -354,7 +355,7 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private void mergeAndStorePartitionsOnDisk(InMemoryGraph[] partitions) {
+    private void mergeAndStorePartitionsOnDisk(MMapedGraph[] partitions) throws IOException {
         assert partitions.length > 0;
 
         if (partitions.length == 1) {
@@ -503,7 +504,7 @@ public final class DiskANN implements AutoCloseable {
 
     private static void addPartitionEdgeToHeap(boolean[] completedPartitions, int partitionIndex,
                                                LongHeapPriorityQueue heapGlobalIndexes,
-                                               InMemoryGraph partition,
+                                               MMapedGraph partition,
                                                int[] partitionsIndexes) {
         if (!completedPartitions[partitionIndex]) {
             heapGlobalIndexes.enqueue((((long) partitionIndex) << 32) | partition.globalIndexes.getAtIndex(ValueLayout.JAVA_INT,
@@ -534,7 +535,7 @@ public final class DiskANN implements AutoCloseable {
                 resultSize);
     }
 
-    private void pruneIndex(InMemoryGraph graph, int medoid, float distanceMultiplication) {
+    private void pruneIndex(MMapedGraph graph, int medoid, float distanceMultiplication) {
         int size = graph.size;
         if (size == 0) {
             return;
@@ -859,7 +860,7 @@ public final class DiskANN implements AutoCloseable {
         arena.close();
     }
 
-    private final class InMemoryGraph implements AutoCloseable {
+    private final class MMapedGraph implements AutoCloseable {
         private int size = 0;
 
         private final MemorySegment edges;
@@ -875,20 +876,48 @@ public final class DiskANN implements AutoCloseable {
 
         private int medoid = -1;
 
-        private InMemoryGraph(int capacity) {
-            this(capacity, false);
+        private final String name;
+        private final Path path;
+
+        private final int id;
+
+        private final long filesTs;
+
+        private MMapedGraph(int capacity, int id, String name, Path path) throws IOException {
+            this(capacity, false, id, name, path);
         }
 
-        private InMemoryGraph(int capacity, boolean skipVectors) {
+        private MMapedGraph(int capacity, boolean skipVectors, int id, String name, Path path) throws IOException {
             this.edgeVersions = new AtomicLongArray(capacity);
+            this.name = name;
+            this.path = path;
+            this.id = id;
             this.edgesArena = Arena.openShared();
 
             var edgesLayout = MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
                     ValueLayout.JAVA_INT);
             var globalIndexesLayout = MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_INT);
 
-            this.edges = edgesArena.allocate(edgesLayout);
-            this.globalIndexes = edgesArena.allocate(globalIndexesLayout);
+            filesTs = System.nanoTime();
+
+
+            var edgesPath = edgesPath(id, name, path, filesTs);
+            logger.info("Partition {}, edges are going to be stored in file: {}", id, edgesPath);
+
+            try (var edgesChannel = FileChannel.open(edgesPath(id, name, path, filesTs),
+                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
+                this.edges = edgesChannel.map(FileChannel.MapMode.READ_WRITE, 0, edgesLayout.byteSize(),
+                        edgesArena.scope());
+            }
+
+            var globalIndexesPath = globalIndexesPath(id, name, path, filesTs);
+            logger.info("Partition {}, global indexes are going to be stored in file: {}", id, globalIndexesPath);
+
+            try (var globalIndexesChannel = FileChannel.open(globalIndexesPath,
+                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
+                this.globalIndexes = globalIndexesChannel.map(FileChannel.MapMode.READ_WRITE, 0, globalIndexesLayout.byteSize(),
+                        edgesArena.scope());
+            }
 
             if (!skipVectors) {
                 this.vectorsArena = Arena.openShared();
@@ -897,6 +926,16 @@ public final class DiskANN implements AutoCloseable {
             } else {
                 vectors = null;
             }
+        }
+
+        @NotNull
+        private static Path globalIndexesPath(int id, String name, Path path, long ts) {
+            return path.resolve((name + "-" + id) + ts + ".globalIndexes");
+        }
+
+        @NotNull
+        private static Path edgesPath(int id, String name, Path path, long ts) {
+            return path.resolve((name + "-" + id) + ts + ".edges");
         }
 
         private int medoid() {
@@ -1482,13 +1521,21 @@ public final class DiskANN implements AutoCloseable {
         }
 
         @Override
-        public void close() {
+        public void close() throws IOException {
             if (vectorsArena != null) {
                 vectorsArena.close();
                 vectorsArena = null;
             }
 
             edgesArena.close();
+            var edgesPath = edgesPath(id, name, path, filesTs);
+            var globalIndexesPath = globalIndexesPath(id, name, path, filesTs);
+
+            Files.delete(edgesPath);
+            logger.info("File {} is deleted", edgesPath);
+
+            Files.delete(globalIndexesPath);
+            logger.info("File {} is deleted", globalIndexesPath);
         }
     }
 
