@@ -15,10 +15,11 @@
  */
 package jetbrains.exodus.diskann;
 
+import org.apache.commons.rng.simple.RandomSource;
+
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.Arrays;
-import java.util.concurrent.ThreadLocalRandom;
 
 public final class PQKMeans {
     public static byte[] calculatePartitions(float[][][] centroids,
@@ -37,10 +38,10 @@ public final class PQKMeans {
         var pqCentroids = new byte[numClusters * quantizersCount];
 
 
-        var rnd = ThreadLocalRandom.current();
+        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
 
         for (int i = 0; i < numClusters; i++) {
-            var vecIndex = rnd.nextInt(numVectors);
+            var vecIndex = rng.nextInt(numVectors);
             MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE,
                     (long) vecIndex * quantizersCount, pqCentroids,
                     i * quantizersCount, quantizersCount);
@@ -58,7 +59,7 @@ public final class PQKMeans {
             boolean assignedDifferently = false;
             for (int i = 0; i < numVectors; i++) {
                 var prevIndex = centroidIndexes[i];
-                var centroidIndex = findClosestCentroid(pqVectors, i, pqCentroids, distanceTables,
+                var centroidIndex = findClosestCluster(pqVectors, i, pqCentroids, distanceTables,
                         quantizersCount, codeBaseSize);
                 centroidIndexes[i] = centroidIndex;
                 assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
@@ -79,7 +80,7 @@ public final class PQKMeans {
                     MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset,
                             codeBaseSize, codeBaseSize, histogram, histogramOffset,
                             v, mulBuffer);
-                    var minIndex = MatrixOperations.minIndex(v, 0, quantizersCount);
+                    var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
                     assert minIndex < codeBaseSize;
 
                     var prevIndex = pqCentroids[centroidIndex];
@@ -193,8 +194,8 @@ public final class PQKMeans {
         return result;
     }
 
-    static int findClosestCentroid(final MemorySegment pqVectors, final int vectorIndex, final byte[] centroids,
-                                   final float[] distanceTable, final int quantizersCount, int codeBaseSize) {
+    static int findClosestCluster(final MemorySegment pqVectors, final int vectorIndex, final byte[] centroids,
+                                  final float[] distanceTable, final int quantizersCount, int codeBaseSize) {
         int minIndex = 0;
         float minDistance = Float.MAX_VALUE;
 
@@ -209,5 +210,33 @@ public final class PQKMeans {
         }
 
         return minIndex;
+    }
+
+    static long findTwoClosestClusters(final MemorySegment pqVectors, final int vectorIndex, final byte[] centroids,
+                                       final float[] distanceTable, final int quantizersCount, int codeBaseSize) {
+        int firstMinIndex = 0;
+        float firstMinDistance = Float.MAX_VALUE;
+
+        int secondMindIndex = 0;
+        float secondMinDistance = Float.MAX_VALUE;
+
+
+        for (int centroidsIndex = 0, index = 0; centroidsIndex < centroids.length;
+             centroidsIndex += quantizersCount, index++) {
+            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable,
+                    quantizersCount, codeBaseSize);
+
+            if (distance < firstMinDistance) {
+                firstMinDistance = distance;
+                firstMinIndex = index;
+            }
+
+            if (distance < secondMinDistance && distance > firstMinDistance) {
+                secondMinDistance = distance;
+                secondMindIndex = index;
+            }
+        }
+
+        return (((long) firstMinIndex) << 32) | secondMindIndex;
     }
 }

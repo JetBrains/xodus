@@ -107,7 +107,7 @@ final class BenchUtils {
 
         try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
             var ts1 = System.nanoTime();
-            diskANN.buildIndex(new ArrayVectorReader(vectors));
+            diskANN.buildIndex(16, new ArrayVectorReader(vectors));
             var ts2 = System.nanoTime();
 
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);

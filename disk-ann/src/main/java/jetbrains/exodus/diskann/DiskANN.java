@@ -17,6 +17,7 @@ package jetbrains.exodus.diskann;
 
 import it.unimi.dsi.fastutil.Hash;
 import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.longs.LongHeapPriorityQueue;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
@@ -201,7 +202,12 @@ public final class DiskANN implements AutoCloseable {
     }
 
 
-    public void buildIndex(VectorReader vectorReader) {
+    public void buildIndex(int partitions, VectorReader vectorReader) {
+        if (vectorReader.size() == 0) {
+            logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
+            return;
+        }
+
         logger.info("Generating PQ codes for vectors...");
 
         var startPQ = System.nanoTime();
@@ -237,32 +243,48 @@ public final class DiskANN implements AutoCloseable {
         var medoidMindIndex = Integer.MAX_VALUE;
         var medoidMinDistance = Float.MAX_VALUE;
 
-        try (var graph = new InMemoryGraph(size)) {
-            for (var i = size - 1; i >= 0; i--) {
-                var vector = vectorReader.read(i);
-                graph.addVector(i, vector);
+        logger.info("Splitting vectors into {} partitions...", partitions);
+        var startPartition = System.nanoTime();
+        var partitionsCentroids = PQKMeans.calculatePartitions(pqCentroids, pqVectors, partitions, 50,
+                distanceFunction);
 
-                var distance = Distance.computeDistance(vector, 0,
-                        centroid, 0, vectorDim, distanceFunction);
-                if (distance < medoidMinDistance) {
-                    medoidMinDistance = distance;
-                    medoidMindIndex = i;
+        IntArrayList[] vectorsByPartitions = new IntArrayList[partitions];
+        for (int i = 0; i < partitions; i++) {
+            vectorsByPartitions[i] = new IntArrayList(size / partitions);
+        }
+
+        var distanceTables = PQKMeans.distanceTables(pqCentroids, distanceFunction);
+        for (int i = 0; i < size; i++) {
+            var twoClosestClusters = PQKMeans.findTwoClosestClusters(pqVectors, i, partitionsCentroids,
+                    distanceTables, pqQuantizersCount, pqCentroids[0].length);
+
+            var firstPartition = (int) (twoClosestClusters >>> 32);
+            var secondPartition = (int) twoClosestClusters;
+
+            vectorsByPartitions[firstPartition].add(i);
+
+            if (size == 1) {
+                if (firstPartition != secondPartition) {
+                    vectorsByPartitions[secondPartition].add(i);
                 }
+            } else {
+                assert firstPartition != secondPartition;
+                vectorsByPartitions[secondPartition].add(i);
             }
+        }
 
-            var globalMedoid = medoidMindIndex;
-            graph.generateRandomEdges();
+        var endPartition = System.nanoTime();
+        logger.info("Splitting vectors into {} partitions has been finished. Time spent {} ms.",
+                partitions, (endPartition - startPartition) / 1_000_000.0);
+        logger.info("----------------------------------------------------------------------------------------------");
+        logger.info("Distribution of vertices by partitions:");
+        for (int i = 0; i < partitions; i++) {
+            logger.info("Partition {} has {} vectors.", i, vectorsByPartitions[i].size());
+        }
+        logger.info("----------------------------------------------------------------------------------------------");
 
-            logger.info("Search graph has been built. Pruning...");
-            var startPrune = System.nanoTime();
-            pruneIndex(size, graph, graph.medoid(), distanceMultiplication);
-            var endPrune = System.nanoTime();
-            logger.info("Search graph has been pruned. Time spent " + (endPrune - startPrune) / 1_000_000.0 + " ms.");
-
+        try {
             var filePath = path.resolve(name + ".graph");
-            logger.info("Saving graph to disk under the path {} ...", filePath.toAbsolutePath());
-
-            var startSave = System.nanoTime();
             if (Files.exists(filePath)) {
                 logger.warn("File {} already exists and will be deleted.", path);
                 Files.delete(filePath);
@@ -270,22 +292,246 @@ public final class DiskANN implements AutoCloseable {
 
             initFile(filePath, size);
 
-            graph.saveVectorsToDisk();
-            graph.convertLocalEdgesToGlobal();
-            graph.sortEdgesByGlobalIndex();
-            graph.saveEdgesToDisk();
+            var graphs = new InMemoryGraph[partitions];
+            for (int i = 0; i < partitions; i++) {
+                var partition = vectorsByPartitions[i];
+                var partitionSize = partition.size();
 
-            var endSave = System.nanoTime();
+                logger.info("Building search graph for partition {} with {} vectors...", i, partitionSize);
+                var graph = new InMemoryGraph(partitionSize);
+                for (int j = 0; j < partitionSize; j++) {
+                    var vectorIndex = partition.getInt(j);
 
-            logger.info("Graph has been saved to the disk under the path {}. Time spent {} ms.",
-                    filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+                    var vector = vectorReader.read(vectorIndex);
+                    graph.addVector(vectorIndex, vector);
 
-            diskGraph = new DiskGraph(globalMedoid);
+                    var distance = Distance.computeDistance(vector, 0,
+                            centroid, 0, vectorDim, distanceFunction);
+                    if (distance < medoidMinDistance) {
+                        medoidMinDistance = distance;
+                        medoidMindIndex = vectorIndex;
+                    }
+                }
+
+                graph.generateRandomEdges();
+
+                logger.info("Search graph for partition {} has been built. Pruning...", i);
+                var startPrune = System.nanoTime();
+                pruneIndex(graph, graph.medoid(), distanceMultiplication);
+                var endPrune = System.nanoTime();
+                logger.info("Search graph for partition {} has been pruned. Time spent {} ms.",
+                        i, (endPrune - startPrune) / 1_000_000.0);
+
+                logger.info("Saving vectors of search graph for partition {} " +
+                        "on disk under the path {} ...", i, filePath.toAbsolutePath());
+
+                var startSave = System.nanoTime();
+
+                graph.saveVectorsToDisk();
+                graph.convertLocalEdgesToGlobal();
+                graph.sortEdgesByGlobalIndex();
+
+                var endSave = System.nanoTime();
+
+                logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {}. Time spent {} ms.",
+                        i, filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+
+                graphs[i] = graph;
+            }
+
+            logger.info("Merging {} search graph partitions into the single graph ...", partitions);
+            var startMerge = System.nanoTime();
+
+            try (var mergedGraph = mergePartitions(graphs)) {
+                var endMerge = System.nanoTime();
+                logger.info("Search graph has been merged. Time spent {} ms.", (endMerge - startMerge) / 1_000_000.0);
+
+                logger.info("Saving vectors of search graph on disk under the path {} ...", filePath.toAbsolutePath());
+                var startSave = System.nanoTime();
+                mergedGraph.saveEdgesToDisk();
+                var endSave = System.nanoTime();
+                logger.info("Vectors of search graph have been saved to the disk under the path {}. Time spent {} ms.",
+                        filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+            }
+
+
+            diskGraph = new DiskGraph(medoidMindIndex);
             verticesSize = size;
         } catch (IOException e) {
             throw new RuntimeException("Error during creation of search graph for database " + name, e);
         }
     }
+
+    private InMemoryGraph mergePartitions(InMemoryGraph[] partitions) {
+        assert partitions.length > 0;
+
+        if (partitions.length == 1) {
+            return partitions[0];
+        }
+
+        var uniqueSize = 0;
+
+
+        var completedPartitions = new boolean[partitions.length];
+        for (var i = 0; i < partitions.length; i++) {
+            var partition = partitions[i];
+
+            if (partition.size == 0) {
+                completedPartitions[i] = true;
+            }
+
+            uniqueSize += partition.uniqueSize;
+        }
+
+        var newGraph = new InMemoryGraph(uniqueSize, true);
+
+        MemorySegment resultGlobalIndexes = newGraph.globalIndexes;
+        MemorySegment resultEdges = newGraph.edges;
+
+        var edgesStep = (maxConnectionsPerVertex + 1) * Integer.BYTES;
+        var edgeSet = new IntOpenHashSet(maxConnectionsPerVertex, Hash.FAST_LOAD_FACTOR);
+
+        int resultIndex = 0;
+        long resultEdgesOffset = 0;
+
+        var heapGlobalIndexes = new LongHeapPriorityQueue(partitions.length,
+                (globalIndex1, globalIndex2) -> Integer.compare((int) globalIndex1, (int) globalIndex2));
+
+
+        var partitionsIndexes = new int[partitions.length];
+        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+
+        for (int j = 0; j < partitions.length; j++) {
+            addPartitionEdgeToHeap(completedPartitions, j,
+                    heapGlobalIndexes, partitions[j], partitionsIndexes);
+        }
+
+        while (!heapGlobalIndexes.isEmpty()) {
+            var globalIndexPartitionIndex = heapGlobalIndexes.dequeueLong();
+
+            var globalIndex = (int) (globalIndexPartitionIndex);
+            var partitionIndex = (int) (globalIndexPartitionIndex >>> 32);
+            var vertexIndexInsidePartition = partitionsIndexes[partitionIndex] - 1;
+            var partition = partitions[partitionIndex];
+
+            addPartitionEdgeToHeap(completedPartitions, partitionIndex,
+                    heapGlobalIndexes, partition, partitionsIndexes);
+
+            assert partition.globalIndexes.getAtIndex(ValueLayout.JAVA_INT,
+                    vertexIndexInsidePartition) == globalIndex;
+
+            resultGlobalIndexes.setAtIndex(ValueLayout.JAVA_INT, resultIndex, globalIndex);
+            var edgesOffset = (long) vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+
+            var localEdgesOffset = resultEdgesOffset;
+            if (heapGlobalIndexes.isEmpty() || globalIndex != (int) heapGlobalIndexes.firstLong()) {
+                MemorySegment.copy(partition.edges,
+                        edgesOffset,
+                        resultEdges, localEdgesOffset, edgesStep);
+
+
+            } else {
+                edgeSet.clear();
+
+                var edgesCount = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
+                edgesOffset += Integer.BYTES;
+
+                for (int n = 0; n < edgesCount; n++) {
+                    var neighbour = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
+                    edgesOffset += Integer.BYTES;
+                    edgeSet.add(neighbour);
+                }
+
+                do {
+                    var nextGlobalIndexPartitionIndex = heapGlobalIndexes.dequeueLong();
+                    assert globalIndex == (int) nextGlobalIndexPartitionIndex;
+
+                    partitionIndex = (int) (nextGlobalIndexPartitionIndex >>> 32);
+                    vertexIndexInsidePartition = partitionsIndexes[partitionIndex] - 1;
+                    partition = partitions[partitionIndex];
+
+                    addPartitionEdgeToHeap(completedPartitions, partitionIndex,
+                            heapGlobalIndexes, partition, partitionsIndexes);
+
+                    edgesOffset = (long) vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+
+                    edgesCount = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
+                    edgesOffset += Integer.BYTES;
+
+                    for (int n = 0; n < edgesCount; n++) {
+                        var neighbour = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
+                        edgesOffset += Integer.BYTES;
+
+                        edgeSet.add(neighbour);
+                    }
+                } while (!heapGlobalIndexes.isEmpty() && globalIndex == (int) heapGlobalIndexes.firstLong());
+
+                edgesCount = edgeSet.size();
+
+
+                if (edgesCount > maxConnectionsPerVertex) {
+                    resultEdges.set(ValueLayout.JAVA_INT, localEdgesOffset, maxConnectionsPerVertex);
+                    localEdgesOffset += Integer.BYTES;
+
+                    var fullNeighbours = new int[edgesCount];
+                    var edgesIterator = edgeSet.iterator();
+                    for (int n = 0; n < edgesCount; n++) {
+                        fullNeighbours[n] = edgesIterator.nextInt();
+                    }
+
+                    PermutationSampler.shuffle(rng, fullNeighbours);
+
+                    for (int n = 0; n < maxConnectionsPerVertex; n++, localEdgesOffset += Integer.BYTES) {
+                        var neighbour = fullNeighbours[n];
+                        resultEdges.set(ValueLayout.JAVA_INT, localEdgesOffset,
+                                neighbour);
+                    }
+                } else {
+                    resultEdges.set(ValueLayout.JAVA_INT, localEdgesOffset, edgesCount);
+                    localEdgesOffset += Integer.BYTES;
+
+                    var edgesIterator = edgeSet.intIterator();
+                    while (edgesIterator.hasNext()) {
+                        var neighbour = edgesIterator.nextInt();
+                        resultEdges.set(ValueLayout.JAVA_INT, localEdgesOffset,
+                                neighbour);
+                        localEdgesOffset += Integer.BYTES;
+                    }
+                }
+            }
+
+            resultIndex++;
+            resultEdgesOffset += edgesStep;
+        }
+
+        for (var partition : partitions) {
+            partition.close();
+        }
+
+        newGraph.uniqueSize = resultIndex;
+        newGraph.size = resultIndex;
+
+        return newGraph;
+    }
+
+    private static void addPartitionEdgeToHeap(boolean[] completedPartitions, int partitionIndex,
+                                               LongHeapPriorityQueue heapGlobalIndexes,
+                                               InMemoryGraph partition,
+                                               int[] partitionsIndexes) {
+        if (!completedPartitions[partitionIndex]) {
+            heapGlobalIndexes.enqueue((((long) partitionIndex) << 32) | partition.globalIndexes.getAtIndex(ValueLayout.JAVA_INT,
+                    partitionsIndexes[partitionIndex]));
+
+            var newPartitionIndex = partitionsIndexes[partitionIndex] + 1;
+
+            if (newPartitionIndex == partition.size) {
+                completedPartitions[partitionIndex] = true;
+            }
+
+            partitionsIndexes[partitionIndex] = newPartitionIndex;
+        }
+    }
+
 
     public void resetPQErrorStat() {
         pqReCalculated = 0;
@@ -301,7 +547,12 @@ public final class DiskANN implements AutoCloseable {
                 resultSize);
     }
 
-    private void pruneIndex(int size, InMemoryGraph graph, int medoid, float distanceMultiplication) {
+    private void pruneIndex(InMemoryGraph graph, int medoid, float distanceMultiplication) {
+        int size = graph.size;
+        if (size == 0) {
+            return;
+        }
+
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
         var permutation = new PermutationSampler(rng, size, size).sample();
 
@@ -623,6 +874,7 @@ public final class DiskANN implements AutoCloseable {
 
     private final class InMemoryGraph implements AutoCloseable {
         private int size = 0;
+        private int uniqueSize = 0;
 
         private final MemorySegment edges;
         private final MemorySegment vectors;
@@ -638,18 +890,27 @@ public final class DiskANN implements AutoCloseable {
         private int medoid = -1;
 
         private InMemoryGraph(int capacity) {
+            this(capacity, false);
+        }
+
+        private InMemoryGraph(int capacity, boolean skipVectors) {
             this.edgeVersions = new AtomicLongArray(capacity);
             this.edgesArena = Arena.openShared();
-            this.vectorsArena = Arena.openShared();
 
             var edgesLayout = MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
                     ValueLayout.JAVA_INT);
-            var vectorsLayout = MemoryLayout.sequenceLayout((long) capacity * vectorDim, ValueLayout.JAVA_FLOAT);
             var globalIndexesLayout = MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_INT);
 
-            this.vectors = vectorsArena.allocate(vectorsLayout);
             this.edges = edgesArena.allocate(edgesLayout);
             this.globalIndexes = edgesArena.allocate(globalIndexesLayout);
+
+            if (!skipVectors) {
+                this.vectorsArena = Arena.openShared();
+                var vectorsLayout = MemoryLayout.sequenceLayout((long) capacity * vectorDim, ValueLayout.JAVA_FLOAT);
+                this.vectors = vectorsArena.allocate(vectorsLayout);
+            } else {
+                vectors = null;
+            }
         }
 
         private int medoid() {
@@ -1128,6 +1389,8 @@ public final class DiskANN implements AutoCloseable {
 
         private void saveVectorsToDisk() throws IOException {
             var verticesPerPage = pageSize / vertexRecordSize;
+            var uniqueSize = 0;
+
             for (int i = 0, vectorsIndex = 0; i < size; i++) {
                 var vertexGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
 
@@ -1136,15 +1399,25 @@ public final class DiskANN implements AutoCloseable {
 
                 var recordOffset = (long) localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
 
+                var newItem = false;
                 for (var j = 0; j < vectorDim; j++, vectorsIndex++) {
                     var vectorItem = vectors.get(ValueLayout.JAVA_FLOAT,
                             (long) vectorsIndex * Float.BYTES);
-                    diskCache.set(ValueLayout.JAVA_FLOAT,
-                            recordOffset + diskCacheRecordVectorsOffset +
-                                    (long) j * Float.BYTES, vectorItem);
+                    var storedVectorItemOffset = recordOffset + diskCacheRecordVectorsOffset + (long) j * Float.BYTES;
+                    var storedVectorItem = diskCache.get(ValueLayout.JAVA_FLOAT, storedVectorItemOffset);
+
+                    if (vectorItem != storedVectorItem) {
+                        diskCache.set(ValueLayout.JAVA_FLOAT, storedVectorItemOffset, vectorItem);
+                        newItem = true;
+                    }
+                }
+
+                if (newItem) {
+                    uniqueSize++;
                 }
             }
 
+            this.uniqueSize = uniqueSize;
             vectorsArena.close();
             vectorsArena = null;
         }
@@ -1232,7 +1505,6 @@ public final class DiskANN implements AutoCloseable {
             var verticesPerPage = pageSize / vertexRecordSize;
             for (int i = 0; i < size; i++) {
                 assert i == globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
-
                 var localPageOffset = i % verticesPerPage;
                 var pageOffset = (i / verticesPerPage) * pageSize;
 
