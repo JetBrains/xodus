@@ -69,19 +69,23 @@ public class DiskANNTest {
             diskANN.buildIndex(7, new ArrayVectorReader(vectors));
             var ts2 = System.nanoTime();
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+        }
 
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
+            diskANN.loadIndex();
             var errorsCount = 0;
-            ts1 = System.nanoTime();
+            var ts1 = System.nanoTime();
             for (var j = 0; j < vectorsCount; j++) {
                 var vector = vectors[j];
                 var result = new long[1];
                 diskANN.nearest(vector, result, 1);
-                Assert.assertEquals("j = $j", 1, result.length);
+                Assert.assertEquals("j = " + j, 1, result.length);
                 if (j != result[0]) {
                     errorsCount++;
                 }
             }
-            ts2 = System.nanoTime();
+
+            var ts2 = System.nanoTime();
             var errorPercentage = errorsCount * 100.0 / vectorsCount;
 
             System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%%n",
@@ -90,7 +94,7 @@ public class DiskANNTest {
                     errorPercentage <= 1);
             Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 15",
                     diskANN.getPQErrorAvg() <= 12);
-
+            diskANN.deleteIndex();
         }
     }
 
@@ -152,10 +156,13 @@ public class DiskANNTest {
             var ts2 = System.nanoTime();
 
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+        }
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
+            diskANN.loadIndex();
             System.out.println("Searching...");
 
             var errorsCount = 0;
-            ts1 = System.nanoTime();
+            var ts1 = System.nanoTime();
             for (var index = 0; index < queryVectors.length; index++) {
                 var vector = queryVectors[index];
                 var result = new long[1];
@@ -166,7 +173,7 @@ public class DiskANNTest {
                     errorsCount++;
                 }
             }
-            ts2 = System.nanoTime();
+            var ts2 = System.nanoTime();
             var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
             System.out.printf("Avg. query time : %d us, errors: %f%%  pq error %f%%%n",
@@ -174,6 +181,7 @@ public class DiskANNTest {
             Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 7.7",
                     diskANN.getPQErrorAvg() <= 7.7);
             Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 1.1", errorPercentage <= 1.1);
+            diskANN.deleteIndex();
         }
 
     }

@@ -29,6 +29,9 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.foreign.Arena;
@@ -63,12 +66,16 @@ public final class DiskANN implements AutoCloseable {
 
     private final int maxAmountOfCandidates;
 
-    private final int pqSubVectorSize;
-    private final int pqQuantizersCount;
+    private int pqSubVectorSize;
+    private int pqQuantizersCount;
 
-    private long verticesSize = 0;
+    private int pqCodeBaseSize;
+
+    private int verticesSize = 0;
     private final Arena arena = Arena.openShared();
     private MemorySegment diskCache;
+
+    private volatile boolean closed;
 
     private final ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>();
 
@@ -216,6 +223,7 @@ public final class DiskANN implements AutoCloseable {
 
         pqCentroids = pqResult.pqCentroids;
         pqVectors = pqResult.pqVectors;
+        pqCodeBaseSize = pqCentroids[0].length;
 
         var endPQ = System.nanoTime();
         logger.info("PQ codes for vectors have been generated. Time spent " + (endPQ - startPQ) / 1_000_000.0 +
@@ -350,9 +358,110 @@ public final class DiskANN implements AutoCloseable {
 
             diskGraph = new DiskGraph(medoidMindIndex);
             verticesSize = size;
+
+            storeIndexState();
+
         } catch (IOException e) {
             throw new RuntimeException("Error during creation of search graph for database " + name, e);
         }
+    }
+
+    public void loadIndex() {
+        var medoid = readIndexState();
+        var filePath = path.resolve(name + ".graph");
+
+        try (var fileChannel = FileChannel.open(filePath, StandardOpenOption.READ)) {
+            diskCache = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size(), arena.scope());
+            diskGraph = new DiskGraph(medoid);
+        } catch (IOException e) {
+            throw new RuntimeException("Error during reading of index data for database " + name, e);
+        }
+    }
+
+    public void deleteIndex() {
+        close();
+
+        logger.info("Deleting index data for database {}...", name);
+        var graphPath = path.resolve(name + ".graph");
+        var dataFilePath = path.resolve(name + ".data");
+        try {
+            Files.deleteIfExists(graphPath);
+            logger.info("File {} has been deleted.", graphPath);
+            Files.deleteIfExists(dataFilePath);
+            logger.info("File {} has been deleted.", dataFilePath);
+        } catch (IOException e) {
+            throw new RuntimeException("Error during deletion of index data for database " + name, e);
+        }
+        logger.info("Index data for database {} have been deleted.", name);
+    }
+
+    private void storeIndexState() throws IOException {
+        var dataFilePath = path.resolve(name + ".data");
+        try (var pqOutputStream = Files.newOutputStream(dataFilePath, StandardOpenOption.CREATE_NEW,
+                StandardOpenOption.WRITE)) {
+            try (var dataOutputStream = new DataOutputStream(new BufferedOutputStream(pqOutputStream))) {
+                dataOutputStream.writeInt(diskGraph.medoid);
+                dataOutputStream.writeInt(verticesSize);
+
+                dataOutputStream.writeInt(pqQuantizersCount);
+                dataOutputStream.writeInt(pqCodeBaseSize);
+                dataOutputStream.writeInt(pqSubVectorSize);
+
+                for (int i = 0; i < pqQuantizersCount; i++) {
+                    for (int j = 0; j < pqCodeBaseSize; j++) {
+                        for (int k = 0; k < pqSubVectorSize; k++) {
+                            dataOutputStream.writeFloat(pqCentroids[i][j][k]);
+                        }
+                    }
+                }
+
+                var pqVectorsSize = pqVectors.byteSize();
+                dataOutputStream.writeLong(pqVectorsSize);
+
+                for (int i = 0; i < pqVectorsSize; i++) {
+                    dataOutputStream.writeByte(pqVectors.get(ValueLayout.JAVA_BYTE, i));
+                }
+
+                dataOutputStream.flush();
+            }
+        }
+
+        logger.info("Index data were loaded from disk for database {}", name);
+    }
+
+    private int readIndexState() {
+        int medoid;
+        var pqFilePath = path.resolve(name + ".data");
+        try (var pqInputStream = Files.newInputStream(pqFilePath, StandardOpenOption.READ)) {
+            try (var dataInputStream = new DataInputStream(pqInputStream)) {
+                medoid = dataInputStream.readInt();
+                verticesSize = dataInputStream.readInt();
+
+                pqQuantizersCount = dataInputStream.readInt();
+                pqCodeBaseSize = dataInputStream.readInt();
+                pqSubVectorSize = dataInputStream.readInt();
+
+                pqCentroids = new float[pqQuantizersCount][pqCodeBaseSize][pqSubVectorSize];
+                for (int i = 0; i < pqQuantizersCount; i++) {
+                    for (int j = 0; j < pqCodeBaseSize; j++) {
+                        for (int k = 0; k < pqSubVectorSize; k++) {
+                            pqCentroids[i][j][k] = dataInputStream.readFloat();
+                        }
+                    }
+                }
+
+                var pqVectorsSize = dataInputStream.readLong();
+                pqVectors = arena.allocate(pqVectorsSize);
+                for (int i = 0; i < pqVectorsSize; i++) {
+                    pqVectors.set(ValueLayout.JAVA_BYTE, i, dataInputStream.readByte());
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error during reading of index data for database " + name, e);
+        }
+
+        logger.info("Index data were loaded from disk for database {}", name);
+        return medoid;
     }
 
     private void mergeAndStorePartitionsOnDisk(MMapedGraph[] partitions) throws IOException {
@@ -857,7 +966,10 @@ public final class DiskANN implements AutoCloseable {
 
     @Override
     public void close() {
-        arena.close();
+        if (!closed) {
+            arena.close();
+            closed = true;
+        }
     }
 
     private final class MMapedGraph implements AutoCloseable {
@@ -915,7 +1027,8 @@ public final class DiskANN implements AutoCloseable {
 
             try (var globalIndexesChannel = FileChannel.open(globalIndexesPath,
                     StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
-                this.globalIndexes = globalIndexesChannel.map(FileChannel.MapMode.READ_WRITE, 0, globalIndexesLayout.byteSize(),
+                this.globalIndexes = globalIndexesChannel.map(FileChannel.MapMode.READ_WRITE, 0,
+                        globalIndexesLayout.byteSize(),
                         edgesArena.scope());
             }
 
@@ -1540,9 +1653,9 @@ public final class DiskANN implements AutoCloseable {
     }
 
     private final class DiskGraph {
-        private final long medoid;
+        private final int medoid;
 
-        private DiskGraph(long medoid) {
+        private DiskGraph(int medoid) {
             this.medoid = medoid;
         }
 
@@ -1566,10 +1679,10 @@ public final class DiskANN implements AutoCloseable {
             var vertexIndexesToCheck = threadLocalCache.vertexIndexesToCheck;
             vertexIndexesToCheck.clear();
 
-            nearestCandidates.add((int) startVertexIndex, computeDistance(diskCache, startVectorOffset, queryVector), false);
+            nearestCandidates.add(startVertexIndex, computeDistance(diskCache, startVectorOffset, queryVector), false);
 
             assert nearestCandidates.size() <= maxAmountOfCandidates;
-            visitedVertexIndices.add((int) startVertexIndex);
+            visitedVertexIndices.add(startVertexIndex);
 
             float[] lookupTable = null;
 

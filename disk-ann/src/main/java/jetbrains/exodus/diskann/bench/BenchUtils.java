@@ -111,7 +111,10 @@ final class BenchUtils {
             var ts2 = System.nanoTime();
 
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+        }
 
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
+            diskANN.loadIndex();
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);
             var queryVectors = readFVectors(queryFile, vectorDimensions);
@@ -140,9 +143,8 @@ final class BenchUtils {
             System.out.println("PID: " + pid);
 
 
-            //noinspection InfiniteLoopStatement
-            while (true) {
-                ts1 = System.nanoTime();
+            for (int i = 0; i < 20; i++) {
+                var ts1 = System.nanoTime();
                 var errorsCount = 0;
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
@@ -151,16 +153,15 @@ final class BenchUtils {
                         errorsCount++;
                     }
                 }
-                ts2 = System.nanoTime();
+                var ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
                 System.out.printf("Avg. query time : %d us, errors: %f%% pq error %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
                         errorPercentage, diskANN.getPQErrorAvg());
                 diskANN.resetPQErrorStat();
-
             }
 
-
+            diskANN.deleteIndex();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
