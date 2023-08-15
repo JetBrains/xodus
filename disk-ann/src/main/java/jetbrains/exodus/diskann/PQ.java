@@ -73,11 +73,11 @@ public final class PQ {
 
         var executors = Executors.newFixedThreadPool(cores, r -> {
             var thread = new Thread(r);
-            thread.setName("pq-kmeans-thread");
+            thread.setName("pq-kmeans-thread-" + thread.threadId());
             return thread;
         });
-        var futures = new Future[pqQuantizersCount];
 
+        var futures = new Future[pqQuantizersCount];
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var km = kMeans[i];
