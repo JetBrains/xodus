@@ -61,7 +61,7 @@ public class PrepareBigANNBench {
 
         public MmapVectorReader(final int vectorDimensions, Path path) throws IOException {
             this.vectorDimensions = vectorDimensions;
-            this.recordSize = Float.BYTES * vectorDimensions + Integer.BYTES;
+            this.recordSize = Byte.BYTES * vectorDimensions + Integer.BYTES;
             vectorsCount = (int) (Files.size(path) / recordSize);
 
             arena = Arena.openShared();
@@ -79,7 +79,7 @@ public class PrepareBigANNBench {
         @Override
         public MemorySegment read(int index) {
             return segment.asSlice((long) index * recordSize + Integer.BYTES,
-                    (long) Float.BYTES * vectorDimensions);
+                    (long) Byte.BYTES * vectorDimensions);
         }
 
         @Override
