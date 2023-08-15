@@ -15,6 +15,9 @@
  */
 package jetbrains.exodus.diskann;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
@@ -22,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public final class PQ {
+    private static final Logger logger = LoggerFactory.getLogger(PQ.class);
     public static final int PQ_CODE_BASE_SIZE = 256;
 
     public static PQParameters calculatePQParameters(int vectorDim, int pqCompression) {
@@ -45,7 +49,10 @@ public final class PQ {
                                           int pqSubVectorSize, byte distanceFunction,
                                           VectorReader vectorReader, Arena arena) {
 
+
         var kMeans = new KMeansMiniBatchGD[pqQuantizersCount];
+
+        logger.info("Start generation of pq codes for {} quantizers.", pqQuantizersCount);
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             kMeans[i] = new KMeansMiniBatchGD(i, PQ_CODE_BASE_SIZE,
@@ -61,8 +68,12 @@ public final class PQ {
         var cores = Math.min(Runtime.getRuntime().availableProcessors(), pqQuantizersCount);
         var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * pqSubVectorSize)) / cores;
 
+        logger.info("{} cores will be used, batch size is {}, min batch size is {}.", cores, batchSize, minBatchSize);
+
+
         var executors = Executors.newFixedThreadPool(cores);
         var futures = new Future[pqQuantizersCount];
+
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var km = kMeans[i];
@@ -77,6 +88,8 @@ public final class PQ {
             }
         }
         executors.shutdown();
+
+        logger.info("KMeans clustering finished. Creation of PQ codes started.");
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var centroids = kMeans[i].centroids;
@@ -100,6 +113,8 @@ public final class PQ {
                 pqVectors.set(ValueLayout.JAVA_BYTE, (long) n * pqQuantizersCount + i, (byte) centroidIndex);
             }
         }
+
+        logger.info("PQ codes created.");
 
         return new PQCodes(pqVectors, pqCentroids);
     }
