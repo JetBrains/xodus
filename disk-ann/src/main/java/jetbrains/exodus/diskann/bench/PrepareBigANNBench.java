@@ -7,6 +7,9 @@ import jetbrains.exodus.diskann.VectorReader;
 import java.io.IOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -80,8 +83,17 @@ public class PrepareBigANNBench {
 
         @Override
         public MemorySegment read(int index) {
-            return segment.asSlice((long) index * recordSize + Integer.BYTES,
-                    (long) Byte.BYTES * vectorDimensions);
+            var byteVector = new byte[vectorDimensions * Float.BYTES];
+            ByteBuffer buffer = ByteBuffer.wrap(byteVector).order(ByteOrder.nativeOrder());
+
+            var startOffset = (long) index * recordSize + Integer.BYTES;
+            var endOffset = startOffset + Byte.BYTES * vectorDimensions;
+
+            for (var i = startOffset; i < endOffset; i++) {
+                buffer.putFloat(segment.get(ValueLayout.JAVA_FLOAT, i));
+            }
+
+            return MemorySegment.ofArray(byteVector);
         }
 
         @Override

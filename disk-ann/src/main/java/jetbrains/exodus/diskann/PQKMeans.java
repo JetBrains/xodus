@@ -157,8 +157,8 @@ public final class PQKMeans {
                     var origin = centroids[n][i];
                     var vector = centroids[n][j];
 
-                    result[baseOffset + j] = Distance.computeDistance(origin, vector, 0, vecSize, distanceFunction
-                    );
+                    result[baseOffset + j] = Distance.computeDistance(origin, vector,
+                            0, vecSize, distanceFunction);
                 }
             }
 

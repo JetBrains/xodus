@@ -363,6 +363,12 @@ public final class DiskANN implements AutoCloseable {
 
         } catch (IOException e) {
             throw new RuntimeException("Error during creation of search graph for database " + name, e);
+        } finally {
+            try {
+                vectorReader.close();
+            } catch (Exception e) {
+                logger.error("Error during closing of vector reader for database " + name, e);
+            }
         }
     }
 

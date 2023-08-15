@@ -97,7 +97,8 @@ public final class PQ {
 
             for (int j = 0; j < centroids.length; j++) {
                 var centroid = centroids[j];
-                var distance = Distance.computeDistance(centroid, vector, i * pqSubVectorSize, centroid.length, distanceFunction
+                var distance = Distance.computeDistance(centroid, vector,
+                        i * pqSubVectorSize, centroid.length, distanceFunction
                 );
                 lookupTable[i * (1 << Byte.SIZE) + j] = distance;
             }

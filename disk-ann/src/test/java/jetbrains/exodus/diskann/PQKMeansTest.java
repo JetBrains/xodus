@@ -291,8 +291,8 @@ public class PQKMeansTest {
                     var firstVector = pqCentroids[k][firstCode];
                     var secondVector = pqCentroids[k][secondCode];
 
-                    distance += Distance.computeDistance(firstVector, secondVector, 0, firstVector.length, Distance.L2_DISTANCE
-                    );
+                    distance += Distance.computeDistance(firstVector, secondVector, 0,
+                            firstVector.length, Distance.L2_DISTANCE);
                 }
 
                 count++;
@@ -307,8 +307,8 @@ public class PQKMeansTest {
         var count = 0;
         for (var i = 0; i < vectors.length; i++) {
             for (int j = i + 1; j < vectors.length; j++) {
-                distance += Distance.computeDistance(vectors[i], vectors[j], 0, vectors[i].length, Distance.L2_DISTANCE
-                );
+                distance += Distance.computeDistance(vectors[i], vectors[j], 0,
+                        vectors[i].length, Distance.L2_DISTANCE);
                 count++;
             }
         }
