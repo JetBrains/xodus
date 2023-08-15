@@ -98,7 +98,7 @@ public final class PQKMeans {
                                 centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, k, centroidIndex);
                                 assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
 
-                                if ((k & (1024 * 1024 - 1)) == 0) {
+                                if ((k & (4 * 1024 * 1024 - 1)) == 0) {
                                     logger.info("Thread #{}, {} vectors out of {} are processed ({}%). ",
                                             id, k, localSize, k * 100.0 / localSize);
                                 }
@@ -167,7 +167,7 @@ public final class PQKMeans {
         Arrays.fill(histogram, 0.0f);
         var numCodes = pqVectors.byteSize();
 
-        for (var codeIndex = 0; codeIndex < numCodes; ) {
+        for (long codeIndex = 0; codeIndex < numCodes; ) {
             var clusterIndex = clusters.getAtIndex(ValueLayout.JAVA_INT, codeIndex / quantizersCount);
 
             for (int i = 0; i < quantizersCount; i++) {

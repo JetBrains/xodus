@@ -142,7 +142,7 @@ public final class PQ {
                                     (long) vectorIndex * pqQuantizersCount + i, (byte) centroidIndex);
                         }
 
-                        if ((k & (1024 * 1024 - 1)) == 0) {
+                        if ((k & (4 * 1024 * 1024 - 1)) == 0) {
                             logger.info("Thread # {} - {} vectors out of {} are processed ({}%). ", id, k,
                                     localSize, k * 100.0 / localSize);
                         }
