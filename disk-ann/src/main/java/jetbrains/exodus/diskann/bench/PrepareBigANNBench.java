@@ -90,7 +90,7 @@ public class PrepareBigANNBench {
             var endOffset = startOffset + Byte.BYTES * vectorDimensions;
 
             for (var i = startOffset; i < endOffset; i++) {
-                buffer.putFloat(segment.get(ValueLayout.JAVA_FLOAT, i));
+                buffer.putFloat(segment.get(ValueLayout.JAVA_BYTE, i));
             }
 
             return MemorySegment.ofArray(byteVector);
