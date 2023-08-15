@@ -30,7 +30,7 @@ import java.util.BitSet;
 final class KMeansMiniBatchGD {
     private final VectorSpecies<Float> species;
 
-    final float[] centroids;
+    float[] centroids;
     final int k;
     final VectorReader vectorReader;
     final int subVecOffset;
@@ -39,7 +39,6 @@ final class KMeansMiniBatchGD {
 
     private int currentIndex;
     private final int iterations;
-    private final int[] clusterIndexesPerVector;
 
     private final int subVecSize;
 
@@ -50,13 +49,26 @@ final class KMeansMiniBatchGD {
         this.iterations = iterations;
         this.subVecSize = subVecSize;
 
+        var subVectorBits = subVecSize * Float.SIZE;
+        var preferredSpecies = FloatVector.SPECIES_PREFERRED;
 
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
 
-        var size = vectorReader.size();
-        clusterIndexesPerVector = new int[size];
-        Arrays.fill(clusterIndexesPerVector, -1);
+        if (preferredSpecies.length() > subVectorBits) {
+            if (subVectorBits >= 512) {
+                species = FloatVector.SPECIES_512;
+            } else if (subVectorBits >= 256) {
+                species = FloatVector.SPECIES_256;
+            } else if (subVectorBits >= 128) {
+                species = FloatVector.SPECIES_128;
+            } else {
+                species = FloatVector.SPECIES_64;
+            }
+        } else {
+            species = preferredSpecies;
+        }
 
+        var size = vectorReader.size();
         if (size <= k) {
             this.k = size;
             centroids = new float[size * subVecSize];
@@ -99,22 +111,7 @@ final class KMeansMiniBatchGD {
             }
         }
 
-        var subVectorBits = subVecSize * Float.SIZE;
-        var preferredSpecies = FloatVector.SPECIES_PREFERRED;
 
-        if (preferredSpecies.length() > subVectorBits) {
-            if (subVectorBits >= 512) {
-                species = FloatVector.SPECIES_512;
-            } else if (subVectorBits >= 256) {
-                species = FloatVector.SPECIES_256;
-            } else if (subVectorBits >= 128) {
-                species = FloatVector.SPECIES_128;
-            } else {
-                species = FloatVector.SPECIES_64;
-            }
-        } else {
-            species = preferredSpecies;
-        }
     }
 
     void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize, byte distanceFunction) {
@@ -123,6 +120,9 @@ final class KMeansMiniBatchGD {
         }
 
         var size = vectorReader.size();
+        int[] clusterIndexesPerVector = new int[size];
+        Arrays.fill(clusterIndexesPerVector, -1);
+
         do {
             var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
             var toIndex = Math.min(currentIndex + batchSize, size);

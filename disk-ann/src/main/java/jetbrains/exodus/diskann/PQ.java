@@ -18,8 +18,6 @@ package jetbrains.exodus.diskann;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public final class PQ {
     public static final int PQ_CODE_BASE_SIZE = 256;
@@ -45,38 +43,20 @@ public final class PQ {
                                           int pqSubVectorSize, byte distanceFunction,
                                           VectorReader vectorReader, Arena arena) {
 
-        var kMeans = new KMeansMiniBatchGD[pqQuantizersCount];
+        var minBatchSize = 16;
+        var batchSize = 2 * 1024 * 1024;
 
+        var kMeans = new KMeansMiniBatchGD[pqQuantizersCount];
         for (int i = 0; i < pqQuantizersCount; i++) {
-            kMeans[i] = new KMeansMiniBatchGD(PQ_CODE_BASE_SIZE,
+            var km = new KMeansMiniBatchGD(PQ_CODE_BASE_SIZE,
                     50, i * pqSubVectorSize, pqSubVectorSize,
                     vectorReader);
+            km.calculate(minBatchSize, batchSize, distanceFunction);
+            kMeans[i] = km;
         }
 
         var codeBaseSize = Math.min(PQ_CODE_BASE_SIZE, vectorReader.size());
         float[][][] pqCentroids = new float[pqQuantizersCount][codeBaseSize][pqSubVectorSize];
-
-        var minBatchSize = 16;
-
-        var cores = Math.min(Runtime.getRuntime().availableProcessors(), pqQuantizersCount);
-        var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * pqSubVectorSize)) / cores;
-
-        var executors = Executors.newFixedThreadPool(cores);
-        var futures = new Future[pqQuantizersCount];
-
-        for (int i = 0; i < pqQuantizersCount; i++) {
-            var km = kMeans[i];
-            futures[i] = executors.submit(() -> km.calculate(minBatchSize, batchSize, distanceFunction));
-        }
-
-        for (var future : futures) {
-            try {
-                future.get();
-            } catch (Exception e) {
-                throw new RuntimeException("Error during KMeans clustering of indexed data.", e);
-            }
-        }
-        executors.shutdown();
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var centroids = kMeans[i].centroids;
