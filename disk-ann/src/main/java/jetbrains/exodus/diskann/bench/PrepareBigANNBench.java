@@ -27,7 +27,9 @@ public class PrepareBigANNBench {
             var baseName = "bigann_base.bvecs";
             var basePath = benchPath.resolve(baseName);
 
-            BenchUtils.extractGzArchive(basePath, baseArchivePath);
+            if (!Files.exists(basePath) || Files.size(basePath) == 0) {
+                BenchUtils.extractGzArchive(basePath, baseArchivePath);
+            }
 
             var vectorDimensions = 128;
 
