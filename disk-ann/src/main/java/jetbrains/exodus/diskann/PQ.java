@@ -71,7 +71,11 @@ public final class PQ {
         logger.info("{} cores will be used, batch size is {}, min batch size is {}.", cores, batchSize, minBatchSize);
 
 
-        var executors = Executors.newFixedThreadPool(cores);
+        var executors = Executors.newFixedThreadPool(cores, r -> {
+            var thread = new Thread(r);
+            thread.setName("pq-kmeans-thread");
+            return thread;
+        });
         var futures = new Future[pqQuantizersCount];
 
 
