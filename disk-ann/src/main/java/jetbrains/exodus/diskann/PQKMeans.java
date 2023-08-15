@@ -17,6 +17,7 @@ package jetbrains.exodus.diskann;
 
 import org.apache.commons.rng.simple.RandomSource;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.Arrays;
@@ -31,75 +32,77 @@ public final class PQKMeans {
         var codeBaseSize = centroids[0].length;
 
         var numVectors = (int) (pqVectors.byteSize() / quantizersCount);
-        var centroidIndexes = new int[numVectors];
+        try (var arena = Arena.openConfined()) {
+            var centroidIndexes = arena.allocate((long) numVectors * Integer.SIZE,
+                    ValueLayout.JAVA_INT.byteAlignment());
 
-        var distanceTables = distanceTables(centroids, distanceFunction);
+            var distanceTables = distanceTables(centroids, distanceFunction);
 
-        var pqCentroids = new byte[numClusters * quantizersCount];
-
-
-        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-
-        for (int i = 0; i < numClusters; i++) {
-            var vecIndex = rng.nextInt(numVectors);
-            MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE,
-                    (long) vecIndex * quantizersCount, pqCentroids,
-                    i * quantizersCount, quantizersCount);
-        }
+            var pqCentroids = new byte[numClusters * quantizersCount];
 
 
-        var histogram = new float[numClusters * quantizersCount * codeBaseSize];
-        var v = new float[codeBaseSize];
-        var mulBuffer = new float[4];
+            var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
 
-        var histogramStep = MatrixOperations.threeDMatrixIndex(quantizersCount,
-                codeBaseSize, 0, 0, 1);
-
-        for (int n = 0; n < iterations; n++) {
-            boolean assignedDifferently = false;
-            for (int i = 0; i < numVectors; i++) {
-                var prevIndex = centroidIndexes[i];
-                var centroidIndex = findClosestCluster(pqVectors, i, pqCentroids, distanceTables,
-                        quantizersCount, codeBaseSize);
-                centroidIndexes[i] = centroidIndex;
-                assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
+            for (int i = 0; i < numClusters; i++) {
+                var vecIndex = rng.nextInt(numVectors);
+                MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE,
+                        (long) vecIndex * quantizersCount, pqCentroids,
+                        i * quantizersCount, quantizersCount);
             }
 
-            if (!assignedDifferently) {
-                break;
-            }
 
-            generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize, histogram);
+            var histogram = new float[numClusters * quantizersCount * codeBaseSize];
+            var v = new float[codeBaseSize];
+            var mulBuffer = new float[4];
 
-            assignedDifferently = false;
-            for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++,
-                    histogramOffset += histogramStep) {
-                for (int q = 0; q < quantizersCount; q++) {
-                    var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize,
-                            codeBaseSize, q, 0, 0);
-                    MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset,
-                            codeBaseSize, codeBaseSize, histogram, histogramOffset,
-                            v, mulBuffer);
-                    var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
-                    assert minIndex < codeBaseSize;
+            var histogramStep = MatrixOperations.threeDMatrixIndex(quantizersCount,
+                    codeBaseSize, 0, 0, 1);
 
-                    var prevIndex = pqCentroids[centroidIndex];
-                    pqCentroids[centroidIndex] = (byte) minIndex;
-                    assignedDifferently = assignedDifferently || prevIndex != minIndex;
+            for (int n = 0; n < iterations; n++) {
+                boolean assignedDifferently = false;
+                for (int i = 0; i < numVectors; i++) {
+                    var prevIndex = centroidIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
+                    var centroidIndex = findClosestCluster(pqVectors, i, pqCentroids, distanceTables,
+                            quantizersCount, codeBaseSize);
+                    centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, i, centroidIndex);
+                    assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
+                }
+
+                if (!assignedDifferently) {
+                    break;
+                }
+
+                generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize, histogram);
+
+                assignedDifferently = false;
+                for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++,
+                        histogramOffset += histogramStep) {
+                    for (int q = 0; q < quantizersCount; q++) {
+                        var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize,
+                                codeBaseSize, q, 0, 0);
+                        MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset,
+                                codeBaseSize, codeBaseSize, histogram, histogramOffset,
+                                v, mulBuffer);
+                        var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
+                        assert minIndex < codeBaseSize;
+
+                        var prevIndex = pqCentroids[centroidIndex];
+                        pqCentroids[centroidIndex] = (byte) minIndex;
+                        assignedDifferently = assignedDifferently || prevIndex != minIndex;
+                    }
+                }
+
+                if (!assignedDifferently) {
+                    break;
                 }
             }
 
-            if (!assignedDifferently) {
-                break;
-            }
+            return pqCentroids;
         }
-
-        return pqCentroids;
     }
 
-
     static void generateHistogram(final MemorySegment pqVectors,
-                                  final int[] clusters,
+                                  final MemorySegment clusters,
                                   final int quantizersCount,
                                   final int codeBaseSize,
                                   final float[] histogram) {
@@ -107,7 +110,7 @@ public final class PQKMeans {
         var numCodes = pqVectors.byteSize();
 
         for (var codeIndex = 0; codeIndex < numCodes; ) {
-            var clusterIndex = clusters[codeIndex / quantizersCount];
+            var clusterIndex = clusters.getAtIndex(ValueLayout.JAVA_INT, codeIndex / quantizersCount);
 
             for (int i = 0; i < quantizersCount; i++) {
                 var code = Byte.toUnsignedInt(pqVectors.get(ValueLayout.JAVA_BYTE, codeIndex));

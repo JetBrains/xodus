@@ -211,158 +211,160 @@ public final class DiskANN implements AutoCloseable {
 
 
     public void buildIndex(int partitions, VectorReader vectorReader) {
-        if (vectorReader.size() == 0) {
-            logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
-            return;
-        }
+        try {
+            if (vectorReader.size() == 0) {
+                logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
+                return;
+            }
 
-        logger.info("Generating PQ codes for vectors...");
+            logger.info("Generating PQ codes for vectors...");
 
-        var startPQ = System.nanoTime();
-        var pqResult = PQ.generatePQCodes(pqQuantizersCount, pqSubVectorSize, distanceFunction, vectorReader, arena);
+            var startPQ = System.nanoTime();
+            var pqResult = PQ.generatePQCodes(pqQuantizersCount, pqSubVectorSize, distanceFunction, vectorReader, arena);
 
-        pqCentroids = pqResult.pqCentroids;
-        pqVectors = pqResult.pqVectors;
-        pqCodeBaseSize = pqCentroids[0].length;
+            pqCentroids = pqResult.pqCentroids;
+            pqVectors = pqResult.pqVectors;
+            pqCodeBaseSize = pqCentroids[0].length;
 
-        var endPQ = System.nanoTime();
-        logger.info("PQ codes for vectors have been generated. Time spent " + (endPQ - startPQ) / 1_000_000.0 +
-                " ms.");
+            var endPQ = System.nanoTime();
+            logger.info("PQ codes for vectors have been generated. Time spent " + (endPQ - startPQ) / 1_000_000.0 +
+                    " ms.");
 
-        var size = vectorReader.size();
+            var size = vectorReader.size();
 
-        logger.info("Calculation of graph search entry point ...");
-        var startPQCentroid = System.nanoTime();
+            logger.info("Calculation of graph search entry point ...");
+            var startPQCentroid = System.nanoTime();
 
-        var pqCentroid =
-                PQKMeans.calculatePartitions(pqCentroids, pqVectors, 1, 1, distanceFunction);
-        var centroid = new float[vectorDim];
-        for (int i = 0, pqCentroidVectorOffset = 0; i < pqQuantizersCount; i++,
-                pqCentroidVectorOffset += pqSubVectorSize) {
-            var pqCentroidVector = Byte.toUnsignedInt(pqCentroid[i]);
+            var pqCentroid =
+                    PQKMeans.calculatePartitions(pqCentroids, pqVectors, 1, 1, distanceFunction);
+            var centroid = new float[vectorDim];
+            for (int i = 0, pqCentroidVectorOffset = 0; i < pqQuantizersCount; i++,
+                    pqCentroidVectorOffset += pqSubVectorSize) {
+                var pqCentroidVector = Byte.toUnsignedInt(pqCentroid[i]);
 
-            System.arraycopy(pqCentroids[i][pqCentroidVector], 0, centroid,
-                    pqCentroidVectorOffset, pqSubVectorSize);
-        }
+                System.arraycopy(pqCentroids[i][pqCentroidVector], 0, centroid,
+                        pqCentroidVectorOffset, pqSubVectorSize);
+            }
 
-        var endPQCentroid = System.nanoTime();
-        logger.info("Calculation of graph search entry point has been finished. Time spent {} ms.",
-                (endPQCentroid - startPQCentroid) / 1_000_000.0);
+            var endPQCentroid = System.nanoTime();
+            logger.info("Calculation of graph search entry point has been finished. Time spent {} ms.",
+                    (endPQCentroid - startPQCentroid) / 1_000_000.0);
 
-        var medoidMindIndex = Integer.MAX_VALUE;
-        var medoidMinDistance = Float.MAX_VALUE;
+            var medoidMindIndex = Integer.MAX_VALUE;
+            var medoidMinDistance = Float.MAX_VALUE;
 
-        logger.info("Splitting vectors into {} partitions...", partitions);
-        var startPartition = System.nanoTime();
-        var partitionsCentroids = PQKMeans.calculatePartitions(pqCentroids, pqVectors, partitions, 50,
-                distanceFunction);
+            logger.info("Splitting vectors into {} partitions...", partitions);
+            var startPartition = System.nanoTime();
+            var partitionsCentroids = PQKMeans.calculatePartitions(pqCentroids, pqVectors, partitions, 50,
+                    distanceFunction);
 
-        IntArrayList[] vectorsByPartitions = new IntArrayList[partitions];
-        for (int i = 0; i < partitions; i++) {
-            vectorsByPartitions[i] = new IntArrayList(size / partitions);
-        }
+            IntArrayList[] vectorsByPartitions = new IntArrayList[partitions];
+            for (int i = 0; i < partitions; i++) {
+                vectorsByPartitions[i] = new IntArrayList(size / partitions);
+            }
 
-        var distanceTables = PQKMeans.distanceTables(pqCentroids, distanceFunction);
-        for (int i = 0; i < size; i++) {
-            var twoClosestClusters = PQKMeans.findTwoClosestClusters(pqVectors, i, partitionsCentroids,
-                    distanceTables, pqQuantizersCount, pqCentroids[0].length);
+            var distanceTables = PQKMeans.distanceTables(pqCentroids, distanceFunction);
+            for (int i = 0; i < size; i++) {
+                var twoClosestClusters = PQKMeans.findTwoClosestClusters(pqVectors, i, partitionsCentroids,
+                        distanceTables, pqQuantizersCount, pqCentroids[0].length);
 
-            var firstPartition = (int) (twoClosestClusters >>> 32);
-            var secondPartition = (int) twoClosestClusters;
+                var firstPartition = (int) (twoClosestClusters >>> 32);
+                var secondPartition = (int) twoClosestClusters;
 
-            vectorsByPartitions[firstPartition].add(i);
+                vectorsByPartitions[firstPartition].add(i);
 
-            if (size == 1) {
-                if (firstPartition != secondPartition) {
+                if (size == 1) {
+                    if (firstPartition != secondPartition) {
+                        vectorsByPartitions[secondPartition].add(i);
+                    }
+                } else {
+                    assert firstPartition != secondPartition;
                     vectorsByPartitions[secondPartition].add(i);
                 }
-            } else {
-                assert firstPartition != secondPartition;
-                vectorsByPartitions[secondPartition].add(i);
-            }
-        }
-
-        var endPartition = System.nanoTime();
-        logger.info("Splitting vectors into {} partitions has been finished. Time spent {} ms.",
-                partitions, (endPartition - startPartition) / 1_000_000.0);
-        logger.info("----------------------------------------------------------------------------------------------");
-        logger.info("Distribution of vertices by partitions:");
-        for (int i = 0; i < partitions; i++) {
-            logger.info("Partition {} has {} vectors.", i, vectorsByPartitions[i].size());
-        }
-        logger.info("----------------------------------------------------------------------------------------------");
-
-        try {
-            var filePath = path.resolve(name + ".graph");
-            if (Files.exists(filePath)) {
-                logger.warn("File {} already exists and will be deleted.", path);
-                Files.delete(filePath);
             }
 
-            initFile(filePath, size);
-
-            var graphs = new MMapedGraph[partitions];
+            var endPartition = System.nanoTime();
+            logger.info("Splitting vectors into {} partitions has been finished. Time spent {} ms.",
+                    partitions, (endPartition - startPartition) / 1_000_000.0);
+            logger.info("----------------------------------------------------------------------------------------------");
+            logger.info("Distribution of vertices by partitions:");
             for (int i = 0; i < partitions; i++) {
-                var partition = vectorsByPartitions[i];
-                var partitionSize = partition.size();
+                logger.info("Partition {} has {} vectors.", i, vectorsByPartitions[i].size());
+            }
+            logger.info("----------------------------------------------------------------------------------------------");
 
-                logger.info("Building search graph for partition {} with {} vectors...", i, partitionSize);
-                var graph = new MMapedGraph(partitionSize, i, name, path);
-                for (int j = 0; j < partitionSize; j++) {
-                    var vectorIndex = partition.getInt(j);
-
-                    var vector = vectorReader.read(vectorIndex);
-                    graph.addVector(vectorIndex, vector);
-
-                    var distance = Distance.computeDistance(vector, 0,
-                            centroid, 0, vectorDim, distanceFunction);
-                    if (distance < medoidMinDistance) {
-                        medoidMinDistance = distance;
-                        medoidMindIndex = vectorIndex;
-                    }
+            try {
+                var filePath = path.resolve(name + ".graph");
+                if (Files.exists(filePath)) {
+                    logger.warn("File {} already exists and will be deleted.", path);
+                    Files.delete(filePath);
                 }
 
-                graph.generateRandomEdges();
+                initFile(filePath, size);
 
-                logger.info("Search graph for partition {} has been built. Pruning...", i);
-                var startPrune = System.nanoTime();
-                pruneIndex(graph, graph.medoid(), distanceMultiplication);
-                var endPrune = System.nanoTime();
-                logger.info("Search graph for partition {} has been pruned. Time spent {} ms.",
-                        i, (endPrune - startPrune) / 1_000_000.0);
+                var graphs = new MMapedGraph[partitions];
+                for (int i = 0; i < partitions; i++) {
+                    var partition = vectorsByPartitions[i];
+                    var partitionSize = partition.size();
 
-                logger.info("Saving vectors of search graph for partition {} " +
-                        "on disk under the path {} ...", i, filePath.toAbsolutePath());
+                    logger.info("Building search graph for partition {} with {} vectors...", i, partitionSize);
+                    var graph = new MMapedGraph(partitionSize, i, name, path);
+                    for (int j = 0; j < partitionSize; j++) {
+                        var vectorIndex = partition.getInt(j);
 
+                        var vector = vectorReader.read(vectorIndex);
+                        graph.addVector(vectorIndex, vector);
+
+                        var distance = Distance.computeDistance(vector, 0,
+                                centroid, 0, vectorDim, distanceFunction);
+                        if (distance < medoidMinDistance) {
+                            medoidMinDistance = distance;
+                            medoidMindIndex = vectorIndex;
+                        }
+                    }
+
+                    graph.generateRandomEdges();
+
+                    logger.info("Search graph for partition {} has been built. Pruning...", i);
+                    var startPrune = System.nanoTime();
+                    pruneIndex(graph, graph.medoid(), distanceMultiplication);
+                    var endPrune = System.nanoTime();
+                    logger.info("Search graph for partition {} has been pruned. Time spent {} ms.",
+                            i, (endPrune - startPrune) / 1_000_000.0);
+
+                    logger.info("Saving vectors of search graph for partition {} " +
+                            "on disk under the path {} ...", i, filePath.toAbsolutePath());
+
+                    var startSave = System.nanoTime();
+
+                    graph.saveVectorsToDisk();
+                    graph.convertLocalEdgesToGlobal();
+                    graph.sortEdgesByGlobalIndex();
+
+                    var endSave = System.nanoTime();
+
+                    logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {}. Time spent {} ms.",
+                            i, filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+
+                    graphs[i] = graph;
+                }
+
+
+                logger.info("Merging and storing search graph partitions on disk under the path {} ...", filePath.toAbsolutePath());
                 var startSave = System.nanoTime();
-
-                graph.saveVectorsToDisk();
-                graph.convertLocalEdgesToGlobal();
-                graph.sortEdgesByGlobalIndex();
-
+                mergeAndStorePartitionsOnDisk(graphs);
                 var endSave = System.nanoTime();
+                logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms.",
+                        filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
 
-                logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {}. Time spent {} ms.",
-                        i, filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+                diskGraph = new DiskGraph(medoidMindIndex);
+                verticesSize = size;
 
-                graphs[i] = graph;
+                storeIndexState();
+
+            } catch (IOException e) {
+                throw new RuntimeException("Error during creation of search graph for database " + name, e);
             }
-
-
-            logger.info("Merging and storing search graph partitions on disk under the path {} ...", filePath.toAbsolutePath());
-            var startSave = System.nanoTime();
-            mergeAndStorePartitionsOnDisk(graphs);
-            var endSave = System.nanoTime();
-            logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms.",
-                    filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
-
-            diskGraph = new DiskGraph(medoidMindIndex);
-            verticesSize = size;
-
-            storeIndexState();
-
-        } catch (IOException e) {
-            throw new RuntimeException("Error during creation of search graph for database " + name, e);
         } finally {
             try {
                 vectorReader.close();

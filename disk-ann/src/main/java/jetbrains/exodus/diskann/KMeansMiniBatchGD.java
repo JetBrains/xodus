@@ -20,14 +20,18 @@ import jdk.incubator.vector.VectorSpecies;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.BitSet;
 
 final class KMeansMiniBatchGD {
+    private static final Logger logger = LoggerFactory.getLogger(KMeansMiniBatchGD.class);
+
     private final VectorSpecies<Float> species;
 
     float[] centroids;
@@ -42,7 +46,10 @@ final class KMeansMiniBatchGD {
 
     private final int subVecSize;
 
-    KMeansMiniBatchGD(int k, int iterations, int subVecOffset, int subVecSize, VectorReader vectorReader) {
+    private final int id;
+
+    KMeansMiniBatchGD(int id, int k, int iterations, int subVecOffset, int subVecSize, VectorReader vectorReader) {
+        this.id = id;
         this.vectorReader = vectorReader;
         this.subVecOffset = subVecOffset;
         this.centroidsSamplesCount = new int[k];
@@ -119,71 +126,81 @@ final class KMeansMiniBatchGD {
             throw new IllegalArgumentException("Batch size must be a multiple of 3");
         }
 
-        var size = vectorReader.size();
-        int[] clusterIndexesPerVector = new int[size];
-        Arrays.fill(clusterIndexesPerVector, -1);
+        try (var arena = Arena.openConfined()) {
+            var size = vectorReader.size();
+            var clusterIndexesPerVector = arena.allocate((long) size * Integer.BYTES,
+                    ValueLayout.JAVA_INT.byteAlignment());
+            clusterIndexesPerVector.fill((byte) 0xFF);
 
-        do {
-            var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-            var toIndex = Math.min(currentIndex + batchSize, size);
+            do {
+                var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+                var toIndex = Math.min(currentIndex + batchSize, size);
 
-            var vectors = new MemorySegment[minBatchSize];
-            var clusterIndexes = new int[minBatchSize];
-            var batches = (toIndex - currentIndex + minBatchSize - 1) / minBatchSize;
-            var closestCentroids = new int[minBatchSize];
+                var vectors = new MemorySegment[minBatchSize];
+                var clusterIndexes = new int[minBatchSize];
+                var batches = (toIndex - currentIndex + minBatchSize - 1) / minBatchSize;
+                var closestCentroids = new int[minBatchSize];
 
-            var shuffledBatches = PermutationSampler.natural(batches);
-            PermutationSampler.shuffle(rng, shuffledBatches);
+                var shuffledBatches = PermutationSampler.natural(batches);
+                PermutationSampler.shuffle(rng, shuffledBatches);
 
-            var clustersChangedLimit = (int) ((toIndex - currentIndex) * 0.001);
-            int clustersChanged = clustersChangedLimit + 1;
+                var clustersChangedLimit = (int) ((toIndex - currentIndex) * 0.001);
+                int clustersChanged = clustersChangedLimit + 1;
 
 
-            for (int iteration = 0; iteration < iterations && clustersChanged > clustersChangedLimit; iteration++) {
-                clustersChanged = 0;
-                for (var batchIndex : shuffledBatches) {
-                    var localIndexFrom = currentIndex + batchIndex * minBatchSize;
-                    var actualBatchSize = Math.min(localIndexFrom + minBatchSize, toIndex) - localIndexFrom;
+                for (int iteration = 0; iteration < iterations && clustersChanged > clustersChangedLimit; iteration++) {
+                    clustersChanged = 0;
+                    for (var batchIndex : shuffledBatches) {
+                        var localIndexFrom = currentIndex + batchIndex * minBatchSize;
+                        var actualBatchSize = Math.min(localIndexFrom + minBatchSize, toIndex) - localIndexFrom;
 
-                    if ((actualBatchSize & 3) == 0) {
-                        findClosestCentroidsFastPath(actualBatchSize, distanceFunction, vectors, clusterIndexes,
-                                closestCentroids);
-                    } else {
-                        for (int i = 0; i < actualBatchSize; i++) {
-                            var vector = vectorReader.read(localIndexFrom + i);
+                        if ((actualBatchSize & 3) == 0) {
+                            findClosestCentroidsFastPath(actualBatchSize, distanceFunction, vectors, clusterIndexes,
+                                    closestCentroids);
+                        } else {
+                            for (int i = 0; i < actualBatchSize; i++) {
+                                var vector = vectorReader.read(localIndexFrom + i);
 
-                            vectors[i] = vector;
-                            clusterIndexes[i] = Distance.findClosestVector(centroids, vector, subVecOffset, subVecSize, distanceFunction
-                            );
-                        }
-                    }
-
-                    for (int i = 0; i < actualBatchSize; i++) {
-                        var clusterIndex = clusterIndexes[i];
-
-                        var prevClusterIndex = clusterIndexesPerVector[i + localIndexFrom];
-                        clusterIndexesPerVector[i + localIndexFrom] = clusterIndex;
-                        centroidsSamplesCount[clusterIndex]++;
-
-                        if (prevClusterIndex != clusterIndex) {
-                            clustersChanged++;
-
-                            if (prevClusterIndex >= 0) {
-                                centroidsSamplesCount[prevClusterIndex]--;
+                                vectors[i] = vector;
+                                clusterIndexes[i] = Distance.findClosestVector(centroids, vector, subVecOffset, subVecSize, distanceFunction
+                                );
                             }
                         }
 
-                        var learningRate = 1.0f / centroidsSamplesCount[clusterIndex];
+                        for (int i = 0; i < actualBatchSize; i++) {
+                            var clusterIndex = clusterIndexes[i];
 
-                        computeGradientStep(centroids, clusterIndex * subVecSize, vectors[i], subVecOffset, subVecSize,
-                                learningRate);
+                            var prevClusterIndex = clusterIndexesPerVector.getAtIndex(ValueLayout.JAVA_INT,
+                                    i + localIndexFrom);
+                            clusterIndexesPerVector.setAtIndex(ValueLayout.JAVA_INT, i + localIndexFrom,
+                                    clusterIndex);
+                            centroidsSamplesCount[clusterIndex]++;
+
+                            if (prevClusterIndex != clusterIndex) {
+                                clustersChanged++;
+
+                                if (prevClusterIndex >= 0) {
+                                    centroidsSamplesCount[prevClusterIndex]--;
+                                }
+                            }
+
+                            var learningRate = 1.0f / centroidsSamplesCount[clusterIndex];
+
+                            computeGradientStep(centroids, clusterIndex * subVecSize, vectors[i], subVecOffset, subVecSize,
+                                    learningRate);
+                        }
                     }
+                    currentIndex = toIndex;
+                    assert currentIndex <= vectorReader.size();
                 }
-                currentIndex = toIndex;
-                assert currentIndex <= vectorReader.size();
-            }
 
-        } while (currentIndex < size);
+                if (currentIndex % 10_000 == 0) {
+                    logger.info("KMeans #{}, processed {} vectors out of {}", id, currentIndex, size);
+                }
+            } while (currentIndex < size);
+
+            logger.info("KMeans #{}, all {} vectors are processed.", id, size);
+        }
     }
 
     private void findClosestCentroidsFastPath(int batchSize, byte distanceFunction,
