@@ -81,7 +81,14 @@ public final class PQ {
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var km = kMeans[i];
-            futures[i] = executors.submit(() -> km.calculate(minBatchSize, batchSize, distanceFunction));
+            futures[i] = executors.submit(() -> {
+                try {
+                    km.calculate(minBatchSize, batchSize, distanceFunction);
+                } catch (Exception e) {
+                    logger.error("Error during KMeans clustering of indexed data.", e);
+                    throw e;
+                }
+            });
         }
 
         for (var future : futures) {
