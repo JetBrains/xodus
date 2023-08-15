@@ -126,7 +126,7 @@ public final class PQ {
 
             }
 
-            if ((n & (1024 * 1024 - 1)) == 0) {
+            if ((n & (4 * 1024 * 1024 - 1)) == 0) {
                 logger.info("{} vectors out of {} are processed ({}%). ", n, size, n * 100.0 / size);
             }
         }

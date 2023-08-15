@@ -194,7 +194,7 @@ final class KMeansMiniBatchGD {
                     assert currentIndex <= vectorReader.size();
                 }
 
-                if ((currentIndex & (1024 * 1024 - 1)) == 0) {
+                if ((currentIndex & (4 * 1024 * 1024 - 1)) == 0) {
                     logger.info("KMeans #{}, processed {} vectors out of {}, {}% is completed", id, currentIndex, size,
                             (currentIndex * 100.0) / size);
                 }

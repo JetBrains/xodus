@@ -76,7 +76,7 @@ public final class PQKMeans {
                     centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, i, centroidIndex);
                     assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
 
-                    if ((i & (1024 * 1024 - 1)) == 0) {
+                    if ((i & (4 * 1024 * 1024 - 1)) == 0) {
                         logger.info("{} vectors out of {} are processed ({}%). ", i, numVectors, i * 100.0 / numVectors);
                     }
                 }
