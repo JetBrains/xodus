@@ -122,6 +122,10 @@ public final class PQ {
                 var centroidIndex = Distance.findClosestVector(kMeans[i].centroids, vector, i * pqSubVectorSize,
                         pqSubVectorSize, distanceFunction);
                 pqVectors.set(ValueLayout.JAVA_BYTE, (long) n * pqQuantizersCount + i, (byte) centroidIndex);
+
+                if ((i & (128 * 1024 - 1)) == 0) {
+                    logger.info("{} vectors out of {} are processed ({}%). ", i, size, i * 100.0 / size);
+                }
             }
         }
 

@@ -16,6 +16,8 @@
 package jetbrains.exodus.diskann;
 
 import org.apache.commons.rng.simple.RandomSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -23,11 +25,15 @@ import java.lang.foreign.ValueLayout;
 import java.util.Arrays;
 
 public final class PQKMeans {
+    private static final Logger logger = LoggerFactory.getLogger(PQKMeans.class);
+
     public static byte[] calculatePartitions(float[][][] centroids,
                                              MemorySegment pqVectors,
                                              int numClusters,
                                              int iterations,
                                              byte distanceFunction) {
+        logger.info("Start PQ k-means clustering for {} clusters.", numClusters);
+
         var quantizersCount = centroids.length;
         var codeBaseSize = centroids[0].length;
 
@@ -59,21 +65,30 @@ public final class PQKMeans {
                     codeBaseSize, 0, 0, 1);
 
             for (int n = 0; n < iterations; n++) {
+                logger.info("Iteration {} of PQ k-means clustering.", n + 1);
+
                 boolean assignedDifferently = false;
+
                 for (int i = 0; i < numVectors; i++) {
                     var prevIndex = centroidIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
                     var centroidIndex = findClosestCluster(pqVectors, i, pqCentroids, distanceTables,
                             quantizersCount, codeBaseSize);
                     centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, i, centroidIndex);
                     assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
+
+                    if ((i & (128 * 1024 - 1)) == 0) {
+                        logger.info("{} vectors out of {} are processed ({}%). ", i, numVectors, i * 100.0 / numVectors);
+                    }
                 }
 
                 if (!assignedDifferently) {
                     break;
                 }
 
+                logger.info("Generating histograms...");
                 generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize, histogram);
 
+                logger.info("Generating centroids...");
                 assignedDifferently = false;
                 for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++,
                         histogramOffset += histogramStep) {
@@ -97,6 +112,7 @@ public final class PQKMeans {
                 }
             }
 
+            logger.info("PQ k-means clustering finished.");
             return pqCentroids;
         }
     }

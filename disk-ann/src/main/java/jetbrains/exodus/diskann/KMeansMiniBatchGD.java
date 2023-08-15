@@ -126,6 +126,7 @@ final class KMeansMiniBatchGD {
             throw new IllegalArgumentException("Batch size must be a multiple of 3");
         }
 
+        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
         try (var arena = Arena.openConfined()) {
             var size = vectorReader.size();
             var clusterIndexesPerVector = arena.allocate((long) size * Integer.BYTES,
@@ -133,7 +134,6 @@ final class KMeansMiniBatchGD {
             clusterIndexesPerVector.fill((byte) 0xFF);
 
             do {
-                var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
                 var toIndex = Math.min(currentIndex + batchSize, size);
 
                 var vectors = new MemorySegment[minBatchSize];
@@ -194,7 +194,7 @@ final class KMeansMiniBatchGD {
                     assert currentIndex <= vectorReader.size();
                 }
 
-                if (currentIndex % 100_000 == 0) {
+                if ((currentIndex & (128 * 1024 - 1)) == 0) {
                     logger.info("KMeans #{}, processed {} vectors out of {}, {}% is completed", id, currentIndex, size,
                             (currentIndex * 100.0) / size);
                 }
