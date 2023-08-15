@@ -123,9 +123,11 @@ public final class PQ {
                         pqSubVectorSize, distanceFunction);
                 pqVectors.set(ValueLayout.JAVA_BYTE, (long) n * pqQuantizersCount + i, (byte) centroidIndex);
 
-                if ((i & (128 * 1024 - 1)) == 0) {
-                    logger.info("{} vectors out of {} are processed ({}%). ", i, size, i * 100.0 / size);
-                }
+
+            }
+
+            if ((n & (128 * 1024 - 1)) == 0) {
+                logger.info("{} vectors out of {} are processed ({}%). ", n, size, n * 100.0 / size);
             }
         }
 
