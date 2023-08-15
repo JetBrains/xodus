@@ -956,8 +956,11 @@ public final class DiskANN implements AutoCloseable {
     }
 
     private void initFile(Path path, int globalVertexCount) throws IOException {
+        logger.info("Creating file {} for storing search graph...", path);
         var pagesToWrite = (globalVertexCount + verticesPerPage - 1 / verticesPerPage);
         var fileLength = (long) pagesToWrite * pageSize;
+        logger.info("Vertices to be stored {}, vertices per page {}, page size {}, file lignth {}",
+                globalVertexCount, verticesPerPage, pageSize, fileLength);
 
         try (var rwFile = new RandomAccessFile(path.toFile(), "rw")) {
             rwFile.setLength(fileLength);
@@ -969,6 +972,7 @@ public final class DiskANN implements AutoCloseable {
                 diskCache.set(ValueLayout.JAVA_INT, pageOffset, globalVertexCount);
             }
         }
+        logger.info("File {} for storing search graph has been created.", path);
     }
 
 
