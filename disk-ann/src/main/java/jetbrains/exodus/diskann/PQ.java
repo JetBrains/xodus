@@ -71,36 +71,38 @@ public final class PQ {
         logger.info("{} cores will be used, batch size is {}, min batch size is {}.", cores, batchSize, minBatchSize);
 
 
-        var executors = Executors.newFixedThreadPool(cores, r -> {
+        try (var executors = Executors.newFixedThreadPool(cores, r -> {
             var thread = new Thread(r);
             thread.setName("pq-kmeans-thread-" + thread.threadId());
             return thread;
-        });
+        })) {
+            var futures = new Future[pqQuantizersCount];
 
-        var futures = new Future[pqQuantizersCount];
+            for (int i = 0; i < pqQuantizersCount; i++) {
+                var km = kMeans[i];
+                futures[i] = executors.submit(() -> {
+                    try {
+                        km.calculate(minBatchSize, batchSize, distanceFunction);
+                    } catch (Exception e) {
+                        logger.error("Error during KMeans clustering of indexed data.", e);
+                        throw e;
+                    }
+                });
+            }
 
-        for (int i = 0; i < pqQuantizersCount; i++) {
-            var km = kMeans[i];
-            futures[i] = executors.submit(() -> {
+            for (var future : futures) {
                 try {
-                    km.calculate(minBatchSize, batchSize, distanceFunction);
+                    future.get();
                 } catch (Exception e) {
-                    logger.error("Error during KMeans clustering of indexed data.", e);
-                    throw e;
+                    throw new RuntimeException("Error during KMeans clustering of indexed data.", e);
                 }
-            });
-        }
-
-        for (var future : futures) {
-            try {
-                future.get();
-            } catch (Exception e) {
-                throw new RuntimeException("Error during KMeans clustering of indexed data.", e);
             }
         }
-        executors.shutdown();
 
-        logger.info("KMeans clustering finished. Creation of PQ codes started.");
+
+        var size = vectorReader.size();
+        cores = Math.min(Runtime.getRuntime().availableProcessors(), size);
+        logger.info("KMeans clustering finished. Creation of PQ codes started. {} cores will be used.", cores);
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var centroids = kMeans[i].centroids;
@@ -112,22 +114,50 @@ public final class PQ {
             }
         }
 
-        var size = vectorReader.size();
-        MemorySegment pqVectors = arena.allocate((long) size * pqQuantizersCount);
+        var pqVectors = arena.allocate((long) size * pqQuantizersCount);
 
-        for (int n = 0; n < size; n++) {
-            var vector = vectorReader.read(n);
+        try (var executors = Executors.newFixedThreadPool(cores, r -> {
+            var thread = new Thread(r);
+            thread.setName("pq-code-assignment-thread-" + thread.threadId());
+            return thread;
+        })) {
+            var assignmentSize = (size + cores - 1) / cores;
+            var futures = new Future[cores];
 
-            for (int i = 0; i < pqQuantizersCount; i++) {
-                var centroidIndex = Distance.findClosestVector(kMeans[i].centroids, vector, i * pqSubVectorSize,
-                        pqSubVectorSize, distanceFunction);
-                pqVectors.set(ValueLayout.JAVA_BYTE, (long) n * pqQuantizersCount + i, (byte) centroidIndex);
+            for (var n = 0; n < cores; n++) {
+                var start = n * assignmentSize;
+                var end = Math.min(start + assignmentSize, size);
 
+                var id = n;
+                futures[n] = executors.submit(() -> {
+                    var localSize = end - start;
+                    for (var k = 0; k < localSize; k++) {
+                        var vectorIndex = start + k;
+                        var vector = vectorReader.read(vectorIndex);
 
+                        for (int i = 0; i < pqQuantizersCount; i++) {
+                            var centroidIndex = Distance.findClosestVector(kMeans[i].centroids, vector,
+                                    i * pqSubVectorSize, pqSubVectorSize, distanceFunction);
+                            pqVectors.set(ValueLayout.JAVA_BYTE,
+                                    (long) vectorIndex * pqQuantizersCount + i, (byte) centroidIndex);
+                        }
+
+                        if ((k & (1024 * 1024 - 1)) == 0) {
+                            logger.info("Thread # {} - {} vectors out of {} are processed ({}%). ", id, k,
+                                    localSize, k * 100.0 / localSize);
+                        }
+                    }
+
+                    logger.info("Thread # {} - All {} vectors are processed. ", id, localSize);
+                });
             }
 
-            if ((n & (4 * 1024 * 1024 - 1)) == 0) {
-                logger.info("{} vectors out of {} are processed ({}%). ", n, size, n * 100.0 / size);
+            for (var future : futures) {
+                try {
+                    future.get();
+                } catch (Exception e) {
+                    throw new RuntimeException("Error during assigning of PQ codes.", e);
+                }
             }
         }
 

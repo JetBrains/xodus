@@ -23,6 +23,9 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public final class PQKMeans {
     private static final Logger logger = LoggerFactory.getLogger(PQKMeans.class);
@@ -38,7 +41,7 @@ public final class PQKMeans {
         var codeBaseSize = centroids[0].length;
 
         var numVectors = (int) (pqVectors.byteSize() / quantizersCount);
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.openShared()) {
             var centroidIndexes = arena.allocate((long) numVectors * Integer.SIZE,
                     ValueLayout.JAVA_INT.byteAlignment());
 
@@ -64,53 +67,92 @@ public final class PQKMeans {
             var histogramStep = MatrixOperations.threeDMatrixIndex(quantizersCount,
                     codeBaseSize, 0, 0, 1);
 
-            for (int n = 0; n < iterations; n++) {
-                logger.info("Iteration {} of PQ k-means clustering.", n + 1);
+            var cores = Math.min(Runtime.getRuntime().availableProcessors(), numVectors);
+            logger.info("Using {} cores for PQ k-means clustering.", cores);
 
-                boolean assignedDifferently = false;
+            try (var executors = Executors.newFixedThreadPool(cores, r -> {
+                var thread = new Thread(r);
+                thread.setName("pq-code-assignment-thread-" + thread.threadId());
+                return thread;
+            })) {
+                var assignmentSize = (numVectors + cores - 1) / cores;
+                var futures = new Future[cores];
 
-                for (int i = 0; i < numVectors; i++) {
-                    var prevIndex = centroidIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
-                    var centroidIndex = findClosestCluster(pqVectors, i, pqCentroids, distanceTables,
-                            quantizersCount, codeBaseSize);
-                    centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, i, centroidIndex);
-                    assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
+                for (int n = 0; n < iterations; n++) {
+                    logger.info("Iteration {} of PQ k-means clustering.", n + 1);
 
-                    if ((i & (4 * 1024 * 1024 - 1)) == 0) {
-                        logger.info("{} vectors out of {} are processed ({}%). ", i, numVectors, i * 100.0 / numVectors);
+
+                    for (int i = 0; i < cores; i++) {
+                        var start = i * assignmentSize;
+                        var end = Math.min(start + assignmentSize, numVectors);
+                        var id = i;
+
+                        futures[i] = executors.submit(() -> {
+                            boolean assignedDifferently = false;
+                            var localSize = end - start;
+
+                            for (var k = 0; k < localSize; k++) {
+                                var prevIndex = centroidIndexes.getAtIndex(ValueLayout.JAVA_INT, k);
+                                var centroidIndex = findClosestCluster(pqVectors, k, pqCentroids, distanceTables,
+                                        quantizersCount, codeBaseSize);
+                                centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, k, centroidIndex);
+                                assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
+
+                                if ((k & (1024 * 1024 - 1)) == 0) {
+                                    logger.info("Thread #{}, {} vectors out of {} are processed ({}%). ",
+                                            id, k, localSize, k * 100.0 / localSize);
+                                }
+                            }
+
+                            logger.info("Thread #{},  all {} vectors are processed.", id, localSize);
+                            return assignedDifferently;
+                        });
                     }
-                }
 
-                if (!assignedDifferently) {
-                    break;
-                }
-
-                logger.info("Generating histograms...");
-                generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize, histogram);
-
-                logger.info("Generating centroids...");
-                assignedDifferently = false;
-                for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++,
-                        histogramOffset += histogramStep) {
-                    for (int q = 0; q < quantizersCount; q++) {
-                        var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize,
-                                codeBaseSize, q, 0, 0);
-                        MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset,
-                                codeBaseSize, codeBaseSize, histogram, histogramOffset,
-                                v, mulBuffer);
-                        var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
-                        assert minIndex < codeBaseSize;
-
-                        var prevIndex = pqCentroids[centroidIndex];
-                        pqCentroids[centroidIndex] = (byte) minIndex;
-                        assignedDifferently = assignedDifferently || prevIndex != minIndex;
+                    var assignedDifferently = false;
+                    for (var future : futures) {
+                        try {
+                            //noinspection unchecked
+                            assignedDifferently = assignedDifferently || ((Future<Boolean>) future).get();
+                        } catch (InterruptedException | ExecutionException e) {
+                            throw new RuntimeException("Error during cluster assigment phase in PQ kmeans clustering.", e);
+                        }
                     }
-                }
 
-                if (!assignedDifferently) {
-                    break;
+                    logger.info("All {} vectors are processed. ", numVectors);
+
+                    if (!assignedDifferently) {
+                        break;
+                    }
+
+                    logger.info("Generating histograms...");
+                    generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize, histogram);
+
+                    logger.info("Generating centroids...");
+                    assignedDifferently = false;
+                    for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++,
+                            histogramOffset += histogramStep) {
+                        for (int q = 0; q < quantizersCount; q++) {
+                            var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize,
+                                    codeBaseSize, q, 0, 0);
+                            MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset,
+                                    codeBaseSize, codeBaseSize, histogram, histogramOffset,
+                                    v, mulBuffer);
+                            var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
+                            assert minIndex < codeBaseSize;
+
+                            var prevIndex = pqCentroids[centroidIndex];
+                            pqCentroids[centroidIndex] = (byte) minIndex;
+                            assignedDifferently = assignedDifferently || prevIndex != minIndex;
+                        }
+                    }
+
+                    if (!assignedDifferently) {
+                        break;
+                    }
                 }
             }
+
 
             logger.info("PQ k-means clustering finished.");
             return pqCentroids;
