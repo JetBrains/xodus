@@ -60,6 +60,10 @@ public final class MatrixOperations {
         return secondDimension * firstIndex + secondIndex;
     }
 
+    public static long twoDMatrixIndex(final long secondDimension, final long firstIndex, final long secondIndex) {
+        return secondDimension * firstIndex + secondIndex;
+    }
+
     public static int minIndex(float[] vector, int from, int to) {
         var min = vector[0];
         var minIndex = 0;
