@@ -15,15 +15,6 @@
  */
 package jetbrains.exodus.diskann.bench;
 
-import java.io.EOFException;
-import java.io.IOException;
-import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 import jetbrains.exodus.diskann.DiskANN;
 import jetbrains.exodus.diskann.Distance;
 import jetbrains.exodus.diskann.VectorReader;
@@ -34,6 +25,16 @@ import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.EOFException;
+import java.io.IOException;
+import java.lang.foreign.MemorySegment;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
 final class BenchUtils {
     static void runSiftBenchmarks(
             Path rootDir, String siftDir, String siftArchiveName, String siftBaseName,
@@ -41,64 +42,14 @@ final class BenchUtils {
             String groundTruthFileName, int vectorDimensions
     ) throws IOException {
         System.out.println("Working directory: " + rootDir.toAbsolutePath());
-        var siftArchivePath = rootDir.resolve(siftArchiveName);
-        if (Files.exists(siftArchivePath)) {
-            System.out.println(siftArchiveName + " already exists in " + rootDir);
-        } else {
-            System.out.println("Downloading " + siftArchiveName +
-                    " from ftp.irisa.fr into " + rootDir);
 
-            var ftpClient = new FTPClient();
-            ftpClient.connect("ftp.irisa.fr");
-            ftpClient.enterLocalPassiveMode();
-            var loggedIdn = ftpClient.login("anonymous", "anonymous");
-            ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
-            if (!loggedIdn) {
-                throw new IllegalStateException("Failed to login to ftp.irisa.fr");
-            }
+        var siftArchivePath = downloadBenchFile(rootDir, siftArchiveName);
 
-            System.out.println("Logged in to ftp.irisa.fr");
-            try (var fos = Files.newOutputStream(siftArchivePath)) {
-                ftpClient.retrieveFile("/local/texmex/corpus/" + siftArchiveName, fos);
-            } finally {
-                ftpClient.logout();
-                ftpClient.disconnect();
-            }
 
-            System.out.println(siftArchiveName + " downloaded");
-        }
-
-        System.out.println("Extracting " + siftArchiveName + " into " + rootDir);
-
-        try (var fis = Files.newInputStream(rootDir.resolve(siftArchiveName))) {
-            try (var giz = new GzipCompressorInputStream(fis)) {
-                try (var tar = new TarArchiveInputStream(giz)) {
-                    var entry = tar.getNextTarEntry();
-
-                    while (entry != null) {
-                        var name = entry.getName();
-                        if (name.endsWith(".fvecs") || name.endsWith(".ivecs")) {
-                            System.out.printf("Extracting %s%n", name);
-                            var file = rootDir.resolve(name);
-                            if (!Files.exists(file.getParent())) {
-                                Files.createDirectories(file.getParent());
-                            }
-
-                            try (var fos = Files.newOutputStream(file)) {
-                                IOUtils.copy(tar, fos);
-                            }
-                        }
-                        entry = tar.getNextTarEntry();
-                    }
-                }
-            }
-        }
-
-        System.out.printf("%s extracted%n", siftArchiveName);
-
+        extractTarArchive(rootDir, siftArchivePath);
         var siftsBaseDir = rootDir.resolve(siftDir);
-        var vectors = readRawFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
 
+        var vectors = readRawFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
         var dbDir = Files.createTempDirectory("vectoriadb-bench");
         dbDir.toFile().deleteOnExit();
 
@@ -143,7 +94,7 @@ final class BenchUtils {
             System.out.println("PID: " + pid);
 
 
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 50; i++) {
                 var ts1 = System.nanoTime();
                 var errorsCount = 0;
                 for (var index = 0; index < queryVectors.length; index++) {
@@ -167,7 +118,82 @@ final class BenchUtils {
         }
     }
 
-    private static float[][] readFVectors(Path path, int vectorDimensions) throws IOException {
+    public static void extractTarArchive(Path rootDir, Path archivePath) throws IOException {
+        System.out.println("Extracting " + archivePath.getFileName() + " into " + rootDir);
+
+        try (var fis = Files.newInputStream(archivePath)) {
+            try (var giz = new GzipCompressorInputStream(fis)) {
+                try (var tar = new TarArchiveInputStream(giz)) {
+                    var entry = tar.getNextTarEntry();
+
+                    while (entry != null) {
+                        var name = entry.getName();
+                        if (name.endsWith(".fvecs") || name.endsWith(".ivecs")) {
+                            System.out.printf("Extracting %s%n", name);
+                            var file = rootDir.resolve(name);
+                            if (!Files.exists(file.getParent())) {
+                                Files.createDirectories(file.getParent());
+                            }
+
+                            try (var fos = Files.newOutputStream(file)) {
+                                IOUtils.copy(tar, fos);
+                            }
+                        }
+                        entry = tar.getNextTarEntry();
+                    }
+                }
+            }
+        }
+
+        System.out.printf("%s extracted%n", archivePath.getFileName());
+    }
+
+    public static void extractGzArchive(Path targetPath, Path archivePath) throws IOException {
+        System.out.println("Extracting " + archivePath.getFileName() + " into " + targetPath.getFileName());
+
+        try (var fis = Files.newInputStream(archivePath)) {
+            try (var giz = new GzipCompressorInputStream(fis)) {
+                Files.copy(giz, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+
+        System.out.printf("%s extracted%n", archivePath.getFileName());
+    }
+
+
+    public static Path downloadBenchFile(Path rootDir, String benchArchiveName) throws IOException {
+        var benchArchivePath = rootDir.resolve(benchArchiveName);
+
+        if (Files.exists(benchArchivePath)) {
+            System.out.println(benchArchiveName + " already exists in " + rootDir);
+        } else {
+            System.out.println("Downloading " + benchArchiveName +
+                    " from ftp.irisa.fr into " + rootDir);
+
+            var ftpClient = new FTPClient();
+            ftpClient.connect("ftp.irisa.fr");
+            ftpClient.enterLocalPassiveMode();
+            var loggedIdn = ftpClient.login("anonymous", "anonymous");
+            ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+            if (!loggedIdn) {
+                throw new IllegalStateException("Failed to login to ftp.irisa.fr");
+            }
+
+            System.out.println("Logged in to ftp.irisa.fr");
+            try (var fos = Files.newOutputStream(benchArchivePath)) {
+                ftpClient.retrieveFile("/local/texmex/corpus/" + benchArchiveName, fos);
+            } finally {
+                ftpClient.logout();
+                ftpClient.disconnect();
+            }
+
+            System.out.println(benchArchiveName + " downloaded");
+        }
+
+        return benchArchivePath;
+    }
+
+    public static float[][] readFVectors(Path path, int vectorDimensions) throws IOException {
         try (var channel = FileChannel.open(path)) {
 
             var vectorBuffer = ByteBuffer.allocate(Float.BYTES * vectorDimensions + Integer.BYTES);
@@ -205,7 +231,7 @@ final class BenchUtils {
         }
     }
 
-    private static byte[][] readRawFVectors(Path path, int vectorDimensions) throws IOException {
+    public static byte[][] readRawFVectors(Path path, int vectorDimensions) throws IOException {
         try (var channel = FileChannel.open(path)) {
 
             var vectorBuffer = ByteBuffer.allocate(Float.BYTES * vectorDimensions + Integer.BYTES);
@@ -301,6 +327,10 @@ record ArrayVectorReader(byte[][] vectors) implements VectorReader {
 
     public MemorySegment read(int index) {
         return MemorySegment.ofArray(vectors[index]);
+    }
+
+    @Override
+    public void close() {
     }
 }
 

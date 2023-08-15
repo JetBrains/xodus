@@ -216,4 +216,8 @@ record ArrayVectorReader(float[][] vectors) implements VectorReader {
 
         return vectorSegment;
     }
+
+    @Override
+    public void close() {
+    }
 }

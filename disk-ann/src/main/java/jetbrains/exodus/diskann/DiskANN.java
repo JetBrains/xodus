@@ -180,7 +180,7 @@ public final class DiskANN implements AutoCloseable {
         for (var i = 0; i < cores; i++) {
             var id = i;
             vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
-                var thread = new Thread(r, name + "- vector mutator-" + id);
+                var thread = new Thread(r, name + "-vector mutator-" + id);
                 thread.setDaemon(true);
                 return thread;
             }));

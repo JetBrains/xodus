@@ -17,7 +17,7 @@ package jetbrains.exodus.diskann;
 
 import java.lang.foreign.MemorySegment;
 
-public interface VectorReader {
+public interface VectorReader extends AutoCloseable {
     int size();
 
     MemorySegment read(int index);

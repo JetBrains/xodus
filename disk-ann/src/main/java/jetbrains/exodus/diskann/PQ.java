@@ -76,6 +76,7 @@ public final class PQ {
                 throw new RuntimeException("Error during KMeans clustering of indexed data.", e);
             }
         }
+        executors.shutdown();
 
         for (int i = 0; i < pqQuantizersCount; i++) {
             var centroids = kMeans[i].centroids;

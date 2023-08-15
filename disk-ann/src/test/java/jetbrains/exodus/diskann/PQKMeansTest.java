@@ -350,5 +350,9 @@ public class PQKMeansTest {
 
             return vectorSegment;
         }
+
+        @Override
+        public void close() {
+        }
     }
 }
