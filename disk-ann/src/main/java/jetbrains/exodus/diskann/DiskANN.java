@@ -23,6 +23,7 @@ import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
 import jetbrains.exodus.diskann.collections.BoundedGreedyVertexPriorityQueue;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.rng.UniformRandomProvider;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
 import org.jetbrains.annotations.NotNull;
@@ -659,112 +660,107 @@ public final class DiskANN implements AutoCloseable {
         }
 
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-        var permutation = new PermutationSampler(rng, size, size).sample();
+        try (var arena = Arena.openShared()) {
+            var vectorIndexes = arena.allocateArray(ValueLayout.JAVA_INT, size);
 
-        if (logger.isInfoEnabled()) {
-            logger.info("Graph pruning started with distance multiplication " + distanceMultiplication + ".");
-        }
-
-        var mutatorFutures = new ArrayList<Future<?>>();
-        var itemsPerThread = size / vectorMutationThreads.size();
-        if (itemsPerThread == 0) {
-            itemsPerThread = 1;
-        }
-
-        var neighborsArray = new ConcurrentLinkedQueue[size];
-        for (int i = 0; i < size; i++) {
-            //noinspection rawtypes
-            neighborsArray[i] = new ConcurrentLinkedQueue();
-        }
-
-        var mutatorsCompleted = new AtomicInteger(0);
-        var mutatorsCount = Math.min(vectorMutationThreads.size(), size);
-
-        var mutatorsVectorIndexes = new IntArrayList[mutatorsCount];
-
-        for (var index : permutation) {
-            var mutatorId = index % mutatorsCount;
-
-            var vertexList = mutatorsVectorIndexes[mutatorId];
-            if (vertexList == null) {
-                vertexList = new IntArrayList(itemsPerThread);
-                mutatorsVectorIndexes[mutatorId] = vertexList;
+            for (int i = 0; i < size; i++) {
+                vectorIndexes.setAtIndex(ValueLayout.JAVA_INT, i, i);
             }
-            vertexList.add(index);
-        }
+            permuteIndexes(vectorIndexes, rng, size);
 
-        for (var i = 0; i < mutatorsCount; i++) {
-            var vectorIndexes = mutatorsVectorIndexes[i];
-            var mutator = vectorMutationThreads.get(i);
+            if (logger.isInfoEnabled()) {
+                logger.info("Graph pruning started with distance multiplication " + distanceMultiplication + ".");
+            }
 
-            var mutatorId = i;
-            var mutatorFuture = mutator.submit(() -> {
-                var index = 0;
-                while (true) {
-                    @SuppressWarnings("unchecked")
-                    var neighbourPairs = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
+            var mutatorFutures = new ArrayList<Future<?>>();
+            var neighborsArray = new ConcurrentLinkedQueue[size];
+            for (int i = 0; i < size; i++) {
+                //noinspection rawtypes
+                neighborsArray[i] = new ConcurrentLinkedQueue();
+            }
 
-                    if (!neighbourPairs.isEmpty()) {
-                        var neighbourPair = neighbourPairs.poll();
-                        do {
-                            var vertexIndex = neighbourPair.leftInt();
-                            var neighbourIndex = neighbourPair.rightInt();
-                            var neighbours = graph.fetchNeighbours(vertexIndex);
+            var mutatorsCompleted = new AtomicInteger(0);
+            var mutatorsCount = Math.min(vectorMutationThreads.size(), size);
 
-                            if (!ArrayUtils.contains(neighbours, vertexIndex)) {
-                                if (graph.getNeighboursSize(vertexIndex) + 1 <= maxConnectionsPerVertex) {
-                                    graph.acquireVertex(vertexIndex);
-                                    try {
-                                        graph.appendNeighbour(vertexIndex, neighbourIndex);
-                                    } finally {
-                                        graph.releaseVertex(vertexIndex);
+
+            for (var i = 0; i < mutatorsCount; i++) {
+                var mutator = vectorMutationThreads.get(i);
+
+                var mutatorId = i;
+                var mutatorFuture = mutator.submit(() -> {
+                    var index = 0;
+                    while (true) {
+                        @SuppressWarnings("unchecked")
+                        var neighbourPairs = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
+
+                        if (!neighbourPairs.isEmpty()) {
+                            var neighbourPair = neighbourPairs.poll();
+                            do {
+                                var vertexIndex = neighbourPair.leftInt();
+                                var neighbourIndex = neighbourPair.rightInt();
+                                var neighbours = graph.fetchNeighbours(vertexIndex);
+
+                                if (!ArrayUtils.contains(neighbours, vertexIndex)) {
+                                    if (graph.getNeighboursSize(vertexIndex) + 1 <= maxConnectionsPerVertex) {
+                                        graph.acquireVertex(vertexIndex);
+                                        try {
+                                            graph.appendNeighbour(vertexIndex, neighbourIndex);
+                                        } finally {
+                                            graph.releaseVertex(vertexIndex);
+                                        }
+                                    } else {
+                                        var neighbourSingleton = new Int2FloatOpenHashMap(1);
+                                        neighbourSingleton.put(neighbourIndex, Float.NaN);
+                                        graph.robustPrune(
+                                                vertexIndex,
+                                                neighbourSingleton,
+                                                distanceMultiplication
+                                        );
                                     }
-                                } else {
-                                    var neighbourSingleton = new Int2FloatOpenHashMap(1);
-                                    neighbourSingleton.put(neighbourIndex, Float.NaN);
-                                    graph.robustPrune(
-                                            vertexIndex,
-                                            neighbourSingleton,
-                                            distanceMultiplication
-                                    );
                                 }
-                            }
-                            neighbourPair = neighbourPairs.poll();
-                        } while (neighbourPair != null);
-                    } else if (mutatorsCompleted.get() == mutatorsCount) {
-                        break;
-                    }
-
-                    if (index < vectorIndexes.size()) {
-                        var vectorIndex = vectorIndexes.getInt(index);
-                        graph.greedySearchPrune(medoid, vectorIndex);
-                        var neighbourNeighbours = graph.fetchNeighbours(vectorIndex);
-                        assert vectorIndex % mutatorsCount == mutatorId;
-
-                        for (var neighbourIndex : neighbourNeighbours) {
-                            var neighbourMutatorIndex = neighbourIndex % mutatorsCount;
-
-                            @SuppressWarnings("unchecked")
-                            var neighboursList =
-                                    (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
-                            neighboursList.add(new IntIntImmutablePair(neighbourIndex, vectorIndex));
+                                neighbourPair = neighbourPairs.poll();
+                            } while (neighbourPair != null);
+                        } else if (mutatorsCompleted.get() == mutatorsCount) {
+                            break;
                         }
-                        index++;
-                    } else if (index == vectorIndexes.size()) {
-                        index = Integer.MAX_VALUE;
-                        mutatorsCompleted.incrementAndGet();
-                    }
-                }
-                return null;
-            });
-            mutatorFutures.add(mutatorFuture);
-        }
 
-        for (var mutatorFuture : mutatorFutures) {
-            try {
-                mutatorFuture.get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
+                        if (index < size) {
+                            var vectorIndex = vectorIndexes.getAtIndex(ValueLayout.JAVA_INT, index);
+                            if (vectorIndex % mutatorsCount != mutatorId) {
+                                index++;
+                                continue;
+                            }
+
+                            graph.greedySearchPrune(medoid, vectorIndex);
+                            var neighbourNeighbours = graph.fetchNeighbours(vectorIndex);
+                            assert vectorIndex % mutatorsCount == mutatorId;
+
+                            for (var neighbourIndex : neighbourNeighbours) {
+                                var neighbourMutatorIndex = neighbourIndex % mutatorsCount;
+
+                                @SuppressWarnings("unchecked")
+                                var neighboursList =
+                                        (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
+                                neighboursList.add(new IntIntImmutablePair(neighbourIndex, vectorIndex));
+                            }
+
+                            index++;
+                        } else if (index == size) {
+                            index = Integer.MAX_VALUE;
+                            mutatorsCompleted.incrementAndGet();
+                        }
+                    }
+                    return null;
+                });
+                mutatorFutures.add(mutatorFuture);
+            }
+
+            for (var mutatorFuture : mutatorFutures) {
+                try {
+                    mutatorFuture.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
 
@@ -773,90 +769,18 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
+    private void permuteIndexes(MemorySegment indexes, UniformRandomProvider rng, int size) {
+        for (int i = size; i > 1; i--) {
+            var swapIndex = rng.nextInt(i);
 
-    private void computePQDistance4Batch(float[] lookupTable, int vectorIndex1, int vectorIndex2,
-                                         int vectorIndex3, int vectorIndex4, float[] result) {
-        assert result.length == 4;
+            var firstValue = indexes.getAtIndex(ValueLayout.JAVA_INT, i - 1);
+            var secondValue = indexes.getAtIndex(ValueLayout.JAVA_INT, swapIndex);
 
-        var pqIndex1 = pqQuantizersCount * vectorIndex1;
-        var pqIndex2 = pqQuantizersCount * vectorIndex2;
-        var pqIndex3 = pqQuantizersCount * vectorIndex3;
-        var pqIndex4 = pqQuantizersCount * vectorIndex4;
-
-        var result1 = 0.0f;
-        var result2 = 0.0f;
-        var result3 = 0.0f;
-        var result4 = 0.0f;
-
-        for (int i = 0; i < pqQuantizersCount; i++) {
-            var rowOffset = i * (1 << Byte.SIZE);
-
-            var code1 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex1 + i) & 0xFF;
-            result1 += lookupTable[rowOffset + code1];
-
-            var code2 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex2 + i) & 0xFF;
-            result2 += lookupTable[rowOffset + code2];
-
-            var code3 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex3 + i) & 0xFF;
-            result3 += lookupTable[rowOffset + code3];
-
-            var code4 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex4 + i) & 0xFF;
-            result4 += lookupTable[rowOffset + code4];
-        }
-
-        result[0] = result1;
-        result[1] = result2;
-        result[2] = result3;
-        result[3] = result4;
-    }
-
-    private void computePQDistances(float[] lookupTable,
-                                    IntArrayList vertexIndexesToCheck,
-                                    BoundedGreedyVertexPriorityQueue nearestCandidates,
-                                    float[] distanceResult) {
-        assert distanceResult.length == 4;
-        assert vertexIndexesToCheck.size() <= 4;
-
-        var elements = vertexIndexesToCheck.elements();
-        var size = vertexIndexesToCheck.size();
-
-        if (size < 4) {
-            for (int i = 0; i < size; i++) {
-                var vertexIndex = elements[i];
-                var pqDistance = PQ.computePQDistance(pqVectors, lookupTable, vertexIndex, pqQuantizersCount);
-
-                addPqDistance(nearestCandidates, pqDistance, vertexIndex);
-            }
-        } else {
-            var vertexIndex1 = elements[0];
-            var vertexIndex2 = elements[1];
-            var vertexIndex3 = elements[2];
-            var vertexIndex4 = elements[3];
-
-            computePQDistance4Batch(lookupTable, vertexIndex1, vertexIndex2, vertexIndex3, vertexIndex4,
-                    distanceResult);
-
-
-            for (int i = 0; i < 4; i++) {
-                var pqDistance = distanceResult[i];
-                var vertexIndex = elements[i];
-                addPqDistance(nearestCandidates, pqDistance, vertexIndex);
-            }
-        }
-
-        vertexIndexesToCheck.clear();
-    }
-
-    private void addPqDistance(BoundedGreedyVertexPriorityQueue nearestCandidates, float pqDistance, int vertexIndex) {
-        if (nearestCandidates.size() < maxAmountOfCandidates) {
-            nearestCandidates.add(vertexIndex, pqDistance, true);
-        } else {
-            var lastVertexDistance = nearestCandidates.maxDistance();
-            if (lastVertexDistance >= pqDistance) {
-                nearestCandidates.add(vertexIndex, pqDistance, true);
-            }
+            indexes.setAtIndex(ValueLayout.JAVA_INT, i - 1, secondValue);
+            indexes.setAtIndex(ValueLayout.JAVA_INT, swapIndex, firstValue);
         }
     }
+
 
     private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, MemorySegment secondSegment,
                                   long secondSegmentFromOffset, int size) {
@@ -1784,6 +1708,91 @@ public final class DiskANN implements AutoCloseable {
 
             nearestCandidates.vertexIndices(result, k);
         }
+
+        private void computePQDistance4Batch(float[] lookupTable, int vectorIndex1, int vectorIndex2,
+                                             int vectorIndex3, int vectorIndex4, float[] result) {
+            assert result.length == 4;
+
+            var pqIndex1 = pqQuantizersCount * vectorIndex1;
+            var pqIndex2 = pqQuantizersCount * vectorIndex2;
+            var pqIndex3 = pqQuantizersCount * vectorIndex3;
+            var pqIndex4 = pqQuantizersCount * vectorIndex4;
+
+            var result1 = 0.0f;
+            var result2 = 0.0f;
+            var result3 = 0.0f;
+            var result4 = 0.0f;
+
+            for (int i = 0; i < pqQuantizersCount; i++) {
+                var rowOffset = i * (1 << Byte.SIZE);
+
+                var code1 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex1 + i) & 0xFF;
+                result1 += lookupTable[rowOffset + code1];
+
+                var code2 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex2 + i) & 0xFF;
+                result2 += lookupTable[rowOffset + code2];
+
+                var code3 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex3 + i) & 0xFF;
+                result3 += lookupTable[rowOffset + code3];
+
+                var code4 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex4 + i) & 0xFF;
+                result4 += lookupTable[rowOffset + code4];
+            }
+
+            result[0] = result1;
+            result[1] = result2;
+            result[2] = result3;
+            result[3] = result4;
+        }
+
+        private void computePQDistances(float[] lookupTable,
+                                        IntArrayList vertexIndexesToCheck,
+                                        BoundedGreedyVertexPriorityQueue nearestCandidates,
+                                        float[] distanceResult) {
+            assert distanceResult.length == 4;
+            assert vertexIndexesToCheck.size() <= 4;
+
+            var elements = vertexIndexesToCheck.elements();
+            var size = vertexIndexesToCheck.size();
+
+            if (size < 4) {
+                for (int i = 0; i < size; i++) {
+                    var vertexIndex = elements[i];
+                    var pqDistance = PQ.computePQDistance(pqVectors, lookupTable, vertexIndex, pqQuantizersCount);
+
+                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
+                }
+            } else {
+                var vertexIndex1 = elements[0];
+                var vertexIndex2 = elements[1];
+                var vertexIndex3 = elements[2];
+                var vertexIndex4 = elements[3];
+
+                computePQDistance4Batch(lookupTable, vertexIndex1, vertexIndex2, vertexIndex3, vertexIndex4,
+                        distanceResult);
+
+
+                for (int i = 0; i < 4; i++) {
+                    var pqDistance = distanceResult[i];
+                    var vertexIndex = elements[i];
+                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
+                }
+            }
+
+            vertexIndexesToCheck.clear();
+        }
+
+        private void addPqDistance(BoundedGreedyVertexPriorityQueue nearestCandidates, float pqDistance, int vertexIndex) {
+            if (nearestCandidates.size() < maxAmountOfCandidates) {
+                nearestCandidates.add(vertexIndex, pqDistance, true);
+            } else {
+                var lastVertexDistance = nearestCandidates.maxDistance();
+                if (lastVertexDistance >= pqDistance) {
+                    nearestCandidates.add(vertexIndex, pqDistance, true);
+                }
+            }
+        }
+
 
         private void recalculateDistances(float[] queryVector, BoundedGreedyVertexPriorityQueue nearestCandidates,
                                           IntArrayList vertexIndexesToCheck, float[] distanceResult) {

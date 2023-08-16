@@ -33,6 +33,7 @@ dependencyResolutionManagement {
             version("lucene", "8.10.0")
             version("fastutil", "8.5.9")
             version("commons-rng", "1.5")
+            version("caffeine", "3.1.8")
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
@@ -65,10 +66,15 @@ dependencyResolutionManagement {
 
             library("fastutil", "it.unimi.dsi", "fastutil").versionRef("fastutil")
 
-            library("commons-rng-simple", "org.apache.commons",
-                "commons-rng-simple").versionRef("commons-rng")
-            library("commons-rng-sampling", "org.apache.commons",
-                "commons-rng-sampling").versionRef("commons-rng")
+            library(
+                "commons-rng-simple", "org.apache.commons",
+                "commons-rng-simple"
+            ).versionRef("commons-rng")
+            library(
+                "commons-rng-sampling", "org.apache.commons",
+                "commons-rng-sampling"
+            ).versionRef("commons-rng")
+            library("caffeine", "com.github.ben-manes.caffeine", "caffeine").versionRef("caffeine")
         }
     }
 }

@@ -8,6 +8,7 @@ dependencies {
     implementation(libs.commons.compress)
     implementation(libs.commons.lang)
     implementation(libs.jcTools.core)
+    implementation(libs.caffeine)
 
     annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.36")
     implementation("org.openjdk.jmh:jmh-core:1.36")
@@ -66,7 +67,7 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=512g",
+            "-XX:MaxDirectMemorySize=64g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
@@ -93,7 +94,7 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=512g",
+            "-XX:MaxDirectMemorySize=64g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
@@ -120,7 +121,7 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=512g",
+            "-XX:MaxDirectMemorySize=64g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
