@@ -50,8 +50,7 @@ final class BenchUtils {
         var siftsBaseDir = rootDir.resolve(siftDir);
 
         var vectors = readRawFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
-        var dbDir = Files.createTempDirectory("vectoriadb-bench");
-        dbDir.toFile().deleteOnExit();
+        var dbDir = Files.createDirectory(rootDir.resolve("vectoriadb-bench"));
 
         System.out.printf("%d data vectors loaded with dimension %d, building index in directory %s...%n",
                 vectors.length, vectorDimensions, dbDir.toAbsolutePath());
@@ -111,8 +110,6 @@ final class BenchUtils {
                         errorPercentage, diskANN.getPQErrorAvg());
                 diskANN.resetPQErrorStat();
             }
-
-            diskANN.deleteIndex();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }

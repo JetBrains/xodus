@@ -36,7 +36,7 @@ public class PrepareBigANNBench {
 
             var vectorDimensions = 128;
 
-            var dbDir = Files.createDirectories(benchPath.resolve("bigann_index"));
+            var dbDir = Files.createDirectories(benchPath.resolve("vectoriadb-bigann_index"));
             var vectorReader = new MmapVectorReader(vectorDimensions, basePath);
 
             System.out.printf("%d data vectors loaded with dimension %d for BigANN index, " +
