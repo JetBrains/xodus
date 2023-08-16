@@ -741,6 +741,13 @@ public final class DiskANN implements AutoCloseable {
                             var vectorIndex = vectorIndexes.getAtIndex(ValueLayout.JAVA_INT, index);
                             if (vectorIndex % mutatorsCount != mutatorId) {
                                 index++;
+
+                                if ((index & (1024 * 1024 - 1)) == 0) {
+                                    logger.info("Graph pruning, partition {}: Thread # {}, {}% vertices were processed.",
+                                            partitionId, mutatorId,
+                                            (index * 100.0) / size);
+                                }
+
                                 continue;
                             }
 
@@ -758,16 +765,18 @@ public final class DiskANN implements AutoCloseable {
                             }
 
                             index++;
+
+                            if ((index & (1024 * 1024 - 1)) == 0) {
+                                logger.info("Graph pruning, partition {}: Thread # {}, {}% vertices were processed.",
+                                        partitionId, mutatorId,
+                                        (index * 100.0) / size);
+                            }
                         } else if (index == size) {
                             index = Integer.MAX_VALUE;
                             mutatorsCompleted.incrementAndGet();
                         }
 
-                        if ((index & (1024 * 1024 - 1)) == 0) {
-                            logger.info("Graph pruning, partition {}: Thread # {}, {}% vertices were processed.",
-                                    partitionId, mutatorId,
-                                    (index * 100.0) / size);
-                        }
+
                     }
 
                     logger.info("Graph pruning, partition {}: Thread # {} has completed.", partitionId, mutatorId);
@@ -1502,18 +1511,18 @@ public final class DiskANN implements AutoCloseable {
             var verticesPerPage = pageSize / vertexRecordSize;
 
 
-            for (int i = 0, vectorsIndex = 0; i < size; i++) {
+            for (long i = 0, vectorsIndex = 0; i < size; i++) {
                 var vertexGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
 
-                var localPageOffset = vertexGlobalIndex % verticesPerPage;
-                var pageOffset = (vertexGlobalIndex / verticesPerPage) * pageSize;
+                var localPageOffset = (long)vertexGlobalIndex % verticesPerPage;
+                var pageOffset = ((long) vertexGlobalIndex / verticesPerPage) * pageSize;
 
-                var recordOffset = (long) localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
+                var recordOffset = localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
 
-                for (var j = 0; j < vectorDim; j++, vectorsIndex++) {
+                for (long j = 0; j < vectorDim; j++, vectorsIndex++) {
                     var vectorItem = vectors.get(ValueLayout.JAVA_FLOAT,
-                            (long) vectorsIndex * Float.BYTES);
-                    var storedVectorItemOffset = recordOffset + diskRecordVectorsOffset + (long) j * Float.BYTES;
+                            vectorsIndex * Float.BYTES);
+                    var storedVectorItemOffset = recordOffset + diskRecordVectorsOffset + j * Float.BYTES;
                     var storedVectorItem = diskCache.get(ValueLayout.JAVA_FLOAT, storedVectorItemOffset);
 
                     //avoid unnecessary flushes to the disk
