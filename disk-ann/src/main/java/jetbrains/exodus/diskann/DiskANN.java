@@ -959,7 +959,7 @@ public final class DiskANN implements AutoCloseable {
         logger.info("Creating file {} for storing search graph...", path);
         var pagesToWrite = (globalVertexCount + verticesPerPage - 1 / verticesPerPage);
         var fileLength = (long) pagesToWrite * pageSize;
-        logger.info("Vertices to be stored {}, vertices per page {}, page size {}, file lignth {}",
+        logger.info("Vertices to be stored {}, vertices per page {}, page size {}, file length {}",
                 globalVertexCount, verticesPerPage, pageSize, fileLength);
 
         try (var rwFile = new RandomAccessFile(path.toFile(), "rw")) {
