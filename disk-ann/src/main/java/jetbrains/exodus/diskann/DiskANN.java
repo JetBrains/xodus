@@ -21,7 +21,9 @@ import it.unimi.dsi.fastutil.longs.LongHeapPriorityQueue;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
+import jetbrains.exodus.diskann.collections.BlockingIntArrayQueue;
 import jetbrains.exodus.diskann.collections.BoundedGreedyVertexPriorityQueue;
+import jetbrains.exodus.diskann.collections.NonBlockingHashMapLongLong;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.UniformRandomProvider;
 import org.apache.commons.rng.sampling.PermutationSampler;
@@ -1320,11 +1322,11 @@ public final class DiskANN implements AutoCloseable {
             var version = edgeVersions.get(vertexIndex);
 
             while (true) {
-                var edgesIndex = vertexIndex * (maxConnectionsPerVertex + 1);
-                var size = edges.get(ValueLayout.JAVA_INT, (long) edgesIndex * Integer.BYTES);
+                var edgesIndex = (long) vertexIndex * (maxConnectionsPerVertex + 1);
+                var size = edges.get(ValueLayout.JAVA_INT, edgesIndex * Integer.BYTES);
 
                 var result = new int[size];
-                MemorySegment.copy(edges, (long) edgesIndex * Integer.BYTES + Integer.BYTES,
+                MemorySegment.copy(edges, edgesIndex * Integer.BYTES + Integer.BYTES,
                         MemorySegment.ofArray(result), 0L, (long) size * Integer.BYTES);
                 var newVersion = edgeVersions.get(vertexIndex);
 
@@ -1342,11 +1344,11 @@ public final class DiskANN implements AutoCloseable {
             var version = edgeVersions.get(vertexIndex);
 
             while (true) {
-                var edgesIndex = vertexIndex * (maxConnectionsPerVertex + 1);
-                var size = edges.get(ValueLayout.JAVA_INT, (long) edgesIndex * Integer.BYTES);
+                var edgesIndex = (long) vertexIndex * (maxConnectionsPerVertex + 1);
+                var size = edges.get(ValueLayout.JAVA_INT, edgesIndex * Integer.BYTES);
 
 
-                MemorySegment.copy(edges, (long) edgesIndex * Integer.BYTES + Integer.BYTES,
+                MemorySegment.copy(edges, edgesIndex * Integer.BYTES + Integer.BYTES,
                         MemorySegment.ofArray(neighbours), 0L, (long) size * Integer.BYTES);
                 var newVersion = edgeVersions.get(vertexIndex);
 
@@ -1391,32 +1393,40 @@ public final class DiskANN implements AutoCloseable {
             }
 
             var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-            var shuffledIndexes = PermutationSampler.natural(size);
-            PermutationSampler.shuffle(rng, shuffledIndexes);
+            try (var arena = Arena.openConfined()) {
+                var shuffledIndexes = arena.allocateArray(ValueLayout.JAVA_INT, size);
 
-            var maxEdges = Math.min(size - 1, maxConnectionsPerVertex);
-            var shuffleIndex = 0;
-            for (var i = 0; i < size; i++) {
-                var edgesOffset = edgesSizeOffset(i);
-                edges.set(ValueLayout.JAVA_INT, edgesOffset, maxEdges);
+                for (var i = 0; i < size; i++) {
+                    shuffledIndexes.setAtIndex(ValueLayout.JAVA_INT, i, i);
+                }
 
-                var addedEdges = 0;
-                while (addedEdges < maxEdges) {
-                    var randomIndex = shuffledIndexes[shuffleIndex];
-                    shuffleIndex++;
+                permuteIndexes(shuffledIndexes, rng, size);
 
-                    if (shuffleIndex == size) {
-                        PermutationSampler.shuffle(rng, shuffledIndexes);
-                        shuffleIndex = 0;
-                    } else if (randomIndex == i) {
-                        continue;
+                var maxEdges = Math.min(size - 1, maxConnectionsPerVertex);
+                var shuffleIndex = 0;
+                for (var i = 0; i < size; i++) {
+                    var edgesOffset = edgesSizeOffset(i);
+                    edges.set(ValueLayout.JAVA_INT, edgesOffset, maxEdges);
+
+                    var addedEdges = 0;
+                    while (addedEdges < maxEdges) {
+                        var randomIndex = shuffledIndexes.getAtIndex(ValueLayout.JAVA_INT, shuffleIndex);
+                        shuffleIndex++;
+
+                        if (shuffleIndex == size) {
+                            permuteIndexes(shuffledIndexes, rng, size);
+                            shuffleIndex = 0;
+                        } else if (randomIndex == i) {
+                            continue;
+                        }
+
+                        edges.set(ValueLayout.JAVA_INT, edgesOffset + Integer.BYTES, randomIndex);
+                        edgesOffset += Integer.BYTES;
+                        addedEdges++;
                     }
-
-                    edges.set(ValueLayout.JAVA_INT, edgesOffset + Integer.BYTES, randomIndex);
-                    edgesOffset += Integer.BYTES;
-                    addedEdges++;
                 }
             }
+
         }
 
         private int[] getNeighboursAndClear(int vertexIndex) {
@@ -1591,6 +1601,11 @@ public final class DiskANN implements AutoCloseable {
 
     private final class DiskGraph {
         private final int medoid;
+
+        private final BlockingIntArrayQueue vertexPreloadRequests = new BlockingIntArrayQueue(1024,
+                1024 * 1024);
+        private final NonBlockingHashMapLongLong vertexPreloadRequestsMap =
+                new NonBlockingHashMapLongLong(1024);
 
         private DiskGraph(int medoid) {
             this.medoid = medoid;
@@ -1785,12 +1800,27 @@ public final class DiskANN implements AutoCloseable {
         private void addPqDistance(BoundedGreedyVertexPriorityQueue nearestCandidates, float pqDistance, int vertexIndex) {
             if (nearestCandidates.size() < maxAmountOfCandidates) {
                 nearestCandidates.add(vertexIndex, pqDistance, true);
+
+                issueVertexPreloadRequest(vertexIndex);
             } else {
                 var lastVertexDistance = nearestCandidates.maxDistance();
                 if (lastVertexDistance >= pqDistance) {
                     nearestCandidates.add(vertexIndex, pqDistance, true);
+                    issueVertexPreloadRequest(vertexIndex);
                 }
             }
+        }
+
+        private void issueVertexPreloadRequest(int vertexIndex) {
+//            var requestCounter = vertexPreloadRequestsMap.putIfAbsent(vertexIndex, 0L);
+//            while (!vertexPreloadRequestsMap.replace(vertexIndex, requestCounter, requestCounter + 1)) {
+//                requestCounter = vertexPreloadRequestsMap.get(vertexIndex);
+//            }
+//            try {
+//                vertexPreloadRequests.add(vertexIndex);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
         }
 
 

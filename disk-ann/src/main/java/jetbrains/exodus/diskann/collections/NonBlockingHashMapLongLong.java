@@ -129,7 +129,7 @@ public class NonBlockingHashMapLongLong {
     private static final long NO_MATCH_OLD = Long.MAX_VALUE - 1; // Sentinel
     // Match-Any-not-null - putIfMatch does updates only if it find a real old
     // value.
-    private static final long MATCH_ANY = Long.MAX_VALUE - 2; // Sentinel
+    public static final long MATCH_ANY = Long.MAX_VALUE - 2; // Sentinel
     // This K/V pair has been deleted (but the Key slot is forever claimed).
     // The same Key can be reinserted with a new value later.
     private static final long TOMBSTONE = Long.MAX_VALUE;
@@ -366,7 +366,7 @@ public class NonBlockingHashMapLongLong {
         final long V = _chm.get_impl(key + 1);
         assert V != TOMBSTONE;
 
-        return V > 0 ? V - 1 : V;
+        return V >= 0 ? V - 1 : V;
     }
 
 
