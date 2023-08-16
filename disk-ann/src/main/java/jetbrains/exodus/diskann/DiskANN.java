@@ -1016,6 +1016,7 @@ public final class DiskANN implements AutoCloseable {
             this.name = name;
             this.path = path;
             this.id = id;
+
             this.edgesArena = Arena.openShared();
 
             var edgesLayout = MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
@@ -1106,10 +1107,10 @@ public final class DiskANN implements AutoCloseable {
 
 
         private void addVector(int globalIndex, MemorySegment vector) {
-            var index = size * vectorDim;
+            var index = (long) size * vectorDim;
 
             MemorySegment.copy(vector, 0, vectors,
-                    (long) index * Float.BYTES,
+                    index * Float.BYTES,
                     (long) vectorDim * Float.BYTES);
             globalIndexes.setAtIndex(ValueLayout.JAVA_INT, size, globalIndex);
 
