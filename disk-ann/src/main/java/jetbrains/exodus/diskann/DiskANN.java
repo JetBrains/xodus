@@ -80,7 +80,6 @@ public final class DiskANN implements AutoCloseable {
 
     private volatile boolean closed;
 
-    private final ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>();
 
     /**
      * Size of vertex record in bytes.
@@ -173,20 +172,6 @@ public final class DiskANN implements AutoCloseable {
         if (logger.isInfoEnabled()) {
             logger.info("Vector index " + name + " has been initialized. Vector lane count for distance calculation " +
                     "is " + SPECIES.length());
-        }
-
-        var cores = Runtime.getRuntime().availableProcessors();
-        if (logger.isInfoEnabled()) {
-            logger.info("Using " + cores + " cores for processing of vectors");
-        }
-
-        for (var i = 0; i < cores; i++) {
-            var id = i;
-            vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
-                var thread = new Thread(r, name + "-vector mutator-" + id);
-                thread.setDaemon(true);
-                return thread;
-            }));
         }
 
         var pqParameters = PQ.calculatePQParameters(vectorDim, pqCompression);
@@ -284,6 +269,10 @@ public final class DiskANN implements AutoCloseable {
                     assert firstPartition != secondPartition;
                     vectorsByPartitions[secondPartition].add(i);
                 }
+
+                if ((i & (1024 * 1024 - 1)) == 0) {
+                    logger.info("Distribution of  {} vectors between partitions {}.", i, size);
+                }
             }
 
             var endPartition = System.nanoTime();
@@ -295,6 +284,22 @@ public final class DiskANN implements AutoCloseable {
                 logger.info("Partition {} has {} vectors.", i, vectorsByPartitions[i].size());
             }
             logger.info("----------------------------------------------------------------------------------------------");
+
+            var cores = Runtime.getRuntime().availableProcessors();
+            ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
+
+            if (logger.isInfoEnabled()) {
+                logger.info("Using " + cores + " cores for processing of vectors");
+            }
+
+            for (var i = 0; i < cores; i++) {
+                var id = i;
+                vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
+                    var thread = new Thread(r, name + "-vector mutator-" + id);
+                    thread.setDaemon(true);
+                    return thread;
+                }));
+            }
 
             try {
                 var filePath = path.resolve(name + ".graph");
@@ -330,7 +335,7 @@ public final class DiskANN implements AutoCloseable {
 
                     logger.info("Search graph for partition {} has been built. Pruning...", i);
                     var startPrune = System.nanoTime();
-                    pruneIndex(graph, graph.medoid(), distanceMultiplication);
+                    pruneIndex(graph, graph.medoid(), distanceMultiplication, vectorMutationThreads, i);
                     var endPrune = System.nanoTime();
                     logger.info("Search graph for partition {} has been pruned. Time spent {} ms.",
                             i, (endPrune - startPrune) / 1_000_000.0);
@@ -359,6 +364,11 @@ public final class DiskANN implements AutoCloseable {
                 var endSave = System.nanoTime();
                 logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms.",
                         filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+
+                for (var mutator : vectorMutationThreads) {
+                    mutator.shutdown();
+                }
+                vectorMutationThreads.clear();
 
                 diskGraph = new DiskGraph(medoidMindIndex);
                 verticesSize = size;
@@ -655,7 +665,8 @@ public final class DiskANN implements AutoCloseable {
                 resultSize);
     }
 
-    private void pruneIndex(MMapedGraph graph, int medoid, float distanceMultiplication) {
+    private void pruneIndex(MMapedGraph graph, int medoid, float distanceMultiplication,
+                            final ArrayList<ExecutorService> vectorMutationThreads, int partitionId) {
         int size = graph.size;
         if (size == 0) {
             return;
@@ -751,7 +762,15 @@ public final class DiskANN implements AutoCloseable {
                             index = Integer.MAX_VALUE;
                             mutatorsCompleted.incrementAndGet();
                         }
+
+                        if ((index & (1024 * 1024 - 1)) == 0) {
+                            logger.info("Graph pruning, partition {}: Thread # {}, {}% vertices were processed.",
+                                    partitionId, mutatorId,
+                                    (index * 100.0) / size);
+                        }
                     }
+
+                    logger.info("Graph pruning, partition {}: Thread # {} has completed.", partitionId, mutatorId);
                     return null;
                 });
                 mutatorFutures.add(mutatorFuture);
@@ -908,6 +927,8 @@ public final class DiskANN implements AutoCloseable {
             arena.close();
             closed = true;
         }
+
+        diskGraph.close();
     }
 
     private final class MMapedGraph implements AutoCloseable {
@@ -1424,6 +1445,11 @@ public final class DiskANN implements AutoCloseable {
                         edgesOffset += Integer.BYTES;
                         addedEdges++;
                     }
+
+                    if ((i & (1024 * 1024 - 1)) == 0) {
+                        logger.info("Random graph generation: {} vertices out of {} ({}%) were processed.", i, size,
+                                (i * 100.0) / size);
+                    }
                 }
             }
 
@@ -1599,16 +1625,26 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private final class DiskGraph {
+    private final class DiskGraph implements AutoCloseable {
         private final int medoid;
 
-        private final BlockingIntArrayQueue vertexPreloadRequests = new BlockingIntArrayQueue(1024,
-                1024 * 1024);
-        private final NonBlockingHashMapLongLong vertexPreloadRequestsMap =
-                new NonBlockingHashMapLongLong(1024);
+        private final BlockingIntArrayQueue vertexPreloadRequests = new BlockingIntArrayQueue(8 * 1024 * 1024);
+        private final NonBlockingHashMapLongLong vertexPreloadRequestsMap = new NonBlockingHashMapLongLong(1024);
+        private final ArrayList<ExecutorService> vectorPreloadThreads = new ArrayList<>(4);
 
         private DiskGraph(int medoid) {
             this.medoid = medoid;
+
+            for (int i = 0; i < 4; i++) {
+                var executorService = Executors.newSingleThreadExecutor(r -> {
+                    var thread = new Thread(r, name + "-vector pre-loader");
+                    thread.setDaemon(true);
+                    return thread;
+                });
+
+                executorService.execute(new VertexPreloader());
+                vectorPreloadThreads.add(executorService);
+            }
         }
 
         private void greedySearchNearest(
@@ -1616,6 +1652,8 @@ public final class DiskANN implements AutoCloseable {
                 long[] result,
                 int k
         ) {
+            var requestedIssuePreloads = new IntOpenHashSet(maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
+
             var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
 
             var visitedVertexIndices = threadLocalCache.visistedVertexIndices;
@@ -1631,7 +1669,8 @@ public final class DiskANN implements AutoCloseable {
             var vertexIndexesToCheck = threadLocalCache.vertexIndexesToCheck;
             vertexIndexesToCheck.clear();
 
-            nearestCandidates.add(startVertexIndex, computeDistance(diskCache, startVectorOffset, queryVector), false);
+            nearestCandidates.add(startVertexIndex, computeDistance(diskCache, startVectorOffset, queryVector),
+                    false);
 
             assert nearestCandidates.size() <= maxAmountOfCandidates;
             visitedVertexIndices.add(startVertexIndex);
@@ -1654,7 +1693,7 @@ public final class DiskANN implements AutoCloseable {
                             }
 
                             recalculateDistances(queryVector, nearestCandidates,
-                                    vertexIndexesToCheck, distanceResult);
+                                    vertexIndexesToCheck, distanceResult, requestedIssuePreloads);
                             continue;
                         }
 
@@ -1664,7 +1703,7 @@ public final class DiskANN implements AutoCloseable {
                         } else {
                             if (!vertexIndexesToCheck.isEmpty()) {
                                 recalculateDistances(queryVector, nearestCandidates,
-                                        vertexIndexesToCheck, distanceResult);
+                                        vertexIndexesToCheck, distanceResult, requestedIssuePreloads);
                                 continue;
                             }
                             currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
@@ -1672,7 +1711,7 @@ public final class DiskANN implements AutoCloseable {
                         }
                     }
                     recalculateDistances(queryVector, nearestCandidates,
-                            vertexIndexesToCheck, distanceResult);
+                            vertexIndexesToCheck, distanceResult, requestedIssuePreloads);
                 }
 
 
@@ -1703,7 +1742,7 @@ public final class DiskANN implements AutoCloseable {
                         vertexIndexesToCheck.add(vertexIndex);
                         if (vertexIndexesToCheck.size() == 4) {
                             computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
-                                    distanceResult);
+                                    distanceResult, requestedIssuePreloads);
                         }
 
                         assert vertexIndexesToCheck.size() <= 4;
@@ -1714,12 +1753,19 @@ public final class DiskANN implements AutoCloseable {
 
                 if (!vertexIndexesToCheck.isEmpty()) {
                     computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
-                            distanceResult);
+                            distanceResult, requestedIssuePreloads);
                 }
 
                 assert vertexIndexesToCheck.isEmpty();
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
             }
+
+            var requestedVerticesIterator = requestedIssuePreloads.iterator();
+            while (requestedVerticesIterator.hasNext()) {
+                var vertexIndex = requestedVerticesIterator.nextInt();
+                invalidatePreloadRequest(vertexIndex);
+            }
+            requestedIssuePreloads.clear();
 
             nearestCandidates.vertexIndices(result, k);
         }
@@ -1763,7 +1809,7 @@ public final class DiskANN implements AutoCloseable {
         private void computePQDistances(float[] lookupTable,
                                         IntArrayList vertexIndexesToCheck,
                                         BoundedGreedyVertexPriorityQueue nearestCandidates,
-                                        float[] distanceResult) {
+                                        float[] distanceResult, IntOpenHashSet requestedVerticesPreloads) {
             assert distanceResult.length == 4;
             assert vertexIndexesToCheck.size() <= 4;
 
@@ -1775,7 +1821,7 @@ public final class DiskANN implements AutoCloseable {
                     var vertexIndex = elements[i];
                     var pqDistance = PQ.computePQDistance(pqVectors, lookupTable, vertexIndex, pqQuantizersCount);
 
-                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
+                    addPqDistance(nearestCandidates, pqDistance, vertexIndex, requestedVerticesPreloads);
                 }
             } else {
                 var vertexIndex1 = elements[0];
@@ -1790,42 +1836,48 @@ public final class DiskANN implements AutoCloseable {
                 for (int i = 0; i < 4; i++) {
                     var pqDistance = distanceResult[i];
                     var vertexIndex = elements[i];
-                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
+                    addPqDistance(nearestCandidates, pqDistance, vertexIndex, requestedVerticesPreloads);
                 }
             }
 
             vertexIndexesToCheck.clear();
         }
 
-        private void addPqDistance(BoundedGreedyVertexPriorityQueue nearestCandidates, float pqDistance, int vertexIndex) {
+        private void addPqDistance(BoundedGreedyVertexPriorityQueue nearestCandidates, float pqDistance,
+                                   int vertexIndex, IntOpenHashSet requestedVerticesPreloads) {
             if (nearestCandidates.size() < maxAmountOfCandidates) {
                 nearestCandidates.add(vertexIndex, pqDistance, true);
 
                 issueVertexPreloadRequest(vertexIndex);
+                requestedVerticesPreloads.add(vertexIndex);
             } else {
                 var lastVertexDistance = nearestCandidates.maxDistance();
                 if (lastVertexDistance >= pqDistance) {
                     nearestCandidates.add(vertexIndex, pqDistance, true);
                     issueVertexPreloadRequest(vertexIndex);
+                    requestedVerticesPreloads.add(vertexIndex);
                 }
             }
         }
 
         private void issueVertexPreloadRequest(int vertexIndex) {
-//            var requestCounter = vertexPreloadRequestsMap.putIfAbsent(vertexIndex, 0L);
-//            while (!vertexPreloadRequestsMap.replace(vertexIndex, requestCounter, requestCounter + 1)) {
-//                requestCounter = vertexPreloadRequestsMap.get(vertexIndex);
-//            }
-//            try {
-//                vertexPreloadRequests.add(vertexIndex);
-//            } catch (InterruptedException e) {
-//                throw new RuntimeException(e);
-//            }
+            vertexPreloadRequestsMap.putIfAbsent(vertexIndex, 0L);
+            var requestCounter = vertexPreloadRequestsMap.get(vertexIndex);
+
+            while (!vertexPreloadRequestsMap.replace(vertexIndex, requestCounter, requestCounter + 1)) {
+                requestCounter = vertexPreloadRequestsMap.get(vertexIndex);
+            }
+            try {
+                vertexPreloadRequests.add(vertexIndex);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
 
 
         private void recalculateDistances(float[] queryVector, BoundedGreedyVertexPriorityQueue nearestCandidates,
-                                          IntArrayList vertexIndexesToCheck, float[] distanceResult) {
+                                          IntArrayList vertexIndexesToCheck, float[] distanceResult,
+                                          IntOpenHashSet requestedIssuePreloads) {
             var elements = vertexIndexesToCheck.elements();
             var size = vertexIndexesToCheck.size();
 
@@ -1834,6 +1886,9 @@ public final class DiskANN implements AutoCloseable {
                     var notCheckedVertex = elements[i];
 
                     var vertexIndex = nearestCandidates.vertexIndex(notCheckedVertex);
+
+                    invalidatePreloadRequest(vertexIndex, requestedIssuePreloads);
+
                     var preciseDistance = computeDistance(diskCache, vectorOffset(vertexIndex),
                             queryVector);
                     var pqDistance = nearestCandidates.vertexDistance(notCheckedVertex);
@@ -1929,9 +1984,29 @@ public final class DiskANN implements AutoCloseable {
                     pqReCalculated++;
                     pqReCalculationError += 100.0 * Math.abs(distanceResult[3] - pqDistance4) / distanceResult[3];
                 }
+
+                invalidatePreloadRequest(vertexIndex1, requestedIssuePreloads);
+                invalidatePreloadRequest(vertexIndex2, requestedIssuePreloads);
+                invalidatePreloadRequest(vertexIndex3, requestedIssuePreloads);
+                invalidatePreloadRequest(vertexIndex4, requestedIssuePreloads);
             }
 
             vertexIndexesToCheck.clear();
+        }
+
+        private void invalidatePreloadRequest(int vertexIndex, IntOpenHashSet requestedIssuePreloads) {
+            invalidatePreloadRequest(vertexIndex);
+            requestedIssuePreloads.remove(vertexIndex);
+        }
+
+        private void invalidatePreloadRequest(int vertexIndex) {
+            var value = vertexPreloadRequestsMap.get(vertexIndex);
+            assert value > 0;
+
+            while (!vertexPreloadRequestsMap.replace(vertexIndex, value, value - 1)) {
+                value = vertexPreloadRequestsMap.get(vertexIndex);
+                assert value > 0;
+            }
         }
 
         private long vectorOffset(long vertexIndex) {
@@ -1948,6 +2023,40 @@ public final class DiskANN implements AutoCloseable {
             var vertexOffset = (vertexIndex % verticesPerPage) * vertexRecordSize + Integer.BYTES;
 
             return vertexPageOffset + vertexOffset;
+        }
+
+        public void close() {
+            vertexPreloadRequests.stop();
+
+            for (var vectorPreloadThread : vectorPreloadThreads) {
+                vectorPreloadThread.shutdown();
+            }
+        }
+
+        private final class VertexPreloader implements Runnable {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        var vertexIndex = vertexPreloadRequests.dequeue();
+                        if (vertexIndex < 0) {
+                            return;
+                        }
+
+                        var requestCounter = vertexPreloadRequestsMap.get(vertexIndex);
+                        if (requestCounter > 0) {
+                            var vectorOffset = vectorOffset(vertexIndex);
+
+                            for (long i = vectorOffset;
+                                 i < vectorOffset + (long) vectorDim * Float.BYTES; i += Float.BYTES) {
+                                diskCache.get(ValueLayout.JAVA_FLOAT, i);
+                            }
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
     }
 

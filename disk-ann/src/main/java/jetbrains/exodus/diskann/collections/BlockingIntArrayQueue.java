@@ -8,9 +8,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class BlockingIntArrayQueue {
-    private AtomicInteger position = new AtomicInteger();
+    private final AtomicInteger head = new AtomicInteger();
+    private final AtomicInteger tail = new AtomicInteger();
 
-    private volatile AtomicIntegerArray array;
+    private final AtomicIntegerArray array;
     private final Lock lock = new ReentrantLock();
 
     private final Condition notEmpty = lock.newCondition();
@@ -18,86 +19,100 @@ public class BlockingIntArrayQueue {
 
     private final Condition notFull = lock.newCondition();
 
-    private final int maxCapacity;
+    private boolean stop;
 
-    public BlockingIntArrayQueue(int capacity, int maxCapacity) {
+    public BlockingIntArrayQueue(int capacity) {
         capacity = Integer.highestOneBit(capacity - 1) << 1;
         array = new AtomicIntegerArray(capacity);
+    }
 
-        maxCapacity = Integer.highestOneBit(maxCapacity - 1) << 1;
-        this.maxCapacity = Math.max(maxCapacity, capacity);
+    public void stop() {
+        lock.lock();
+        try {
+            stop = true;
+            notEmpty.signalAll();
+        } finally {
+            lock.unlock();
+        }
     }
 
     public void add(int value) throws InterruptedException {
         while (true) {
-            var position = this.position.get();
-            if (position == array.length()) {
-                break;
+            var head = this.head.get();
+            var tail = this.tail.get();
+
+            if (head - tail == array.length()) {
+                lock.lock();
+                try {
+                    head = this.head.get();
+                    tail = this.tail.get();
+
+                    if (head - tail == array.length()) {
+                        if (stop) {
+                            throw new IllegalStateException("Queue is stopped");
+                        }
+                        notFull.await();
+                    }
+                } finally {
+                    lock.unlock();
+                }
             }
 
-            if (this.position.compareAndSet(position, position + 1)) {
-                if (array.compareAndSet(position, Integer.MIN_VALUE, value)) {
-                    if (notEmptyWaiters.get() == 0) {
-                        return;
-                    } else {
-                        break;
+            if (this.head.compareAndSet(head, head + 1)) {
+                array.set(head & (array.length() - 1), value);
+                if (notEmptyWaiters.get() > 0) {
+                    lock.lock();
+                    try {
+                        notEmpty.signal();
+                    } finally {
+                        lock.unlock();
                     }
                 }
+
+                return;
             }
-        }
-
-
-        lock.lock();
-        try {
-            var position = this.position.get();
-
-            while (position == array.length()) {
-                if (position < maxCapacity) {
-                    var newArray = new AtomicIntegerArray(position << 1);
-
-                    for (var i = 0; i < position; i++) {
-                        newArray.set(i, array.get(i));
-                    }
-                    array = newArray;
-                } else {
-                    notFull.await();
-                }
-
-            }
-
-            while (!this.position.compareAndSet(position, position + 1)) {
-                if (array.compareAndSet(position, Integer.MIN_VALUE, value)) {
-                    break;
-                }
-
-                position = this.position.get();
-            }
-
-            if (notEmptyWaiters.get() > 0) {
-                notEmpty.signal();
-            }
-        } finally {
-            lock.unlock();
         }
     }
 
     public int dequeue() throws InterruptedException {
-        lock.lock();
-        try {
-            while (position.get() == 0) {
-                notEmptyWaiters.incrementAndGet();
-                notEmpty.await();
+        while (true) {
+            var head = this.head.get();
+            var tail = this.tail.get();
+
+            if (head == tail) {
+                lock.lock();
+                try {
+                    head = this.head.get();
+                    tail = this.tail.get();
+
+                    if (head == tail) {
+                        if (stop) {
+                            return -1;
+                        }
+
+                        notEmptyWaiters.incrementAndGet();
+                        try {
+                            notEmpty.await();
+                        } finally {
+                            notEmptyWaiters.decrementAndGet();
+                        }
+                    }
+                } finally {
+                    lock.unlock();
+                }
             }
 
-            notEmptyWaiters.decrementAndGet();
+            var value = array.get(head & (array.length() - 1));
+            if (this.head.compareAndSet(head, head + 1)) {
+                lock.lock();
+                try {
+                    notFull.signal();
+                } finally {
+                    lock.unlock();
+                }
 
-            var position = this.position.decrementAndGet();
-            var value = array.get(position);
-            array.set(position, Integer.MIN_VALUE);
-
-            return value;
-        } finally {
-            lock.unlock();
+                return value;
+            }
         }
     }
 }
