@@ -40,7 +40,7 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=512g",
+            "-XX:MaxDirectMemorySize=82g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
@@ -67,7 +67,7 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=64g",
+            "-XX:MaxDirectMemorySize=82g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
@@ -94,7 +94,7 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=64g",
+            "-XX:MaxDirectMemorySize=82g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
@@ -121,7 +121,7 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=64g",
+            "-XX:MaxDirectMemorySize=82g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
