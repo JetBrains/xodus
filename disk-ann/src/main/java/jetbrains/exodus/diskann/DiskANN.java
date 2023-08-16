@@ -271,7 +271,7 @@ public final class DiskANN implements AutoCloseable {
                 }
 
                 if ((i & (1024 * 1024 - 1)) == 0) {
-                    logger.info("Distribution of  {} vectors between partitions {}.", i, size);
+                    logger.info("Distribution of  {} vectors between partitions {} ({}%).", i, size, i * 100.0 / size);
                 }
             }
 
