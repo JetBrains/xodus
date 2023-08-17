@@ -52,6 +52,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
 public final class DiskANN implements AutoCloseable {
+    private static final int LOGGING_THRESHOLD = 1024 * 1024;
+
     public static final byte L2_DISTANCE = 0;
     public static final byte DOT_DISTANCE = 1;
 
@@ -352,9 +354,10 @@ public final class DiskANN implements AutoCloseable {
 
                     var startSave = System.nanoTime();
 
+                    graph.sortVertexesByGlobalIndex();
                     graph.saveVectorsToDisk();
+
                     graph.convertLocalEdgesToGlobal();
-                    graph.sortEdgesByGlobalIndex();
 
                     var endSave = System.nanoTime();
 
@@ -367,7 +370,7 @@ public final class DiskANN implements AutoCloseable {
 
                 logger.info("Merging and storing search graph partitions on disk under the path {} ...", filePath.toAbsolutePath());
                 var startSave = System.nanoTime();
-                mergeAndStorePartitionsOnDisk(graphs);
+                mergeAndStorePartitionsOnDisk(graphs, size);
                 var endSave = System.nanoTime();
                 logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms.",
                         filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
@@ -492,7 +495,7 @@ public final class DiskANN implements AutoCloseable {
         return medoid;
     }
 
-    private void mergeAndStorePartitionsOnDisk(MMapedGraph[] partitions) throws IOException {
+    private void mergeAndStorePartitionsOnDisk(MMapedGraph[] partitions, int size) throws IOException {
         assert partitions.length > 0;
 
         if (partitions.length == 1) {
@@ -523,7 +526,16 @@ public final class DiskANN implements AutoCloseable {
                     heapGlobalIndexes, partitions[j], partitionsIndexes);
         }
 
+        var logProgress = size > LOGGING_THRESHOLD;
+
         while (!heapGlobalIndexes.isEmpty()) {
+            if (logProgress) {
+                if ((resultIndex & (LOGGING_THRESHOLD - 1)) == 0) {
+                    logger.info("Merging of vertices, {} vertices has been processed out of {} ({}%).",
+                            resultIndex, size, resultIndex * 100.0 / size);
+                }
+            }
+
             var globalIndexPartitionIndex = heapGlobalIndexes.dequeueLong();
 
             var globalIndex = (int) (globalIndexPartitionIndex);
@@ -637,6 +649,10 @@ public final class DiskANN implements AutoCloseable {
         }
 
         diskCache.force();
+
+        if (logProgress) {
+            logger.info("Merging of vertices has been finished.");
+        }
     }
 
     private static void addPartitionEdgeToHeap(boolean[] completedPartitions, int partitionIndex,
@@ -1417,6 +1433,18 @@ public final class DiskANN implements AutoCloseable {
             }
         }
 
+        private void fetchVector(int vertexIndex, float[] vector) {
+            var vectorOffset = vectorOffset(vertexIndex);
+            MemorySegment.copy(vectors, vectorOffset, MemorySegment.ofArray(vector), 0L,
+                    (long) vectorDim * Float.BYTES);
+        }
+
+        private void setVector(int vertexIndex, float[] vector) {
+            var vectorOffset = vectorOffset(vertexIndex);
+            MemorySegment.copy(MemorySegment.ofArray(vector), 0L, vectors, vectorOffset,
+                    (long) vectorDim * Float.BYTES);
+        }
+
         private void setNeighbours(int vertexIndex, int[] neighbours, int size) {
             validateLocked(vertexIndex);
             assert (size >= 0 && size <= maxConnectionsPerVertex);
@@ -1534,8 +1562,19 @@ public final class DiskANN implements AutoCloseable {
 
         private void saveVectorsToDisk() throws IOException {
             var verticesPerPage = pageSize / vertexRecordSize;
+            var size = this.size;
+
+            var loggingEnabled = size > LOGGING_THRESHOLD;
+            if (loggingEnabled) {
+                logger.info("Saving {} vertexes to disk", size);
+            }
 
             for (long i = 0, vectorsIndex = 0; i < size; i++) {
+                if (loggingEnabled && (i & (LOGGING_THRESHOLD - 1)) == 0) {
+                    logger.info("Saving vertexes to disk: {} vertexes out of {} ({}%) were processed.", i, size,
+                            (i * 100.0) / size);
+                }
+
                 var vertexGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
 
                 var localPageOffset = (long) vertexGlobalIndex % verticesPerPage;
@@ -1557,7 +1596,12 @@ public final class DiskANN implements AutoCloseable {
             }
 
             vectorsArena.close();
+
             vectorsArena = null;
+
+            if (loggingEnabled) {
+                logger.info("Saving vertexes to disk: all {} vertexes were processed.", size);
+            }
         }
 
         private void convertLocalEdgesToGlobal() {
@@ -1580,7 +1624,13 @@ public final class DiskANN implements AutoCloseable {
             }
         }
 
-        private void sortEdgesByGlobalIndex() {
+        private void sortVertexesByGlobalIndex() {
+            var loggingEnabled = size > LOGGING_THRESHOLD;
+
+            if (loggingEnabled) {
+                logger.info("Sorting {} vertexes by global index", size);
+            }
+
             var objectIndexes = new Integer[size];
             for (var i = 0; i < size; i++) {
                 objectIndexes[i] = i;
@@ -1604,7 +1654,15 @@ public final class DiskANN implements AutoCloseable {
             var neighboursToAssign = new int[maxConnectionsPerVertex];
             var tpmNeighboursToAssign = new int[maxConnectionsPerVertex];
 
+            var vectorToAssign = new float[vectorDim];
+            var tmpVectorToAssign = new float[vectorDim];
+
             for (int i = 0; i < size; i++) {
+                if (loggingEnabled && (i & (LOGGING_THRESHOLD - 1)) == 0) {
+                    logger.info("Sorting vertexes by global index: {} vertexes out of {} ({}%) were processed.", i, size,
+                            (i * 100.0) / size);
+                }
+
                 if (!processedIndexes[i]) {
                     var currentIndexToProcess = i;
                     var indexToFetch = indexes[currentIndexToProcess];
@@ -1612,9 +1670,13 @@ public final class DiskANN implements AutoCloseable {
                     var globalIndexToAssign = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, indexToFetch);
                     var neighboursToAssignSize = fetchNeighbours(indexToFetch, neighboursToAssign);
 
+                    fetchVector(indexToFetch, vectorToAssign);
+
                     while (!processedIndexes[currentIndexToProcess]) {
                         int tmpNeighboursSize = fetchNeighbours(currentIndexToProcess, tpmNeighboursToAssign);
                         int tmpGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, currentIndexToProcess);
+
+                        fetchVector(currentIndexToProcess, tmpVectorToAssign);
 
                         globalIndexes.setAtIndex(ValueLayout.JAVA_INT, currentIndexToProcess, globalIndexToAssign);
                         acquireVertex(currentIndexToProcess);
@@ -1623,20 +1685,29 @@ public final class DiskANN implements AutoCloseable {
                         } finally {
                             releaseVertex(currentIndexToProcess);
                         }
+                        setVector(currentIndexToProcess, vectorToAssign);
 
                         var tmp = neighboursToAssign;
                         neighboursToAssign = tpmNeighboursToAssign;
                         tpmNeighboursToAssign = tmp;
 
+                        var vecTmp = vectorToAssign;
+                        vectorToAssign = tmpVectorToAssign;
+                        tmpVectorToAssign = vecTmp;
+
                         neighboursToAssignSize = tmpNeighboursSize;
                         globalIndexToAssign = tmpGlobalIndex;
-
 
                         processedIndexes[currentIndexToProcess] = true;
                         currentIndexToProcess = invertedIndexesMap.get(currentIndexToProcess);
                     }
                 }
             }
+
+            if (loggingEnabled) {
+                logger.info("Sorting vertexes by global index: all {} vertexes were processed.", size);
+            }
+
         }
 
         @Override
