@@ -21,7 +21,7 @@ import it.unimi.dsi.fastutil.longs.LongHeapPriorityQueue;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
-import jetbrains.exodus.diskann.collections.BlockingIntArrayQueue;
+import jetbrains.exodus.diskann.collections.BoundedCircularLongArrayQueue;
 import jetbrains.exodus.diskann.collections.BoundedGreedyVertexPriorityQueue;
 import jetbrains.exodus.diskann.collections.NonBlockingHashMapLongLong;
 import org.apache.commons.lang3.ArrayUtils;
@@ -1732,7 +1732,7 @@ public final class DiskANN implements AutoCloseable {
     private final class DiskGraph implements AutoCloseable {
         private final int medoid;
 
-        private final BlockingIntArrayQueue vertexPreloadRequests = new BlockingIntArrayQueue(8 * 1024 * 1024);
+        private final BoundedCircularLongArrayQueue vertexPreloadRequests = new BoundedCircularLongArrayQueue(1024 * 1024);
         private final NonBlockingHashMapLongLong vertexPreloadRequestsMap = new NonBlockingHashMapLongLong(1024);
         private final ArrayList<ExecutorService> vectorPreloadThreads = new ArrayList<>(4);
 
@@ -1971,11 +1971,8 @@ public final class DiskANN implements AutoCloseable {
             while (!vertexPreloadRequestsMap.replace(vertexIndex, requestCounter, requestCounter + 1)) {
                 requestCounter = vertexPreloadRequestsMap.get(vertexIndex);
             }
-            try {
-                vertexPreloadRequests.add(vertexIndex);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+
+            vertexPreloadRequests.add(vertexIndex);
         }
 
 
