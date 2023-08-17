@@ -275,33 +275,40 @@ public final class DiskANN implements AutoCloseable {
                 }
             }
 
-            var endPartition = System.nanoTime();
-            logger.info("Splitting vectors into {} partitions has been finished. Time spent {} ms.",
-                    partitions, (endPartition - startPartition) / 1_000_000.0);
-            logger.info("----------------------------------------------------------------------------------------------");
-            logger.info("Distribution of vertices by partitions:");
-            for (int i = 0; i < partitions; i++) {
-                logger.info("Partition {} has {} vectors.", i, vectorsByPartitions[i].size());
-            }
-            logger.info("----------------------------------------------------------------------------------------------");
-
-            var cores = Runtime.getRuntime().availableProcessors();
-            ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
-
-            if (logger.isInfoEnabled()) {
-                logger.info("Using " + cores + " cores for processing of vectors");
-            }
-
-            for (var i = 0; i < cores; i++) {
-                var id = i;
-                vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
-                    var thread = new Thread(r, name + "-vector mutator-" + id);
-                    thread.setDaemon(true);
-                    return thread;
-                }));
+            var totalPartitionsSize = 0;
+            for (var partition : vectorsByPartitions) {
+                totalPartitionsSize += partition.size();
             }
 
             try {
+                checkRequestedFreeSpace(path, size, totalPartitionsSize);
+
+                var endPartition = System.nanoTime();
+                logger.info("Splitting vectors into {} partitions has been finished. Time spent {} ms.",
+                        partitions, (endPartition - startPartition) / 1_000_000.0);
+                logger.info("----------------------------------------------------------------------------------------------");
+                logger.info("Distribution of vertices by partitions:");
+                for (int i = 0; i < partitions; i++) {
+                    logger.info("Partition {} has {} vectors.", i, vectorsByPartitions[i].size());
+                }
+                logger.info("----------------------------------------------------------------------------------------------");
+
+                var cores = Runtime.getRuntime().availableProcessors();
+                ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
+
+                if (logger.isInfoEnabled()) {
+                    logger.info("Using " + cores + " cores for processing of vectors");
+                }
+
+                for (var i = 0; i < cores; i++) {
+                    var id = i;
+                    vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
+                        var thread = new Thread(r, name + "-vector mutator-" + id);
+                        thread.setDaemon(true);
+                        return thread;
+                    }));
+                }
+
                 var filePath = path.resolve(name + ".graph");
                 if (Files.exists(filePath)) {
                     logger.warn("File {} already exists and will be deleted.", path);
@@ -911,8 +918,7 @@ public final class DiskANN implements AutoCloseable {
 
     private void initFile(Path path, int globalVertexCount) throws IOException {
         logger.info("Creating file {} for storing search graph...", path);
-        var pagesToWrite = (globalVertexCount + verticesPerPage - 1) / verticesPerPage;
-        var fileLength = (long) pagesToWrite * pageSize;
+        var fileLength = calculateRequestedFileLength(globalVertexCount);
         logger.info("Vertices to be stored {}, vertices per page {}, page size {}, file length {}",
                 globalVertexCount, verticesPerPage, pageSize, fileLength);
 
@@ -921,12 +927,31 @@ public final class DiskANN implements AutoCloseable {
 
             var channel = rwFile.getChannel();
             diskCache = channel.map(FileChannel.MapMode.READ_WRITE, 0, fileLength, arena.scope());
-
-            for (long i = 0, pageOffset = 0; i < pagesToWrite; i++, pageOffset += pageSize) {
-                diskCache.set(ValueLayout.JAVA_INT, pageOffset, globalVertexCount);
-            }
         }
         logger.info("File {} for storing search graph has been created.", path);
+    }
+
+    private void checkRequestedFreeSpace(Path dbPath, int size, int totalPartitionsSize) throws IOException {
+        var fileStore = Files.getFileStore(dbPath);
+        var usableSpace = fileStore.getUsableSpace();
+        var requiredGraphSpace = calculateRequestedFileLength(size);
+
+        //space needed for mmap files to store edges and global indexes of all partitions.
+        var maxPartitionSpace =
+                totalPartitionsSize * (maxConnectionsPerVertex + 1) * Integer.BYTES +
+                        totalPartitionsSize * Integer.BYTES;
+        var requiredSpace = requiredGraphSpace + maxPartitionSpace;
+
+        if (requiredSpace > usableSpace * 0.9) {
+            throw new IllegalStateException("Not enough free space on disk. Required " + requiredSpace + " bytes, " +
+                    "but only " + usableSpace +
+                    " bytes are available. 10% of free space should be kept available on disk after index is built.");
+        }
+    }
+
+    private long calculateRequestedFileLength(int globalVertexCount) {
+        var pagesToWrite = (globalVertexCount + verticesPerPage - 1) / verticesPerPage;
+        return (long) pagesToWrite * pageSize;
     }
 
 
@@ -1510,11 +1535,10 @@ public final class DiskANN implements AutoCloseable {
         private void saveVectorsToDisk() throws IOException {
             var verticesPerPage = pageSize / vertexRecordSize;
 
-
             for (long i = 0, vectorsIndex = 0; i < size; i++) {
                 var vertexGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
 
-                var localPageOffset = (long)vertexGlobalIndex % verticesPerPage;
+                var localPageOffset = (long) vertexGlobalIndex % verticesPerPage;
                 var pageOffset = ((long) vertexGlobalIndex / verticesPerPage) * pageSize;
 
                 var recordOffset = localPageOffset * vertexRecordSize + Integer.BYTES + pageOffset;
