@@ -240,7 +240,7 @@ final class KMeansMiniBatchGD {
         var step = species.length();
 
         var vectorBytesOffset = (long) vectorOffset * Float.BYTES;
-        var vectorStep = loopBound * Float.BYTES;
+        var vectorStep = step * Float.BYTES;
         for (; index < loopBound; index += step, vectorBytesOffset += vectorStep) {
             var centroidVector = FloatVector.fromArray(species, centroids, centroidOffset + index);
             var pointVector = FloatVector.fromMemorySegment(species, vector, vectorBytesOffset,
