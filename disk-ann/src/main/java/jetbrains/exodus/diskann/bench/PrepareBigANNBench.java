@@ -45,7 +45,7 @@ public class PrepareBigANNBench {
 
             try (var diskANN = new DiskANN("bigann_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
                 var ts1 = System.nanoTime();
-                diskANN.buildIndex(Math.max(vectorReader.size() / 5_000_000, 1), vectorReader);
+                diskANN.buildIndex(Math.max(vectorReader.size() / 2_000_000, 1), vectorReader);
                 var ts2 = System.nanoTime();
 
                 System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
