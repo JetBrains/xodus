@@ -148,7 +148,7 @@ public class PQKMeansTest {
                 vectorsByClusters.get(clusterIndex).add(vector);
             }
 
-            System.out.println("Data vectors clustered. Calculating silhouette coefficient...");
+           System.out.println("Data vectors clustered. Calculating silhouette coefficient...");
 
             var interClusterDistancePQ = interClusterDistancePQ(centroids, pqResult.pqCentroids, pqQuantizersCount
             );

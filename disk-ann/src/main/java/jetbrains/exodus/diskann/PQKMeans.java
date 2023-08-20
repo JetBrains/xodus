@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -29,6 +31,9 @@ import java.util.concurrent.Future;
 
 public final class PQKMeans {
     private static final Logger logger = LoggerFactory.getLogger(PQKMeans.class);
+
+    private static final VarHandle ATOMIC_HISTOGRAM_VARHANDLE
+            = MethodHandles.arrayElementVarHandle(int[].class);
 
     public static byte[] calculatePartitions(float[][][] centroids,
                                              MemorySegment pqVectors,
@@ -61,11 +66,10 @@ public final class PQKMeans {
 
 
             var histogram = new float[numClusters * quantizersCount * codeBaseSize];
+            var atomicIntegerHistogram = new int[numClusters * quantizersCount * codeBaseSize];
+
             var v = new float[codeBaseSize];
             var mulBuffer = new float[4];
-
-            var histogramStep = MatrixOperations.threeDMatrixIndex(quantizersCount,
-                    codeBaseSize, 0, 0, 1);
 
             var cores = (int) Math.min(Runtime.getRuntime().availableProcessors(), numVectors);
             logger.info("Using {} cores for PQ k-means clustering.", cores);
@@ -92,10 +96,12 @@ public final class PQKMeans {
                             var localSize = end - start;
 
                             for (long k = 0; k < localSize; k++) {
-                                var prevIndex = centroidIndexes.getAtIndex(ValueLayout.JAVA_INT, k);
-                                var centroidIndex = findClosestCluster(pqVectors, k, pqCentroids, distanceTables,
+                                var vectorIndex = start + k;
+
+                                var prevIndex = centroidIndexes.getAtIndex(ValueLayout.JAVA_INT, vectorIndex);
+                                var centroidIndex = findClosestCluster(pqVectors, vectorIndex, pqCentroids, distanceTables,
                                         quantizersCount, codeBaseSize);
-                                centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, k, centroidIndex);
+                                centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, vectorIndex, centroidIndex);
                                 assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
 
                                 if ((k & (4 * 1024 * 1024 - 1)) == 0) {
@@ -126,13 +132,16 @@ public final class PQKMeans {
                     }
 
                     logger.info("Iteration {} , generating histograms...", iteration);
-                    generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize, histogram);
+                    generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize, atomicIntegerHistogram);
+
+                    for (int i = 0; i < histogram.length; i++) {
+                        histogram[i] = (float) atomicIntegerHistogram[i];
+                    }
 
                     logger.info("Iteration {}, generating centroids...", iteration);
                     assignedDifferently = false;
-                    for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++,
-                            histogramOffset += histogramStep) {
-                        for (int q = 0; q < quantizersCount; q++) {
+                    for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++) {
+                        for (int q = 0; q < quantizersCount; q++, histogramOffset += codeBaseSize) {
                             var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize,
                                     codeBaseSize, q, 0, 0);
                             MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset,
@@ -141,9 +150,11 @@ public final class PQKMeans {
                             var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
                             assert minIndex < codeBaseSize;
 
-                            var prevIndex = pqCentroids[centroidIndex];
+                            var prevIndex = Byte.toUnsignedInt(pqCentroids[centroidIndex]);
+
                             pqCentroids[centroidIndex] = (byte) minIndex;
                             assignedDifferently = assignedDifferently || prevIndex != minIndex;
+                            centroidIndex++;
                         }
                     }
                     logger.info("Iteration {}, centroids are generated.", iteration);
@@ -160,12 +171,43 @@ public final class PQKMeans {
         }
     }
 
+
+    @SuppressWarnings("unused")
+    static int minCentroid(float[] distanceTables,
+                           MemorySegment centroidIndexes, MemorySegment pqVectors,
+                           int quantizerIndex, int quantizersCount, int codeBaseSize, int k) {
+
+        var sums = new float[codeBaseSize];
+        @SuppressWarnings("MismatchedReadAndWriteOfArray") var histogram = new int[codeBaseSize];
+
+        for (long i = 0; i < pqVectors.byteSize() / quantizersCount; i++) {
+            if (centroidIndexes.getAtIndex(ValueLayout.JAVA_INT, i) != k) {
+                continue;
+            }
+
+            var code = Byte.toUnsignedInt(pqVectors.get(ValueLayout.JAVA_BYTE, i * quantizersCount + quantizerIndex));
+
+            for (int centroidCandidate = 0; centroidCandidate < codeBaseSize; centroidCandidate++) {
+                var distanceIndex = MatrixOperations.threeDMatrixIndex(codeBaseSize, codeBaseSize,
+                        quantizerIndex, centroidCandidate, code);
+                var distance = distanceTables[distanceIndex];
+                sums[centroidCandidate] += distance;
+            }
+
+            histogram[code]++;
+
+        }
+
+        return MatrixOperations.minIndex(sums, 0, codeBaseSize);
+    }
+
     static void generateHistogram(final MemorySegment pqVectors,
                                   final MemorySegment clusters,
                                   final int quantizersCount,
                                   final int codeBaseSize,
-                                  final float[] histogram) {
-        Arrays.fill(histogram, 0.0f);
+                                  final int[] histogram) {
+        Arrays.fill(histogram, 0);
+
         var numCodes = pqVectors.byteSize();
         var numVectors = numCodes / quantizersCount;
 
@@ -196,7 +238,7 @@ public final class PQKMeans {
                             var code = Byte.toUnsignedInt(pqVectors.get(ValueLayout.JAVA_BYTE, codeIndex));
                             var histogramIndex = MatrixOperations.threeDMatrixIndex(quantizersCount,
                                     codeBaseSize, clusterIndex, n, code);
-                            histogram[histogramIndex]++;
+                            ATOMIC_HISTOGRAM_VARHANDLE.getAndAdd(histogram, histogramIndex, 1);
                             codeIndex++;
                         }
 
@@ -299,7 +341,7 @@ public final class PQKMeans {
 
     static int findClosestCluster(final MemorySegment pqVectors, final long vectorIndex, final byte[] centroids,
                                   final float[] distanceTable, final int quantizersCount, int codeBaseSize) {
-        int minIndex = 0;
+        int minIndex = -1;
         float minDistance = Float.MAX_VALUE;
 
         for (int centroidsIndex = 0, index = 0; centroidsIndex < centroids.length;

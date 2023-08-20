@@ -52,7 +52,7 @@ public final class MatrixOperations {
     }
 
     public static int threeDMatrixIndex(final int secondDimension, final int thirdDimension,
-                                 final int firstIndex, final int secondIndex, final int thirdIndex) {
+                                        final int firstIndex, final int secondIndex, final int thirdIndex) {
         return secondDimension * thirdDimension * firstIndex + thirdDimension * secondIndex + thirdIndex;
     }
 
@@ -65,8 +65,8 @@ public final class MatrixOperations {
     }
 
     public static int minIndex(float[] vector, int from, int to) {
-        var min = vector[0];
-        var minIndex = 0;
+        var min = vector[from];
+        var minIndex = from;
 
         for (var i = from + 1; i < to; i++) {
             if (vector[i] < min) {

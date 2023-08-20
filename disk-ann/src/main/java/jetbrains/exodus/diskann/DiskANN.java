@@ -709,15 +709,17 @@ public final class DiskANN implements AutoCloseable {
             }
 
             var mutatorFutures = new ArrayList<Future<?>>();
-            var neighborsArray = new ConcurrentLinkedQueue[size];
-            for (int i = 0; i < size; i++) {
-                //noinspection rawtypes
-                neighborsArray[i] = new ConcurrentLinkedQueue();
-            }
 
             var mutatorsCompleted = new AtomicInteger(0);
             var mutatorsCount = Math.min(vectorMutationThreads.size(), size);
 
+            var neighborsArray = new ConcurrentLinkedQueue[mutatorsCount];
+
+
+            for (int i = 0; i < mutatorsCount; i++) {
+                //noinspection rawtypes
+                neighborsArray[i] = new ConcurrentLinkedQueue();
+            }
 
             for (var i = 0; i < mutatorsCount; i++) {
                 var mutator = vectorMutationThreads.get(i);
