@@ -29,6 +29,7 @@ import org.apache.commons.rng.UniformRandomProvider;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,7 @@ public final class DiskANN implements AutoCloseable {
 
     private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
 
-    private static final int PAGE_SIZE_MULTIPLIER = 4 * 1024;
+    public static final int PAGE_SIZE_MULTIPLIER = 4 * 1024;
 
     private static final Logger logger = LoggerFactory.getLogger(DiskANN.class);
 
@@ -120,6 +121,7 @@ public final class DiskANN implements AutoCloseable {
     private final Path path;
 
     private final String name;
+
 
     public DiskANN(String name, final Path path, int vectorDim, byte distanceFunction) {
         this(name, path, vectorDim, distanceFunction, 1.2f,
@@ -248,11 +250,28 @@ public final class DiskANN implements AutoCloseable {
             var partitionsCentroids = PQKMeans.calculatePartitions(pqCentroids, pqVectors, partitions, 50,
                     distanceFunction);
 
+            var cores = Runtime.getRuntime().availableProcessors();
+            ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
+
+            if (logger.isInfoEnabled()) {
+                logger.info("Using " + cores + " cores for processing of vectors");
+            }
+
+            for (var i = 0; i < cores; i++) {
+                var id = i;
+                vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
+                    var thread = new Thread(r, name + "-vector mutator-" + id);
+                    thread.setDaemon(true);
+                    return thread;
+                }));
+            }
+
+            var graphs = new MMapedGraph[partitions];
+
             IntArrayList[] vectorsByPartitions = new IntArrayList[partitions];
             for (int i = 0; i < partitions; i++) {
                 vectorsByPartitions[i] = new IntArrayList(size / partitions);
             }
-
             var distanceTables = PQKMeans.distanceTables(pqCentroids, distanceFunction);
             for (int i = 0; i < size; i++) {
                 var twoClosestClusters = PQKMeans.findTwoClosestClusters(pqVectors, i, partitionsCentroids,
@@ -277,57 +296,74 @@ public final class DiskANN implements AutoCloseable {
                 }
             }
 
-            var totalPartitionsSize = 0;
-            for (var partition : vectorsByPartitions) {
-                totalPartitionsSize += partition.size();
-            }
+            var graphFilePath = path.resolve(name + ".graph");
+            try (var partitionsArena = Arena.openConfined()) {
+                var totalPartitionsSize = 0;
+                var maxPartitionSize = Integer.MIN_VALUE;
+                var minPartitionSize = Integer.MAX_VALUE;
 
-            try {
+                var dmPartitions = new MemorySegment[partitions];
+
+                for (var i = 0; i < partitions; i++) {
+                    var partition = vectorsByPartitions[i];
+
+                    var partitionSize = partition.size();
+                    totalPartitionsSize += partitionSize;
+
+                    if (partitionSize > maxPartitionSize) {
+                        maxPartitionSize = partitionSize;
+                    }
+                    if (partitionSize < minPartitionSize) {
+                        minPartitionSize = partitionSize;
+                    }
+
+                    dmPartitions[i] = partitionsArena.allocateArray(ValueLayout.JAVA_INT, partitionSize);
+                    for (int j = 0; j < partitionSize; j++) {
+                        dmPartitions[i].setAtIndex(ValueLayout.JAVA_INT, j, partition.getInt(j));
+                    }
+                }
+
                 checkRequestedFreeSpace(path, size, totalPartitionsSize);
 
+                var avgPartitionSize = totalPartitionsSize / partitions;
+                var squareSum = 0;
+
+                for (var i = 0; i < partitions; i++) {
+                    var partition = dmPartitions[i];
+                    var partitionSize = (int) (partition.byteSize() / Integer.SIZE);
+                    squareSum += (partitionSize - avgPartitionSize) * (partitionSize - avgPartitionSize);
+                }
+
                 var endPartition = System.nanoTime();
-                logger.info("Splitting vectors into {} partitions has been finished. Time spent {} ms.",
-                        partitions, (endPartition - startPartition) / 1_000_000.0);
+                logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
+                                "({}Kb on disk), " +
+                                "min partition size {} vertexes ({}Kb on disk), average size {}, deviation {}." +
+                                " Time spent {} ms.",
+                        partitions, maxPartitionSize, calculatePartitionSize(maxPartitionSize) / 1024, minPartitionSize,
+                        calculatePartitionSize(minPartitionSize) / 1024, avgPartitionSize,
+                        Math.sqrt((double) squareSum / partitions),
+                        (endPartition - startPartition) / 1_000_000.0);
                 logger.info("----------------------------------------------------------------------------------------------");
                 logger.info("Distribution of vertices by partitions:");
                 for (int i = 0; i < partitions; i++) {
-                    logger.info("Partition {} has {} vectors.", i, vectorsByPartitions[i].size());
+                    logger.info("Partition {} has {} vectors.", i, (int) dmPartitions[i].byteSize() / Integer.BYTES);
                 }
                 logger.info("----------------------------------------------------------------------------------------------");
 
-                var cores = Runtime.getRuntime().availableProcessors();
-                ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
-
-                if (logger.isInfoEnabled()) {
-                    logger.info("Using " + cores + " cores for processing of vectors");
-                }
-
-                for (var i = 0; i < cores; i++) {
-                    var id = i;
-                    vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
-                        var thread = new Thread(r, name + "-vector mutator-" + id);
-                        thread.setDaemon(true);
-                        return thread;
-                    }));
-                }
-
-                var filePath = path.resolve(name + ".graph");
-                if (Files.exists(filePath)) {
+                if (Files.exists(graphFilePath)) {
                     logger.warn("File {} already exists and will be deleted.", path);
-                    Files.delete(filePath);
+                    Files.delete(graphFilePath);
                 }
+                initFile(graphFilePath, size);
 
-                initFile(filePath, size);
-
-                var graphs = new MMapedGraph[partitions];
                 for (int i = 0; i < partitions; i++) {
-                    var partition = vectorsByPartitions[i];
-                    var partitionSize = partition.size();
+                    var partition = dmPartitions[i];
+                    var partitionSize = (int) partition.byteSize() / Integer.BYTES;
 
                     logger.info("Building search graph for partition {} with {} vectors...", i, partitionSize);
                     var graph = new MMapedGraph(partitionSize, i, name, path);
                     for (int j = 0; j < partitionSize; j++) {
-                        var vectorIndex = partition.getInt(j);
+                        var vectorIndex = partition.getAtIndex(ValueLayout.JAVA_INT, j);
 
                         var vector = vectorReader.read(vectorIndex);
                         graph.addVector(vectorIndex, vector);
@@ -350,44 +386,47 @@ public final class DiskANN implements AutoCloseable {
                             i, (endPrune - startPrune) / 1_000_000.0);
 
                     logger.info("Saving vectors of search graph for partition {} " +
-                            "on disk under the path {} ...", i, filePath.toAbsolutePath());
+                            "on disk under the path {} ...", i, graphFilePath.toAbsolutePath());
 
                     var startSave = System.nanoTime();
 
                     graph.sortVertexesByGlobalIndex();
                     graph.saveVectorsToDisk();
 
+                    graph.clearEdgeVersions();
+
                     graph.convertLocalEdgesToGlobal();
 
                     var endSave = System.nanoTime();
 
                     logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {}. Time spent {} ms.",
-                            i, filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+                            i, graphFilePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
 
                     graphs[i] = graph;
                 }
-
-
-                logger.info("Merging and storing search graph partitions on disk under the path {} ...", filePath.toAbsolutePath());
-                var startSave = System.nanoTime();
-                mergeAndStorePartitionsOnDisk(graphs, size);
-                var endSave = System.nanoTime();
-                logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms.",
-                        filePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
-
-                for (var mutator : vectorMutationThreads) {
-                    mutator.shutdown();
-                }
-                vectorMutationThreads.clear();
-
-                diskGraph = new DiskGraph(medoidMindIndex);
-                verticesSize = size;
-
-                storeIndexState();
-
-            } catch (IOException e) {
-                throw new RuntimeException("Error during creation of search graph for database " + name, e);
             }
+
+
+            logger.info("Merging and storing search graph partitions on disk under the path {} ...", graphFilePath.toAbsolutePath());
+            var startSave = System.nanoTime();
+            mergeAndStorePartitionsOnDisk(graphs, size);
+            var endSave = System.nanoTime();
+            logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms.",
+                    graphFilePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+
+            for (var mutator : vectorMutationThreads) {
+                mutator.shutdown();
+            }
+            vectorMutationThreads.clear();
+
+            diskGraph = new DiskGraph(medoidMindIndex);
+            verticesSize = size;
+
+            storeIndexState();
+
+
+        } catch (IOException e) {
+            throw new RuntimeException("Error during creation of search graph for database " + name, e);
         } finally {
             try {
                 vectorReader.close();
@@ -956,8 +995,7 @@ public final class DiskANN implements AutoCloseable {
 
         //space needed for mmap files to store edges and global indexes of all partitions.
         var maxPartitionSpace =
-                totalPartitionsSize * (maxConnectionsPerVertex + 1) * Integer.BYTES +
-                        totalPartitionsSize * Integer.BYTES;
+                calculatePartitionSize(totalPartitionsSize);
         var requiredSpace = requiredGraphSpace + maxPartitionSpace;
 
         if (requiredSpace > usableSpace * 0.9) {
@@ -965,6 +1003,11 @@ public final class DiskANN implements AutoCloseable {
                     "but only " + usableSpace +
                     " bytes are available. 10% of free space should be kept available on disk after index is built.");
         }
+    }
+
+    private int calculatePartitionSize(int partitionSize) {
+        return partitionSize * (maxConnectionsPerVertex + 1) * Integer.BYTES +
+                partitionSize * Integer.BYTES;
     }
 
     private long calculateRequestedFileLength(int globalVertexCount) {
@@ -991,7 +1034,8 @@ public final class DiskANN implements AutoCloseable {
 
         private final MemorySegment globalIndexes;
 
-        private final AtomicLongArray edgeVersions;
+        @Nullable
+        private AtomicLongArray edgeVersions;
 
         private final Arena edgesArena;
 
@@ -1061,6 +1105,10 @@ public final class DiskANN implements AutoCloseable {
         @NotNull
         private static Path edgesPath(int id, String name, Path path, long ts) {
             return path.resolve((name + "-" + id) + ts + ".edges");
+        }
+
+        private void clearEdgeVersions() {
+            edgeVersions = null;
         }
 
         private int medoid() {
@@ -1370,6 +1418,9 @@ public final class DiskANN implements AutoCloseable {
 
 
         private int getNeighboursSize(int vertexIndex) {
+            var edgeVersions = this.edgeVersions;
+            assert edgeVersions != null;
+
             var version = edgeVersions.get(vertexIndex);
             while (true) {
                 var size = edges.get(ValueLayout.JAVA_INT, edgesSizeOffset(vertexIndex));
@@ -1392,6 +1443,9 @@ public final class DiskANN implements AutoCloseable {
 
         @NotNull
         private int[] fetchNeighbours(int vertexIndex) {
+            var edgeVersions = this.edgeVersions;
+            assert edgeVersions != null;
+
             var version = edgeVersions.get(vertexIndex);
 
             while (true) {
@@ -1413,38 +1467,39 @@ public final class DiskANN implements AutoCloseable {
             }
         }
 
-        private int fetchNeighbours(int vertexIndex, int[] neighbours) {
-            var version = edgeVersions.get(vertexIndex);
 
-            while (true) {
-                var edgesIndex = (long) vertexIndex * (maxConnectionsPerVertex + 1);
-                var size = edges.get(ValueLayout.JAVA_INT, edgesIndex * Integer.BYTES);
+        private int fetchNeighboursNotThreadSafe(int vertexIndex, int[] neighbours) {
+            var edgesIndex = (long) vertexIndex * (maxConnectionsPerVertex + 1);
+            var size = edges.get(ValueLayout.JAVA_INT, edgesIndex * Integer.BYTES);
 
+            MemorySegment.copy(edges, edgesIndex * Integer.BYTES + Integer.BYTES,
+                    MemorySegment.ofArray(neighbours), 0L, (long) size * Integer.BYTES);
+            assert size <= maxConnectionsPerVertex;
 
-                MemorySegment.copy(edges, edgesIndex * Integer.BYTES + Integer.BYTES,
-                        MemorySegment.ofArray(neighbours), 0L, (long) size * Integer.BYTES);
-                var newVersion = edgeVersions.get(vertexIndex);
-
-                VarHandle.acquireFence();
-                if (newVersion == version) {
-                    assert size <= maxConnectionsPerVertex;
-                    return size;
-                }
-
-                version = newVersion;
-            }
+            return size;
         }
 
-        private void fetchVector(int vertexIndex, float[] vector) {
+        private void fetchVectorNotThreadSafe(int vertexIndex, float[] vector) {
             var vectorOffset = vectorOffset(vertexIndex);
             MemorySegment.copy(vectors, vectorOffset, MemorySegment.ofArray(vector), 0L,
                     (long) vectorDim * Float.BYTES);
         }
 
-        private void setVector(int vertexIndex, float[] vector) {
+        private void setVectorNotThreadSafe(int vertexIndex, float[] vector) {
             var vectorOffset = vectorOffset(vertexIndex);
             MemorySegment.copy(MemorySegment.ofArray(vector), 0L, vectors, vectorOffset,
                     (long) vectorDim * Float.BYTES);
+        }
+
+        private void setNeighboursNotThreadSafe(int vertexIndex, int[] neighbours, int size) {
+            assert (size >= 0 && size <= maxConnectionsPerVertex);
+
+            var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES;
+            edges.set(ValueLayout.JAVA_INT, edgesOffset, size);
+
+            MemorySegment.copy(MemorySegment.ofArray(neighbours), 0L, edges,
+                    edgesOffset + Integer.BYTES,
+                    (long) size * Integer.BYTES);
         }
 
         private void setNeighbours(int vertexIndex, int[] neighbours, int size) {
@@ -1524,6 +1579,9 @@ public final class DiskANN implements AutoCloseable {
             var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES;
             var result = fetchNeighbours(vertexIndex);
 
+            var edgeVersions = this.edgeVersions;
+            assert edgeVersions != null;
+
             edgeVersions.incrementAndGet(vertexIndex);
             edges.set(ValueLayout.JAVA_INT, edgesOffset, 0);
             edgeVersions.incrementAndGet(vertexIndex);
@@ -1532,6 +1590,9 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private void acquireVertex(long vertexIndex) {
+            var edgeVersions = this.edgeVersions;
+            assert edgeVersions != null;
+
             while (true) {
                 var version = edgeVersions.get((int) vertexIndex);
                 if ((version & 1L) != 0L) {
@@ -1544,6 +1605,9 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private void validateLocked(long vertexIndex) {
+            var edgeVersions = this.edgeVersions;
+            assert edgeVersions != null;
+
             var version = edgeVersions.get((int) vertexIndex);
             if ((version & 1L) != 1L) {
                 throw new IllegalStateException("Vertex " + vertexIndex + " is not acquired");
@@ -1551,6 +1615,9 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private void releaseVertex(long vertexIndex) {
+            var edgeVersions = this.edgeVersions;
+            assert edgeVersions != null;
+
             while (true) {
                 var version = edgeVersions.get((int) vertexIndex);
                 if ((version & 1L) != 1L) {
@@ -1609,7 +1676,7 @@ public final class DiskANN implements AutoCloseable {
         private void convertLocalEdgesToGlobal() {
             var neighbours = new int[maxConnectionsPerVertex];
             for (int i = 0; i < size; i++) {
-                var neighboursSize = fetchNeighbours(i, neighbours);
+                var neighboursSize = fetchNeighboursNotThreadSafe(i, neighbours);
 
                 for (int j = 0; j < neighboursSize; j++) {
                     var neighbour = neighbours[j];
@@ -1617,12 +1684,7 @@ public final class DiskANN implements AutoCloseable {
                     neighbours[j] = globalNeighbour;
                 }
 
-                acquireVertex(i);
-                try {
-                    setNeighbours(i, neighbours, neighboursSize);
-                } finally {
-                    releaseVertex(i);
-                }
+                setNeighboursNotThreadSafe(i, neighbours, neighboursSize);
             }
         }
 
@@ -1670,24 +1732,20 @@ public final class DiskANN implements AutoCloseable {
                     var indexToFetch = indexes[currentIndexToProcess];
 
                     var globalIndexToAssign = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, indexToFetch);
-                    var neighboursToAssignSize = fetchNeighbours(indexToFetch, neighboursToAssign);
+                    var neighboursToAssignSize = fetchNeighboursNotThreadSafe(indexToFetch, neighboursToAssign);
 
-                    fetchVector(indexToFetch, vectorToAssign);
+                    fetchVectorNotThreadSafe(indexToFetch, vectorToAssign);
 
                     while (!processedIndexes[currentIndexToProcess]) {
-                        int tmpNeighboursSize = fetchNeighbours(currentIndexToProcess, tpmNeighboursToAssign);
+                        int tmpNeighboursSize = fetchNeighboursNotThreadSafe(currentIndexToProcess, tpmNeighboursToAssign);
                         int tmpGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, currentIndexToProcess);
 
-                        fetchVector(currentIndexToProcess, tmpVectorToAssign);
+                        fetchVectorNotThreadSafe(currentIndexToProcess, tmpVectorToAssign);
 
                         globalIndexes.setAtIndex(ValueLayout.JAVA_INT, currentIndexToProcess, globalIndexToAssign);
-                        acquireVertex(currentIndexToProcess);
-                        try {
-                            setNeighbours(currentIndexToProcess, neighboursToAssign, neighboursToAssignSize);
-                        } finally {
-                            releaseVertex(currentIndexToProcess);
-                        }
-                        setVector(currentIndexToProcess, vectorToAssign);
+                        setNeighboursNotThreadSafe(currentIndexToProcess, neighboursToAssign, neighboursToAssignSize);
+
+                        setVectorNotThreadSafe(currentIndexToProcess, vectorToAssign);
 
                         var tmp = neighboursToAssign;
                         neighboursToAssign = tpmNeighboursToAssign;
