@@ -335,12 +335,17 @@ public final class DiskANN implements AutoCloseable {
                 }
 
                 var endPartition = System.nanoTime();
+                long maxPartitionSizeKBytes = calculatePartitionSize(maxPartitionSize) / 1024;
+                long minPartitionSizeKBytes = calculatePartitionSize(minPartitionSize) / 1024;
                 logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
-                                "({}Kb on disk), " +
-                                "min partition size {} vertexes ({}Kb on disk), average size {}, deviation {}." +
+                                "({}Kb/{}Mb/{}Gb on disk), " +
+                                "min partition size {} vertexes ({}Kb/{}Mb/{}Gb on disk), average size {}, deviation {}." +
                                 " Time spent {} ms.",
-                        partitions, maxPartitionSize, calculatePartitionSize(maxPartitionSize) / 1024, minPartitionSize,
-                        calculatePartitionSize(minPartitionSize) / 1024, avgPartitionSize,
+                        partitions, maxPartitionSize,
+                        maxPartitionSizeKBytes, maxPartitionSizeKBytes / 1024, maxPartitionSizeKBytes / 1024 / 1024,
+                        minPartitionSize,
+                        minPartitionSizeKBytes, minPartitionSizeKBytes / 1024, minPartitionSizeKBytes / 1024 / 1024,
+                        avgPartitionSize,
                         Math.sqrt((double) squareSum / partitions),
                         (endPartition - startPartition) / 1_000_000.0);
                 logger.info("----------------------------------------------------------------------------------------------");
@@ -356,6 +361,7 @@ public final class DiskANN implements AutoCloseable {
                 }
                 initFile(graphFilePath, size);
 
+                var verticesProcessed = 0L;
                 for (int i = 0; i < partitions; i++) {
                     var partition = dmPartitions[i];
                     var partitionSize = (int) partition.byteSize() / Integer.BYTES;
@@ -397,10 +403,13 @@ public final class DiskANN implements AutoCloseable {
 
                     graph.convertLocalEdgesToGlobal();
 
+                    verticesProcessed += partitionSize;
                     var endSave = System.nanoTime();
 
-                    logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {}. Time spent {} ms.",
-                            i, graphFilePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+                    logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {} " +
+                                    "({}%). Time spent {} ms.",
+                            i, graphFilePath.toAbsolutePath(), 100.0 * verticesProcessed / totalPartitionsSize,
+                            (endSave - startSave) / 1_000_000.0);
 
                     graphs[i] = graph;
                 }
@@ -1005,14 +1014,14 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private int calculatePartitionSize(int partitionSize) {
+    private long calculatePartitionSize(long partitionSize) {
         return partitionSize * (maxConnectionsPerVertex + 1) * Integer.BYTES +
                 partitionSize * Integer.BYTES;
     }
 
-    private long calculateRequestedFileLength(int globalVertexCount) {
+    private long calculateRequestedFileLength(long globalVertexCount) {
         var pagesToWrite = (globalVertexCount + verticesPerPage - 1) / verticesPerPage;
-        return (long) pagesToWrite * pageSize;
+        return pagesToWrite * pageSize;
     }
 
 
