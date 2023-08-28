@@ -287,7 +287,9 @@ public final class PQKMeans {
                     var vector3 = centroids[n][j + 2];
                     var vector4 = centroids[n][j + 3];
 
-                    Distance.computeDistance(origin, 0, vector1, 0, vector2, 0, vector3, 0, vector4, 0, batchResult, vecSize, distanceFunction
+                    Distance.computeDistance(origin, 0, vector1, 0, vector2,
+                            0, vector3, 0, vector4, 0,
+                            batchResult, vecSize, distanceFunction
                     );
 
                     var offset = baseOffset + j;

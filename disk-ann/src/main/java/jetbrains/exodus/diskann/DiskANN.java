@@ -43,6 +43,7 @@ import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.VarHandle;
+import java.lang.management.ManagementFactory;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -204,12 +205,22 @@ public final class DiskANN implements AutoCloseable {
 
     public void buildIndex(int partitions, VectorReader vectorReader) {
         try {
+            var memoryMXBean = ManagementFactory.getMemoryMXBean();
+            logger.info("Building index for database {} ..., max non-heap memory usage {} Mb, committed {} Mb. " +
+                            "Max heap memory usage {} Mb, committed {} Mb", name,
+                    memoryMXBean.getNonHeapMemoryUsage().getMax() / 1024 / 1024,
+                    memoryMXBean.getNonHeapMemoryUsage().getCommitted() / 1024 / 1024,
+                    memoryMXBean.getHeapMemoryUsage().getMax() / 1024 / 1024,
+                    memoryMXBean.getHeapMemoryUsage().getCommitted() / 1024 / 1024);
+
             if (vectorReader.size() == 0) {
                 logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
                 return;
             }
 
-            logger.info("Generating PQ codes for vectors...");
+            logger.info("Generating PQ codes for vectors, non-heap memory usage {} Mb, heap memory usage {} Mb",
+                    memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             var startPQ = System.nanoTime();
             var pqResult = PQ.generatePQCodes(pqQuantizersCount, pqSubVectorSize, distanceFunction, vectorReader, arena);
@@ -219,8 +230,10 @@ public final class DiskANN implements AutoCloseable {
             pqCodeBaseSize = pqCentroids[0].length;
 
             var endPQ = System.nanoTime();
-            logger.info("PQ codes for vectors have been generated. Time spent " + (endPQ - startPQ) / 1_000_000.0 +
-                    " ms.");
+            logger.info("PQ codes for vectors have been generated. Time spent {} ms." +
+                            " Non-heap memory usage {} Mb, heap memory usage {} Mb",
+                    (endPQ - startPQ) / 1_000_000.0, memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             var size = vectorReader.size();
 
@@ -239,8 +252,11 @@ public final class DiskANN implements AutoCloseable {
             }
 
             var endPQCentroid = System.nanoTime();
-            logger.info("Calculation of graph search entry point has been finished. Time spent {} ms.",
-                    (endPQCentroid - startPQCentroid) / 1_000_000.0);
+            logger.info("Calculation of graph search entry point has been finished. Time spent {} ms. " +
+                            "Non-heap memory usage {} Mb, heap memory usage {} Mb",
+                    (endPQCentroid - startPQCentroid) / 1_000_000.0,
+                    memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             var medoidMindIndex = Integer.MAX_VALUE;
             var medoidMinDistance = Float.MAX_VALUE;
@@ -250,12 +266,16 @@ public final class DiskANN implements AutoCloseable {
             var partitionsCentroids = PQKMeans.calculatePartitions(pqCentroids, pqVectors, partitions, 50,
                     distanceFunction);
 
+            logger.info("Detection of {} partitions has been finished. " +
+                            "Non-heap memory usage {} Mb, heap memory usage {} Mb", partitions,
+                    memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
+
             var cores = Runtime.getRuntime().availableProcessors();
             ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
 
-            if (logger.isInfoEnabled()) {
-                logger.info("Using " + cores + " cores for processing of vectors");
-            }
+
+            logger.info("Using {} cores for processing of vectors", cores);
 
             for (var i = 0; i < cores; i++) {
                 var id = i;
@@ -335,19 +355,22 @@ public final class DiskANN implements AutoCloseable {
                 }
 
                 var endPartition = System.nanoTime();
-                long maxPartitionSizeKBytes = calculatePartitionSize(maxPartitionSize) / 1024;
-                long minPartitionSizeKBytes = calculatePartitionSize(minPartitionSize) / 1024;
+                long maxPartitionSizeKBytes = calculateGraphPartitionSize(maxPartitionSize) / 1024;
+                long minPartitionSizeKBytes = calculateGraphPartitionSize(minPartitionSize) / 1024;
+
                 logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
-                                "({}Kb/{}Mb/{}Gb on disk), " +
-                                "min partition size {} vertexes ({}Kb/{}Mb/{}Gb on disk), average size {}, deviation {}." +
-                                " Time spent {} ms.",
+                                "({}Kb/{}Mb/{}Gb in memory), " +
+                                "min partition size {} vertexes ({}Kb/{}Mb/{}Gb in memory), average size {}, deviation {}." +
+                                " Time spent {} ms. Non-heap memory usage {} Mb, heap memory usage {} Mb.",
                         partitions, maxPartitionSize,
                         maxPartitionSizeKBytes, maxPartitionSizeKBytes / 1024, maxPartitionSizeKBytes / 1024 / 1024,
                         minPartitionSize,
                         minPartitionSizeKBytes, minPartitionSizeKBytes / 1024, minPartitionSizeKBytes / 1024 / 1024,
                         avgPartitionSize,
                         Math.sqrt((double) squareSum / partitions),
-                        (endPartition - startPartition) / 1_000_000.0);
+                        (endPartition - startPartition) / 1_000_000.0,
+                        memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                        memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
                 logger.info("----------------------------------------------------------------------------------------------");
                 logger.info("Distribution of vertices by partitions:");
                 for (int i = 0; i < partitions; i++) {
@@ -384,7 +407,11 @@ public final class DiskANN implements AutoCloseable {
 
                     graph.generateRandomEdges();
 
-                    logger.info("Search graph for partition {} has been built. Pruning...", i);
+                    logger.info("Search graph for partition {} has been built. " +
+                                    "Non-heap memory usage {} Mb, heap memory usage {} Mb. Pruning...", i,
+                            memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                            memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
+
                     var startPrune = System.nanoTime();
                     pruneIndex(graph, graph.medoid(), distanceMultiplication, vectorMutationThreads, i);
                     var endPrune = System.nanoTime();
@@ -407,9 +434,12 @@ public final class DiskANN implements AutoCloseable {
                     var endSave = System.nanoTime();
 
                     logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {} " +
-                                    "({}%). Time spent {} ms.",
+                                    "({}%). Time spent {} ms. " +
+                                    "Non-heap memory usage {} Mb, heap memory usage {} Mb.",
                             i, graphFilePath.toAbsolutePath(), 100.0 * verticesProcessed / totalPartitionsSize,
-                            (endSave - startSave) / 1_000_000.0);
+                            (endSave - startSave) / 1_000_000.0,
+                            memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                            memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
                     graphs[i] = graph;
                 }
@@ -420,8 +450,11 @@ public final class DiskANN implements AutoCloseable {
             var startSave = System.nanoTime();
             mergeAndStorePartitionsOnDisk(graphs, size);
             var endSave = System.nanoTime();
-            logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms.",
-                    graphFilePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0);
+            logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms. " +
+                            "Non-heap memory usage {} Mb, heap memory usage {} Mb.",
+                    graphFilePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0,
+                    memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             for (var mutator : vectorMutationThreads) {
                 mutator.shutdown();
@@ -1003,9 +1036,10 @@ public final class DiskANN implements AutoCloseable {
         var requiredGraphSpace = calculateRequestedFileLength(size);
 
         //space needed for mmap files to store edges and global indexes of all partitions.
-        var maxPartitionSpace =
-                calculatePartitionSize(totalPartitionsSize);
-        var requiredSpace = requiredGraphSpace + maxPartitionSpace;
+        var requiredPartitionsSpace =
+                (long) totalPartitionsSize * (maxConnectionsPerVertex + 1) * Integer.BYTES +
+                        (long) totalPartitionsSize * Integer.BYTES;
+        var requiredSpace = requiredGraphSpace + requiredPartitionsSpace;
 
         if (requiredSpace > usableSpace * 0.9) {
             throw new IllegalStateException("Not enough free space on disk. Required " + requiredSpace + " bytes, " +
@@ -1014,9 +1048,12 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private long calculatePartitionSize(long partitionSize) {
+    private long calculateGraphPartitionSize(long partitionSize) {
+        //1. edges
+        //2. global indexes
+        //3. vertex records
         return partitionSize * (maxConnectionsPerVertex + 1) * Integer.BYTES +
-                partitionSize * Integer.BYTES;
+                partitionSize * Integer.BYTES + partitionSize * vectorDim * Float.BYTES;
     }
 
     private long calculateRequestedFileLength(long globalVertexCount) {
