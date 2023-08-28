@@ -369,6 +369,7 @@ public final class DiskANN implements AutoCloseable {
                 long maxPartitionSizeKBytes = calculateGraphPartitionSize(maxPartitionSize) / 1024;
                 long minPartitionSizeKBytes = calculateGraphPartitionSize(minPartitionSize) / 1024;
 
+                //noinspection IntegerDivisionInFloatingPointContext
                 logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
                                 "({}Kb/{}Mb/{}Gb in memory), " +
                                 "min partition size {} vertexes ({}Kb/{}Mb/{}Gb in memory), average size {}, deviation {}." +
@@ -378,7 +379,7 @@ public final class DiskANN implements AutoCloseable {
                         minPartitionSize,
                         minPartitionSizeKBytes, minPartitionSizeKBytes / 1024, minPartitionSizeKBytes / 1024 / 1024,
                         avgPartitionSize,
-                        Math.sqrt((double) squareSum / partitions),
+                        Math.sqrt(squareSum / partitions),
                         (endPartition - startPartition) / 1_000_000.0,
                         directMemoryPool.getMemoryUsed() / 1024 / 1024,
                         memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
