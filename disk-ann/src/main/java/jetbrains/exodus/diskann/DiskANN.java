@@ -43,6 +43,7 @@ import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.VarHandle;
+import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -206,10 +207,20 @@ public final class DiskANN implements AutoCloseable {
     public void buildIndex(int partitions, VectorReader vectorReader) {
         try {
             var memoryMXBean = ManagementFactory.getMemoryMXBean();
-            logger.info("Building index for database {} ..., max non-heap memory usage {} Mb, committed {} Mb. " +
+            var pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
+            BufferPoolMXBean directMemoryPool = null;
+
+            for (var pool : pools) {
+                if (pool.getName().equals("direct")) {
+                    directMemoryPool = pool;
+                    break;
+                }
+            }
+
+            assert directMemoryPool != null;
+
+            logger.info("Building index for database {} ..." +
                             "Max heap memory usage {} Mb, committed {} Mb", name,
-                    memoryMXBean.getNonHeapMemoryUsage().getMax() / 1024 / 1024,
-                    memoryMXBean.getNonHeapMemoryUsage().getCommitted() / 1024 / 1024,
                     memoryMXBean.getHeapMemoryUsage().getMax() / 1024 / 1024,
                     memoryMXBean.getHeapMemoryUsage().getCommitted() / 1024 / 1024);
 
@@ -218,8 +229,8 @@ public final class DiskANN implements AutoCloseable {
                 return;
             }
 
-            logger.info("Generating PQ codes for vectors, non-heap memory usage {} Mb, heap memory usage {} Mb",
-                    memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+            logger.info("Generating PQ codes for vectors, direct memory usage {} Mb, heap memory usage {} Mb",
+                    directMemoryPool.getMemoryUsed() / 1024 / 1024,
                     memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             var startPQ = System.nanoTime();
@@ -231,8 +242,8 @@ public final class DiskANN implements AutoCloseable {
 
             var endPQ = System.nanoTime();
             logger.info("PQ codes for vectors have been generated. Time spent {} ms." +
-                            " Non-heap memory usage {} Mb, heap memory usage {} Mb",
-                    (endPQ - startPQ) / 1_000_000.0, memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                            " Direct memory usage {} Mb, heap memory usage {} Mb",
+                    (endPQ - startPQ) / 1_000_000.0, directMemoryPool.getMemoryUsed() / 1024 / 1024,
                     memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             var size = vectorReader.size();
@@ -253,9 +264,9 @@ public final class DiskANN implements AutoCloseable {
 
             var endPQCentroid = System.nanoTime();
             logger.info("Calculation of graph search entry point has been finished. Time spent {} ms. " +
-                            "Non-heap memory usage {} Mb, heap memory usage {} Mb",
+                            "Direct memory usage {} Mb, heap memory usage {} Mb",
                     (endPQCentroid - startPQCentroid) / 1_000_000.0,
-                    memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                    directMemoryPool.getMemoryUsed() / 1024 / 1024,
                     memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             var medoidMindIndex = Integer.MAX_VALUE;
@@ -267,8 +278,8 @@ public final class DiskANN implements AutoCloseable {
                     distanceFunction);
 
             logger.info("Detection of {} partitions has been finished. " +
-                            "Non-heap memory usage {} Mb, heap memory usage {} Mb", partitions,
-                    memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                            "Direct memory usage {} Mb, heap memory usage {} Mb", partitions,
+                    directMemoryPool.getMemoryUsed() / 1024 / 1024,
                     memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             var cores = Runtime.getRuntime().availableProcessors();
@@ -361,7 +372,7 @@ public final class DiskANN implements AutoCloseable {
                 logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
                                 "({}Kb/{}Mb/{}Gb in memory), " +
                                 "min partition size {} vertexes ({}Kb/{}Mb/{}Gb in memory), average size {}, deviation {}." +
-                                " Time spent {} ms. Non-heap memory usage {} Mb, heap memory usage {} Mb.",
+                                " Time spent {} ms. Direct memory usage {} Mb, heap memory usage {} Mb.",
                         partitions, maxPartitionSize,
                         maxPartitionSizeKBytes, maxPartitionSizeKBytes / 1024, maxPartitionSizeKBytes / 1024 / 1024,
                         minPartitionSize,
@@ -369,7 +380,7 @@ public final class DiskANN implements AutoCloseable {
                         avgPartitionSize,
                         Math.sqrt((double) squareSum / partitions),
                         (endPartition - startPartition) / 1_000_000.0,
-                        memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                        directMemoryPool.getMemoryUsed() / 1024 / 1024,
                         memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
                 logger.info("----------------------------------------------------------------------------------------------");
                 logger.info("Distribution of vertices by partitions:");
@@ -408,8 +419,8 @@ public final class DiskANN implements AutoCloseable {
                     graph.generateRandomEdges();
 
                     logger.info("Search graph for partition {} has been built. " +
-                                    "Non-heap memory usage {} Mb, heap memory usage {} Mb. Pruning...", i,
-                            memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                                    "Direct memory usage {} Mb, heap memory usage {} Mb. Pruning...", i,
+                            directMemoryPool.getMemoryUsed() / 1024 / 1024,
                             memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
                     var startPrune = System.nanoTime();
@@ -435,10 +446,10 @@ public final class DiskANN implements AutoCloseable {
 
                     logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {} " +
                                     "({}%). Time spent {} ms. " +
-                                    "Non-heap memory usage {} Mb, heap memory usage {} Mb.",
+                                    "Direct memory usage {} Mb, heap memory usage {} Mb.",
                             i, graphFilePath.toAbsolutePath(), 100.0 * verticesProcessed / totalPartitionsSize,
                             (endSave - startSave) / 1_000_000.0,
-                            memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                            directMemoryPool.getMemoryUsed() / 1024 / 1024,
                             memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
                     graphs[i] = graph;
@@ -451,9 +462,9 @@ public final class DiskANN implements AutoCloseable {
             mergeAndStorePartitionsOnDisk(graphs, size);
             var endSave = System.nanoTime();
             logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms. " +
-                            "Non-heap memory usage {} Mb, heap memory usage {} Mb.",
+                            "Direct memory usage {} Mb, heap memory usage {} Mb.",
                     graphFilePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0,
-                    memoryMXBean.getNonHeapMemoryUsage().getUsed() / 1024 / 1024,
+                    directMemoryPool.getMemoryUsed() / 1024 / 1024,
                     memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             for (var mutator : vectorMutationThreads) {
