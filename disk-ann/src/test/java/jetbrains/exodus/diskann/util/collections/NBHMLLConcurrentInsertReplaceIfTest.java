@@ -13,26 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.diskann.collections;
+package jetbrains.exodus.diskann.util.collections;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class NBHMLLConcurrentInsertRemoveTest {
+public class NBHMLLConcurrentInsertReplaceIfTest {
     private static final int THREAD_INSERTION_COUNT = 10;
-    private static final int THREAD_DELETION_COUNT = 10;
+    private static final int THREAD_REPLACE_COUNT = 10;
     private static final int INSERT_COUNT = 100_000;
 
     @Test
-    public void testConcurrentInsertRemove() {
+    public void testConcurrentInsertReplaceIf() {
         var nbhmll = new NonBlockingHashMapLongLong();
         try (var executor = Executors.newCachedThreadPool()) {
             var insertFutures = new Future<?>[THREAD_INSERTION_COUNT];
-            var removeFutures = new Future<?>[THREAD_DELETION_COUNT];
+            var removeFutures = new Future<?>[THREAD_REPLACE_COUNT];
 
             var latch = new CountDownLatch(1);
             var added = new ConcurrentHashMap<Long, Long>();
@@ -43,8 +48,8 @@ public class NBHMLLConcurrentInsertRemoveTest {
             }
 
             var lastIteration = new AtomicBoolean(false);
-            for (var i = 0; i < THREAD_DELETION_COUNT; i++) {
-                removeFutures[i] = executor.submit(new NBHMLLConcurrentRemoveRunnable(latch, nbhmll, added,
+            for (var i = 0; i < THREAD_REPLACE_COUNT; i++) {
+                removeFutures[i] = executor.submit(new NBHMLLConcurrentReplaceRunnable(latch, nbhmll, added,
                         lastIteration));
             }
 
@@ -69,7 +74,7 @@ public class NBHMLLConcurrentInsertRemoveTest {
             }
 
             for (long i = 0; i < THREAD_INSERTION_COUNT * INSERT_COUNT; i++) {
-                Assert.assertEquals("key  = " + i, i % 2 == 1 ? -1 : 2 * i, nbhmll.get(i));
+                Assert.assertEquals("key  = " + i, i % 2 == 0 ? i + 1 : 2 * i, nbhmll.get(i));
             }
         }
     }
@@ -108,9 +113,9 @@ public class NBHMLLConcurrentInsertRemoveTest {
                 throw new RuntimeException(e);
             }
 
-            for (var value : keys) {
-                nbhmll.put(value, 2 * value);
-                added.put(value, 2 * value);
+            for (var key : keys) {
+                nbhmll.put(key, 2 * key);
+                added.put(key, 2 * key);
             }
 
             return null;
@@ -118,7 +123,7 @@ public class NBHMLLConcurrentInsertRemoveTest {
         }
     }
 
-    private static final class NBHMLLConcurrentRemoveRunnable implements Callable<Void> {
+    private static final class NBHMLLConcurrentReplaceRunnable implements Callable<Void> {
         private final CountDownLatch latch;
 
         private final NonBlockingHashMapLongLong nbhmll;
@@ -127,9 +132,9 @@ public class NBHMLLConcurrentInsertRemoveTest {
 
         private final AtomicBoolean lastIteration;
 
-        private NBHMLLConcurrentRemoveRunnable(CountDownLatch latch,
-                                               NonBlockingHashMapLongLong nbhmll,
-                                               ConcurrentHashMap<Long, Long> added, AtomicBoolean lastIteration) {
+        private NBHMLLConcurrentReplaceRunnable(CountDownLatch latch,
+                                                NonBlockingHashMapLongLong nbhmll,
+                                                ConcurrentHashMap<Long, Long> added, AtomicBoolean lastIteration) {
             this.latch = latch;
             this.nbhmll = nbhmll;
             this.added = added;
@@ -146,23 +151,24 @@ public class NBHMLLConcurrentInsertRemoveTest {
 
             do {
                 for (var key : added.keySet()) {
-                    if (key % 2 == 1) {
-                        nbhmll.remove(key, 2 * key);
-                        added.remove(key, 2 * key);
+                    var value = nbhmll.get(key);
+                    if (key % 2 == 0 && value == 2 * key) {
+                        nbhmll.replace(key, value, key + 1);
                     }
 
+                    added.remove(key);
                 }
             } while (!lastIteration.get());
 
             for (var key : added.keySet()) {
-                if (key % 2 == 1) {
-                    nbhmll.remove(key, 2 * key);
-                    added.remove(key, 2 * key);
+                var value = nbhmll.get(key);
+                if (key % 2 == 0 && value == 2 * key) {
+                    nbhmll.replace(key, value, key + 1);
                 }
+                added.remove(key);
             }
 
             return null;
-
         }
     }
 }

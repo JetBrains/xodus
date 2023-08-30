@@ -98,6 +98,7 @@ subprojects {
         extraProperties["owner"] = "JetBrains s.r.o."
         include("**/*.kt")
         include("**/*.java")
+        exclude("**/jetbrains/exodus/diskann/diskcache/**")
         mapping(
             mapOf(
                 "kt" to "SLASHSTAR_STYLE",
@@ -156,7 +157,13 @@ subprojects {
 
         minHeapSize = "1g"
         maxHeapSize = "1g"
-        jvmArgs = listOf("-ea", "-XX:+HeapDumpOnOutOfMemoryError", "--add-modules", "jdk.incubator.vector", "--enable-preview")
+        jvmArgs = listOf(
+            "-ea",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "--enable-preview"
+        )
     }
 
     tasks.javadoc {

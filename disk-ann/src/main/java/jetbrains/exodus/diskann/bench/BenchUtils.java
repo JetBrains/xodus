@@ -57,14 +57,14 @@ final class BenchUtils {
 
         try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
             var ts1 = System.nanoTime();
-            diskANN.buildIndex(16, new ArrayVectorReader(vectors));
+            diskANN.buildIndex(16, new ArrayVectorReader(vectors), 110L * 1024 * 1024);
             var ts2 = System.nanoTime();
 
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
         }
 
         try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
-            diskANN.loadIndex();
+            diskANN.loadIndex(110L * 1024 * 1024 * 1024L);
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);
             var queryVectors = readFVectors(queryFile, vectorDimensions);
@@ -106,8 +106,9 @@ final class BenchUtils {
                 var ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-                System.out.printf("Avg. query time : %d us, errors: %f%% pq error %f%%%n", (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage, diskANN.getPQErrorAvg());
+                System.out.printf("Avg. query time : %d us, errors: %f%% pq error %f%%, cache hits %d%%%n",
+                        (ts2 - ts1) / 1000 / queryVectors.length,
+                        errorPercentage, diskANN.getPQErrorAvg(), diskANN.hits());
                 diskANN.resetPQErrorStat();
             }
         } catch (InterruptedException e) {

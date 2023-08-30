@@ -1,3 +1,18 @@
+/*
+ * Copyright 2010 - 2023 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package jetbrains.exodus.diskann.bench;
 
 import jetbrains.exodus.diskann.DiskANN;
@@ -45,7 +60,7 @@ public class PrepareBigANNBench {
 
             try (var diskANN = new DiskANN("bigann_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
                 var ts1 = System.nanoTime();
-                diskANN.buildIndex(64, vectorReader);
+                diskANN.buildIndex(64, vectorReader, 110L * 1024 * 1024);
                 var ts2 = System.nanoTime();
 
                 System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);

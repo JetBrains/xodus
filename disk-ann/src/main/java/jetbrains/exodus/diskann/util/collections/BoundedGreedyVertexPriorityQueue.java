@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.diskann.collections;
+package jetbrains.exodus.diskann.util.collections;
 
 public final class BoundedGreedyVertexPriorityQueue {
     //Flattened presentation of a sorted array of vertex objects

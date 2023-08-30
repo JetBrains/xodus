@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.diskann.collections;
+package jetbrains.exodus.diskann.util.collections;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;

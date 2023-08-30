@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.diskann.collections;
+package jetbrains.exodus.diskann.util.collections;
 
 import it.unimi.dsi.fastutil.longs.LongDoubleImmutablePair;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.Random;
+import java.util.TreeSet;
 
 public class BoundedSymmetricMinMaxHeapTest {
     @Test

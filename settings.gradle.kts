@@ -34,6 +34,7 @@ dependencyResolutionManagement {
             version("fastutil", "8.5.9")
             version("commons-rng", "1.5")
             version("caffeine", "3.1.8")
+            version("errorprone", "2.21.1")
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
@@ -74,7 +75,14 @@ dependencyResolutionManagement {
                 "commons-rng-sampling", "org.apache.commons",
                 "commons-rng-sampling"
             ).versionRef("commons-rng")
+
             library("caffeine", "com.github.ben-manes.caffeine", "caffeine").versionRef("caffeine")
+
+            library(
+                "errorprone-annotations",
+                "com.google.errorprone",
+                "error_prone_annotations"
+            ).versionRef("errorprone")
         }
     }
 }

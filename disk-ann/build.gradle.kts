@@ -8,7 +8,7 @@ dependencies {
     implementation(libs.commons.compress)
     implementation(libs.commons.lang)
     implementation(libs.jcTools.core)
-    implementation(libs.caffeine)
+    implementation(libs.errorprone.annotations)
 
     annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.36")
     implementation("org.openjdk.jmh:jmh-core:1.36")

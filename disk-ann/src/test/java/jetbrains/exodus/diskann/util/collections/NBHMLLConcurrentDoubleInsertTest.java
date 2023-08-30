@@ -13,15 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.diskann.collections;
+package jetbrains.exodus.diskann.util.collections;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-public class NBHMLLConcurrentInsertTest {
+public class NBHMLLConcurrentDoubleInsertTest {
     private static final int THREAD_COUNT = 20;
     private static final int INSERT_COUNT = 100_000;
 
@@ -32,10 +36,13 @@ public class NBHMLLConcurrentInsertTest {
 
         var futures = new Future<?>[THREAD_COUNT];
         var latch = new CountDownLatch(1);
-        for (var i = 0; i < THREAD_COUNT; i++) {
-            futures[i] = executor.submit(new NBHMLLConcurrentInsertRunnable(i * INSERT_COUNT,
+        for (var i = 0; i < THREAD_COUNT; i += 2) {
+            futures[i] = executor.submit(new NBHMLLConcurrentInsertRunnable((long) i * INSERT_COUNT / 2,
+                    (long) (i / 2 + 1) * INSERT_COUNT, latch, nbhmll));
+            futures[i + 1] = executor.submit(new NBHMLLConcurrentInsertRunnable(i * INSERT_COUNT,
                     (i + 1) * INSERT_COUNT, latch, nbhmll));
         }
+
         latch.countDown();
 
         for (var future : futures) {
@@ -46,7 +53,7 @@ public class NBHMLLConcurrentInsertTest {
             }
         }
 
-        for (long i = 0; i < THREAD_COUNT * INSERT_COUNT; i++) {
+        for (long i = 0; i < THREAD_COUNT * INSERT_COUNT / 2; i++) {
             Assert.assertEquals(2 * i, nbhmll.get(i));
         }
     }
@@ -90,5 +97,3 @@ public class NBHMLLConcurrentInsertTest {
         }
     }
 }
-
-
