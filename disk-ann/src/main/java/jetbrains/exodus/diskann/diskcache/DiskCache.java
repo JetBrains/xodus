@@ -228,10 +228,10 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                 (long) pagesStructure.cachePagesCount * pagesStructure.pageStructure.pageSize / 1024 / 1024,
 
                 pagesStructure.preLoadersCount,
-                (pagesStructure.allocatedPagesCount - pagesStructure.cachePagesCount)
+                (long) (pagesStructure.allocatedPagesCount - pagesStructure.cachePagesCount)
                         * pagesStructure.pageStructure.pageSize / 1024 / 1024,
 
-                pagesStructure.allocatedPagesCount * pagesStructure.pageStructure.pageSize / 1024 / 1024,
+                (long) pagesStructure.allocatedPagesCount * pagesStructure.pageStructure.pageSize / 1024 / 1024,
 
                 pagesStructure.pageStructure.vertexRecordSize,
                 pagesStructure.pageStructure.verticesCountPerPage);
