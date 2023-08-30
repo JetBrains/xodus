@@ -64,7 +64,7 @@ final class BenchUtils {
         }
 
         try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
-            diskANN.loadIndex(100L * 1024 * 1024 * 1024L);
+            diskANN.loadIndex(500L * 1024 * 1024L);
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);
             var queryVectors = readFVectors(queryFile, vectorDimensions);

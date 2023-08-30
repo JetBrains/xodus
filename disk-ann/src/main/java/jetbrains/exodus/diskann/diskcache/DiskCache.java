@@ -294,7 +294,12 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             freePagesQueue.enqueue(i);
         }
 
-        pagePreLoaders = Executors.newFixedThreadPool(pagesStructure.preLoadersCount);
+        pagePreLoaders = Executors.newFixedThreadPool(pagesStructure.preLoadersCount, r -> {
+            var thread = new Thread(r);
+            thread.setName("DiskCache page preloader");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
 
