@@ -560,7 +560,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                 return;
             }
 
-            scheduleDrainBuffers();
+            drainBuffersFromPreloader();
             Thread.onSpinWait();
         }
 
@@ -596,11 +596,11 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             switch (drainStatus) {
                 case IDLE -> {
                     casDrainStatus(IDLE, REQUIRED);
-                    scheduleDrainBuffers();
+                    drainBuffersFromPreloader();
                     return;
                 }
                 case REQUIRED -> {
-                    scheduleDrainBuffers();
+                    drainBuffersFromPreloader();
                     return;
                 }
                 case PROCESSING_TO_IDLE -> {
@@ -708,6 +708,24 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             } catch (Throwable t) {
                 logger.warn("Exception thrown when submitting maintenance task", t);
                 maintenance(/* ignored */ null);
+            } finally {
+                evictionLock.unlock();
+            }
+        }
+    }
+
+    private void drainBuffersFromPreloader() {
+        if (drainStatusOpaque() >= PROCESSING_TO_IDLE) {
+            return;
+        }
+        if (evictionLock.tryLock()) {
+            try {
+                int drainStatus = drainStatusOpaque();
+                if (drainStatus >= PROCESSING_TO_IDLE) {
+                    return;
+                }
+                setDrainStatusRelease(PROCESSING_TO_IDLE);
+                performCleanUp();
             } finally {
                 evictionLock.unlock();
             }
@@ -1317,7 +1335,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                                                           int maxConnectionsPerVertex, Path graphFile) throws IOException {
         var pageStructure = calculatePageStructure(vectorDim, maxConnectionsPerVertex, graphFile);
 
-        var cacheSize = 0.8 * totalSize;
+        var cacheSize = 0.9 * totalSize;
         var cachePagesCount = cacheSize / pageStructure.pageSize;
         var blocksInPage = pageStructure.pageSize / pageStructure.blockSize;
 
