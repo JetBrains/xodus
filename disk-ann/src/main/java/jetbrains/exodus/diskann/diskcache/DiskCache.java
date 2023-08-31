@@ -316,7 +316,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return inMemoryPageIndex * pageSize + recordOffset + vectorRecordOffset;
     }
 
-    public int fetchEdges(long vertexIndex, int[] edges, long[] inMemoryPageIndexVersion, int lastPreloadIndex) {
+    public int fetchEdges(long vertexIndex, int[] edges, long[] inMemoryPageIndexVersion) {
         var recordOffset = (vertexIndex % verticesCountPerPage) * vertexRecordSize + Long.BYTES;
         var edgeCountOffset = recordOffset + edgesCountOffset;
         var edgesOffset = recordOffset + this.edgesOffset;
@@ -326,7 +326,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
         int edgesCount;
         do {
-            get(vertexIndex, inMemoryPageIndexVersion, lastPreloadIndex);
+            get(vertexIndex, inMemoryPageIndexVersion);
             inMemoryPageIndex = inMemoryPageIndexVersion[0];
             pageVersion = inMemoryPageIndexVersion[1];
 
@@ -343,7 +343,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return currentVersion == pageVersion;
     }
 
-    public void get(long vertexIndex, @NotNull long[] inMemoryPageIndexAndVersion, int lastPreloadIndex) {
+    public void get(long vertexIndex, @NotNull long[] inMemoryPageIndexAndVersion) {
         long pageIndex = vertexIndex / verticesCountPerPage;
 
         while (true) {
@@ -354,10 +354,6 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
             var future = preloadingPages.putIfAbsent(pageIndex, futurePlaceHolder);
             if (future == null) {
-                if (pageIndex <= lastPreloadIndex) {
-                    logger.warn("Page {} was not preloaded at all", pageIndex);
-                }
-
                 future = schedulePagePreLoading(pageIndex);
 
                 //noinspection unchecked
@@ -367,9 +363,6 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             } else if (future == futurePlaceHolder) {
                 Thread.onSpinWait();
             } else {
-                if (pageIndex <= lastPreloadIndex) {
-                    logger.warn("Page {} was not preloaded in time", pageIndex);
-                }
                 //noinspection unchecked
                 if (waitForPreloadingCompletion((Future<Void>) future, pageIndex, inMemoryPageIndexAndVersion)) {
                     return;
@@ -560,7 +553,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                 return;
             }
 
-            drainBuffersFromPreloader();
+            scheduleDrainBuffers();
             Thread.onSpinWait();
         }
 
@@ -596,11 +589,11 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             switch (drainStatus) {
                 case IDLE -> {
                     casDrainStatus(IDLE, REQUIRED);
-                    drainBuffersFromPreloader();
+                    scheduleDrainBuffers();
                     return;
                 }
                 case REQUIRED -> {
-                    drainBuffersFromPreloader();
+                    scheduleDrainBuffers();
                     return;
                 }
                 case PROCESSING_TO_IDLE -> {
@@ -708,24 +701,6 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             } catch (Throwable t) {
                 logger.warn("Exception thrown when submitting maintenance task", t);
                 maintenance(/* ignored */ null);
-            } finally {
-                evictionLock.unlock();
-            }
-        }
-    }
-
-    private void drainBuffersFromPreloader() {
-        if (drainStatusOpaque() >= PROCESSING_TO_IDLE) {
-            return;
-        }
-        if (evictionLock.tryLock()) {
-            try {
-                int drainStatus = drainStatusOpaque();
-                if (drainStatus >= PROCESSING_TO_IDLE) {
-                    return;
-                }
-                setDrainStatusRelease(PROCESSING_TO_IDLE);
-                performCleanUp();
             } finally {
                 evictionLock.unlock();
             }

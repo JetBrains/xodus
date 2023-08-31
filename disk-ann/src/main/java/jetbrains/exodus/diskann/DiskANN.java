@@ -1868,7 +1868,7 @@ public final class DiskANN implements AutoCloseable {
             var preloadFrom = 0;
 
             do {
-                diskCache.get(startVertexIndex, inMemoryPageIndexAndVersion, resultSizeAndLastIndex[1]);
+                diskCache.get(startVertexIndex, inMemoryPageIndexAndVersion);
                 var startVectorOffset = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], startVertexIndex);
                 nearestCandidates.add(startVertexIndex, computeDistance(diskCache.pages, startVectorOffset, queryVector),
                         false);
@@ -1898,7 +1898,7 @@ public final class DiskANN implements AutoCloseable {
                             }
 
                             recalculateDistances(queryVector, nearestCandidates,
-                                    vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion, resultSizeAndLastIndex[1]);
+                                    vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion);
                             continue;
                         }
 
@@ -1908,7 +1908,7 @@ public final class DiskANN implements AutoCloseable {
                         } else {
                             if (!vertexIndexesToCheck.isEmpty()) {
                                 recalculateDistances(queryVector, nearestCandidates,
-                                        vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion, resultSizeAndLastIndex[1]);
+                                        vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion);
                                 continue;
                             }
                             currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
@@ -1916,7 +1916,7 @@ public final class DiskANN implements AutoCloseable {
                         }
                     }
                     recalculateDistances(queryVector, nearestCandidates,
-                            vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion, resultSizeAndLastIndex[1]);
+                            vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion);
                 }
 
                 if (currentVertex < 0) {
@@ -1925,8 +1925,8 @@ public final class DiskANN implements AutoCloseable {
 
                 preloadVertices(nearestCandidates, preloadFrom, vertexToPreload, resultSizeAndLastIndex);
 
-                var edgesCount = diskCache.fetchEdges(currentVertex, vertexNeighbours, inMemoryPageIndexAndVersion,
-                        resultSizeAndLastIndex[1]);
+                var edgesCount = diskCache.fetchEdges(currentVertex, vertexNeighbours, inMemoryPageIndexAndVersion
+                );
                 assert vertexIndexesToCheck.isEmpty();
 
                 for (var i = 0; i < edgesCount; i++) {
@@ -2087,13 +2087,13 @@ public final class DiskANN implements AutoCloseable {
             return 0;
         }
 
-        private void loadPage(int vertexIndex, long[] inMemoryPageIndexAndVersion, int lastPreloadIndex) {
-            diskCache.get(vertexIndex, inMemoryPageIndexAndVersion, lastPreloadIndex);
+        private void loadPage(int vertexIndex, long[] inMemoryPageIndexAndVersion) {
+            diskCache.get(vertexIndex, inMemoryPageIndexAndVersion);
         }
 
         private void recalculateDistances(float[] queryVector, BoundedGreedyVertexPriorityQueue nearestCandidates,
                                           IntArrayList vertexIndexesToCheck, float[] distanceResult,
-                                          long[] inMemoryPageIndexAndVersion, int lastPreloadIndex) {
+                                          long[] inMemoryPageIndexAndVersion) {
             var elements = vertexIndexesToCheck.elements();
             var size = vertexIndexesToCheck.size();
 
@@ -2105,7 +2105,7 @@ public final class DiskANN implements AutoCloseable {
 
                     float preciseDistance;
                     do {
-                        diskCache.get(vertexIndex, inMemoryPageIndexAndVersion, lastPreloadIndex);
+                        diskCache.get(vertexIndex, inMemoryPageIndexAndVersion);
                         var vectorOffset = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex);
 
                         preciseDistance = computeDistance(diskCache.pages, vectorOffset,
@@ -2156,22 +2156,22 @@ public final class DiskANN implements AutoCloseable {
 
 
                 do {
-                    loadPage(vertexIndex1, inMemoryPageIndexAndVersion, lastPreloadIndex);
+                    loadPage(vertexIndex1, inMemoryPageIndexAndVersion);
                     inMemoryPageIndex1 = inMemoryPageIndexAndVersion[0];
                     currentPageVersion1 = inMemoryPageIndexAndVersion[1];
                     var vectorOffset1 = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex1);
 
-                    loadPage(vertexIndex2, inMemoryPageIndexAndVersion, lastPreloadIndex);
+                    loadPage(vertexIndex2, inMemoryPageIndexAndVersion);
                     inMemoryPageIndex2 = inMemoryPageIndexAndVersion[0];
                     currentPageVersion2 = inMemoryPageIndexAndVersion[1];
                     var vectorOffset2 = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex2);
 
-                    loadPage(vertexIndex3, inMemoryPageIndexAndVersion, lastPreloadIndex);
+                    loadPage(vertexIndex3, inMemoryPageIndexAndVersion);
                     inMemoryPageIndex3 = inMemoryPageIndexAndVersion[0];
                     currentPageVersion3 = inMemoryPageIndexAndVersion[1];
                     var vectorOffset3 = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex3);
 
-                    loadPage(vertexIndex4, inMemoryPageIndexAndVersion, lastPreloadIndex);
+                    loadPage(vertexIndex4, inMemoryPageIndexAndVersion);
                     inMemoryPageIndex4 = inMemoryPageIndexAndVersion[0];
                     currentPageVersion4 = inMemoryPageIndexAndVersion[1];
                     var vectorOffset4 = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex4);
