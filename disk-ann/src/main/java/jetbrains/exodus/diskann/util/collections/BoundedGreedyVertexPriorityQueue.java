@@ -38,10 +38,11 @@ public final class BoundedGreedyVertexPriorityQueue {
         flags = new byte[capacity];
     }
 
-    public void add(int vertexIndex, float distance, boolean pqDistance) {
+    public int add(int vertexIndex, float distance, boolean pqDistance) {
         var index = binarySearch(distance, 0, size);
+
         if (size == capacity && index == size) {
-            return;
+            return -1;
         }
 
         if (nextNotCheckedVertex > index) {
@@ -67,6 +68,12 @@ public final class BoundedGreedyVertexPriorityQueue {
         if (size < capacity) {
             size++;
         }
+
+        return index;
+    }
+
+    public int peekNextNotCheckedNextVertexIndex() {
+        return nextNotCheckedVertex;
     }
 
     public int nextNotCheckedVertexIndex() {
@@ -208,20 +215,23 @@ public final class BoundedGreedyVertexPriorityQueue {
         nextNotCheckedVertex = 0;
     }
 
-    public int fetchNotCheckedNotPreloaded(int[] vertexIndexes, int maxResultSize) {
+    public void fetchNotCheckedNotPreloaded(int[] vertexIndexes, int from, int size, int[] resultSizeAndLastIndex) {
         var resultSize = 0;
-        maxResultSize = Math.min(maxResultSize, vertexIndexes.length);
+        size = Math.min(size, vertexIndexes.length);
 
-        for (int i = nextNotCheckedVertex; i < size && resultSize < maxResultSize; i++) {
+        var lastIndex = -1;
+        for (int i = from; i < this.size && resultSize < size; i++) {
             var flag = flags[i];
 
             if ((flag & (CHECKED_FLAG | PRELOADED_FLAG)) == 0) {
                 vertexIndexes[resultSize++] = vertices[i];
                 flags[i] = (byte) (flag | PRELOADED_FLAG);
+                lastIndex = i;
             }
         }
 
-        return resultSize;
+        resultSizeAndLastIndex[0] = resultSize;
+        resultSizeAndLastIndex[1] = lastIndex;
     }
 
     private int binarySearch(float distance, int form, int to) {

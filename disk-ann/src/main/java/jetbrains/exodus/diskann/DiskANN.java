@@ -1864,6 +1864,9 @@ public final class DiskANN implements AutoCloseable {
 
             var vertexToPreload = threadLocalCache.vertexToPreload;
 
+            var resultSizeAndLastIndex = new int[2];
+            var preloadFrom = 0;
+
             do {
                 diskCache.get(startVertexIndex, inMemoryPageIndexAndVersion);
                 var startVectorOffset = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], startVertexIndex);
@@ -1885,6 +1888,9 @@ public final class DiskANN implements AutoCloseable {
 
                     while (vertexIndexesToCheck.size() < 4) {
                         var notCheckedVertex = nearestCandidates.nextNotCheckedVertexIndex();
+                        if (notCheckedVertex + 1 > preloadFrom) {
+                            preloadFrom = notCheckedVertex + 1;
+                        }
 
                         if (notCheckedVertex < 0) {
                             if (vertexIndexesToCheck.isEmpty()) {
@@ -1917,6 +1923,8 @@ public final class DiskANN implements AutoCloseable {
                     break;
                 }
 
+                preloadVertices(nearestCandidates, preloadFrom, vertexToPreload, resultSizeAndLastIndex);
+
                 var edgesCount = diskCache.fetchEdges(currentVertex, vertexNeighbours, inMemoryPageIndexAndVersion);
                 assert vertexIndexesToCheck.isEmpty();
 
@@ -1937,7 +1945,12 @@ public final class DiskANN implements AutoCloseable {
                             var addedVertices = computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
                                     distanceResult);
                             if (addedVertices > 0) {
-                                preloadVertices(nearestCandidates, vertexToPreload);
+                                var nextChecked = nearestCandidates.peekNextNotCheckedNextVertexIndex();
+                                if (nextChecked > preloadFrom) {
+                                    preloadFrom = nextChecked;
+                                }
+                                preloadVertices(nearestCandidates, preloadFrom, vertexToPreload, resultSizeAndLastIndex);
+
                             }
                         }
 
@@ -1951,7 +1964,13 @@ public final class DiskANN implements AutoCloseable {
                     var addedVertices = computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
                             distanceResult);
                     if (addedVertices > 0) {
-                        preloadVertices(nearestCandidates, vertexToPreload);
+                        var nextChecked = nearestCandidates.peekNextNotCheckedNextVertexIndex();
+
+                        if (nextChecked > preloadFrom) {
+                            preloadFrom = nextChecked;
+                        }
+
+                        preloadVertices(nearestCandidates, preloadFrom, vertexToPreload, resultSizeAndLastIndex);
                     }
                 }
 
@@ -1962,10 +1981,13 @@ public final class DiskANN implements AutoCloseable {
             nearestCandidates.vertexIndices(result, k);
         }
 
-        private void preloadVertices(BoundedGreedyVertexPriorityQueue nearestCandidates, int[] vertexToPreload) {
-            var preloadSize = nearestCandidates.fetchNotCheckedNotPreloaded(vertexToPreload,
-                    Math.min(diskCache.preLoadersCount(), maxAmountOfCandidates / 4));
+        private void preloadVertices(BoundedGreedyVertexPriorityQueue nearestCandidates, int preloadFrom, int[] vertexToPreload,
+                                     int[] resultSizeAndLastIndex) {
+            nearestCandidates.fetchNotCheckedNotPreloaded(vertexToPreload,
+                    preloadFrom,
+                    Math.min(diskCache.preLoadersCount(), maxAmountOfCandidates / 4), resultSizeAndLastIndex);
 
+            var preloadSize = resultSizeAndLastIndex[0];
             for (int n = 0; n < preloadSize; n++) {
                 var preLoadVertexIndex = vertexToPreload[n];
                 diskCache.preloadIfNeeded(preLoadVertexIndex);
