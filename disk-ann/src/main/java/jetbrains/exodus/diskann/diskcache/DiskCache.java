@@ -316,7 +316,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return inMemoryPageIndex * pageSize + recordOffset + vectorRecordOffset;
     }
 
-    public int fetchEdges(long vertexIndex, int[] edges, long[] inMemoryPageIndexVersion) {
+    public int fetchEdges(long vertexIndex, int[] edges, long[] inMemoryPageIndexVersion, int lastPreloadIndex) {
         var recordOffset = (vertexIndex % verticesCountPerPage) * vertexRecordSize + Long.BYTES;
         var edgeCountOffset = recordOffset + edgesCountOffset;
         var edgesOffset = recordOffset + this.edgesOffset;
@@ -326,7 +326,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
         int edgesCount;
         do {
-            get(vertexIndex, inMemoryPageIndexVersion);
+            get(vertexIndex, inMemoryPageIndexVersion, lastPreloadIndex);
             inMemoryPageIndex = inMemoryPageIndexVersion[0];
             pageVersion = inMemoryPageIndexVersion[1];
 
@@ -343,7 +343,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return currentVersion == pageVersion;
     }
 
-    public void get(long vertexIndex, @NotNull long[] inMemoryPageIndexAndVersion) {
+    public void get(long vertexIndex, @NotNull long[] inMemoryPageIndexAndVersion, int lastPreloadIndex) {
         long pageIndex = vertexIndex / verticesCountPerPage;
 
         while (true) {
@@ -363,6 +363,10 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                     //noinspection unchecked
                     ((Future<Void>) future).get();
                     preloadingPages.remove(pageIndex, future);
+
+                    if (pageIndex <= lastPreloadIndex) {
+                        logger.warn("Page {} was preloaded by another thread", pageIndex);
+                    }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
