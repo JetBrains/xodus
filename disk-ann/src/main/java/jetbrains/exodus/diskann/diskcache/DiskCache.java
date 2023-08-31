@@ -191,6 +191,8 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
     public final VarHandle pagesVersionHandle;
 
+    private final int preLoadersCount;
+
     private final ExecutorService pagePreLoaders;
 
     private final FileChannel fileChannel;
@@ -294,12 +296,18 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             freePagesQueue.enqueue(i);
         }
 
-        pagePreLoaders = Executors.newFixedThreadPool(pagesStructure.preLoadersCount, r -> {
+        preLoadersCount = pagesStructure.preLoadersCount;
+
+        pagePreLoaders = Executors.newFixedThreadPool(preLoadersCount, r -> {
             var thread = new Thread(r);
             thread.setName("DiskCache page preloader");
             thread.setDaemon(true);
             return thread;
         });
+    }
+
+    public int preLoadersCount() {
+        return preLoadersCount;
     }
 
 

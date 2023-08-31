@@ -66,7 +66,7 @@ public class DiskANNTest {
         dbDir.toFile().deleteOnExit();
         try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
             var ts1 = System.nanoTime();
-            diskANN.buildIndex(7, new ArrayVectorReader(vectors), 64 * 1024 * 1024);
+            diskANN.buildIndex(2, new ArrayVectorReader(vectors), 64 * 1024 * 1024);
             var ts2 = System.nanoTime();
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
         }
@@ -82,6 +82,7 @@ public class DiskANNTest {
                 Assert.assertEquals("j = " + j, 1, result.length);
 
                 if (j != result[0]) {
+                    diskANN.nearest(vector, result, 1);
                     errorsCount++;
                 }
             }
@@ -92,7 +93,7 @@ public class DiskANNTest {
             System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%, cache hits %d%% %n",
                     (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg(),
                     diskANN.hits());
-            Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 2",
+            Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 1",
                     errorPercentage <= 1);
             Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 15",
                     diskANN.getPQErrorAvg() <= 12);

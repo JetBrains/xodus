@@ -16,12 +16,16 @@
 package jetbrains.exodus.diskann.util.collections;
 
 public final class BoundedGreedyVertexPriorityQueue {
-    //Flattened presentation of a sorted array of vertex objects
-    //1. Distance - float type presented as integer
-    //2. Vertex index - int type
-    //3. Is distance of vertex calculated by PQ and whether it is visited- two bits stored into int type
+    private static final int CHECKED_FLAG = 1;
+    private static final int PQ_DISTANCE_FLAG = 2;
+
+    private static final int PRELOADED_FLAG = 4;
 
     private final int[] vertices;
+    private final float[] distances;
+
+    private final byte[] flags;
+
     private int nextNotCheckedVertex;
     private int size;
 
@@ -29,7 +33,9 @@ public final class BoundedGreedyVertexPriorityQueue {
 
     public BoundedGreedyVertexPriorityQueue(int capacity) {
         this.capacity = capacity;
-        vertices = new int[capacity * 3];
+        vertices = new int[capacity];
+        distances = new float[capacity];
+        flags = new byte[capacity];
     }
 
     public void add(int vertexIndex, float distance, boolean pqDistance) {
@@ -42,20 +48,21 @@ public final class BoundedGreedyVertexPriorityQueue {
             nextNotCheckedVertex = index;
         }
 
-        var arrayIndex = arrayIndex(index);
-        if (arrayIndex < vertices.length - 3) {
-            var newArrayIndex = arrayIndex + 3;
-            var endIndex = Math.min(arrayIndex(size) - arrayIndex + newArrayIndex, vertices.length);
-            System.arraycopy(vertices, arrayIndex, vertices, newArrayIndex, endIndex - newArrayIndex);
+        if (index < vertices.length - 1) {
+            var newIndex = index + 1;
+            var endIndex = Math.min(size - index + newIndex, vertices.length);
+
+            System.arraycopy(vertices, index, vertices, newIndex, endIndex - newIndex);
+            System.arraycopy(distances, index, distances, newIndex, endIndex - newIndex);
+            System.arraycopy(flags, index, flags, newIndex, endIndex - newIndex);
         }
 
 
-        var intDistance = Float.floatToIntBits(distance);
-        var intPqDistance = pqDistance ? 2 : 0;
+        var flag = pqDistance ? PQ_DISTANCE_FLAG : 0;
 
-        vertices[arrayIndex] = intDistance;
-        vertices[arrayIndex + 1] = vertexIndex;
-        vertices[arrayIndex + 2] = intPqDistance;
+        distances[index] = distance;
+        vertices[index] = vertexIndex;
+        flags[index] = (byte) flag;
 
         if (size < capacity) {
             size++;
@@ -68,14 +75,11 @@ public final class BoundedGreedyVertexPriorityQueue {
         }
 
         var result = nextNotCheckedVertex;
-        var arrayIndex = arrayIndex(nextNotCheckedVertex);
-        vertices[arrayIndex + 2] |= 1;
 
-        arrayIndex += 3;
+        flags[nextNotCheckedVertex] |= CHECKED_FLAG;
         nextNotCheckedVertex++;
 
-        while (arrayIndex < vertices.length && (vertices[arrayIndex + 2] & 1) != 0) {
-            arrayIndex += 3;
+        while (nextNotCheckedVertex < vertices.length && (flags[nextNotCheckedVertex] & CHECKED_FLAG) != 0) {
             nextNotCheckedVertex++;
         }
 
@@ -91,8 +95,7 @@ public final class BoundedGreedyVertexPriorityQueue {
             throw new IndexOutOfBoundsException();
         }
 
-        var arrayIndex = arrayIndex(index);
-        return vertices[arrayIndex + 1];
+        return vertices[index];
     }
 
     public float vertexDistance(int index) {
@@ -100,8 +103,7 @@ public final class BoundedGreedyVertexPriorityQueue {
             throw new IndexOutOfBoundsException();
         }
 
-        var arrayIndex = arrayIndex(index);
-        return Float.intBitsToFloat(vertices[arrayIndex]);
+        return distances[index];
     }
 
     public float maxDistance() {
@@ -109,8 +111,7 @@ public final class BoundedGreedyVertexPriorityQueue {
             return Float.NaN;
         }
 
-        var arrayIndex = arrayIndex(size - 1);
-        return Float.intBitsToFloat(vertices[arrayIndex]);
+        return distances[size - 1];
     }
 
     public int resortVertex(int index, float newDistance) {
@@ -118,9 +119,7 @@ public final class BoundedGreedyVertexPriorityQueue {
             throw new IndexOutOfBoundsException();
         }
 
-        var arrayIndex = arrayIndex(index);
-
-        var distance = Float.intBitsToFloat(vertices[arrayIndex]);
+        var distance = distances[index];
 
         int newIndex;
         if (newDistance < distance) {
@@ -129,7 +128,7 @@ public final class BoundedGreedyVertexPriorityQueue {
             newIndex = binarySearch(newDistance, index + 1, size) - 1;
             assert newIndex >= 0;
         } else {
-            vertices[arrayIndex + 2] = 0;
+            flags[index] = 0;
 
             if (nextNotCheckedVertex > index) {
                 nextNotCheckedVertex = index;
@@ -140,11 +139,9 @@ public final class BoundedGreedyVertexPriorityQueue {
 
         assert newIndex < size;
 
-        var newIntDistance = Float.floatToIntBits(newDistance);
-
         if (index == newIndex) {
-            vertices[arrayIndex] = newIntDistance;
-            vertices[arrayIndex + 2] = 0;
+            distances[index] = newDistance;
+            flags[index] = 0;
 
             if (nextNotCheckedVertex > newIndex) {
                 nextNotCheckedVertex = newIndex;
@@ -153,27 +150,36 @@ public final class BoundedGreedyVertexPriorityQueue {
             return newIndex;
         }
 
-        var vertexIndex = vertices[arrayIndex + 1];
+        var vertexIndex = vertices[index];
 
-        var newArrayIndex = arrayIndex(newIndex);
         if (index < newIndex) {
-            System.arraycopy(vertices, arrayIndex + 3, vertices, arrayIndex,
-                    newArrayIndex - arrayIndex);
+            System.arraycopy(vertices, index + 1, vertices, index,
+                    newIndex - index);
+            System.arraycopy(distances, index + 1, distances, index,
+                    newIndex - index);
+            System.arraycopy(flags, index + 1, flags, index,
+                    newIndex - index);
+
             if (nextNotCheckedVertex > index && nextNotCheckedVertex <= newIndex) {
                 nextNotCheckedVertex--;
             }
         } else {
-            System.arraycopy(vertices, newArrayIndex, vertices, newArrayIndex + 3,
-                    arrayIndex - newArrayIndex);
+            System.arraycopy(vertices, newIndex, vertices, newIndex + 1,
+                    index - newIndex);
+            System.arraycopy(distances, newIndex, distances, newIndex + 1,
+                    index - newIndex);
+            System.arraycopy(flags, newIndex, flags, newIndex + 1,
+                    index - newIndex);
+
             if (nextNotCheckedVertex >= newIndex && nextNotCheckedVertex < index) {
                 nextNotCheckedVertex++;
             }
         }
 
 
-        vertices[newArrayIndex] = newIntDistance;
-        vertices[newArrayIndex + 1] = vertexIndex;
-        vertices[newArrayIndex + 2] = 0;
+        distances[newIndex] = newDistance;
+        vertices[newIndex] = vertexIndex;
+        flags[newIndex] = 0;
 
         if (nextNotCheckedVertex > newIndex) {
             nextNotCheckedVertex = newIndex;
@@ -183,8 +189,7 @@ public final class BoundedGreedyVertexPriorityQueue {
     }
 
     public boolean isPqDistance(int index) {
-        var arrayIndex = arrayIndex(index);
-        return (vertices[arrayIndex + 2] & 2) != 0;
+        return (flags[index] & PQ_DISTANCE_FLAG) != 0;
     }
 
     public int size() {
@@ -193,8 +198,8 @@ public final class BoundedGreedyVertexPriorityQueue {
 
     public void vertexIndices(long[] result, int maxResultSize) {
         var resultSize = Math.min(size, maxResultSize);
-        for (int i = 0, arrayIndex = 1; i < resultSize; i++, arrayIndex += 3) {
-            result[i] = vertices[arrayIndex];
+        for (int i = 0; i < resultSize; i++) {
+            result[i] = vertices[i];
         }
     }
 
@@ -203,15 +208,30 @@ public final class BoundedGreedyVertexPriorityQueue {
         nextNotCheckedVertex = 0;
     }
 
-    private int binarySearch(double distance, int form, int to) {
+    public int fetchNotCheckedNotPreloaded(int[] vertexIndexes, int maxResultSize) {
+        var resultSize = 0;
+        maxResultSize = Math.min(maxResultSize, vertexIndexes.length);
+
+        for (int i = nextNotCheckedVertex; i < size && resultSize < maxResultSize; i++) {
+            var flag = flags[i];
+
+            if ((flag & (CHECKED_FLAG | PRELOADED_FLAG)) == 0) {
+                vertexIndexes[resultSize++] = vertices[i];
+                flags[i] = (byte) (flag | PRELOADED_FLAG);
+            }
+        }
+
+        return resultSize;
+    }
+
+    private int binarySearch(float distance, int form, int to) {
         int start = form;
         int end = to - 1;
 
         int mid = (end + start) >>> 1;
 
         while (start <= end) {
-            var arrayIndex = arrayIndex(mid);
-            var midDistance = Float.intBitsToFloat(vertices[arrayIndex]);
+            var midDistance = distances[mid];
             if (midDistance == distance) {
                 return mid;
             } else if (midDistance < distance) {
@@ -225,9 +245,4 @@ public final class BoundedGreedyVertexPriorityQueue {
 
         return start;
     }
-
-    private int arrayIndex(int index) {
-        return index * 3;
-    }
-
 }
