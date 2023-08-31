@@ -1317,7 +1317,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                                                           int maxConnectionsPerVertex, Path graphFile) throws IOException {
         var pageStructure = calculatePageStructure(vectorDim, maxConnectionsPerVertex, graphFile);
 
-        var cacheSize = 0.9 * totalSize;
+        var cacheSize = 0.8 * totalSize;
         var cachePagesCount = cacheSize / pageStructure.pageSize;
         var blocksInPage = pageStructure.pageSize / pageStructure.blockSize;
 
