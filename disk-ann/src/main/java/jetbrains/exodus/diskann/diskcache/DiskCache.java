@@ -353,25 +353,42 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             }
 
             var future = preloadingPages.putIfAbsent(pageIndex, futurePlaceHolder);
-
             if (future == null) {
-                schedulePagePreLoading(pageIndex);
+                if (pageIndex <= lastPreloadIndex) {
+                    logger.warn("Page {} was not preloaded at all", pageIndex);
+                }
+
+                future = schedulePagePreLoading(pageIndex);
+
+                //noinspection unchecked
+                if (waitForPreloadingCompletion((Future<Void>) future, pageIndex, inMemoryPageIndexAndVersion)) {
+                    return;
+                }
             } else if (future == futurePlaceHolder) {
                 Thread.onSpinWait();
             } else {
-                try {
-                    //noinspection unchecked
-                    ((Future<Void>) future).get();
-                    preloadingPages.remove(pageIndex, future);
-
-                    if (pageIndex <= lastPreloadIndex) {
-                        logger.warn("Page {} was preloaded by another thread", pageIndex);
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                if (pageIndex <= lastPreloadIndex) {
+                    logger.warn("Page {} was not preloaded in time", pageIndex);
+                }
+                //noinspection unchecked
+                if (waitForPreloadingCompletion((Future<Void>) future, pageIndex, inMemoryPageIndexAndVersion)) {
+                    return;
                 }
             }
         }
+    }
+
+    private boolean waitForPreloadingCompletion(Future<Void> future, long pageIndex,
+                                                @NotNull long[] inMemoryPageIndexAndVersion) {
+        try {
+            future.get();
+            preloadingPages.remove(pageIndex, future);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return getPageIfPresent(pageIndex, inMemoryPageIndexAndVersion);
     }
 
     public long hits() {
@@ -442,7 +459,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         }
     }
 
-    private void schedulePagePreLoading(long pageIndex) {
+    private Future<Void> schedulePagePreLoading(long pageIndex) {
         var future = CompletableFuture.runAsync(() -> {
             try {
                 long inMemoryPageIndex;
@@ -485,6 +502,8 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             logger.error("Concurrent preloading of page {} !!!", pageIndex);
             throw new IllegalStateException();
         }
+
+        return future;
     }
 
     /**
