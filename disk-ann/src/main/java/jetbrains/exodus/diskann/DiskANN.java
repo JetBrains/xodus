@@ -2039,7 +2039,7 @@ public final class DiskANN implements AutoCloseable {
                 for (int i = 0; i < 4; i++) {
                     var pqDistance = distanceResult[i];
                     var vertexIndex = elements[i];
-                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
+                    addedVertices += addPqDistance(nearestCandidates, pqDistance, vertexIndex);
                 }
             }
 
