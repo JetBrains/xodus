@@ -1920,7 +1920,6 @@ public final class DiskANN implements AutoCloseable {
                 var edgesCount = diskCache.fetchEdges(currentVertex, vertexNeighbours, inMemoryPageIndexAndVersion);
                 assert vertexIndexesToCheck.isEmpty();
 
-                var addedVertices = 0;
                 for (var i = 0; i < edgesCount; i++) {
                     var vertexIndex = vertexNeighbours[i];
 
@@ -1935,8 +1934,11 @@ public final class DiskANN implements AutoCloseable {
 
                         vertexIndexesToCheck.add(vertexIndex);
                         if (vertexIndexesToCheck.size() == 4) {
-                            addedVertices += computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
+                            var addedVertices = computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
                                     distanceResult);
+                            if (addedVertices > 0) {
+                                preloadVertices(nearestCandidates, vertexToPreload);
+                            }
                         }
 
                         assert vertexIndexesToCheck.size() <= 4;
@@ -1946,17 +1948,10 @@ public final class DiskANN implements AutoCloseable {
                 assert vertexIndexesToCheck.size() <= 4;
 
                 if (!vertexIndexesToCheck.isEmpty()) {
-                    addedVertices += computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
+                    var addedVertices = computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
                             distanceResult);
-                }
-
-                if (addedVertices > 0) {
-                    var preloadSize = nearestCandidates.fetchNotCheckedNotPreloaded(vertexToPreload,
-                            diskCache.preLoadersCount());
-
-                    for (int n = 0; n < preloadSize; n++) {
-                        var vertexIndex = vertexToPreload[n];
-                        diskCache.preloadIfNeeded(vertexIndex);
+                    if (addedVertices > 0) {
+                        preloadVertices(nearestCandidates, vertexToPreload);
                     }
                 }
 
@@ -1965,6 +1960,16 @@ public final class DiskANN implements AutoCloseable {
             }
 
             nearestCandidates.vertexIndices(result, k);
+        }
+
+        private void preloadVertices(BoundedGreedyVertexPriorityQueue nearestCandidates, int[] vertexToPreload) {
+            var preloadSize = nearestCandidates.fetchNotCheckedNotPreloaded(vertexToPreload,
+                    Math.min(diskCache.preLoadersCount(), maxAmountOfCandidates / 4));
+
+            for (int n = 0; n < preloadSize; n++) {
+                var preLoadVertexIndex = vertexToPreload[n];
+                diskCache.preloadIfNeeded(preLoadVertexIndex);
+            }
         }
 
         private void computePQDistance4Batch(float[] lookupTable, int vectorIndex1, int vectorIndex2,
