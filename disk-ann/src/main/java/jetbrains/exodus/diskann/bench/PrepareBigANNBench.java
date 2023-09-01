@@ -60,7 +60,7 @@ public class PrepareBigANNBench {
 
             try (var diskANN = new DiskANN("bigann_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
                 var ts1 = System.nanoTime();
-                diskANN.buildIndex(64, vectorReader, 110L * 1024 * 1024);
+                diskANN.buildIndex(40, vectorReader, 110L * 1024 * 1024);
                 var ts2 = System.nanoTime();
 
                 System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
@@ -73,7 +73,6 @@ public class PrepareBigANNBench {
     private static final class MmapVectorReader implements VectorReader {
         private final int recordSize;
         private final MemorySegment segment;
-        private final int vectorsCount;
 
         private final Arena arena;
 
@@ -82,7 +81,7 @@ public class PrepareBigANNBench {
         public MmapVectorReader(final int vectorDimensions, Path path) throws IOException {
             this.vectorDimensions = vectorDimensions;
             this.recordSize = Byte.BYTES * vectorDimensions + Integer.BYTES;
-            vectorsCount = (int) (Files.size(path) / recordSize);
+
 
             arena = Arena.openShared();
 
@@ -93,7 +92,7 @@ public class PrepareBigANNBench {
 
         @Override
         public int size() {
-            return vectorsCount;
+            return 500_000_000;
         }
 
         @Override
