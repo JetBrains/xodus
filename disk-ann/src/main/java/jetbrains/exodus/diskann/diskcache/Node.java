@@ -3,6 +3,8 @@ package jetbrains.exodus.diskann.diskcache;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.Semaphore;
+
 import static java.util.Locale.US;
 
 final class Node implements AccessOrderDeque.AccessOrder<Node> {
@@ -22,13 +24,19 @@ final class Node implements AccessOrderDeque.AccessOrder<Node> {
 
     final long pageVersion;
 
-    public Node(long key, long value, long pageVersion) {
-        assert key >= 0;
-        assert value >= 0;
+    final Semaphore pageLock = new Semaphore(Integer.MAX_VALUE);
 
+    final int preLoadLocks;
+
+    public Node(long key, long value, long pageVersion, int preLoadLocks) {
         this.key = key;
         this.value = value;
         this.pageVersion = pageVersion;
+        this.preLoadLocks = preLoadLocks;
+
+        if (preLoadLocks > 0) {
+            queueType = -1;
+        }
     }
 
     /** Return the key.*/

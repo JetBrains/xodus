@@ -85,7 +85,7 @@ import java.util.concurrent.atomic.LongAdder;
  * table throughput may drop somewhat.  All threads that visit the table
  * during a resize will 'help' the resizing but will still be allowed to
  * complete their operation before the resize is finished (i.e., a simple
- * 'get' operation on a million-entry table undergoing resizing will not need
+ * 'lockForRead' operation on a million-entry table undergoing resizing will not need
  * to block until the entire million entries are copied).
  *
  * @author Cliff Click
@@ -172,7 +172,7 @@ public class NonBlockingHashMapLongLong {
 
     // --- reprobe_limit -----------------------------------------------------
     // Heuristic to decide if we have reprobed toooo many times.  Running over
-    // the reprobe limit on a 'get' call acts as a 'miss'; on a 'put' call it
+    // the reprobe limit on a 'lockForRead' call acts as a 'miss'; on a 'put' call it
     // can trigger a table resize.  Several places must have exact agreement on
     // what the reprobe_limit is, so we share it here.
     private static int reprobe_limit(int len) {
@@ -349,7 +349,7 @@ public class NonBlockingHashMapLongLong {
         _chm.clear();
     }
 
-    // --- get -----------------------------------------------------------------
+    // --- lockForRead -----------------------------------------------------------------
 
     /**
      * Returns the value to which the specified key is mapped, or {@code null}
@@ -419,7 +419,7 @@ public class NonBlockingHashMapLongLong {
         // New mappings, used during resizing.
         // The 'next' CHM - created during a resize operation.  This represents
         // the new table being copied from the old one.  It's the volatile
-        // variable that is read as we cross from one table to the next, to get
+        // variable that is read as we cross from one table to the next, to lockForRead
         // the required memory orderings.  It monotonically transits from null to
         // set (once).
         volatile CHM _newchm;
@@ -542,9 +542,9 @@ public class NonBlockingHashMapLongLong {
                     // Finish the copy & retry in the new table.
                     return copy_slot_and_check(idx, key).get_impl(key); // Retry in the new table
                 }
-                // get and put must have the same key lookup logic!  But only 'put'
+                // lockForRead and put must have the same key lookup logic!  But only 'put'
                 // needs to force a table-resize for a too-long key-reprobe sequence.
-                // Check for too-many-reprobes on get.
+                // Check for too-many-reprobes on lockForRead.
                 reprobe_cnt++;
                 if (reprobe_cnt >= probeLimit) // too many probes
                     return _newchm == null // Table copy in progress?
@@ -573,7 +573,7 @@ public class NonBlockingHashMapLongLong {
             int reprobe_cnt = 0;
             long K;
             long V;
-            while (true) {           // Spin till we get a Key slot
+            while (true) {           // Spin till we lockForRead a Key slot
                 V = _vals[idx];         // Get old value
                 K = _keys[idx];         // Get current key
                 if (K == 0) {     // Slot is free?
@@ -599,19 +599,19 @@ public class NonBlockingHashMapLongLong {
                     // non-spurious-failure CAS (such as Azul has) into one that can
                     // apparently spuriously fail - and we avoid apparent spurious failure
                     // by not allowing Keys to ever change.
-                    K = _keys[idx];       // CAS failed, get updated value
+                    K = _keys[idx];       // CAS failed, lockForRead updated value
                     assert K != 0;  // If keys[idx] is NO_KEY, CAS shoulda worked
                 }
                 // Key slot was not null, there exists a Key here
                 if (K == key)
                     break;                // Got it!
 
-                // get and put must have the same key lookup logic!  Lest 'get' give
+                // lockForRead and put must have the same key lookup logic!  Lest 'lockForRead' give
                 // up looking too soon.
                 //topmap._reprobes.add(1);
                 if (++reprobe_cnt >= reprobe_limit(len)) {
                     // We simply must have a new table to do a 'put'.  At this point a
-                    // 'get' will also go to the new table (if any).  We do not need
+                    // 'lockForRead' will also go to the new table (if any).  We do not need
                     // to claim a key slot (indeed, we cannot find a free one to claim!).
                     final CHM newchm = resize();
                     if (expVal != 0) _nbhml.help_copy(); // help along an existing copy
@@ -619,7 +619,7 @@ public class NonBlockingHashMapLongLong {
                 }
 
                 idx = (idx + 1) & (len - 1); // Reprobe!
-            } // End of spinning till we get a Key slot
+            } // End of spinning till we lockForRead a Key slot
 
             while (true) {              // Spin till we insert a value
                 // ---
@@ -700,11 +700,11 @@ public class NonBlockingHashMapLongLong {
 
         // --- tableFull ---------------------------------------------------------
         // Heuristic to decide if this table is too full, and we should start a
-        // new table.  Note that if a 'get' call has reprobed too many times and
+        // new table.  Note that if a 'lockForRead' call has reprobed too many times and
         // decided the table must be full, then always the estimate_sum must be
         // high and we must report the table is full.  If we do not, then we might
         // end up deciding that the table is not full and inserting into the
-        // current table, while a 'get' has decided the same key cannot be in this
+        // current table, while a 'lockForRead' has decided the same key cannot be in this
         // table because of too many reprobes.  The invariant is:
         //   slots.estimate_sum >= max_reprobe_cnt >= reprobe_limit(len)
         private boolean tableFull(int reprobe_cnt, int len) {
@@ -793,7 +793,7 @@ public class NonBlockingHashMapLongLong {
                 // is ready, or after the timeout in any case.
                 //synchronized( this ) { wait(8*megs); }         // Timeout - we always wakeup
                 // For now, sleep a tad and see if the 2 guys already trying to make
-                // the table actually get around to making it happen.
+                // the table actually lockForRead around to making it happen.
                 try {
                     Thread.sleep(megs);
                 } catch (Exception e) { /*empty*/}

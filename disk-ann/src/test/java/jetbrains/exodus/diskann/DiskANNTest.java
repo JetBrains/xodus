@@ -66,7 +66,7 @@ public class DiskANNTest {
         dbDir.toFile().deleteOnExit();
         try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, Distance.L2_DISTANCE)) {
             var ts1 = System.nanoTime();
-            diskANN.buildIndex(2, new ArrayVectorReader(vectors), 64 * 1024 * 1024);
+            diskANN.buildIndex(2, new ArrayVectorReader(vectors), 1024 * 1024);
             var ts2 = System.nanoTime();
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
         }
@@ -82,8 +82,11 @@ public class DiskANNTest {
                 Assert.assertEquals("j = " + j, 1, result.length);
 
                 if (j != result[0]) {
-                    diskANN.nearest(vector, result, 1);
                     errorsCount++;
+                }
+
+                if ((j + 1) % 1_000 == 0) {
+                    System.out.println("Processed " + (j + 1));
                 }
             }
 

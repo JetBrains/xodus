@@ -19,7 +19,7 @@ public final class BoundedGreedyVertexPriorityQueue {
     private static final int CHECKED_FLAG = 1;
     private static final int PQ_DISTANCE_FLAG = 2;
 
-    private static final int PRELOADED_FLAG = 4;
+    private static final int LOCKED_FOR_READ_FLAG = 4;
 
     private final int[] vertices;
     private final float[] distances;
@@ -38,16 +38,25 @@ public final class BoundedGreedyVertexPriorityQueue {
         flags = new byte[capacity];
     }
 
-    public int add(int vertexIndex, float distance, boolean pqDistance) {
+    public int add(int vertexIndex, float distance, boolean pqDistance, boolean lockedForRead) {
         var index = binarySearch(distance, 0, size);
 
-        if (size == capacity && index == size) {
-            return -1;
+        var removed = Integer.MAX_VALUE;
+        var removedFlag = 0;
+
+        if (size == capacity) {
+            if (index == size) {
+                return vertexIndex;
+            }
+
+            removed = vertices[size - 1];
+            removedFlag = flags[size - 1];
         }
 
         if (nextNotCheckedVertex > index) {
             nextNotCheckedVertex = index;
         }
+
 
         if (index < vertices.length - 1) {
             var newIndex = index + 1;
@@ -58,8 +67,10 @@ public final class BoundedGreedyVertexPriorityQueue {
             System.arraycopy(flags, index, flags, newIndex, endIndex - newIndex);
         }
 
-
         var flag = pqDistance ? PQ_DISTANCE_FLAG : 0;
+        if (lockedForRead) {
+            flag |= LOCKED_FOR_READ_FLAG;
+        }
 
         distances[index] = distance;
         vertices[index] = vertexIndex;
@@ -69,11 +80,12 @@ public final class BoundedGreedyVertexPriorityQueue {
             size++;
         }
 
-        return index;
-    }
+        //negative if page was locked for read
+        if ((removedFlag & LOCKED_FOR_READ_FLAG) != 0) {
+            return -(removed + 1);
+        }
 
-    public int peekNextNotCheckedNextVertexIndex() {
-        return nextNotCheckedVertex;
+        return removed;
     }
 
     public int nextNotCheckedVertexIndex() {
@@ -105,6 +117,14 @@ public final class BoundedGreedyVertexPriorityQueue {
         return vertices[index];
     }
 
+    public boolean isNotLockedForRead(int index) {
+        if (index >= size) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        return (flags[index] & LOCKED_FOR_READ_FLAG) == 0;
+    }
+
     public float vertexDistance(int index) {
         if (index >= size) {
             throw new IndexOutOfBoundsException();
@@ -127,6 +147,7 @@ public final class BoundedGreedyVertexPriorityQueue {
         }
 
         var distance = distances[index];
+        var oldFlag = flags[index];
 
         int newIndex;
         if (newDistance < distance) {
@@ -135,7 +156,7 @@ public final class BoundedGreedyVertexPriorityQueue {
             newIndex = binarySearch(newDistance, index + 1, size) - 1;
             assert newIndex >= 0;
         } else {
-            flags[index] = 0;
+            flags[index] = (byte) (oldFlag & LOCKED_FOR_READ_FLAG);
 
             if (nextNotCheckedVertex > index) {
                 nextNotCheckedVertex = index;
@@ -148,7 +169,7 @@ public final class BoundedGreedyVertexPriorityQueue {
 
         if (index == newIndex) {
             distances[index] = newDistance;
-            flags[index] = 0;
+            flags[index] = (byte) (oldFlag & LOCKED_FOR_READ_FLAG);
 
             if (nextNotCheckedVertex > newIndex) {
                 nextNotCheckedVertex = newIndex;
@@ -158,6 +179,7 @@ public final class BoundedGreedyVertexPriorityQueue {
         }
 
         var vertexIndex = vertices[index];
+
 
         if (index < newIndex) {
             System.arraycopy(vertices, index + 1, vertices, index,
@@ -186,7 +208,7 @@ public final class BoundedGreedyVertexPriorityQueue {
 
         distances[newIndex] = newDistance;
         vertices[newIndex] = vertexIndex;
-        flags[newIndex] = 0;
+        flags[newIndex] = (byte) (oldFlag & LOCKED_FOR_READ_FLAG);
 
         if (nextNotCheckedVertex > newIndex) {
             nextNotCheckedVertex = newIndex;
@@ -215,23 +237,33 @@ public final class BoundedGreedyVertexPriorityQueue {
         nextNotCheckedVertex = 0;
     }
 
-    public void fetchNotCheckedNotPreloaded(int[] vertexIndexes, int from, int size, int[] resultSizeAndLastIndex) {
-        var resultSize = 0;
-        size = Math.min(size, vertexIndexes.length);
+    public int markAsLocked(int verticesToLock, int[] vertexIndexes) {
+        int resultIndex = 0;
 
-        var lastIndex = -1;
-        for (int i = from; i < this.size && resultSize < size; i++) {
-            var flag = flags[i];
-
-            if ((flag & (CHECKED_FLAG | PRELOADED_FLAG)) == 0) {
-                vertexIndexes[resultSize++] = vertices[i];
-                flags[i] = (byte) (flag | PRELOADED_FLAG);
-                lastIndex = i;
+        for (int i = nextNotCheckedVertex; i < size && resultIndex < verticesToLock; i++) {
+            if ((flags[i] & (CHECKED_FLAG | LOCKED_FOR_READ_FLAG)) == 0) {
+                vertexIndexes[resultIndex++] = vertices[i];
+                flags[i] |= LOCKED_FOR_READ_FLAG;
             }
         }
 
-        resultSizeAndLastIndex[0] = resultSize;
-        resultSizeAndLastIndex[1] = lastIndex;
+        return resultIndex;
+    }
+
+    public int fetchAllLocked(int[] vertexIndexes) {
+        var resultIndex = 0;
+
+        for (int i = 0; i < size; i++) {
+            if ((flags[i] & LOCKED_FOR_READ_FLAG) != 0) {
+                vertexIndexes[resultIndex++] = vertices[i];
+            }
+        }
+
+        return resultIndex;
+    }
+
+    public void markUnlocked(int index) {
+        flags[index] &= ~LOCKED_FOR_READ_FLAG;
     }
 
     private int binarySearch(float distance, int form, int to) {

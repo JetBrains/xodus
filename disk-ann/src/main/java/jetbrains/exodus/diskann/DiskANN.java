@@ -123,7 +123,7 @@ public final class DiskANN implements AutoCloseable {
                    float distanceMultiplication,
                    int maxConnectionsPerVertex,
                    int maxAmountOfCandidates,
-                   int pqCompression) throws IOException {
+                   int pqCompression) {
         this.name = name;
         this.path = path;
         this.vectorDim = vectorDim;
@@ -132,11 +132,11 @@ public final class DiskANN implements AutoCloseable {
         this.maxAmountOfCandidates = maxAmountOfCandidates;
         this.distanceFunction = distanceFunction;
 
-        var pageStructure = DiskCache.calculatePageStructure(vectorDim, maxConnectionsPerVertex, path);
+        var pageStructure = DiskCache.createPageStructure(vectorDim, maxConnectionsPerVertex);
 
         logger.info("DiskANN initialization : file block size {}, page size {}, vertex record size {}, " +
                         "vertices count per page {}",
-                pageStructure.blockSize(), pageStructure.pageSize(), pageStructure.vertexRecordSize(),
+                DiskCache.DISK_BLOCK_SIZE, pageStructure.pageSize(), pageStructure.vertexRecordSize(),
                 pageStructure.verticesCountPerPage());
 
         this.pageSize = pageStructure.pageSize();
@@ -286,12 +286,7 @@ public final class DiskANN implements AutoCloseable {
 
                 vectorsByPartitions[firstPartition].add(i);
 
-                if (size == 1) {
-                    if (firstPartition != secondPartition) {
-                        vectorsByPartitions[secondPartition].add(i);
-                    }
-                } else {
-                    assert firstPartition != secondPartition;
+                if (firstPartition != secondPartition) {
                     vectorsByPartitions[secondPartition].add(i);
                 }
 
@@ -418,7 +413,8 @@ public final class DiskANN implements AutoCloseable {
                     verticesProcessed += partitionSize;
                     var endSave = System.nanoTime();
 
-                    logger.info("Vectors of search graph for partition {} have been saved to the disk under the path {} " +
+                    logger.info("Vectors of search graph for partition {} have " +
+                                    "been saved to the disk under the path {} " +
                                     "({}%). Time spent {} ms. " +
                                     "Direct memory usage {} Mb, heap memory usage {} Mb.",
                             i, graphFilePath.toAbsolutePath(), 100.0 * verticesProcessed / totalPartitionsSize,
@@ -431,7 +427,8 @@ public final class DiskANN implements AutoCloseable {
             }
 
 
-            logger.info("Merging and storing search graph partitions on disk under the path {} ...", graphFilePath.toAbsolutePath());
+            logger.info("Merging and storing search graph partitions on disk under the path {} ...",
+                    graphFilePath.toAbsolutePath());
             var startSave = System.nanoTime();
             mergeAndStorePartitionsOnDisk(graphs, size);
             var endSave = System.nanoTime();
@@ -600,29 +597,27 @@ public final class DiskANN implements AutoCloseable {
 
             var globalIndexPartitionIndex = heapGlobalIndexes.dequeueLong();
 
+            var globalIndex = (long) ((int) (globalIndexPartitionIndex));
             var partitionIndex = (int) (globalIndexPartitionIndex >>> 32);
-            var vertexIndexInsidePartition = (long)partitionsIndexes[partitionIndex] - 1;
+            var vertexIndexInsidePartition = partitionsIndexes[partitionIndex] - 1;
             var partition = partitions[partitionIndex];
 
             addPartitionEdgeToHeap(completedPartitions, partitionIndex,
                     heapGlobalIndexes, partition, partitionsIndexes);
 
-            assert partition.globalIndexes.getAtIndex(ValueLayout.JAVA_INT,
-                    vertexIndexInsidePartition) == globalIndexPartitionIndex;
-
-            assert resultIndex == globalIndexPartitionIndex;
+            assert resultIndex == globalIndex;
             var edgesOffset = vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
 
-            var localPageOffset = globalIndexPartitionIndex % verticesPerPage;
-            var pageOffset = (globalIndexPartitionIndex / verticesPerPage) * pageSize;
+            var localPageOffset = globalIndex % verticesPerPage;
+            var pageOffset = (globalIndex / verticesPerPage) * pageSize;
 
             var recordOffset = localPageOffset * vertexRecordSize + Long.BYTES + pageOffset;
 
             var resultEdgesOffset = recordOffset + diskRecordEdgesOffset;
             var resultEdgesCountOffset = recordOffset + diskRecordEdgesCountOffset;
 
-            if (heapGlobalIndexes.isEmpty() || globalIndexPartitionIndex != (int) heapGlobalIndexes.firstLong()) {
-                var edgesSize = (long)partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
+            if (heapGlobalIndexes.isEmpty() || globalIndex != (int) heapGlobalIndexes.firstLong()) {
+                var edgesSize = (long) partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
                 assert edgesSize <= maxConnectionsPerVertex;
 
                 edgesOffset += Integer.BYTES;
@@ -645,7 +640,7 @@ public final class DiskANN implements AutoCloseable {
 
                 do {
                     var nextGlobalIndexPartitionIndex = heapGlobalIndexes.dequeueLong();
-                    assert globalIndexPartitionIndex == (int) nextGlobalIndexPartitionIndex;
+                    assert globalIndex == (int) nextGlobalIndexPartitionIndex;
 
                     partitionIndex = (int) (nextGlobalIndexPartitionIndex >>> 32);
                     vertexIndexInsidePartition = partitionsIndexes[partitionIndex] - 1;
@@ -721,8 +716,9 @@ public final class DiskANN implements AutoCloseable {
                                                MMapedGraph partition,
                                                int[] partitionsIndexes) {
         if (!completedPartitions[partitionIndex]) {
-            heapGlobalIndexes.enqueue((((long) partitionIndex) << 32) | partition.globalIndexes.getAtIndex(ValueLayout.JAVA_INT,
-                    partitionsIndexes[partitionIndex]));
+            heapGlobalIndexes.enqueue((((long) partitionIndex) << 32) |
+                    partition.globalIndexes.getAtIndex(ValueLayout.JAVA_INT,
+                            partitionsIndexes[partitionIndex]));
 
             var newPartitionIndex = partitionsIndexes[partitionIndex] + 1;
 
@@ -909,7 +905,8 @@ public final class DiskANN implements AutoCloseable {
     private float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset, MemorySegment secondSegment,
                                   long secondSegmentFromOffset, int size) {
         if (distanceFunction == L2_DISTANCE) {
-            return L2Distance.computeL2Distance(firstSegment, firstSegmentFromOffset, secondSegment, secondSegmentFromOffset,
+            return L2Distance.computeL2Distance(firstSegment, firstSegmentFromOffset, secondSegment,
+                    secondSegmentFromOffset,
                     size);
         } else if (distanceFunction == DOT_DISTANCE) {
             return computeDotDistance(firstSegment, firstSegmentFromOffset, secondSegment, secondSegmentFromOffset,
@@ -1221,7 +1218,7 @@ public final class DiskANN implements AutoCloseable {
             var dim = vectorDim;
 
             nearestCandidates.add(startVertexIndex, computeDistance(vectors, startVectorOffset,
-                    vectors, queryVectorOffset, dim), false);
+                    vectors, queryVectorOffset, dim), false, false);
 
             var result = new float[4];
             var vectorsToCheck = new IntArrayList(4);
@@ -1255,10 +1252,10 @@ public final class DiskANN implements AutoCloseable {
                                     dim, result, distanceFunction
                             );
 
-                            nearestCandidates.add(vertexIndexes[0], result[0], false);
-                            nearestCandidates.add(vertexIndexes[1], result[1], false);
-                            nearestCandidates.add(vertexIndexes[2], result[2], false);
-                            nearestCandidates.add(vertexIndexes[3], result[3], false);
+                            nearestCandidates.add(vertexIndexes[0], result[0], false, false);
+                            nearestCandidates.add(vertexIndexes[1], result[1], false, false);
+                            nearestCandidates.add(vertexIndexes[2], result[2], false, false);
+                            nearestCandidates.add(vertexIndexes[3], result[3], false, false);
 
                             vectorsToCheck.clear();
                         }
@@ -1273,7 +1270,7 @@ public final class DiskANN implements AutoCloseable {
                         var vectorOffset = vectorOffset(vertexIndex);
 
                         var distance = computeDistance(vectors, queryVectorOffset, vectors, vectorOffset, dim);
-                        nearestCandidates.add(vertexIndex, distance, false);
+                        nearestCandidates.add(vertexIndex, distance, false, false);
                     }
                     vectorsToCheck.clear();
                 }
@@ -1852,9 +1849,6 @@ public final class DiskANN implements AutoCloseable {
             nearestCandidates.clear();
 
             var startVertexIndex = medoid;
-
-            var inMemoryPageIndexAndVersion = threadLocalCache.inMemoryPageIndexAndVersion;
-
             var vertexNeighbours = threadLocalCache.vertexNeighbours;
 
             var distanceResult = threadLocalCache.distanceResult;
@@ -1863,15 +1857,10 @@ public final class DiskANN implements AutoCloseable {
 
             var vertexToPreload = threadLocalCache.vertexToPreload;
 
-            var resultSizeAndLastIndex = new int[]{-1, -1};
-            var preloadFrom = 0;
-
-            do {
-                diskCache.get(startVertexIndex, inMemoryPageIndexAndVersion);
-                var startVectorOffset = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], startVertexIndex);
-                nearestCandidates.add(startVertexIndex, computeDistance(diskCache.pages, startVectorOffset, queryVector),
-                        false);
-            } while (!diskCache.checkVersion(inMemoryPageIndexAndVersion[0], inMemoryPageIndexAndVersion[1]));
+            var startVertexInMemoryPageIndex = diskCache.readLock(startVertexIndex);
+            var startVectorOffset = diskCache.vectorOffset(startVertexInMemoryPageIndex, startVertexIndex);
+            nearestCandidates.add(startVertexIndex, computeDistance(diskCache.pages, startVectorOffset, queryVector),
+                    false, true);
 
             assert nearestCandidates.size() <= maxAmountOfCandidates;
             visitedVertexIndices.add(startVertexIndex);
@@ -1886,46 +1875,52 @@ public final class DiskANN implements AutoCloseable {
                     vertexIndexesToCheck.clear();
 
                     while (vertexIndexesToCheck.size() < 4) {
-                        var notCheckedVertex = nearestCandidates.nextNotCheckedVertexIndex();
-                        if (notCheckedVertex + 1 > preloadFrom) {
-                            preloadFrom = notCheckedVertex + 1;
+                        if (vertexIndexesToCheck.isEmpty()) {
+                            preloadVertices(nearestCandidates, vertexToPreload);
                         }
 
+                        var notCheckedVertex = nearestCandidates.nextNotCheckedVertexIndex();
                         if (notCheckedVertex < 0) {
                             if (vertexIndexesToCheck.isEmpty()) {
                                 break vertexRecalculationLoop;
                             }
 
+                            assert vertexIndexesToCheck.size() <= 4;
                             recalculateDistances(queryVector, nearestCandidates,
-                                    vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion);
+                                    vertexIndexesToCheck, distanceResult);
                             continue;
                         }
+
 
                         if (nearestCandidates.isPqDistance(notCheckedVertex)) {
                             vertexIndexesToCheck.add(notCheckedVertex);
                             assert vertexIndexesToCheck.size() <= 4;
                         } else {
                             if (!vertexIndexesToCheck.isEmpty()) {
+                                assert vertexIndexesToCheck.size() <= 4;
                                 recalculateDistances(queryVector, nearestCandidates,
-                                        vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion);
+                                        vertexIndexesToCheck, distanceResult);
                                 continue;
                             }
+
                             currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
+                            nearestCandidates.markUnlocked(notCheckedVertex);
+
                             break vertexRecalculationLoop;
                         }
                     }
+
+                    assert vertexIndexesToCheck.size() == 4;
                     recalculateDistances(queryVector, nearestCandidates,
-                            vertexIndexesToCheck, distanceResult, inMemoryPageIndexAndVersion);
+                            vertexIndexesToCheck, distanceResult);
                 }
 
                 if (currentVertex < 0) {
                     break;
                 }
 
-                preloadVertices(nearestCandidates, preloadFrom, vertexToPreload, resultSizeAndLastIndex);
 
-                var edgesCount = diskCache.fetchEdges(currentVertex, vertexNeighbours, inMemoryPageIndexAndVersion
-                );
+                var edgesCount = diskCache.fetchEdges(currentVertex, vertexNeighbours);
                 assert vertexIndexesToCheck.isEmpty();
 
                 for (var i = 0; i < edgesCount; i++) {
@@ -1942,16 +1937,8 @@ public final class DiskANN implements AutoCloseable {
 
                         vertexIndexesToCheck.add(vertexIndex);
                         if (vertexIndexesToCheck.size() == 4) {
-                            var addedVertices = computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
+                            computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
                                     distanceResult);
-                            if (addedVertices > 0) {
-                                var nextChecked = nearestCandidates.peekNextNotCheckedNextVertexIndex();
-                                if (nextChecked > preloadFrom) {
-                                    preloadFrom = nextChecked;
-                                }
-                                preloadVertices(nearestCandidates, preloadFrom, vertexToPreload, resultSizeAndLastIndex);
-
-                            }
                         }
 
                         assert vertexIndexesToCheck.size() <= 4;
@@ -1961,34 +1948,28 @@ public final class DiskANN implements AutoCloseable {
                 assert vertexIndexesToCheck.size() <= 4;
 
                 if (!vertexIndexesToCheck.isEmpty()) {
-                    var addedVertices = computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
+                    computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
                             distanceResult);
-                    if (addedVertices > 0) {
-                        var nextChecked = nearestCandidates.peekNextNotCheckedNextVertexIndex();
-
-                        if (nextChecked > preloadFrom) {
-                            preloadFrom = nextChecked;
-                        }
-
-                        preloadVertices(nearestCandidates, preloadFrom, vertexToPreload, resultSizeAndLastIndex);
-                    }
                 }
 
                 assert vertexIndexesToCheck.isEmpty();
                 assert nearestCandidates.size() <= maxAmountOfCandidates;
+
+                diskCache.unlock(currentVertex);
+            }
+
+            var unlockSize = nearestCandidates.fetchAllLocked(vertexToPreload);
+            for (int i = 0; i < unlockSize; i++) {
+                diskCache.unlock(vertexToPreload[i]);
             }
 
             nearestCandidates.vertexIndices(result, k);
         }
 
-        private void preloadVertices(BoundedGreedyVertexPriorityQueue nearestCandidates, int preloadFrom, int[] vertexToPreload,
-                                     int[] resultSizeAndLastIndex) {
-            nearestCandidates.fetchNotCheckedNotPreloaded(vertexToPreload,
-                    preloadFrom,
-                    Math.min(diskCache.preLoadersCount(), maxAmountOfCandidates / 4), resultSizeAndLastIndex);
+        private void preloadVertices(BoundedGreedyVertexPriorityQueue nearestCandidates, int[] vertexToPreload) {
+            var preLoadSize = nearestCandidates.markAsLocked(8, vertexToPreload);
 
-            var preloadSize = resultSizeAndLastIndex[0];
-            for (int n = 0; n < preloadSize; n++) {
+            for (int n = 0; n < preLoadSize; n++) {
                 var preLoadVertexIndex = vertexToPreload[n];
                 diskCache.preloadIfNeeded(preLoadVertexIndex);
             }
@@ -2030,23 +2011,22 @@ public final class DiskANN implements AutoCloseable {
             result[3] = result4;
         }
 
-        private int computePQDistances(float[] lookupTable,
-                                       IntArrayList vertexIndexesToCheck,
-                                       BoundedGreedyVertexPriorityQueue nearestCandidates,
-                                       float[] distanceResult) {
+        private void computePQDistances(float[] lookupTable,
+                                        IntArrayList vertexIndexesToCheck,
+                                        BoundedGreedyVertexPriorityQueue nearestCandidates,
+                                        float[] distanceResult) {
             assert distanceResult.length == 4;
             assert vertexIndexesToCheck.size() <= 4;
 
             var elements = vertexIndexesToCheck.elements();
             var size = vertexIndexesToCheck.size();
 
-            var addedVertices = 0;
             if (size < 4) {
                 for (int i = 0; i < size; i++) {
                     var vertexIndex = elements[i];
                     var pqDistance = PQ.computePQDistance(pqVectors, lookupTable, vertexIndex, pqQuantizersCount);
 
-                    addedVertices += addPqDistance(nearestCandidates, pqDistance, vertexIndex);
+                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
                 }
             } else {
                 var vertexIndex1 = elements[0];
@@ -2061,38 +2041,38 @@ public final class DiskANN implements AutoCloseable {
                 for (int i = 0; i < 4; i++) {
                     var pqDistance = distanceResult[i];
                     var vertexIndex = elements[i];
-                    addedVertices += addPqDistance(nearestCandidates, pqDistance, vertexIndex);
+                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
                 }
             }
 
             vertexIndexesToCheck.clear();
-            return addedVertices;
         }
 
-        private int addPqDistance(BoundedGreedyVertexPriorityQueue nearestCandidates, float pqDistance,
-                                  int vertexIndex) {
+        private void addPqDistance(BoundedGreedyVertexPriorityQueue nearestCandidates, float pqDistance,
+                                   int vertexIndex) {
             if (nearestCandidates.size() < maxAmountOfCandidates) {
-                nearestCandidates.add(vertexIndex, pqDistance, true);
-                return 1;
+                var removed = nearestCandidates.add(vertexIndex, pqDistance, true, false);
+                assert removed == Integer.MAX_VALUE;
             } else {
                 var lastVertexDistance = nearestCandidates.maxDistance();
 
                 if (lastVertexDistance >= pqDistance) {
-                    nearestCandidates.add(vertexIndex, pqDistance, true);
-                    return 1;
+                    var removed = nearestCandidates.add(vertexIndex, pqDistance, true, false);
+                    assert removed != Integer.MAX_VALUE;
+
+                    //index is negative if it was not checked yet by the greedy search
+                    //all checked pages are unlocked in main cycle
+                    //but unchecked
+                    if (removed < 0) {
+                        diskCache.unlock(-removed - 1);
+                    }
                 }
             }
-
-            return 0;
-        }
-
-        private void loadPage(int vertexIndex, long[] inMemoryPageIndexAndVersion) {
-            diskCache.get(vertexIndex, inMemoryPageIndexAndVersion);
         }
 
         private void recalculateDistances(float[] queryVector, BoundedGreedyVertexPriorityQueue nearestCandidates,
-                                          IntArrayList vertexIndexesToCheck, float[] distanceResult,
-                                          long[] inMemoryPageIndexAndVersion) {
+                                          IntArrayList vertexIndexesToCheck, float[] distanceResult) {
+
             var elements = vertexIndexesToCheck.elements();
             var size = vertexIndexesToCheck.size();
 
@@ -2101,15 +2081,15 @@ public final class DiskANN implements AutoCloseable {
                     var notCheckedVertex = elements[i];
 
                     var vertexIndex = nearestCandidates.vertexIndex(notCheckedVertex);
+                    if (nearestCandidates.isNotLockedForRead(notCheckedVertex)) {
+                        throw new IllegalStateException("Vertex " + vertexIndex + " is not preloaded");
+                    }
 
-                    float preciseDistance;
-                    do {
-                        diskCache.get(vertexIndex, inMemoryPageIndexAndVersion);
-                        var vectorOffset = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex);
+                    long inMemoryPageIndex = diskCache.readLocked(vertexIndex);
+                    var vectorOffset = diskCache.vectorOffset(inMemoryPageIndex, vertexIndex);
 
-                        preciseDistance = computeDistance(diskCache.pages, vectorOffset,
-                                queryVector);
-                    } while (!diskCache.checkVersion(inMemoryPageIndexAndVersion[0], inMemoryPageIndexAndVersion[1]));
+                    var preciseDistance = computeDistance(diskCache.pages, vectorOffset,
+                            queryVector);
 
                     var pqDistance = nearestCandidates.vertexDistance(notCheckedVertex);
                     var newVertexIndex = nearestCandidates.resortVertex(notCheckedVertex, preciseDistance);
@@ -2143,45 +2123,32 @@ public final class DiskANN implements AutoCloseable {
                 var pqDistance3 = nearestCandidates.vertexDistance(notCheckedVertex3);
                 var pqDistance4 = nearestCandidates.vertexDistance(notCheckedVertex4);
 
-                long inMemoryPageIndex1;
-                long inMemoryPageIndex2;
-                long inMemoryPageIndex3;
-                long inMemoryPageIndex4;
+                if (nearestCandidates.isNotLockedForRead(notCheckedVertex1)) {
+                    throw new IllegalStateException("Vertex " + vertexIndex1 + " is not preloaded");
+                }
+                if (nearestCandidates.isNotLockedForRead(notCheckedVertex2)) {
+                    throw new IllegalStateException("Vertex " + vertexIndex2 + " is not preloaded");
+                }
+                if (nearestCandidates.isNotLockedForRead(notCheckedVertex3)) {
+                    throw new IllegalStateException("Vertex " + vertexIndex3 + " is not preloaded");
+                }
+                if (nearestCandidates.isNotLockedForRead(notCheckedVertex4)) {
+                    throw new IllegalStateException("Vertex " + vertexIndex4 + " is not preloaded");
+                }
 
-                long currentPageVersion1;
-                long currentPageVersion2;
-                long currentPageVersion3;
-                long currentPageVersion4;
+                long inMemoryPageIndex1 = diskCache.readLocked(vertexIndex1);
+                long inMemoryPageIndex2 = diskCache.readLocked(vertexIndex2);
+                long inMemoryPageIndex3 = diskCache.readLocked(vertexIndex3);
+                long inMemoryPageIndex4 = diskCache.readLocked(vertexIndex4);
 
+                var vectorOffset1 = diskCache.vectorOffset(inMemoryPageIndex1, vertexIndex1);
+                var vectorOffset2 = diskCache.vectorOffset(inMemoryPageIndex2, vertexIndex2);
+                var vectorOffset3 = diskCache.vectorOffset(inMemoryPageIndex3, vertexIndex3);
+                var vectorOffset4 = diskCache.vectorOffset(inMemoryPageIndex4, vertexIndex4);
 
-                do {
-                    loadPage(vertexIndex1, inMemoryPageIndexAndVersion);
-                    inMemoryPageIndex1 = inMemoryPageIndexAndVersion[0];
-                    currentPageVersion1 = inMemoryPageIndexAndVersion[1];
-                    var vectorOffset1 = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex1);
-
-                    loadPage(vertexIndex2, inMemoryPageIndexAndVersion);
-                    inMemoryPageIndex2 = inMemoryPageIndexAndVersion[0];
-                    currentPageVersion2 = inMemoryPageIndexAndVersion[1];
-                    var vectorOffset2 = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex2);
-
-                    loadPage(vertexIndex3, inMemoryPageIndexAndVersion);
-                    inMemoryPageIndex3 = inMemoryPageIndexAndVersion[0];
-                    currentPageVersion3 = inMemoryPageIndexAndVersion[1];
-                    var vectorOffset3 = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex3);
-
-                    loadPage(vertexIndex4, inMemoryPageIndexAndVersion);
-                    inMemoryPageIndex4 = inMemoryPageIndexAndVersion[0];
-                    currentPageVersion4 = inMemoryPageIndexAndVersion[1];
-                    var vectorOffset4 = diskCache.vectorOffset(inMemoryPageIndexAndVersion[0], vertexIndex4);
-
-                    computeDistance(queryVector, 0, diskCache.pages, vectorOffset1,
-                            diskCache.pages, vectorOffset2, diskCache.pages, vectorOffset3,
-                            diskCache.pages, vectorOffset4, distanceResult);
-                } while (!(diskCache.checkVersion(inMemoryPageIndex1, currentPageVersion1) &&
-                        diskCache.checkVersion(inMemoryPageIndex2, currentPageVersion2) &&
-                        diskCache.checkVersion(inMemoryPageIndex3, currentPageVersion3) &&
-                        diskCache.checkVersion(inMemoryPageIndex4, currentPageVersion4)));
+                computeDistance(queryVector, 0, diskCache.pages, vectorOffset1,
+                        diskCache.pages, vectorOffset2, diskCache.pages, vectorOffset3,
+                        diskCache.pages, vectorOffset4, distanceResult);
 
 
                 //preventing branch miss predictions using bit shift and subtraction
@@ -2262,11 +2229,8 @@ public final class DiskANN implements AutoCloseable {
 
         private final IntArrayList vertexIndexesToCheck = new IntArrayList();
 
-        private final long[] inMemoryPageIndexAndVersion = new long[2];
         private final int[] vertexNeighbours;
-
         private final int[] vertexToPreload;
-
 
         private NearestGreedySearchCachedData(IntOpenHashSet vertexIndices, float[] lookupTable,
                                               BoundedGreedyVertexPriorityQueue nearestCandidates,

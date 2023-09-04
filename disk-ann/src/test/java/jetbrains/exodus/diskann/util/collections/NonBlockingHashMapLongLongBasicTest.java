@@ -81,7 +81,7 @@ public class NonBlockingHashMapLongLongBasicTest {
         checkSizes(0);
 
         // Simple insert of simple keys, with no reprobing on insert until the
-        // table gets full exactly.  Then do a 'get' on the totally full table.
+        // table gets full exactly.  Then do a 'lockForRead' on the totally full table.
         NonBlockingHashMapLongLong map = new NonBlockingHashMapLongLong(32);
         for (int i = 1; i < 32; i++) {
             map.put(i, i);

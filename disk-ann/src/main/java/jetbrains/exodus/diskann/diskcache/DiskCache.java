@@ -2,6 +2,8 @@ package jetbrains.exodus.diskann.diskcache;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.sun.nio.file.ExtendedOpenOption;
+import it.unimi.dsi.fastutil.Hash;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import jetbrains.exodus.diskann.util.collections.BlockingLongArrayQueue;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.jctools.queues.MpscGrowableArrayQueue;
@@ -20,10 +22,10 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.ref.WeakReference;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -116,7 +118,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
      */
 
     private static final Logger logger = LoggerFactory.getLogger(DiskCache.class);
-
+    public static final int DISK_BLOCK_SIZE = 4 * 1024;
     private static final int NCPU = Runtime.getRuntime().availableProcessors();
     /** The initial capacity of the write buffer. */
     private static final int ADD_BUFFER_MIN = 4;
@@ -191,8 +193,6 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
     public final VarHandle pagesVersionHandle;
 
-    private final int preLoadersCount;
-
     private final ExecutorService pagePreLoaders;
 
     private final FileChannel fileChannel;
@@ -207,6 +207,8 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
     private final int vertexRecordSize;
 
+    private final ObjectOpenHashSet<Node> lockedNodes = new ObjectOpenHashSet<>(1024, Hash.FAST_LOAD_FACTOR);
+
     private final LongAdder requestsCount = new LongAdder();
 
     private final LongAdder hitsCount = new LongAdder();
@@ -214,8 +216,8 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     public DiskCache(long cacheSize, int vectorDim, int maxConnectionsPerVertex,
                      final Path graphFile) throws IOException {
 
-        var pagesStructure = calculatePagesStructure(cacheSize,
-                vectorDim, maxConnectionsPerVertex, graphFile);
+        var pagesStructure = createPagesStructure(cacheSize,
+                vectorDim, maxConnectionsPerVertex);
 
         logger.info("DiskCache initialization : file block size {}, page size {},  " +
                         "pages in cache {} ({} Mb), " +
@@ -224,7 +226,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                         "total memory allocated for the cache including memory allocated for page preloading {} Mb," +
                         "vertex record size {}, " +
                         "vertices count per page {}",
-                pagesStructure.pageStructure.blockSize,
+                DISK_BLOCK_SIZE,
                 pagesStructure.pageStructure.pageSize,
                 pagesStructure.cachePagesCount,
                 (long) pagesStructure.cachePagesCount * pagesStructure.pageStructure.pageSize / 1024 / 1024,
@@ -296,7 +298,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             freePagesQueue.enqueue(i);
         }
 
-        preLoadersCount = pagesStructure.preLoadersCount;
+        int preLoadersCount = pagesStructure.preLoadersCount;
 
         pagePreLoaders = Executors.newFixedThreadPool(preLoadersCount, r -> {
             var thread = new Thread(r);
@@ -306,147 +308,218 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         });
     }
 
-    public int preLoadersCount() {
-        return preLoadersCount;
-    }
-
-
     public long vectorOffset(long inMemoryPageIndex, long vertexIndex) {
         var recordOffset = (vertexIndex % verticesCountPerPage) * vertexRecordSize + Long.BYTES;
         return inMemoryPageIndex * pageSize + recordOffset + vectorRecordOffset;
     }
 
-    public int fetchEdges(long vertexIndex, int[] edges, long[] inMemoryPageIndexVersion) {
+    public int fetchEdges(long vertexIndex, int[] edges) {
         var recordOffset = (vertexIndex % verticesCountPerPage) * vertexRecordSize + Long.BYTES;
         var edgeCountOffset = recordOffset + edgesCountOffset;
         var edgesOffset = recordOffset + this.edgesOffset;
 
-        long inMemoryPageIndex;
-        long pageVersion;
-
-        int edgesCount;
-        do {
-            get(vertexIndex, inMemoryPageIndexVersion);
-            inMemoryPageIndex = inMemoryPageIndexVersion[0];
-            pageVersion = inMemoryPageIndexVersion[1];
-
-            edgesCount = pages.get(ValueLayout.JAVA_INT, edgeCountOffset);
-            MemorySegment.copy(pages, ValueLayout.JAVA_INT, inMemoryPageIndex * pageSize + edgesOffset, edges, 0, edgesCount);
-
-        } while (!checkVersion(inMemoryPageIndex, pageVersion));
+        var inMemoryPageIndex = readLocked(vertexIndex);
+        var edgesCount = pages.get(ValueLayout.JAVA_INT, edgeCountOffset);
+        MemorySegment.copy(pages, ValueLayout.JAVA_INT, inMemoryPageIndex * pageSize + edgesOffset, edges,
+                0, edgesCount);
 
         return edgesCount;
     }
 
-    public boolean checkVersion(long inMemoryPageIndex, long pageVersion) {
-        var currentVersion = (long) pagesVersionHandle.get(pages, inMemoryPageIndex);
-        return currentVersion == pageVersion;
-    }
-
-    public void get(long vertexIndex, @NotNull long[] inMemoryPageIndexAndVersion) {
+    public long readLock(long vertexIndex) {
         long pageIndex = vertexIndex / verticesCountPerPage;
 
         while (true) {
-            var found = getPageIfPresent(pageIndex, inMemoryPageIndexAndVersion);
-            if (found) {
-                return;
+            var inMemoryPageIndex = readLockIfPresent(pageIndex);
+            if (inMemoryPageIndex >= 0) {
+                return inMemoryPageIndex;
             }
 
-            var future = preloadingPages.putIfAbsent(pageIndex, futurePlaceHolder);
+            var future = preloadingPages.putIfAbsent(pageIndex + 1, futurePlaceHolder);
             if (future == null) {
                 future = schedulePagePreLoading(pageIndex);
 
                 //noinspection unchecked
-                if (waitForPreloadingCompletion((Future<Void>) future, pageIndex, inMemoryPageIndexAndVersion)) {
-                    return;
+                inMemoryPageIndex = waitForPreloadingCompletion((Future<Void>) future, pageIndex);
+                if (inMemoryPageIndex >= 0) {
+                    return inMemoryPageIndex;
                 }
             } else if (future == futurePlaceHolder) {
                 Thread.onSpinWait();
             } else {
                 //noinspection unchecked
-                if (waitForPreloadingCompletion((Future<Void>) future, pageIndex, inMemoryPageIndexAndVersion)) {
-                    return;
+                inMemoryPageIndex = waitForPreloadingCompletion((Future<Void>) future, pageIndex);
+
+                if (inMemoryPageIndex >= 0) {
+                    return inMemoryPageIndex;
                 }
             }
         }
     }
 
-    private boolean waitForPreloadingCompletion(Future<Void> future, long pageIndex,
-                                                @NotNull long[] inMemoryPageIndexAndVersion) {
+    public long readLocked(long vertexIndex) {
+        long pageIndex = vertexIndex / verticesCountPerPage;
+
+        requestsCount.increment();
+        while (true) {
+            var node = data.get(pageIndex + 1);
+
+            if (waitForLoadCompletion(node, pageIndex)) {
+                continue;
+            }
+
+            assert node.preLoadLocks == 0;
+            assert node.pageLock.availablePermits() < Integer.MAX_VALUE;
+            assert node.isAlive();
+
+            afterRead(node);
+            hitsCount.increment();
+
+            return node.getValue();
+        }
+    }
+
+    private boolean waitForLoadCompletion(Node node, long pageIndex) {
+        if (node == null || node.preLoadLocks > 0) {
+            var future = preloadingPages.get(pageIndex + 1);
+
+            if (future == null || future == futurePlaceHolder) {
+                Thread.onSpinWait();
+                return true;
+            }
+
+            try {
+                //noinspection unchecked
+                ((Future<Void>) future).get();
+                preloadingPages.remove(pageIndex + 1, future);
+
+                return true;
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return false;
+    }
+
+    public void unlock(long vertexIndex) {
+        long pageIndex = vertexIndex / verticesCountPerPage;
+
+        while (true) {
+            var node = data.get(pageIndex + 1);
+            if (waitForLoadCompletion(node, pageIndex)) {
+                continue;
+            }
+
+
+            assert node.isAlive();
+            assert node.preLoadLocks == 0;
+            assert node.pageLock.availablePermits() < Integer.MAX_VALUE;
+
+            node.pageLock.release();
+
+            break;
+        }
+    }
+
+    private long waitForPreloadingCompletion(Future<Void> future, long pageIndex) {
         try {
             future.get();
-            preloadingPages.remove(pageIndex, future);
-
+            preloadingPages.remove(pageIndex + 1, future);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        return getPageIfPresent(pageIndex, inMemoryPageIndexAndVersion);
+        return readLockIfPresent(pageIndex);
     }
 
     public long hits() {
         return 100 * hitsCount.sum() / requestsCount.sum();
     }
 
-    private boolean getPageIfPresent(long pageIndex, @NotNull long[] inMemoryPageIndexAndVersion) {
+    private long readLockIfPresent(long pageIndex) {
         if (pageIndex >= filePagesCount) {
             throw new IllegalArgumentException();
         }
 
         requestsCount.increment();
-        var node = data.get(pageIndex + 1);
+        Node node;
 
-        if (node == null) {
-            if (drainStatusOpaque() == REQUIRED) {
-                scheduleDrainBuffers();
+        while (true) {
+            node = data.get(pageIndex + 1);
+
+            if (node == null) {
+                if (drainStatusOpaque() == REQUIRED) {
+                    scheduleDrainBuffers();
+                }
+
+                return -1;
             }
 
-            return false;
+            if (node.preLoadLocks > 0) {
+                assert !node.inWindow();
+                assert !node.inMainProbation();
+                assert !node.inMainProtected();
+
+                return -1;
+            }
+
+            node.pageLock.acquireUninterruptibly();
+
+            if (!node.isAlive()) {
+                node.pageLock.release();
+                continue;
+            }
+
+            break;
         }
 
+        assert node.isAlive();
         long inMemoryPageIndex = node.getValue();
-        long pageVersion = node.pageVersion;
 
         afterRead(node);
-
-        inMemoryPageIndexAndVersion[0] = inMemoryPageIndex;
-        inMemoryPageIndexAndVersion[1] = pageVersion;
 
         hitsCount.increment();
 
-        return true;
-    }
-
-    private boolean containsPage(long pageIndex) {
-        if (pageIndex >= filePagesCount) {
-            throw new IllegalArgumentException();
+        if (!node.isAlive() || node.pageLock.availablePermits() == Integer.MAX_VALUE) {
+            throw new IllegalStateException("Illegal node state. Page index : " + pageIndex);
         }
 
-        var node = data.get(pageIndex + 1);
-
-        if (node == null) {
-            if (drainStatusOpaque() == REQUIRED) {
-                scheduleDrainBuffers();
-            }
-
-            return false;
-        }
-
-        afterRead(node);
-
-        return true;
+        return inMemoryPageIndex;
     }
-
 
     public void preloadIfNeeded(long vertexIndex) {
         long pageIndex = vertexIndex / verticesCountPerPage;
 
-        if (containsPage(pageIndex)) {
-            return;
+        while (true) {
+            var inMemoryIndex = readLockIfPresent(pageIndex);
+
+            if (inMemoryIndex >= 0) {
+                return;
+            }
+
+            var node = data.get(pageIndex + 1);
+            if (node == null) {
+                var prev =
+                        data.putIfAbsent(pageIndex + 1,
+                                new Node(pageIndex, -1, -1, 1));
+                if (prev == null) {
+                    break;
+                }
+            } else {
+                if (node.preLoadLocks == 0) {
+                    continue;
+                }
+
+                if (data.replace(pageIndex + 1, node,
+                        new Node(pageIndex,
+                                -1, -1, node.preLoadLocks + 1))) {
+                    break;
+                }
+            }
         }
 
-        var future = preloadingPages.putIfAbsent(pageIndex, futurePlaceHolder);
-
+        var future = preloadingPages.putIfAbsent(pageIndex + 1, futurePlaceHolder);
         if (future == null) {
             schedulePagePreLoading(pageIndex);
         }
@@ -489,12 +562,17 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             }
         }, pagePreLoaders);
 
-        var updated = preloadingPages.replace(pageIndex, futurePlaceHolder, future);
+        var updated = preloadingPages.replace(pageIndex + 1, futurePlaceHolder, future);
 
         if (!updated) {
-            logger.error("Concurrent preloading of page {} !!!", pageIndex);
-            throw new IllegalStateException();
+            logger.error("Concurrent preloading of the same page {} !!!", pageIndex);
+            throw new IllegalStateException("Concurrent preloading of page " + pageIndex);
         }
+
+        future.thenApply((v) -> {
+            preloadingPages.remove(pageIndex + 1, future);
+            return null;
+        });
 
         return future;
     }
@@ -509,34 +587,36 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
      */
     private void add(long key, long inMemoryPageIndex, long pageVersion) {
         Node node = null;
+        Node prior = data.get(key + 1);
+
         while (true) {
-            Node prior = data.get(key + 1);
-
             if (prior == null) {
-                if (node == null) {
-                    node = new Node(key, inMemoryPageIndex, pageVersion);
-                }
-
+                node = new Node(key, inMemoryPageIndex, pageVersion, 0);
                 prior = data.putIfAbsent(key + 1, node);
 
                 if (prior == null) {
                     afterAdd(node);
                     return;
-                } else {
-                    if (!prior.isAlive()) {
-                        continue;
-                    }
-
-                    throw new IllegalStateException("Page " + inMemoryPageIndex + " version " + prior.pageVersion +
-                            " is already present in the cache.");
                 }
             } else {
-                if (!prior.isAlive()) {
+                if (prior.preLoadLocks == 0 && !prior.isAlive()) {
+                    prior = data.get(key + 1);
                     continue;
                 }
 
-                throw new IllegalStateException("Page " + inMemoryPageIndex + " version " + prior.pageVersion +
-                        " is already present in the cache.");
+                if (prior.preLoadLocks > 0) {
+                    node = new Node(key, inMemoryPageIndex, pageVersion, 0);
+                    node.pageLock.acquireUninterruptibly(prior.preLoadLocks);
+                } else if (node == null) {
+                    node = new Node(key, inMemoryPageIndex, pageVersion, 0);
+                }
+
+                if (data.replace(key + 1, prior, node)) {
+                    afterAdd(node);
+                    return;
+                }
+
+                prior = data.get(key + 1);
             }
         }
     }
@@ -908,8 +988,17 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     /** Evicts entries if the cache exceeds the maximum. */
     @GuardedBy("evictionLock")
     private void evictEntries() {
-        var candidate = evictFromWindow();
-        evictFromMain(candidate);
+        lockedNodes.clear();
+
+        try {
+            var candidate = evictFromWindow(lockedNodes);
+            evictFromMain(candidate, lockedNodes);
+        } finally {
+            for (var node : lockedNodes) {
+                node.pageLock.release(Integer.MAX_VALUE);
+            }
+        }
+
     }
 
     /**
@@ -930,14 +1019,20 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
      * @param candidate the first candidate promoted into the probation space
      */
     @GuardedBy("evictionLock")
-    private void evictFromMain(@Nullable Node candidate) {
+    private void evictFromMain(@Nullable Node candidate, @NotNull ObjectOpenHashSet<Node> lockedNodes) {
         int victimQueue = PROBATION;
         int candidateQueue = PROBATION;
+
+        assert candidate == null || candidate.pageLock.availablePermits() == 0 && candidate.preLoadLocks == 0;
         Node victim = accessOrderProbationDeque.peekFirst();
+        victim = lockForEviction(victim, lockedNodes);
+
         while (currentCacheSize > maximum) {
             // Search the admission window for additional candidates
             if ((candidate == null) && (candidateQueue == PROBATION)) {
                 candidate = accessOrderWindowDeque.peekFirst();
+                candidate = lockForEviction(candidate, lockedNodes);
+
                 candidateQueue = WINDOW;
             }
 
@@ -945,10 +1040,14 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             if ((candidate == null) && (victim == null)) {
                 if (victimQueue == PROBATION) {
                     victim = accessOrderProtectedDeque.peekFirst();
+                    victim = lockForEviction(victim, lockedNodes);
+
                     victimQueue = PROTECTED;
                     continue;
                 } else if (victimQueue == PROTECTED) {
                     victim = accessOrderWindowDeque.peekFirst();
+                    victim = lockForEviction(victim, lockedNodes);
+
                     victimQueue = WINDOW;
                     continue;
                 }
@@ -965,11 +1064,15 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                 Node evict = candidate;
                 candidate = previous;
 
+                candidate = lockForEviction(candidate, lockedNodes);
+
                 evictEntry(evict);
                 continue;
             } else if (candidate == null) {
                 Node evict = victim;
                 victim = victim.getNextInAccessOrder();
+                victim = lockForEviction(victim, lockedNodes);
+
                 evictEntry(evict);
                 continue;
             }
@@ -977,6 +1080,8 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             // Evict immediately if both selected the same entry
             if (candidate == victim) {
                 victim = victim.getNextInAccessOrder();
+                victim = lockForEviction(victim, lockedNodes);
+
                 evictEntry(candidate);
                 candidate = null;
                 continue;
@@ -989,11 +1094,15 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             if (!victim.isAlive()) {
                 Node evict = victim;
                 victim = victim.getNextInAccessOrder();
+                victim = lockForEviction(victim, lockedNodes);
+
                 evictEntry(evict);
                 continue;
             } else if (!candidate.isAlive()) {
                 Node evict = candidate;
                 candidate = candidate.getNextInAccessOrder();
+                candidate = lockForEviction(candidate, lockedNodes);
+
                 evictEntry(evict);
                 continue;
             }
@@ -1002,11 +1111,20 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             if (admit(candidateKey, victimKey)) {
                 Node evict = victim;
                 victim = victim.getNextInAccessOrder();
+                victim = lockForEviction(victim, lockedNodes);
+
                 evictEntry(evict);
+
+                assert candidate.preLoadLocks == 0;
                 candidate = candidate.getNextInAccessOrder();
+
+                candidate = lockForEviction(candidate, lockedNodes);
             } else {
                 Node evict = candidate;
+
                 candidate = candidate.getNextInAccessOrder();
+                candidate = lockForEviction(candidate, lockedNodes);
+
                 evictEntry(evict);
             }
         }
@@ -1048,6 +1166,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     @GuardedBy("evictionLock")
     @SuppressWarnings({"GuardedByChecker", "NullAway", "PMD.CollapsibleIfStatements"})
     private void evictEntry(Node node) {
+        assert node.preLoadLocks == 0;
+        assert node.pageLock.availablePermits() == 0;
+
         long key = node.getKey();
 
         data.computeIfPresent(key + 1, (k, n) -> {
@@ -1144,14 +1265,24 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
      */
     @GuardedBy("evictionLock")
     @Nullable
-    private Node evictFromWindow() {
+    private Node evictFromWindow(@NotNull ObjectOpenHashSet<Node> lockedNodes) {
         Node first = null;
         Node node = accessOrderWindowDeque.peekFirst();
 
         while (windowSize > windowMaximum) {
-            // The pending operations will adjust the size to reflect the correct weight
+            // The pending operations will adjust the size
             if (node == null) {
                 break;
+            }
+
+            if (first == null) {
+                node = lockForEviction(node, lockedNodes);
+
+                if (node == null) {
+                    break;
+                }
+
+                first = node;
             }
 
             Node next = node.getNextInAccessOrder();
@@ -1160,15 +1291,30 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
             accessOrderWindowDeque.remove(node);
             accessOrderProbationDeque.offerLast(node);
 
-            if (first == null) {
-                first = node;
-            }
-
             windowSize--;
             node = next;
         }
 
         return first;
+    }
+
+    @Nullable
+    private Node lockForEviction(Node node, @NotNull ObjectOpenHashSet<Node> lockedNodes) {
+        while (node != null && !node.pageLock.tryAcquire(Integer.MAX_VALUE)) {
+            if (lockedNodes.contains(node)) {
+                break;
+            }
+
+            assert node.pageLock.availablePermits() > 0;
+            node = node.getNextInAccessOrder();
+        }
+
+        if (node != null) {
+            lockedNodes.add(node);
+        }
+
+        assert node == null || node.pageLock.availablePermits() == 0 && node.preLoadLocks == 0;
+        return node;
     }
 
 
@@ -1235,6 +1381,16 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     public void close() throws IOException {
         arena.close();
         fileChannel.close();
+
+        assert assertAllUnlocked();
+    }
+
+    public boolean assertAllUnlocked() {
+        for (var node : data.values()) {
+            assert node.pageLock.availablePermits() == Integer.MAX_VALUE && node.preLoadLocks == 0;
+        }
+
+        return true;
     }
 
     /** Updates the node's location in the policy's deque. */
@@ -1306,15 +1462,15 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
     @NotNull
-    private static PagesStructure calculatePagesStructure(long totalSize, int vectorDim,
-                                                          int maxConnectionsPerVertex, Path graphFile) throws IOException {
-        var pageStructure = calculatePageStructure(vectorDim, maxConnectionsPerVertex, graphFile);
+    private static PagesStructure createPagesStructure(long totalSize, int vectorDim,
+                                                       int maxConnectionsPerVertex) {
+        var pageStructure = createPageStructure(vectorDim, maxConnectionsPerVertex);
 
         var cacheSize = 0.9 * totalSize;
         var cachePagesCount = cacheSize / pageStructure.pageSize;
-        var blocksInPage = pageStructure.pageSize / pageStructure.blockSize;
+        var blocksInPage = pageStructure.pageSize / DISK_BLOCK_SIZE;
 
-        var preLoadersCount = (int) Math.max(4, 64 / blocksInPage);
+        var preLoadersCount = Math.max(4, 64 / blocksInPage);
 
         @SuppressWarnings("IntegerDivisionInFloatingPointContext")
         var preLoaderPagesCount = Math.max(totalSize / pageStructure.pageSize - cachePagesCount, preLoadersCount);
@@ -1332,8 +1488,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
     @NotNull
-    public static PageStructure calculatePageStructure(int vectorDim, int maxConnectionsPerVertex, Path graphFile) throws IOException {
-        var blockSize = (int) Files.getFileStore(graphFile).getBlockSize();
+    public static PageStructure createPageStructure(int vectorDim, int maxConnectionsPerVertex) {
         var vertexLayout = MemoryLayout.structLayout(
                 MemoryLayout.sequenceLayout(vectorDim, ValueLayout.JAVA_FLOAT).withName("vector"),
                 MemoryLayout.sequenceLayout(maxConnectionsPerVertex, ValueLayout.JAVA_INT).withName("edges"),
@@ -1345,13 +1500,13 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         int pageSize;
 
         int verticesCountPerPage;
-        if (blockSize >= minPageSize) {
-            verticesCountPerPage = ((blockSize - Long.BYTES) / vertexRecordSize);
-            pageSize = blockSize;
+        if (DISK_BLOCK_SIZE >= minPageSize) {
+            verticesCountPerPage = ((DISK_BLOCK_SIZE - Long.BYTES) / vertexRecordSize);
+            pageSize = DISK_BLOCK_SIZE;
         } else {
             //rounding to the closest disk page
-            pageSize = blockSize *
-                    ((Long.BYTES + vertexRecordSize + blockSize - 1) / blockSize);
+            pageSize = DISK_BLOCK_SIZE *
+                    ((Long.BYTES + vertexRecordSize + DISK_BLOCK_SIZE - 1) / DISK_BLOCK_SIZE);
             verticesCountPerPage = 1;
         }
 
@@ -1367,7 +1522,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         var recordEdgesCountOffset =
                 (int) vertexLayout.byteOffset(MemoryLayout.PathElement.groupElement("edgesCount"));
 
-        return new PageStructure(blockSize, pageSize, verticesCountPerPage, vertexRecordSize,
+        return new PageStructure(pageSize, verticesCountPerPage, vertexRecordSize,
                 recordVectorOffset, recordEdgesOffset, recordEdgesCountOffset, pageLayout);
     }
 
@@ -1375,7 +1530,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                                   PageStructure pageStructure, MemoryLayout pagesLayout) {
     }
 
-    public record PageStructure(long blockSize, int pageSize, int verticesCountPerPage, int vertexRecordSize,
+    public record PageStructure(int pageSize, int verticesCountPerPage, int vertexRecordSize,
                                 int recordVectorsOffset,
                                 int recordEdgesOffset, int recordEdgesCountOffset, MemoryLayout pageLayout) {
 
