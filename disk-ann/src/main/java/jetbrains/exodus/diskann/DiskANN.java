@@ -600,30 +600,29 @@ public final class DiskANN implements AutoCloseable {
 
             var globalIndexPartitionIndex = heapGlobalIndexes.dequeueLong();
 
-            var globalIndex = (int) (globalIndexPartitionIndex);
             var partitionIndex = (int) (globalIndexPartitionIndex >>> 32);
-            var vertexIndexInsidePartition = partitionsIndexes[partitionIndex] - 1;
+            var vertexIndexInsidePartition = (long)partitionsIndexes[partitionIndex] - 1;
             var partition = partitions[partitionIndex];
 
             addPartitionEdgeToHeap(completedPartitions, partitionIndex,
                     heapGlobalIndexes, partition, partitionsIndexes);
 
             assert partition.globalIndexes.getAtIndex(ValueLayout.JAVA_INT,
-                    vertexIndexInsidePartition) == globalIndex;
+                    vertexIndexInsidePartition) == globalIndexPartitionIndex;
 
-            assert resultIndex == globalIndex;
-            var edgesOffset = (long) vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+            assert resultIndex == globalIndexPartitionIndex;
+            var edgesOffset = vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
 
-            var localPageOffset = globalIndex % verticesPerPage;
-            var pageOffset = (globalIndex / verticesPerPage) * pageSize;
+            var localPageOffset = globalIndexPartitionIndex % verticesPerPage;
+            var pageOffset = (globalIndexPartitionIndex / verticesPerPage) * pageSize;
 
-            var recordOffset = (long) localPageOffset * vertexRecordSize + Long.BYTES + pageOffset;
+            var recordOffset = localPageOffset * vertexRecordSize + Long.BYTES + pageOffset;
 
             var resultEdgesOffset = recordOffset + diskRecordEdgesOffset;
             var resultEdgesCountOffset = recordOffset + diskRecordEdgesCountOffset;
 
-            if (heapGlobalIndexes.isEmpty() || globalIndex != (int) heapGlobalIndexes.firstLong()) {
-                var edgesSize = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
+            if (heapGlobalIndexes.isEmpty() || globalIndexPartitionIndex != (int) heapGlobalIndexes.firstLong()) {
+                var edgesSize = (long)partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
                 assert edgesSize <= maxConnectionsPerVertex;
 
                 edgesOffset += Integer.BYTES;
@@ -631,7 +630,7 @@ public final class DiskANN implements AutoCloseable {
 
                 MemorySegment.copy(partition.edges,
                         edgesOffset,
-                        diskCache, resultEdgesOffset, (long) edgesSize * Integer.BYTES);
+                        diskCache, resultEdgesOffset, edgesSize * Integer.BYTES);
             } else {
                 edgeSet.clear();
 
@@ -646,7 +645,7 @@ public final class DiskANN implements AutoCloseable {
 
                 do {
                     var nextGlobalIndexPartitionIndex = heapGlobalIndexes.dequeueLong();
-                    assert globalIndex == (int) nextGlobalIndexPartitionIndex;
+                    assert globalIndexPartitionIndex == (int) nextGlobalIndexPartitionIndex;
 
                     partitionIndex = (int) (nextGlobalIndexPartitionIndex >>> 32);
                     vertexIndexInsidePartition = partitionsIndexes[partitionIndex] - 1;
@@ -655,7 +654,7 @@ public final class DiskANN implements AutoCloseable {
                     addPartitionEdgeToHeap(completedPartitions, partitionIndex,
                             heapGlobalIndexes, partition, partitionsIndexes);
 
-                    edgesOffset = (long) vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+                    edgesOffset = vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
 
                     edgesCount = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
                     edgesOffset += Integer.BYTES;
@@ -666,7 +665,7 @@ public final class DiskANN implements AutoCloseable {
 
                         edgeSet.add(neighbour);
                     }
-                } while (!heapGlobalIndexes.isEmpty() && globalIndex == (int) heapGlobalIndexes.firstLong());
+                } while (!heapGlobalIndexes.isEmpty() && globalIndexPartitionIndex == (int) heapGlobalIndexes.firstLong());
 
                 edgesCount = edgeSet.size();
 
