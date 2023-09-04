@@ -1967,7 +1967,7 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private void preloadVertices(BoundedGreedyVertexPriorityQueue nearestCandidates, int[] vertexToPreload) {
-            var preLoadSize = nearestCandidates.markAsLocked(16, vertexToPreload);
+            var preLoadSize = nearestCandidates.markAsLocked(8, vertexToPreload);
 
             for (int n = 0; n < preLoadSize; n++) {
                 var preLoadVertexIndex = vertexToPreload[n];
