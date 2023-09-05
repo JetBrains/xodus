@@ -31,12 +31,14 @@ To start using Xodus, define dependencies:
     <version>2.0.1</version>
 </dependency>
 ```
-```groovy
+
+```kotlin
 // in Gradle project
 dependencies {
-    compile 'org.jetbrains.xodus:xodus-openAPI:2.0.1'
+    implementation("org.jetbrains.xodus:xodus-openAPI:2.0.1")
 }
 ```
+
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
 
 There are two different ways to deal with data, which results in two different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments) and [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores).
