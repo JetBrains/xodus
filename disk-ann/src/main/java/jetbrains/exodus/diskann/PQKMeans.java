@@ -39,7 +39,7 @@ public final class PQKMeans {
                                              MemorySegment pqVectors,
                                              int numClusters,
                                              int iterations,
-                                             byte distanceFunction) {
+                                             DistanceFunction distanceFunction) {
         logger.info("Start PQ k-means clustering for {} clusters.", numClusters);
 
         var quantizersCount = centroids.length;
@@ -264,7 +264,7 @@ public final class PQKMeans {
         logger.info("All {} PQ vectors are processed during histogram generation. ", numCodes);
     }
 
-    static float[] distanceTables(float[][][] centroids, byte distanceFunction) {
+    static float[] distanceTables(float[][][] centroids, DistanceFunction distanceFunction) {
         var quantizers = centroids.length;
         var codeSpaceSize = centroids[0].length;
         var vecSize = centroids[0][0].length;
@@ -287,10 +287,9 @@ public final class PQKMeans {
                     var vector3 = centroids[n][j + 2];
                     var vector4 = centroids[n][j + 3];
 
-                    Distance.computeDistance(origin, 0, vector1, 0, vector2,
+                    distanceFunction.computeDistance(origin, 0, vector1, 0, vector2,
                             0, vector3, 0, vector4, 0,
-                            batchResult, vecSize, distanceFunction
-                    );
+                            batchResult, vecSize);
 
                     var offset = baseOffset + j;
                     result[offset] = batchResult[0];
@@ -304,8 +303,8 @@ public final class PQKMeans {
                     var origin = centroids[n][i];
                     var vector = centroids[n][j];
 
-                    result[baseOffset + j] = Distance.computeDistance(origin, vector,
-                            0, vecSize, distanceFunction);
+                    result[baseOffset + j] = distanceFunction.computeDistance(origin, 0, vector,
+                            0, vecSize);
                 }
             }
 

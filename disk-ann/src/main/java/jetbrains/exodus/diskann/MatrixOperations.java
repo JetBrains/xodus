@@ -18,6 +18,7 @@ package jetbrains.exodus.diskann;
 import java.util.Arrays;
 
 public final class MatrixOperations {
+    private static final DotDistanceFunction DOT_DISTANCE = new DotDistanceFunction();
     public static void multiply(float[] matrix, int matrixOffset,
                                 int matrixColumns, int matrixRows,
                                 float[] vector, int vectorOffset,
@@ -34,9 +35,10 @@ public final class MatrixOperations {
         var matrixOffset3 = matrixOffset2 + matrixColumns;
         var matrixOffset4 = matrixOffset3 + matrixColumns;
 
+
         for (index = 0; index < boundary; index += 4, matrixOffset1 += matrixStep,
                 matrixOffset2 += matrixStep, matrixOffset3 += matrixStep, matrixOffset4 += matrixStep) {
-            DotDistance.computeDotDistance(vector, vectorOffset, matrix, matrixOffset1, matrix,
+            DOT_DISTANCE.computeDistance(vector, vectorOffset, matrix, matrixOffset1, matrix,
                     matrixOffset2, matrix, matrixOffset3, matrix, matrixOffset4, mulBuffer, matrixColumns);
 
             result[index] += mulBuffer[0];
@@ -47,7 +49,7 @@ public final class MatrixOperations {
 
         for (; index < matrixRows; index++, matrixOffset1 += matrixRows) {
             result[index] +=
-                    DotDistance.computeDotDistance(vector, vectorOffset, matrix, matrixOffset1, matrixColumns);
+                    DOT_DISTANCE.computeDistance(vector, vectorOffset, matrix, matrixOffset1, matrixColumns);
         }
     }
 

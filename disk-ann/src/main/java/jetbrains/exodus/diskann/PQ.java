@@ -46,7 +46,7 @@ public final class PQ {
     }
 
     public static PQCodes generatePQCodes(int pqQuantizersCount,
-                                          int pqSubVectorSize, byte distanceFunction,
+                                          int pqSubVectorSize, DistanceFunction distanceFunction,
                                           VectorReader vectorReader, Arena arena) {
 
 
@@ -136,8 +136,8 @@ public final class PQ {
                         var vector = vectorReader.read(vectorIndex);
 
                         for (int i = 0; i < pqQuantizersCount; i++) {
-                            var centroidIndex = Distance.findClosestVector(kMeans[i].centroids, vector,
-                                    i * pqSubVectorSize, pqSubVectorSize, distanceFunction);
+                            var centroidIndex = distanceFunction.findClosestVector(kMeans[i].centroids, vector,
+                                    i * pqSubVectorSize, pqSubVectorSize);
                             pqVectors.set(ValueLayout.JAVA_BYTE,
                                     (long) vectorIndex * pqQuantizersCount + i, (byte) centroidIndex);
                         }
@@ -173,15 +173,14 @@ public final class PQ {
 
     public static void buildPQDistanceLookupTable(float[] vector, float[] lookupTable, float[][][] pqCentroids,
                                                   int pqQuantizersCount, int pqSubVectorSize,
-                                                  byte distanceFunction) {
+                                                  DistanceFunction distanceFunction) {
         for (int i = 0; i < pqQuantizersCount; i++) {
             var centroids = pqCentroids[i];
 
             for (int j = 0; j < centroids.length; j++) {
                 var centroid = centroids[j];
-                var distance = Distance.computeDistance(centroid, vector,
-                        i * pqSubVectorSize, centroid.length, distanceFunction
-                );
+                var distance = distanceFunction.computeDistance(centroid, 0, vector,
+                        i * pqSubVectorSize, centroid.length);
                 lookupTable[i * (1 << Byte.SIZE) + j] = distance;
             }
         }

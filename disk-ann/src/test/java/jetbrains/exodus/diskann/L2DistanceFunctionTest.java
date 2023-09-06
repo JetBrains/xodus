@@ -21,7 +21,7 @@ import org.junit.Test;
 import java.lang.foreign.Arena;
 import java.lang.foreign.ValueLayout;
 
-public class DotDistanceTest {
+public class L2DistanceFunctionTest {
     @Test
     public void testSmallSegmentZeroOffset() {
         try (var arena = Arena.openConfined()) {
@@ -29,10 +29,10 @@ public class DotDistanceTest {
             var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 4.0f, 5.0f);
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstSegment, 0, secondSegment,
+                var distance = L2DistanceFunction.computeL2Distance(firstSegment, 0, secondSegment,
                         0,
                         2, i);
-                Assert.assertEquals(23.0f, distance, 0.0f);
+                Assert.assertEquals(8.0f, distance, 0.0f);
             }
         }
     }
@@ -50,14 +50,14 @@ public class DotDistanceTest {
             var result = new float[4];
 
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originalSegment, 0, firstSegment,
+                L2DistanceFunction.computeL2Distance(originalSegment, 0, firstSegment,
                         0, secondSegment, 0, thirdSegment, 0,
                         fourthSegment, 0, 2, result, i);
 
-                Assert.assertEquals(23.0f, result[0], 0.0f);
-                Assert.assertEquals(28.0f, result[1], 0.0f);
-                Assert.assertEquals(33.0f, result[2], 0.0f);
-                Assert.assertEquals(40.0f, result[3], 0.0f);
+                Assert.assertEquals(8.0f, result[0], 0.0f);
+                Assert.assertEquals(18.0f, result[1], 0.0f);
+                Assert.assertEquals(32.0f, result[2], 0.0f);
+                Assert.assertEquals(61.0f, result[3], 0.0f);
             }
         }
     }
@@ -74,12 +74,12 @@ public class DotDistanceTest {
             for (var i = 0; i < count; i++) {
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
-                sum += 3.0f * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstSegment, 0,
-                        secondSegment, 0, count, i);
+                var distance = L2DistanceFunction.computeL2Distance(firstSegment, 0, secondSegment, 0,
+                        count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
         }
@@ -100,21 +100,20 @@ public class DotDistanceTest {
 
             for (var i = 0; i < count; i++) {
                 originalSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
-
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 7.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 9.0f * i);
 
-                sum[0] += 3.0f * i * i;
-                sum[1] += 5.0f * i * i;
-                sum[2] += 7.0f * i * i;
-                sum[3] += 9.0f * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (16.0 * i * i);
+                sum[2] += (float) (36.0 * i * i);
+                sum[3] += (float) (64.0 * i * i);
             }
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originalSegment, 0, firstSegment, 0,
+                L2DistanceFunction.computeL2Distance(originalSegment, 0, firstSegment, 0,
                         secondSegment, 0, thirdSegment, 0, fourthSegment,
                         0, count, result, i);
                 Assert.assertArrayEquals(sum, result, 0.0f);
@@ -130,17 +129,17 @@ public class DotDistanceTest {
                 var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
                 var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
 
-                var iSum = 0;
+                var sum = 0.0f;
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
-                    iSum += 3 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
-                    var distance = DotDistance.computeDotDistance(firstSegment, 0, secondSegment,
-                            0, count, i);
-                    Assert.assertEquals(iSum, distance, 0.0f);
+                    var distance = L2DistanceFunction.computeL2Distance(firstSegment, 0, secondSegment, 0,
+                            count, i);
+                    Assert.assertEquals(sum, distance, 0.0f);
                 }
             }
         }
@@ -160,22 +159,22 @@ public class DotDistanceTest {
 
             var sum = new float[4];
             for (var i = 0; i < count; i++) {
-                originalSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 2.0f * i);
+                originalSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
 
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 4.0f * i);
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originalSegment, 0, firstSegment, 0,
+                L2DistanceFunction.computeL2Distance(originalSegment, 0, firstSegment, 0,
                         secondSegment, 0, thirdSegment, 0, fourthSegment,
                         0, count, result, i);
 
@@ -191,9 +190,9 @@ public class DotDistanceTest {
             var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 3.0f, 4.0f, 5.0f, 1.0f);
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstSegment, Float.BYTES, secondSegment,
+                var distance = L2DistanceFunction.computeL2Distance(firstSegment, Float.BYTES, secondSegment,
                         2 * Float.BYTES, 2, i);
-                Assert.assertEquals(23.0f, distance, 0.0f);
+                Assert.assertEquals(8.0f, distance, 0.0f);
             }
         }
     }
@@ -210,14 +209,14 @@ public class DotDistanceTest {
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originSegment,
+                L2DistanceFunction.computeL2Distance(originSegment,
                         Float.BYTES, firstSegment, 2 * Float.BYTES,
                         secondSegment, 2 * Float.BYTES,
                         thirdSegment, 2 * Float.BYTES,
                         fourthSegment, 2 * Float.BYTES,
-                        2, result);
+                        2, result, i);
 
-                Assert.assertArrayEquals(new float[]{23.0f, 33.0f, 43.0f, 53.0f}, result, 0.0f);
+                Assert.assertArrayEquals(new float[]{8.0f, 32.0f, 72.0f, 128.0f}, result, 0.0f);
             }
         }
     }
@@ -244,11 +243,11 @@ public class DotDistanceTest {
             for (var i = 0; i < count; i++) {
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + secondOffset, 3.0f * i);
-                sum += 3.0f * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
+                var distance = L2DistanceFunction.computeL2Distance(firstSegment, firstOffset * Float.BYTES,
                         secondSegment, secondOffset * Float.BYTES, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
@@ -290,22 +289,22 @@ public class DotDistanceTest {
             var originOffset = 2;
             var otherOffset = 3;
             for (var i = 0; i < count; i++) {
-                originSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + originOffset, 2.0f * i);
+                originSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + originOffset, 1.0f * i);
 
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 3.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 4.0f * i);
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originSegment, originOffset * Float.BYTES,
+                L2DistanceFunction.computeL2Distance(originSegment, originOffset * Float.BYTES,
                         firstSegment, otherOffset * Float.BYTES,
                         secondSegment, otherOffset * Float.BYTES,
                         thirdSegment, otherOffset * Float.BYTES,
@@ -333,19 +332,19 @@ public class DotDistanceTest {
 
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, 2, 3.0f);
 
-                var iSum = 0;
+                var sum = 0.0f;
                 var firstOffset = 2;
                 var secondOffset = 3;
                 for (var i = 0; i < count; i++) {
-                    firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 2.0f * i);
+                    firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + secondOffset, 3.0f * i);
-                    iSum += 6 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
-                    var distance = DotDistance.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
+                    var distance = L2DistanceFunction.computeL2Distance(firstSegment, firstOffset * Float.BYTES,
                             secondSegment, secondOffset * Float.BYTES, count, i);
-                    Assert.assertEquals(iSum, distance, 0.0f);
+                    Assert.assertEquals(sum, distance, 0.0f);
                 }
             }
         }
@@ -367,19 +366,19 @@ public class DotDistanceTest {
 
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, 2, 3.0f);
 
-                var iSum = 0;
+                var sum = 0.0f;
                 var firstOffset = 2;
                 var secondOffset = 3;
                 for (var i = 0; i < count; i++) {
-                    firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 2.0f * i);
+                    firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + secondOffset, 3.0f * i);
-                    iSum += 6 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
-                    var distance = DotDistance.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
+                    var distance = L2DistanceFunction.computeL2Distance(firstSegment, firstOffset * Float.BYTES,
                             secondSegment, secondOffset * Float.BYTES, count, i);
-                    Assert.assertEquals(iSum, distance, 0.0f);
+                    Assert.assertEquals(sum, distance, 0.0f);
                 }
             }
         }
@@ -392,9 +391,9 @@ public class DotDistanceTest {
             var secondVector = new float[]{4.0f, 5.0f};
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstSegment, 0,
+                var distance = L2DistanceFunction.computeL2Distance(firstSegment, 0,
                         secondVector, 0, 2, i);
-                Assert.assertEquals(23.0f, distance, 0.0f);
+                Assert.assertEquals(8.0f, distance, 0.0f);
             }
         }
     }
@@ -411,7 +410,7 @@ public class DotDistanceTest {
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originVector, 0,
+                L2DistanceFunction.computeL2Distance(originVector, 0,
                         firstSegment, 0,
                         secondSegment, 0,
                         thirdSegment, 0,
@@ -419,7 +418,7 @@ public class DotDistanceTest {
                         2,
                         result,
                         i);
-                Assert.assertArrayEquals(new float[]{23.0f, 33.0f, 43.0f, 53.0f}, result, 0.0f);
+                Assert.assertArrayEquals(new float[]{8.0f, 32.0f, 72.0f, 128.0f}, result, 0.0f);
             }
         }
     }
@@ -436,11 +435,11 @@ public class DotDistanceTest {
             for (var i = 0; i < count; i++) {
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                 secondVector[i] = 3.0f * i;
-                sum += 3.0f * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstSegment, 0,
+                var distance = L2DistanceFunction.computeL2Distance(firstSegment, 0,
                         secondVector, 0, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
@@ -461,22 +460,22 @@ public class DotDistanceTest {
             var sum = new float[4];
             for (var i = 0; i < count; i++) {
 
-                originVector[i] = 2.0f * i;
+                originVector[i] = 1.0f * i;
 
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 4.0f * i);
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originVector, 0,
+                L2DistanceFunction.computeL2Distance(originVector, 0,
                         firstSegment, 0,
                         secondSegment, 0,
                         thirdSegment, 0,
@@ -497,15 +496,15 @@ public class DotDistanceTest {
                 var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
                 var secondVector = new float[count];
 
-                var sum = 0;
+                var sum = 0.0f;
                 for (var i = 0; i < count; i++) {
-                    firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 2.0f * i);
+                    firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                     secondVector[i] = 3.0f * i;
-                    sum += 6 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
-                    var distance = DotDistance.computeDotDistance(firstSegment, 0,
+                    var distance = L2DistanceFunction.computeL2Distance(firstSegment, 0,
                             secondVector, 0, count, i);
                     Assert.assertEquals(sum, distance, 0.0f);
                 }
@@ -534,15 +533,15 @@ public class DotDistanceTest {
                 thirdVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 3.0f * i * i;
-                sum[1] += 4.0f * i * i;
-                sum[2] += 5.0f * i * i;
-                sum[3] += 6.0f * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originSegment, 0,
+                L2DistanceFunction.computeL2Distance(originSegment, 0,
                         firstVector, 0,
                         secondVector, 0,
                         thirdVector, 0,
@@ -563,9 +562,9 @@ public class DotDistanceTest {
             var secondVector = new float[]{4.0f, 5.0f};
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstSegment, Float.BYTES,
+                var distance = L2DistanceFunction.computeL2Distance(firstSegment, Float.BYTES,
                         secondVector, 0, 2, i);
-                Assert.assertEquals(23.0f, distance, 0.0f);
+                Assert.assertEquals(8.0f, distance, 0.0f);
             }
         }
     }
@@ -583,7 +582,7 @@ public class DotDistanceTest {
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originVector, 1,
+                L2DistanceFunction.computeL2Distance(originVector, 1,
                         firstSegment, 0,
                         secondSegment, 0,
                         thirdSegment, 0,
@@ -591,7 +590,7 @@ public class DotDistanceTest {
                         2,
                         result,
                         i);
-                Assert.assertArrayEquals(new float[]{23.0f, 33.0f, 43.0f, 53.0f}, result, 0.0f);
+                Assert.assertArrayEquals(new float[]{8.0f, 32.0f, 72.0f, 128.0f}, result, 0.0f);
             }
         }
     }
@@ -610,14 +609,14 @@ public class DotDistanceTest {
             var sum = 0.0f;
             var firstOffset = 2;
             for (var i = 0; i < count; i++) {
-                firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 2.0f * i);
+                firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                 secondVector[i] = 3.0f * i;
-                sum += 6.0f * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
+                var distance = L2DistanceFunction.computeL2Distance(firstSegment, firstOffset * Float.BYTES,
                         secondVector, 0, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
@@ -642,23 +641,23 @@ public class DotDistanceTest {
 
             var originOffset = 2;
             for (var i = 0; i < count; i++) {
-                originVector[i + originOffset] = 2.0f * i;
+                originVector[i + originOffset] = 1.0f * i;
 
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
                 secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 4.0f * i);
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += (float) (4.0 * i * i);
+                sum[1] += (float) (9.0 * i * i);
+                sum[2] += (float) (16.0 * i * i);
+                sum[3] += (float) (25.0 * i * i);
             }
 
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originVector, originOffset,
+                L2DistanceFunction.computeL2Distance(originVector, originOffset,
                         firstSegment, 0,
                         secondSegment, 0,
                         thirdSegment, 0,
@@ -684,17 +683,17 @@ public class DotDistanceTest {
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, 0, 42.0f);
                 firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, 1, 32.0f);
 
-                var sum = 0;
+                var sum = 0.0f;
                 var firstOffset = 2;
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 1.0f * i);
                     secondVector[i] = 3.0f * i;
-                    sum += 3 * i * i;
+                    sum += (float) (4.0 * i * i);
                 }
 
 
                 for (int i = 16; i >= 1; i /= 2) {
-                    var distance = DotDistance.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
+                    var distance = L2DistanceFunction.computeL2Distance(firstSegment, firstOffset * Float.BYTES,
                             secondVector, 0, count, i);
                     Assert.assertEquals(sum, distance, 0.0f);
                 }
@@ -720,23 +719,23 @@ public class DotDistanceTest {
             var sum = new float[4];
             var firstOffset = 2;
             for (var i = 0; i < count; i++) {
-                originSegment[i + firstOffset] = 2.0f * i;
+                originSegment[i + firstOffset] = 1.0f * i;
 
                 firstVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
                 secondVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 4.0f * i);
                 thirdVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += 4.0f * i * i;
+                sum[1] += 9.0f * i * i;
+                sum[2] += 16.0f * i * i;
+                sum[3] += 25.0f * i * i;
             }
 
 
             var result = new float[4];
             for (int i = 16; i >= 1; i /= 2) {
-                DotDistance.computeDotDistance(originSegment, firstOffset,
+                L2DistanceFunction.computeL2Distance(originSegment, firstOffset,
                         firstVector, 0,
                         secondVector, 0,
                         thirdVector, 0,
@@ -756,16 +755,15 @@ public class DotDistanceTest {
         var secondVector = new float[]{4.0f, 5.0f};
 
         for (int i = 16; i >= 1; i /= 2) {
-            var distance = DotDistance.computeDotDistance(firstVector,
+            var distance = L2DistanceFunction.computeL2Distance(firstVector,
                     0, secondVector, 0, 2, i);
-            Assert.assertEquals(23.0f, distance, 0.0f);
+            Assert.assertEquals(8.0f, distance, 0.0f);
         }
     }
 
     @Test
     public void testSmallVectorsZeroOffset4Batch() {
         var originVector = new float[]{2.0f, 3.0f};
-
         var firstVector = new float[]{4.0f, 5.0f};
         var secondVector = new float[]{5.0f, 6.0f};
         var thirdVector = new float[]{7.0f, 8.0f};
@@ -773,12 +771,12 @@ public class DotDistanceTest {
 
         var result = new float[4];
         for (int i = 16; i >= 1; i /= 2) {
-            DotDistance.computeDotDistance(originVector,
+            L2DistanceFunction.computeL2Distance(originVector,
                     0, firstVector, 0,
                     secondVector, 0, thirdVector, 0,
                     fourthVector, 0, result, 2, i);
 
-            Assert.assertArrayEquals(new float[]{23.0f, 28.0f, 38.0f, 48.0f}, result, 0.0f);
+            Assert.assertArrayEquals(new float[]{8.0f, 18.0f, 50.0f, 98.0f}, result, 0.0f);
         }
     }
 
@@ -790,14 +788,14 @@ public class DotDistanceTest {
 
         var sum = 0.0f;
         for (var i = 0; i < count; i++) {
-            firstVector[i] = 2.0f * i;
+            firstVector[i] = 1.0f * i;
             secondVector[i] = 3.0f * i;
-            sum += 6.0f * i * i;
+            sum += (float) (4.0 * i * i);
         }
 
 
         for (int i = 16; i >= 1; i /= 2) {
-            var distance = DotDistance.computeDotDistance(firstVector, 0,
+            var distance = L2DistanceFunction.computeL2Distance(firstVector, 0,
                     secondVector, 0, count, i);
             Assert.assertEquals(sum, distance, 0.0f);
         }
@@ -814,23 +812,22 @@ public class DotDistanceTest {
 
         var sum = new float[4];
         for (var i = 0; i < count; i++) {
-            originalVector[i] = 2.0f * i;
-
+            originalVector[i] = 1.0f * i;
             firstVector[i] = 3.0f * i;
             secondVector[i] = 4.0f * i;
             thirdVector[i] = 5.0f * i;
             fourthVector[i] = 6.0f * i;
 
 
-            sum[0] += 6.0f * i * i;
-            sum[1] += 8.0f * i * i;
-            sum[2] += 10.0f * i * i;
-            sum[3] += 12.0f * i * i;
+            sum[0] += (float) (4.0 * i * i);
+            sum[1] += (float) (9.0 * i * i);
+            sum[2] += (float) (16.0 * i * i);
+            sum[3] += (float) (25.0 * i * i);
         }
 
         var result = new float[4];
         for (int i = 16; i >= 1; i /= 2) {
-            DotDistance.computeDotDistance(originalVector, 0,
+            L2DistanceFunction.computeL2Distance(originalVector, 0,
                     firstVector, 0,
                     secondVector, 0,
                     thirdVector, 0,
@@ -847,16 +844,16 @@ public class DotDistanceTest {
             var firstVector = new float[count];
             var secondVector = new float[count];
 
-            var sum = 0;
+            var sum = 0.0f;
             for (var i = 0; i < count; i++) {
-                firstVector[i] = 2.0f * i;
+                firstVector[i] = 1.0f * i;
                 secondVector[i] = 3.0f * i;
-                sum += 6 * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstVector, 0,
+                var distance = L2DistanceFunction.computeL2Distance(firstVector, 0,
                         secondVector, 0, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
@@ -875,23 +872,22 @@ public class DotDistanceTest {
 
         var sum = new float[4];
         for (var i = 0; i < count; i++) {
-            originalVector[i] = 2.0f * i;
-
+            originalVector[i] = 1.0f * i;
             firstVector[i] = 3.0f * i;
             secondVector[i] = 4.0f * i;
             thirdVector[i] = 5.0f * i;
             fourthVector[i] = 6.0f * i;
 
-            sum[0] += 6.0f * i * i;
-            sum[1] += 8.0f * i * i;
-            sum[2] += 10.0f * i * i;
-            sum[3] += 12.0f * i * i;
+            sum[0] += (float) (4.0 * i * i);
+            sum[1] += (float) (9.0 * i * i);
+            sum[2] += (float) (16.0 * i * i);
+            sum[3] += (float) (25.0 * i * i);
         }
 
 
         var result = new float[4];
         for (int i = 16; i >= 1; i /= 2) {
-            DotDistance.computeDotDistance(originalVector, 0,
+            L2DistanceFunction.computeL2Distance(originalVector, 0,
                     firstVector, 0,
                     secondVector, 0,
                     thirdVector, 0,
@@ -908,16 +904,15 @@ public class DotDistanceTest {
         var secondVector = new float[]{42.0f, 3.0f, 4.0f, 5.0f};
 
         for (int i = 16; i >= 1; i /= 2) {
-            var distance = DotDistance.computeDotDistance(firstVector, 1, secondVector,
+            var distance = L2DistanceFunction.computeL2Distance(firstVector, 1, secondVector,
                     2, 2, i);
-            Assert.assertEquals(23.0f, distance, 0.0f);
+            Assert.assertEquals(8.0f, distance, 0.0f);
         }
     }
 
     @Test
     public void testSmallVectorsNonZeroOffset4Batch() {
         var originVector = new float[]{42.0f, 2.0f, 3.0f};
-
         var firstVector = new float[]{42.0f, 3.0f, 4.0f, 5.0f};
         var secondVector = new float[]{42.0f, 3.0f, 6.0f, 7.0f};
         var thirdVector = new float[]{42.0f, 3.0f, 8.0f, 9.0f};
@@ -925,14 +920,14 @@ public class DotDistanceTest {
 
         var result = new float[4];
         for (int i = 16; i >= 1; i /= 2) {
-            DotDistance.computeDotDistance(originVector, 1,
+            L2DistanceFunction.computeL2Distance(originVector, 1,
                     firstVector, 2,
                     secondVector, 2,
                     thirdVector, 2,
                     fourthVector, 2,
                     result,
                     2, i);
-            Assert.assertArrayEquals(new float[]{23.0f, 33.0f, 43.0f, 53.0f}, result, 0.0f);
+            Assert.assertArrayEquals(new float[]{8.0f, 32.0f, 72.0f, 128.0f}, result, 0.0f);
         }
     }
 
@@ -955,12 +950,12 @@ public class DotDistanceTest {
         var firstOffset = 2;
         var secondOffset = 3;
         for (var i = 0; i < count; i++) {
-            firstVector[i + firstOffset] = 2.0f * i;
+            firstVector[i + firstOffset] = 1.0f * i;
             secondVector[i + secondOffset] = 3.0f * i;
-            sum += 6.0f * i * i;
+            sum += (float) (4.0 * i * i);
         }
         for (int i = 16; i >= 1; i /= 2) {
-            var distance = DotDistance.computeDotDistance(firstVector, firstOffset, secondVector,
+            var distance = L2DistanceFunction.computeL2Distance(firstVector, firstOffset, secondVector,
                     secondOffset, count, i);
             Assert.assertEquals(sum, distance, 0.0f);
         }
@@ -999,22 +994,22 @@ public class DotDistanceTest {
         var nextOffset = 3;
 
         for (var i = 0; i < count; i++) {
-            originVector[i + originOffset] = 2.0f * i;
+            originVector[i + originOffset] = 1.0f * i;
 
             firstVector[i + nextOffset] = 3.0f * i;
             secondVector[i + nextOffset] = 4.0f * i;
             thirdVector[i + nextOffset] = 5.0f * i;
             fourthVector[i + nextOffset] = 6.0f * i;
 
-            sum[0] += 6.0f * i * i;
-            sum[1] += 8.0f * i * i;
-            sum[2] += 10.0f * i * i;
-            sum[3] += 12.0f * i * i;
+            sum[0] += (float) (4.0 * i * i);
+            sum[1] += (float) (9.0 * i * i);
+            sum[2] += (float) (16.0 * i * i);
+            sum[3] += (float) (25.0 * i * i);
         }
 
         var result = new float[4];
         for (int i = 16; i >= 1; i /= 2) {
-            DotDistance.computeDotDistance(originVector, originOffset,
+            L2DistanceFunction.computeL2Distance(originVector, originOffset,
                     firstVector, nextOffset,
                     secondVector, nextOffset,
                     thirdVector, nextOffset,
@@ -1041,17 +1036,17 @@ public class DotDistanceTest {
 
             secondVector[2] = 3.0f;
 
-            var sum = 0;
+            var sum = 0.0f;
             var firstOffset = 2;
             var secondOffset = 3;
             for (var i = 0; i < count; i++) {
-                firstVector[i + firstOffset] = 2.0f * i;
+                firstVector[i + firstOffset] = 1.0f * i;
                 secondVector[i + secondOffset] = 3.0f * i;
-                sum += 6 * i * i;
+                sum += (float) (4.0 * i * i);
             }
 
             for (int i = 16; i >= 1; i /= 2) {
-                var distance = DotDistance.computeDotDistance(firstVector, firstOffset, secondVector,
+                var distance = L2DistanceFunction.computeL2Distance(firstVector, firstOffset, secondVector,
                         secondOffset, count, i);
                 Assert.assertEquals(sum, distance, 0.0f);
             }
@@ -1090,21 +1085,21 @@ public class DotDistanceTest {
         var nextOffset = 3;
 
         for (var i = 0; i < count; i++) {
-            originVector[i + originOffset] = 2.0f * i;
+            originVector[i + originOffset] = 1.0f * i;
             firstVector[i + nextOffset] = 3.0f * i;
             secondVector[i + nextOffset] = 4.0f * i;
             thirdVector[i + nextOffset] = 5.0f * i;
             fourthVector[i + nextOffset] = 6.0f * i;
 
-            sum[0] += 6.0f * i * i;
-            sum[1] += 8.0f * i * i;
-            sum[2] += 10.0f * i * i;
-            sum[3] += 12.0f * i * i;
+            sum[0] += (float) (4.0 * i * i);
+            sum[1] += (float) (9.0 * i * i);
+            sum[2] += (float) (16.0 * i * i);
+            sum[3] += (float) (25.0 * i * i);
         }
 
         var result = new float[4];
         for (int i = 16; i >= 1; i /= 2) {
-            DotDistance.computeDotDistance(originVector, originOffset,
+            L2DistanceFunction.computeL2Distance(originVector, originOffset,
                     firstVector, nextOffset,
                     secondVector, nextOffset,
                     thirdVector, nextOffset,

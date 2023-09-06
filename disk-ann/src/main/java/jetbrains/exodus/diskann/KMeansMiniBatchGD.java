@@ -121,7 +121,7 @@ final class KMeansMiniBatchGD {
 
     }
 
-    void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize, byte distanceFunction) {
+    void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize, DistanceFunction distanceFunction) {
         if ((minBatchSize & 3) != 0) {
             throw new IllegalArgumentException("Batch size must be a multiple of 3");
         }
@@ -162,8 +162,8 @@ final class KMeansMiniBatchGD {
                                 var vector = vectorReader.read(localIndexFrom + i);
 
                                 vectors[i] = vector;
-                                clusterIndexes[i] = Distance.findClosestVector(centroids, vector, subVecOffset, subVecSize, distanceFunction
-                                );
+                                clusterIndexes[i] = distanceFunction.findClosestVector(centroids, vector, subVecOffset,
+                                        subVecSize);
                             }
                         }
 
@@ -204,7 +204,7 @@ final class KMeansMiniBatchGD {
         }
     }
 
-    private void findClosestCentroidsFastPath(int batchSize, byte distanceFunction,
+    private void findClosestCentroidsFastPath(int batchSize, DistanceFunction distanceFunction,
                                               MemorySegment[] vectors,
                                               int[] clusterIndexes,
                                               int[] result) {
@@ -221,8 +221,7 @@ final class KMeansMiniBatchGD {
             vectors[i + 2] = vector3;
             vectors[i + 3] = vector4;
 
-            Distance.findClosestVector(centroids, vector1, vector2, vector3, vector4, subVecOffset, subVecSize, result, distanceFunction
-            );
+            distanceFunction.findClosestVector(centroids, vector1, vector2, vector3, vector4, subVecOffset, subVecSize, result);
 
             System.arraycopy(result, 0, clusterIndexes, i, 4);
         }
