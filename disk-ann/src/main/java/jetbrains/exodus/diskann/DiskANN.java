@@ -602,7 +602,7 @@ public final class DiskANN implements AutoCloseable {
                     heapGlobalIndexes, partition, partitionsIndexes);
 
             assert resultIndex == globalIndex;
-            var edgesOffset = vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+            var edgesOffset = (long) vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
 
             var localPageOffset = globalIndex % verticesPerPage;
             var pageOffset = (globalIndex / verticesPerPage) * pageSize;
@@ -645,7 +645,7 @@ public final class DiskANN implements AutoCloseable {
                     addPartitionEdgeToHeap(completedPartitions, partitionIndex,
                             heapGlobalIndexes, partition, partitionsIndexes);
 
-                    edgesOffset = vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+                    edgesOffset = (long)vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
 
                     edgesCount = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
                     edgesOffset += Integer.BYTES;
