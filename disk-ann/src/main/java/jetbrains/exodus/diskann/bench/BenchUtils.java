@@ -17,6 +17,7 @@ package jetbrains.exodus.diskann.bench;
 
 import jetbrains.exodus.diskann.DiskANN;
 import jetbrains.exodus.diskann.L2DistanceFunction;
+import jetbrains.exodus.diskann.L2PQQuantizer;
 import jetbrains.exodus.diskann.VectorReader;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -55,7 +56,8 @@ final class BenchUtils {
         System.out.printf("%d data vectors loaded with dimension %d, building index in directory %s...%n",
                 vectors.length, vectorDimensions, dbDir.toAbsolutePath());
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, new L2DistanceFunction())) {
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
             var ts1 = System.nanoTime();
             diskANN.buildIndex(16, new ArrayVectorReader(vectors), 90L * 1024 * 1024);
             var ts2 = System.nanoTime();
@@ -63,7 +65,8 @@ final class BenchUtils {
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
         }
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, new L2DistanceFunction())) {
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
             diskANN.loadIndex(500L * 1024 * 1024L);
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);

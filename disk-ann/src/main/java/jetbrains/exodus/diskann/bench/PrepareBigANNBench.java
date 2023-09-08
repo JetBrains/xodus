@@ -17,6 +17,7 @@ package jetbrains.exodus.diskann.bench;
 
 import jetbrains.exodus.diskann.DiskANN;
 import jetbrains.exodus.diskann.L2DistanceFunction;
+import jetbrains.exodus.diskann.L2PQQuantizer;
 import jetbrains.exodus.diskann.VectorReader;
 
 import java.io.IOException;
@@ -58,7 +59,8 @@ public class PrepareBigANNBench {
                             "building index in directory %s...%n",
                     vectorReader.size(), vectorDimensions, dbDir.toAbsolutePath());
 
-            try (var diskANN = new DiskANN("bigann_index", dbDir, vectorDimensions, new L2DistanceFunction())) {
+            try (var diskANN = new DiskANN("bigann_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
+                    L2PQQuantizer.INSTANCE)) {
                 var ts1 = System.nanoTime();
                 diskANN.buildIndex(40, vectorReader, 110L * 1024 * 1024);
                 var ts2 = System.nanoTime();

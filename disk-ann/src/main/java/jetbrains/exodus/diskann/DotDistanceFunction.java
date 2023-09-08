@@ -23,6 +23,7 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 
 public final class DotDistanceFunction implements DistanceFunction {
+    public static final DotDistanceFunction INSTANCE = new DotDistanceFunction();
     @Override
     public void computeDistance(MemorySegment originSegment, long originSegmentOffset, MemorySegment firstSegment,
                                 long firstSegmentOffset, MemorySegment secondSegment, long secondSegmentOffset,

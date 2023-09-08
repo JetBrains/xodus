@@ -109,17 +109,20 @@ public final class DiskANN implements AutoCloseable {
 
     private final DistanceFunction distanceFunction;
 
-    public DiskANN(String name, final Path path, int vectorDim, DistanceFunction distanceFunction) throws IOException {
+    private final Quantizer quantizer;
+
+    public DiskANN(String name, final Path path, int vectorDim, DistanceFunction distanceFunction,
+                   Quantizer quantizer) throws IOException {
         this(name, path, vectorDim, 1.2f,
                 64, 128,
-                32, distanceFunction);
+                32, distanceFunction, quantizer);
     }
 
     public DiskANN(String name, Path path, int vectorDim,
                    float distanceMultiplication,
                    int maxConnectionsPerVertex,
                    int maxAmountOfCandidates,
-                   int pqCompression, DistanceFunction distanceFunction) {
+                   int pqCompression, DistanceFunction distanceFunction, Quantizer quantizer) {
         this.name = name;
         this.path = path;
         this.vectorDim = vectorDim;
@@ -127,6 +130,7 @@ public final class DiskANN implements AutoCloseable {
         this.maxConnectionsPerVertex = maxConnectionsPerVertex;
         this.maxAmountOfCandidates = maxAmountOfCandidates;
         this.distanceFunction = distanceFunction;
+        this.quantizer = quantizer;
 
         var pageStructure = DiskCache.createPageStructure(vectorDim, maxConnectionsPerVertex);
 
@@ -148,7 +152,7 @@ public final class DiskANN implements AutoCloseable {
                     "is " + SPECIES.length());
         }
 
-        var pqParameters = PQ.calculatePQParameters(vectorDim, pqCompression);
+        var pqParameters = quantizer.calculatePQParameters(vectorDim, pqCompression);
 
         pqSubVectorSize = pqParameters.pqSubVectorSize;
         pqQuantizersCount = pqParameters.pqQuantizersCount;
@@ -203,9 +207,9 @@ public final class DiskANN implements AutoCloseable {
                     memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
             var startPQ = System.nanoTime();
-            var pqResult = PQ.generatePQCodes(pqQuantizersCount, pqSubVectorSize, distanceFunction, vectorReader, arena);
+            var pqResult = quantizer.generatePQCodes(pqQuantizersCount, pqSubVectorSize, vectorReader, arena);
 
-            pqCentroids = pqResult.pqCentroids;
+            pqCentroids = pqResult.pqCodesVectors;
             pqVectors = pqResult.pqVectors;
             pqCodeBaseSize = pqCentroids[0].length;
 
@@ -645,7 +649,7 @@ public final class DiskANN implements AutoCloseable {
                     addPartitionEdgeToHeap(completedPartitions, partitionIndex,
                             heapGlobalIndexes, partition, partitionsIndexes);
 
-                    edgesOffset = (long)vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
+                    edgesOffset = (long) vertexIndexInsidePartition * (maxConnectionsPerVertex + 1) * Integer.BYTES;
 
                     edgesCount = partition.edges.get(ValueLayout.JAVA_INT, edgesOffset);
                     edgesOffset += Integer.BYTES;
@@ -1830,8 +1834,8 @@ public final class DiskANN implements AutoCloseable {
                     if (visitedVertexIndices.add(vertexIndex)) {
                         if (lookupTable == null) {
                             lookupTable = threadLocalCache.lookupTable;
-                            PQ.buildPQDistanceLookupTable(queryVector, lookupTable, pqCentroids, pqQuantizersCount,
-                                    pqSubVectorSize, distanceFunction);
+                            quantizer.buildDistanceLookupTable(queryVector, lookupTable, pqCentroids, pqQuantizersCount,
+                                    pqSubVectorSize);
                         }
 
                         assert vertexIndexesToCheck.size() <= 4;
@@ -1925,7 +1929,7 @@ public final class DiskANN implements AutoCloseable {
             if (size < 4) {
                 for (int i = 0; i < size; i++) {
                     var vertexIndex = elements[i];
-                    var pqDistance = PQ.computePQDistance(pqVectors, lookupTable, vertexIndex, pqQuantizersCount);
+                    var pqDistance = quantizer.computeDistance(pqVectors, lookupTable, vertexIndex, pqQuantizersCount);
 
                     addPqDistance(nearestCandidates, pqDistance, vertexIndex);
                 }

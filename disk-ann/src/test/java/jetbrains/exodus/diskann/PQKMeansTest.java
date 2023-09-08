@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.diskann;
 
-import jetbrains.exodus.diskann.siftbench.SiftBenchUtils;
-import org.apache.commons.math3.ml.clustering.Clusterable;
-import org.apache.commons.math3.ml.clustering.DoublePoint;
-import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,7 +27,7 @@ import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.Random;
 
-public class PQKMeansTest {
+public class PQKMeansTest extends AbstractVectorsTest {
     @Test
     public void distanceTablesTest() {
         var seed = System.nanoTime();
@@ -54,7 +51,7 @@ public class PQKMeansTest {
 
         var quantizersCount = 4;
         var centroids = generateDistanceTable(quantizersCount, rnd);
-        var distanceTables = new float[quantizersCount][PQ.PQ_CODE_BASE_SIZE][PQ.PQ_CODE_BASE_SIZE];
+        var distanceTables = new float[quantizersCount][Quantizer.CODE_BASE_SIZE][Quantizer.CODE_BASE_SIZE];
         var pqVectors = new byte[100][quantizersCount];
         var flatDistanceTables = createDistanceTable(quantizersCount, centroids, distanceTables);
 
@@ -71,8 +68,7 @@ public class PQKMeansTest {
 
             for (int i = 0; i < 100; i++) {
                 for (int j = 0; j < quantizersCount; j++) {
-                    flatDirectPqVectors.set(ValueLayout.JAVA_BYTE,
-                            MatrixOperations.twoDMatrixIndex(quantizersCount, i, j), pqVectors[i][j]);
+                    flatDirectPqVectors.set(ValueLayout.JAVA_BYTE, MatrixOperations.twoDMatrixIndex(quantizersCount, i, j), pqVectors[i][j]);
                     flatHeapVectors[MatrixOperations.twoDMatrixIndex(quantizersCount, i, j)] = pqVectors[i][j];
                 }
             }
@@ -89,7 +85,7 @@ public class PQKMeansTest {
                     }
 
                     var actualDistance = PQKMeans.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
-                            flatDistanceTables, quantizersCount, PQ.PQ_CODE_BASE_SIZE);
+                            flatDistanceTables, quantizersCount, Quantizer.CODE_BASE_SIZE);
                     Assert.assertEquals(expectedDistance, actualDistance, 0.0f);
                 }
             }
@@ -97,152 +93,54 @@ public class PQKMeansTest {
     }
 
     @Test
-    public void testPQKmeansQualityVsKMeansL2() throws Exception {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
-
-        var siftArchive = "siftsmall.tar.gz";
-        SiftBenchUtils.downloadSiftBenchmark(siftArchive, buildDir);
-
-        var siftSmallDir = SiftBenchUtils.extractSiftDataSet(siftArchive, buildDir);
-
-        var siftDir = "siftsmall";
-        var sifSmallFilesDir = siftSmallDir.toPath().resolve(siftDir);
-
-        var siftBaseName = "siftsmall_base.fvecs";
-        var siftSmallBase = sifSmallFilesDir.resolve(siftBaseName);
-
-        System.out.println("Reading data vectors...");
-
-        var vectorDimensions = 128;
-        var vectors = SiftBenchUtils.readFVectors(siftSmallBase, vectorDimensions);
-
-        System.out.printf("%d data vectors loaded with dimension %d%n",
-                vectors.length, vectorDimensions);
-
+    public void testPQKMeansQuality() throws Exception {
+        var vectors = loadSift10KVectors();
         var clustersCount = 40;
 
-        var pqParameters = PQ.calculatePQParameters(vectorDimensions, 32);
+        var pqParameters = L2PQQuantizer.INSTANCE.calculatePQParameters(SIFT_VECTOR_DIMENSIONS, 32);
         var pqQuantizersCount = pqParameters.pqQuantizersCount;
         var pqSubVectorSize = pqParameters.pqSubVectorSize;
 
-        var vectorsByClusters = new ArrayList<ArrayList<float[]>>();
-        for (int i = 0; i < clustersCount; i++) {
-            vectorsByClusters.add(new ArrayList<>());
-        }
-
         try (var arena = Arena.openShared()) {
             System.out.println("Generating PQ codes...");
-            var pqResult = PQ.generatePQCodes(pqQuantizersCount, pqSubVectorSize, new L2DistanceFunction(),
+            var pqResult = L2PQQuantizer.INSTANCE.generatePQCodes(pqQuantizersCount, pqSubVectorSize,
                     new ArrayVectorReader(vectors), arena);
-            System.out.println("PQ codes generated. Calculating centroids...");
-            var centroids = PQKMeans.calculatePartitions(pqResult.pqCentroids, pqResult.pqVectors,
-                    clustersCount, 1_000, new L2DistanceFunction());
-            System.out.println("Centroids calculated. Clustering data vectors...");
 
-            for (float[] vector : vectors) {
-                var clusterIndex = findClosestCentroid(centroids, pqResult.pqCentroids, vector,
-                        pqQuantizersCount, pqSubVectorSize);
-                vectorsByClusters.get(clusterIndex).add(vector);
+            System.out.println("PQ codes generated. Calculating centroids...");
+            var pqCentroids = PQKMeans.calculatePartitions(pqResult.pqCodesVectors, pqResult.pqVectors, clustersCount,
+                    1_000, L2DistanceFunction.INSTANCE);
+
+            System.out.println("Centroids calculated. Clustering data vectors...");
+            var centroids = convertPqVectorsIntoFloatVectors(pqCentroids, pqResult.pqCodesVectors);
+
+            var vectorsByClusters = new ArrayList<IntArrayList>();
+            for (int i = 0; i < clustersCount; i++) {
+                vectorsByClusters.add(new IntArrayList());
+            }
+
+            var secondClosestClusterIndexes = new int[vectors.length];
+            for (int i = 0; i < vectors.length; i++) {
+                float[] vector = vectors[i];
+                var clusters = findClosestAndSecondClosestCluster(centroids, vector,
+                        L2DistanceFunction.INSTANCE);
+                vectorsByClusters.get(clusters[0]).add(i);
+                secondClosestClusterIndexes[i] = clusters[1];
             }
 
             System.out.println("Data vectors clustered. Calculating silhouette coefficient...");
-
-            var interClusterDistancePQ = interClusterDistancePQ(centroids, pqResult.pqCentroids, pqQuantizersCount
-            );
-            var intraClusterDistancePQ = 0.0f;
-
-            for (int i = 0; i < clustersCount; i++) {
-                var clusterVectors = vectorsByClusters.get(i).toArray(new float[0][]);
-                intraClusterDistancePQ += intraClusterDistancePQ(clusterVectors);
-            }
-
-            intraClusterDistancePQ /= clustersCount;
-
-            var silhouetteCoefficientPQ = (interClusterDistancePQ - intraClusterDistancePQ) / Math.max(interClusterDistancePQ,
-                    intraClusterDistancePQ);
-
-            System.out.printf("interClusterDistancePQ = %f%n", interClusterDistancePQ);
-            System.out.printf("intraClusterDistancePQ = %f%n", intraClusterDistancePQ);
-            System.out.printf("silhouetteCoefficientPQ = %f%n", silhouetteCoefficientPQ);
-
-
-            System.out.println("Creation of clusterable vectors for Apache Commons ...");
-            var clusterableVectors = new ArrayList<Clusterable>();
-            for (float[] vector : vectors) {
-                var doubleVector = new double[vector.length];
-                for (int j = 0; j < vector.length; j++) {
-                    doubleVector[j] = vector[j];
-                }
-                clusterableVectors.add(new DoublePoint(doubleVector));
-            }
-
-            var kMeansPlusPlus = new KMeansPlusPlusClusterer<>(clustersCount, 1_000);
-            System.out.println("Clustering data vectors using Apache Commons ...");
-            var kMeansPlusPlusClusters = kMeansPlusPlus.cluster(clusterableVectors);
-
-            System.out.println("Data vectors clustered. " +
-                    "Calculating silhouette coefficient for result created by Apache Commons...");
-
-            var interClusterDistanceApache = 0.0;
-            var count = 0;
-            for (int i = 0; i < clustersCount; i++) {
-                var firstPoint = kMeansPlusPlusClusters.get(i).getCenter().getPoint();
-                for (int j = i + 1; j < clustersCount; j++) {
-                    var secondPoint = kMeansPlusPlusClusters.get(j).getCenter().getPoint();
-
-                    for (int n = 0; n < vectorDimensions; n++) {
-                        interClusterDistanceApache += Math.pow(firstPoint[n] - secondPoint[n], 2);
-                    }
-                    count++;
-                }
-            }
-            interClusterDistanceApache /= count;
-
-            var intraClusterDistanceApache = 0.0;
-            for (int i = 0; i < clustersCount; i++) {
-
-                var singleClusterDistance = 0.0;
-                count = 0;
-                var points = kMeansPlusPlusClusters.get(i).getPoints();
-                for (int j = 0; j < points.size(); j++) {
-                    var firstPoint = points.get(j).getPoint();
-                    for (int k = j + 1; k < points.size(); k++) {
-                        var secondPoint = points.get(k).getPoint();
-
-                        for (int n = 0; n < vectorDimensions; n++) {
-                            singleClusterDistance += Math.pow(firstPoint[n] - secondPoint[n], 2);
-
-                        }
-                        count++;
-                    }
-                }
-                singleClusterDistance /= count;
-
-                intraClusterDistanceApache += singleClusterDistance;
-            }
-            intraClusterDistanceApache /= clustersCount;
-
-            var silhouetteCoefficientApache = (interClusterDistanceApache - intraClusterDistanceApache) / Math.max(interClusterDistanceApache,
-                    intraClusterDistanceApache);
-
-            System.out.printf("Apache Commons interClusterDistanceApache = %f%n", interClusterDistanceApache);
-            System.out.printf("Apache Commons intraClusterDistanceApache = %f%n", intraClusterDistanceApache);
-            System.out.printf("Apache Commons  silhouetteCoefficientApache = %f%n", silhouetteCoefficientApache);
-
-            Assert.assertTrue(silhouetteCoefficientPQ >= silhouetteCoefficientApache ||
-                    silhouetteCoefficientApache - silhouetteCoefficientPQ < 0.1);
+            var silhouetteCoefficient = silhouetteCoefficient(vectorsByClusters, secondClosestClusterIndexes,
+                    vectors, L2DistanceFunction.INSTANCE);
+            System.out.printf("silhouetteCoefficient = %f%n", silhouetteCoefficient);
+            Assert.assertTrue(silhouetteCoefficient >= 0.18);
         }
     }
 
     private static float[][][] generateDistanceTable(int quantizersCount, Random rnd) {
-        float[][][] centroids = new float[quantizersCount][PQ.PQ_CODE_BASE_SIZE][PQ.PQ_CODE_BASE_SIZE];
+        float[][][] centroids = new float[quantizersCount][Quantizer.CODE_BASE_SIZE][Quantizer.CODE_BASE_SIZE];
         for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < PQ.PQ_CODE_BASE_SIZE; j++) {
-                var vector = new float[PQ.PQ_CODE_BASE_SIZE];
-                for (int k = 0; k < PQ.PQ_CODE_BASE_SIZE; k++) {
+            for (int j = 0; j < Quantizer.CODE_BASE_SIZE; j++) {
+                var vector = new float[Quantizer.CODE_BASE_SIZE];
+                for (int k = 0; k < Quantizer.CODE_BASE_SIZE; k++) {
                     vector[k] = rnd.nextFloat();
                 }
 
@@ -255,15 +153,15 @@ public class PQKMeansTest {
 
     @NotNull
     private static float[] createDistanceTable(int quantizersCount, float[][][] centroids, float[][][] distanceTable) {
-        var expectedDistanceTables = new float[4 * PQ.PQ_CODE_BASE_SIZE * PQ.PQ_CODE_BASE_SIZE];
+        var expectedDistanceTables = new float[4 * Quantizer.CODE_BASE_SIZE * Quantizer.CODE_BASE_SIZE];
         var index = 0;
 
         var l2Distance = new L2DistanceFunction();
         for (int i = 0; i < quantizersCount; i++) {
-            for (int j = 0; j < PQ.PQ_CODE_BASE_SIZE; j++) {
-                for (int k = 0; k < PQ.PQ_CODE_BASE_SIZE; k++) {
+            for (int j = 0; j < Quantizer.CODE_BASE_SIZE; j++) {
+                for (int k = 0; k < Quantizer.CODE_BASE_SIZE; k++) {
                     expectedDistanceTables[index] = l2Distance.computeDistance(centroids[i][j], 0,
-                            centroids[i][k], 0, PQ.PQ_CODE_BASE_SIZE);
+                            centroids[i][k], 0, Quantizer.CODE_BASE_SIZE);
                     if (distanceTable != null) {
                         distanceTable[i][j][k] = expectedDistanceTables[index];
                     }
@@ -275,70 +173,29 @@ public class PQKMeansTest {
         return expectedDistanceTables;
     }
 
-    private static float interClusterDistancePQ(byte[] centroids, float[][][] pqCentroids, int pqQuantizersCount) {
-        var distance = 0.0f;
-        var count = 0;
+    private static float[][] convertPqVectorsIntoFloatVectors(byte[] pqVectors, float[][][] pqCodes) {
+        var quantizersCount = pqCodes.length;
+        var vectorsCount = pqVectors.length / quantizersCount;
 
-        var l2Distance = new L2DistanceFunction();
-        var numVectors = centroids.length / pqQuantizersCount;
-        for (int i = 0; i < numVectors; i++) {
-            for (int j = i + 1; j < numVectors; j++) {
-                var firstIndex = MatrixOperations.twoDMatrixIndex(pqQuantizersCount, i, 0);
-                var secondIndex = MatrixOperations.twoDMatrixIndex(pqQuantizersCount, j, 0);
+        var subVectorSize = pqCodes[0][0].length;
+        var vectorDimension = quantizersCount * subVectorSize;
 
-                for (int k = 0; k < pqQuantizersCount; k++) {
-                    var firstCode = Byte.toUnsignedInt(centroids[firstIndex + k]);
-                    var secondCode = Byte.toUnsignedInt(centroids[secondIndex + k]);
+        var result = new float[vectorsCount][vectorDimension];
+        for (int i = 0, pqIndex = 0; i < vectorsCount; i++) {
+            var vector = result[i];
 
-                    var firstVector = pqCentroids[k][firstCode];
-                    var secondVector = pqCentroids[k][secondCode];
+            for (int j = 0; j < vectorDimension / subVectorSize; j++) {
+                var code = Byte.toUnsignedInt(pqVectors[pqIndex]);
+                var subVector = pqCodes[j][code];
 
-                    distance += l2Distance.computeDistance(firstVector, 0, secondVector, 0,
-                            firstVector.length);
-                }
-
-                count++;
+                System.arraycopy(subVector, 0, vector, j * subVectorSize, subVectorSize);
+                pqIndex++;
             }
         }
 
-        return distance / count;
+        return result;
     }
 
-    private static float intraClusterDistancePQ(float[][] vectors) {
-        var distance = 0.0f;
-        var count = 0;
-        var l2Distance = new L2DistanceFunction();
-        for (var i = 0; i < vectors.length; i++) {
-            for (int j = i + 1; j < vectors.length; j++) {
-                distance += l2Distance.computeDistance(vectors[i], 0, vectors[j], 0,
-                        vectors[i].length);
-                count++;
-            }
-        }
-
-        return distance / count;
-    }
-
-    private static int findClosestCentroid(byte[] centroids, float[][][] pqCentroids, float[] vector,
-                                           int pqQuantizersCount, int pqSubVectorSize) {
-        var minDistance = Float.MAX_VALUE;
-        var minIndex = -1;
-
-        var lookupTable = PQ.blankLookupTable(pqQuantizersCount);
-        PQ.buildPQDistanceLookupTable(vector, lookupTable, pqCentroids, pqQuantizersCount, pqSubVectorSize,
-                new L2DistanceFunction());
-
-        for (int centroidIndex = 0, index = 0; centroidIndex < centroids.length; centroidIndex += pqQuantizersCount, index++) {
-            var distance = PQ.computePQDistance(centroids, lookupTable, index, pqQuantizersCount);
-
-            if (distance < minDistance) {
-                minDistance = distance;
-                minIndex = index;
-            }
-        }
-
-        return minIndex;
-    }
 
     record ArrayVectorReader(float[][] vectors) implements VectorReader {
         public int size() {
@@ -348,8 +205,8 @@ public class PQKMeansTest {
         public MemorySegment read(int index) {
             var vectorSegment = MemorySegment.ofArray(new byte[vectors[index].length * Float.BYTES]);
 
-            MemorySegment.copy(MemorySegment.ofArray(vectors[index]), 0, vectorSegment, 0,
-                    (long) vectors[index].length * Float.BYTES);
+            MemorySegment.copy(MemorySegment.ofArray(vectors[index]), 0,
+                    vectorSegment, 0, (long) vectors[index].length * Float.BYTES);
 
             return vectorSegment;
         }

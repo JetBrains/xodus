@@ -24,11 +24,13 @@ import java.lang.foreign.ValueLayout;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-public final class PQ {
-    private static final Logger logger = LoggerFactory.getLogger(PQ.class);
-    public static final int PQ_CODE_BASE_SIZE = 256;
+public class L2PQQuantizer implements Quantizer {
+    public static final L2PQQuantizer INSTANCE = new L2PQQuantizer();
 
-    public static PQParameters calculatePQParameters(int vectorDim, int pqCompression) {
+    private static final Logger logger = LoggerFactory.getLogger(L2PQQuantizer.class);
+
+    @Override
+    public Parameters calculatePQParameters(int vectorDim, int pqCompression) {
         var pqSubVectorSize = pqCompression / Float.BYTES;
         var pqQuantizersCount = vectorDim / pqSubVectorSize;
 
@@ -42,31 +44,28 @@ public final class PQ {
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
 
-        return new PQParameters(pqSubVectorSize, pqQuantizersCount);
+        return new Parameters(pqSubVectorSize, pqQuantizersCount);
     }
 
-    public static PQCodes generatePQCodes(int pqQuantizersCount,
-                                          int pqSubVectorSize, DistanceFunction distanceFunction,
-                                          VectorReader vectorReader, Arena arena) {
+    @Override
+    public Codes generatePQCodes(int quantizersCount, int subVectorSize, VectorReader vectorReader, Arena arena) {
+        var kMeans = new KMeansMiniBatchGD[quantizersCount];
 
+        logger.info("Start generation of pq codes for {} quantizers.", quantizersCount);
 
-        var kMeans = new KMeansMiniBatchGD[pqQuantizersCount];
-
-        logger.info("Start generation of pq codes for {} quantizers.", pqQuantizersCount);
-
-        for (int i = 0; i < pqQuantizersCount; i++) {
-            kMeans[i] = new KMeansMiniBatchGD(i, PQ_CODE_BASE_SIZE,
-                    50, i * pqSubVectorSize, pqSubVectorSize,
+        for (int i = 0; i < quantizersCount; i++) {
+            kMeans[i] = new KMeansMiniBatchGD(i, CODE_BASE_SIZE,
+                    50, i * subVectorSize, subVectorSize,
                     vectorReader);
         }
 
-        var codeBaseSize = Math.min(PQ_CODE_BASE_SIZE, vectorReader.size());
-        float[][][] pqCentroids = new float[pqQuantizersCount][codeBaseSize][pqSubVectorSize];
+        var codeBaseSize = Math.min(CODE_BASE_SIZE, vectorReader.size());
+        float[][][] pqCentroids = new float[quantizersCount][codeBaseSize][subVectorSize];
 
         var minBatchSize = 16;
 
-        var cores = Math.min(Runtime.getRuntime().availableProcessors(), pqQuantizersCount);
-        var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * pqSubVectorSize)) / cores;
+        var cores = Math.min(Runtime.getRuntime().availableProcessors(), quantizersCount);
+        var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * subVectorSize)) / cores;
 
         logger.info("{} cores will be used, batch size is {}, min batch size is {}.", cores, batchSize, minBatchSize);
 
@@ -76,13 +75,13 @@ public final class PQ {
             thread.setName("pq-kmeans-thread-" + thread.threadId());
             return thread;
         })) {
-            var futures = new Future[pqQuantizersCount];
+            var futures = new Future[quantizersCount];
 
-            for (int i = 0; i < pqQuantizersCount; i++) {
+            for (int i = 0; i < quantizersCount; i++) {
                 var km = kMeans[i];
                 futures[i] = executors.submit(() -> {
                     try {
-                        km.calculate(minBatchSize, batchSize, distanceFunction);
+                        km.calculate(minBatchSize, batchSize);
                     } catch (Exception e) {
                         logger.error("Error during KMeans clustering of indexed data.", e);
                         throw e;
@@ -104,17 +103,17 @@ public final class PQ {
         cores = Math.min(Runtime.getRuntime().availableProcessors(), size);
         logger.info("KMeans clustering finished. Creation of PQ codes started. {} cores will be used.", cores);
 
-        for (int i = 0; i < pqQuantizersCount; i++) {
+        for (int i = 0; i < quantizersCount; i++) {
             var centroids = kMeans[i].centroids;
 
             var index = 0;
             for (int j = 0; j < codeBaseSize; j++) {
-                System.arraycopy(centroids, index, pqCentroids[i][j], 0, pqSubVectorSize);
-                index += pqSubVectorSize;
+                System.arraycopy(centroids, index, pqCentroids[i][j], 0, subVectorSize);
+                index += subVectorSize;
             }
         }
 
-        var pqVectors = arena.allocate((long) size * pqQuantizersCount);
+        var pqVectors = arena.allocate((long) size * quantizersCount);
 
         try (var executors = Executors.newFixedThreadPool(cores, r -> {
             var thread = new Thread(r);
@@ -135,11 +134,11 @@ public final class PQ {
                         var vectorIndex = start + k;
                         var vector = vectorReader.read(vectorIndex);
 
-                        for (int i = 0; i < pqQuantizersCount; i++) {
-                            var centroidIndex = distanceFunction.findClosestVector(kMeans[i].centroids, vector,
-                                    i * pqSubVectorSize, pqSubVectorSize);
+                        for (int i = 0; i < quantizersCount; i++) {
+                            var centroidIndex = L2DistanceFunction.INSTANCE.findClosestVector(kMeans[i].centroids,
+                                    vector, i * subVectorSize, subVectorSize);
                             pqVectors.set(ValueLayout.JAVA_BYTE,
-                                    (long) vectorIndex * pqQuantizersCount + i, (byte) centroidIndex);
+                                    (long) vectorIndex * quantizersCount + i, (byte) centroidIndex);
                         }
 
                         if ((k & (1024 * 1024 - 1)) == 0) {
@@ -163,73 +162,35 @@ public final class PQ {
 
         logger.info("PQ codes created.");
 
-        return new PQCodes(pqVectors, pqCentroids);
+        return new Codes(pqVectors, pqCentroids);
+
     }
 
-    public static float[] blankLookupTable(int pqQuantizersCount) {
-        return new float[pqQuantizersCount * PQ_CODE_BASE_SIZE];
-    }
+    @Override
+    public void buildDistanceLookupTable(float[] vector, float[] lookupTable, float[][][] centroids,
+                                         int quantizersCount, int subVectorSize) {
+        for (int i = 0; i < quantizersCount; i++) {
+            var quantizerCentroids = centroids[i];
 
-
-    public static void buildPQDistanceLookupTable(float[] vector, float[] lookupTable, float[][][] pqCentroids,
-                                                  int pqQuantizersCount, int pqSubVectorSize,
-                                                  DistanceFunction distanceFunction) {
-        for (int i = 0; i < pqQuantizersCount; i++) {
-            var centroids = pqCentroids[i];
-
-            for (int j = 0; j < centroids.length; j++) {
-                var centroid = centroids[j];
-                var distance = distanceFunction.computeDistance(centroid, 0, vector,
-                        i * pqSubVectorSize, centroid.length);
+            for (int j = 0; j < quantizerCentroids.length; j++) {
+                var centroid = quantizerCentroids[j];
+                var distance = L2DistanceFunction.INSTANCE.computeDistance(centroid, 0, vector,
+                        i * subVectorSize, centroid.length);
                 lookupTable[i * (1 << Byte.SIZE) + j] = distance;
             }
         }
     }
 
-    public static float computePQDistance(MemorySegment pqVectors, float[] lookupTable, int vectorIndex,
-                                          int pqQuantizersCount) {
+    @Override
+    public float computeDistance(MemorySegment vectors, float[] lookupTable, int vectorIndex, int quantizersCount) {
         var distance = 0f;
 
-        var pqIndex = pqQuantizersCount * vectorIndex;
-        for (int i = pqIndex; i < pqIndex + pqQuantizersCount; i++) {
-            var code = pqVectors.get(ValueLayout.JAVA_BYTE, i) & 0xFF;
+        var pqIndex = quantizersCount * vectorIndex;
+        for (int i = pqIndex; i < pqIndex + quantizersCount; i++) {
+            var code = vectors.get(ValueLayout.JAVA_BYTE, i) & 0xFF;
             distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE) + code];
         }
 
         return distance;
-    }
-
-    public static float computePQDistance(byte[] pqVectors, float[] lookupTable, int vectorIndex,
-                                          int pqQuantizersCount) {
-        var distance = 0f;
-
-        var pqIndex = pqQuantizersCount * vectorIndex;
-        for (int i = pqIndex; i < pqIndex + pqQuantizersCount; i++) {
-            var code = Byte.toUnsignedInt(pqVectors[i]);
-            distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE) + code];
-        }
-
-        return distance;
-    }
-
-
-    public static final class PQCodes {
-        public final MemorySegment pqVectors;
-        public final float[][][] pqCentroids;
-
-        public PQCodes(MemorySegment pqVectors, float[][][] lookupTable) {
-            this.pqVectors = pqVectors;
-            this.pqCentroids = lookupTable;
-        }
-    }
-
-    public static final class PQParameters {
-        public final int pqSubVectorSize;
-        public final int pqQuantizersCount;
-
-        public PQParameters(int pqSubVectorSize, int pqQuantizersCount) {
-            this.pqSubVectorSize = pqSubVectorSize;
-            this.pqQuantizersCount = pqQuantizersCount;
-        }
     }
 }

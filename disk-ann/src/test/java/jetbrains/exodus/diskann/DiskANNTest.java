@@ -64,14 +64,16 @@ public class DiskANNTest {
 
         var dbDir = Files.createTempDirectory(Path.of(buildDir), "testFindLoadedVectors");
         dbDir.toFile().deleteOnExit();
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, new L2DistanceFunction())) {
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
             var ts1 = System.nanoTime();
             diskANN.buildIndex(2, new ArrayVectorReader(vectors), 1024 * 1024);
             var ts2 = System.nanoTime();
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
         }
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, new L2DistanceFunction())) {
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
             diskANN.loadIndex(64 * 1024 * 1024);
             var errorsCount = 0;
             var ts1 = System.nanoTime();
@@ -156,14 +158,16 @@ public class DiskANNTest {
         var dbDir = Files.createTempDirectory(Path.of(buildDir), "testSearchSift10KVectors");
         dbDir.toFile().deleteOnExit();
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, new L2DistanceFunction())) {
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
             var ts1 = System.nanoTime();
             diskANN.buildIndex(8, new ArrayVectorReader(vectors), 64 * 1024 * 1024);
             var ts2 = System.nanoTime();
 
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
         }
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, new L2DistanceFunction())) {
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
             diskANN.loadIndex(64 * 1024 * 1024);
             System.out.println("Searching...");
 

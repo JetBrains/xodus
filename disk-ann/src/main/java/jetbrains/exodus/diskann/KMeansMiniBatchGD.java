@@ -121,7 +121,7 @@ final class KMeansMiniBatchGD {
 
     }
 
-    void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize, DistanceFunction distanceFunction) {
+    void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize) {
         if ((minBatchSize & 3) != 0) {
             throw new IllegalArgumentException("Batch size must be a multiple of 3");
         }
@@ -155,15 +155,15 @@ final class KMeansMiniBatchGD {
                         var actualBatchSize = Math.min(localIndexFrom + minBatchSize, toIndex) - localIndexFrom;
 
                         if ((actualBatchSize & 3) == 0) {
-                            findClosestCentroidsFastPath(actualBatchSize, distanceFunction, vectors, clusterIndexes,
+                            findClosestCentroidsFastPath(actualBatchSize, vectors, clusterIndexes,
                                     closestCentroids);
                         } else {
                             for (int i = 0; i < actualBatchSize; i++) {
                                 var vector = vectorReader.read(localIndexFrom + i);
 
                                 vectors[i] = vector;
-                                clusterIndexes[i] = distanceFunction.findClosestVector(centroids, vector, subVecOffset,
-                                        subVecSize);
+                                clusterIndexes[i] = L2DistanceFunction.INSTANCE.findClosestVector(centroids, vector,
+                                        subVecOffset, subVecSize);
                             }
                         }
 
@@ -185,11 +185,11 @@ final class KMeansMiniBatchGD {
                             }
 
                             var learningRate = 1.0f / centroidsSamplesCount[clusterIndex];
-
-                            computeGradientStep(centroids, clusterIndex * subVecSize, vectors[i], subVecOffset, subVecSize,
-                                    learningRate);
+                            computeGradientStep(centroids, clusterIndex * subVecSize,
+                                    vectors[i], subVecOffset, subVecSize, learningRate);
                         }
                     }
+
                     currentIndex = toIndex;
                     assert currentIndex <= vectorReader.size();
                 }
@@ -204,7 +204,7 @@ final class KMeansMiniBatchGD {
         }
     }
 
-    private void findClosestCentroidsFastPath(int batchSize, DistanceFunction distanceFunction,
+    private void findClosestCentroidsFastPath(int batchSize,
                                               MemorySegment[] vectors,
                                               int[] clusterIndexes,
                                               int[] result) {
@@ -221,7 +221,8 @@ final class KMeansMiniBatchGD {
             vectors[i + 2] = vector3;
             vectors[i + 3] = vector4;
 
-            distanceFunction.findClosestVector(centroids, vector1, vector2, vector3, vector4, subVecOffset, subVecSize, result);
+            L2DistanceFunction.INSTANCE.findClosestVector(centroids, vector1, vector2, vector3, vector4,
+                    subVecOffset, subVecSize, result);
 
             System.arraycopy(result, 0, clusterIndexes, i, 4);
         }
