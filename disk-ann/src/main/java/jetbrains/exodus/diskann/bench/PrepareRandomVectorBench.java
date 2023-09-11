@@ -1,7 +1,6 @@
 package jetbrains.exodus.diskann.bench;
 
 import it.unimi.dsi.fastutil.ints.IntFloatImmutablePair;
-import it.unimi.dsi.fastutil.ints.IntObjectImmutablePair;
 import jetbrains.exodus.diskann.DiskANN;
 import jetbrains.exodus.diskann.DotDistanceFunction;
 import jetbrains.exodus.diskann.L2PQQuantizer;
@@ -43,23 +42,23 @@ public final class PrepareRandomVectorBench {
             Files.createDirectories(dbPath);
         }
 
-//        System.out.printf("Generating %d test vectors with dimension %d...%n", vectorsCount, vectorDimensions);
-//        generateTestData(vectorDimensions, vectorsCount, dataPath);
-//
-//        System.out.printf("Generating %d query vectors...%n", groundTruthCount);
-//        generateTestData(vectorDimensions, groundTruthCount, testDataPath);
+        System.out.printf("Generating %d test vectors with dimension %d...%n", vectorsCount, vectorDimensions);
+        generateTestData(vectorDimensions, vectorsCount, dataPath);
+
+        System.out.printf("Generating %d query vectors...%n", groundTruthCount);
+        generateTestData(vectorDimensions, groundTruthCount, testDataPath);
 
         System.out.println("Generating ground truth...");
         generateGroundTruth(vectorDimensions, testDataPath, dataPath, groundTruthPath, groundTruthCount);
 
-//        System.out.println("Building index...");
-//
-//        try (var diskAnn = new DiskANN("random_index", dbPath, vectorDimensions, DotDistanceFunction.INSTANCE,
-//                L2PQQuantizer.INSTANCE)) {
-//            diskAnn.buildIndex(4, new MmapVectorReader(vectorDimensions, dataPath), 1024 * 1024);
-//        }
-//
-//        System.out.println("Done.");
+        System.out.println("Building index...");
+
+        try (var diskAnn = new DiskANN("random_index", dbPath, vectorDimensions, DotDistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
+            diskAnn.buildIndex(4, new MmapVectorReader(vectorDimensions, dataPath), 1024 * 1024);
+        }
+
+        System.out.println("Done.");
     }
 
     @SuppressWarnings("unused")
