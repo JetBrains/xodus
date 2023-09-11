@@ -45,6 +45,7 @@ public final class RunRandomVectorBench {
 
         try (var diskANN = new DiskANN("random_index", dbPath, vectorDimensions, DotDistanceFunction.INSTANCE,
                 L2PQQuantizer.INSTANCE)) {
+            diskANN.loadIndex(40L * 1024 * 1024 * 1024);
             try (var queryVectors = new PrepareRandomVectorBench.MmapVectorReader(vectorDimensions, testDataPath)) {
                 for (var index = 0; index < groundTruthCount; index++) {
                     var queryVectorSegment = queryVectors.read(index);
