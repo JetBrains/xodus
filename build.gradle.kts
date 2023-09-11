@@ -53,7 +53,7 @@ fun shouldApplyDokka(project: Project): Boolean {
 }
 
 tasks.wrapper {
-    gradleVersion = "8.1.1"
+    gradleVersion = "8.3"
 }
 
 defaultTasks("assemble")
@@ -152,7 +152,7 @@ subprojects {
     }
 
     tasks.test {
-        systemProperty("exodus.tests.buildDirectory", project.buildDir)
+        systemProperty("exodus.tests.buildDirectory", project.layout.buildDirectory)
         systemProperty("org.slf4j.simpleLogger.log.jetbrains.exodus", "debug")
 
         minHeapSize = "1g"
