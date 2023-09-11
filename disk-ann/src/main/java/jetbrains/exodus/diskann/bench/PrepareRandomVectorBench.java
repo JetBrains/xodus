@@ -29,7 +29,7 @@ public final class PrepareRandomVectorBench {
         var dataPath = dbPath.resolve("data.bin");
         var groundTruthPath = dbPath.resolve("ground-truth.bin");
         var groundTruthCount = 10_000;
-        var vectorsCount = 25_000_000;
+        var vectorsCount = 4_000_000;
 
         if (!Files.exists(dbPath)) {
             Files.createDirectories(dbPath);
