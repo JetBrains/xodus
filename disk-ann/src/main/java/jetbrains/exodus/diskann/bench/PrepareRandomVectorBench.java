@@ -29,13 +29,14 @@ public final class PrepareRandomVectorBench {
         var dataPath = dbPath.resolve("data.bin");
         var groundTruthPath = dbPath.resolve("ground-truth.bin");
         var groundTruthCount = 10_000;
+        var vectorsCount = 25_000_000;
 
         if (!Files.exists(dbPath)) {
             Files.createDirectories(dbPath);
         }
 
-        System.out.printf("Generating %d test vectors with dimension %d...%n", groundTruthCount, vectorDimensions);
-        generateTestData(vectorDimensions, 25_000_000, dataPath);
+        System.out.printf("Generating %d test vectors with dimension %d...%n", vectorsCount, vectorDimensions);
+        generateTestData(vectorDimensions, vectorsCount, dataPath);
 
         System.out.printf("Generating %d query vectors...%n", groundTruthCount);
         generateTestData(vectorDimensions, groundTruthCount, testDataPath);
