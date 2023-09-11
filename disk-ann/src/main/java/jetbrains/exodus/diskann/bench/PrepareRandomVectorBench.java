@@ -1,6 +1,8 @@
 package jetbrains.exodus.diskann.bench;
 
+import jetbrains.exodus.diskann.DiskANN;
 import jetbrains.exodus.diskann.DotDistanceFunction;
+import jetbrains.exodus.diskann.L2PQQuantizer;
 import jetbrains.exodus.diskann.VectorReader;
 
 import java.io.IOException;
@@ -18,7 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 
-public final class RandomVectorBench {
+public final class PrepareRandomVectorBench {
     public static void main(String[] args) throws Exception {
         var dbPath = Path.of("vectoriadb-random_index");
         var vectorDimensions = 768;
@@ -28,10 +30,30 @@ public final class RandomVectorBench {
         var groundTruthPath = dbPath.resolve("ground-truth.bin");
         var groundTruthCount = 10_000;
 
+        if (!Files.exists(dbPath)) {
+            Files.createDirectories(dbPath);
+        }
 
+        System.out.printf("Generating %d test vectors with dimension %d...%n", groundTruthCount, vectorDimensions);
+        generateTestData(vectorDimensions, 25_000_000, dataPath);
+
+        System.out.printf("Generating %d query vectors...%n", groundTruthCount);
+        generateTestData(vectorDimensions, groundTruthCount, testDataPath);
+
+        System.out.println("Generating ground truth...");
         generateGroundTruth(vectorDimensions, testDataPath, dataPath, groundTruthPath, groundTruthCount);
+
+        System.out.println("Building index...");
+
+        try (var diskAnn = new DiskANN("random_index", dbPath, vectorDimensions, DotDistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
+            diskAnn.buildIndex(4, new MmapVectorReader(vectorDimensions, dataPath), 1024 * 1024);
+        }
+
+        System.out.println("Done.");
     }
 
+    @SuppressWarnings("unused")
     private static void generateGroundTruth(int vectorDimensions, Path testDataPath, Path dataPath,
                                             Path groundTruthPath, int groundTruthCount)
             throws IOException, InterruptedException, ExecutionException {

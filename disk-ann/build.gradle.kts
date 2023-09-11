@@ -87,6 +87,30 @@ tasks {
         }
     }
 
+    register<JavaExec>("prepareRandomVectorBench") {
+        group = "application"
+        mainClass = "jetbrains.exodus.diskann.bench.PrepareRandomVectorBench"
+        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
+        jvmArgs = listOf(
+            "-server",
+            "-Xmx16g",
+            "-XX:MaxDirectMemorySize=82g",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "-Djava.awt.headless=true",
+            "--enable-preview"
+        )
+
+        if (jdkHome != null) {
+            executable = "$jdkHome/bin/java"
+        } else {
+            javaLauncher.set(rootProject.javaToolchains.launcherFor {
+                languageVersion.set(JavaLanguageVersion.of(20))
+            })
+        }
+    }
+
     register<JavaExec>("prepareBigANNBench") {
         group = "application"
         mainClass = "jetbrains.exodus.diskann.bench.PrepareBigANNBench"
