@@ -21,13 +21,19 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class PrepareRandomVectorBench {
+    public static final String DATA_FILE_NAME = "data.bin";
+    public static final String TEST_DATA_FILE_NAME = "test-data.bin";
+    public static final String GROUND_TRUTH_FILE_NAME = "ground-truth.bin";
+
+    public static final String DB_PATH_NAME = "vectoriadb-random_index";
+
     public static void main(String[] args) throws Exception {
-        var dbPath = Path.of("vectoriadb-random_index");
+        var dbPath = Path.of(DB_PATH_NAME);
         var vectorDimensions = 768;
 
-        var testDataPath = dbPath.resolve("test-data.bin");
-        var dataPath = dbPath.resolve("data.bin");
-        var groundTruthPath = dbPath.resolve("ground-truth.bin");
+        var testDataPath = dbPath.resolve(TEST_DATA_FILE_NAME);
+        var dataPath = dbPath.resolve(DATA_FILE_NAME);
+        var groundTruthPath = dbPath.resolve(GROUND_TRUTH_FILE_NAME);
         var groundTruthCount = 10_000;
         var vectorsCount = 4_000_000;
 
@@ -151,7 +157,7 @@ public final class PrepareRandomVectorBench {
         }
     }
 
-    private static final class MmapVectorReader implements VectorReader {
+    public static final class MmapVectorReader implements VectorReader {
         private final int recordSize;
         private final MemorySegment segment;
 
