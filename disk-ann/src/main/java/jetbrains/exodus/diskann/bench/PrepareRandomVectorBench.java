@@ -53,13 +53,13 @@ public final class PrepareRandomVectorBench {
         generateGroundTruth(vectorDimensions, testDataPath, dataPath, groundTruthPath, groundTruthCount);
 
 //        System.out.println("Building index...");
-
+//
 //        try (var diskAnn = new DiskANN("random_index", dbPath, vectorDimensions, DotDistanceFunction.INSTANCE,
 //                L2PQQuantizer.INSTANCE)) {
 //            diskAnn.buildIndex(4, new MmapVectorReader(vectorDimensions, dataPath), 1024 * 1024);
 //        }
-
-        System.out.println("Done.");
+//
+//        System.out.println("Done.");
     }
 
     @SuppressWarnings("unused")
@@ -75,7 +75,7 @@ public final class PrepareRandomVectorBench {
                 try (var dataReader = new MmapVectorReader(vectorDimensions, dataPath)) {
                     var maxVectorsPerCore = dataReader.size() / cores;
 
-                    var buffer = ByteBuffer.allocate(vectorDimensions * Integer.BYTES);
+                    var buffer = ByteBuffer.allocate(Integer.BYTES);
                     buffer.order(ByteOrder.LITTLE_ENDIAN);
 
                     try (var channel = FileChannel.open(groundTruthPath,
@@ -113,8 +113,9 @@ public final class PrepareRandomVectorBench {
                             for (var future : futures) {
                                 var pair = (IntFloatImmutablePair) future.get();
 
-                                if (minDistance < pair.rightFloat()) {
+                                if (minDistance > pair.rightFloat()) {
                                     minIndex = pair.leftInt();
+                                    minDistance = pair.rightFloat();
                                 }
                             }
 
