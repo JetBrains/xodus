@@ -21,12 +21,28 @@ import java.lang.foreign.MemorySegment;
 public interface Quantizer {
     int CODE_BASE_SIZE = 256;
 
-    Parameters calculatePQParameters(int vectorDim, int pqCompression);
+    default Parameters calculatePQParameters(int vectorDim, int compression) {
+        var pqSubVectorSize = compression / Float.BYTES;
+        var quantizersCount = vectorDim / pqSubVectorSize;
+
+        if (compression % Float.BYTES != 0) {
+            throw new IllegalArgumentException(
+                    "Vector should be divided during creation of PQ codes without remainder.");
+        }
+
+        if (vectorDim % pqSubVectorSize != 0) {
+            throw new IllegalArgumentException(
+                    "Vector should be divided during creation of PQ codes without remainder.");
+        }
+
+        return new Parameters(pqSubVectorSize, quantizersCount);
+    }
+
 
     Codes generatePQCodes(int quantizersCount, int subVectorSize, VectorReader vectorReader, Arena arena);
 
     void buildDistanceLookupTable(float[] vector, float[] lookupTable, float[][][] centroids,
-                                  int quantizersCount, int subVectorSize);
+                                  int quantizersCount, int subVectorSize, DistanceFunction distanceFunction);
 
     float computeDistance(MemorySegment vectors, float[] lookupTable, int vectorIndex,
                           int quantizersCount);

@@ -24,28 +24,10 @@ import java.lang.foreign.ValueLayout;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-public class L2PQQuantizer implements Quantizer {
+public final class L2PQQuantizer implements Quantizer {
     public static final L2PQQuantizer INSTANCE = new L2PQQuantizer();
 
     private static final Logger logger = LoggerFactory.getLogger(L2PQQuantizer.class);
-
-    @Override
-    public Parameters calculatePQParameters(int vectorDim, int pqCompression) {
-        var pqSubVectorSize = pqCompression / Float.BYTES;
-        var pqQuantizersCount = vectorDim / pqSubVectorSize;
-
-        if (pqCompression % Float.BYTES != 0) {
-            throw new IllegalArgumentException(
-                    "Vector should be divided during creation of PQ codes without remainder.");
-        }
-
-        if (vectorDim % pqSubVectorSize != 0) {
-            throw new IllegalArgumentException(
-                    "Vector should be divided during creation of PQ codes without remainder.");
-        }
-
-        return new Parameters(pqSubVectorSize, pqQuantizersCount);
-    }
 
     @Override
     public Codes generatePQCodes(int quantizersCount, int subVectorSize, VectorReader vectorReader, Arena arena) {
@@ -168,13 +150,13 @@ public class L2PQQuantizer implements Quantizer {
 
     @Override
     public void buildDistanceLookupTable(float[] vector, float[] lookupTable, float[][][] centroids,
-                                         int quantizersCount, int subVectorSize) {
+                                         int quantizersCount, int subVectorSize, DistanceFunction distanceFunction) {
         for (int i = 0; i < quantizersCount; i++) {
             var quantizerCentroids = centroids[i];
 
             for (int j = 0; j < quantizerCentroids.length; j++) {
                 var centroid = quantizerCentroids[j];
-                var distance = L2DistanceFunction.INSTANCE.computeDistance(centroid, 0, vector,
+                var distance = distanceFunction.computeDistance(centroid, 0, vector,
                         i * subVectorSize, centroid.length);
                 lookupTable[i * (1 << Byte.SIZE) + j] = distance;
             }

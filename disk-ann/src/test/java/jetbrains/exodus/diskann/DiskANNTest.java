@@ -16,6 +16,7 @@
 package jetbrains.exodus.diskann;
 
 import jetbrains.exodus.diskann.siftbench.SiftBenchUtils;
+import org.apache.commons.rng.RestorableUniformRandomProvider;
 import org.apache.commons.rng.simple.RandomSource;
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,7 +30,7 @@ import java.util.HashSet;
 
 public class DiskANNTest {
     @Test
-    public void testFindLoadedVectors() throws Exception {
+    public void testFindLoadedVectorsL2Distance() throws Exception {
         var buildDir = System.getProperty("exodus.tests.buildDirectory");
         if (buildDir == null) {
             Assert.fail("exodus.tests.buildDirectory is not set !!!");
@@ -46,23 +47,9 @@ public class DiskANNTest {
             vectors[i] = vector;
         }
 
-        var addedVectors = new HashSet<FloatArrayHolder>();
+        generateUniqueVectorSet(vectors, rng);
 
-        for (float[] vector : vectors) {
-            var counter = 0;
-            do {
-                if (counter > 0) {
-                    System.out.println("duplicate vector found " + counter + ", retrying...");
-                }
-
-                for (var j = 0; j < vector.length; j++) {
-                    vector[j] = 10 * rng.nextFloat();
-                }
-                counter++;
-            } while (!addedVectors.add(new FloatArrayHolder(vector)));
-        }
-
-        var dbDir = Files.createTempDirectory(Path.of(buildDir), "testFindLoadedVectors");
+        var dbDir = Files.createTempDirectory(Path.of(buildDir), "testFindLoadedVectorsL2Distance");
         dbDir.toFile().deleteOnExit();
         try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
                 L2PQQuantizer.INSTANCE)) {
@@ -104,6 +91,120 @@ public class DiskANNTest {
                     diskANN.getPQErrorAvg() <= 12);
             diskANN.deleteIndex();
         }
+    }
+
+    @Test
+    public void testFindLoadedVectorsDotDistance() throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
+        var vectorDimensions = 64;
+
+        var vectorsCount = 10_000;
+
+        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+        var vectors = new float[vectorsCount][];
+        for (var i = 0; i < vectorsCount; i++) {
+            var vector = new float[vectorDimensions];
+            vectors[i] = vector;
+        }
+
+        generateUniqueVectorSet(vectors, rng);
+
+        var queryVectors = new float[vectorsCount][vectorDimensions];
+        generateUniqueVectorSet(queryVectors, rng);
+
+        var groundTruth = calculateGroundTruthVectors(vectors, queryVectors, DotDistanceFunction.INSTANCE);
+        var dbDir = Files.createTempDirectory(Path.of(buildDir), "testFindLoadedVectorsDotDistance");
+        dbDir.toFile().deleteOnExit();
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, DotDistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
+            var ts1 = System.nanoTime();
+            diskANN.buildIndex(2, new ArrayVectorReader(vectors), 1024 * 1024);
+            var ts2 = System.nanoTime();
+            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+        }
+
+        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, DotDistanceFunction.INSTANCE,
+                L2PQQuantizer.INSTANCE)) {
+            diskANN.loadIndex(64 * 1024 * 1024);
+            var errorsCount = 0;
+
+            var ts1 = System.nanoTime();
+            for (var j = 0; j < vectorsCount; j++) {
+                var vector = queryVectors[j];
+                var result = new long[1];
+                diskANN.nearest(vector, result, 1);
+                Assert.assertEquals("j = " + j, 1, result.length);
+
+                if (groundTruth[j] != result[0]) {
+                    errorsCount++;
+                }
+
+                if ((j + 1) % 1_000 == 0) {
+                    System.out.println("Processed " + (j + 1));
+                }
+            }
+
+            var ts2 = System.nanoTime();
+            var errorPercentage = errorsCount * 100.0 / vectorsCount;
+
+            System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%, cache hits %d%% %n",
+                    (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg(),
+                    diskANN.hits());
+//            Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 1",
+//                    errorPercentage <= 1);
+//            Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 15",
+//                    diskANN.getPQErrorAvg() <= 12);
+            diskANN.deleteIndex();
+        }
+    }
+
+    private static void generateUniqueVectorSet(float[][] vectors, RestorableUniformRandomProvider rng) {
+        var addedVectors = new HashSet<FloatArrayHolder>();
+
+        for (float[] vector : vectors) {
+            var counter = 0;
+            do {
+                if (counter > 0) {
+                    System.out.println("duplicate vector found " + counter + ", retrying...");
+                }
+
+                for (var j = 0; j < vector.length; j++) {
+                    vector[j] = 10 * rng.nextFloat();
+                }
+                counter++;
+            } while (!addedVectors.add(new FloatArrayHolder(vector)));
+        }
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static int[] calculateGroundTruthVectors(float[][] vectors, float[][] queryVectors,
+                                                     final DistanceFunction distanceFunction) {
+        var groundTruth = new int[vectors.length];
+        for (int i = 0; i < queryVectors.length; i++) {
+            var queryVector = queryVectors[i];
+
+            var minDistance = Float.MAX_VALUE;
+            var minDistanceVectorIndex = -1;
+
+            for (int j = 0; j < vectors.length; j++) {
+                var vector = vectors[j];
+                var distance = distanceFunction.computeDistance(vector, 0, queryVector,
+                        0, vector.length);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    minDistanceVectorIndex = j;
+                }
+            }
+
+            groundTruth[i] = minDistanceVectorIndex;
+        }
+
+        return groundTruth;
     }
 
     @Test

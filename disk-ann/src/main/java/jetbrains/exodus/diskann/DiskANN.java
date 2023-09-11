@@ -508,7 +508,7 @@ public final class DiskANN implements AutoCloseable {
                 var pqVectorsSize = pqVectors.byteSize();
                 dataOutputStream.writeLong(pqVectorsSize);
 
-                for (int i = 0; i < pqVectorsSize; i++) {
+                for (long i = 0; i < pqVectorsSize; i++) {
                     dataOutputStream.writeByte(pqVectors.get(ValueLayout.JAVA_BYTE, i));
                 }
 
@@ -1835,7 +1835,7 @@ public final class DiskANN implements AutoCloseable {
                         if (lookupTable == null) {
                             lookupTable = threadLocalCache.lookupTable;
                             quantizer.buildDistanceLookupTable(queryVector, lookupTable, pqCentroids, pqQuantizersCount,
-                                    pqSubVectorSize);
+                                    pqSubVectorSize, distanceFunction);
                         }
 
                         assert vertexIndexesToCheck.size() <= 4;
