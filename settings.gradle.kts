@@ -131,5 +131,5 @@ project(":environment-test").name = "xodus-environment-test"
 include("utils-test")
 project(":utils-test").name = "xodus-utils-test"
 
-include("disk-ann")
-project(":disk-ann").name = "xodus-disk-ann"
+include("vectoriadb-index")
+project(":vectoriadb-index").name = "xodus-vectoriadb-index"
