@@ -152,7 +152,7 @@ subprojects {
     }
 
     tasks.test {
-        systemProperty("exodus.tests.buildDirectory", project.layout.buildDirectory)
+        systemProperty("exodus.tests.buildDirectory", project.layout.buildDirectory.asFile.get())
         systemProperty("org.slf4j.simpleLogger.log.jetbrains.exodus", "debug")
 
         minHeapSize = "1g"

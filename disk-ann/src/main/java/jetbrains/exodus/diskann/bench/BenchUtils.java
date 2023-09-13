@@ -15,20 +15,19 @@
  */
 package jetbrains.exodus.diskann.bench;
 
-import jetbrains.exodus.diskann.DiskANN;
+import jetbrains.exodus.diskann.IndexBuilder;
+import jetbrains.exodus.diskann.DataStore;
+import jetbrains.exodus.diskann.IndexReader;
 import jetbrains.exodus.diskann.L2DistanceFunction;
 import jetbrains.exodus.diskann.L2PQQuantizer;
-import jetbrains.exodus.diskann.VectorReader;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -46,28 +45,34 @@ final class BenchUtils {
 
         var siftArchivePath = downloadBenchFile(rootDir, siftArchiveName);
 
-
         extractTarArchive(rootDir, siftArchivePath);
         var siftsBaseDir = rootDir.resolve(siftDir);
 
-        var vectors = readRawFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
+        var vectors = readFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
         var dbDir = Files.createDirectory(rootDir.resolve("vectoriadb-bench"));
 
         System.out.printf("%d data vectors loaded with dimension %d, building index in directory %s...%n",
                 vectors.length, vectorDimensions, dbDir.toAbsolutePath());
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
-                L2PQQuantizer.INSTANCE)) {
-            var ts1 = System.nanoTime();
-            diskANN.buildIndex(16, new ArrayVectorReader(vectors), 90L * 1024 * 1024);
-            var ts2 = System.nanoTime();
+        var ts1 = System.nanoTime();
 
-            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+        Path dataLocation;
+        try (var dataBuilder = DataStore.create(128, "test_index", dbDir)) {
+            for (var vector : vectors) {
+                dataBuilder.add(vector);
+            }
+            dataLocation = dataBuilder.dataLocation();
         }
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
-                L2PQQuantizer.INSTANCE)) {
-            diskANN.loadIndex(500L * 1024 * 1024L);
+        IndexBuilder.buildIndex("test_index", 128,
+                dbDir, dataLocation, 60L * 1024 * 1024 * 1024,
+                L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE);
+
+        var ts2 = System.nanoTime();
+        System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+
+        try (var indexReader = new IndexReader("test_index", 128, dbDir,
+                110L * 1024 * 1024 * 1024, L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE)) {
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);
             var queryVectors = readFVectors(queryFile, vectorDimensions);
@@ -86,7 +91,7 @@ final class BenchUtils {
             var result = new long[1];
             for (int i = 0; i < 10; i++) {
                 for (float[] vector : queryVectors) {
-                    diskANN.nearest(vector, result, 1);
+                    indexReader.nearest(vector, result, 1);
                 }
             }
 
@@ -97,22 +102,22 @@ final class BenchUtils {
 
 
             for (int i = 0; i < 50; i++) {
-                var ts1 = System.nanoTime();
+                ts1 = System.nanoTime();
                 var errorsCount = 0;
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
-                    diskANN.nearest(vector, result, 1);
+                    indexReader.nearest(vector, result, 1);
                     if (groundTruth[index][0] != result[0]) {
                         errorsCount++;
                     }
                 }
-                var ts2 = System.nanoTime();
+                ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
                 System.out.printf("Avg. query time : %d us, errors: %f%% pq error %f%%, cache hits %d%%%n",
                         (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage, diskANN.getPQErrorAvg(), diskANN.hits());
-                diskANN.resetPQErrorStat();
+                        errorPercentage, indexReader.pqErrorAvg(), indexReader.hits());
+                indexReader.resetPQErrorStat();
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -232,47 +237,6 @@ final class BenchUtils {
         }
     }
 
-    public static byte[][] readRawFVectors(Path path, int vectorDimensions) throws IOException {
-        try (var channel = FileChannel.open(path)) {
-
-            var vectorBuffer = ByteBuffer.allocate(Float.BYTES * vectorDimensions + Integer.BYTES);
-            vectorBuffer.order(ByteOrder.LITTLE_ENDIAN);
-
-            readFully(channel, vectorBuffer);
-            vectorBuffer.rewind();
-
-            var vectorsCount =
-                    (int) (channel.size() / (Float.BYTES * vectorDimensions + Integer.BYTES));
-
-            var vectors = new byte[vectorsCount][];
-            {
-                var vector = readFloatVector(vectorDimensions, vectorBuffer);
-                vectors[0] = vector;
-            }
-
-            for (var i = 1; i < vectorsCount; i++) {
-                vectorBuffer.clear();
-                readFully(channel, vectorBuffer);
-                vectorBuffer.rewind();
-
-                vectorBuffer.position(Integer.BYTES);
-
-                var vector = readFloatVector(vectorDimensions, vectorBuffer);
-                vectors[i] = vector;
-            }
-            return vectors;
-        }
-    }
-
-    @NotNull
-    private static byte[] readFloatVector(int vectorDimensions, ByteBuffer vectorBuffer) {
-        var vector = new byte[vectorDimensions * Float.BYTES];
-        for (var i = 0; i < vector.length; i++) {
-            vector[i] = vectorBuffer.get();
-        }
-        return vector;
-    }
-
     @SuppressWarnings("SameParameterValue")
     private static int[][] readIVectors(Path siftSmallBase, int vectorDimensions) throws IOException {
         try (var channel = FileChannel.open(siftSmallBase)) {
@@ -318,20 +282,6 @@ final class BenchUtils {
                 throw new EOFException();
             }
         }
-    }
-}
-
-record ArrayVectorReader(byte[][] vectors) implements VectorReader {
-    public int size() {
-        return vectors.length;
-    }
-
-    public MemorySegment read(int index) {
-        return MemorySegment.ofArray(vectors[index]);
-    }
-
-    @Override
-    public void close() {
     }
 }
 

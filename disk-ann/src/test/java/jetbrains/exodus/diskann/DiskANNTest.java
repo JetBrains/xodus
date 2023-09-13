@@ -22,7 +22,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.foreign.MemorySegment;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -51,23 +50,30 @@ public class DiskANNTest {
 
         var dbDir = Files.createTempDirectory(Path.of(buildDir), "testFindLoadedVectorsL2Distance");
         dbDir.toFile().deleteOnExit();
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
-                L2PQQuantizer.INSTANCE)) {
-            var ts1 = System.nanoTime();
-            diskANN.buildIndex(2, new ArrayVectorReader(vectors), 1024 * 1024);
-            var ts2 = System.nanoTime();
-            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+
+        var ts1 = System.nanoTime();
+        Path dataLocation;
+        try (var dataBuilder = DataStore.create(128, "test_index", dbDir)) {
+            for (var vector : vectors) {
+                dataBuilder.add(vector);
+            }
+
+            dataLocation = dataBuilder.dataLocation();
         }
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
-                L2PQQuantizer.INSTANCE)) {
-            diskANN.loadIndex(64 * 1024 * 1024);
+        IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
+                4 * 1024 * 1024, L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE);
+        var ts2 = System.nanoTime();
+        System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+
+        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir, 64 * 1024 * 1024,
+                L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE)) {
             var errorsCount = 0;
-            var ts1 = System.nanoTime();
+            ts1 = System.nanoTime();
             for (var j = 0; j < vectorsCount; j++) {
                 var vector = vectors[j];
                 var result = new long[1];
-                diskANN.nearest(vector, result, 1);
+                indexReader.nearest(vector, result, 1);
                 Assert.assertEquals("j = " + j, 1, result.length);
 
                 if (j != result[0]) {
@@ -79,17 +85,17 @@ public class DiskANNTest {
                 }
             }
 
-            var ts2 = System.nanoTime();
+            ts2 = System.nanoTime();
             var errorPercentage = errorsCount * 100.0 / vectorsCount;
 
             System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%, cache hits %d%% %n",
-                    (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg(),
-                    diskANN.hits());
+                    (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, indexReader.pqErrorAvg(),
+                    indexReader.hits());
             Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 1",
                     errorPercentage <= 1);
-            Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 15",
-                    diskANN.getPQErrorAvg() <= 12);
-            diskANN.deleteIndex();
+            Assert.assertTrue("PQ error is too high " + indexReader.pqErrorAvg() + " > 15",
+                    indexReader.pqErrorAvg() <= 12);
+            indexReader.deleteIndex();
         }
     }
 
@@ -119,24 +125,32 @@ public class DiskANNTest {
         var groundTruth = calculateGroundTruthVectors(vectors, queryVectors, DotDistanceFunction.INSTANCE);
         var dbDir = Files.createTempDirectory(Path.of(buildDir), "testFindLoadedVectorsDotDistance");
         dbDir.toFile().deleteOnExit();
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, DotDistanceFunction.INSTANCE,
-                L2PQQuantizer.INSTANCE)) {
-            var ts1 = System.nanoTime();
-            diskANN.buildIndex(2, new ArrayVectorReader(vectors), 1024 * 1024);
-            var ts2 = System.nanoTime();
-            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+        var ts1 = System.nanoTime();
+
+        Path dataLocation;
+        try (var dataBuilder = DataStore.create(128, "test_index", dbDir)) {
+            for (var vector : vectors) {
+                dataBuilder.add(vector);
+            }
+
+            dataLocation = dataBuilder.dataLocation();
         }
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, DotDistanceFunction.INSTANCE,
-                L2PQQuantizer.INSTANCE)) {
-            diskANN.loadIndex(64 * 1024 * 1024);
+        IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
+                4 * 1024 * 1024, L2PQQuantizer.INSTANCE, DotDistanceFunction.INSTANCE);
+
+        var ts2 = System.nanoTime();
+        System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+
+        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir, 64 * 1024 * 1024,
+                L2PQQuantizer.INSTANCE, DotDistanceFunction.INSTANCE)) {
             var errorsCount = 0;
 
-            var ts1 = System.nanoTime();
+            ts1 = System.nanoTime();
             for (var j = 0; j < vectorsCount; j++) {
                 var vector = queryVectors[j];
                 var result = new long[1];
-                diskANN.nearest(vector, result, 1);
+                indexReader.nearest(vector, result, 1);
                 Assert.assertEquals("j = " + j, 1, result.length);
 
                 if (groundTruth[j] != result[0]) {
@@ -148,17 +162,17 @@ public class DiskANNTest {
                 }
             }
 
-            var ts2 = System.nanoTime();
+            ts2 = System.nanoTime();
             var errorPercentage = errorsCount * 100.0 / vectorsCount;
 
             System.out.printf("Avg. query %d time us, errors: %f%%, pq error %f%%, cache hits %d%% %n",
-                    (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, diskANN.getPQErrorAvg(),
-                    diskANN.hits());
-//            Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 1",
-//                    errorPercentage <= 1);
-//            Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 15",
-//                    diskANN.getPQErrorAvg() <= 12);
-            diskANN.deleteIndex();
+                    (ts2 - ts1) / 1000 / vectorsCount, errorPercentage, indexReader.pqErrorAvg(),
+                    indexReader.hits());
+            Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 1",
+                    errorPercentage <= 5);
+            Assert.assertTrue("PQ error is too high " + indexReader.pqErrorAvg() + " > 15",
+                    indexReader.pqErrorAvg() <= 12);
+            indexReader.deleteIndex();
         }
     }
 
@@ -259,49 +273,53 @@ public class DiskANNTest {
         var dbDir = Files.createTempDirectory(Path.of(buildDir), "testSearchSift10KVectors");
         dbDir.toFile().deleteOnExit();
 
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
-                L2PQQuantizer.INSTANCE)) {
-            var ts1 = System.nanoTime();
-            diskANN.buildIndex(8, new ArrayVectorReader(vectors), 64 * 1024 * 1024);
-            var ts2 = System.nanoTime();
+        var ts1 = System.nanoTime();
+        Path dataLocation;
+        try (var dataBuilder = DataStore.create(128, "test_index", dbDir)) {
+            for (var vector : vectors) {
+                dataBuilder.add(vector);
+            }
 
-            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+            dataLocation = dataBuilder.dataLocation();
         }
-        try (var diskANN = new DiskANN("test_index", dbDir, vectorDimensions, L2DistanceFunction.INSTANCE,
-                L2PQQuantizer.INSTANCE)) {
-            diskANN.loadIndex(64 * 1024 * 1024);
+        IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
+                4 * 1024 * 1024, L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE);
+        var ts2 = System.nanoTime();
+        System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+
+        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir, 64 * 1024 * 1024,
+                L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE)) {
             System.out.println("Searching...");
 
             var errorsCount = 0;
-            var ts1 = System.nanoTime();
+            ts1 = System.nanoTime();
             for (var index = 0; index < queryVectors.length; index++) {
                 var vector = queryVectors[index];
                 var result = new long[1];
-                diskANN.nearest(vector, result, 1);
+                indexReader.nearest(vector, result, 1);
 
                 Assert.assertEquals("j = " + index, 1, result.length);
                 if (groundTruth[index][0] != result[0]) {
                     errorsCount++;
                 }
             }
-            var ts2 = System.nanoTime();
+            ts2 = System.nanoTime();
             var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
             System.out.printf("Avg. query time : %d us, errors: %f%%  pq error %f%%, cache hits %d%%%n",
-                    (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage, diskANN.getPQErrorAvg(),
-                    diskANN.hits());
-            Assert.assertTrue("PQ error is too high " + diskANN.getPQErrorAvg() + " > 7.7",
-                    diskANN.getPQErrorAvg() <= 7.7);
+                    (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage, indexReader.pqErrorAvg(),
+                    indexReader.hits());
+            Assert.assertTrue("PQ error is too high " + indexReader.pqErrorAvg() + " > 7.7",
+                    indexReader.pqErrorAvg() <= 7.7);
             Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 1.1",
                     errorPercentage <= 1.1);
-            diskANN.deleteIndex();
+            indexReader.deleteIndex();
         }
 
     }
 }
 
 record FloatArrayHolder(float[] floatArray) {
-
     @Override
     public int hashCode() {
         return Arrays.hashCode(floatArray);
@@ -313,24 +331,5 @@ record FloatArrayHolder(float[] floatArray) {
             return Arrays.equals(floatArray, ((FloatArrayHolder) obj).floatArray);
         }
         return false;
-    }
-}
-
-record ArrayVectorReader(float[][] vectors) implements VectorReader {
-    public int size() {
-        return vectors.length;
-    }
-
-    public MemorySegment read(int index) {
-        var vectorSegment = MemorySegment.ofArray(new byte[vectors[index].length * Float.BYTES]);
-
-        MemorySegment.copy(MemorySegment.ofArray(vectors[index]), 0, vectorSegment, 0,
-                (long) vectors[index].length * Float.BYTES);
-
-        return vectorSegment;
-    }
-
-    @Override
-    public void close() {
     }
 }

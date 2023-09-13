@@ -16,10 +16,12 @@
 package jetbrains.exodus.diskann;
 
 import it.unimi.dsi.fastutil.Hash;
-import it.unimi.dsi.fastutil.ints.*;
+import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntIntImmutablePair;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongHeapPriorityQueue;
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.VectorSpecies;
 import jetbrains.exodus.diskann.diskcache.DiskCache;
 import jetbrains.exodus.diskann.util.collections.BoundedGreedyVertexPriorityQueue;
 import org.apache.commons.lang3.ArrayUtils;
@@ -32,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -47,450 +48,384 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLongArray;
 
-public final class DiskANN implements AutoCloseable {
+public final class IndexBuilder {
     private static final int LOGGING_THRESHOLD = 1024 * 1024;
+    private static final Logger logger = LoggerFactory.getLogger(IndexBuilder.class);
 
-    private static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
-
-
-    private static final Logger logger = LoggerFactory.getLogger(DiskANN.class);
-
-    private final int vectorDim;
-
-    private final float distanceMultiplication;
-
-    private final int maxConnectionsPerVertex;
-
-    private final int maxAmountOfCandidates;
-
-    private int pqSubVectorSize;
-    private int pqQuantizersCount;
-
-    private int pqCodeBaseSize;
-
-    private int verticesSize = 0;
-    private final Arena arena = Arena.openShared();
-    private MemorySegment diskCache;
-
-    private volatile boolean closed;
-
-    private DiskGraph diskGraph;
-
-    private long pqReCalculated = 0;
-    private double pqReCalculationError = 0.0;
-
-    //1st dimension quantizer index
-    //2nd index of code inside code book
-    //3d dimension centroid vector
-    private float[][][] pqCentroids;
-    private MemorySegment pqVectors;
-
-    private final ThreadLocal<NearestGreedySearchCachedData> nearestGreedySearchCachedDataThreadLocal;
-
-    private final Path path;
-
-    private final String name;
-
-    private final int pageSize;
-
-    private final int verticesPerPage;
-
-    private final int vertexRecordSize;
-
-    private final int diskRecordEdgesOffset;
-
-    private final int diskRecordEdgesCountOffset;
-
-    private final int diskRecordVectorsOffset;
-
-    private final DistanceFunction distanceFunction;
-
-    private final Quantizer quantizer;
-
-    public DiskANN(String name, final Path path, int vectorDim, DistanceFunction distanceFunction,
-                   Quantizer quantizer) throws IOException {
-        this(name, path, vectorDim, 1.2f,
-                64, 128,
-                32, distanceFunction, quantizer);
+    public static void buildIndex(String name, int vectorsDimension,
+                                  Path indexPath, Path dataPath, long graphPartitionMemoryConsumption,
+                                  Quantizer quantizer,
+                                  DistanceFunction distanceFunction) throws IOException {
+        buildIndex(name, vectorsDimension, 32, 1.2f, indexPath, dataPath,
+                graphPartitionMemoryConsumption, 64, 128, quantizer, distanceFunction);
     }
 
-    public DiskANN(String name, Path path, int vectorDim,
-                   float distanceMultiplication,
-                   int maxConnectionsPerVertex,
-                   int maxAmountOfCandidates,
-                   int pqCompression, DistanceFunction distanceFunction, Quantizer quantizer) {
-        this.name = name;
-        this.path = path;
-        this.vectorDim = vectorDim;
-        this.distanceMultiplication = distanceMultiplication;
-        this.maxConnectionsPerVertex = maxConnectionsPerVertex;
-        this.maxAmountOfCandidates = maxAmountOfCandidates;
-        this.distanceFunction = distanceFunction;
-        this.quantizer = quantizer;
+    public static void buildIndex(String name, int vectorsDimension, int compressionRatio,
+                                  float distanceMultiplication,
+                                  Path indexDirectoryPath, Path dataStoreFilePath, long memoryConsumption,
+                                  int maxConnectionsPerVertex,
+                                  int maxAmountOfCandidates,
+                                  Quantizer quantizer,
+                                  DistanceFunction distanceFunction) throws IOException {
+        var pqParameters = quantizer.calculatePQParameters(vectorsDimension, compressionRatio);
 
-        var pageStructure = DiskCache.createPageStructure(vectorDim, maxConnectionsPerVertex);
+        var pqSubVectorSize = pqParameters.pqSubVectorSize;
+        var pqQuantizersCount = pqParameters.pqQuantizersCount;
 
-        logger.info("DiskANN initialization : file block size {}, page size {}, vertex record size {}, " +
-                        "vertices count per page {}",
-                DiskCache.DISK_BLOCK_SIZE, pageStructure.pageSize(), pageStructure.vertexRecordSize(),
-                pageStructure.verticesCountPerPage());
-
-        this.pageSize = pageStructure.pageSize();
-        this.verticesPerPage = pageStructure.verticesCountPerPage();
-        this.vertexRecordSize = pageStructure.vertexRecordSize();
-        this.diskRecordEdgesOffset = pageStructure.recordEdgesOffset();
-        this.diskRecordVectorsOffset = pageStructure.recordVectorsOffset();
-        this.diskRecordEdgesCountOffset = pageStructure.recordEdgesCountOffset();
-
-
-        if (logger.isInfoEnabled()) {
-            logger.info("Vector index " + name + " has been initialized. Vector lane count for distance calculation " +
-                    "is " + SPECIES.length());
-        }
-
-        var pqParameters = quantizer.calculatePQParameters(vectorDim, pqCompression);
-
-        pqSubVectorSize = pqParameters.pqSubVectorSize;
-        pqQuantizersCount = pqParameters.pqQuantizersCount;
-
-        if (pqCompression % Float.BYTES != 0) {
+        if (compressionRatio % Float.BYTES != 0) {
             throw new IllegalArgumentException(
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
 
-        if (vectorDim % pqSubVectorSize != 0) {
+        if (vectorsDimension % pqSubVectorSize != 0) {
             throw new IllegalArgumentException(
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
 
         logger.info("PQ quantizers count is " + pqQuantizersCount + ", sub vector size is " + pqSubVectorSize +
-                " elements , compression is " + pqCompression + " for index '" + name + "'");
-        nearestGreedySearchCachedDataThreadLocal = ThreadLocal.withInitial(() -> new NearestGreedySearchCachedData(
-                new IntOpenHashSet(8 * 1024,
-                        Hash.VERY_FAST_LOAD_FACTOR), new float[pqQuantizersCount * (1 << Byte.SIZE)],
-                new BoundedGreedyVertexPriorityQueue(maxAmountOfCandidates), new int[maxConnectionsPerVertex],
-                new int[maxAmountOfCandidates]));
-    }
+                " elements , compression ratio is " + compressionRatio + " for index '" + name + "'");
 
+        var pageStructure = DiskCache.createPageStructure(vectorsDimension, maxConnectionsPerVertex);
 
-    public void buildIndex(int partitions, VectorReader vectorReader, long diskCacheSize) {
-        try {
-            var memoryMXBean = ManagementFactory.getMemoryMXBean();
-            var pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
-            BufferPoolMXBean directMemoryPool = null;
+        var pageSize = pageStructure.pageSize();
+        var verticesCountPerPage = pageStructure.verticesCountPerPage();
+        var vertexRecordSize = pageStructure.vertexRecordSize();
+        var recordVectorsOffset = pageStructure.recordVectorsOffset();
+        var recordEdgesOffset = pageStructure.recordEdgesOffset();
+        var recordEdgesCountOffset = pageStructure.recordEdgesCountOffset();
 
-            for (var pool : pools) {
-                if (pool.getName().equals("direct")) {
-                    directMemoryPool = pool;
-                    break;
-                }
-            }
+        try (var vectorReader = new MmapVectorReader(vectorsDimension, dataStoreFilePath)) {
+            try (var arena = Arena.openShared()) {
+                var memoryMXBean = ManagementFactory.getMemoryMXBean();
+                var pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
+                BufferPoolMXBean directMemoryPool = null;
 
-            assert directMemoryPool != null;
-
-            logger.info("Building index for database {} ..." +
-                            "Max heap memory usage {} Mb, committed {} Mb", name,
-                    memoryMXBean.getHeapMemoryUsage().getMax() / 1024 / 1024,
-                    memoryMXBean.getHeapMemoryUsage().getCommitted() / 1024 / 1024);
-
-            if (vectorReader.size() == 0) {
-                logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
-                return;
-            }
-
-            logger.info("Generating PQ codes for vectors, direct memory usage {} Mb, heap memory usage {} Mb",
-                    directMemoryPool.getMemoryUsed() / 1024 / 1024,
-                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
-
-            var startPQ = System.nanoTime();
-            var pqResult = quantizer.generatePQCodes(pqQuantizersCount, pqSubVectorSize, vectorReader, arena);
-
-            pqCentroids = pqResult.pqCodesVectors;
-            pqVectors = pqResult.pqVectors;
-            pqCodeBaseSize = pqCentroids[0].length;
-
-            var endPQ = System.nanoTime();
-            logger.info("PQ codes for vectors have been generated. Time spent {} ms." +
-                            " Direct memory usage {} Mb, heap memory usage {} Mb",
-                    (endPQ - startPQ) / 1_000_000.0, directMemoryPool.getMemoryUsed() / 1024 / 1024,
-                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
-
-            var size = vectorReader.size();
-
-            logger.info("Calculation of graph search entry point ...");
-            var startPQCentroid = System.nanoTime();
-
-            var pqCentroid =
-                    PQKMeans.calculatePartitions(pqCentroids, pqVectors, 1, 1, distanceFunction);
-            var centroid = new float[vectorDim];
-            for (int i = 0, pqCentroidVectorOffset = 0; i < pqQuantizersCount; i++,
-                    pqCentroidVectorOffset += pqSubVectorSize) {
-                var pqCentroidVector = Byte.toUnsignedInt(pqCentroid[i]);
-
-                System.arraycopy(pqCentroids[i][pqCentroidVector], 0, centroid,
-                        pqCentroidVectorOffset, pqSubVectorSize);
-            }
-
-            var endPQCentroid = System.nanoTime();
-            logger.info("Calculation of graph search entry point has been finished. Time spent {} ms. " +
-                            "Direct memory usage {} Mb, heap memory usage {} Mb",
-                    (endPQCentroid - startPQCentroid) / 1_000_000.0,
-                    directMemoryPool.getMemoryUsed() / 1024 / 1024,
-                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
-
-            var medoidMindIndex = Integer.MAX_VALUE;
-            var medoidMinDistance = Float.MAX_VALUE;
-
-            logger.info("Splitting vectors into {} partitions...", partitions);
-            var startPartition = System.nanoTime();
-            var partitionsCentroids = PQKMeans.calculatePartitions(pqCentroids, pqVectors, partitions, 50,
-                    distanceFunction);
-
-            logger.info("Detection of {} partitions has been finished. " +
-                            "Direct memory usage {} Mb, heap memory usage {} Mb", partitions,
-                    directMemoryPool.getMemoryUsed() / 1024 / 1024,
-                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
-
-            var cores = Runtime.getRuntime().availableProcessors();
-            ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
-
-
-            logger.info("Using {} cores for processing of vectors", cores);
-
-            for (var i = 0; i < cores; i++) {
-                var id = i;
-                vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
-                    var thread = new Thread(r, name + "-vector mutator-" + id);
-                    thread.setDaemon(true);
-                    return thread;
-                }));
-            }
-
-            var graphs = new MMapedGraph[partitions];
-
-            IntArrayList[] vectorsByPartitions = new IntArrayList[partitions];
-            for (int i = 0; i < partitions; i++) {
-                vectorsByPartitions[i] = new IntArrayList(size / partitions);
-            }
-            var distanceTables = PQKMeans.distanceTables(pqCentroids, distanceFunction);
-            for (int i = 0; i < size; i++) {
-                var twoClosestClusters = PQKMeans.findTwoClosestClusters(pqVectors, i, partitionsCentroids,
-                        distanceTables, pqQuantizersCount, pqCentroids[0].length);
-
-                var firstPartition = (int) (twoClosestClusters >>> 32);
-                var secondPartition = (int) twoClosestClusters;
-
-                vectorsByPartitions[firstPartition].add(i);
-
-                if (firstPartition != secondPartition) {
-                    vectorsByPartitions[secondPartition].add(i);
-                }
-
-                if ((i & (1024 * 1024 - 1)) == 0) {
-                    logger.info("Distribution of  {} vectors between partitions {} ({}%).", i, size, i * 100.0 / size);
-                }
-            }
-
-            var graphFilePath = path.resolve(name + ".graph");
-            try (var partitionsArena = Arena.openConfined()) {
-                var totalPartitionsSize = 0;
-                var maxPartitionSize = Integer.MIN_VALUE;
-                var minPartitionSize = Integer.MAX_VALUE;
-
-                var dmPartitions = new MemorySegment[partitions];
-
-                for (var i = 0; i < partitions; i++) {
-                    var partition = vectorsByPartitions[i];
-
-                    var partitionSize = partition.size();
-                    totalPartitionsSize += partitionSize;
-
-                    if (partitionSize > maxPartitionSize) {
-                        maxPartitionSize = partitionSize;
-                    }
-                    if (partitionSize < minPartitionSize) {
-                        minPartitionSize = partitionSize;
-                    }
-
-                    dmPartitions[i] = partitionsArena.allocateArray(ValueLayout.JAVA_INT, partitionSize);
-                    for (int j = 0; j < partitionSize; j++) {
-                        dmPartitions[i].setAtIndex(ValueLayout.JAVA_INT, j, partition.getInt(j));
+                for (var pool : pools) {
+                    if (pool.getName().equals("direct")) {
+                        directMemoryPool = pool;
+                        break;
                     }
                 }
 
-                checkRequestedFreeSpace(path, size, totalPartitionsSize);
+                assert directMemoryPool != null;
 
-                var avgPartitionSize = totalPartitionsSize / partitions;
-                var squareSum = 0;
+                logger.info("Building index for database {} ..." +
+                                "Max heap memory usage {} Mb, committed {} Mb", name,
+                        memoryMXBean.getHeapMemoryUsage().getMax() / 1024 / 1024,
+                        memoryMXBean.getHeapMemoryUsage().getCommitted() / 1024 / 1024);
 
-                for (var i = 0; i < partitions; i++) {
-                    var partition = dmPartitions[i];
-                    var partitionSize = (int) (partition.byteSize() / Integer.SIZE);
-                    squareSum += (partitionSize - avgPartitionSize) * (partitionSize - avgPartitionSize);
+                if (vectorReader.size() == 0) {
+                    logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
+                    return;
                 }
 
-                var endPartition = System.nanoTime();
-                long maxPartitionSizeKBytes = calculateGraphPartitionSize(maxPartitionSize) / 1024;
-                long minPartitionSizeKBytes = calculateGraphPartitionSize(minPartitionSize) / 1024;
-
-                //noinspection IntegerDivisionInFloatingPointContext
-                logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
-                                "({}Kb/{}Mb/{}Gb in memory), " +
-                                "min partition size {} vertexes ({}Kb/{}Mb/{}Gb in memory), average size {}, deviation {}." +
-                                " Time spent {} ms. Direct memory usage {} Mb, heap memory usage {} Mb.",
-                        partitions, maxPartitionSize,
-                        maxPartitionSizeKBytes, maxPartitionSizeKBytes / 1024, maxPartitionSizeKBytes / 1024 / 1024,
-                        minPartitionSize,
-                        minPartitionSizeKBytes, minPartitionSizeKBytes / 1024, minPartitionSizeKBytes / 1024 / 1024,
-                        avgPartitionSize,
-                        Math.sqrt(squareSum / partitions),
-                        (endPartition - startPartition) / 1_000_000.0,
+                logger.info("Generating PQ codes for vectors, direct memory usage {} Mb, heap memory usage {} Mb",
                         directMemoryPool.getMemoryUsed() / 1024 / 1024,
                         memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
-                logger.info("----------------------------------------------------------------------------------------------");
-                logger.info("Distribution of vertices by partitions:");
-                for (int i = 0; i < partitions; i++) {
-                    logger.info("Partition {} has {} vectors.", i, (int) dmPartitions[i].byteSize() / Integer.BYTES);
+
+                var startPQ = System.nanoTime();
+                var pqResult = quantizer.generatePQCodes(pqQuantizersCount, pqSubVectorSize, vectorReader, arena);
+
+                var pqCentroids = pqResult.pqCodesVectors;
+                var pqVectors = pqResult.pqVectors;
+                var pqCodeBaseSize = pqCentroids[0].length;
+
+                var endPQ = System.nanoTime();
+                logger.info("PQ codes for vectors have been generated. Time spent {} ms." +
+                                " Direct memory usage {} Mb, heap memory usage {} Mb",
+                        (endPQ - startPQ) / 1_000_000.0, directMemoryPool.getMemoryUsed() / 1024 / 1024,
+                        memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
+
+                var size = vectorReader.size();
+
+                logger.info("Calculation of graph search entry point ...");
+                var startPQCentroid = System.nanoTime();
+
+                var pqCentroid =
+                        PQKMeans.calculatePartitions(pqCentroids, pqVectors, 1, 1, distanceFunction);
+                var centroid = new float[vectorsDimension];
+                for (int i = 0, pqCentroidVectorOffset = 0; i < pqQuantizersCount; i++,
+                        pqCentroidVectorOffset += pqSubVectorSize) {
+                    var pqCentroidVector = Byte.toUnsignedInt(pqCentroid[i]);
+
+                    System.arraycopy(pqCentroids[i][pqCentroidVector], 0, centroid,
+                            pqCentroidVectorOffset, pqSubVectorSize);
                 }
-                logger.info("----------------------------------------------------------------------------------------------");
 
-                if (Files.exists(graphFilePath)) {
-                    logger.warn("File {} already exists and will be deleted.", path);
-                    Files.delete(graphFilePath);
+                var endPQCentroid = System.nanoTime();
+                logger.info("Calculation of graph search entry point has been finished. Time spent {} ms. " +
+                                "Direct memory usage {} Mb, heap memory usage {} Mb",
+                        (endPQCentroid - startPQCentroid) / 1_000_000.0,
+                        directMemoryPool.getMemoryUsed() / 1024 / 1024,
+                        memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
+
+                var medoidMinIndex = Integer.MAX_VALUE;
+                var medoidMinDistance = Float.MAX_VALUE;
+
+                var cores = Runtime.getRuntime().availableProcessors();
+                ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
+                logger.info("Using {} cores for processing of vectors", cores);
+
+                for (var i = 0; i < cores; i++) {
+                    var id = i;
+                    vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
+                        var thread = new Thread(r, name + "-vector mutator-" + id);
+                        thread.setDaemon(true);
+                        return thread;
+                    }));
                 }
-                initFile(graphFilePath, size);
 
-                var verticesProcessed = 0L;
-                for (int i = 0; i < partitions; i++) {
-                    var partition = dmPartitions[i];
-                    var partitionSize = (int) partition.byteSize() / Integer.BYTES;
+                var verticesCount = vectorReader.size();
 
-                    logger.info("Building search graph for partition {} with {} vectors...", i, partitionSize);
-                    var graph = new MMapedGraph(partitionSize, i, name, path);
-                    for (int j = 0; j < partitionSize; j++) {
-                        var vectorIndex = partition.getAtIndex(ValueLayout.JAVA_INT, j);
+                var partitions =
+                        (int) Math.max(1,
+                                3 * calculateGraphPartitionSize(2L * verticesCount,
+                                        maxConnectionsPerVertex, vectorsDimension) / memoryConsumption);
 
-                        var vector = vectorReader.read(vectorIndex);
-                        graph.addVector(vectorIndex, vector);
+                var totalPartitionsSize = 0;
+                IntArrayList[] vectorsByPartitions;
+                while (true) {
+                    logger.info("Splitting vectors into {} partitions...", partitions);
+                    var startPartition = System.nanoTime();
+                    var partitionsCentroids = PQKMeans.calculatePartitions(pqCentroids, pqVectors, partitions, 50,
+                            distanceFunction);
 
-                        var currentDistance = distanceFunction.computeDistance(vector, 0, centroid,
-                                0, vectorDim);
-                        if (currentDistance < medoidMinDistance) {
-                            medoidMinDistance = currentDistance;
-                            medoidMindIndex = vectorIndex;
+                    logger.info("Detection of {} partitions has been finished. " +
+                                    "Direct memory usage {} Mb, heap memory usage {} Mb", partitions,
+                            directMemoryPool.getMemoryUsed() / 1024 / 1024,
+                            memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
+
+
+                    vectorsByPartitions = new IntArrayList[partitions];
+                    for (int i = 0; i < partitions; i++) {
+                        vectorsByPartitions[i] = new IntArrayList(size / partitions);
+                    }
+
+                    var distanceTables = PQKMeans.distanceTables(pqCentroids, distanceFunction);
+                    for (int i = 0; i < size; i++) {
+                        var twoClosestClusters = PQKMeans.findTwoClosestClusters(pqVectors, i, partitionsCentroids,
+                                distanceTables, pqQuantizersCount, pqCentroids[0].length);
+
+                        var firstPartition = (int) (twoClosestClusters >>> 32);
+                        var secondPartition = (int) twoClosestClusters;
+
+                        vectorsByPartitions[firstPartition].add(i);
+
+                        if (firstPartition != secondPartition) {
+                            vectorsByPartitions[secondPartition].add(i);
+                        }
+
+                        if ((i & (1024 * 1024 - 1)) == 0) {
+                            logger.info("Distribution of  {} vectors between partitions {} ({}%).", i, size, i * 100.0 / size);
                         }
                     }
 
-                    graph.generateRandomEdges();
+                    totalPartitionsSize = 0;
+                    var maxPartitionSize = Integer.MIN_VALUE;
+                    var minPartitionSize = Integer.MAX_VALUE;
 
-                    logger.info("Search graph for partition {} has been built. " +
-                                    "Direct memory usage {} Mb, heap memory usage {} Mb. Pruning...", i,
+                    for (var i = 0; i < partitions; i++) {
+                        var partition = vectorsByPartitions[i];
+
+                        var partitionSize = partition.size();
+                        totalPartitionsSize += partitionSize;
+
+                        if (partitionSize > maxPartitionSize) {
+                            maxPartitionSize = partitionSize;
+                        }
+                        if (partitionSize < minPartitionSize) {
+                            minPartitionSize = partitionSize;
+                        }
+                    }
+
+                    checkRequestedFreeSpace(indexDirectoryPath, size, totalPartitionsSize, maxConnectionsPerVertex,
+                            pageSize, verticesCountPerPage);
+
+                    var avgPartitionSize = totalPartitionsSize / partitions;
+                    var squareSum = 0L;
+
+                    for (var i = 0; i < partitions; i++) {
+                        var partition = vectorsByPartitions[i];
+                        var partitionSize = partition.size();
+                        squareSum += (long) (partitionSize - avgPartitionSize) * (partitionSize - avgPartitionSize);
+                    }
+
+                    var endPartition = System.nanoTime();
+                    var maxPartitionSizeBytes = calculateGraphPartitionSize(maxPartitionSize, maxConnectionsPerVertex,
+                            vectorsDimension);
+                    long maxPartitionSizeKBytes = maxPartitionSizeBytes / 1024;
+                    long minPartitionSizeKBytes =
+                            calculateGraphPartitionSize(minPartitionSize, maxConnectionsPerVertex, vectorsDimension) / 1024;
+
+                    //noinspection IntegerDivisionInFloatingPointContext
+                    logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
+                                    "({}Kb/{}Mb/{}Gb in memory), " +
+                                    "min partition size {} vertexes ({}Kb/{}Mb/{}Gb in memory), average size {}, deviation {}." +
+                                    " Time spent {} ms. Direct memory usage {} Mb, heap memory usage {} Mb.",
+                            partitions, maxPartitionSize,
+                            maxPartitionSizeKBytes, maxPartitionSizeKBytes / 1024, maxPartitionSizeKBytes / 1024 / 1024,
+                            minPartitionSize,
+                            minPartitionSizeKBytes, minPartitionSizeKBytes / 1024, minPartitionSizeKBytes / 1024 / 1024,
+                            avgPartitionSize,
+                            Math.sqrt(squareSum / partitions),
+                            (endPartition - startPartition) / 1_000_000.0,
                             directMemoryPool.getMemoryUsed() / 1024 / 1024,
                             memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
+                    logger.info("----------------------------------------------------------------------------------------------");
 
-                    var startPrune = System.nanoTime();
-                    pruneIndex(graph, graph.medoid(), distanceMultiplication, vectorMutationThreads, i);
-                    var endPrune = System.nanoTime();
-                    logger.info("Search graph for partition {} has been pruned. Time spent {} ms.",
-                            i, (endPrune - startPrune) / 1_000_000.0);
+                    if (maxPartitionSize > memoryConsumption) {
+                        partitions = (int) (1.2 * partitions);
+                        logger.info("Max partition size {} bytes is greater than requested memory consumption {} bytes. " +
+                                        "Trying to split vectors into {} partitions...", maxPartitionSizeBytes, memoryConsumption,
+                                partitions);
+                        continue;
+                    }
 
-                    logger.info("Saving vectors of search graph for partition {} " +
-                            "on disk under the path {} ...", i, graphFilePath.toAbsolutePath());
+                    break;
+                }
 
+                try (var partitionsArena = Arena.openConfined()) {
+                    var dmPartitions = new MemorySegment[partitions];
+
+                    for (var i = 0; i < partitions; i++) {
+                        var partition = vectorsByPartitions[i];
+                        var partitionSize = partition.size();
+
+                        dmPartitions[i] = partitionsArena.allocateArray(ValueLayout.JAVA_INT, partitionSize);
+                        for (int j = 0; j < partitionSize; j++) {
+                            dmPartitions[i].setAtIndex(ValueLayout.JAVA_INT, j, partition.getInt(j));
+                        }
+                    }
+
+                    logger.info("Distribution of vertices by partitions:");
+                    for (int i = 0; i < partitions; i++) {
+                        logger.info("Partition {} has {} vectors.", i, (int) dmPartitions[i].byteSize() / Integer.BYTES);
+                    }
+                    logger.info("----------------------------------------------------------------------------------------------");
+                    var graphFilePath = indexDirectoryPath.resolve(name + ".graph");
+                    if (Files.exists(graphFilePath)) {
+                        logger.warn("File {} already exists and will be deleted.", graphFilePath);
+                        Files.delete(graphFilePath);
+                    }
+
+                    var diskCache = initFile(graphFilePath, size, verticesCountPerPage,
+                            pageSize, arena);
+
+
+                    var graphs = new MMapedGraph[partitions];
+                    var verticesProcessed = 0L;
+                    for (int i = 0; i < partitions; i++) {
+                        var partition = dmPartitions[i];
+                        var partitionSize = (int) partition.byteSize() / Integer.BYTES;
+
+                        logger.info("Building search graph for partition {} with {} vectors...", i, partitionSize);
+                        var graph = new MMapedGraph(partitionSize, i, name, indexDirectoryPath, maxConnectionsPerVertex,
+                                vectorsDimension, distanceFunction, maxAmountOfCandidates, pageSize,
+                                vertexRecordSize, recordVectorsOffset, diskCache);
+                        for (int j = 0; j < partitionSize; j++) {
+                            var vectorIndex = partition.getAtIndex(ValueLayout.JAVA_INT, j);
+
+                            var vector = vectorReader.read(vectorIndex);
+                            graph.addVector(vectorIndex, vector);
+
+                            var currentDistance = distanceFunction.computeDistance(vector, 0, centroid,
+                                    0, vectorsDimension);
+                            if (currentDistance < medoidMinDistance) {
+                                medoidMinDistance = currentDistance;
+                                medoidMinIndex = vectorIndex;
+                            }
+                        }
+
+                        graph.generateRandomEdges();
+
+                        logger.info("Search graph for partition {} has been built. " +
+                                        "Direct memory usage {} Mb, heap memory usage {} Mb. Pruning...", i,
+                                directMemoryPool.getMemoryUsed() / 1024 / 1024,
+                                memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
+
+                        var startPrune = System.nanoTime();
+                        pruneIndex(graph, graph.medoid(), distanceMultiplication, vectorMutationThreads,
+                                i, maxConnectionsPerVertex, maxAmountOfCandidates);
+                        var endPrune = System.nanoTime();
+                        logger.info("Search graph for partition {} has been pruned. Time spent {} ms.",
+                                i, (endPrune - startPrune) / 1_000_000.0);
+
+                        logger.info("Saving vectors of search graph for partition {} " +
+                                "on disk under the path {} ...", i, graphFilePath.toAbsolutePath());
+
+                        var startSave = System.nanoTime();
+
+                        graph.sortVertexesByGlobalIndex();
+                        graph.saveVectorsToDisk();
+
+                        graph.clearEdgeVersions();
+
+                        graph.convertLocalEdgesToGlobal();
+
+                        verticesProcessed += partitionSize;
+                        var endSave = System.nanoTime();
+
+                        logger.info("Vectors of search graph for partition {} have " +
+                                        "been saved to the disk under the path {} " +
+                                        "({}%). Time spent {} ms. " +
+                                        "Direct memory usage {} Mb, heap memory usage {} Mb.",
+                                i, graphFilePath.toAbsolutePath(), 100.0 * verticesProcessed / totalPartitionsSize,
+                                (endSave - startSave) / 1_000_000.0,
+                                directMemoryPool.getMemoryUsed() / 1024 / 1024,
+                                memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
+
+                        graphs[i] = graph;
+                    }
+
+
+                    logger.info("Merging and storing search graph partitions on disk under the path {} ...",
+                            graphFilePath.toAbsolutePath());
                     var startSave = System.nanoTime();
-
-                    graph.sortVertexesByGlobalIndex();
-                    graph.saveVectorsToDisk();
-
-                    graph.clearEdgeVersions();
-
-                    graph.convertLocalEdgesToGlobal();
-
-                    verticesProcessed += partitionSize;
+                    mergeAndStorePartitionsOnDisk(graphs, size, maxConnectionsPerVertex, verticesCountPerPage,
+                            pageSize, vertexRecordSize, recordEdgesOffset, recordEdgesCountOffset
+                            , diskCache);
                     var endSave = System.nanoTime();
 
-                    logger.info("Vectors of search graph for partition {} have " +
-                                    "been saved to the disk under the path {} " +
-                                    "({}%). Time spent {} ms. " +
+                    logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms. " +
                                     "Direct memory usage {} Mb, heap memory usage {} Mb.",
-                            i, graphFilePath.toAbsolutePath(), 100.0 * verticesProcessed / totalPartitionsSize,
-                            (endSave - startSave) / 1_000_000.0,
+                            graphFilePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0,
                             directMemoryPool.getMemoryUsed() / 1024 / 1024,
                             memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
-                    graphs[i] = graph;
+
+                    for (var mutator : vectorMutationThreads) {
+                        mutator.shutdown();
+                    }
+                    vectorMutationThreads.clear();
+
+                    storeIndexState(medoidMinIndex, vectorReader.size(), pqQuantizersCount, pqCodeBaseSize,
+                            pqSubVectorSize, pqCentroids, pqVectors, name, indexDirectoryPath);
                 }
             }
-
-
-            logger.info("Merging and storing search graph partitions on disk under the path {} ...",
-                    graphFilePath.toAbsolutePath());
-            var startSave = System.nanoTime();
-            mergeAndStorePartitionsOnDisk(graphs, size);
-            var endSave = System.nanoTime();
-            logger.info("Search graph has been stored on disk under the path {}. Time spent {} ms. " +
-                            "Direct memory usage {} Mb, heap memory usage {} Mb.",
-                    graphFilePath.toAbsolutePath(), (endSave - startSave) / 1_000_000.0,
-                    directMemoryPool.getMemoryUsed() / 1024 / 1024,
-                    memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
-
-            for (var mutator : vectorMutationThreads) {
-                mutator.shutdown();
-            }
-            vectorMutationThreads.clear();
-
-            diskGraph = new DiskGraph(medoidMindIndex, diskCacheSize, graphFilePath);
-            verticesSize = size;
-
-            storeIndexState();
-
-            arena.close();
-            closed = true;
-        } catch (IOException e) {
-            throw new RuntimeException("Error during creation of search graph for database " + name, e);
-        } finally {
-            try {
-                vectorReader.close();
-            } catch (Exception e) {
-                logger.error("Error during closing of vector reader for database " + name, e);
-            }
         }
+        Files.deleteIfExists(dataStoreFilePath);
     }
 
-    public void loadIndex(long diskCacheSize) throws IOException {
-        var medoid = readIndexState();
-        var filePath = path.resolve(name + ".graph");
-
-        diskGraph = new DiskGraph(medoid, diskCacheSize, filePath);
-    }
-
-    public void deleteIndex() throws IOException {
-        close();
-
-        logger.info("Deleting index data for database {}...", name);
-        var graphPath = path.resolve(name + ".graph");
-        var dataFilePath = path.resolve(name + ".data");
-        try {
-            Files.deleteIfExists(graphPath);
-            logger.info("File {} has been deleted.", graphPath);
-            Files.deleteIfExists(dataFilePath);
-            logger.info("File {} has been deleted.", dataFilePath);
-        } catch (IOException e) {
-            throw new RuntimeException("Error during deletion of index data for database " + name, e);
-        }
-        logger.info("Index data for database {} have been deleted.", name);
-    }
-
-    private void storeIndexState() throws IOException {
-        var dataFilePath = path.resolve(name + ".data");
+    private static void storeIndexState(int medoid, int verticesSize, int pqQuantizersCount, int pqCodeBaseSize,
+                                        int pqSubVectorSize, float[][][] pqCentroids, MemorySegment pqVectors,
+                                        String name, Path indexPath) throws IOException {
+        var dataFilePath = indexPath.resolve(name + ".data");
         try (var pqOutputStream = Files.newOutputStream(dataFilePath, StandardOpenOption.CREATE_NEW,
                 StandardOpenOption.WRITE)) {
             try (var dataOutputStream = new DataOutputStream(new BufferedOutputStream(pqOutputStream))) {
-                dataOutputStream.writeInt(diskGraph.medoid);
+                dataOutputStream.writeInt(medoid);
                 dataOutputStream.writeInt(verticesSize);
 
                 dataOutputStream.writeInt(pqQuantizersCount);
@@ -519,47 +454,12 @@ public final class DiskANN implements AutoCloseable {
         logger.info("Index data were loaded from disk for database {}", name);
     }
 
-    private int readIndexState() {
-        int medoid;
-        var pqFilePath = path.resolve(name + ".data");
-        try (var pqInputStream = Files.newInputStream(pqFilePath, StandardOpenOption.READ)) {
-            try (var dataInputStream = new DataInputStream(pqInputStream)) {
-                medoid = dataInputStream.readInt();
-                verticesSize = dataInputStream.readInt();
 
-                pqQuantizersCount = dataInputStream.readInt();
-                pqCodeBaseSize = dataInputStream.readInt();
-                pqSubVectorSize = dataInputStream.readInt();
-
-                pqCentroids = new float[pqQuantizersCount][pqCodeBaseSize][pqSubVectorSize];
-                for (int i = 0; i < pqQuantizersCount; i++) {
-                    for (int j = 0; j < pqCodeBaseSize; j++) {
-                        for (int k = 0; k < pqSubVectorSize; k++) {
-                            pqCentroids[i][j][k] = dataInputStream.readFloat();
-                        }
-                    }
-                }
-
-                var pqVectorsSize = dataInputStream.readLong();
-                pqVectors = arena.allocate(pqVectorsSize);
-                for (int i = 0; i < pqVectorsSize; i++) {
-                    pqVectors.set(ValueLayout.JAVA_BYTE, i, dataInputStream.readByte());
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Error during reading of index data for database " + name, e);
-        }
-
-        logger.info("Index data were loaded from disk for database {}", name);
-        return medoid;
-    }
-
-    private void mergeAndStorePartitionsOnDisk(MMapedGraph[] partitions, int size) throws IOException {
+    private static void mergeAndStorePartitionsOnDisk(MMapedGraph[] partitions, int size, int maxConnectionsPerVertex,
+                                                      int verticesPerPage, int pageSize, int vertexRecordSize,
+                                                      int diskRecordEdgesOffset, int diskRecordEdgesCountOffset,
+                                                      MemorySegment diskCache) throws IOException {
         assert partitions.length > 0;
-
-        if (partitions.length == 1) {
-            return;
-        }
 
         var completedPartitions = new boolean[partitions.length];
         for (var i = 0; i < partitions.length; i++) {
@@ -664,7 +564,6 @@ public final class DiskANN implements AutoCloseable {
 
                 edgesCount = edgeSet.size();
 
-
                 if (edgesCount > maxConnectionsPerVertex) {
                     diskCache.set(ValueLayout.JAVA_INT, resultEdgesCountOffset, maxConnectionsPerVertex);
 
@@ -730,31 +629,9 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-
-    public void resetPQErrorStat() {
-        pqReCalculated = 0;
-        pqReCalculationError = 0.0;
-    }
-
-    public double getPQErrorAvg() {
-        return pqReCalculationError / pqReCalculated;
-    }
-
-    public long hits() {
-        if (diskGraph != null) {
-            return diskGraph.hits();
-        }
-
-        return -1;
-    }
-
-    public void nearest(float[] vector, long[] result, int resultSize) {
-        diskGraph.greedySearchNearest(vector, result,
-                resultSize);
-    }
-
-    private void pruneIndex(MMapedGraph graph, int medoid, float distanceMultiplication,
-                            final ArrayList<ExecutorService> vectorMutationThreads, int partitionId) {
+    private static void pruneIndex(MMapedGraph graph, int medoid, float distanceMultiplication,
+                                   final ArrayList<ExecutorService> vectorMutationThreads,
+                                   int partitionId, int maxConnectionsPerVertex, int maxAmountOfCandidates) {
         int size = graph.size;
         if (size == 0) {
             return;
@@ -792,6 +669,8 @@ public final class DiskANN implements AutoCloseable {
                 var mutatorId = i;
                 var mutatorFuture = mutator.submit(() -> {
                     var index = 0;
+                    var visitedVertices = new IntOpenHashSet(8 * 1024, Hash.VERY_FAST_LOAD_FACTOR);
+                    var nearestCandidates = new BoundedGreedyVertexPriorityQueue(maxAmountOfCandidates);
                     while (true) {
                         @SuppressWarnings("unchecked")
                         var neighbourPairs = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
@@ -841,7 +720,9 @@ public final class DiskANN implements AutoCloseable {
                                 continue;
                             }
 
-                            graph.greedySearchPrune(medoid, vectorIndex);
+                            graph.greedySearchPrune(medoid, vectorIndex, visitedVertices, nearestCandidates,
+                                    distanceMultiplication);
+
                             var neighbourNeighbours = graph.fetchNeighbours(vectorIndex);
                             assert vectorIndex % mutatorsCount == mutatorId;
 
@@ -889,7 +770,7 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private void permuteIndexes(MemorySegment indexes, UniformRandomProvider rng, int size) {
+    private static void permuteIndexes(MemorySegment indexes, UniformRandomProvider rng, int size) {
         for (int i = size; i > 1; i--) {
             var swapIndex = rng.nextInt(i);
 
@@ -901,12 +782,15 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private void initFile(Path path, int globalVertexCount) throws IOException {
+
+    private static MemorySegment initFile(Path path, int globalVertexCount, int verticesPerPage,
+                                          int pageSize, Arena arena) throws IOException {
         logger.info("Creating file {} for storing search graph...", path);
-        var fileLength = calculateRequestedFileLength(globalVertexCount);
+        var fileLength = calculateRequestedFileLength(globalVertexCount, pageSize, verticesPerPage);
         logger.info("Vertices to be stored {}, vertices per page {}, page size {}, file length {}",
                 globalVertexCount, verticesPerPage, pageSize, fileLength);
 
+        MemorySegment diskCache;
         try (var rwFile = new RandomAccessFile(path.toFile(), "rw")) {
             rwFile.setLength(fileLength);
 
@@ -914,12 +798,17 @@ public final class DiskANN implements AutoCloseable {
             diskCache = channel.map(FileChannel.MapMode.READ_WRITE, 0, fileLength, arena.scope());
         }
         logger.info("File {} for storing search graph has been created.", path);
+
+        return diskCache;
     }
 
-    private void checkRequestedFreeSpace(Path dbPath, int size, int totalPartitionsSize) throws IOException {
+
+    private static void checkRequestedFreeSpace(Path dbPath, int size, int totalPartitionsSize,
+                                                int maxConnectionsPerVertex, int pageSize,
+                                                int verticesPerPage) throws IOException {
         var fileStore = Files.getFileStore(dbPath);
         var usableSpace = fileStore.getUsableSpace();
-        var requiredGraphSpace = calculateRequestedFileLength(size);
+        var requiredGraphSpace = calculateRequestedFileLength(size, pageSize, verticesPerPage);
 
         //space needed for mmap files to store edges and global indexes of all partitions.
         var requiredPartitionsSpace =
@@ -934,7 +823,16 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private long calculateGraphPartitionSize(long partitionSize) {
+    private static long calculateRequestedFileLength(long verticesCount, int pageSize, int verticesPerPage) {
+        var pagesToWrite = pagesToWrite(verticesCount, verticesPerPage);
+        return (long) pagesToWrite * pageSize;
+    }
+
+    private static int pagesToWrite(long verticesCount, int verticesPerPage) {
+        return (int) (verticesCount + verticesPerPage - 1) / verticesPerPage;
+    }
+
+    private static long calculateGraphPartitionSize(long partitionSize, int maxConnectionsPerVertex, int vectorDim) {
         //1. edges
         //2. global indexes
         //3. vertex records
@@ -942,65 +840,60 @@ public final class DiskANN implements AutoCloseable {
                 partitionSize * Integer.BYTES + partitionSize * vectorDim * Float.BYTES;
     }
 
-    private long calculateRequestedFileLength(long verticesCount) {
-        var pagesToWrite = pagesToWrite(verticesCount);
-        return (long) pagesToWrite * pageSize;
-    }
-
-    private int pagesToWrite(long verticesCount) {
-        return (int) (verticesCount + verticesPerPage - 1) / verticesPerPage;
-    }
-
-
-    @Override
-    public void close() throws IOException {
-        if (!closed) {
-            arena.close();
-            closed = true;
-
-            if (diskGraph != null) {
-                diskGraph.close();
-            }
-        }
-    }
-
-    private final class MMapedGraph implements AutoCloseable {
+    private static final class MMapedGraph implements AutoCloseable {
+        private static final Logger logger = LoggerFactory.getLogger(MMapedGraph.class);
         private int size = 0;
-
         private final MemorySegment edges;
         private final MemorySegment vectors;
-
         private final MemorySegment globalIndexes;
-
         @Nullable
         private AtomicLongArray edgeVersions;
-
         private final Arena edgesArena;
-
         private Arena vectorsArena;
-
         private int medoid = -1;
-
         private final String name;
         private final Path path;
-
         private final int id;
-
         private final long filesTs;
+        private final int maxConnectionsPerVertex;
+        private final int vectorDimensions;
+        private final DistanceFunction distanceFunction;
+        private final int maxAmountOfCandidates;
+        private final int pageSize;
+        private final int vertexRecordSize;
+        private final int diskRecordVectorsOffset;
+        private final MemorySegment diskCache;
 
-        private MMapedGraph(int capacity, int id, String name, Path path) throws IOException {
-            this(capacity, false, id, name, path);
+
+        private MMapedGraph(int capacity, int id, String name, Path path, int maxConnectionsPerVertex,
+                            int vectorDimensions, DistanceFunction distanceFunction, int maxAmountOfCandidates,
+                            int pageSize, int vertexRecordSize, int diskRecordVectorsOffset,
+                            MemorySegment diskCache) throws IOException {
+            this(capacity, false, id, name, path, maxConnectionsPerVertex, vectorDimensions,
+                    distanceFunction, maxAmountOfCandidates, pageSize, vertexRecordSize, diskRecordVectorsOffset, diskCache);
         }
 
-        private MMapedGraph(int capacity, boolean skipVectors, int id, String name, Path path) throws IOException {
+        private MMapedGraph(int capacity, boolean skipVectors, int id, String name, Path path,
+                            int maxConnectionsPerVertex, int vectorDimensions,
+                            DistanceFunction distanceFunction, int maxAmountOfCandidates, int pageSize,
+                            int vertexRecordSize, int diskRecordVectorsOffset,
+                            MemorySegment diskCache) throws IOException {
             this.edgeVersions = new AtomicLongArray(capacity);
             this.name = name;
             this.path = path;
             this.id = id;
+            this.maxConnectionsPerVertex = maxConnectionsPerVertex;
+            this.vectorDimensions = vectorDimensions;
+            this.distanceFunction = distanceFunction;
+            this.maxAmountOfCandidates = maxAmountOfCandidates;
+            this.pageSize = pageSize;
+            this.vertexRecordSize = vertexRecordSize;
+            this.diskRecordVectorsOffset = diskRecordVectorsOffset;
+            this.diskCache = diskCache;
 
             this.edgesArena = Arena.openShared();
 
-            var edgesLayout = MemoryLayout.sequenceLayout((long) (maxConnectionsPerVertex + 1) * capacity,
+            var edgesLayout = MemoryLayout.sequenceLayout((long) (this.maxConnectionsPerVertex + 1) * capacity,
                     ValueLayout.JAVA_INT);
             var globalIndexesLayout = MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_INT);
 
@@ -1028,7 +921,7 @@ public final class DiskANN implements AutoCloseable {
 
             if (!skipVectors) {
                 this.vectorsArena = Arena.openShared();
-                var vectorsLayout = MemoryLayout.sequenceLayout((long) capacity * vectorDim, ValueLayout.JAVA_FLOAT);
+                var vectorsLayout = MemoryLayout.sequenceLayout((long) capacity * this.vectorDimensions, ValueLayout.JAVA_FLOAT);
                 this.vectors = vectorsArena.allocate(vectorsLayout);
             } else {
                 vectors = null;
@@ -1062,16 +955,16 @@ public final class DiskANN implements AutoCloseable {
                 return 0;
             }
 
-            var meanVector = new float[vectorDim];
+            var meanVector = new float[vectorDimensions];
 
             for (var i = 0; i < size; i++) {
                 var vectorOffset = vectorOffset(i);
-                for (var j = 0; j < vectorDim; j++) {
+                for (var j = 0; j < vectorDimensions; j++) {
                     meanVector[j] += vectors.get(ValueLayout.JAVA_FLOAT, vectorOffset + (long) j * Float.BYTES);
                 }
             }
 
-            for (var j = 0; j < vectorDim; j++) {
+            for (var j = 0; j < vectorDimensions; j++) {
                 meanVector[j] = meanVector[j] / size;
             }
 
@@ -1079,8 +972,8 @@ public final class DiskANN implements AutoCloseable {
             var medoidIndex = -1;
 
             for (var i = 0; i < size; i++) {
-                var currentDistance = distanceFunction.computeDistance(vectors, (long) i * vectorDim,
-                        meanVector, 0, vectorDim);
+                var currentDistance = distanceFunction.computeDistance(vectors, (long) i * vectorDimensions,
+                        meanVector, 0, vectorDimensions);
 
                 if (currentDistance < minDistance) {
                     minDistance = currentDistance;
@@ -1093,11 +986,11 @@ public final class DiskANN implements AutoCloseable {
 
 
         private void addVector(int globalIndex, MemorySegment vector) {
-            var index = (long) size * vectorDim;
+            var index = (long) size * vectorDimensions;
 
             MemorySegment.copy(vector, 0, vectors,
                     index * Float.BYTES,
-                    (long) vectorDim * Float.BYTES);
+                    (long) vectorDimensions * Float.BYTES);
             globalIndexes.setAtIndex(ValueLayout.JAVA_INT, size, globalIndex);
 
             size++;
@@ -1105,19 +998,16 @@ public final class DiskANN implements AutoCloseable {
 
         private void greedySearchPrune(
                 int startVertexIndex,
-                int vertexIndexToPrune) {
-            var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
-            var visitedVertexIndices = threadLocalCache.visistedVertexIndices;
+                int vertexIndexToPrune, IntOpenHashSet visitedVertexIndices,
+                BoundedGreedyVertexPriorityQueue nearestCandidates, float distanceMultiplication) {
             visitedVertexIndices.clear();
-
-            var nearestCandidates = threadLocalCache.nearestCandidates;
             nearestCandidates.clear();
 
             var checkedVertices = new Int2FloatOpenHashMap(2 * maxAmountOfCandidates, Hash.FAST_LOAD_FACTOR);
 
             var startVectorOffset = vectorOffset(startVertexIndex);
             var queryVectorOffset = vectorOffset(vertexIndexToPrune);
-            var dim = vectorDim;
+            var dim = vectorDimensions;
 
             nearestCandidates.add(startVertexIndex, distanceFunction.computeDistance(vectors, startVectorOffset,
                     vectors, queryVectorOffset, dim), false, false);
@@ -1187,7 +1077,7 @@ public final class DiskANN implements AutoCloseable {
                 Int2FloatOpenHashMap neighboursCandidates,
                 float distanceMultiplication
         ) {
-            var dim = vectorDim;
+            var dim = vectorDimensions;
             acquireVertex(vertexIndex);
             try {
                 Int2FloatOpenHashMap candidates;
@@ -1353,7 +1243,7 @@ public final class DiskANN implements AutoCloseable {
         }
 
         private long vectorOffset(int vertexIndex) {
-            return (long) vertexIndex * vectorDim * Float.BYTES;
+            return (long) vertexIndex * vectorDimensions * Float.BYTES;
         }
 
 
@@ -1422,13 +1312,13 @@ public final class DiskANN implements AutoCloseable {
         private void fetchVectorNotThreadSafe(int vertexIndex, float[] vector) {
             var vectorOffset = vectorOffset(vertexIndex);
             MemorySegment.copy(vectors, vectorOffset, MemorySegment.ofArray(vector), 0L,
-                    (long) vectorDim * Float.BYTES);
+                    (long) vectorDimensions * Float.BYTES);
         }
 
         private void setVectorNotThreadSafe(int vertexIndex, float[] vector) {
             var vectorOffset = vectorOffset(vertexIndex);
             MemorySegment.copy(MemorySegment.ofArray(vector), 0L, vectors, vectorOffset,
-                    (long) vectorDim * Float.BYTES);
+                    (long) vectorDimensions * Float.BYTES);
         }
 
         private void setNeighboursNotThreadSafe(int vertexIndex, int[] neighbours, int size) {
@@ -1514,6 +1404,19 @@ public final class DiskANN implements AutoCloseable {
 
         }
 
+        private void permuteIndexes(MemorySegment indexes, UniformRandomProvider rng, int size) {
+            for (int i = size; i > 1; i--) {
+                var swapIndex = rng.nextInt(i);
+
+                var firstValue = indexes.getAtIndex(ValueLayout.JAVA_INT, i - 1);
+                var secondValue = indexes.getAtIndex(ValueLayout.JAVA_INT, swapIndex);
+
+                indexes.setAtIndex(ValueLayout.JAVA_INT, i - 1, secondValue);
+                indexes.setAtIndex(ValueLayout.JAVA_INT, swapIndex, firstValue);
+            }
+        }
+
+
         private int[] getNeighboursAndClear(int vertexIndex) {
             validateLocked(vertexIndex);
             var edgesOffset = ((long) vertexIndex * (maxConnectionsPerVertex + 1)) * Integer.BYTES;
@@ -1569,7 +1472,7 @@ public final class DiskANN implements AutoCloseable {
             }
         }
 
-        private void saveVectorsToDisk() throws IOException {
+        private void saveVectorsToDisk() {
             var verticesPerPage = pageSize / vertexRecordSize;
             var size = this.size;
 
@@ -1591,7 +1494,7 @@ public final class DiskANN implements AutoCloseable {
 
                 var recordOffset = localPageOffset * vertexRecordSize + Long.BYTES + pageOffset;
 
-                for (long j = 0; j < vectorDim; j++, vectorsIndex++) {
+                for (long j = 0; j < vectorDimensions; j++, vectorsIndex++) {
                     var vectorItem = vectors.get(ValueLayout.JAVA_FLOAT,
                             vectorsIndex * Float.BYTES);
                     var storedVectorItemOffset = recordOffset + diskRecordVectorsOffset + j * Float.BYTES;
@@ -1658,8 +1561,8 @@ public final class DiskANN implements AutoCloseable {
             var neighboursToAssign = new int[maxConnectionsPerVertex];
             var tpmNeighboursToAssign = new int[maxConnectionsPerVertex];
 
-            var vectorToAssign = new float[vectorDim];
-            var tmpVectorToAssign = new float[vectorDim];
+            var vectorToAssign = new float[vectorDimensions];
+            var tmpVectorToAssign = new float[vectorDimensions];
 
             for (int i = 0; i < size; i++) {
                 if (loggingEnabled && (i & (LOGGING_THRESHOLD - 1)) == 0) {
@@ -1729,423 +1632,42 @@ public final class DiskANN implements AutoCloseable {
         }
     }
 
-    private final class DiskGraph implements AutoCloseable {
-        private final int medoid;
-        private final DiskCache diskCache;
+    private static final class MmapVectorReader implements VectorReader {
+        private final int recordSize;
+        private final MemorySegment segment;
 
-        private DiskGraph(int medoid, long cacheSize, Path graphPath) throws IOException {
-            this.medoid = medoid;
-            this.diskCache = new DiskCache(cacheSize, vectorDim, maxConnectionsPerVertex, graphPath);
-        }
+        private final Arena arena;
 
-        private void greedySearchNearest(
-                float[] queryVector,
-                long[] result,
-                int k
-        ) {
-            var threadLocalCache = nearestGreedySearchCachedDataThreadLocal.get();
+        private final int vectorDimensions;
 
-            var visitedVertexIndices = threadLocalCache.visistedVertexIndices;
-            visitedVertexIndices.clear();
+        private final int size;
 
-            var nearestCandidates = threadLocalCache.nearestCandidates;
-            nearestCandidates.clear();
-
-            var startVertexIndex = medoid;
-            var vertexNeighbours = threadLocalCache.vertexNeighbours;
-
-            var distanceResult = threadLocalCache.distanceResult;
-            var vertexIndexesToCheck = threadLocalCache.vertexIndexesToCheck;
-            vertexIndexesToCheck.clear();
-
-            var vertexToPreload = threadLocalCache.vertexToPreload;
-
-            var startVertexInMemoryPageIndex = diskCache.readLock(startVertexIndex);
-            var startVectorOffset = diskCache.vectorOffset(startVertexInMemoryPageIndex, startVertexIndex);
-            nearestCandidates.add(startVertexIndex,
-                    distanceFunction.computeDistance(diskCache.pages, startVectorOffset, queryVector, 0,
-                            vectorDim),
-                    false, true);
-
-            assert nearestCandidates.size() <= maxAmountOfCandidates;
-            visitedVertexIndices.add(startVertexIndex);
-
-            float[] lookupTable = null;
-
-            while (true) {
-                int currentVertex = -1;
-
-                vertexRecalculationLoop:
-                while (true) {
-                    vertexIndexesToCheck.clear();
-
-                    while (vertexIndexesToCheck.size() < 4) {
-                        if (vertexIndexesToCheck.isEmpty()) {
-                            preloadVertices(nearestCandidates, vertexToPreload);
-                        }
-
-                        var notCheckedVertex = nearestCandidates.nextNotCheckedVertexIndex();
-                        if (notCheckedVertex < 0) {
-                            if (vertexIndexesToCheck.isEmpty()) {
-                                break vertexRecalculationLoop;
-                            }
-
-                            assert vertexIndexesToCheck.size() <= 4;
-                            recalculateDistances(queryVector, nearestCandidates,
-                                    vertexIndexesToCheck, distanceResult);
-                            continue;
-                        }
+        public MmapVectorReader(final int vectorDimensions, Path path) throws IOException {
+            this.vectorDimensions = vectorDimensions;
+            this.recordSize = Float.BYTES * vectorDimensions;
 
 
-                        if (nearestCandidates.isPqDistance(notCheckedVertex)) {
-                            vertexIndexesToCheck.add(notCheckedVertex);
-                            assert vertexIndexesToCheck.size() <= 4;
-                        } else {
-                            if (!vertexIndexesToCheck.isEmpty()) {
-                                assert vertexIndexesToCheck.size() <= 4;
-                                recalculateDistances(queryVector, nearestCandidates,
-                                        vertexIndexesToCheck, distanceResult);
-                                continue;
-                            }
+            arena = Arena.openShared();
 
-                            currentVertex = nearestCandidates.vertexIndex(notCheckedVertex);
-                            nearestCandidates.markUnlocked(notCheckedVertex);
-
-                            break vertexRecalculationLoop;
-                        }
-                    }
-
-                    assert vertexIndexesToCheck.size() == 4;
-                    recalculateDistances(queryVector, nearestCandidates,
-                            vertexIndexesToCheck, distanceResult);
-                }
-
-                if (currentVertex < 0) {
-                    break;
-                }
-
-
-                var edgesCount = diskCache.fetchEdges(currentVertex, vertexNeighbours);
-                assert vertexIndexesToCheck.isEmpty();
-
-                for (var i = 0; i < edgesCount; i++) {
-                    var vertexIndex = vertexNeighbours[i];
-
-                    if (visitedVertexIndices.add(vertexIndex)) {
-                        if (lookupTable == null) {
-                            lookupTable = threadLocalCache.lookupTable;
-                            quantizer.buildDistanceLookupTable(queryVector, lookupTable, pqCentroids, pqQuantizersCount,
-                                    pqSubVectorSize, distanceFunction);
-                        }
-
-                        assert vertexIndexesToCheck.size() <= 4;
-
-                        vertexIndexesToCheck.add(vertexIndex);
-                        if (vertexIndexesToCheck.size() == 4) {
-                            computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
-                                    distanceResult);
-                        }
-
-                        assert vertexIndexesToCheck.size() <= 4;
-                    }
-                }
-
-                assert vertexIndexesToCheck.size() <= 4;
-
-                if (!vertexIndexesToCheck.isEmpty()) {
-                    computePQDistances(lookupTable, vertexIndexesToCheck, nearestCandidates,
-                            distanceResult);
-                }
-
-                assert vertexIndexesToCheck.isEmpty();
-                assert nearestCandidates.size() <= maxAmountOfCandidates;
-
-                diskCache.unlock(currentVertex);
-            }
-
-            var unlockSize = nearestCandidates.fetchAllLocked(vertexToPreload);
-            for (int i = 0; i < unlockSize; i++) {
-                diskCache.unlock(vertexToPreload[i]);
-            }
-
-            nearestCandidates.vertexIndices(result, k);
-        }
-
-        private void preloadVertices(BoundedGreedyVertexPriorityQueue nearestCandidates, int[] vertexToPreload) {
-            var preLoadSize = nearestCandidates.markAsLocked(8, vertexToPreload);
-
-            for (int n = 0; n < preLoadSize; n++) {
-                var preLoadVertexIndex = vertexToPreload[n];
-                diskCache.preloadIfNeeded(preLoadVertexIndex);
+            try (var channel = FileChannel.open(path, StandardOpenOption.READ)) {
+                segment = channel.map(FileChannel.MapMode.READ_ONLY, 0, Files.size(path), arena.scope());
+                this.size = (int) (channel.size() / recordSize);
             }
         }
 
-        private void computePQDistance4Batch(float[] lookupTable, int vectorIndex1, int vectorIndex2,
-                                             int vectorIndex3, int vectorIndex4, float[] result) {
-            assert result.length == 4;
-
-            var pqIndex1 = pqQuantizersCount * vectorIndex1;
-            var pqIndex2 = pqQuantizersCount * vectorIndex2;
-            var pqIndex3 = pqQuantizersCount * vectorIndex3;
-            var pqIndex4 = pqQuantizersCount * vectorIndex4;
-
-            var result1 = 0.0f;
-            var result2 = 0.0f;
-            var result3 = 0.0f;
-            var result4 = 0.0f;
-
-            for (int i = 0; i < pqQuantizersCount; i++) {
-                var rowOffset = i * (1 << Byte.SIZE);
-
-                var code1 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex1 + i) & 0xFF;
-                result1 += lookupTable[rowOffset + code1];
-
-                var code2 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex2 + i) & 0xFF;
-                result2 += lookupTable[rowOffset + code2];
-
-                var code3 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex3 + i) & 0xFF;
-                result3 += lookupTable[rowOffset + code3];
-
-                var code4 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex4 + i) & 0xFF;
-                result4 += lookupTable[rowOffset + code4];
-            }
-
-            result[0] = result1;
-            result[1] = result2;
-            result[2] = result3;
-            result[3] = result4;
+        @Override
+        public int size() {
+            return size;
         }
 
-        private void computePQDistances(float[] lookupTable,
-                                        IntArrayList vertexIndexesToCheck,
-                                        BoundedGreedyVertexPriorityQueue nearestCandidates,
-                                        float[] distanceResult) {
-            assert distanceResult.length == 4;
-            assert vertexIndexesToCheck.size() <= 4;
-
-            var elements = vertexIndexesToCheck.elements();
-            var size = vertexIndexesToCheck.size();
-
-            if (size < 4) {
-                for (int i = 0; i < size; i++) {
-                    var vertexIndex = elements[i];
-                    var pqDistance = quantizer.computeDistance(pqVectors, lookupTable, vertexIndex, pqQuantizersCount);
-
-                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
-                }
-            } else {
-                var vertexIndex1 = elements[0];
-                var vertexIndex2 = elements[1];
-                var vertexIndex3 = elements[2];
-                var vertexIndex4 = elements[3];
-
-                computePQDistance4Batch(lookupTable, vertexIndex1, vertexIndex2, vertexIndex3, vertexIndex4,
-                        distanceResult);
-
-
-                for (int i = 0; i < 4; i++) {
-                    var pqDistance = distanceResult[i];
-                    var vertexIndex = elements[i];
-                    addPqDistance(nearestCandidates, pqDistance, vertexIndex);
-                }
-            }
-
-            vertexIndexesToCheck.clear();
+        @Override
+        public MemorySegment read(int index) {
+            return segment.asSlice((long) index * recordSize, (long) Float.BYTES * vectorDimensions);
         }
 
-        private void addPqDistance(BoundedGreedyVertexPriorityQueue nearestCandidates, float pqDistance,
-                                   int vertexIndex) {
-            if (nearestCandidates.size() < maxAmountOfCandidates) {
-                var removed = nearestCandidates.add(vertexIndex, pqDistance, true, false);
-                assert removed == Integer.MAX_VALUE;
-            } else {
-                var lastVertexDistance = nearestCandidates.maxDistance();
-
-                if (lastVertexDistance >= pqDistance) {
-                    var removed = nearestCandidates.add(vertexIndex, pqDistance, true, false);
-                    assert removed != Integer.MAX_VALUE;
-
-                    //index is negative if it was not checked yet by the greedy search
-                    //all checked pages are unlocked in main cycle
-                    //but unchecked
-                    if (removed < 0) {
-                        diskCache.unlock(-removed - 1);
-                    }
-                }
-            }
-        }
-
-        private void recalculateDistances(float[] queryVector, BoundedGreedyVertexPriorityQueue nearestCandidates,
-                                          IntArrayList vertexIndexesToCheck, float[] distanceResult) {
-
-            var elements = vertexIndexesToCheck.elements();
-            var size = vertexIndexesToCheck.size();
-
-            if (size < 4) {
-                for (int i = 0; i < size; i++) {
-                    var notCheckedVertex = elements[i];
-
-                    var vertexIndex = nearestCandidates.vertexIndex(notCheckedVertex);
-                    if (nearestCandidates.isNotLockedForRead(notCheckedVertex)) {
-                        throw new IllegalStateException("Vertex " + vertexIndex + " is not preloaded");
-                    }
-
-                    long inMemoryPageIndex = diskCache.readLocked(vertexIndex);
-                    var vectorOffset = diskCache.vectorOffset(inMemoryPageIndex, vertexIndex);
-
-                    var preciseDistance = distanceFunction.computeDistance(diskCache.pages, vectorOffset,
-                            queryVector, 0, vectorDim);
-
-                    var pqDistance = nearestCandidates.vertexDistance(notCheckedVertex);
-                    var newVertexIndex = nearestCandidates.resortVertex(notCheckedVertex, preciseDistance);
-
-                    for (int k = i + 1; k < size; k++) {
-                        elements[k] = elements[k] - ((elements[k] - newVertexIndex - 1) >>> (Integer.SIZE - 1));
-                    }
-
-                    if (preciseDistance != 0) {
-                        pqReCalculated++;
-                        pqReCalculationError += 100.0 * Math.abs(preciseDistance - pqDistance) / preciseDistance;
-                    }
-                }
-            } else {
-                var notCheckedVertex1 = elements[0];
-                var notCheckedVertex2 = elements[1];
-                var notCheckedVertex3 = elements[2];
-                var notCheckedVertex4 = elements[3];
-
-                var vertexIndex1 = nearestCandidates.vertexIndex(notCheckedVertex1);
-                var vertexIndex2 = nearestCandidates.vertexIndex(notCheckedVertex2);
-                var vertexIndex3 = nearestCandidates.vertexIndex(notCheckedVertex3);
-                var vertexIndex4 = nearestCandidates.vertexIndex(notCheckedVertex4);
-
-                assert notCheckedVertex1 < notCheckedVertex2;
-                assert notCheckedVertex2 < notCheckedVertex3;
-                assert notCheckedVertex3 < notCheckedVertex4;
-
-                var pqDistance1 = nearestCandidates.vertexDistance(notCheckedVertex1);
-                var pqDistance2 = nearestCandidates.vertexDistance(notCheckedVertex2);
-                var pqDistance3 = nearestCandidates.vertexDistance(notCheckedVertex3);
-                var pqDistance4 = nearestCandidates.vertexDistance(notCheckedVertex4);
-
-                if (nearestCandidates.isNotLockedForRead(notCheckedVertex1)) {
-                    throw new IllegalStateException("Vertex " + vertexIndex1 + " is not preloaded");
-                }
-                if (nearestCandidates.isNotLockedForRead(notCheckedVertex2)) {
-                    throw new IllegalStateException("Vertex " + vertexIndex2 + " is not preloaded");
-                }
-                if (nearestCandidates.isNotLockedForRead(notCheckedVertex3)) {
-                    throw new IllegalStateException("Vertex " + vertexIndex3 + " is not preloaded");
-                }
-                if (nearestCandidates.isNotLockedForRead(notCheckedVertex4)) {
-                    throw new IllegalStateException("Vertex " + vertexIndex4 + " is not preloaded");
-                }
-
-                long inMemoryPageIndex1 = diskCache.readLocked(vertexIndex1);
-                long inMemoryPageIndex2 = diskCache.readLocked(vertexIndex2);
-                long inMemoryPageIndex3 = diskCache.readLocked(vertexIndex3);
-                long inMemoryPageIndex4 = diskCache.readLocked(vertexIndex4);
-
-                var vectorOffset1 = diskCache.vectorOffset(inMemoryPageIndex1, vertexIndex1);
-                var vectorOffset2 = diskCache.vectorOffset(inMemoryPageIndex2, vertexIndex2);
-                var vectorOffset3 = diskCache.vectorOffset(inMemoryPageIndex3, vertexIndex3);
-                var vectorOffset4 = diskCache.vectorOffset(inMemoryPageIndex4, vertexIndex4);
-
-                distanceFunction.computeDistance(queryVector, 0, diskCache.pages, vectorOffset1,
-                        diskCache.pages, vectorOffset2, diskCache.pages, vectorOffset3,
-                        diskCache.pages, vectorOffset4, vectorDim, distanceResult);
-
-
-                //preventing branch miss predictions using bit shift and subtraction
-                var newVertexIndex1 = nearestCandidates.resortVertex(notCheckedVertex1, distanceResult[0]);
-                assert vertexIndex1 == nearestCandidates.vertexIndex(newVertexIndex1);
-
-                //if newVertexIndex1 >= notCheckedVertex1 then -1 else 0, the same logic
-                //is applied for the rest follow-up indexes
-                notCheckedVertex2 = notCheckedVertex2 -
-                        ((notCheckedVertex2 - newVertexIndex1 - 1) >>> (Integer.SIZE - 1));
-                notCheckedVertex3 = notCheckedVertex3 -
-                        ((notCheckedVertex3 - newVertexIndex1 - 1) >>> (Integer.SIZE - 1));
-                notCheckedVertex4 = notCheckedVertex4 -
-                        ((notCheckedVertex4 - newVertexIndex1 - 1) >>> (Integer.SIZE - 1));
-                assert vertexIndex2 == nearestCandidates.vertexIndex(notCheckedVertex2);
-                assert vertexIndex3 == nearestCandidates.vertexIndex(notCheckedVertex3);
-                assert vertexIndex4 == nearestCandidates.vertexIndex(notCheckedVertex4);
-
-                var newVertexIndex2 = nearestCandidates.resortVertex(notCheckedVertex2, distanceResult[1]);
-                assert vertexIndex2 == nearestCandidates.vertexIndex(newVertexIndex2);
-
-                notCheckedVertex3 =
-                        notCheckedVertex3 - ((notCheckedVertex3 - newVertexIndex2 - 1) >>> (Integer.SIZE - 1));
-                notCheckedVertex4 =
-                        notCheckedVertex4 - ((notCheckedVertex4 - newVertexIndex2 - 1) >>> (Integer.SIZE - 1));
-                assert vertexIndex3 == nearestCandidates.vertexIndex(notCheckedVertex3);
-                assert vertexIndex4 == nearestCandidates.vertexIndex(notCheckedVertex4);
-
-                var newVertexIndex3 = nearestCandidates.resortVertex(notCheckedVertex3, distanceResult[2]);
-                assert vertexIndex3 == nearestCandidates.vertexIndex(newVertexIndex3);
-
-                notCheckedVertex4 = notCheckedVertex4 - ((notCheckedVertex4 - newVertexIndex3 - 1)
-                        >>> (Integer.SIZE - 1));
-                assert vertexIndex4 == nearestCandidates.vertexIndex(notCheckedVertex4);
-
-                nearestCandidates.resortVertex(notCheckedVertex4, distanceResult[3]);
-
-                if (distanceResult[0] != 0) {
-                    pqReCalculated++;
-                    pqReCalculationError += 100.0 * Math.abs(distanceResult[0] - pqDistance1) / distanceResult[0];
-                }
-
-                if (distanceResult[1] != 0) {
-                    pqReCalculated++;
-                    pqReCalculationError += 100.0 * Math.abs(distanceResult[1] - pqDistance2) / distanceResult[1];
-                }
-
-                if (distanceResult[2] != 0) {
-                    pqReCalculated++;
-                    pqReCalculationError += 100.0 * Math.abs(distanceResult[2] - pqDistance3) / distanceResult[2];
-                }
-
-                if (distanceResult[3] != 0) {
-                    pqReCalculated++;
-                    pqReCalculationError += 100.0 * Math.abs(distanceResult[3] - pqDistance4) / distanceResult[3];
-                }
-            }
-
-            vertexIndexesToCheck.clear();
-        }
-
-        private long hits() {
-            return diskCache.hits();
-        }
-
-        public void close() throws IOException {
-            diskCache.close();
-        }
-    }
-
-    private static final class NearestGreedySearchCachedData {
-        private final IntOpenHashSet visistedVertexIndices;
-        private final float[] lookupTable;
-
-        private final BoundedGreedyVertexPriorityQueue nearestCandidates;
-
-        private final float[] distanceResult;
-
-        private final IntArrayList vertexIndexesToCheck = new IntArrayList();
-
-        private final int[] vertexNeighbours;
-        private final int[] vertexToPreload;
-
-        private NearestGreedySearchCachedData(IntOpenHashSet vertexIndices, float[] lookupTable,
-                                              BoundedGreedyVertexPriorityQueue nearestCandidates,
-                                              int[] vertexNeighbours, int[] vertexToPreload) {
-            this.visistedVertexIndices = vertexIndices;
-            this.lookupTable = lookupTable;
-            this.nearestCandidates = nearestCandidates;
-            this.vertexNeighbours = vertexNeighbours;
-            this.vertexToPreload = vertexToPreload;
-            this.distanceResult = new float[4];
+        @Override
+        public void close() {
+            arena.close();
         }
     }
 }
