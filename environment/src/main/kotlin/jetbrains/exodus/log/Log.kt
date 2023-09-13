@@ -889,7 +889,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
             } while (hasNext)
         } catch (exception: Exception) {
-            logger.error("Error during verification of database $location", exception)
+            logger.warn("Error during verification of database $location", exception)
 
             SharedOpenFilesCache.invalidate()
 
@@ -929,7 +929,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val endBlockLength = dbRootEndAddress % fileLengthBound
                     val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
 
-                    logger.error(
+                    logger.warn(
                         "Data corruption was detected. Reason : \"${exception.message}\". " +
                                 "Database '$location' will be truncated till address : $dbRootEndAddress. " +
                                 "Name of the file to be truncated : ${LogUtil.getLogFilename(endBlockAddress)}. " +
@@ -937,7 +937,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     )
 
                     if (blocksToTruncate.size > 1) {
-                        logger.error(
+                        logger.warn(
                             "The following files will be deleted : " +
                                     blocksToTruncate.keys.asSequence().drop(1)
                                         .joinToString(", ") { LogUtil.getLogFilename(it) }
