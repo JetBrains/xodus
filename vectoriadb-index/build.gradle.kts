@@ -67,7 +67,34 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=110g",
+            "-XX:MaxDirectMemorySize=1g",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "-Djava.awt.headless=true",
+            "--enable-preview"
+        )
+        systemProperties = mapOf(
+            "bench.path" to (project.findProperty("bench.path"))
+        )
+
+        if (jdkHome != null) {
+            executable = "$jdkHome/bin/java"
+        } else {
+            javaLauncher.set(rootProject.javaToolchains.launcherFor {
+                languageVersion.set(JavaLanguageVersion.of(20))
+            })
+        }
+    }
+
+    register<JavaExec>("runBigANNBench") {
+        group = "application"
+        mainClass = "jetbrains.vectoriadb.index.bench.RunBigANNBench"
+        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
+        jvmArgs = listOf(
+            "-server",
+            "-Xmx16g",
+            "-XX:MaxDirectMemorySize=1g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",

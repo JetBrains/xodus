@@ -237,7 +237,7 @@ final class BenchUtils {
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static int[][] readIVectors(Path siftSmallBase, int vectorDimensions) throws IOException {
+    public static int[][] readIVectors(Path siftSmallBase, int vectorDimensions) throws IOException {
         try (var channel = FileChannel.open(siftSmallBase)) {
             var vectorBuffer = ByteBuffer.allocate(Integer.BYTES * vectorDimensions + Integer.BYTES);
             vectorBuffer.order(ByteOrder.LITTLE_ENDIAN);
