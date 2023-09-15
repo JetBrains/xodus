@@ -59,7 +59,7 @@ public class PrepareBigANNBench {
                 var buffer = ByteBuffer.allocate(vectorDimensions * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
                 try (var dataBuilder = DataStore.create("bigann_index", vectorDimensions,
                         L2DistanceFunction.INSTANCE, dbDir)) {
-                    for (int i = 0; i < 500_000_000; i++) {
+                    for (long i = 0; i < 500_000_000; i++) {
                         channel.position(i * (vectorDimensions * Float.BYTES + Integer.BYTES));
                         buffer.rewind();
                         while (buffer.remaining() > 0) {
