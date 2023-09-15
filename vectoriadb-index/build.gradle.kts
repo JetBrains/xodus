@@ -94,7 +94,7 @@ tasks {
         jvmArgs = listOf(
             "-server",
             "-Xmx16g",
-            "-XX:MaxDirectMemorySize=1g",
+            "-XX:MaxDirectMemorySize=110g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
