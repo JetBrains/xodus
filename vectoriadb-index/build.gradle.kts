@@ -102,7 +102,8 @@ tasks {
             "--enable-preview"
         )
         systemProperties = mapOf(
-            "bench.path" to (project.findProperty("bench.path"))
+            "bench.path" to (project.findProperty("bench.path")),
+            "m1-bench.path" to (project.findProperty("m1-bench.path"))
         )
 
         if (jdkHome != null) {
