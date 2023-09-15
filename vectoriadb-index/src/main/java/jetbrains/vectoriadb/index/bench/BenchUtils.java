@@ -45,7 +45,7 @@ final class BenchUtils {
 
         var siftArchivePath = downloadBenchFile(rootDir, siftArchiveName);
 
-        extractTarArchive(rootDir, siftArchivePath);
+        extractTarGzArchive(rootDir, siftArchivePath);
         var siftsBaseDir = rootDir.resolve(siftDir);
 
         var vectors = readFVectors(siftsBaseDir.resolve(siftBaseName), vectorDimensions);
@@ -123,7 +123,7 @@ final class BenchUtils {
         }
     }
 
-    public static void extractTarArchive(Path rootDir, Path archivePath) throws IOException {
+    public static void extractTarGzArchive(Path rootDir, Path archivePath) throws IOException {
         System.out.println("Extracting " + archivePath.getFileName() + " into " + rootDir);
 
         try (var fis = Files.newInputStream(archivePath)) {

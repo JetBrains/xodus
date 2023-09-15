@@ -26,7 +26,7 @@ public class RunBigANNBench {
         var queryFilePath = queryDirPath.resolve(queryFileName);
 
         if (!Files.exists(queryFilePath) || Files.size(queryFilePath) == 0) {
-            BenchUtils.extractGzArchive(benchPath, baseArchivePath);
+            BenchUtils.extractTarGzArchive(benchPath, baseArchivePath);
         }
 
         System.out.printf("Reading queries for BigANN bench from %s...%n", queryFilePath.toAbsolutePath());
