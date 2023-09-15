@@ -62,7 +62,7 @@ tasks {
 
     register<JavaExec>("runSift1MBench") {
         group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.SIFT1MBench"
+        mainClass = "jetbrains.vectoriadb.index.bench.SIFT1MBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server",
