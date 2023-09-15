@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.lang.management.BufferPoolMXBean;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -43,14 +45,14 @@ public final class IndexReader implements AutoCloseable {
     private final String name;
     private volatile boolean closed;
 
-    public IndexReader(String name, int vectorDim, Path indexDirPath, long cacheSize,
+    public IndexReader(String name, int vectorDim, Path indexDirPath, long directMemoryConsumption,
                        Distance distance) throws IOException {
         this(name, vectorDim, 64, 128, 32, indexDirPath,
-                cacheSize, distance);
+                directMemoryConsumption, distance);
     }
 
     public IndexReader(String name, int vectorDim, int maxConnectionsPerVertex, int maxAmountOfCandidates,
-                       int pqCompression, Path indexDirPath, long cacheSize,
+                       int pqCompression, Path indexDirPath, long directMemoryConsumption,
                        Distance distance) throws IOException {
         this.vectorDim = vectorDim;
         this.maxAmountOfCandidates = maxAmountOfCandidates;
@@ -96,7 +98,20 @@ public final class IndexReader implements AutoCloseable {
 
 
         logger.info("Index data were loaded from disk for database {}", name);
-        this.diskCache = new DiskCache(cacheSize, vectorDim, maxConnectionsPerVertex, graphFilePath);
+
+        var pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
+        BufferPoolMXBean directMemoryPool = null;
+
+        for (var pool : pools) {
+            if (pool.getName().equals("direct")) {
+                directMemoryPool = pool;
+                break;
+            }
+        }
+
+        assert directMemoryPool != null;
+
+        this.diskCache = new DiskCache(directMemoryConsumption - directMemoryPool.getMemoryUsed(), vectorDim, maxConnectionsPerVertex, graphFilePath);
     }
 
     public void nearest(float[] vector, int[] result, int resultSize) {
