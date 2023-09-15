@@ -258,9 +258,6 @@ final class BenchUtils {
             var vectorBuffer = ByteBuffer.allocate(Integer.BYTES * vectorDimensions + Integer.BYTES);
             vectorBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
-            readFully(channel, vectorBuffer);
-            vectorBuffer.rewind();
-
             var vectorsCount =
                     (int) (channel.size() / ((long) Integer.BYTES * vectorDimensions + Integer.BYTES));
             var vectors = new int[vectorsCount][];
