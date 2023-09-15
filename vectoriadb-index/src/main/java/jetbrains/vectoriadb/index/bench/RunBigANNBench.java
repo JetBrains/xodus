@@ -19,7 +19,11 @@ public class RunBigANNBench {
 
         var queryDir = "gnd";
         var queryFileName = "dis_500M.fvecs";
-        var queryFilePath = benchPath.resolve(queryDir).resolve(queryFileName);
+
+        var queryDirPath = benchPath.resolve(queryDir);
+        Files.createDirectories(queryDirPath);
+
+        var queryFilePath = queryDirPath.resolve(queryFileName);
 
         if (!Files.exists(queryFilePath) || Files.size(queryFilePath) == 0) {
             BenchUtils.extractGzArchive(benchPath, baseArchivePath);
@@ -30,7 +34,7 @@ public class RunBigANNBench {
 
         var bigAnnGroundTruthFileName = "idx_500M.ivecs";
 
-        var bigAnnGroundTruthFile = benchPath.resolve(queryDir).resolve(bigAnnGroundTruthFileName);
+        var bigAnnGroundTruthFile = queryDirPath.resolve(bigAnnGroundTruthFileName);
         @SuppressWarnings("unused") var bigAnnGroundTruth = BenchUtils.readIVectors(bigAnnGroundTruthFile, 1000);
 
         System.out.printf("%d queries for BigANN bench are read%n", bigAnnQueryVectors.length);
