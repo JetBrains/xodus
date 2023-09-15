@@ -15,55 +15,35 @@
  */
 package jetbrains.vectoriadb.index;
 
-import java.lang.foreign.Arena;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.lang.foreign.MemorySegment;
 
-public interface Quantizer {
+public interface Quantizer extends AutoCloseable {
     int CODE_BASE_SIZE = 256;
 
-    default Parameters calculatePQParameters(int vectorDim, int compression) {
-        var pqSubVectorSize = compression / Float.BYTES;
-        var quantizersCount = vectorDim / pqSubVectorSize;
+    int quantizersCount();
 
-        if (compression % Float.BYTES != 0) {
-            throw new IllegalArgumentException(
-                    "Vector should be divided during creation of PQ codes without remainder.");
-        }
+    MemorySegment encodedVectors();
 
-        if (vectorDim % pqSubVectorSize != 0) {
-            throw new IllegalArgumentException(
-                    "Vector should be divided during creation of PQ codes without remainder.");
-        }
+    float[][][] centroids();
 
-        return new Parameters(pqSubVectorSize, quantizersCount);
-    }
+    float[] decodeVector(byte[] vectors, int index);
 
+    void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader);
 
-    Codes generatePQCodes(int quantizersCount, int subVectorSize, VectorReader vectorReader, Arena arena);
+    float computeDistance(float[] lookupTable, int vectorIndex);
 
-    void buildDistanceLookupTable(float[] vector, float[] lookupTable, float[][][] centroids,
-                                  int quantizersCount, int subVectorSize, DistanceFunction distanceFunction);
+    void computeDistance4Batch(float[] lookupTable, int vectorIndex1, int vectorIndex2,
+                               int vectorIndex3, int vectorIndex4, float[] result);
 
-    float computeDistance(MemorySegment vectors, float[] lookupTable, int vectorIndex,
-                          int quantizersCount);
+    void buildDistanceLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction);
 
-    final class Codes {
-        public final MemorySegment pqVectors;
-        public final float[][][] pqCodesVectors;
+    void load(DataInputStream dataInputStream) throws IOException;
 
-        public Codes(MemorySegment pqVectors, float[][][] lookupTable) {
-            this.pqVectors = pqVectors;
-            this.pqCodesVectors = lookupTable;
-        }
-    }
+    void store(DataOutputStream dataOutputStream) throws IOException;
 
-    final class Parameters {
-        public final int pqSubVectorSize;
-        public final int pqQuantizersCount;
-
-        public Parameters(int pqSubVectorSize, int pqQuantizersCount) {
-            this.pqSubVectorSize = pqSubVectorSize;
-            this.pqQuantizersCount = pqQuantizersCount;
-        }
-    }
+    @Override
+    void close();
 }

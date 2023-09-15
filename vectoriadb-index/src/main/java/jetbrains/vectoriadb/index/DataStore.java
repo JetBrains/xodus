@@ -25,28 +25,37 @@ import java.nio.file.StandardOpenOption;
 public final class DataStore implements AutoCloseable {
     public static final String DATA_FILE_EXTENSION = ".vectors";
     private final FileChannel channel;
-    private final Path dataPath;
+    private final Path dataFilePath;
     private final ByteBuffer buffer;
 
-    private DataStore(int dimensions, FileChannel channel, Path dataPath) {
+    private final DistanceFunction distanceFunction;
+
+    private final float[] preprocessingResult;
+
+    private DataStore(int dimensions, DistanceFunction distanceFunction, FileChannel channel, Path dataFilePath) {
         this.channel = channel;
-        this.dataPath = dataPath;
+        this.dataFilePath = dataFilePath;
+        this.distanceFunction = distanceFunction;
 
         var vectorSize = dimensions * Float.BYTES;
         var bufferSize = Math.min(64 * 1024 * 1024 / vectorSize, 1) * vectorSize;
 
         this.buffer = ByteBuffer.allocate(bufferSize).order(ByteOrder.nativeOrder());
+        this.preprocessingResult = new float[dimensions];
     }
 
-    public static DataStore create(final int dimensions, final String name,
-                                   final Path path) throws IOException {
-        var dataPath = path.resolve(name + DATA_FILE_EXTENSION);
+    public static DataStore create(final String name, final int dimensions,
+                                   final DistanceFunction distanceFunction,
+                                   final Path dataDirectoryPath) throws IOException {
+        var dataPath = dataDirectoryPath.resolve(name + DATA_FILE_EXTENSION);
         var channel = FileChannel.open(dataPath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 
-        return new DataStore(dimensions, channel, dataPath);
+        return new DataStore(dimensions, distanceFunction, channel, dataPath);
     }
 
     public void add(final float[] vector) throws IOException {
+        var vectorToStore = distanceFunction.preProcess(vector, preprocessingResult);
+
         if (buffer.remaining() == 0) {
             buffer.rewind();
 
@@ -57,13 +66,13 @@ public final class DataStore implements AutoCloseable {
             buffer.rewind();
         }
 
-        for (var value : vector) {
-            buffer.putFloat(value);
+        for (var component : vectorToStore) {
+            buffer.putFloat(component);
         }
     }
 
     public Path dataLocation() {
-        return dataPath;
+        return dataFilePath;
     }
 
     public void close() throws IOException {

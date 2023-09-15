@@ -18,19 +18,67 @@ package jetbrains.vectoriadb.index;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-public final class L2PQQuantizer implements Quantizer {
-    public static final L2PQQuantizer INSTANCE = new L2PQQuantizer();
-
+class L2PQQuantizer implements Quantizer {
     private static final Logger logger = LoggerFactory.getLogger(L2PQQuantizer.class);
 
+    private int quantizersCount;
+    private int subVectorSize;
+
+    private final Arena arena;
+
+    private MemorySegment pqVectors;
+
+    //1st dimension quantizer index
+    //2nd index of code inside code book
+    //3d dimension centroid vector
+
+    private float[][][] pqCentroids;
+
+    L2PQQuantizer() {
+        this.arena = Arena.openShared();
+    }
+
     @Override
-    public Codes generatePQCodes(int quantizersCount, int subVectorSize, VectorReader vectorReader, Arena arena) {
+    public int quantizersCount() {
+        return quantizersCount;
+    }
+
+    @Override
+    public MemorySegment encodedVectors() {
+        return pqVectors;
+    }
+
+    @Override
+    public float[][][] centroids() {
+        return pqCentroids;
+    }
+
+    @Override
+    public void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader) {
+        if (compressionRatio % Float.BYTES != 0) {
+            throw new IllegalArgumentException(
+                    "Vector should be divided during creation of PQ codes without remainder.");
+        }
+        subVectorSize = compressionRatio / Float.BYTES;
+
+        if (vectorsDimension % subVectorSize != 0) {
+            throw new IllegalArgumentException(
+                    "Vector should be divided during creation of PQ codes without remainder.");
+        }
+
+        quantizersCount = vectorsDimension / subVectorSize;
+        logger.info("PQ quantizers count is " + quantizersCount + ", sub vector size is " + subVectorSize +
+                " elements , compression ratio is " + compressionRatio);
+
         var kMeans = new KMeansMiniBatchGD[quantizersCount];
 
         logger.info("Start generation of pq codes for {} quantizers.", quantizersCount);
@@ -42,7 +90,7 @@ public final class L2PQQuantizer implements Quantizer {
         }
 
         var codeBaseSize = Math.min(CODE_BASE_SIZE, vectorReader.size());
-        float[][][] pqCentroids = new float[quantizersCount][codeBaseSize][subVectorSize];
+        pqCentroids = new float[quantizersCount][codeBaseSize][subVectorSize];
 
         var minBatchSize = 16;
 
@@ -50,7 +98,6 @@ public final class L2PQQuantizer implements Quantizer {
         var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * subVectorSize)) / cores;
 
         logger.info("{} cores will be used, batch size is {}, min batch size is {}.", cores, batchSize, minBatchSize);
-
 
         try (var executors = Executors.newFixedThreadPool(cores, r -> {
             var thread = new Thread(r);
@@ -80,7 +127,6 @@ public final class L2PQQuantizer implements Quantizer {
             }
         }
 
-
         var size = vectorReader.size();
         cores = Math.min(Runtime.getRuntime().availableProcessors(), size);
         logger.info("KMeans clustering finished. Creation of PQ codes started. {} cores will be used.", cores);
@@ -95,7 +141,7 @@ public final class L2PQQuantizer implements Quantizer {
             }
         }
 
-        var pqVectors = arena.allocate((long) size * quantizersCount);
+        pqVectors = arena.allocate((long) size * quantizersCount);
 
         try (var executors = Executors.newFixedThreadPool(cores, r -> {
             var thread = new Thread(r);
@@ -143,16 +189,32 @@ public final class L2PQQuantizer implements Quantizer {
         }
 
         logger.info("PQ codes created.");
-
-        return new Codes(pqVectors, pqCentroids);
-
     }
 
     @Override
-    public void buildDistanceLookupTable(float[] vector, float[] lookupTable, float[][][] centroids,
-                                         int quantizersCount, int subVectorSize, DistanceFunction distanceFunction) {
+    public float[] decodeVector(byte[] vectors, int index) {
+        var result = new float[quantizersCount * subVectorSize];
+        var offset = index * quantizersCount;
+
+        for (int i = 0, pqCentroidVectorOffset = 0; i < quantizersCount; i++,
+                pqCentroidVectorOffset += subVectorSize) {
+            var pqCentroidVector = Byte.toUnsignedInt(vectors[i + offset]);
+            System.arraycopy(pqCentroids[i][pqCentroidVector], 0, result,
+                    pqCentroidVectorOffset, subVectorSize);
+        }
+
+        return result;
+    }
+
+    //    @Override
+//    public MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
+//        return arena.allocate((long) vectorsCount * quantizersCount);
+//    }
+
+
+    public void buildDistanceLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction) {
         for (int i = 0; i < quantizersCount; i++) {
-            var quantizerCentroids = centroids[i];
+            var quantizerCentroids = pqCentroids[i];
 
             for (int j = 0; j < quantizerCentroids.length; j++) {
                 var centroid = quantizerCentroids[j];
@@ -164,15 +226,103 @@ public final class L2PQQuantizer implements Quantizer {
     }
 
     @Override
-    public float computeDistance(MemorySegment vectors, float[] lookupTable, int vectorIndex, int quantizersCount) {
+    public float computeDistance(float[] lookupTable, int vectorIndex) {
         var distance = 0f;
 
         var pqIndex = quantizersCount * vectorIndex;
         for (int i = pqIndex; i < pqIndex + quantizersCount; i++) {
-            var code = vectors.get(ValueLayout.JAVA_BYTE, i) & 0xFF;
+            var code = pqVectors.get(ValueLayout.JAVA_BYTE, i) & 0xFF;
             distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE) + code];
         }
 
         return distance;
+    }
+
+    @Override
+    public void computeDistance4Batch(float[] lookupTable, int vectorIndex1, int vectorIndex2,
+                                      int vectorIndex3, int vectorIndex4, float[] result) {
+        assert result.length == 4;
+
+        var pqIndex1 = quantizersCount * vectorIndex1;
+        var pqIndex2 = quantizersCount * vectorIndex2;
+        var pqIndex3 = quantizersCount * vectorIndex3;
+        var pqIndex4 = quantizersCount * vectorIndex4;
+
+        var result1 = 0.0f;
+        var result2 = 0.0f;
+        var result3 = 0.0f;
+        var result4 = 0.0f;
+
+        for (int i = 0; i < quantizersCount; i++) {
+            var rowOffset = i * (1 << Byte.SIZE);
+
+            var code1 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex1 + i) & 0xFF;
+            result1 += lookupTable[rowOffset + code1];
+
+            var code2 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex2 + i) & 0xFF;
+            result2 += lookupTable[rowOffset + code2];
+
+            var code3 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex3 + i) & 0xFF;
+            result3 += lookupTable[rowOffset + code3];
+
+            var code4 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex4 + i) & 0xFF;
+            result4 += lookupTable[rowOffset + code4];
+        }
+
+        result[0] = result1;
+        result[1] = result2;
+        result[2] = result3;
+        result[3] = result4;
+    }
+
+    @Override
+    public void store(DataOutputStream dataOutputStream) throws IOException {
+        var codeBaseSize = pqCentroids[0].length;
+
+        dataOutputStream.writeInt(quantizersCount);
+        dataOutputStream.writeInt(codeBaseSize);
+        dataOutputStream.writeInt(subVectorSize);
+
+        for (int i = 0; i < quantizersCount; i++) {
+            for (int j = 0; j < codeBaseSize; j++) {
+                for (int k = 0; k < subVectorSize; k++) {
+                    dataOutputStream.writeFloat(pqCentroids[i][j][k]);
+                }
+            }
+        }
+
+        var pqVectorsSize = pqVectors.byteSize();
+        dataOutputStream.writeLong(pqVectorsSize);
+
+        for (long i = 0; i < pqVectorsSize; i++) {
+            dataOutputStream.writeByte(pqVectors.get(ValueLayout.JAVA_BYTE, i));
+        }
+    }
+
+    @Override
+    public void load(DataInputStream dataInputStream) throws IOException {
+        quantizersCount = dataInputStream.readInt();
+        int pqCodeBaseSize = dataInputStream.readInt();
+        subVectorSize = dataInputStream.readInt();
+
+        pqCentroids = new float[quantizersCount][pqCodeBaseSize][subVectorSize];
+        for (int i = 0; i < quantizersCount; i++) {
+            for (int j = 0; j < pqCodeBaseSize; j++) {
+                for (int k = 0; k < subVectorSize; k++) {
+                    pqCentroids[i][j][k] = dataInputStream.readFloat();
+                }
+            }
+        }
+
+        var pqVectorsSize = dataInputStream.readLong();
+        pqVectors = arena.allocate(pqVectorsSize);
+        for (int i = 0; i < pqVectorsSize; i++) {
+            pqVectors.set(ValueLayout.JAVA_BYTE, i, dataInputStream.readByte());
+        }
+    }
+
+    @Override
+    public void close() {
+        arena.close();
     }
 }

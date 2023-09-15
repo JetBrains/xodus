@@ -15,10 +15,10 @@
  */
 package jetbrains.vectoriadb.index.bench;
 
+import jetbrains.vectoriadb.index.Distance;
 import jetbrains.vectoriadb.index.IndexBuilder;
 import jetbrains.vectoriadb.index.DataStore;
 import jetbrains.vectoriadb.index.L2DistanceFunction;
-import jetbrains.vectoriadb.index.L2PQQuantizer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -57,7 +57,8 @@ public class PrepareBigANNBench {
             Path indexDataLocation;
             try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
                 var buffer = ByteBuffer.allocate(vectorDimensions * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-                try (var dataBuilder = DataStore.create(vectorDimensions, "bigann_index", dbDir)) {
+                try (var dataBuilder = DataStore.create("bigann_index", vectorDimensions,
+                        L2DistanceFunction.INSTANCE, dbDir)) {
                     for (int i = 0; i < 500_000_000; i++) {
                         channel.position(i * (vectorDimensions * Float.BYTES + Integer.BYTES));
                         buffer.rewind();
@@ -79,7 +80,7 @@ public class PrepareBigANNBench {
             }
 
             IndexBuilder.buildIndex("bigann_index", vectorDimensions, dbDir, indexDataLocation,
-                    60L * 1024 * 1024 * 1024, L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE);
+                    60L * 1024 * 1024 * 1024, Distance.L2);
             var ts2 = System.nanoTime();
 
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);

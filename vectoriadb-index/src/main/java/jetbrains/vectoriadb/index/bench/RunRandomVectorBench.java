@@ -15,9 +15,8 @@
  */
 package jetbrains.vectoriadb.index.bench;
 
-import jetbrains.vectoriadb.index.DotDistanceFunction;
+import jetbrains.vectoriadb.index.Distance;
 import jetbrains.vectoriadb.index.IndexReader;
-import jetbrains.vectoriadb.index.L2PQQuantizer;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
@@ -56,10 +55,10 @@ public final class RunRandomVectorBench {
 
         System.out.println("Running queries...");
         var errors = 0;
-        var result = new long[1];
+        var result = new int[1];
 
         try (var indexReader = new IndexReader("random_index", vectorDimensions, dbPath, 400 * 1024 * 1024,
-                L2PQQuantizer.INSTANCE, DotDistanceFunction.INSTANCE)) {
+                Distance.DOT)) {
             try (var queryVectors = new PrepareRandomVectorBench.MmapVectorReader(vectorDimensions, testDataPath)) {
                 var start = System.nanoTime();
                 for (var index = 0; index < groundTruthCount; index++) {
@@ -78,7 +77,7 @@ public final class RunRandomVectorBench {
                 System.out.printf("Queries done in %d ms.%n", (end - start) / 1000000);
             }
 
-            System.out.printf("Errors: %f%% pq errors %f%%%n", 100.0 * errors / groundTruthCount, indexReader.pqErrorAvg());
+            System.out.printf("Errors: %f%%%n", 100.0 * errors / groundTruthCount);
         }
     }
 }

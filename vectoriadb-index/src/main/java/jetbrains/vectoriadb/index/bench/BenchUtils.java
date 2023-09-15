@@ -15,11 +15,11 @@
  */
 package jetbrains.vectoriadb.index.bench;
 
+import jetbrains.vectoriadb.index.Distance;
 import jetbrains.vectoriadb.index.IndexBuilder;
 import jetbrains.vectoriadb.index.DataStore;
 import jetbrains.vectoriadb.index.IndexReader;
 import jetbrains.vectoriadb.index.L2DistanceFunction;
-import jetbrains.vectoriadb.index.L2PQQuantizer;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.utils.IOUtils;
@@ -57,7 +57,7 @@ final class BenchUtils {
         var ts1 = System.nanoTime();
 
         Path dataLocation;
-        try (var dataBuilder = DataStore.create(128, "test_index", dbDir)) {
+        try (var dataBuilder = DataStore.create("test_index", 128, L2DistanceFunction.INSTANCE, dbDir)) {
             for (var vector : vectors) {
                 dataBuilder.add(vector);
             }
@@ -66,13 +66,13 @@ final class BenchUtils {
 
         IndexBuilder.buildIndex("test_index", 128,
                 dbDir, dataLocation, 60L * 1024 * 1024 * 1024,
-                L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE);
+                Distance.L2);
 
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         try (var indexReader = new IndexReader("test_index", 128, dbDir,
-                110L * 1024 * 1024 * 1024, L2PQQuantizer.INSTANCE, L2DistanceFunction.INSTANCE)) {
+                110L * 1024 * 1024 * 1024, Distance.L2)) {
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);
             var queryVectors = readFVectors(queryFile, vectorDimensions);
@@ -88,7 +88,7 @@ final class BenchUtils {
             //give GC chance to collect garbage
             Thread.sleep(60 * 1000);
 
-            var result = new long[1];
+            var result = new int[1];
             for (int i = 0; i < 10; i++) {
                 for (float[] vector : queryVectors) {
                     indexReader.nearest(vector, result, 1);
@@ -114,10 +114,9 @@ final class BenchUtils {
                 ts2 = System.nanoTime();
                 var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-                System.out.printf("Avg. query time : %d us, errors: %f%% pq error %f%%, cache hits %d%%%n",
+                System.out.printf("Avg. query time : %d us, errors: %f%%, cache hits %d%%%n",
                         (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage, indexReader.pqErrorAvg(), indexReader.hits());
-                indexReader.resetPQErrorStat();
+                        errorPercentage, indexReader.hits());
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

@@ -18,7 +18,6 @@ package jetbrains.vectoriadb.index;
 import java.util.Arrays;
 
 public final class MatrixOperations {
-    private static final DotDistanceFunction DOT_DISTANCE = new DotDistanceFunction();
     public static void multiply(float[] matrix, int matrixOffset,
                                 int matrixColumns, int matrixRows,
                                 float[] vector, int vectorOffset,
@@ -38,18 +37,17 @@ public final class MatrixOperations {
 
         for (index = 0; index < boundary; index += 4, matrixOffset1 += matrixStep,
                 matrixOffset2 += matrixStep, matrixOffset3 += matrixStep, matrixOffset4 += matrixStep) {
-            DOT_DISTANCE.computeDistance(vector, vectorOffset, matrix, matrixOffset1, matrix,
+            DotDistanceFunction.INSTANCE.computeDistance(vector, vectorOffset, matrix, matrixOffset1, matrix,
                     matrixOffset2, matrix, matrixOffset3, matrix, matrixOffset4, mulBuffer, matrixColumns);
 
-            result[index] += mulBuffer[0];
-            result[index + 1] += mulBuffer[1];
-            result[index + 2] += mulBuffer[2];
-            result[index + 3] += mulBuffer[3];
+            result[index] -= mulBuffer[0];
+            result[index + 1] -= mulBuffer[1];
+            result[index + 2] -= mulBuffer[2];
+            result[index + 3] -= mulBuffer[3];
         }
 
         for (; index < matrixRows; index++, matrixOffset1 += matrixRows) {
-            result[index] +=
-                    DOT_DISTANCE.computeDistance(vector, vectorOffset, matrix, matrixOffset1, matrixColumns);
+            result[index] -= DotDistanceFunction.INSTANCE.computeDistance(vector, vectorOffset, matrix, matrixOffset1, matrixColumns);
         }
     }
 

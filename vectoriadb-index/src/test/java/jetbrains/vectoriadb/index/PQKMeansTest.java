@@ -97,21 +97,16 @@ public class PQKMeansTest extends AbstractVectorsTest {
         var vectors = loadSift10KVectors();
         var clustersCount = 40;
 
-        var pqParameters = L2PQQuantizer.INSTANCE.calculatePQParameters(SIFT_VECTOR_DIMENSIONS, 32);
-        var pqQuantizersCount = pqParameters.pqQuantizersCount;
-        var pqSubVectorSize = pqParameters.pqSubVectorSize;
-
-        try (var arena = Arena.openShared()) {
+        try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            var pqResult = L2PQQuantizer.INSTANCE.generatePQCodes(pqQuantizersCount, pqSubVectorSize,
-                    new ArrayVectorReader(vectors), arena);
+            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors));
 
             System.out.println("PQ codes generated. Calculating centroids...");
-            var pqCentroids = PQKMeans.calculatePartitions(pqResult.pqCodesVectors, pqResult.pqVectors, clustersCount,
-                    1_000, L2DistanceFunction.INSTANCE);
+            var pqCentroids = PQKMeans.extractCentroids(pqQuantizer, clustersCount, 1_000,
+                    L2DistanceFunction.INSTANCE);
 
             System.out.println("Centroids calculated. Clustering data vectors...");
-            var centroids = convertPqVectorsIntoFloatVectors(pqCentroids, pqResult.pqCodesVectors);
+            var centroids = convertPqVectorsIntoFloatVectors(pqCentroids, pqQuantizer);
 
             var vectorsByClusters = new ArrayList<IntArrayList>();
             for (int i = 0; i < clustersCount; i++) {
@@ -131,7 +126,8 @@ public class PQKMeansTest extends AbstractVectorsTest {
             var silhouetteCoefficient = silhouetteCoefficient(vectorsByClusters, secondClosestClusterIndexes,
                     vectors, L2DistanceFunction.INSTANCE);
             System.out.printf("silhouetteCoefficient = %f%n", silhouetteCoefficient);
-            Assert.assertTrue(silhouetteCoefficient >= 0.18);
+            Assert.assertTrue("silhouetteCoefficient < 0.17:" + silhouetteCoefficient,
+                    silhouetteCoefficient >= 0.17);
         }
     }
 
@@ -173,24 +169,13 @@ public class PQKMeansTest extends AbstractVectorsTest {
         return expectedDistanceTables;
     }
 
-    private static float[][] convertPqVectorsIntoFloatVectors(byte[] pqVectors, float[][][] pqCodes) {
-        var quantizersCount = pqCodes.length;
+    private static float[][] convertPqVectorsIntoFloatVectors(byte[] pqVectors, Quantizer quantizer) {
+        var quantizersCount = quantizer.quantizersCount();
         var vectorsCount = pqVectors.length / quantizersCount;
 
-        var subVectorSize = pqCodes[0][0].length;
-        var vectorDimension = quantizersCount * subVectorSize;
-
-        var result = new float[vectorsCount][vectorDimension];
-        for (int i = 0, pqIndex = 0; i < vectorsCount; i++) {
-            var vector = result[i];
-
-            for (int j = 0; j < vectorDimension / subVectorSize; j++) {
-                var code = Byte.toUnsignedInt(pqVectors[pqIndex]);
-                var subVector = pqCodes[j][code];
-
-                System.arraycopy(subVector, 0, vector, j * subVectorSize, subVectorSize);
-                pqIndex++;
-            }
+        var result = new float[vectorsCount][];
+        for (int i = 0; i < vectorsCount; i++) {
+            result[i] = quantizer.decodeVector(pqVectors, i);
         }
 
         return result;

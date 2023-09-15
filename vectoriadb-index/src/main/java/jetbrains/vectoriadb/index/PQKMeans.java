@@ -15,6 +15,7 @@
  */
 package jetbrains.vectoriadb.index;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.apache.commons.rng.simple.RandomSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,26 +36,78 @@ public final class PQKMeans {
     private static final VarHandle ATOMIC_HISTOGRAM_VARHANDLE
             = MethodHandles.arrayElementVarHandle(int[].class);
 
-    public static byte[] calculatePartitions(float[][][] centroids,
-                                             MemorySegment pqVectors,
-                                             int numClusters,
-                                             int iterations,
-                                             DistanceFunction distanceFunction) {
-        logger.info("Start PQ k-means clustering for {} clusters.", numClusters);
-
+    public static IntArrayList[] splitVectorsByPartitions(Quantizer quantizer,
+                                                          int numClusters,
+                                                          int iterations,
+                                                          DistanceFunction distanceFunction) {
+        var centroids = quantizer.centroids();
         var quantizersCount = centroids.length;
         var codeBaseSize = centroids[0].length;
 
+        var pqVectors = quantizer.encodedVectors();
+
         var numVectors = (pqVectors.byteSize() / quantizersCount);
+        var distanceTables = distanceTables(centroids, distanceFunction);
+        var pqCentroids = new byte[numClusters * quantizersCount];
+
+        calculateClusters(numClusters, iterations, numVectors, pqVectors, quantizersCount, pqCentroids,
+                codeBaseSize, distanceTables);
+
+        var vectorsByPartitions = new IntArrayList[numClusters];
+        for (int i = 0; i < numClusters; i++) {
+            vectorsByPartitions[i] = new IntArrayList((int) (numVectors / numClusters));
+        }
+
+        for (int i = 0; i < numVectors; i++) {
+            var twoClosestClusters = findTwoClosestClusters(pqVectors, i, pqCentroids,
+                    distanceTables, quantizersCount, codeBaseSize);
+
+            var firstPartition = (int) (twoClosestClusters >>> 32);
+            var secondPartition = (int) twoClosestClusters;
+
+            vectorsByPartitions[firstPartition].add(i);
+
+            if (firstPartition != secondPartition) {
+                vectorsByPartitions[secondPartition].add(i);
+            }
+
+            if ((i & (1024 * 1024 - 1)) == 0) {
+                logger.info("Distribution of  {} vectors between partitions {} ({}%).", i,
+                        numVectors, i * 100.0 / numVectors);
+            }
+        }
+
+        return vectorsByPartitions;
+    }
+
+    public static byte[] extractCentroids(Quantizer quantizer,
+                                          int numClusters,
+                                          int iterations,
+                                          DistanceFunction distanceFunction) {
+        var centroids = quantizer.centroids();
+        var quantizersCount = centroids.length;
+        var codeBaseSize = centroids[0].length;
+
+        var pqVectors = quantizer.encodedVectors();
+
+        var numVectors = (pqVectors.byteSize() / quantizersCount);
+        var distanceTables = distanceTables(centroids, distanceFunction);
+        var pqCentroids = new byte[numClusters * quantizersCount];
+
+        calculateClusters(numClusters, iterations, numVectors, pqVectors, quantizersCount, pqCentroids,
+                codeBaseSize, distanceTables);
+
+        return pqCentroids;
+    }
+
+    private static void calculateClusters(int numClusters, int iterations, long numVectors, MemorySegment pqVectors,
+                                          int quantizersCount, byte[] pqCentroids,
+                                          int codeBaseSize, float[] distanceTables) {
+        logger.info("Start PQ k-means clustering for {} clusters.", numClusters);
+
         try (var arena = Arena.openShared()) {
             var centroidIndexes = arena.allocate(numVectors * Integer.SIZE,
                     ValueLayout.JAVA_INT.byteAlignment());
-
-            var distanceTables = distanceTables(centroids, distanceFunction);
-
-            var pqCentroids = new byte[numClusters * quantizersCount];
-
-
             var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
 
             for (int i = 0; i < numClusters; i++) {
@@ -63,7 +116,6 @@ public final class PQKMeans {
                         vecIndex * quantizersCount, pqCentroids,
                         i * quantizersCount, quantizersCount);
             }
-
 
             var histogram = new float[numClusters * quantizersCount * codeBaseSize];
             var atomicIntegerHistogram = new int[numClusters * quantizersCount * codeBaseSize];
@@ -164,11 +216,9 @@ public final class PQKMeans {
                     }
                 }
             }
-
-
-            logger.info("PQ k-means clustering finished.");
-            return pqCentroids;
         }
+
+        logger.info("PQ k-means clustering finished.");
     }
 
 

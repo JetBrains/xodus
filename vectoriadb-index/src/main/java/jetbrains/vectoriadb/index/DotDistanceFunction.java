@@ -24,6 +24,7 @@ import java.util.Arrays;
 
 public final class DotDistanceFunction implements DistanceFunction {
     public static final DotDistanceFunction INSTANCE = new DotDistanceFunction();
+
     @Override
     public void computeDistance(MemorySegment originSegment, long originSegmentOffset, MemorySegment firstSegment,
                                 long firstSegmentOffset, MemorySegment secondSegment, long secondSegmentOffset,
@@ -32,7 +33,6 @@ public final class DotDistanceFunction implements DistanceFunction {
         computeDotDistance(originSegment, originSegmentOffset, firstSegment, firstSegmentOffset, secondSegment,
                 secondSegmentOffset, thirdSegment, thirdSegmentOffset, fourthSegment, fourthSegmentOffset, size, result,
                 PREFERRED_SPECIES_LENGTH);
-
     }
 
     @Override
@@ -377,7 +377,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector = first.fma(second, sumVector);
         }
 
-        return sumVector.reduceLanes(VectorOperators.ADD);
+        return -sumVector.reduceLanes(VectorOperators.ADD);
     }
 
     private static void computeDotDistance512(final MemorySegment originalSegment, long originalSegmentOffset,
@@ -433,10 +433,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector_4 = original.fma(fourth, sumVector_4);
         }
 
-        result[0] = sumVector_1.reduceLanes(VectorOperators.ADD);
-        result[1] = sumVector_2.reduceLanes(VectorOperators.ADD);
-        result[2] = sumVector_3.reduceLanes(VectorOperators.ADD);
-        result[3] = sumVector_4.reduceLanes(VectorOperators.ADD);
+        result[0] = -sumVector_1.reduceLanes(VectorOperators.ADD);
+        result[1] = -sumVector_2.reduceLanes(VectorOperators.ADD);
+        result[2] = -sumVector_3.reduceLanes(VectorOperators.ADD);
+        result[3] = -sumVector_4.reduceLanes(VectorOperators.ADD);
     }
 
 
@@ -465,7 +465,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector = first.fma(second, sumVector);
         }
 
-        return sumVector.reduceLanes(VectorOperators.ADD);
+        return -sumVector.reduceLanes(VectorOperators.ADD);
     }
 
     private static void computeDotDistance512(final float[] originVector, int originVectorOffset,
@@ -520,10 +520,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector_4 = origin.fma(fourth, sumVector_4);
         }
 
-        result[0] += sumVector_1.reduceLanes(VectorOperators.ADD);
-        result[1] += sumVector_2.reduceLanes(VectorOperators.ADD);
-        result[2] += sumVector_3.reduceLanes(VectorOperators.ADD);
-        result[3] += sumVector_4.reduceLanes(VectorOperators.ADD);
+        result[0] -= sumVector_1.reduceLanes(VectorOperators.ADD);
+        result[1] -= sumVector_2.reduceLanes(VectorOperators.ADD);
+        result[2] -= sumVector_3.reduceLanes(VectorOperators.ADD);
+        result[3] -= sumVector_4.reduceLanes(VectorOperators.ADD);
     }
 
     private static float computeDotDistance512(final MemorySegment firstSegment, long firstSegmentOffset,
@@ -549,7 +549,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector = first.fma(second, sumVector);
         }
 
-        return sumVector.reduceLanes(VectorOperators.ADD);
+        return -sumVector.reduceLanes(VectorOperators.ADD);
     }
 
     private static void computeDotDistance512(final float[] originVector, int originVectorOffst,
@@ -607,10 +607,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector_4 = origin.fma(fourth, sumVector_4);
         }
 
-        result[0] += sumVector_1.reduceLanes(VectorOperators.ADD);
-        result[1] += sumVector_2.reduceLanes(VectorOperators.ADD);
-        result[2] += sumVector_3.reduceLanes(VectorOperators.ADD);
-        result[3] += sumVector_4.reduceLanes(VectorOperators.ADD);
+        result[0] -= sumVector_1.reduceLanes(VectorOperators.ADD);
+        result[1] -= sumVector_2.reduceLanes(VectorOperators.ADD);
+        result[2] -= sumVector_3.reduceLanes(VectorOperators.ADD);
+        result[3] -= sumVector_4.reduceLanes(VectorOperators.ADD);
     }
 
 
@@ -640,7 +640,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector = first.fma(second, sumVector);
         }
 
-        return sumVector.reduceLanes(VectorOperators.ADD);
+        return -sumVector.reduceLanes(VectorOperators.ADD);
     }
 
     private static void computeDotDistance256(final MemorySegment originalSegment, long orginalSegmentOffset,
@@ -702,10 +702,10 @@ public final class DotDistanceFunction implements DistanceFunction {
         var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
         var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
 
-        result[0] += res_1;
-        result[1] += res_2;
-        result[2] += res_3;
-        result[3] += res_4;
+        result[0] -= res_1;
+        result[1] -= res_2;
+        result[2] -= res_3;
+        result[3] -= res_4;
     }
 
     private static float computeDotDistance256(final MemorySegment firstSegment, long firstSegmentOffset,
@@ -734,7 +734,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector = first.fma(second, sumVector);
         }
 
-        return sumVector.reduceLanes(VectorOperators.ADD);
+        return -sumVector.reduceLanes(VectorOperators.ADD);
     }
 
     private static void computeDotDistance256(final float[] originVector, int originVectorOffset,
@@ -796,10 +796,10 @@ public final class DotDistanceFunction implements DistanceFunction {
         var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
         var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
 
-        result[0] += res_1;
-        result[1] += res_2;
-        result[2] += res_3;
-        result[3] += res_4;
+        result[0] -= res_1;
+        result[1] -= res_2;
+        result[2] -= res_3;
+        result[3] -= res_4;
     }
 
 
@@ -827,7 +827,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sumVector = first.fma(second, sumVector);
         }
 
-        return sumVector.reduceLanes(VectorOperators.ADD);
+        return -sumVector.reduceLanes(VectorOperators.ADD);
     }
 
     private static void computeDotDistance256(final float[] originVector, int originVectorOffset,
@@ -890,10 +890,10 @@ public final class DotDistanceFunction implements DistanceFunction {
         var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
         var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
 
-        result[0] += res_1;
-        result[1] += res_2;
-        result[2] += res_3;
-        result[3] += res_4;
+        result[0] -= res_1;
+        result[1] -= res_2;
+        result[2] -= res_3;
+        result[3] -= res_4;
     }
 
     private static float computeDotDistance128(final MemorySegment firstSegment, long firstSegmentOffset,
@@ -953,7 +953,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sum = sumVector.reduceLanes(VectorOperators.ADD, mask);
         }
 
-        return sum;
+        return -sum;
     }
 
     private static void computeDotDistance128(final MemorySegment originalSegment, long originalSegmentOffset,
@@ -1041,10 +1041,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
             var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
 
-            result[0] += res_1;
-            result[1] += res_2;
-            result[2] += res_3;
-            result[3] += res_4;
+            result[0] -= res_1;
+            result[1] -= res_2;
+            result[2] -= res_3;
+            result[3] -= res_4;
         } else {
             var mask = FloatVector.SPECIES_128.indexInRange(index, size);
 
@@ -1069,10 +1069,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD, mask);
             var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD, mask);
 
-            result[0] += res_1;
-            result[1] += res_2;
-            result[2] += res_3;
-            result[3] += res_4;
+            result[0] -= res_1;
+            result[1] -= res_2;
+            result[2] -= res_3;
+            result[3] -= res_4;
         }
     }
 
@@ -1135,7 +1135,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sum = sumVector.reduceLanes(VectorOperators.ADD, mask);
         }
 
-        return sum;
+        return -sum;
     }
 
     private static void computeDotDistance128(final float[] originVector, int originVectorOffset,
@@ -1231,10 +1231,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
 
 
-            result[0] += res_1;
-            result[1] += res_2;
-            result[2] += res_3;
-            result[3] += res_4;
+            result[0] -= res_1;
+            result[1] -= res_2;
+            result[2] -= res_3;
+            result[3] -= res_4;
         } else {
             var mask = FloatVector.SPECIES_128.indexInRange(index, size);
 
@@ -1259,10 +1259,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD, mask);
             var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD, mask);
 
-            result[0] += res_1;
-            result[1] += res_2;
-            result[2] += res_3;
-            result[3] += res_4;
+            result[0] -= res_1;
+            result[1] -= res_2;
+            result[2] -= res_3;
+            result[3] -= res_4;
         }
     }
 
@@ -1320,7 +1320,7 @@ public final class DotDistanceFunction implements DistanceFunction {
             sum = sumVector.reduceLanes(VectorOperators.ADD, mask);
         }
 
-        return sum;
+        return -sum;
     }
 
     private static void computeDotDistance128(final float[] originVector, int originVectorOffset,
@@ -1411,10 +1411,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD);
             var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD);
 
-            result[0] += res_1;
-            result[1] += res_2;
-            result[2] += res_3;
-            result[3] += res_4;
+            result[0] -= res_1;
+            result[1] -= res_2;
+            result[2] -= res_3;
+            result[3] -= res_4;
         } else {
             var mask = FloatVector.SPECIES_128.indexInRange(index, size);
 
@@ -1439,10 +1439,10 @@ public final class DotDistanceFunction implements DistanceFunction {
             var res_3 = sumVector_3.reduceLanes(VectorOperators.ADD, mask);
             var res_4 = sumVector_4.reduceLanes(VectorOperators.ADD, mask);
 
-            result[0] += res_1;
-            result[1] += res_2;
-            result[2] += res_3;
-            result[3] += res_4;
+            result[0] -= res_1;
+            result[1] -= res_2;
+            result[2] -= res_3;
+            result[3] -= res_4;
         }
     }
 }

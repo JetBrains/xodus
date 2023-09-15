@@ -51,6 +51,10 @@ public interface DistanceFunction {
     float computeDistance(MemorySegment firstSegment, long firstSegmentOffset, MemorySegment secondSegment,
                           long secondSegmentOffset, int size);
 
+    default float[] preProcess(float[] vector, float[] result) {
+        return vector;
+    }
+
     default int findClosestVector(float[] vectors, MemorySegment vector, int from, int size) {
         var minDistance = Float.MAX_VALUE;
         var minIndex = -1;
@@ -122,7 +126,7 @@ public interface DistanceFunction {
         result[3] = minIndex_4;
     }
 
-     static int closestSIMDStep(int step, int size) {
+    static int closestSIMDStep(int step, int size) {
         return Integer.highestOneBit(Math.min(step, size));
     }
 }

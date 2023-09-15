@@ -16,9 +16,9 @@
 package jetbrains.vectoriadb.index.bench;
 
 import it.unimi.dsi.fastutil.ints.IntFloatImmutablePair;
+import jetbrains.vectoriadb.index.Distance;
 import jetbrains.vectoriadb.index.DotDistanceFunction;
 import jetbrains.vectoriadb.index.IndexBuilder;
-import jetbrains.vectoriadb.index.L2PQQuantizer;
 import jetbrains.vectoriadb.index.VectorReader;
 
 import java.io.IOException;
@@ -69,7 +69,8 @@ public final class PrepareRandomVectorBench {
         System.out.println("Building index...");
 
         IndexBuilder.buildIndex("random_index", vectorDimensions, dbPath, dataPath,
-                60L * 1024 * 1024 * 1024, L2PQQuantizer.INSTANCE, DotDistanceFunction.INSTANCE);
+                60L * 1024 * 1024 * 1024, Distance.DOT);
+
         System.out.println("Done.");
     }
 

@@ -37,9 +37,9 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(1.0, queue.vertexDistance(0), 0.0);
         Assert.assertTrue(queue.isPqDistance(0));
         Assert.assertEquals(1.0, queue.maxDistance(), 0.0);
-        var result = new long[10];
+        var result = new int[10];
         queue.vertexIndices(result, 10);
-        Assert.assertArrayEquals(new long[]{2, 0, 0, 0, 0, 0, 0, 0, 0, 0}, result);
+        Assert.assertArrayEquals(new int[]{2, 0, 0, 0, 0, 0, 0, 0, 0, 0}, result);
 
         queue.add(3, 2.0f, false, false);
 
@@ -49,9 +49,9 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(1.0, queue.vertexDistance(0), 0.0);
         Assert.assertTrue(queue.isPqDistance(0));
         Assert.assertEquals(1.0, queue.maxDistance(), 0.0);
-        result = new long[1];
+        result = new int[1];
         queue.vertexIndices(result, 1);
-        Assert.assertArrayEquals(new long[]{2}, result);
+        Assert.assertArrayEquals(new int[]{2}, result);
 
         queue.add(4, 0.5f, false, false);
 
@@ -61,13 +61,13 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(0.5, queue.vertexDistance(0), 0.0);
         Assert.assertFalse(queue.isPqDistance(0));
         Assert.assertEquals(0.5, queue.maxDistance(), 0.0);
-        result = new long[0];
+        result = new int[0];
         queue.vertexIndices(result, 0);
-        Assert.assertArrayEquals(new long[]{}, result);
-        result = new long[2];
+        Assert.assertArrayEquals(new int[]{}, result);
+        result = new int[2];
         queue.vertexIndices(result, 2);
 
-        Assert.assertArrayEquals(new long[]{4, 0}, result);
+        Assert.assertArrayEquals(new int[]{4, 0}, result);
     }
 
     @Test
@@ -97,9 +97,9 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertTrue(queue.isPqDistance(1));
 
         Assert.assertEquals(1.3f, queue.maxDistance(), 0.0);
-        var result = new long[10];
+        var result = new int[10];
         queue.vertexIndices(result, 10);
-        Assert.assertArrayEquals(new long[]{2, 1, 0, 0, 0, 0, 0, 0, 0, 0}, result);
+        Assert.assertArrayEquals(new int[]{2, 1, 0, 0, 0, 0, 0, 0, 0, 0}, result);
 
         queue.add(3, 3, false, false);
 
@@ -113,19 +113,19 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(1.3f, queue.vertexDistance(1), 0.0);
 
         Assert.assertEquals(1.3, queue.maxDistance(), 0.01);
-        result = new long[1];
+        result = new int[1];
         queue.vertexIndices(result, 1);
 
-        Assert.assertArrayEquals(new long[]{2}, result);
-        result = new long[2];
+        Assert.assertArrayEquals(new int[]{2}, result);
+        result = new int[2];
         queue.vertexIndices(result, 2);
 
-        Assert.assertArrayEquals(new long[]{2, 1}, result);
+        Assert.assertArrayEquals(new int[]{2, 1}, result);
 
-        result = new long[10];
+        result = new int[10];
         queue.vertexIndices(result, 10);
 
-        Assert.assertArrayEquals(new long[]{2, 1, 0, 0, 0, 0, 0, 0, 0, 0}, result);
+        Assert.assertArrayEquals(new int[]{2, 1, 0, 0, 0, 0, 0, 0, 0, 0}, result);
 
         queue.add(3, 0.5f, false, false);
 
@@ -142,10 +142,10 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertFalse(queue.isPqDistance(0));
         Assert.assertFalse(queue.isPqDistance(1));
 
-        result = new long[10];
+        result = new int[10];
         queue.vertexIndices(result, 10);
 
-        Assert.assertArrayEquals(new long[]{3, 2, 0, 0, 0, 0, 0, 0, 0, 0}, result);
+        Assert.assertArrayEquals(new int[]{3, 2, 0, 0, 0, 0, 0, 0, 0, 0}, result);
         Assert.assertEquals(1.0, queue.maxDistance(), 0.0);
 
         queue.add(4, 0.75f, true, false);
@@ -163,10 +163,10 @@ public class BoundedGreedyVertexPriorityQueueTest {
         Assert.assertEquals(0, queue.nextNotCheckedVertexIndex());
         Assert.assertEquals(-1, queue.nextNotCheckedVertexIndex());
 
-        result = new long[10];
+        result = new int[10];
         queue.vertexIndices(result, 10);
 
-        Assert.assertArrayEquals(new long[]{4, 3, 0, 0, 0, 0, 0, 0, 0, 0}, result);
+        Assert.assertArrayEquals(new int[]{4, 3, 0, 0, 0, 0, 0, 0, 0, 0}, result);
         Assert.assertEquals(0.5, queue.maxDistance(), 0.0);
     }
 

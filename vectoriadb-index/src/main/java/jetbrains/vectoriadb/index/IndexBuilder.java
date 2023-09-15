@@ -66,10 +66,9 @@ public final class IndexBuilder {
 
     public static void buildIndex(String name, int vectorsDimension,
                                   Path indexPath, Path dataPath, long graphPartitionMemoryConsumption,
-                                  Quantizer quantizer,
-                                  DistanceFunction distanceFunction) throws IOException {
+                                  Distance distance) throws IOException {
         buildIndex(name, vectorsDimension, 32, 1.2f, indexPath, dataPath,
-                graphPartitionMemoryConsumption, 64, 128, quantizer, distanceFunction);
+                graphPartitionMemoryConsumption, 64, 128, distance);
     }
 
     public static void buildIndex(String name, int vectorsDimension, int compressionRatio,
@@ -77,26 +76,7 @@ public final class IndexBuilder {
                                   Path indexDirectoryPath, Path dataStoreFilePath, long memoryConsumption,
                                   int maxConnectionsPerVertex,
                                   int maxAmountOfCandidates,
-                                  Quantizer quantizer,
-                                  DistanceFunction distanceFunction) throws IOException {
-        var pqParameters = quantizer.calculatePQParameters(vectorsDimension, compressionRatio);
-
-        var pqSubVectorSize = pqParameters.pqSubVectorSize;
-        var pqQuantizersCount = pqParameters.pqQuantizersCount;
-
-        if (compressionRatio % Float.BYTES != 0) {
-            throw new IllegalArgumentException(
-                    "Vector should be divided during creation of PQ codes without remainder.");
-        }
-
-        if (vectorsDimension % pqSubVectorSize != 0) {
-            throw new IllegalArgumentException(
-                    "Vector should be divided during creation of PQ codes without remainder.");
-        }
-
-        logger.info("PQ quantizers count is " + pqQuantizersCount + ", sub vector size is " + pqSubVectorSize +
-                " elements , compression ratio is " + compressionRatio + " for index '" + name + "'");
-
+                                  Distance distance) throws IOException {
         var pageStructure = DiskCache.createPageStructure(vectorsDimension, maxConnectionsPerVertex);
 
         var pageSize = pageStructure.pageSize();
@@ -136,11 +116,9 @@ public final class IndexBuilder {
                         memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
 
                 var startPQ = System.nanoTime();
-                var pqResult = quantizer.generatePQCodes(pqQuantizersCount, pqSubVectorSize, vectorReader, arena);
+                var quantizer = distance.quantizer();
 
-                var pqCentroids = pqResult.pqCodesVectors;
-                var pqVectors = pqResult.pqVectors;
-                var pqCodeBaseSize = pqCentroids[0].length;
+                quantizer.generatePQCodes(vectorsDimension, compressionRatio, vectorReader);
 
                 var endPQ = System.nanoTime();
                 logger.info("PQ codes for vectors have been generated. Time spent {} ms." +
@@ -153,16 +131,10 @@ public final class IndexBuilder {
                 logger.info("Calculation of graph search entry point ...");
                 var startPQCentroid = System.nanoTime();
 
+                var distanceFunction = distance.buildDistanceFunction();
                 var pqCentroid =
-                        PQKMeans.calculatePartitions(pqCentroids, pqVectors, 1, 1, distanceFunction);
-                var centroid = new float[vectorsDimension];
-                for (int i = 0, pqCentroidVectorOffset = 0; i < pqQuantizersCount; i++,
-                        pqCentroidVectorOffset += pqSubVectorSize) {
-                    var pqCentroidVector = Byte.toUnsignedInt(pqCentroid[i]);
-
-                    System.arraycopy(pqCentroids[i][pqCentroidVector], 0, centroid,
-                            pqCentroidVectorOffset, pqSubVectorSize);
-                }
+                        PQKMeans.extractCentroids(quantizer, 1, 1, distanceFunction);
+                var centroid = quantizer.decodeVector(pqCentroid, 0);
 
                 var endPQCentroid = System.nanoTime();
                 logger.info("Calculation of graph search entry point has been finished. Time spent {} ms. " +
@@ -176,6 +148,7 @@ public final class IndexBuilder {
 
                 var cores = Runtime.getRuntime().availableProcessors();
                 ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
+
                 logger.info("Using {} cores for processing of vectors", cores);
 
                 for (var i = 0; i < cores; i++) {
@@ -199,38 +172,12 @@ public final class IndexBuilder {
                 while (true) {
                     logger.info("Splitting vectors into {} partitions...", partitions);
                     var startPartition = System.nanoTime();
-                    var partitionsCentroids = PQKMeans.calculatePartitions(pqCentroids, pqVectors, partitions, 50,
+                    vectorsByPartitions = PQKMeans.splitVectorsByPartitions(quantizer, partitions, 50,
                             distanceFunction);
-
                     logger.info("Detection of {} partitions has been finished. " +
                                     "Direct memory usage {} Mb, heap memory usage {} Mb", partitions,
                             directMemoryPool.getMemoryUsed() / 1024 / 1024,
                             memoryMXBean.getHeapMemoryUsage().getUsed() / 1024 / 1024);
-
-
-                    vectorsByPartitions = new IntArrayList[partitions];
-                    for (int i = 0; i < partitions; i++) {
-                        vectorsByPartitions[i] = new IntArrayList(size / partitions);
-                    }
-
-                    var distanceTables = PQKMeans.distanceTables(pqCentroids, distanceFunction);
-                    for (int i = 0; i < size; i++) {
-                        var twoClosestClusters = PQKMeans.findTwoClosestClusters(pqVectors, i, partitionsCentroids,
-                                distanceTables, pqQuantizersCount, pqCentroids[0].length);
-
-                        var firstPartition = (int) (twoClosestClusters >>> 32);
-                        var secondPartition = (int) twoClosestClusters;
-
-                        vectorsByPartitions[firstPartition].add(i);
-
-                        if (firstPartition != secondPartition) {
-                            vectorsByPartitions[secondPartition].add(i);
-                        }
-
-                        if ((i & (1024 * 1024 - 1)) == 0) {
-                            logger.info("Distribution of  {} vectors between partitions {} ({}%).", i, size, i * 100.0 / size);
-                        }
-                    }
 
                     totalPartitionsSize = 0;
                     var maxPartitionSize = Integer.MIN_VALUE;
@@ -410,16 +357,15 @@ public final class IndexBuilder {
                     }
                     vectorMutationThreads.clear();
 
-                    storeIndexState(medoidMinIndex, vectorReader.size(), pqQuantizersCount, pqCodeBaseSize,
-                            pqSubVectorSize, pqCentroids, pqVectors, name, indexDirectoryPath);
+                    storeIndexState(medoidMinIndex, vectorReader.size(), quantizer, name, indexDirectoryPath);
                 }
             }
         }
+
         Files.deleteIfExists(dataStoreFilePath);
     }
 
-    private static void storeIndexState(int medoid, int verticesSize, int pqQuantizersCount, int pqCodeBaseSize,
-                                        int pqSubVectorSize, float[][][] pqCentroids, MemorySegment pqVectors,
+    private static void storeIndexState(int medoid, int verticesSize, Quantizer quantizer,
                                         String name, Path indexPath) throws IOException {
         var dataFilePath = indexPath.resolve(name + ".data");
         try (var pqOutputStream = Files.newOutputStream(dataFilePath, StandardOpenOption.CREATE_NEW,
@@ -428,25 +374,7 @@ public final class IndexBuilder {
                 dataOutputStream.writeInt(medoid);
                 dataOutputStream.writeInt(verticesSize);
 
-                dataOutputStream.writeInt(pqQuantizersCount);
-                dataOutputStream.writeInt(pqCodeBaseSize);
-                dataOutputStream.writeInt(pqSubVectorSize);
-
-                for (int i = 0; i < pqQuantizersCount; i++) {
-                    for (int j = 0; j < pqCodeBaseSize; j++) {
-                        for (int k = 0; k < pqSubVectorSize; k++) {
-                            dataOutputStream.writeFloat(pqCentroids[i][j][k]);
-                        }
-                    }
-                }
-
-                var pqVectorsSize = pqVectors.byteSize();
-                dataOutputStream.writeLong(pqVectorsSize);
-
-                for (long i = 0; i < pqVectorsSize; i++) {
-                    dataOutputStream.writeByte(pqVectors.get(ValueLayout.JAVA_BYTE, i));
-                }
-
+                quantizer.store(dataOutputStream);
                 dataOutputStream.flush();
             }
         }

@@ -32,7 +32,7 @@ public class DotDistanceFunctionTest {
                 var distance = DotDistanceFunction.computeDotDistance(firstSegment, 0, secondSegment,
                         0,
                         2, i);
-                Assert.assertEquals(23.0f, distance, 0.0f);
+                Assert.assertEquals(-23.0f, distance, 0.0f);
             }
         }
     }
@@ -54,10 +54,10 @@ public class DotDistanceFunctionTest {
                         0, secondSegment, 0, thirdSegment, 0,
                         fourthSegment, 0, 2, result, i);
 
-                Assert.assertEquals(23.0f, result[0], 0.0f);
-                Assert.assertEquals(28.0f, result[1], 0.0f);
-                Assert.assertEquals(33.0f, result[2], 0.0f);
-                Assert.assertEquals(40.0f, result[3], 0.0f);
+                Assert.assertEquals(-23.0f, result[0], 0.0f);
+                Assert.assertEquals(-28.0f, result[1], 0.0f);
+                Assert.assertEquals(-33.0f, result[2], 0.0f);
+                Assert.assertEquals(-40.0f, result[3], 0.0f);
             }
         }
     }
@@ -80,7 +80,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstSegment, 0,
                         secondSegment, 0, count, i);
-                Assert.assertEquals(sum, distance, 0.0f);
+                Assert.assertEquals(-sum, distance, 0.0f);
             }
         }
     }
@@ -106,10 +106,10 @@ public class DotDistanceFunctionTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 7.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 9.0f * i);
 
-                sum[0] += 3.0f * i * i;
-                sum[1] += 5.0f * i * i;
-                sum[2] += 7.0f * i * i;
-                sum[3] += 9.0f * i * i;
+                sum[0] += -3.0f * i * i;
+                sum[1] += -5.0f * i * i;
+                sum[2] += -7.0f * i * i;
+                sum[3] += -9.0f * i * i;
             }
 
             var result = new float[4];
@@ -134,7 +134,7 @@ public class DotDistanceFunctionTest {
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 1.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 3.0f * i);
-                    iSum += 3 * i * i;
+                    iSum += -3 * i * i;
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
@@ -167,10 +167,10 @@ public class DotDistanceFunctionTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += -6.0f * i * i;
+                sum[1] += -8.0f * i * i;
+                sum[2] += -10.0f * i * i;
+                sum[3] += -12.0f * i * i;
             }
 
             var result = new float[4];
@@ -193,7 +193,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstSegment, Float.BYTES, secondSegment,
                         2 * Float.BYTES, 2, i);
-                Assert.assertEquals(23.0f, distance, 0.0f);
+                Assert.assertEquals(-23.0f, distance, 0.0f);
             }
         }
     }
@@ -217,7 +217,7 @@ public class DotDistanceFunctionTest {
                         fourthSegment, 2 * Float.BYTES,
                         2, result, i);
 
-                Assert.assertArrayEquals(new float[]{23.0f, 33.0f, 43.0f, 53.0f}, result, 0.0f);
+                Assert.assertArrayEquals(new float[]{-23.0f, -33.0f, -43.0f, -53.0f}, result, 0.0f);
             }
         }
     }
@@ -250,7 +250,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
                         secondSegment, secondOffset * Float.BYTES, count, i);
-                Assert.assertEquals(sum, distance, 0.0f);
+                Assert.assertEquals(-sum, distance, 0.0f);
             }
         }
     }
@@ -297,10 +297,10 @@ public class DotDistanceFunctionTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + otherOffset, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += -6.0f * i * i;
+                sum[1] += -8.0f * i * i;
+                sum[2] += -10.0f * i * i;
+                sum[3] += -12.0f * i * i;
             }
 
             var result = new float[4];
@@ -339,7 +339,7 @@ public class DotDistanceFunctionTest {
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 2.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + secondOffset, 3.0f * i);
-                    iSum += 6 * i * i;
+                    iSum += -6 * i * i;
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
@@ -373,7 +373,7 @@ public class DotDistanceFunctionTest {
                 for (var i = 0; i < count; i++) {
                     firstSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + firstOffset, 2.0f * i);
                     secondSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i + secondOffset, 3.0f * i);
-                    iSum += 6 * i * i;
+                    iSum += -6 * i * i;
                 }
 
                 for (int i = 16; i >= 1; i /= 2) {
@@ -394,7 +394,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstSegment, 0,
                         secondVector, 0, 2, i);
-                Assert.assertEquals(23.0f, distance, 0.0f);
+                Assert.assertEquals(-23.0f, distance, 0.0f);
             }
         }
     }
@@ -419,7 +419,7 @@ public class DotDistanceFunctionTest {
                         2,
                         result,
                         i);
-                Assert.assertArrayEquals(new float[]{23.0f, 33.0f, 43.0f, 53.0f}, result, 0.0f);
+                Assert.assertArrayEquals(new float[]{-23.0f, -33.0f, -43.0f, -53.0f}, result, 0.0f);
             }
         }
     }
@@ -442,7 +442,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstSegment, 0,
                         secondVector, 0, count, i);
-                Assert.assertEquals(sum, distance, 0.0f);
+                Assert.assertEquals(-sum, distance, 0.0f);
             }
         }
     }
@@ -468,10 +468,10 @@ public class DotDistanceFunctionTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += -6.0f * i * i;
+                sum[1] += -8.0f * i * i;
+                sum[2] += -10.0f * i * i;
+                sum[3] += -12.0f * i * i;
             }
 
             var result = new float[4];
@@ -507,7 +507,7 @@ public class DotDistanceFunctionTest {
                 for (int i = 16; i >= 1; i /= 2) {
                     var distance = DotDistanceFunction.computeDotDistance(firstSegment, 0,
                             secondVector, 0, count, i);
-                    Assert.assertEquals(sum, distance, 0.0f);
+                    Assert.assertEquals(-sum, distance, 0.0f);
                 }
             }
         }
@@ -534,10 +534,10 @@ public class DotDistanceFunctionTest {
                 thirdVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 3.0f * i * i;
-                sum[1] += 4.0f * i * i;
-                sum[2] += 5.0f * i * i;
-                sum[3] += 6.0f * i * i;
+                sum[0] += -3.0f * i * i;
+                sum[1] += -4.0f * i * i;
+                sum[2] += -5.0f * i * i;
+                sum[3] += -6.0f * i * i;
             }
 
             var result = new float[4];
@@ -565,7 +565,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstSegment, Float.BYTES,
                         secondVector, 0, 2, i);
-                Assert.assertEquals(23.0f, distance, 0.0f);
+                Assert.assertEquals(-23.0f, distance, 0.0f);
             }
         }
     }
@@ -591,7 +591,7 @@ public class DotDistanceFunctionTest {
                         2,
                         result,
                         i);
-                Assert.assertArrayEquals(new float[]{23.0f, 33.0f, 43.0f, 53.0f}, result, 0.0f);
+                Assert.assertArrayEquals(new float[]{-23.0f, -33.0f, -43.0f, -53.0f}, result, 0.0f);
             }
         }
     }
@@ -619,7 +619,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
                         secondVector, 0, count, i);
-                Assert.assertEquals(sum, distance, 0.0f);
+                Assert.assertEquals(-sum, distance, 0.0f);
             }
         }
     }
@@ -649,10 +649,10 @@ public class DotDistanceFunctionTest {
                 thirdSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += -6.0f * i * i;
+                sum[1] += -8.0f * i * i;
+                sum[2] += -10.0f * i * i;
+                sum[3] += -12.0f * i * i;
             }
 
 
@@ -696,7 +696,7 @@ public class DotDistanceFunctionTest {
                 for (int i = 16; i >= 1; i /= 2) {
                     var distance = DotDistanceFunction.computeDotDistance(firstSegment, firstOffset * Float.BYTES,
                             secondVector, 0, count, i);
-                    Assert.assertEquals(sum, distance, 0.0f);
+                    Assert.assertEquals(-sum, distance, 0.0f);
                 }
             }
         }
@@ -727,10 +727,10 @@ public class DotDistanceFunctionTest {
                 thirdVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 5.0f * i);
                 fourthVector.setAtIndex(ValueLayout.JAVA_FLOAT, i, 6.0f * i);
 
-                sum[0] += 6.0f * i * i;
-                sum[1] += 8.0f * i * i;
-                sum[2] += 10.0f * i * i;
-                sum[3] += 12.0f * i * i;
+                sum[0] += -6.0f * i * i;
+                sum[1] += -8.0f * i * i;
+                sum[2] += -10.0f * i * i;
+                sum[3] += -12.0f * i * i;
             }
 
 
@@ -758,7 +758,7 @@ public class DotDistanceFunctionTest {
         for (int i = 16; i >= 1; i /= 2) {
             var distance = DotDistanceFunction.computeDotDistance(firstVector,
                     0, secondVector, 0, 2, i);
-            Assert.assertEquals(23.0f, distance, 0.0f);
+            Assert.assertEquals(-23.0f, distance, 0.0f);
         }
     }
 
@@ -778,7 +778,7 @@ public class DotDistanceFunctionTest {
                     secondVector, 0, thirdVector, 0,
                     fourthVector, 0, result, 2, i);
 
-            Assert.assertArrayEquals(new float[]{23.0f, 28.0f, 38.0f, 48.0f}, result, 0.0f);
+            Assert.assertArrayEquals(new float[]{-23.0f, -28.0f, -38.0f, -48.0f}, result, 0.0f);
         }
     }
 
@@ -799,7 +799,7 @@ public class DotDistanceFunctionTest {
         for (int i = 16; i >= 1; i /= 2) {
             var distance = DotDistanceFunction.computeDotDistance(firstVector, 0,
                     secondVector, 0, count, i);
-            Assert.assertEquals(sum, distance, 0.0f);
+            Assert.assertEquals(-sum, distance, 0.0f);
         }
     }
 
@@ -822,10 +822,10 @@ public class DotDistanceFunctionTest {
             fourthVector[i] = 6.0f * i;
 
 
-            sum[0] += 6.0f * i * i;
-            sum[1] += 8.0f * i * i;
-            sum[2] += 10.0f * i * i;
-            sum[3] += 12.0f * i * i;
+            sum[0] += -6.0f * i * i;
+            sum[1] += -8.0f * i * i;
+            sum[2] += -10.0f * i * i;
+            sum[3] += -12.0f * i * i;
         }
 
         var result = new float[4];
@@ -858,7 +858,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstVector, 0,
                         secondVector, 0, count, i);
-                Assert.assertEquals(sum, distance, 0.0f);
+                Assert.assertEquals(-sum, distance, 0.0f);
             }
         }
     }
@@ -882,10 +882,10 @@ public class DotDistanceFunctionTest {
             thirdVector[i] = 5.0f * i;
             fourthVector[i] = 6.0f * i;
 
-            sum[0] += 6.0f * i * i;
-            sum[1] += 8.0f * i * i;
-            sum[2] += 10.0f * i * i;
-            sum[3] += 12.0f * i * i;
+            sum[0] += -6.0f * i * i;
+            sum[1] += -8.0f * i * i;
+            sum[2] += -10.0f * i * i;
+            sum[3] += -12.0f * i * i;
         }
 
 
@@ -910,7 +910,7 @@ public class DotDistanceFunctionTest {
         for (int i = 16; i >= 1; i /= 2) {
             var distance = DotDistanceFunction.computeDotDistance(firstVector, 1, secondVector,
                     2, 2, i);
-            Assert.assertEquals(23.0f, distance, 0.0f);
+            Assert.assertEquals(-23.0f, distance, 0.0f);
         }
     }
 
@@ -932,7 +932,7 @@ public class DotDistanceFunctionTest {
                     fourthVector, 2,
                     result,
                     2, i);
-            Assert.assertArrayEquals(new float[]{23.0f, 33.0f, 43.0f, 53.0f}, result, 0.0f);
+            Assert.assertArrayEquals(new float[]{-23.0f, -33.0f, -43.0f, -53.0f}, result, 0.0f);
         }
     }
 
@@ -962,7 +962,7 @@ public class DotDistanceFunctionTest {
         for (int i = 16; i >= 1; i /= 2) {
             var distance = DotDistanceFunction.computeDotDistance(firstVector, firstOffset, secondVector,
                     secondOffset, count, i);
-            Assert.assertEquals(sum, distance, 0.0f);
+            Assert.assertEquals(-sum, distance, 0.0f);
         }
     }
 
@@ -1006,10 +1006,10 @@ public class DotDistanceFunctionTest {
             thirdVector[i + nextOffset] = 5.0f * i;
             fourthVector[i + nextOffset] = 6.0f * i;
 
-            sum[0] += 6.0f * i * i;
-            sum[1] += 8.0f * i * i;
-            sum[2] += 10.0f * i * i;
-            sum[3] += 12.0f * i * i;
+            sum[0] += -6.0f * i * i;
+            sum[1] += -8.0f * i * i;
+            sum[2] += -10.0f * i * i;
+            sum[3] += -12.0f * i * i;
         }
 
         var result = new float[4];
@@ -1053,7 +1053,7 @@ public class DotDistanceFunctionTest {
             for (int i = 16; i >= 1; i /= 2) {
                 var distance = DotDistanceFunction.computeDotDistance(firstVector, firstOffset, secondVector,
                         secondOffset, count, i);
-                Assert.assertEquals(sum, distance, 0.0f);
+                Assert.assertEquals(-sum, distance, 0.0f);
             }
         }
     }
@@ -1096,10 +1096,10 @@ public class DotDistanceFunctionTest {
             thirdVector[i + nextOffset] = 5.0f * i;
             fourthVector[i + nextOffset] = 6.0f * i;
 
-            sum[0] += 6.0f * i * i;
-            sum[1] += 8.0f * i * i;
-            sum[2] += 10.0f * i * i;
-            sum[3] += 12.0f * i * i;
+            sum[0] += -6.0f * i * i;
+            sum[1] += -8.0f * i * i;
+            sum[2] += -10.0f * i * i;
+            sum[3] += -12.0f * i * i;
         }
 
         var result = new float[4];
