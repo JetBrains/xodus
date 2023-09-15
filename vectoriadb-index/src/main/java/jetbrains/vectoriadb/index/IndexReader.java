@@ -90,7 +90,7 @@ public final class IndexReader implements AutoCloseable {
 
         nearestGreedySearchCachedDataThreadLocal = ThreadLocal.withInitial(() -> new NearestGreedySearchCachedData(
                 new IntOpenHashSet(8 * 1024,
-                        Hash.VERY_FAST_LOAD_FACTOR), new float[quantizer.quantizersCount() * (1 << Byte.SIZE)],
+                        Hash.VERY_FAST_LOAD_FACTOR), quantizer.blankLookupTable(),
                 new BoundedGreedyVertexPriorityQueue(maxAmountOfCandidates), new int[maxConnectionsPerVertex],
                 new int[maxAmountOfCandidates], new float[vectorDim]));
 
@@ -196,7 +196,7 @@ public final class IndexReader implements AutoCloseable {
                 if (visitedVertexIndices.add(vertexIndex)) {
                     if (lookupTable == null) {
                         lookupTable = threadLocalCache.lookupTable;
-                        quantizer.buildDistanceLookupTable(vector, lookupTable, distanceFunction);
+                        quantizer.buildLookupTable(vector, lookupTable, distanceFunction);
                     }
 
                     assert vertexIndexesToCheck.size() <= 4;
@@ -254,7 +254,7 @@ public final class IndexReader implements AutoCloseable {
         if (size < 4) {
             for (int i = 0; i < size; i++) {
                 var vertexIndex = elements[i];
-                var pqDistance = quantizer.computeDistance(lookupTable, vertexIndex);
+                var pqDistance = quantizer.computeDistanceUsingLookupTable(lookupTable, vertexIndex);
 
                 addPqDistance(nearestCandidates, pqDistance, vertexIndex);
             }
@@ -264,7 +264,7 @@ public final class IndexReader implements AutoCloseable {
             var vertexIndex3 = elements[2];
             var vertexIndex4 = elements[3];
 
-            quantizer.computeDistance4Batch(lookupTable, vertexIndex1, vertexIndex2, vertexIndex3, vertexIndex4,
+            quantizer.computeDistance4BatchUsingLookupTable(lookupTable, vertexIndex1, vertexIndex2, vertexIndex3, vertexIndex4,
                     distanceResult);
 
 

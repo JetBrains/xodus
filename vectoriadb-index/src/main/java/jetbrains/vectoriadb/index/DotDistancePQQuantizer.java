@@ -16,48 +16,45 @@
 package jetbrains.vectoriadb.index;
 
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+
 @SuppressWarnings("unused")
-public final class DotDistancePQQuantizer {
+public final class DotDistancePQQuantizer { //}extends AbstractQuantizer {
+//    private int quantizersCount;
+//
+//    private L2UnitQuantizer l2UnitQuantizer;
+//
+//    private float[][][] centroids;
+//
 //
 //    @Override
-//    public Parameters calculatePQParameters(int vectorDim, int compression) {
-//        var pqSubVectorSize = compression / Float.BYTES;
-//        var quantizersCount = vectorDim / pqSubVectorSize;
+//    MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
+//        throw new UnsupportedOperationException();
+//    }
 //
-//        if (compression % Float.BYTES != 0) {
-//            throw new IllegalArgumentException(
-//                    "Vector should be divided during creation of PQ codes without remainder.");
+//    @Override
+//    public void generatePQCodes(final int vectorsDimension, final int compressionRatio, final VectorReader vectorReader) {
+//        l2UnitQuantizer = new L2UnitQuantizer();
+//
+//        var vectorNormalizingReader = new VectorNormalizingReader(vectorReader);
+//        l2UnitQuantizer.generatePQCodes(vectorsDimension, compressionRatio, vectorNormalizingReader);
+//
+//        var vectorsCount = vectorReader.size();
+//        var pqVectors = l2UnitQuantizer.encodedVectors();
+//
+//
+//        for (int i = 0; i < vectorsCount; i++) {
+//            var vector = vectorReader.read(i);
+//            var norm = -DotDistanceFunction.INSTANCE.computeDistance(vector, 0,
+//                    vector, 0, vectorsDimension);
 //        }
-//
-//        if (vectorDim % pqSubVectorSize != 0) {
-//            throw new IllegalArgumentException(
-//                    "Vector should be divided during creation of PQ codes without remainder.");
-//        }
-//
-//        return new Parameters(pqSubVectorSize, quantizersCount + 1);
 //    }
 //
 //    @Override
-//    public Codes generatePQCodes(int quantizersCount, int subVectorSize, VectorReader vectorReader, Arena arena) {
-//        var l2PQuantizer = new L2UnitQuantizer();
-//
-//        l2PQuantizer.generatePQCodes(quantizersCount - 1, subVectorSize,
-//                new VectorNormalizingReader(vectorReader), arena);
-//
-//
-//        return null;
-//    }
-//
-//    @Override
-//    public void buildDistanceLookupTable(float[] vector, float[] lookupTable, float[][][] centroids,
-//                                         int quantizersCount, int subVectorSize, DistanceFunction distanceFunction) {
-//
-//    }
-//
-//    @Override
-//    public float computeDistance(MemorySegment vectors, float[] lookupTable, int vectorIndex, int quantizersCount) {
-//
-//        return 0;
+//    public void close() {
+//        l2UnitQuantizer.close();
 //    }
 //
 //    private static final class L2UnitQuantizer extends L2PQQuantizer {

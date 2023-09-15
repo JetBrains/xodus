@@ -15,30 +15,31 @@
  */
 package jetbrains.vectoriadb.index;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.lang.foreign.MemorySegment;
 
 public interface Quantizer extends AutoCloseable {
     int CODE_BASE_SIZE = 256;
 
-    int quantizersCount();
+    float[] blankLookupTable();
 
-    MemorySegment encodedVectors();
+    float[] decodeVector(byte[] vectors, int vectorIndex);
 
-    float[][][] centroids();
+    IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction);
 
-    float[] decodeVector(byte[] vectors, int index);
+    float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction);
 
     void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader);
 
-    float computeDistance(float[] lookupTable, int vectorIndex);
+    float computeDistanceUsingLookupTable(float[] lookupTable, int vectorIndex);
 
-    void computeDistance4Batch(float[] lookupTable, int vectorIndex1, int vectorIndex2,
-                               int vectorIndex3, int vectorIndex4, float[] result);
+    void computeDistance4BatchUsingLookupTable(float[] lookupTable, int vectorIndex1, int vectorIndex2,
+                                               int vectorIndex3, int vectorIndex4, float[] result);
 
-    void buildDistanceLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction);
+    void buildLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction);
 
     void load(DataInputStream dataInputStream) throws IOException;
 

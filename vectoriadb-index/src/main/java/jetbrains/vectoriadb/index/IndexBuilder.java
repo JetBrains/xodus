@@ -132,9 +132,7 @@ public final class IndexBuilder {
                 var startPQCentroid = System.nanoTime();
 
                 var distanceFunction = distance.buildDistanceFunction();
-                var pqCentroid =
-                        PQKMeans.extractCentroids(quantizer, 1, 1, distanceFunction);
-                var centroid = quantizer.decodeVector(pqCentroid, 0);
+                var centroid = quantizer.calculateCentroids(1, 50, distanceFunction)[0];
 
                 var endPQCentroid = System.nanoTime();
                 logger.info("Calculation of graph search entry point has been finished. Time spent {} ms. " +
@@ -172,7 +170,7 @@ public final class IndexBuilder {
                 while (true) {
                     logger.info("Splitting vectors into {} partitions...", partitions);
                     var startPartition = System.nanoTime();
-                    vectorsByPartitions = PQKMeans.splitVectorsByPartitions(quantizer, partitions, 50,
+                    vectorsByPartitions = quantizer.splitVectorsByPartitions(partitions, 50,
                             distanceFunction);
                     logger.info("Detection of {} partitions has been finished. " +
                                     "Direct memory usage {} Mb, heap memory usage {} Mb", partitions,

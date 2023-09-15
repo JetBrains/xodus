@@ -27,7 +27,7 @@ import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.Random;
 
-public class PQKMeansTest extends AbstractVectorsTest {
+public class L2PQKMeansTest extends AbstractVectorsTest {
     @Test
     public void distanceTablesTest() {
         var seed = System.nanoTime();
@@ -38,7 +38,8 @@ public class PQKMeansTest extends AbstractVectorsTest {
         var centroids = generateDistanceTable(quantizersCount, rnd);
         var expectedDistanceTables = createDistanceTable(quantizersCount, centroids, null);
 
-        var actualDistanceTables = PQKMeans.distanceTables(centroids, new L2DistanceFunction());
+        var actualDistanceTables = L2PQQuantizer.buildDistanceTables(centroids, quantizersCount, centroids[0][0].length,
+                L2DistanceFunction.INSTANCE);
         Assert.assertArrayEquals(expectedDistanceTables, actualDistanceTables, 0.0f);
     }
 
@@ -84,7 +85,7 @@ public class PQKMeansTest extends AbstractVectorsTest {
                         expectedDistance += distanceTables[k][firstCode][secondCode];
                     }
 
-                    var actualDistance = PQKMeans.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
+                    var actualDistance = L2PQQuantizer.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
                             flatDistanceTables, quantizersCount, Quantizer.CODE_BASE_SIZE);
                     Assert.assertEquals(expectedDistance, actualDistance, 0.0f);
                 }
@@ -102,11 +103,9 @@ public class PQKMeansTest extends AbstractVectorsTest {
             pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors));
 
             System.out.println("PQ codes generated. Calculating centroids...");
-            var pqCentroids = PQKMeans.extractCentroids(pqQuantizer, clustersCount, 1_000,
-                    L2DistanceFunction.INSTANCE);
+            var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE);
 
             System.out.println("Centroids calculated. Clustering data vectors...");
-            var centroids = convertPqVectorsIntoFloatVectors(pqCentroids, pqQuantizer);
 
             var vectorsByClusters = new ArrayList<IntArrayList>();
             for (int i = 0; i < clustersCount; i++) {
@@ -167,18 +166,6 @@ public class PQKMeansTest extends AbstractVectorsTest {
             }
         }
         return expectedDistanceTables;
-    }
-
-    private static float[][] convertPqVectorsIntoFloatVectors(byte[] pqVectors, Quantizer quantizer) {
-        var quantizersCount = quantizer.quantizersCount();
-        var vectorsCount = pqVectors.length / quantizersCount;
-
-        var result = new float[vectorsCount][];
-        for (int i = 0; i < vectorsCount; i++) {
-            result[i] = quantizer.decodeVector(pqVectors, i);
-        }
-
-        return result;
     }
 
 
