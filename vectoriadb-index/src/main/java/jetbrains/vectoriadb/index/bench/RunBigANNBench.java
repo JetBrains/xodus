@@ -35,7 +35,13 @@ public class RunBigANNBench {
         var bigAnnGroundTruthFileName = "idx_500M.ivecs";
 
         var bigAnnGroundTruthFile = queryDirPath.resolve(bigAnnGroundTruthFileName);
-        @SuppressWarnings("unused") var bigAnnGroundTruth = BenchUtils.readIVectors(bigAnnGroundTruthFile, 1000);
+        var bigAnnDbDir = benchPath.resolve("vectoriadb-bigann_index");
+        var bigAnnDBName = "bigann_index";
+        var bigAnnGroundTruth = BenchUtils.readIVectors(bigAnnGroundTruthFile, 1000);
+
+        if (bigAnnGroundTruth.length != bigAnnQueryVectors.length) {
+            throw new RuntimeException("Ground truth and query vectors count mismatch");
+        }
 
         System.out.printf("%d queries for BigANN bench are read%n", bigAnnQueryVectors.length);
 
@@ -56,11 +62,56 @@ public class RunBigANNBench {
             System.out.println("Warming up ...");
 
             var result = new int[1];
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 50; i++) {
                 for (float[] vector : m1QueryVectors) {
                     indexReader.nearest(vector, result, 1);
                 }
             }
         }
+        System.out.println("Warm up done.");
+
+        var recallCount = 5;
+        var totalRecall = 0.0;
+        var totalTime = 0L;
+
+        System.out.println("Running BigANN bench...");
+        try (var indexReader = new IndexReader(bigAnnDBName, vectorDimensions, bigAnnDbDir,
+                110L * 1024 * 1024 * 1024, Distance.L2)) {
+
+            var result = new int[recallCount];
+            var start = System.nanoTime();
+            for (int i = 0; i < bigAnnQueryVectors.length; i++) {
+                float[] vector = bigAnnQueryVectors[i];
+                indexReader.nearest(vector, result, recallCount);
+                totalRecall += recall(result, bigAnnGroundTruth[i], recallCount);
+            }
+            var end = System.nanoTime();
+            totalTime = end - start;
+        }
+
+        System.out.printf("BigANN bench done in %d ms, recall@%d = %f%n", totalTime / 1000000, recallCount,
+                totalRecall / bigAnnQueryVectors.length);
+    }
+
+    private static double recall(int[] results, int[] groundTruths, int len) {
+        assert results.length == groundTruths.length;
+
+        int answers = 0;
+        for (var result : results) {
+            if (contains(result, groundTruths, len)) {
+                answers++;
+            }
+        }
+
+        return answers * 1.0 / groundTruths.length;
+    }
+
+    private static boolean contains(int value, int[] values, int len) {
+        for (int i = 0; i < len; i++) {
+            if (values[i] == value) {
+                return true;
+            }
+        }
+        return false;
     }
 }
