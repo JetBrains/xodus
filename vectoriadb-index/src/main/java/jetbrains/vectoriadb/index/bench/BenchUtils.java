@@ -72,7 +72,7 @@ final class BenchUtils {
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         try (var indexReader = new IndexReader("test_index", 128, dbDir,
-                110L * 1024 * 1024 * 1024, Distance.L2)) {
+                100L * 1024 * 1024 * 1024, Distance.L2)) {
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);
             var queryVectors = readFVectors(queryFile, vectorDimensions);
