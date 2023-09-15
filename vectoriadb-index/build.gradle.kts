@@ -165,7 +165,7 @@ tasks {
 
     register<JavaExec>("prepareBigANNBench") {
         group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.PrepareBigANNBench"
+        mainClass = "jetbrains.vectoriadb.index.bench.PrepareBigANNBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server",
