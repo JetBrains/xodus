@@ -204,23 +204,11 @@ final class BenchUtils {
             var vectorBuffer = ByteBuffer.allocate(Float.BYTES * vectorDimensions + Integer.BYTES);
             vectorBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
-            readFully(channel, vectorBuffer);
-            vectorBuffer.rewind();
-
             var vectorsCount =
                     (int) (channel.size() / (Float.BYTES * vectorDimensions + Integer.BYTES));
-
             var vectors = new float[vectorsCount][];
-            {
-                var vector = new float[vectorDimensions];
-                for (var i = 0; i < vector.length; i++) {
-                    vector[i] = vectorBuffer.getFloat();
-                }
-                vectors[0] = vector;
-            }
-
-            for (var i = 1; i < vectorsCount; i++) {
-                vectorBuffer.clear();
+            for (var i = 0; i < vectorsCount; i++) {
+                vectorBuffer.rewind();
                 readFully(channel, vectorBuffer);
                 vectorBuffer.rewind();
 
@@ -232,6 +220,34 @@ final class BenchUtils {
                 }
                 vectors[i] = vector;
             }
+            return vectors;
+        }
+    }
+
+    public static float[][] readFBVectors(Path path, int vectorDimensions) throws IOException {
+        try (var channel = FileChannel.open(path)) {
+            var vectorBuffer = ByteBuffer.allocate(vectorDimensions + Integer.BYTES);
+            vectorBuffer.order(ByteOrder.LITTLE_ENDIAN);
+
+            var vectorsCount =
+                    (int) (channel.size() / (vectorDimensions + Integer.BYTES));
+
+            var vectors = new float[vectorsCount][];
+
+            for (var i = 0; i < vectorsCount; i++) {
+                vectorBuffer.rewind();
+                readFully(channel, vectorBuffer);
+                vectorBuffer.rewind();
+
+                vectorBuffer.position(Integer.BYTES);
+
+                var vector = new float[vectorDimensions];
+                for (var j = 0; j < vector.length; j++) {
+                    vector[j] = vectorBuffer.get();
+                }
+                vectors[i] = vector;
+            }
+
             return vectors;
         }
     }
@@ -248,17 +264,8 @@ final class BenchUtils {
             var vectorsCount =
                     (int) (channel.size() / ((long) Integer.BYTES * vectorDimensions + Integer.BYTES));
             var vectors = new int[vectorsCount][];
-
-            {
-                var vector = new int[vectorDimensions];
-                for (var i = 0; i < vector.length; i++) {
-                    vector[i] = vectorBuffer.getInt();
-                }
-                vectors[0] = vector;
-            }
-
-            for (var i = 1; i < vectorsCount; i++) {
-                vectorBuffer.clear();
+            for (var i = 0; i < vectorsCount; i++) {
+                vectorBuffer.rewind();
                 readFully(channel, vectorBuffer);
                 vectorBuffer.rewind();
 
@@ -268,6 +275,7 @@ final class BenchUtils {
                 for (var j = 0; j < vector.length; j++) {
                     vector[j] = vectorBuffer.getInt();
                 }
+
                 vectors[i] = vector;
             }
             return vectors;

@@ -14,33 +14,37 @@ public class RunBigANNBench {
         var benchPathStr = System.getProperty("bench.path");
         var benchPath = Path.of(Objects.requireNonNullElse(benchPathStr, "."));
 
-        var baseArchiveName = "bigann_gnd.tar.gz";
-        var baseArchivePath = BenchUtils.downloadBenchFile(benchPath, baseArchiveName);
+        var gndArchiveName = "bigann_gnd.tar.gz";
+        var gndArchivePath = BenchUtils.downloadBenchFile(benchPath, gndArchiveName);
 
-        var queryDir = "gnd";
-        var queryFileName = "dis_500M.fvecs";
-
-        var queryDirPath = benchPath.resolve(queryDir);
-        Files.createDirectories(queryDirPath);
-
-        var queryFilePath = queryDirPath.resolve(queryFileName);
-
-        if (!Files.exists(queryFilePath) || Files.size(queryFilePath) == 0) {
-            BenchUtils.extractTarGzArchive(benchPath, baseArchivePath);
-        }
-
-        System.out.printf("Reading queries for BigANN bench from %s...%n", queryFilePath.toAbsolutePath());
-        var bigAnnQueryVectors = BenchUtils.readFVectors(queryFilePath, vectorDimensions);
-
+        var gndDirName = "gnd";
         var bigAnnGroundTruthFileName = "idx_500M.ivecs";
 
-        var bigAnnGroundTruthFile = queryDirPath.resolve(bigAnnGroundTruthFileName);
-        var bigAnnDbDir = benchPath.resolve("vectoriadb-bigann_index");
-        var bigAnnDBName = "bigann_index";
+        var gndDirPath = benchPath.resolve(gndDirName);
+        var bigAnnGroundTruthFile = gndDirPath.resolve(bigAnnGroundTruthFileName);
+        Files.createDirectories(gndDirPath);
+
+        if (!Files.exists(bigAnnGroundTruthFile) || Files.size(bigAnnGroundTruthFile) == 0) {
+            BenchUtils.extractTarGzArchive(benchPath, gndArchivePath);
+        }
         var bigAnnGroundTruth = BenchUtils.readIVectors(bigAnnGroundTruthFile, 1000);
 
+        var queryFileName = "bigann_query.bvecs";
+        var queryFilePath = benchPath.resolve(queryFileName);
+
+        var queryArchiveName = "bigann_query.bvecs.gz";
+        var queryArchivePath = BenchUtils.downloadBenchFile(benchPath, queryArchiveName);
+        if (!Files.exists(queryFilePath) || Files.size(queryFilePath) == 0) {
+            BenchUtils.extractGzArchive(benchPath, queryArchivePath);
+        }
+
+        var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath, vectorDimensions);
+        var bigAnnDbDir = benchPath.resolve("vectoriadb-bigann_index");
+        var bigAnnDBName = "bigann_index";
+
         if (bigAnnGroundTruth.length != bigAnnQueryVectors.length) {
-            throw new RuntimeException("Ground truth and query vectors count mismatch");
+            throw new RuntimeException("Ground truth and query vectors count mismatch : " +
+                    bigAnnGroundTruth.length + " vs " + bigAnnQueryVectors.length);
         }
 
         System.out.printf("%d queries for BigANN bench are read%n", bigAnnQueryVectors.length);
