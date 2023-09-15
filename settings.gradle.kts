@@ -133,3 +133,6 @@ project(":utils-test").name = "xodus-utils-test"
 
 include("vectoriadb-index")
 project(":vectoriadb-index").name = "xodus-vectoriadb-index"
+
+include("vectoriadb-server")
+project(":vectoriadb-server").name = "xodus-vectoriadb-server"
