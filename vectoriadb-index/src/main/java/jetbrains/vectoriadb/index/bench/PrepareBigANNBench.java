@@ -69,10 +69,14 @@ public class PrepareBigANNBench {
                     for (long i = 0; i < 500_000_000; i++) {
                         if (buffer.remaining() == 0) {
                             buffer.rewind();
+
                             while (buffer.remaining() > 0) {
-                                channel.read(buffer);
+                                var r = channel.read(buffer);
+                                if (r == -1) {
+                                    break;
+                                }
                             }
-                            buffer.rewind();
+                            buffer.clear();
                         }
 
                         var dimensions = buffer.getInt();
