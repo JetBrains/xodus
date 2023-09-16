@@ -55,9 +55,10 @@ public class PrepareBigANNBench {
 
             var ts1 = System.nanoTime();
             Path indexDataLocation;
+
+            var recordSize = Integer.BYTES + vectorDimensions;
             try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
-                var buffer = ByteBuffer.allocate(64 * 1024 * 1024 * (Integer.BYTES +
-                        vectorDimensions)).order(ByteOrder.LITTLE_ENDIAN);
+                var buffer = ByteBuffer.allocate((64 * 1024 * 1024 / recordSize) * recordSize ).order(ByteOrder.LITTLE_ENDIAN);
 
                 while (buffer.remaining() > 0) {
                     channel.read(buffer);
