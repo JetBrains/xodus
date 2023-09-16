@@ -58,6 +58,12 @@ public class PrepareBigANNBench {
             try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
                 var buffer = ByteBuffer.allocate(64 * 1024 * 1024 * (Integer.BYTES +
                         vectorDimensions)).order(ByteOrder.LITTLE_ENDIAN);
+
+                while (buffer.remaining() > 0) {
+                    channel.read(buffer);
+                }
+                buffer.rewind();
+
                 try (var dataBuilder = DataStore.create("bigann_index", vectorDimensions,
                         L2DistanceFunction.INSTANCE, dbDir)) {
                     for (long i = 0; i < 500_000_000; i++) {
