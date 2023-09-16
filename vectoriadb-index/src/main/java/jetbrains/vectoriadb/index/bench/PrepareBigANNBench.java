@@ -56,20 +56,28 @@ public class PrepareBigANNBench {
             var ts1 = System.nanoTime();
             Path indexDataLocation;
             try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
-                var buffer = ByteBuffer.allocate(vectorDimensions * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+                var buffer = ByteBuffer.allocate(64 * 1024 * 1024 * (Integer.BYTES +
+                        vectorDimensions)).order(ByteOrder.LITTLE_ENDIAN);
                 try (var dataBuilder = DataStore.create("bigann_index", vectorDimensions,
                         L2DistanceFunction.INSTANCE, dbDir)) {
                     for (long i = 0; i < 500_000_000; i++) {
-                        channel.position(i * (vectorDimensions * Float.BYTES + Integer.BYTES));
-                        buffer.rewind();
-                        while (buffer.remaining() > 0) {
-                            channel.read(buffer);
+                        if (buffer.remaining() == 0) {
+                            buffer.rewind();
+                            while (buffer.remaining() > 0) {
+                                channel.read(buffer);
+                            }
+                            buffer.rewind();
                         }
-                        buffer.rewind();
+
+                        var dimensions = buffer.getInt();
+                        if (dimensions != vectorDimensions) {
+                            throw new RuntimeException("Vector dimensions mismatch : " +
+                                    dimensions + " vs " + vectorDimensions);
+                        }
 
                         var vector = new float[vectorDimensions];
                         for (int j = 0; j < vectorDimensions; j++) {
-                            vector[j] = buffer.getFloat();
+                            vector[j] = buffer.get();
                         }
 
                         dataBuilder.add(vector);
