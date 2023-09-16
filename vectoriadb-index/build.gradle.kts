@@ -128,7 +128,7 @@ tasks {
             "jdk.incubator.vector",
             "-Djava.awt.headless=true",
             "--enable-preview",
-            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005"
         )
 
         if (jdkHome != null) {
