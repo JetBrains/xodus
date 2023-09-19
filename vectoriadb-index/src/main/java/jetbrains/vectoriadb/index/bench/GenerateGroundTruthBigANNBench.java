@@ -1,0 +1,160 @@
+package jetbrains.vectoriadb.index.bench;
+
+import jetbrains.vectoriadb.index.L2DistanceFunction;
+import jetbrains.vectoriadb.index.util.collections.BoundedGreedyVertexPriorityQueue;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.Objects;
+
+public class GenerateGroundTruthBigANNBench {
+    public static final String GROUND_TRUTH_FILE = "ground-truth-1M.bin";
+    public static final int NEIGHBOURS_COUNT = 5;
+
+    public static void main(String[] args) throws Exception {
+        var benchPathStr = System.getProperty("bench.path");
+        Path benchPath;
+
+        benchPath = Path.of(Objects.requireNonNullElse(benchPathStr, "."));
+
+        var baseArchiveName = "bigann_base.bvecs.gz";
+        var baseArchivePath = BenchUtils.downloadBenchFile(benchPath, baseArchiveName);
+
+        var dataFileName = "bigann_base.bvecs";
+        var dataFilePath = benchPath.resolve(dataFileName);
+
+        if (!Files.exists(dataFilePath) || Files.size(dataFilePath) == 0) {
+            BenchUtils.extractGzArchive(dataFilePath, baseArchivePath);
+        }
+
+        var recordSize = Integer.BYTES + PrepareBigANNBench.VECTOR_DIMENSIONS;
+
+        var queryFileName = "bigann_query.bvecs";
+        var queryFilePath = benchPath.resolve(queryFileName);
+
+        var queryArchiveName = "bigann_query.bvecs.gz";
+        var queryArchivePath = BenchUtils.downloadBenchFile(benchPath, queryArchiveName);
+        if (!Files.exists(queryFilePath) || Files.size(queryFilePath) == 0) {
+            BenchUtils.extractGzArchive(queryFilePath, queryArchivePath);
+        }
+
+        var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath,
+                PrepareBigANNBench.VECTOR_DIMENSIONS, Integer.MAX_VALUE);
+        var cores = Runtime.getRuntime().availableProcessors();
+        int maxQueryVectorsPerThread = (PrepareBigANNBench.VECTORS_COUNT + cores - 1) / cores;
+        var groundTruth = new int[PrepareBigANNBench.VECTORS_COUNT][NEIGHBOURS_COUNT];
+        var distanceFunction = L2DistanceFunction.INSTANCE;
+
+        try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
+            try (var executorService = java.util.concurrent.Executors.newFixedThreadPool(cores)) {
+                for (int n = 0; n < cores; n++) {
+                    var start = n * maxQueryVectorsPerThread;
+                    var end = Math.min((n + 1) * maxQueryVectorsPerThread, PrepareBigANNBench.VECTORS_COUNT);
+
+                    executorService.submit(() -> {
+                        try {
+                            var buffer =
+                                    ByteBuffer.allocate(
+                                            (64 * 1024 * 1024 / recordSize) * recordSize).order(ByteOrder.LITTLE_ENDIAN);
+
+                            var queryResult = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];
+                            var vectorResult = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];
+
+                            var nearestVectors = new BoundedGreedyVertexPriorityQueue(NEIGHBOURS_COUNT);
+                            var vector = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];
+
+                            for (int i = start; i < end; i++) {
+                                nearestVectors.clear();
+                                buffer.clear();
+
+                                while (buffer.remaining() > 0) {
+                                    channel.read(buffer, buffer.position());
+                                }
+                                buffer.rewind();
+
+                                for (int j = 0; j < PrepareBigANNBench.VECTORS_COUNT; j++) {
+                                    if (buffer.remaining() == 0) {
+                                        buffer.rewind();
+
+                                        var position = (long) j * recordSize;
+                                        while (buffer.remaining() > 0) {
+                                            var r = channel.read(buffer, position + buffer.position());
+                                            if (r == -1) {
+                                                break;
+                                            }
+                                        }
+
+                                        buffer.clear();
+                                    }
+
+                                    var dimensions = buffer.getInt();
+                                    if (dimensions != PrepareBigANNBench.VECTOR_DIMENSIONS) {
+                                        throw new RuntimeException("Vector dimensions mismatch : " +
+                                                dimensions + " vs " + PrepareBigANNBench.VECTOR_DIMENSIONS);
+                                    }
+
+                                    for (int k = 0; k < PrepareBigANNBench.VECTOR_DIMENSIONS; k++) {
+                                        vector[k] = buffer.get();
+                                    }
+
+                                    vector = distanceFunction.preProcess(vector, vectorResult);
+                                    var queryVector = distanceFunction.preProcess(bigAnnQueryVectors[i], queryResult);
+
+                                    var distance = distanceFunction.computeDistance(vector, 0, queryVector,
+                                            0, vector.length);
+                                    nearestVectors.add(i, distance, false, false);
+
+                                    nearestVectors.vertexIndices(groundTruth[i], NEIGHBOURS_COUNT);
+                                }
+
+                                System.out.printf("Processed %dth query vector out of %d.%n",
+                                        i, bigAnnQueryVectors.length);
+                            }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                }
+            }
+
+            System.out.println("Writing ground truth...");
+            try (var dataOutputStream = new DataOutputStream(
+                    new BufferedOutputStream(Files.newOutputStream(benchPath.resolve(GROUND_TRUTH_FILE)),
+                            64 * 1024 * 1024))) {
+                for (var groundTruthVector : groundTruth) {
+                    for (var neighbour : groundTruthVector) {
+                        dataOutputStream.writeInt(neighbour);
+                    }
+                }
+            }
+
+            System.out.println("Done.");
+        }
+    }
+
+    public static int[][] readGroundTruth(Path benchPath) {
+        var result = new int[PrepareBigANNBench.VECTORS_COUNT][NEIGHBOURS_COUNT];
+        try (var dataInputStream = new DataInputStream(
+                new BufferedInputStream(Files.newInputStream(benchPath.resolve(GROUND_TRUTH_FILE)),
+                        64 * 1024 * 1024))) {
+            for (var groundTruthVector : result) {
+                for (int i = 0; i < NEIGHBOURS_COUNT; i++) {
+                    groundTruthVector[i] = dataInputStream.readInt();
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return result;
+    }
+}

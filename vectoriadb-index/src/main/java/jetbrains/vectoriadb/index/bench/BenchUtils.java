@@ -233,8 +233,6 @@ final class BenchUtils {
 
             var vectorsCount =
                     Math.min(size, (int) (channel.size() / (vectorDimensions + Integer.BYTES)));
-
-
             var vectors = new float[vectorsCount][];
 
             for (var i = 0; i < vectorsCount; i++) {

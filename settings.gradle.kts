@@ -6,6 +6,7 @@ pluginManagement {
         id("io.codearte.nexus-staging") version ("0.30.0")
         id("com.github.johnrengelman.shadow") version ("8.1.1")
         id("me.champeau.jmh") version ("0.7.1")
+        id("com.google.protobuf") version ("0.9.4")
     }
     repositories {
         maven(url = "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
@@ -35,6 +36,8 @@ dependencyResolutionManagement {
             version("commons-rng", "1.5")
             version("caffeine", "3.1.8")
             version("errorprone", "2.21.1")
+            version("grpc", "1.58.0")
+            version("protobuf", "3.24.3")
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
@@ -83,6 +86,9 @@ dependencyResolutionManagement {
                 "com.google.errorprone",
                 "error_prone_annotations"
             ).versionRef("errorprone")
+
+            library("protobuf-protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
+            library("grpc-java", "io.grpc", "grpc-java").versionRef("grpc")
         }
     }
 }
@@ -136,3 +142,9 @@ project(":vectoriadb-index").name = "xodus-vectoriadb-index"
 
 include("vectoriadb-server")
 project(":vectoriadb-server").name = "xodus-vectoriadb-server"
+
+include("vectoriadb-interface")
+project(":vectoriadb-interface").name = "xodus-vectoriadb-interface"
+
+include("vectoriadb-java-client")
+project(":vectoriadb-java-client").name = "xodus-vectoriadb-java-client"

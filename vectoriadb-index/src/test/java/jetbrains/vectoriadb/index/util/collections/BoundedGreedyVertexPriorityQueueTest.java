@@ -16,6 +16,7 @@
 package jetbrains.vectoriadb.index.util.collections;
 
 import it.unimi.dsi.fastutil.ints.IntDoubleImmutablePair;
+import it.unimi.dsi.fastutil.ints.IntFloatImmutablePair;
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -279,6 +280,40 @@ public class BoundedGreedyVertexPriorityQueueTest {
 
             Assert.assertEquals(treeSetElement.leftInt(), queue.vertexIndex(i));
             Assert.assertEquals(treeSetElement.rightDouble(), queue.vertexDistance(i), 0.0);
+        }
+    }
+
+    @Test
+    public void rndNearestTest() {
+        var seed = System.nanoTime();
+        var rnd = new Random(seed);
+        System.out.println("rndNearestTest seed = " + seed);
+
+        var itemsCount = 10;
+        var queue = new BoundedGreedyVertexPriorityQueue(itemsCount);
+        var treeSet = new TreeSet<>(Comparator.comparing(IntFloatImmutablePair::rightFloat));
+
+        for (int i = 0; i < 1_000_000; i++) {
+            while (true) {
+                var vertexIndex = rnd.nextInt(Integer.MAX_VALUE);
+                var distance = 10 * rnd.nextFloat();
+
+                if (treeSet.add(new IntFloatImmutablePair(vertexIndex, distance))) {
+                    queue.add(vertexIndex, distance, false, false);
+                    break;
+                }
+            }
+        }
+
+
+        Assert.assertEquals(10, queue.size());
+        Assert.assertEquals(1_000_000, treeSet.size());
+
+        var treeSetIterator = treeSet.iterator();
+        for (int j = 0; j < 10; j++) {
+            var treeSetElement = treeSetIterator.next();
+            Assert.assertEquals(treeSetElement.leftInt(), queue.vertexIndex(j));
+            Assert.assertEquals(treeSetElement.rightFloat(), queue.vertexDistance(j), 0.0);
         }
     }
 }
