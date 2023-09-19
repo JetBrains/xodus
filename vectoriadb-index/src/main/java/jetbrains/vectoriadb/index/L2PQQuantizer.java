@@ -595,7 +595,7 @@ class L2PQQuantizer extends AbstractQuantizer {
 
         var pqVectorsSize = dataInputStream.readLong();
         pqVectors = arena.allocate(pqVectorsSize);
-        for (int i = 0; i < pqVectorsSize; i++) {
+        for (long i = 0; i < pqVectorsSize; i++) {
             pqVectors.set(ValueLayout.JAVA_BYTE, i, dataInputStream.readByte());
         }
     }
