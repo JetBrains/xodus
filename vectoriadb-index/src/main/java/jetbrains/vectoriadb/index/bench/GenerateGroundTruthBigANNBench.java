@@ -51,7 +51,7 @@ public class GenerateGroundTruthBigANNBench {
 
         var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath,
                 PrepareBigANNBench.VECTOR_DIMENSIONS, Integer.MAX_VALUE);
-        var threads = 4 * Runtime.getRuntime().availableProcessors();
+        var threads = 8 * Runtime.getRuntime().availableProcessors();
         int maxQueryVectorsPerThread = (bigAnnQueryVectors.length + threads - 1) / threads;
         var groundTruth = new int[bigAnnQueryVectors.length][NEIGHBOURS_COUNT];
         var distanceFunction = L2DistanceFunction.INSTANCE;
