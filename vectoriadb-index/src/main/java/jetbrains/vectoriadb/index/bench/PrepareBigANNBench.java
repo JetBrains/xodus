@@ -31,9 +31,9 @@ import java.util.Objects;
 
 public class PrepareBigANNBench {
     public static final int VECTOR_DIMENSIONS = 128;
-    public static final int VECTORS_COUNT = 1_000_000;
+    public static final int VECTORS_COUNT = 10_000_000;
 
-    public static final String INDEX_NAME = "bigann_index_1m";
+    public static final String INDEX_NAME = "bigann_index_10m";
 
     public static void main(String[] args) {
         var benchPathStr = System.getProperty("bench.path");
