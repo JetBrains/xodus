@@ -93,7 +93,9 @@ public class RunBigANNBench {
             totalTime = end - start;
         }
 
-        System.out.printf("BigANN bench done in %d ms, recall@%d = %f%n", totalTime / 1000000, recallCount,
+        System.out.printf("BigANN bench done in %d ms, (%d ms per query) recall@%d = %f%n", totalTime / 1000000,
+                totalTime / 1000000 / bigAnnQueryVectors.length,
+                recallCount,
                 totalRecall / bigAnnQueryVectors.length);
     }
 
@@ -107,7 +109,7 @@ public class RunBigANNBench {
             }
         }
 
-        return answers * 1.0 / groundTruths.length;
+        return answers * 1.0 / len;
     }
 
     private static boolean contains(int value, int[] values, int len) {

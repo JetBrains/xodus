@@ -70,7 +70,8 @@ public class DiskANNTest {
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         var totalRecall = 0.0;
-        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir, 64 * 1024 * 1024,
+        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir,
+                256 * 1024 * 1024,
                 Distance.L2)) {
             ts1 = System.nanoTime();
             for (var j = 0; j < vectorsCount; j++) {
@@ -136,7 +137,8 @@ public class DiskANNTest {
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         var totalRecall = 0.0;
-        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir, 64 * 1024 * 1024,
+        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir,
+                256 * 1024 * 1024,
                 Distance.DOT)) {
             ts1 = System.nanoTime();
             for (var j = 0; j < vectorsCount; j++) {
@@ -202,7 +204,8 @@ public class DiskANNTest {
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
-        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir, 64 * 1024 * 1024,
+        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir,
+                256 * 1024 * 1024,
                 Distance.COSINE)) {
             var totalRecall = 0.0;
             ts1 = System.nanoTime();
