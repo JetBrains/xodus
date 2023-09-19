@@ -149,9 +149,10 @@ public class GenerateGroundTruthBigANNBench {
     }
 
     public static int[][] readGroundTruth(Path benchPath) throws IOException {
-        var result = new int[(int) (Files.size(benchPath) / (Integer.BYTES * NEIGHBOURS_COUNT))][NEIGHBOURS_COUNT];
+        var truthFile = benchPath.resolve(GROUND_TRUTH_FILE);
+        var result = new int[(int) (Files.size(truthFile) / (Integer.BYTES * NEIGHBOURS_COUNT))][NEIGHBOURS_COUNT];
         try (var dataInputStream = new DataInputStream(
-                new BufferedInputStream(Files.newInputStream(benchPath.resolve(GROUND_TRUTH_FILE)),
+                new BufferedInputStream(Files.newInputStream(truthFile),
                         64 * 1024 * 1024))) {
             for (var groundTruthVector : result) {
                 for (int i = 0; i < NEIGHBOURS_COUNT; i++) {
