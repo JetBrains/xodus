@@ -79,7 +79,8 @@ public final class IndexReader implements AutoCloseable {
 
         var pqFilePath = indexDirPath.resolve(name + ".data");
         var graphFilePath = indexDirPath.resolve(name + ".graph");
-        try (var pqInputStream = new BufferedInputStream(Files.newInputStream(pqFilePath, StandardOpenOption.READ))) {
+        try (var pqInputStream = new BufferedInputStream(Files.newInputStream(pqFilePath, StandardOpenOption.READ),
+                64 * 1024 * 1024)) {
             try (var dataInputStream = new DataInputStream(pqInputStream)) {
                 medoid = dataInputStream.readInt();
                 dataInputStream.readInt();
