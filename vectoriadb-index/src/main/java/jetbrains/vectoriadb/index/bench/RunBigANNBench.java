@@ -18,7 +18,7 @@ public class RunBigANNBench {
         var gndArchivePath = BenchUtils.downloadBenchFile(benchPath, gndArchiveName);
 
         var gndDirName = "gnd";
-        var bigAnnGroundTruthFileName = "idx_500M.ivecs";
+        var bigAnnGroundTruthFileName = "idx_1M.ivecs";
 
         var gndDirPath = benchPath.resolve(gndDirName);
         var bigAnnGroundTruthFile = gndDirPath.resolve(bigAnnGroundTruthFileName);
@@ -40,7 +40,7 @@ public class RunBigANNBench {
 
         var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath, vectorDimensions);
         var bigAnnDbDir = benchPath.resolve("vectoriadb-bigann_index");
-        var bigAnnDBName = "bigann_index";
+        var bigAnnDBName = "test_bigann_index";
 
         if (bigAnnGroundTruth.length != bigAnnQueryVectors.length) {
             throw new RuntimeException("Ground truth and query vectors count mismatch : " +

@@ -65,9 +65,9 @@ public class PrepareBigANNBench {
                 }
                 buffer.rewind();
 
-                try (var dataBuilder = DataStore.create("bigann_index", vectorDimensions,
+                try (var dataBuilder = DataStore.create("test_bigann_index", vectorDimensions,
                         L2DistanceFunction.INSTANCE, dbDir)) {
-                    for (long i = 0; i < 500_000_000; i++) {
+                    for (long i = 0; i < 1_000_000; i++) {
                         if (buffer.remaining() == 0) {
                             buffer.rewind();
 
@@ -98,7 +98,7 @@ public class PrepareBigANNBench {
                 }
             }
 
-            IndexBuilder.buildIndex("bigann_index", vectorDimensions, dbDir, indexDataLocation,
+            IndexBuilder.buildIndex("test_bigann_index", vectorDimensions, dbDir, indexDataLocation,
                     60L * 1024 * 1024 * 1024, Distance.L2);
             var ts2 = System.nanoTime();
 
