@@ -114,7 +114,7 @@ public class GenerateGroundTruthBigANNBench {
 
                                     var distance = distanceFunction.computeDistance(vector, 0, queryVector,
                                             0, vector.length);
-                                    nearestVectors.add(i, distance, false, false);
+                                    nearestVectors.add(j, distance, false, false);
                                 }
 
                                 nearestVectors.vertexIndices(groundTruth[i], NEIGHBOURS_COUNT);

@@ -201,8 +201,7 @@ tasks {
             "--add-modules",
             "jdk.incubator.vector",
             "-Djava.awt.headless=true",
-            "--enable-preview",
-            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+            "--enable-preview"
         )
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
