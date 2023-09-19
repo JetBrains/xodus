@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
+import java.util.concurrent.Executors;
 
 public class GenerateGroundTruthBigANNBench {
     public static final String GROUND_TRUTH_FILE = "ground-truth-1M.bin";
@@ -50,12 +51,12 @@ public class GenerateGroundTruthBigANNBench {
         var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath,
                 PrepareBigANNBench.VECTOR_DIMENSIONS, Integer.MAX_VALUE);
         var cores = Runtime.getRuntime().availableProcessors();
-        int maxQueryVectorsPerThread = (PrepareBigANNBench.VECTORS_COUNT + cores - 1) / cores;
-        var groundTruth = new int[PrepareBigANNBench.VECTORS_COUNT][NEIGHBOURS_COUNT];
+        int maxQueryVectorsPerThread = (bigAnnQueryVectors.length + cores - 1) / cores;
+        var groundTruth = new int[bigAnnQueryVectors.length][NEIGHBOURS_COUNT];
         var distanceFunction = L2DistanceFunction.INSTANCE;
 
         try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
-            try (var executorService = java.util.concurrent.Executors.newFixedThreadPool(cores)) {
+            try (var executorService = Executors.newFixedThreadPool(cores)) {
                 for (int n = 0; n < cores; n++) {
                     var start = n * maxQueryVectorsPerThread;
                     var end = Math.min((n + 1) * maxQueryVectorsPerThread, PrepareBigANNBench.VECTORS_COUNT);
@@ -137,7 +138,8 @@ public class GenerateGroundTruthBigANNBench {
                 }
             }
 
-            System.out.println("Done.");
+            System.out.printf("Done. Ground truth stored in %s%n",
+                    benchPath.resolve(GROUND_TRUTH_FILE).toAbsolutePath());
         }
     }
 
