@@ -105,7 +105,7 @@ public class RunBigANNBench {
             for (int i = 0; i < bigAnnQueryVectors.length; i++) {
                 float[] vector = bigAnnQueryVectors[i];
                 indexReader.nearest(vector, result, recallCount);
-                totalRecall += recall(result, bigAnnGroundTruth[i], recallCount);
+                totalRecall += recall(result, expectedGnd[i], recallCount);
             }
             var end = System.nanoTime();
             totalTime = end - start;
