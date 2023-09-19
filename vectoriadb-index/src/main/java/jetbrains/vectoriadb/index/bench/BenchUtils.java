@@ -212,7 +212,9 @@ final class BenchUtils {
                 readFully(channel, vectorBuffer);
                 vectorBuffer.rewind();
 
-                vectorBuffer.position(Integer.BYTES);
+                if (vectorBuffer.getInt() != vectorDimensions) {
+                    throw new IllegalStateException("Vector dimensions mismatch");
+                }
 
                 var vector = new float[vectorDimensions];
                 for (var j = 0; j < vector.length; j++) {
@@ -239,7 +241,9 @@ final class BenchUtils {
                 readFully(channel, vectorBuffer);
                 vectorBuffer.rewind();
 
-                vectorBuffer.position(Integer.BYTES);
+                if (vectorBuffer.getInt() != vectorDimensions) {
+                    throw new IllegalStateException("Vector dimensions mismatch");
+                }
 
                 var vector = new float[vectorDimensions];
                 for (var j = 0; j < vector.length; j++) {
@@ -266,7 +270,9 @@ final class BenchUtils {
                 readFully(channel, vectorBuffer);
                 vectorBuffer.rewind();
 
-                vectorBuffer.position(Integer.BYTES);
+                if (vectorBuffer.getInt() != vectorDimensions) {
+                    throw new IllegalStateException("Vector dimensions mismatch");
+                }
 
                 var vector = new int[vectorDimensions];
                 for (var j = 0; j < vector.length; j++) {
