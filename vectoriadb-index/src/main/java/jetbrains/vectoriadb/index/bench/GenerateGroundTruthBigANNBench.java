@@ -19,7 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class GenerateGroundTruthBigANNBench {
-    public static final String GROUND_TRUTH_FILE = "ground-truth-1M.bin";
+    public static final String GROUND_TRUTH_FILE = "ground-truth-" + PrepareBigANNBench.NAME_SUFFIX + ".bin";
     public static final int NEIGHBOURS_COUNT = 5;
 
     public static void main(String[] args) throws Exception {
