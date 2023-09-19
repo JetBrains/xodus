@@ -148,8 +148,8 @@ public class GenerateGroundTruthBigANNBench {
         }
     }
 
-    public static int[][] readGroundTruth(Path benchPath) {
-        var result = new int[PrepareBigANNBench.VECTORS_COUNT][NEIGHBOURS_COUNT];
+    public static int[][] readGroundTruth(Path benchPath) throws IOException {
+        var result = new int[(int) (Files.size(benchPath) / (Integer.BYTES * NEIGHBOURS_COUNT))][NEIGHBOURS_COUNT];
         try (var dataInputStream = new DataInputStream(
                 new BufferedInputStream(Files.newInputStream(benchPath.resolve(GROUND_TRUTH_FILE)),
                         64 * 1024 * 1024))) {
@@ -158,8 +158,6 @@ public class GenerateGroundTruthBigANNBench {
                     groundTruthVector[i] = dataInputStream.readInt();
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
 
         return result;
