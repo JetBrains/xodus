@@ -226,13 +226,14 @@ final class BenchUtils {
         }
     }
 
-    public static float[][] readFBVectors(Path path, int vectorDimensions) throws IOException {
+    public static float[][] readFBVectors(Path path, int vectorDimensions, int size) throws IOException {
         try (var channel = FileChannel.open(path)) {
             var vectorBuffer = ByteBuffer.allocate(vectorDimensions + Integer.BYTES);
             vectorBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
             var vectorsCount =
-                    (int) (channel.size() / (vectorDimensions + Integer.BYTES));
+                    Math.min(size, (int) (channel.size() / (vectorDimensions + Integer.BYTES)));
+
 
             var vectors = new float[vectorsCount][];
 
