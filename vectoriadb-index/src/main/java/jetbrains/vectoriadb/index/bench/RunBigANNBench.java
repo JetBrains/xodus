@@ -141,27 +141,37 @@ public class RunBigANNBench {
 
     private static int[][] calculateGroundTruthVectors(float[][] vectors, float[][] queryVectors,
                                                        final DistanceFunction distanceFunction, int itemsPerElement) {
-        var queryResult = new float[queryVectors[0].length];
-        var vectorResult = new float[queryVectors[0].length];
-
-        var nearestVectors = new BoundedGreedyVertexPriorityQueue(itemsPerElement);
+        var cores = Runtime.getRuntime().availableProcessors();
+        int maxQueryVectorsPerThread = (queryVectors.length + cores - 1) / cores;
         var groundTruth = new int[vectors.length][itemsPerElement];
 
-        for (int i = 0; i < queryVectors.length; i++) {
-            var queryVector = distanceFunction.preProcess(queryVectors[i], queryResult);
-            nearestVectors.clear();
+        try (var executorService = java.util.concurrent.Executors.newFixedThreadPool(cores)) {
+            for (int n = 0; n < cores; n++) {
+                var start = n * maxQueryVectorsPerThread;
+                var end = Math.min((n + 1) * maxQueryVectorsPerThread, queryVectors.length);
 
-            for (int j = 0; j < vectors.length; j++) {
-                var vector = distanceFunction.preProcess(vectors[j], vectorResult);
-                var distance = distanceFunction.computeDistance(vector, 0, queryVector,
-                        0, vector.length);
-                nearestVectors.add(j, distance, false, false);
+                executorService.submit(() -> {
+                    var queryResult = new float[queryVectors[0].length];
+                    var vectorResult = new float[queryVectors[0].length];
+
+                    var nearestVectors = new BoundedGreedyVertexPriorityQueue(itemsPerElement);
+                    for (int i = start; i < end; i++) {
+                        var queryVector = distanceFunction.preProcess(queryVectors[i], queryResult);
+                        nearestVectors.clear();
+
+                        for (int j = 0; j < vectors.length; j++) {
+                            var vector = distanceFunction.preProcess(vectors[j], vectorResult);
+                            var distance = distanceFunction.computeDistance(vector, 0, queryVector,
+                                    0, vector.length);
+                            nearestVectors.add(j, distance, false, false);
+                        }
+
+                        nearestVectors.vertexIndices(groundTruth[i], itemsPerElement);
+                    }
+                });
             }
-
-            nearestVectors.vertexIndices(groundTruth[i], itemsPerElement);
         }
 
         return groundTruth;
     }
-
 }
