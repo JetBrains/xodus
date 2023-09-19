@@ -41,7 +41,7 @@ public class RunBigANNBench {
             BenchUtils.extractGzArchive(queryFilePath, queryArchivePath);
         }
 
-        var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath, vectorDimensions);
+        var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath, vectorDimensions, Integer.MAX_VALUE);
         var bigAnnDbDir = benchPath.resolve("vectoriadb-bigann_index");
         var bigAnnDBName = "test_bigann_index";
 
@@ -61,9 +61,7 @@ public class RunBigANNBench {
             BenchUtils.extractGzArchive(dataFilePath, baseArchivePath);
         }
 
-        var dataVectors = BenchUtils.readFBVectors(dataFilePath, vectorDimensions);
-
-
+        var dataVectors = BenchUtils.readFBVectors(dataFilePath, vectorDimensions, 1_000_000);
 
 
 //        var m1BenchPathProperty = System.getProperty("m1-bench.path");
