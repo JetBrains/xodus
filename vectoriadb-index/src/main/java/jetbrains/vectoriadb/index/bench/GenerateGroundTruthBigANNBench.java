@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class GenerateGroundTruthBigANNBench {
     public static final String GROUND_TRUTH_FILE = "ground-truth-1M.bin";
@@ -55,6 +56,7 @@ public class GenerateGroundTruthBigANNBench {
         var groundTruth = new int[bigAnnQueryVectors.length][NEIGHBOURS_COUNT];
         var distanceFunction = L2DistanceFunction.INSTANCE;
 
+        var progressCounter = new AtomicInteger(0);
         try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
             try (var executorService = Executors.newFixedThreadPool(cores)) {
                 for (int n = 0; n < cores; n++) {
@@ -117,8 +119,11 @@ public class GenerateGroundTruthBigANNBench {
                                     nearestVectors.vertexIndices(groundTruth[i], NEIGHBOURS_COUNT);
                                 }
 
-                                System.out.printf("Processed %dth query vector out of %d.%n",
-                                        i, bigAnnQueryVectors.length);
+                                var progress = progressCounter.incrementAndGet();
+                                if (start == 0) {
+                                    System.out.printf("Processed %dth query vector out of %d.%n",
+                                            progress, bigAnnQueryVectors.length);
+                                }
                             }
                         } catch (IOException e) {
                             throw new RuntimeException(e);
