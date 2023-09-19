@@ -510,10 +510,10 @@ class L2PQQuantizer extends AbstractQuantizer {
     public float computeDistanceUsingLookupTable(float[] lookupTable, int vectorIndex) {
         var distance = 0f;
 
-        var pqIndex = quantizersCount * vectorIndex;
-        for (int i = pqIndex; i < pqIndex + quantizersCount; i++) {
+        var pqIndex = (long) quantizersCount * vectorIndex;
+        for (long i = pqIndex; i < pqIndex + quantizersCount; i++) {
             var code = pqVectors.get(ValueLayout.JAVA_BYTE, i) & 0xFF;
-            distance += lookupTable[(i - pqIndex) * (1 << Byte.SIZE) + code];
+            distance += lookupTable[(int) ((i - pqIndex) * (1 << Byte.SIZE) + code)];
         }
 
         return distance;
@@ -524,10 +524,10 @@ class L2PQQuantizer extends AbstractQuantizer {
                                                       int vectorIndex3, int vectorIndex4, float[] result) {
         assert result.length == 4;
 
-        var pqIndex1 = quantizersCount * vectorIndex1;
-        var pqIndex2 = quantizersCount * vectorIndex2;
-        var pqIndex3 = quantizersCount * vectorIndex3;
-        var pqIndex4 = quantizersCount * vectorIndex4;
+        var pqIndex1 = (long) quantizersCount * vectorIndex1;
+        var pqIndex2 = (long) quantizersCount * vectorIndex2;
+        var pqIndex3 = (long) quantizersCount * vectorIndex3;
+        var pqIndex4 = (long) quantizersCount * vectorIndex4;
 
         var result1 = 0.0f;
         var result2 = 0.0f;
