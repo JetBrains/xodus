@@ -24,6 +24,7 @@ import jetbrains.vectoriadb.index.util.collections.BoundedGreedyVertexPriorityQu
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.lang.management.BufferPoolMXBean;
@@ -78,7 +79,7 @@ public final class IndexReader implements AutoCloseable {
 
         var pqFilePath = indexDirPath.resolve(name + ".data");
         var graphFilePath = indexDirPath.resolve(name + ".graph");
-        try (var pqInputStream = Files.newInputStream(pqFilePath, StandardOpenOption.READ)) {
+        try (var pqInputStream = new BufferedInputStream(Files.newInputStream(pqFilePath, StandardOpenOption.READ))) {
             try (var dataInputStream = new DataInputStream(pqInputStream)) {
                 medoid = dataInputStream.readInt();
                 dataInputStream.readInt();
