@@ -51,12 +51,14 @@ public class GenerateGroundTruthBigANNBench {
 
         var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath,
                 PrepareBigANNBench.VECTOR_DIMENSIONS, Integer.MAX_VALUE);
-        var threads = 8 * Runtime.getRuntime().availableProcessors();
+        var threads = Runtime.getRuntime().availableProcessors();
         int maxQueryVectorsPerThread = (bigAnnQueryVectors.length + threads - 1) / threads;
         var groundTruth = new int[bigAnnQueryVectors.length][NEIGHBOURS_COUNT];
         var distanceFunction = L2DistanceFunction.INSTANCE;
 
         var progressCounter = new AtomicInteger(0);
+        var progressReportedId = new AtomicInteger(-1);
+
         try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
             try (var executorService = Executors.newFixedThreadPool(threads)) {
                 for (int n = 0; n < threads; n++) {
@@ -67,7 +69,7 @@ public class GenerateGroundTruthBigANNBench {
                         try {
                             var buffer =
                                     ByteBuffer.allocate(
-                                            (64 * 1024 * 1024 / recordSize) * recordSize).order(ByteOrder.LITTLE_ENDIAN);
+                                            (8 * 64 * 1024 * 1024 / recordSize) * recordSize).order(ByteOrder.LITTLE_ENDIAN);
 
                             var queryResult = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];
                             var vectorResult = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];
@@ -78,6 +80,12 @@ public class GenerateGroundTruthBigANNBench {
                             for (int i = start; i < end; i++) {
                                 nearestVectors.clear();
                                 buffer.clear();
+
+                                while (progressReportedId.get() == -1) {
+                                    if (progressReportedId.compareAndSet(-1, start)) {
+                                        break;
+                                    }
+                                }
 
                                 while (buffer.remaining() > 0) {
                                     channel.read(buffer, buffer.position());
@@ -120,13 +128,15 @@ public class GenerateGroundTruthBigANNBench {
                                 nearestVectors.vertexIndices(groundTruth[i], NEIGHBOURS_COUNT);
 
                                 var progress = progressCounter.incrementAndGet();
-                                if (start == 0) {
-                                    System.out.printf("Processed %dth query vector out of %d.%n",
+                                if (start == progressReportedId.get()) {
+                                    System.out.printf("Processed %d query vectors out of %d.%n",
                                             progress, bigAnnQueryVectors.length);
                                 }
                             }
                         } catch (IOException e) {
                             throw new RuntimeException(e);
+                        } finally {
+                            progressReportedId.compareAndSet(start, -1);
                         }
                     });
                 }
