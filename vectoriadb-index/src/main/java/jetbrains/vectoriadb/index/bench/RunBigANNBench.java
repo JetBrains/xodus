@@ -34,8 +34,8 @@ public class RunBigANNBench {
 
         var queryArchiveName = "bigann_query.bvecs.gz";
         var queryArchivePath = BenchUtils.downloadBenchFile(benchPath, queryArchiveName);
-        if (!Files.exists(queryArchivePath) || Files.size(queryArchivePath) == 0) {
-            BenchUtils.extractGzArchive(benchPath, queryArchivePath);
+        if (!Files.exists(queryFilePath) || Files.size(queryFilePath) == 0) {
+            BenchUtils.extractGzArchive(queryFilePath, queryArchivePath);
         }
 
         var bigAnnQueryVectors = BenchUtils.readFBVectors(queryFilePath, vectorDimensions);
