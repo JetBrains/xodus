@@ -51,12 +51,13 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.SecureRandom;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings({"UnusedDeclaration", "ThisEscapedInObjectConstruction", "VolatileLongOrDoubleField",
         "ObjectAllocationInLoop", "ReuseOfLocalVariable", "rawtypes"})
 public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLog.Member {
+    private static final AtomicLong TMP_HANDLE_ID_GEN = new AtomicLong();
 
     private static final Logger logger = LoggerFactory.getLogger(PersistentEntityStoreImpl.class);
 
@@ -141,8 +142,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
     @NotNull
     private final Set<TableCreationOperation> tableCreationLog = new HashSet<>();
-
-    private final SecureRandom tmpHandleIdGen = new SecureRandom();
 
     @NotNull
     private final TxnProvider txnProvider = this::getAndCheckCurrentTransaction;
@@ -1395,7 +1394,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
 
         if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
-            final long tmpHandle = tmpHandleIdGen.nextLong();
+            final long tmpHandle = System.nanoTime() + TMP_HANDLE_ID_GEN.incrementAndGet();
 
             final Pair<Path, Long> tmpFilePair =
                     ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(tmpHandle,
@@ -1461,7 +1460,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
             if (!isEmptyOrInPlaceBlobHandle(blobHandle)) {
                 setBlobFileLength(txn, blobHandle, copy.size());
-                final long tmpHandle = tmpHandleIdGen.nextLong();
+                final long tmpHandle = System.nanoTime() + TMP_HANDLE_ID_GEN.incrementAndGet();
                 final Pair<Path, Long> tmpStream =
                         ((DiskBasedBlobVault) blobVault).copyToTemporaryStore(tmpHandle, copy, txn);
 
