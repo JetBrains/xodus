@@ -93,8 +93,8 @@ tasks {
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server",
-            "-Xmx16g",
-            "-XX:MaxDirectMemorySize=110g",
+            "-Xmx512m",
+            "-XX:MaxDirectMemorySize=125g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",

@@ -43,39 +43,40 @@ public class RunBigANNBench {
             BenchUtils.extractGzArchive(dataFilePath, baseArchivePath);
         }
 
-//        var m1BenchPathProperty = System.getProperty("m1-bench.path");
-//        var m1BenchPath = Path.of(Objects.requireNonNullElse(m1BenchPathProperty, "."));
-//        var m1BenchDbDir = m1BenchPath.resolve("vectoriadb-bench");
-//
-//        var m1BenchSiftsBaseDir = m1BenchPath.resolve("sift");
-//        var m1QueryFile = m1BenchSiftsBaseDir.resolve("sift_query.fvecs");
-//        var m1QueryVectors = BenchUtils.readFVectors(m1QueryFile, PrepareBigANNBench.VECTOR_DIMENSIONS);
-//
-//        try (var indexReader = new IndexReader("test_index", PrepareBigANNBench.VECTOR_DIMENSIONS,
-//                m1BenchDbDir, 110L * 1024 * 1024 * 1024, Distance.L2)) {
-//            System.out.println("Reading queries for Sift1M bench...");
-//
-//            System.out.println(m1QueryVectors.length + " queries for Sift1M bench are read");
-//
-//            System.out.println("Warming up ...");
-//
-//            var result = new int[1];
-//            for (int i = 0; i < 50; i++) {
-//                for (float[] vector : m1QueryVectors) {
-//                    indexReader.nearest(vector, result, 1);
-//                }
-//            }
-//        }
-//        System.out.println("Warm up done.");
+        var m1BenchPathProperty = System.getProperty("m1-bench.path");
+        var m1BenchPath = Path.of(Objects.requireNonNullElse(m1BenchPathProperty, "."));
+        var m1BenchDbDir = m1BenchPath.resolve("vectoriadb-bench");
+
+        var m1BenchSiftsBaseDir = m1BenchPath.resolve("sift");
+        var m1QueryFile = m1BenchSiftsBaseDir.resolve("sift_query.fvecs");
+        var m1QueryVectors = BenchUtils.readFVectors(m1QueryFile, PrepareBigANNBench.VECTOR_DIMENSIONS);
+
+        try (var indexReader = new IndexReader("test_index", PrepareBigANNBench.VECTOR_DIMENSIONS,
+                m1BenchDbDir, 110L * 1024 * 1024 * 1024, Distance.L2)) {
+            System.out.println("Reading queries for Sift1M bench...");
+
+            System.out.println(m1QueryVectors.length + " queries for Sift1M bench are read");
+
+            System.out.println("Warming up ...");
+
+            var result = new int[1];
+            for (int i = 0; i < 50; i++) {
+                for (float[] vector : m1QueryVectors) {
+                    indexReader.nearest(vector, result, 1);
+                }
+            }
+        }
+        System.out.println("Warm up done.");
 
         var recallCount = 5;
         var totalRecall = 0.0;
         var totalTime = 0L;
 
-        System.out.println("Running BigANN bench...");
+        System.out.println("Loading BigANN index...");
         try (var indexReader = new IndexReader(PrepareBigANNBench.INDEX_NAME, PrepareBigANNBench.VECTOR_DIMENSIONS,
-                bigAnnDbDir, 110L * 1024 * 1024 * 1024, Distance.L2)) {
+                bigAnnDbDir, 4L * 1024 * 1024 * 1024, Distance.L2)) {
 
+            System.out.println("Running BigANN bench...");
             var result = new int[recallCount];
             var start = System.nanoTime();
             for (int i = 0; i < bigAnnQueryVectors.length; i++) {
