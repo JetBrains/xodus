@@ -71,7 +71,8 @@ public class GenerateGroundTruthBigANNBench {
                         try {
                             var buffer =
                                     ByteBuffer.allocate(
-                                            (8 * 64 * 1024 * 1024 / recordSize) * recordSize).order(ByteOrder.LITTLE_ENDIAN);
+                                            (1024 * 1024 * 1024 / recordSize) * recordSize)
+                                            .order(ByteOrder.LITTLE_ENDIAN);
 
                             var queryResult = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];
                             var vectorResult = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];
@@ -81,7 +82,7 @@ public class GenerateGroundTruthBigANNBench {
 
                             for (int i = start; i < end; i++) {
                                 nearestVectors.clear();
-                                buffer.clear();
+                                buffer.rewind();
 
                                 while (progressReportedId.get() == -1) {
                                     if (progressReportedId.compareAndSet(-1, start)) {
@@ -106,7 +107,7 @@ public class GenerateGroundTruthBigANNBench {
                                             }
                                         }
 
-                                        buffer.clear();
+                                        buffer.rewind();
                                     }
 
                                     var dimensions = buffer.getInt();
