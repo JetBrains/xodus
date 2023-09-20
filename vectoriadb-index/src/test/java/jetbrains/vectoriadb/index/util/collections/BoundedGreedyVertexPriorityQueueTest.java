@@ -266,7 +266,11 @@ public class BoundedGreedyVertexPriorityQueueTest {
         for (var index : indexes) {
             var distance = queue.vertexDistance(index);
             var vertexIndex = queue.vertexIndex(index);
-            var newDistance = 10 * rnd.nextFloat();
+
+            float newDistance;
+            do {
+                newDistance = 10 * rnd.nextFloat();
+            } while (newDistance == distance);
 
             queue.resortVertex(index, newDistance);
 

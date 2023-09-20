@@ -38,6 +38,7 @@ dependencyResolutionManagement {
             version("errorprone", "2.21.1")
             version("grpc", "1.58.0")
             version("protobuf", "3.24.3")
+            version("javax-annotation", "1.3.2")
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
@@ -88,7 +89,16 @@ dependencyResolutionManagement {
             ).versionRef("errorprone")
 
             library("protobuf-protoc", "com.google.protobuf", "protoc").versionRef("protobuf")
-            library("grpc-java", "io.grpc", "grpc-java").versionRef("grpc")
+            library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
+
+            library("grpc-java", "io.grpc", "protoc-gen-grpc-java").versionRef("grpc")
+            library("grpc-stub", "io.grpc", "grpc-stub").versionRef("grpc")
+            library("grpc-protobuf", "io.grpc", "grpc-protobuf").versionRef("grpc")
+
+            library(
+                "javax-annotation-api", "javax.annotation",
+                "javax.annotation-api"
+            ).versionRef("javax-annotation")
         }
     }
 }

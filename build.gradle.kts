@@ -99,6 +99,7 @@ subprojects {
         include("**/*.kt")
         include("**/*.java")
         exclude("**/jetbrains/exodus/diskann/diskcache/**")
+        exclude("**/vectoriadb/service/base/**")
         mapping(
             mapOf(
                 "kt" to "SLASHSTAR_STYLE",
