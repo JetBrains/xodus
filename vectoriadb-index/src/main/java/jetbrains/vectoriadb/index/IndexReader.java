@@ -68,7 +68,7 @@ public final class IndexReader implements AutoCloseable {
                         "vertices count per page {}",
                 DiskCache.DISK_BLOCK_SIZE, pageStructure.pageSize(), pageStructure.vertexRecordSize(),
                 pageStructure.verticesCountPerPage());
-        logger.info("Vector index {} has been initialized. Vector lane count for distance calculation " +
+        logger.info("Vector index {}: vector lane count for distance calculation " +
                 "is {}", name, FloatVector.SPECIES_PREFERRED.length());
 
 
@@ -113,7 +113,10 @@ public final class IndexReader implements AutoCloseable {
 
         assert directMemoryPool != null;
 
-        this.diskCache = new DiskCache(directMemoryConsumption - directMemoryPool.getMemoryUsed(), vectorDim, maxConnectionsPerVertex, graphFilePath);
+        this.diskCache = new DiskCache(directMemoryConsumption - directMemoryPool.getMemoryUsed(),
+                vectorDim, maxConnectionsPerVertex, graphFilePath);
+
+        logger.info("Vector index {} has been initialized.", name);
     }
 
     public void nearest(float[] vector, int[] result, int resultSize) {
