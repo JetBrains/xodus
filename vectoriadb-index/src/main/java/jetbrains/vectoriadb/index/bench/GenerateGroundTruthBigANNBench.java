@@ -59,6 +59,8 @@ public class GenerateGroundTruthBigANNBench {
         var progressCounter = new AtomicInteger(0);
         var progressReportedId = new AtomicInteger(-1);
 
+        System.out.printf("Generating ground truth for %d vectors and %d query vectors using %d threads...%n",
+                PrepareBigANNBench.VECTORS_COUNT, bigAnnQueryVectors.length, threads);
         try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
             try (var executorService = Executors.newFixedThreadPool(threads)) {
                 for (int n = 0; n < threads; n++) {
