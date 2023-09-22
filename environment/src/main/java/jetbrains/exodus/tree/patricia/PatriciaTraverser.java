@@ -24,8 +24,11 @@ import jetbrains.exodus.tree.TreeTraverser;
 import jetbrains.exodus.util.LightOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class PatriciaTraverser implements TreeTraverser {
+    private static final Logger logger = LoggerFactory.getLogger(PatriciaTraverser.class);
 
     private static final int INITIAL_STACK_CAPACITY = 8;
 
@@ -67,11 +70,29 @@ class PatriciaTraverser implements TreeTraverser {
     @Override
     @NotNull
     public INode moveDown() {
-        stack = pushIterator(stack, currentIterator, top);
-        setCurrentNode(currentChild.getNode(tree));
-        getItr();
-        ++top;
-        return currentNode;
+        try {
+            stack = pushIterator(stack, currentIterator, top);
+            setCurrentNode(currentChild.getNode(tree));
+            getItr();
+            ++top;
+
+            return currentNode;
+        } catch (Exception e) {
+            StringBuilder builder = new StringBuilder();
+            builder.append("Error during patricia tree traversal. Traversal stack:");
+            builder.append(tree.getRootAddress()).append("\n");
+            for (int i = 0; i < top; ++i) {
+                var node  = stack[i].getNode();
+                if (node == null) {
+                    break;
+                }
+
+                builder.append("  ").append(node.suffixAddress).append("\n");
+            }
+            builder.append("\n");
+
+            throw new RuntimeException(builder.toString(), e);
+        }
     }
 
     @Override
@@ -259,7 +280,7 @@ class PatriciaTraverser implements TreeTraverser {
             if (NodeBase.MatchResult.getMatchingLength(matchResult) < 0) {
                 if (value == null) {
                     smaller = NodeBase.MatchResult.hasNext(matchResult) && (!hasNext ||
-                        NodeBase.MatchResult.getKeyByte(matchResult) < NodeBase.MatchResult.getNextByte(matchResult));
+                            NodeBase.MatchResult.getKeyByte(matchResult) < NodeBase.MatchResult.getNextByte(matchResult));
                     dive = !smaller;
                     break;
                 }
