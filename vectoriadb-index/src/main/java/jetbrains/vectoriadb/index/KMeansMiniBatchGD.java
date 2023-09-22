@@ -20,6 +20,7 @@ import jdk.incubator.vector.VectorSpecies;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -115,7 +116,7 @@ final class KMeansMiniBatchGD {
     }
 
     void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize,
-                   ProgressTracker progressTracker) {
+                   @NotNull ProgressTracker progressTracker) {
         if ((minBatchSize & 3) != 0) {
             throw new IllegalArgumentException("Batch size must be a multiple of 3");
         }
@@ -188,7 +189,9 @@ final class KMeansMiniBatchGD {
                     assert currentIndex <= vectorReader.size();
                 }
 
-                progressTracker.progress((currentIndex * 100.0) / size);
+                if (progressTracker.isProgressUpdatedRequired()) {
+                    progressTracker.progress((currentIndex * 100.0) / size);
+                }
             } while (currentIndex < size);
         }
     }

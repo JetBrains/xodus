@@ -16,6 +16,7 @@
 package jetbrains.vectoriadb.index;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -28,12 +29,14 @@ public interface Quantizer extends AutoCloseable {
 
     float[] decodeVector(byte[] vectors, int vectorIndex);
 
-    IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction, ProgressTracker progressTracker);
+    IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction,
+                                            @NotNull ProgressTracker progressTracker);
 
-    float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction, ProgressTracker progressTracker);
+    float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction,
+                                 @NotNull ProgressTracker progressTracker);
 
     void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader,
-                         ProgressTracker progressTracker);
+                         @NotNull ProgressTracker progressTracker);
 
     float computeDistanceUsingLookupTable(float[] lookupTable, int vectorIndex);
 

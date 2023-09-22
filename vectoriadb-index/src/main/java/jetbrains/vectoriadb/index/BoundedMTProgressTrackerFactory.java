@@ -15,6 +15,8 @@
  */
 package jetbrains.vectoriadb.index;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class BoundedMTProgressTrackerFactory {
@@ -23,7 +25,7 @@ public class BoundedMTProgressTrackerFactory {
 
     private final ProgressTracker progressTracker;
 
-    public BoundedMTProgressTrackerFactory(int numThreads, ProgressTracker progressTracker) {
+    public BoundedMTProgressTrackerFactory(int numThreads, @NotNull ProgressTracker progressTracker) {
         this.progressPerThread = new double[numThreads];
         this.progressTracker = progressTracker;
     }
@@ -66,7 +68,7 @@ public class BoundedMTProgressTrackerFactory {
 
         @Override
         public boolean isProgressUpdatedRequired() {
-            return progressTracker.isProgressUpdatedRequired();
+            return true;
         }
 
         @Override

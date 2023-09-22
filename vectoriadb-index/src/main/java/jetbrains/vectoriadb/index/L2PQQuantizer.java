@@ -17,6 +17,7 @@ package jetbrains.vectoriadb.index;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.apache.commons.rng.simple.RandomSource;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -52,7 +53,7 @@ class L2PQQuantizer extends AbstractQuantizer {
 
     @Override
     public void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader,
-                                ProgressTracker progressTracker) {
+                                @NotNull ProgressTracker progressTracker) {
         if (compressionRatio % Float.BYTES != 0) {
             throw new IllegalArgumentException(
                     "Vector should be divided during creation of PQ codes without remainder.");
@@ -199,7 +200,7 @@ class L2PQQuantizer extends AbstractQuantizer {
 
     @Override
     public IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction,
-                                                   ProgressTracker progressTracker) {
+                                                   @NotNull ProgressTracker progressTracker) {
         progressTracker.pushPhase("split vectors by partitions",
                 "partitions count", String.valueOf(numClusters));
         try {
@@ -226,7 +227,9 @@ class L2PQQuantizer extends AbstractQuantizer {
                     vectorsByPartitions[secondPartition].add(i);
                 }
 
-                progressTracker.progress(i * 100.0 / vectorsCount);
+                if (progressTracker.isProgressUpdatedRequired()) {
+                    progressTracker.progress(i * 100.0 / vectorsCount);
+                }
             }
 
             return vectorsByPartitions;
@@ -237,7 +240,7 @@ class L2PQQuantizer extends AbstractQuantizer {
 
     @Override
     public float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction,
-                                        ProgressTracker progressTracker) {
+                                        @NotNull ProgressTracker progressTracker) {
         progressTracker.pushPhase("calculate centroids");
         try {
             var numVectors = (int) (pqVectors.byteSize() / quantizersCount);
@@ -259,7 +262,7 @@ class L2PQQuantizer extends AbstractQuantizer {
 
     private void calculateClusters(int numClusters, int iterations, long numVectors,
                                    byte[] pqCentroids,
-                                   float[] distanceTables, ProgressTracker progressTracker) {
+                                   float[] distanceTables, @NotNull ProgressTracker progressTracker) {
         var cores = (int) Math.min(Runtime.getRuntime().availableProcessors(), numVectors);
         progressTracker.pushPhase("PQ k-means clustering",
                 "max iterations", String.valueOf(iterations),
@@ -371,7 +374,9 @@ class L2PQQuantizer extends AbstractQuantizer {
                                     centroidIndex++;
                                 }
 
-                                progressTracker.progress(k * 100.0 / numClusters);
+                                if (progressTracker.isProgressUpdatedRequired()) {
+                                    progressTracker.progress(k * 100.0 / numClusters);
+                                }
                             }
 
                             if (!assignedDifferently) {
@@ -385,6 +390,8 @@ class L2PQQuantizer extends AbstractQuantizer {
                     }
                 }
             }
+        } finally {
+            progressTracker.pullPhase();
         }
     }
 
@@ -392,7 +399,7 @@ class L2PQQuantizer extends AbstractQuantizer {
                                   final MemorySegment clusters,
                                   final int quantizersCount,
                                   final int codeBaseSize,
-                                  final int[] histogram, ProgressTracker progressTracker) {
+                                  final int[] histogram, @NotNull ProgressTracker progressTracker) {
         Arrays.fill(histogram, 0);
 
         var numCodes = pqVectors.byteSize();

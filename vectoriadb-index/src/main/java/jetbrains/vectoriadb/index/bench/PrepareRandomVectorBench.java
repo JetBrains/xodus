@@ -19,6 +19,7 @@ import it.unimi.dsi.fastutil.ints.IntFloatImmutablePair;
 import jetbrains.vectoriadb.index.Distance;
 import jetbrains.vectoriadb.index.DotDistanceFunction;
 import jetbrains.vectoriadb.index.IndexBuilder;
+import jetbrains.vectoriadb.index.Slf4jPeriodicProgressTracker;
 import jetbrains.vectoriadb.index.VectorReader;
 
 import java.io.IOException;
@@ -69,7 +70,8 @@ public final class PrepareRandomVectorBench {
         System.out.println("Building index...");
 
         IndexBuilder.buildIndex("random_index", vectorDimensions, dbPath, dataPath,
-                60L * 1024 * 1024 * 1024, Distance.DOT, null);
+                60L * 1024 * 1024 * 1024, Distance.DOT,
+                new Slf4jPeriodicProgressTracker(5));
 
         System.out.println("Done.");
     }

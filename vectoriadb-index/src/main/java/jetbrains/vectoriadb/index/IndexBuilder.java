@@ -87,7 +87,7 @@ public final class IndexBuilder {
             progressTracker = new NoOpProgressTracker();
         }
 
-        progressTracker.pushPhase("Index building");
+        progressTracker.pushPhase("index building");
         try {
             var pageStructure = DiskCache.createPageStructure(vectorsDimension, maxConnectionsPerVertex);
 
@@ -251,10 +251,12 @@ public final class IndexBuilder {
                         var graphs = new MMapedGraph[partitions];
                         var verticesProcessed = 0L;
 
-                        progressTracker.pushPhase("Building search graph partitions");
+                        progressTracker.pushPhase("building search graph partitions");
                         try {
                             for (int i = 0; i < partitions; i++) {
-                                progressTracker.progress((double) verticesProcessed / totalPartitionsSize);
+                                if (progressTracker.isProgressUpdatedRequired()) {
+                                    progressTracker.progress((double) 100 * verticesProcessed / totalPartitionsSize);
+                                }
 
                                 var partition = dmPartitions[i];
                                 var partitionSize = (int) partition.byteSize() / Integer.BYTES;
@@ -262,7 +264,7 @@ public final class IndexBuilder {
                                 var graph = new MMapedGraph(partitionSize, i, name, indexDirectoryPath, maxConnectionsPerVertex,
                                         vectorsDimension, distanceFunction, maxAmountOfCandidates, pageSize,
                                         vertexRecordSize, recordVectorsOffset, diskCache);
-                                progressTracker.pushPhase("Building search graph for partition " + i,
+                                progressTracker.pushPhase("building search graph for partition " + i,
                                         "partition size", String.valueOf(partitionSize));
                                 try {
                                     for (int j = 0; j < partitionSize; j++) {
@@ -282,27 +284,23 @@ public final class IndexBuilder {
                                     progressTracker.pullPhase();
                                 }
 
-                                progressTracker.pushPhase("Generation of random edges for partition " + i);
+                                progressTracker.pushPhase("generation of random edges for partition " + i);
                                 try {
-                                    graph.generateRandomEdges();
+                                    graph.generateRandomEdges(progressTracker);
                                 } finally {
                                     progressTracker.pullPhase();
                                 }
 
-                                progressTracker.pushPhase("Pruning search graph for partition " + i);
+                                progressTracker.pushPhase("pruning search graph for partition " + i);
                                 try {
-                                    var startPrune = System.nanoTime();
                                     pruneIndex(graph, graph.medoid(), distanceMultiplication, vectorMutationThreads,
-                                            i, maxConnectionsPerVertex, maxAmountOfCandidates, progressTracker);
-                                    var endPrune = System.nanoTime();
-                                    logger.info("Search graph for partition {} has been pruned. Time spent {} ms.",
-                                            i, (endPrune - startPrune) / 1_000_000.0);
+                                            maxConnectionsPerVertex, maxAmountOfCandidates, progressTracker);
                                 } finally {
                                     progressTracker.pullPhase();
                                 }
 
-                                progressTracker.pushPhase("saving vectors of search graph for partition " + i,
-                                        "file path", graphFilePath.toAbsolutePath().toString());
+                                progressTracker.
+                                        pushPhase("saving vectors of search graph for partition " + i);
                                 try {
                                     graph.sortVertexesByGlobalIndex();
                                     graph.saveVectorsToDisk();
@@ -537,8 +535,8 @@ public final class IndexBuilder {
 
     private static void pruneIndex(MMapedGraph graph, int medoid, float distanceMultiplication,
                                    final ArrayList<ExecutorService> vectorMutationThreads,
-                                   int partitionId, int maxConnectionsPerVertex, int maxAmountOfCandidates,
-                                   ProgressTracker progressTracker) {
+                                   int maxConnectionsPerVertex, int maxAmountOfCandidates,
+                                   @NotNull ProgressTracker progressTracker) {
         int size = graph.size;
         if (size == 0) {
             return;
@@ -551,114 +549,99 @@ public final class IndexBuilder {
             for (int i = 0; i < size; i++) {
                 vectorIndexes.setAtIndex(ValueLayout.JAVA_INT, i, i);
             }
+
             permuteIndexes(vectorIndexes, rng, size);
 
-            if (logger.isInfoEnabled()) {
-                logger.info("Graph pruning started with distance multiplication " + distanceMultiplication + ".");
-            }
-
             var mutatorFutures = new ArrayList<Future<?>>();
-
             var mutatorsCompleted = new AtomicInteger(0);
             var mutatorsCount = Math.min(vectorMutationThreads.size(), size);
-
             var neighborsArray = new ConcurrentLinkedQueue[mutatorsCount];
-
 
             for (int i = 0; i < mutatorsCount; i++) {
                 //noinspection rawtypes
                 neighborsArray[i] = new ConcurrentLinkedQueue();
             }
 
+            var mtProgressTracker = new BoundedMTProgressTrackerFactory(mutatorsCount, progressTracker);
             for (var i = 0; i < mutatorsCount; i++) {
                 var mutator = vectorMutationThreads.get(i);
 
                 var mutatorId = i;
                 var mutatorFuture = mutator.submit(() -> {
-                    var index = 0;
-                    var visitedVertices = new IntOpenHashSet(8 * 1024, Hash.VERY_FAST_LOAD_FACTOR);
-                    var nearestCandidates = new BoundedGreedyVertexPriorityQueue(maxAmountOfCandidates);
-                    while (true) {
-                        @SuppressWarnings("unchecked")
-                        var neighbourPairs = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
+                    try (var localProgressTracker = mtProgressTracker.createThreadLocalTracker(mutatorId)) {
+                        var index = 0;
+                        var visitedVertices = new IntOpenHashSet(8 * 1024, Hash.VERY_FAST_LOAD_FACTOR);
+                        var nearestCandidates = new BoundedGreedyVertexPriorityQueue(maxAmountOfCandidates);
+                        while (true) {
+                            @SuppressWarnings("unchecked")
+                            var neighbourPairs = (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[mutatorId];
 
-                        if (!neighbourPairs.isEmpty()) {
-                            var neighbourPair = neighbourPairs.poll();
-                            do {
-                                var vertexIndex = neighbourPair.leftInt();
-                                var neighbourIndex = neighbourPair.rightInt();
-                                var neighbours = graph.fetchNeighbours(vertexIndex);
+                            if (!neighbourPairs.isEmpty()) {
+                                var neighbourPair = neighbourPairs.poll();
+                                do {
+                                    var vertexIndex = neighbourPair.leftInt();
+                                    var neighbourIndex = neighbourPair.rightInt();
+                                    var neighbours = graph.fetchNeighbours(vertexIndex);
 
-                                if (!ArrayUtils.contains(neighbours, vertexIndex)) {
-                                    if (graph.getNeighboursSize(vertexIndex) + 1 <= maxConnectionsPerVertex) {
-                                        graph.acquireVertex(vertexIndex);
-                                        try {
-                                            graph.appendNeighbour(vertexIndex, neighbourIndex);
-                                        } finally {
-                                            graph.releaseVertex(vertexIndex);
+                                    if (!ArrayUtils.contains(neighbours, vertexIndex)) {
+                                        if (graph.getNeighboursSize(vertexIndex) + 1 <= maxConnectionsPerVertex) {
+                                            graph.acquireVertex(vertexIndex);
+                                            try {
+                                                graph.appendNeighbour(vertexIndex, neighbourIndex);
+                                            } finally {
+                                                graph.releaseVertex(vertexIndex);
+                                            }
+                                        } else {
+                                            var neighbourSingleton = new Int2FloatOpenHashMap(1);
+                                            neighbourSingleton.put(neighbourIndex, Float.NaN);
+                                            graph.robustPrune(
+                                                    vertexIndex,
+                                                    neighbourSingleton,
+                                                    distanceMultiplication
+                                            );
                                         }
-                                    } else {
-                                        var neighbourSingleton = new Int2FloatOpenHashMap(1);
-                                        neighbourSingleton.put(neighbourIndex, Float.NaN);
-                                        graph.robustPrune(
-                                                vertexIndex,
-                                                neighbourSingleton,
-                                                distanceMultiplication
-                                        );
                                     }
-                                }
-                                neighbourPair = neighbourPairs.poll();
-                            } while (neighbourPair != null);
-                        } else if (mutatorsCompleted.get() == mutatorsCount) {
-                            break;
-                        }
+                                    neighbourPair = neighbourPairs.poll();
+                                } while (neighbourPair != null);
+                            } else if (mutatorsCompleted.get() == mutatorsCount) {
+                                break;
+                            }
 
-                        if (index < size) {
-                            var vectorIndex = vectorIndexes.getAtIndex(ValueLayout.JAVA_INT, index);
-                            if (vectorIndex % mutatorsCount != mutatorId) {
+                            if (index < size) {
+                                var vectorIndex = vectorIndexes.getAtIndex(ValueLayout.JAVA_INT, index);
+                                if (vectorIndex % mutatorsCount != mutatorId) {
+                                    index++;
+                                    localProgressTracker.progress((index * 100.0) / size);
+
+                                    continue;
+                                }
+
+                                graph.greedySearchPrune(medoid, vectorIndex, visitedVertices, nearestCandidates,
+                                        distanceMultiplication);
+
+                                var neighbourNeighbours = graph.fetchNeighbours(vectorIndex);
+                                assert vectorIndex % mutatorsCount == mutatorId;
+
+                                for (var neighbourIndex : neighbourNeighbours) {
+                                    var neighbourMutatorIndex = neighbourIndex % mutatorsCount;
+
+                                    @SuppressWarnings("unchecked")
+                                    var neighboursList =
+                                            (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
+                                    neighboursList.add(new IntIntImmutablePair(neighbourIndex, vectorIndex));
+                                }
+
                                 index++;
-
-                                if ((index & (1024 * 1024 - 1)) == 0) {
-                                    logger.info("Graph pruning, partition {}: Thread # {}, {}% vertices were processed.",
-                                            partitionId, mutatorId,
-                                            (index * 100.0) / size);
-                                }
-
-                                continue;
+                                localProgressTracker.progress((index * 100.0) / size);
+                            } else if (index == size) {
+                                index = Integer.MAX_VALUE;
+                                mutatorsCompleted.incrementAndGet();
                             }
 
-                            graph.greedySearchPrune(medoid, vectorIndex, visitedVertices, nearestCandidates,
-                                    distanceMultiplication);
 
-                            var neighbourNeighbours = graph.fetchNeighbours(vectorIndex);
-                            assert vectorIndex % mutatorsCount == mutatorId;
-
-                            for (var neighbourIndex : neighbourNeighbours) {
-                                var neighbourMutatorIndex = neighbourIndex % mutatorsCount;
-
-                                @SuppressWarnings("unchecked")
-                                var neighboursList =
-                                        (ConcurrentLinkedQueue<IntIntImmutablePair>) neighborsArray[neighbourMutatorIndex];
-                                neighboursList.add(new IntIntImmutablePair(neighbourIndex, vectorIndex));
-                            }
-
-                            index++;
-
-                            if ((index & (1024 * 1024 - 1)) == 0) {
-                                logger.info("Graph pruning, partition {}: Thread # {}, {}% vertices were processed.",
-                                        partitionId, mutatorId,
-                                        (index * 100.0) / size);
-                            }
-                        } else if (index == size) {
-                            index = Integer.MAX_VALUE;
-                            mutatorsCompleted.incrementAndGet();
                         }
-
-
+                        return null;
                     }
-
-                    logger.info("Graph pruning, partition {}: Thread # {} has completed.", partitionId, mutatorId);
-                    return null;
                 });
                 mutatorFutures.add(mutatorFuture);
             }
@@ -670,10 +653,6 @@ public final class IndexBuilder {
                     throw new RuntimeException(e);
                 }
             }
-        }
-
-        if (logger.isInfoEnabled()) {
-            logger.info("Graph pruning: " + size + " vertices were processed.");
         }
     }
 
@@ -692,11 +671,7 @@ public final class IndexBuilder {
 
     private static MemorySegment initFile(Path path, int globalVertexCount, int verticesPerPage,
                                           int pageSize, Arena arena) throws IOException {
-        logger.info("Creating file {} for storing search graph...", path);
         var fileLength = calculateRequestedFileLength(globalVertexCount, pageSize, verticesPerPage);
-        logger.info("Vertices to be stored {}, vertices per page {}, page size {}, file length {}",
-                globalVertexCount, verticesPerPage, pageSize, fileLength);
-
         MemorySegment diskCache;
         try (var rwFile = new RandomAccessFile(path.toFile(), "rw")) {
             rwFile.setLength(fileLength);
@@ -704,7 +679,6 @@ public final class IndexBuilder {
             var channel = rwFile.getChannel();
             diskCache = channel.map(FileChannel.MapMode.READ_WRITE, 0, fileLength, arena.scope());
         }
-        logger.info("File {} for storing search graph has been created.", path);
 
         return diskCache;
     }
@@ -808,16 +782,13 @@ public final class IndexBuilder {
 
 
             var edgesPath = edgesPath(id, name, path, filesTs);
-            logger.info("Partition {}, edges are going to be stored in file: {}", id, edgesPath);
-
-            try (var edgesChannel = FileChannel.open(edgesPath(id, name, path, filesTs),
-                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
+            try (var edgesChannel = FileChannel.open(edgesPath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE,
+                    StandardOpenOption.READ)) {
                 this.edges = edgesChannel.map(FileChannel.MapMode.READ_WRITE, 0, edgesLayout.byteSize(),
                         edgesArena.scope());
             }
 
             var globalIndexesPath = globalIndexesPath(id, name, path, filesTs);
-            logger.info("Partition {}, global indexes are going to be stored in file: {}", id, globalIndexesPath);
 
             try (var globalIndexesChannel = FileChannel.open(globalIndexesPath,
                     StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
@@ -1264,7 +1235,7 @@ public final class IndexBuilder {
         }
 
 
-        private void generateRandomEdges() {
+        private void generateRandomEdges(ProgressTracker progressTracker) {
             if (size == 1) {
                 return;
             }
@@ -1302,10 +1273,7 @@ public final class IndexBuilder {
                         addedEdges++;
                     }
 
-                    if ((i & (1024 * 1024 - 1)) == 0) {
-                        logger.info("Random graph generation: {} vertices out of {} ({}%) were processed.", i, size,
-                                (i * 100.0) / size);
-                    }
+                    progressTracker.progress((i * 100.0) / size);
                 }
             }
 
@@ -1532,10 +1500,7 @@ public final class IndexBuilder {
             var globalIndexesPath = globalIndexesPath(id, name, path, filesTs);
 
             Files.delete(edgesPath);
-            logger.info("File {} is deleted", edgesPath);
-
             Files.delete(globalIndexesPath);
-            logger.info("File {} is deleted", globalIndexesPath);
         }
     }
 

@@ -20,6 +20,7 @@ import jetbrains.vectoriadb.index.IndexBuilder;
 import jetbrains.vectoriadb.index.DataStore;
 import jetbrains.vectoriadb.index.IndexReader;
 import jetbrains.vectoriadb.index.L2DistanceFunction;
+import jetbrains.vectoriadb.index.Slf4jPeriodicProgressTracker;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.utils.IOUtils;
@@ -66,7 +67,7 @@ final class BenchUtils {
 
         IndexBuilder.buildIndex("test_index", 128,
                 dbDir, dataLocation, 60L * 1024 * 1024 * 1024,
-                Distance.L2, null);
+                Distance.L2, new Slf4jPeriodicProgressTracker(5));
 
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
