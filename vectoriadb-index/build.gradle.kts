@@ -93,7 +93,7 @@ tasks {
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server",
-            "-Xmx1024m",
+            "-Xmx2048m",
             "-XX:MaxDirectMemorySize=125g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
