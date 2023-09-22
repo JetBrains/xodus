@@ -65,7 +65,7 @@ public class DiskANNTest {
         }
 
         IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
-                4 * 1024 * 1024, Distance.L2);
+                4 * 1024 * 1024, Distance.L2, null);
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
@@ -131,7 +131,7 @@ public class DiskANNTest {
         }
 
         IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
-                4 * 1024 * 1024, Distance.DOT);
+                4 * 1024 * 1024, Distance.DOT, null);
 
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
@@ -200,7 +200,7 @@ public class DiskANNTest {
         }
 
         IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
-                4 * 1024 * 1024, Distance.COSINE);
+                4 * 1024 * 1024, Distance.COSINE, null);
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
@@ -354,7 +354,7 @@ public class DiskANNTest {
             dataLocation = dataBuilder.dataLocation();
         }
         IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
-                4 * 1024 * 1024, Distance.L2);
+                4 * 1024 * 1024, Distance.L2, null);
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 

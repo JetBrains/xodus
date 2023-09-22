@@ -73,6 +73,7 @@ public class GenerateGroundTruthBigANNBench {
 
         var progressCounter = new AtomicInteger(0);
         var progressReportedId = new AtomicInteger(-1);
+        var maxBufferSize = (Integer.MAX_VALUE / recordSize) * recordSize;
 
         System.out.printf("Generating ground truth for %d vectors and %d query vectors using %d threads...%n",
                 PrepareBigANNBench.VECTORS_COUNT, bigAnnQueryVectors.length, threads);
@@ -84,10 +85,7 @@ public class GenerateGroundTruthBigANNBench {
 
                     executorService.submit(() -> {
                         try {
-                            var buffer =
-                                    ByteBuffer.allocate(
-                                            (1024 * 1024 * 1024 / recordSize) * recordSize)
-                                            .order(ByteOrder.LITTLE_ENDIAN);
+                            var buffer = ByteBuffer.allocate(maxBufferSize).order(ByteOrder.LITTLE_ENDIAN);
 
                             var queryResult = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];
                             var vectorResult = new float[PrepareBigANNBench.VECTOR_DIMENSIONS];

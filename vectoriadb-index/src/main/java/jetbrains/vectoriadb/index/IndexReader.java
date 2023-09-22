@@ -48,7 +48,9 @@ public final class IndexReader implements AutoCloseable {
 
     public IndexReader(String name, int vectorDim, Path indexDirPath, long directMemoryConsumption,
                        Distance distance) throws IOException {
-        this(name, vectorDim, 64, 256, 32, indexDirPath,
+        this(name, vectorDim, IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX,
+                IndexBuilder.DEFAULT_MAX_AMOUNT_OF_CANDIDATES, IndexBuilder.DEFAULT_COMPRESSION_RATIO,
+                indexDirPath,
                 directMemoryConsumption, distance);
     }
 

@@ -20,8 +20,6 @@ import jdk.incubator.vector.VectorSpecies;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -30,8 +28,6 @@ import java.nio.ByteOrder;
 import java.util.BitSet;
 
 final class KMeansMiniBatchGD {
-    private static final Logger logger = LoggerFactory.getLogger(KMeansMiniBatchGD.class);
-
     private final VectorSpecies<Float> species;
 
     float[] centroids;
@@ -46,10 +42,7 @@ final class KMeansMiniBatchGD {
 
     private final int subVecSize;
 
-    private final int id;
-
-    KMeansMiniBatchGD(int id, int k, int iterations, int subVecOffset, int subVecSize, VectorReader vectorReader) {
-        this.id = id;
+    KMeansMiniBatchGD(int k, int iterations, int subVecOffset, int subVecSize, VectorReader vectorReader) {
         this.vectorReader = vectorReader;
         this.subVecOffset = subVecOffset;
         this.centroidsSamplesCount = new int[k];
@@ -121,7 +114,8 @@ final class KMeansMiniBatchGD {
 
     }
 
-    void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize) {
+    void calculate(@SuppressWarnings("SameParameterValue") int minBatchSize, int batchSize,
+                   ProgressTracker progressTracker) {
         if ((minBatchSize & 3) != 0) {
             throw new IllegalArgumentException("Batch size must be a multiple of 3");
         }
@@ -194,13 +188,8 @@ final class KMeansMiniBatchGD {
                     assert currentIndex <= vectorReader.size();
                 }
 
-                if ((currentIndex & (4 * 1024 * 1024 - 1)) == 0) {
-                    logger.info("KMeans #{}, processed {} vectors out of {}, {}% is completed", id, currentIndex, size,
-                            (currentIndex * 100.0) / size);
-                }
+                progressTracker.progress((currentIndex * 100.0) / size);
             } while (currentIndex < size);
-
-            logger.info("KMeans #{}, all {} vectors are processed.", id, size);
         }
     }
 

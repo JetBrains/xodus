@@ -32,8 +32,8 @@ import java.util.Objects;
 public class PrepareBigANNBench {
     public static final int VECTOR_DIMENSIONS = 128;
 
-    public static final int VECTORS_COUNT = 500_000_000;
-    public static final String NAME_SUFFIX = "500m";
+    public static final int VECTORS_COUNT = 100_000_000;
+    public static final String NAME_SUFFIX = "100m";
     public static final String INDEX_NAME = "bigann_index_" + NAME_SUFFIX;
 
     public static void main(String[] args) {
@@ -104,7 +104,7 @@ public class PrepareBigANNBench {
             }
 
             IndexBuilder.buildIndex(INDEX_NAME, VECTOR_DIMENSIONS, dbDir, indexDataLocation,
-                    60L * 1024 * 1024 * 1024, Distance.L2);
+                    60L * 1024 * 1024 * 1024, Distance.L2, null);
             var ts2 = System.nanoTime();
 
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);

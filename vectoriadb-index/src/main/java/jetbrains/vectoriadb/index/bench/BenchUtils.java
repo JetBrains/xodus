@@ -66,7 +66,7 @@ final class BenchUtils {
 
         IndexBuilder.buildIndex("test_index", 128,
                 dbDir, dataLocation, 60L * 1024 * 1024 * 1024,
-                Distance.L2);
+                Distance.L2, null);
 
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);

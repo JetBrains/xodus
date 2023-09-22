@@ -69,7 +69,7 @@ public final class PrepareRandomVectorBench {
         System.out.println("Building index...");
 
         IndexBuilder.buildIndex("random_index", vectorDimensions, dbPath, dataPath,
-                60L * 1024 * 1024 * 1024, Distance.DOT);
+                60L * 1024 * 1024 * 1024, Distance.DOT, null);
 
         System.out.println("Done.");
     }
