@@ -89,7 +89,7 @@ public class RunBigANNBench {
 
         System.out.println("Loading BigANN index...");
         try (var indexReader = new IndexReader(PrepareBigANNBench.INDEX_NAME, PrepareBigANNBench.VECTOR_DIMENSIONS,
-                bigAnnDbDir, 4L * 1024 * 1024 * 1024, Distance.L2)) {
+                bigAnnDbDir, 110L * 1024 * 1024 * 1024, Distance.L2)) {
 
             System.out.println("Running BigANN bench...");
             var result = new int[recallCount];
