@@ -60,7 +60,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
 
 public final class IndexBuilder {
     public static final int DEFAULT_MAX_CONNECTIONS_PER_VERTEX = 128;
-    public static final int DEFAULT_MAX_AMOUNT_OF_CANDIDATES = 256;
+    public static final int DEFAULT_MAX_AMOUNT_OF_CANDIDATES = 128;
     public static final float DEFAULT_DISTANCE_MULTIPLICATION = 2.0f;
     public static final int DEFAULT_COMPRESSION_RATIO = 32;
 
@@ -1013,6 +1013,9 @@ public final class IndexBuilder {
 
                 var candidatesToCalculate = new ArrayList<RobustPruneVertex>(4);
                 var removedCandidates = new ArrayList<RobustPruneVertex>(cachedCandidates.size());
+
+                //book half of the space to merge edges between candidates.
+                var maxConnectionsPerVertex = this.maxConnectionsPerVertex / 2;
 
                 var neighbours = new IntArrayList(maxConnectionsPerVertex);
                 var removed = new ArrayList<RobustPruneVertex>(cachedCandidates.size());

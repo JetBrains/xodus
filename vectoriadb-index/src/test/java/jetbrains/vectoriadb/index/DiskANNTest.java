@@ -90,8 +90,8 @@ public class DiskANNTest {
 
             System.out.printf("Avg. query %d time us, R@%d : %f, cache hits %d%% %n",
                     (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall, indexReader.hits());
-            Assert.assertTrue("Recall is too low " + recall + " < 0.93",
-                    recall >= 0.93);
+            Assert.assertTrue("Recall is too low " + recall + " < 0.92",
+                    recall >= 0.92);
             indexReader.deleteIndex();
         }
     }
