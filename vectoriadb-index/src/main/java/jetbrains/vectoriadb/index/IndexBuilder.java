@@ -64,7 +64,6 @@ public final class IndexBuilder {
     public static final float DEFAULT_DISTANCE_MULTIPLICATION = 2.0f;
     public static final int DEFAULT_COMPRESSION_RATIO = 32;
 
-    private static final int LOGGING_THRESHOLD = 1024 * 1024;
     private static final Logger logger = LoggerFactory.getLogger(IndexBuilder.class);
 
     public static void buildIndex(String name, int vectorsDimension,
@@ -321,10 +320,13 @@ public final class IndexBuilder {
                         }
 
                         progressTracker.pushPhase("merging search graph partitions");
-                        mergeAndStorePartitionsOnDisk(graphs, size, maxConnectionsPerVertex, verticesCountPerPage,
-                                pageSize, vertexRecordSize, recordEdgesOffset, recordEdgesCountOffset
-                                , diskCache);
-                        progressTracker.pullPhase();
+                        try {
+                            mergeAndStorePartitionsOnDisk(graphs, maxConnectionsPerVertex, verticesCountPerPage,
+                                    pageSize, vertexRecordSize, recordEdgesOffset, recordEdgesCountOffset
+                                    , diskCache);
+                        } finally {
+                            progressTracker.pullPhase();
+                        }
 
                         for (var mutator : vectorMutationThreads) {
                             mutator.shutdown();
@@ -355,12 +357,10 @@ public final class IndexBuilder {
                 dataOutputStream.flush();
             }
         }
-
-        logger.info("Index data were loaded from disk for database {}", name);
     }
 
 
-    private static void mergeAndStorePartitionsOnDisk(MMapedGraph[] partitions, int size, int maxConnectionsPerVertex,
+    private static void mergeAndStorePartitionsOnDisk(MMapedGraph[] partitions, int maxConnectionsPerVertex,
                                                       int verticesPerPage, int pageSize, int vertexRecordSize,
                                                       int diskRecordEdgesOffset, int diskRecordEdgesCountOffset,
                                                       MemorySegment diskCache) throws IOException {
@@ -390,16 +390,8 @@ public final class IndexBuilder {
                     heapGlobalIndexes, partitions[j], partitionsIndexes);
         }
 
-        var logProgress = size > LOGGING_THRESHOLD;
 
         while (!heapGlobalIndexes.isEmpty()) {
-            if (logProgress) {
-                if ((resultIndex & (LOGGING_THRESHOLD - 1)) == 0) {
-                    logger.info("Merging of vertices, {} vertices has been processed out of {} ({}%).",
-                            resultIndex, size, resultIndex * 100.0 / size);
-                }
-            }
-
             var globalIndexPartitionIndex = heapGlobalIndexes.dequeueLong();
 
             var globalIndex = (long) ((int) (globalIndexPartitionIndex));
@@ -508,10 +500,6 @@ public final class IndexBuilder {
         }
 
         diskCache.force();
-
-        if (logProgress) {
-            logger.info("Merging of vertices has been finished.");
-        }
     }
 
     private static void addPartitionEdgeToHeap(boolean[] completedPartitions, int partitionIndex,
@@ -722,7 +710,6 @@ public final class IndexBuilder {
     }
 
     private static final class MMapedGraph implements AutoCloseable {
-        private static final Logger logger = LoggerFactory.getLogger(MMapedGraph.class);
         private int size = 0;
         private final MemorySegment edges;
         private final MemorySegment vectors;
@@ -1351,17 +1338,7 @@ public final class IndexBuilder {
             var verticesPerPage = pageSize / vertexRecordSize;
             var size = this.size;
 
-            var loggingEnabled = size > LOGGING_THRESHOLD;
-            if (loggingEnabled) {
-                logger.info("Saving {} vertexes to disk", size);
-            }
-
             for (long i = 0, vectorsIndex = 0; i < size; i++) {
-                if (loggingEnabled && (i & (LOGGING_THRESHOLD - 1)) == 0) {
-                    logger.info("Saving vertexes to disk: {} vertexes out of {} ({}%) were processed.", i, size,
-                            (i * 100.0) / size);
-                }
-
                 var vertexGlobalIndex = globalIndexes.getAtIndex(ValueLayout.JAVA_INT, i);
 
                 var localPageOffset = (long) vertexGlobalIndex % verticesPerPage;
@@ -1385,10 +1362,6 @@ public final class IndexBuilder {
             vectorsArena.close();
 
             vectorsArena = null;
-
-            if (loggingEnabled) {
-                logger.info("Saving vertexes to disk: all {} vertexes were processed.", size);
-            }
         }
 
         private void convertLocalEdgesToGlobal() {
@@ -1407,12 +1380,6 @@ public final class IndexBuilder {
         }
 
         private void sortVertexesByGlobalIndex() {
-            var loggingEnabled = size > LOGGING_THRESHOLD;
-
-            if (loggingEnabled) {
-                logger.info("Sorting {} vertexes by global index", size);
-            }
-
             var objectIndexes = new Integer[size];
             for (var i = 0; i < size; i++) {
                 objectIndexes[i] = i;
@@ -1440,11 +1407,6 @@ public final class IndexBuilder {
             var tmpVectorToAssign = new float[vectorDimensions];
 
             for (int i = 0; i < size; i++) {
-                if (loggingEnabled && (i & (LOGGING_THRESHOLD - 1)) == 0) {
-                    logger.info("Sorting vertexes by global index: {} vertexes out of {} ({}%) were processed.", i, size,
-                            (i * 100.0) / size);
-                }
-
                 if (!processedIndexes[i]) {
                     var currentIndexToProcess = i;
                     var indexToFetch = indexes[currentIndexToProcess];
@@ -1481,11 +1443,6 @@ public final class IndexBuilder {
                     }
                 }
             }
-
-            if (loggingEnabled) {
-                logger.info("Sorting vertexes by global index: all {} vertexes were processed.", size);
-            }
-
         }
 
         @Override

@@ -453,14 +453,11 @@ public final class IndexReader implements AutoCloseable {
 
         close();
 
-        logger.info("Deleting index data for database {}...", name);
         var graphPath = path.resolve(name + ".graph");
         var dataFilePath = path.resolve(name + ".data");
         try {
             Files.deleteIfExists(graphPath);
-            logger.info("File {} has been deleted.", graphPath);
             Files.deleteIfExists(dataFilePath);
-            logger.info("File {} has been deleted.", dataFilePath);
         } catch (IOException e) {
             throw new RuntimeException("Error during deletion of index data for database " + name, e);
         }
