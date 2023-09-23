@@ -45,12 +45,11 @@ public class PrepareBigANNBench {
 
         try {
             var baseArchiveName = "bigann_base.bvecs.gz";
-            var baseArchivePath = BenchUtils.downloadBenchFile(benchPath, baseArchiveName);
-
             var dataFileName = "bigann_base.bvecs";
             var dataFilePath = benchPath.resolve(dataFileName);
 
             if (!Files.exists(dataFilePath) || Files.size(dataFilePath) == 0) {
+                var baseArchivePath = BenchUtils.downloadBenchFile(benchPath, baseArchiveName);
                 BenchUtils.extractGzArchive(dataFilePath, baseArchivePath);
             }
 
