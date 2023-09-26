@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
 public final class IndexBuilder {
     public static final int DEFAULT_MAX_CONNECTIONS_PER_VERTEX = 128;
     public static final int DEFAULT_MAX_AMOUNT_OF_CANDIDATES = 256;
-    public static final float DEFAULT_DISTANCE_MULTIPLICATION = 2.0f;
+    public static final float DEFAULT_DISTANCE_MULTIPLIER = 2.0f;
     public static final int DEFAULT_COMPRESSION_RATIO = 32;
 
     private static final Logger logger = LoggerFactory.getLogger(IndexBuilder.class);
@@ -70,7 +70,7 @@ public final class IndexBuilder {
                                   Path indexPath, Path dataPath, long graphPartitionMemoryConsumption,
                                   Distance distance, ProgressTracker progressTracker) throws IOException {
         buildIndex(name, vectorsDimension, DEFAULT_COMPRESSION_RATIO,
-                DEFAULT_DISTANCE_MULTIPLICATION, indexPath, dataPath,
+                DEFAULT_DISTANCE_MULTIPLIER, indexPath, dataPath,
                 graphPartitionMemoryConsumption, DEFAULT_MAX_CONNECTIONS_PER_VERTEX,
                 DEFAULT_MAX_AMOUNT_OF_CANDIDATES, distance,
                 progressTracker);
@@ -85,262 +85,266 @@ public final class IndexBuilder {
         if (progressTracker == null) {
             progressTracker = new NoOpProgressTracker();
         }
-
-        progressTracker.pushPhase("index building");
+        progressTracker.start(name);
         try {
-            var pageStructure = DiskCache.createPageStructure(vectorsDimension, maxConnectionsPerVertex);
+            progressTracker.pushPhase("index building");
+            try {
+                var pageStructure = DiskCache.createPageStructure(vectorsDimension, maxConnectionsPerVertex);
 
-            var pageSize = pageStructure.pageSize();
-            var verticesCountPerPage = pageStructure.verticesCountPerPage();
-            var vertexRecordSize = pageStructure.vertexRecordSize();
-            var recordVectorsOffset = pageStructure.recordVectorsOffset();
-            var recordEdgesOffset = pageStructure.recordEdgesOffset();
-            var recordEdgesCountOffset = pageStructure.recordEdgesCountOffset();
+                var pageSize = pageStructure.pageSize();
+                var verticesCountPerPage = pageStructure.verticesCountPerPage();
+                var vertexRecordSize = pageStructure.vertexRecordSize();
+                var recordVectorsOffset = pageStructure.recordVectorsOffset();
+                var recordEdgesOffset = pageStructure.recordEdgesOffset();
+                var recordEdgesCountOffset = pageStructure.recordEdgesCountOffset();
 
-            try (var vectorReader = new MmapVectorReader(vectorsDimension, dataStoreFilePath)) {
-                try (var arena = Arena.openShared()) {
+                try (var vectorReader = new MmapVectorReader(vectorsDimension, dataStoreFilePath)) {
+                    try (var arena = Arena.openShared()) {
 
-                    var size = vectorReader.size();
-                    if (size == 0) {
-                        logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
-                        return;
-                    }
+                        var size = vectorReader.size();
+                        if (size == 0) {
+                            logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
+                            return;
+                        }
 
-                    var quantizer = distance.quantizer();
-                    var distanceFunction = distance.buildDistanceFunction();
+                        var quantizer = distance.quantizer();
+                        var distanceFunction = distance.buildDistanceFunction();
 
-                    quantizer.generatePQCodes(vectorsDimension, compressionRatio, vectorReader, progressTracker);
+                        quantizer.generatePQCodes(vectorsDimension, compressionRatio, vectorReader, progressTracker);
 
-                    progressTracker.pushPhase("Calculating graph search entry point");
-                    float[] centroid;
-                    try {
-                        centroid = quantizer.calculateCentroids(1, 50,
-                                distanceFunction, progressTracker)[0];
-                    } finally {
-                        progressTracker.pullPhase();
-                    }
-
-
-                    var medoidMinIndex = Integer.MAX_VALUE;
-                    var medoidMinDistance = Float.MAX_VALUE;
-
-                    var cores = Runtime.getRuntime().availableProcessors();
-                    ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
-
-                    for (var i = 0; i < cores; i++) {
-                        var id = i;
-                        vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
-                            var thread = new Thread(r, name + "-vector mutator-" + id);
-                            thread.setDaemon(true);
-                            return thread;
-                        }));
-                    }
-
-                    var verticesCount = vectorReader.size();
-
-                    var partitions =
-                            (int) Math.max(1,
-                                    3 * calculateGraphPartitionSize(2L * verticesCount,
-                                            maxConnectionsPerVertex, vectorsDimension) / memoryConsumption);
-
-                    var totalPartitionsSize = 0;
-                    IntArrayList[] vectorsByPartitions;
-                    var splitIteration = 0;
-                    while (true) {
-                        splitIteration++;
-                        progressTracker.pushPhase("splitting vectors by partitions, iteration " + splitIteration);
+                        progressTracker.pushPhase("Calculating graph search entry point");
+                        float[] centroid;
                         try {
-                            var startPartition = System.nanoTime();
-                            vectorsByPartitions = quantizer.splitVectorsByPartitions(partitions, 50,
-                                    distanceFunction, progressTracker);
+                            centroid = quantizer.calculateCentroids(1, 50,
+                                    distanceFunction, progressTracker)[0];
+                        } finally {
+                            progressTracker.pullPhase();
+                        }
 
-                            totalPartitionsSize = 0;
-                            var maxPartitionSize = Integer.MIN_VALUE;
-                            var minPartitionSize = Integer.MAX_VALUE;
+
+                        var medoidMinIndex = Integer.MAX_VALUE;
+                        var medoidMinDistance = Float.MAX_VALUE;
+
+                        var cores = Runtime.getRuntime().availableProcessors();
+                        ArrayList<ExecutorService> vectorMutationThreads = new ArrayList<>(cores);
+
+                        for (var i = 0; i < cores; i++) {
+                            var id = i;
+                            vectorMutationThreads.add(Executors.newSingleThreadExecutor(r -> {
+                                var thread = new Thread(r, name + "-vector mutator-" + id);
+                                thread.setDaemon(true);
+                                return thread;
+                            }));
+                        }
+
+                        var verticesCount = vectorReader.size();
+
+                        var partitions =
+                                (int) Math.max(1,
+                                        3 * calculateGraphPartitionSize(2L * verticesCount,
+                                                maxConnectionsPerVertex, vectorsDimension) / memoryConsumption);
+
+                        var totalPartitionsSize = 0;
+                        IntArrayList[] vectorsByPartitions;
+                        var splitIteration = 0;
+                        while (true) {
+                            splitIteration++;
+                            progressTracker.pushPhase("splitting vectors by partitions, iteration " + splitIteration);
+                            try {
+                                var startPartition = System.nanoTime();
+                                vectorsByPartitions = quantizer.splitVectorsByPartitions(partitions, 50,
+                                        distanceFunction, progressTracker);
+
+                                totalPartitionsSize = 0;
+                                var maxPartitionSize = Integer.MIN_VALUE;
+                                var minPartitionSize = Integer.MAX_VALUE;
+
+                                for (var i = 0; i < partitions; i++) {
+                                    var partition = vectorsByPartitions[i];
+
+                                    var partitionSize = partition.size();
+                                    totalPartitionsSize += partitionSize;
+
+                                    if (partitionSize > maxPartitionSize) {
+                                        maxPartitionSize = partitionSize;
+                                    }
+                                    if (partitionSize < minPartitionSize) {
+                                        minPartitionSize = partitionSize;
+                                    }
+                                }
+
+                                checkRequestedFreeSpace(indexDirectoryPath, size, totalPartitionsSize, maxConnectionsPerVertex,
+                                        pageSize, verticesCountPerPage);
+
+                                var avgPartitionSize = totalPartitionsSize / partitions;
+                                var squareSum = 0L;
+
+                                for (var i = 0; i < partitions; i++) {
+                                    var partition = vectorsByPartitions[i];
+                                    var partitionSize = partition.size();
+                                    squareSum += (long) (partitionSize - avgPartitionSize) * (partitionSize - avgPartitionSize);
+                                }
+
+                                var endPartition = System.nanoTime();
+                                var maxPartitionSizeBytes = calculateGraphPartitionSize(maxPartitionSize, maxConnectionsPerVertex,
+                                        vectorsDimension);
+                                long maxPartitionSizeKBytes = maxPartitionSizeBytes / 1024;
+                                long minPartitionSizeKBytes =
+                                        calculateGraphPartitionSize(minPartitionSize, maxConnectionsPerVertex, vectorsDimension) / 1024;
+
+                                //noinspection IntegerDivisionInFloatingPointContext
+                                logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
+                                                "({}Kb/{}Mb/{}Gb in memory), " +
+                                                "min partition size {} vertexes ({}Kb/{}Mb/{}Gb in memory), average size {}, deviation {}." +
+                                                " Time spent {} ms.",
+                                        partitions, maxPartitionSize,
+                                        maxPartitionSizeKBytes, maxPartitionSizeKBytes / 1024, maxPartitionSizeKBytes / 1024 / 1024,
+                                        minPartitionSize,
+                                        minPartitionSizeKBytes, minPartitionSizeKBytes / 1024, minPartitionSizeKBytes / 1024 / 1024,
+                                        avgPartitionSize,
+                                        Math.sqrt(squareSum / partitions),
+                                        (endPartition - startPartition) / 1_000_000.0);
+                                logger.info("----------------------------------------------------------------------------------------------");
+
+                                if (maxPartitionSize > memoryConsumption) {
+                                    partitions = (int) (1.2 * partitions);
+                                    logger.info("Max partition size {} bytes is greater than requested memory consumption {} bytes. " +
+                                                    "Trying to split vectors into {} partitions...", maxPartitionSizeBytes, memoryConsumption,
+                                            partitions);
+                                    continue;
+                                }
+
+                                break;
+                            } finally {
+                                progressTracker.pullPhase();
+                            }
+                        }
+
+                        try (var partitionsArena = Arena.openConfined()) {
+                            var dmPartitions = new MemorySegment[partitions];
 
                             for (var i = 0; i < partitions; i++) {
                                 var partition = vectorsByPartitions[i];
-
                                 var partitionSize = partition.size();
-                                totalPartitionsSize += partitionSize;
 
-                                if (partitionSize > maxPartitionSize) {
-                                    maxPartitionSize = partitionSize;
-                                }
-                                if (partitionSize < minPartitionSize) {
-                                    minPartitionSize = partitionSize;
+                                dmPartitions[i] = partitionsArena.allocateArray(ValueLayout.JAVA_INT, partitionSize);
+                                for (int j = 0; j < partitionSize; j++) {
+                                    dmPartitions[i].setAtIndex(ValueLayout.JAVA_INT, j, partition.getInt(j));
                                 }
                             }
 
-                            checkRequestedFreeSpace(indexDirectoryPath, size, totalPartitionsSize, maxConnectionsPerVertex,
-                                    pageSize, verticesCountPerPage);
-
-                            var avgPartitionSize = totalPartitionsSize / partitions;
-                            var squareSum = 0L;
-
-                            for (var i = 0; i < partitions; i++) {
-                                var partition = vectorsByPartitions[i];
-                                var partitionSize = partition.size();
-                                squareSum += (long) (partitionSize - avgPartitionSize) * (partitionSize - avgPartitionSize);
+                            logger.info("Distribution of vertices by partitions:");
+                            for (int i = 0; i < partitions; i++) {
+                                logger.info("Partition {} has {} vectors.", i, (int) dmPartitions[i].byteSize() / Integer.BYTES);
                             }
-
-                            var endPartition = System.nanoTime();
-                            var maxPartitionSizeBytes = calculateGraphPartitionSize(maxPartitionSize, maxConnectionsPerVertex,
-                                    vectorsDimension);
-                            long maxPartitionSizeKBytes = maxPartitionSizeBytes / 1024;
-                            long minPartitionSizeKBytes =
-                                    calculateGraphPartitionSize(minPartitionSize, maxConnectionsPerVertex, vectorsDimension) / 1024;
-
-                            //noinspection IntegerDivisionInFloatingPointContext
-                            logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
-                                            "({}Kb/{}Mb/{}Gb in memory), " +
-                                            "min partition size {} vertexes ({}Kb/{}Mb/{}Gb in memory), average size {}, deviation {}." +
-                                            " Time spent {} ms.",
-                                    partitions, maxPartitionSize,
-                                    maxPartitionSizeKBytes, maxPartitionSizeKBytes / 1024, maxPartitionSizeKBytes / 1024 / 1024,
-                                    minPartitionSize,
-                                    minPartitionSizeKBytes, minPartitionSizeKBytes / 1024, minPartitionSizeKBytes / 1024 / 1024,
-                                    avgPartitionSize,
-                                    Math.sqrt(squareSum / partitions),
-                                    (endPartition - startPartition) / 1_000_000.0);
                             logger.info("----------------------------------------------------------------------------------------------");
 
-                            if (maxPartitionSize > memoryConsumption) {
-                                partitions = (int) (1.2 * partitions);
-                                logger.info("Max partition size {} bytes is greater than requested memory consumption {} bytes. " +
-                                                "Trying to split vectors into {} partitions...", maxPartitionSizeBytes, memoryConsumption,
-                                        partitions);
-                                continue;
+                            var graphFilePath = indexDirectoryPath.resolve(name + ".graph");
+                            if (Files.exists(graphFilePath)) {
+                                logger.warn("File {} already exists and will be deleted.", graphFilePath);
+                                Files.delete(graphFilePath);
                             }
 
-                            break;
-                        } finally {
-                            progressTracker.pullPhase();
-                        }
-                    }
+                            var diskCache = initFile(graphFilePath, size, verticesCountPerPage,
+                                    pageSize, arena);
 
-                    try (var partitionsArena = Arena.openConfined()) {
-                        var dmPartitions = new MemorySegment[partitions];
+                            var graphs = new MMapedGraph[partitions];
+                            var verticesProcessed = 0L;
 
-                        for (var i = 0; i < partitions; i++) {
-                            var partition = vectorsByPartitions[i];
-                            var partitionSize = partition.size();
-
-                            dmPartitions[i] = partitionsArena.allocateArray(ValueLayout.JAVA_INT, partitionSize);
-                            for (int j = 0; j < partitionSize; j++) {
-                                dmPartitions[i].setAtIndex(ValueLayout.JAVA_INT, j, partition.getInt(j));
-                            }
-                        }
-
-                        logger.info("Distribution of vertices by partitions:");
-                        for (int i = 0; i < partitions; i++) {
-                            logger.info("Partition {} has {} vectors.", i, (int) dmPartitions[i].byteSize() / Integer.BYTES);
-                        }
-                        logger.info("----------------------------------------------------------------------------------------------");
-
-                        var graphFilePath = indexDirectoryPath.resolve(name + ".graph");
-                        if (Files.exists(graphFilePath)) {
-                            logger.warn("File {} already exists and will be deleted.", graphFilePath);
-                            Files.delete(graphFilePath);
-                        }
-
-                        var diskCache = initFile(graphFilePath, size, verticesCountPerPage,
-                                pageSize, arena);
-
-                        var graphs = new MMapedGraph[partitions];
-                        var verticesProcessed = 0L;
-
-                        progressTracker.pushPhase("building search graph partitions");
-                        try {
-                            for (int i = 0; i < partitions; i++) {
-                                if (progressTracker.isProgressUpdatedRequired()) {
-                                    progressTracker.progress((double) 100 * verticesProcessed / totalPartitionsSize);
-                                }
-
-                                var partition = dmPartitions[i];
-                                var partitionSize = (int) partition.byteSize() / Integer.BYTES;
-
-                                var graph = new MMapedGraph(partitionSize, i, name, indexDirectoryPath, maxConnectionsPerVertex,
-                                        vectorsDimension, distanceFunction, maxAmountOfCandidates, pageSize,
-                                        vertexRecordSize, recordVectorsOffset, diskCache);
-                                progressTracker.pushPhase("building search graph for partition " + i,
-                                        "partition size", String.valueOf(partitionSize));
-                                try {
-                                    for (int j = 0; j < partitionSize; j++) {
-                                        var vectorIndex = partition.getAtIndex(ValueLayout.JAVA_INT, j);
-
-                                        var vector = vectorReader.read(vectorIndex);
-                                        graph.addVector(vectorIndex, vector);
-
-                                        var currentDistance = distanceFunction.computeDistance(vector, 0, centroid,
-                                                0, vectorsDimension);
-                                        if (currentDistance < medoidMinDistance) {
-                                            medoidMinDistance = currentDistance;
-                                            medoidMinIndex = vectorIndex;
-                                        }
+                            progressTracker.pushPhase("building search graph partitions");
+                            try {
+                                for (int i = 0; i < partitions; i++) {
+                                    if (progressTracker.isProgressUpdatedRequired()) {
+                                        progressTracker.progress((double) 100 * verticesProcessed / totalPartitionsSize);
                                     }
-                                } finally {
-                                    progressTracker.pullPhase();
+
+                                    var partition = dmPartitions[i];
+                                    var partitionSize = (int) partition.byteSize() / Integer.BYTES;
+
+                                    var graph = new MMapedGraph(partitionSize, i, name, indexDirectoryPath, maxConnectionsPerVertex,
+                                            vectorsDimension, distanceFunction, maxAmountOfCandidates, pageSize,
+                                            vertexRecordSize, recordVectorsOffset, diskCache);
+                                    progressTracker.pushPhase("building search graph for partition " + i,
+                                            "partition size", String.valueOf(partitionSize));
+                                    try {
+                                        for (int j = 0; j < partitionSize; j++) {
+                                            var vectorIndex = partition.getAtIndex(ValueLayout.JAVA_INT, j);
+
+                                            var vector = vectorReader.read(vectorIndex);
+                                            graph.addVector(vectorIndex, vector);
+
+                                            var currentDistance = distanceFunction.computeDistance(vector, 0, centroid,
+                                                    0, vectorsDimension);
+                                            if (currentDistance < medoidMinDistance) {
+                                                medoidMinDistance = currentDistance;
+                                                medoidMinIndex = vectorIndex;
+                                            }
+                                        }
+                                    } finally {
+                                        progressTracker.pullPhase();
+                                    }
+
+                                    progressTracker.pushPhase("generation of random edges for partition " + i);
+                                    try {
+                                        graph.generateRandomEdges(progressTracker);
+                                    } finally {
+                                        progressTracker.pullPhase();
+                                    }
+
+                                    progressTracker.pushPhase("pruning search graph for partition " + i);
+                                    try {
+                                        pruneIndex(graph, graph.medoid(), distanceMultiplication, vectorMutationThreads,
+                                                maxConnectionsPerVertex, maxAmountOfCandidates, progressTracker);
+                                    } finally {
+                                        progressTracker.pullPhase();
+                                    }
+
+                                    progressTracker.
+                                            pushPhase("saving vectors of search graph for partition " + i);
+                                    try {
+                                        graph.sortVertexesByGlobalIndex();
+                                        graph.saveVectorsToDisk();
+
+                                        graph.clearEdgeVersions();
+
+                                        graph.convertLocalEdgesToGlobal();
+
+                                        verticesProcessed += partitionSize;
+                                    } finally {
+                                        progressTracker.pullPhase();
+                                    }
+
+                                    graphs[i] = graph;
                                 }
-
-                                progressTracker.pushPhase("generation of random edges for partition " + i);
-                                try {
-                                    graph.generateRandomEdges(progressTracker);
-                                } finally {
-                                    progressTracker.pullPhase();
-                                }
-
-                                progressTracker.pushPhase("pruning search graph for partition " + i);
-                                try {
-                                    pruneIndex(graph, graph.medoid(), distanceMultiplication, vectorMutationThreads,
-                                            maxConnectionsPerVertex, maxAmountOfCandidates, progressTracker);
-                                } finally {
-                                    progressTracker.pullPhase();
-                                }
-
-                                progressTracker.
-                                        pushPhase("saving vectors of search graph for partition " + i);
-                                try {
-                                    graph.sortVertexesByGlobalIndex();
-                                    graph.saveVectorsToDisk();
-
-                                    graph.clearEdgeVersions();
-
-                                    graph.convertLocalEdgesToGlobal();
-
-                                    verticesProcessed += partitionSize;
-                                } finally {
-                                    progressTracker.pullPhase();
-                                }
-
-                                graphs[i] = graph;
+                            } finally {
+                                progressTracker.pullPhase();
                             }
-                        } finally {
-                            progressTracker.pullPhase();
-                        }
 
-                        progressTracker.pushPhase("merging search graph partitions");
-                        try {
-                            mergeAndStorePartitionsOnDisk(graphs, maxConnectionsPerVertex, verticesCountPerPage,
-                                    pageSize, vertexRecordSize, recordEdgesOffset, recordEdgesCountOffset
-                                    , diskCache);
-                        } finally {
-                            progressTracker.pullPhase();
-                        }
+                            progressTracker.pushPhase("merging search graph partitions");
+                            try {
+                                mergeAndStorePartitionsOnDisk(graphs, maxConnectionsPerVertex, verticesCountPerPage,
+                                        pageSize, vertexRecordSize, recordEdgesOffset, recordEdgesCountOffset
+                                        , diskCache);
+                            } finally {
+                                progressTracker.pullPhase();
+                            }
 
-                        for (var mutator : vectorMutationThreads) {
-                            mutator.shutdown();
-                        }
-                        vectorMutationThreads.clear();
+                            for (var mutator : vectorMutationThreads) {
+                                mutator.shutdown();
+                            }
+                            vectorMutationThreads.clear();
 
-                        storeIndexState(medoidMinIndex, vectorReader.size(), quantizer, name, indexDirectoryPath);
+                            storeIndexState(medoidMinIndex, vectorReader.size(), quantizer, name, indexDirectoryPath);
+                        }
                     }
                 }
-            }
 
-            Files.deleteIfExists(dataStoreFilePath);
+                Files.deleteIfExists(dataStoreFilePath);
+            } finally {
+                progressTracker.pullPhase();
+            }
         } finally {
-            progressTracker.pullPhase();
+            progressTracker.finish();
         }
     }
 

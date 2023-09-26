@@ -15,6 +15,8 @@
  */
 package jetbrains.vectoriadb.index;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -25,16 +27,14 @@ import java.nio.file.StandardOpenOption;
 public final class DataStore implements AutoCloseable {
     public static final String DATA_FILE_EXTENSION = ".vectors";
     private final FileChannel channel;
-    private final Path dataFilePath;
     private final ByteBuffer buffer;
 
     private final DistanceFunction distanceFunction;
 
     private final float[] preprocessingResult;
 
-    private DataStore(int dimensions, DistanceFunction distanceFunction, FileChannel channel, Path dataFilePath) {
+    private DataStore(int dimensions, DistanceFunction distanceFunction, FileChannel channel) {
         this.channel = channel;
-        this.dataFilePath = dataFilePath;
         this.distanceFunction = distanceFunction;
 
         var vectorSize = dimensions * Float.BYTES;
@@ -47,10 +47,11 @@ public final class DataStore implements AutoCloseable {
     public static DataStore create(final String name, final int dimensions,
                                    final DistanceFunction distanceFunction,
                                    final Path dataDirectoryPath) throws IOException {
-        var dataPath = dataDirectoryPath.resolve(name + DATA_FILE_EXTENSION);
-        var channel = FileChannel.open(dataPath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        var dataPath = dataLocation(name, dataDirectoryPath);
+        var channel = FileChannel.open(dataPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE,
+                StandardOpenOption.APPEND);
 
-        return new DataStore(dimensions, distanceFunction, channel, dataPath);
+        return new DataStore(dimensions, distanceFunction, channel);
     }
 
     public void add(final float[] vector) throws IOException {
@@ -71,8 +72,8 @@ public final class DataStore implements AutoCloseable {
         }
     }
 
-    public Path dataLocation() {
-        return dataFilePath;
+    public static Path dataLocation(@NotNull final String name, final Path dataDirectoryPath) {
+        return dataDirectoryPath.resolve(name + DATA_FILE_EXTENSION);
     }
 
     public void close() throws IOException {

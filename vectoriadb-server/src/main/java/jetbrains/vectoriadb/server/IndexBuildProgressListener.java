@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.vectoriadb.index;
+package jetbrains.vectoriadb.server;
 
-public interface ProgressTracker {
-    void start(String indexName);
-    void pushPhase(String phaseName, String... parameters);
+public interface IndexBuildProgressListener {
+    void progress(IndexBuildProgressInfo progressInfo);
 
-    void progress(double progress);
+    record IndexBuildProgressInfo(String indexName, IndexBuildProgressPhase[] phases) {
+    }
 
-    void pullPhase();
-
-    boolean isProgressUpdatedRequired();
-
-    void finish();
+    record IndexBuildProgressPhase(String name, double progress, String... parameters) {
+    }
 }
+
+

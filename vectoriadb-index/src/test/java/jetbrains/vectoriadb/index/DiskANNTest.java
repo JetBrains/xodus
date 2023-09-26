@@ -54,23 +54,22 @@ public class DiskANNTest {
         var dbDir = Files.createTempDirectory(Path.of(buildDir), "testFindLoadedVectorsL2Distance");
         dbDir.toFile().deleteOnExit();
 
+        var indexName = "test_index";
         var ts1 = System.nanoTime();
-        Path dataLocation;
-        try (var dataBuilder = DataStore.create("test_index", vectorDimensions, L2DistanceFunction.INSTANCE, dbDir)) {
+        try (var dataBuilder = DataStore.create(indexName, vectorDimensions, L2DistanceFunction.INSTANCE, dbDir)) {
             for (var vector : vectors) {
                 dataBuilder.add(vector);
             }
-
-            dataLocation = dataBuilder.dataLocation();
         }
 
-        IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
+        IndexBuilder.buildIndex(indexName, vectorDimensions, dbDir,
+                DataStore.dataLocation(indexName, dbDir),
                 4 * 1024 * 1024, Distance.L2, new ConsolePeriodicProgressTracker(1));
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         var totalRecall = 0.0;
-        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir,
+        try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
                 256 * 1024 * 1024,
                 Distance.L2)) {
             ts1 = System.nanoTime();
@@ -121,23 +120,21 @@ public class DiskANNTest {
         dbDir.toFile().deleteOnExit();
         var ts1 = System.nanoTime();
 
-        Path dataLocation;
-        try (var dataBuilder = DataStore.create("test_index", vectorDimensions, DotDistanceFunction.INSTANCE, dbDir)) {
+        var indexName = "test_index";
+        try (var dataStore = DataStore.create(indexName, vectorDimensions, DotDistanceFunction.INSTANCE, dbDir)) {
             for (var vector : vectors) {
-                dataBuilder.add(vector);
+                dataStore.add(vector);
             }
-
-            dataLocation = dataBuilder.dataLocation();
         }
 
-        IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
+        IndexBuilder.buildIndex(indexName, vectorDimensions, dbDir, DataStore.dataLocation(indexName, dbDir),
                 4 * 1024 * 1024, Distance.DOT, new ConsolePeriodicProgressTracker(1));
 
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         var totalRecall = 0.0;
-        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir,
+        try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
                 256 * 1024 * 1024,
                 Distance.DOT)) {
             ts1 = System.nanoTime();
@@ -189,23 +186,22 @@ public class DiskANNTest {
         dbDir.toFile().deleteOnExit();
         var ts1 = System.nanoTime();
 
-        Path dataLocation;
-        try (var dataBuilder = DataStore.create("test_index", vectorDimensions,
+        var indexName = "test_index";
+        try (var dataBuilder = DataStore.create(indexName, vectorDimensions,
                 CosineDistanceFunction.INSTANCE, dbDir)) {
             for (var vector : vectors) {
                 dataBuilder.add(vector);
             }
-
-            dataLocation = dataBuilder.dataLocation();
         }
 
-        IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
+        IndexBuilder.buildIndex(indexName, vectorDimensions, dbDir,
+                DataStore.dataLocation("test_index", dbDir),
                 4 * 1024 * 1024, Distance.COSINE,
                 new ConsolePeriodicProgressTracker(1));
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
-        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir,
+        try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
                 256 * 1024 * 1024,
                 Distance.COSINE)) {
             var totalRecall = 0.0;
@@ -346,22 +342,21 @@ public class DiskANNTest {
         dbDir.toFile().deleteOnExit();
 
         var ts1 = System.nanoTime();
-        Path dataLocation;
-        try (var dataBuilder = DataStore.create("test_index", 128, L2DistanceFunction.INSTANCE, dbDir)) {
+
+        var indexName = "test_index";
+        try (var dataBuilder = DataStore.create(indexName, 128, L2DistanceFunction.INSTANCE, dbDir)) {
             for (var vector : vectors) {
                 dataBuilder.add(vector);
             }
-
-            dataLocation = dataBuilder.dataLocation();
         }
-        IndexBuilder.buildIndex("test_index", vectorDimensions, dbDir, dataLocation,
+
+        IndexBuilder.buildIndex(indexName, vectorDimensions, dbDir, DataStore.dataLocation(indexName, dbDir),
                 4 * 1024 * 1024, Distance.L2, new ConsolePeriodicProgressTracker(1));
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
-        try (var indexReader = new IndexReader("test_index", vectorDimensions, dbDir,
-                256 * 1024 * 1024,
-                Distance.L2)) {
+        try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
+                256 * 1024 * 1024, Distance.L2)) {
             System.out.println("Searching...");
 
             var errorsCount = 0;
@@ -385,7 +380,6 @@ public class DiskANNTest {
                     errorPercentage <= 5);
             indexReader.deleteIndex();
         }
-
     }
 }
 

@@ -57,22 +57,23 @@ final class BenchUtils {
 
         var ts1 = System.nanoTime();
 
-        Path dataLocation;
-        try (var dataBuilder = DataStore.create("test_index", 128, L2DistanceFunction.INSTANCE, dbDir)) {
+        var indexName = "test_index";
+        try (var dataBuilder = DataStore.create(indexName, 128, L2DistanceFunction.INSTANCE, dbDir)) {
             for (var vector : vectors) {
                 dataBuilder.add(vector);
             }
-            dataLocation = dataBuilder.dataLocation();
         }
 
-        IndexBuilder.buildIndex("test_index", 128,
+        var dataLocation = DataStore.dataLocation(indexName, dbDir);
+
+        IndexBuilder.buildIndex(indexName, 128,
                 dbDir, dataLocation, 60L * 1024 * 1024 * 1024,
                 Distance.L2, new Slf4jPeriodicProgressTracker(5));
 
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
-        try (var indexReader = new IndexReader("test_index", 128, dbDir,
+        try (var indexReader = new IndexReader(indexName, 128, dbDir,
                 100L * 1024 * 1024 * 1024, Distance.L2)) {
             System.out.println("Reading queries...");
             var queryFile = siftsBaseDir.resolve(queryFileName);

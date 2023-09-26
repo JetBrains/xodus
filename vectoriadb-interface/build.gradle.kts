@@ -2,6 +2,7 @@ import com.google.protobuf.gradle.*
 
 plugins {
     id("com.google.protobuf")
+    id("org.jetbrains.gradle.plugin.idea-ext")
 }
 
 dependencies {
@@ -26,6 +27,15 @@ protobuf {
             it.plugins {
                 id("grpc") {}
             }
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += file("build/generated/source/proto/main/grpc")
+            srcDirs += file("build/generated/source/proto/main/java")
         }
     }
 }

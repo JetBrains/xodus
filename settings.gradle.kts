@@ -7,6 +7,8 @@ pluginManagement {
         id("com.github.johnrengelman.shadow") version ("8.1.1")
         id("me.champeau.jmh") version ("0.7.1")
         id("com.google.protobuf") version ("0.9.4")
+        id("org.springframework.boot") version ("3.1.4")
+        id("org.jetbrains.gradle.plugin.idea-ext") version "1.1.7"
     }
     repositories {
         maven(url = "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
@@ -39,6 +41,9 @@ dependencyResolutionManagement {
             version("grpc", "1.58.0")
             version("protobuf", "3.24.3")
             version("javax-annotation", "1.3.2")
+
+            version("spring-boot", "3.1.4")
+            version("grpc-boot-starter", "2.14.0.RELEASE")
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
@@ -99,6 +104,16 @@ dependencyResolutionManagement {
                 "javax-annotation-api", "javax.annotation",
                 "javax.annotation-api"
             ).versionRef("javax-annotation")
+
+            library(
+                "spring-boot-starter", "org.springframework.boot",
+                "spring-boot-starter"
+            ).versionRef("spring-boot")
+
+            library(
+                "grpc-boot-starter", "net.devh",
+                "grpc-server-spring-boot-starter"
+            ).versionRef("grpc-boot-starter")
         }
     }
 }

@@ -17,6 +17,10 @@ package jetbrains.vectoriadb.index;
 
 public final class NoOpProgressTracker implements ProgressTracker {
     @Override
+    public void start(String indexName) {
+    }
+
+    @Override
     public void pushPhase(String phaseName, String... parameters) {
 
     }
@@ -34,5 +38,9 @@ public final class NoOpProgressTracker implements ProgressTracker {
     @Override
     public boolean isProgressUpdatedRequired() {
         return false;
+    }
+
+    @Override
+    public void finish() {
     }
 }

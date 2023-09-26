@@ -59,7 +59,6 @@ public class PrepareBigANNBench {
                     VECTORS_COUNT, VECTOR_DIMENSIONS, dbDir.toAbsolutePath());
 
             var ts1 = System.nanoTime();
-            Path indexDataLocation;
 
             var recordSize = Integer.BYTES + VECTOR_DIMENSIONS;
             try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
@@ -98,12 +97,10 @@ public class PrepareBigANNBench {
 
                         dataBuilder.add(vector);
                     }
-
-                    indexDataLocation = dataBuilder.dataLocation();
                 }
             }
 
-            IndexBuilder.buildIndex(INDEX_NAME, VECTOR_DIMENSIONS, dbDir, indexDataLocation,
+            IndexBuilder.buildIndex(INDEX_NAME, VECTOR_DIMENSIONS, dbDir, DataStore.dataLocation(INDEX_NAME, dbDir),
                     60L * 1024 * 1024 * 1024, Distance.L2,
                     new Slf4jPeriodicProgressTracker(5));
             var ts2 = System.nanoTime();

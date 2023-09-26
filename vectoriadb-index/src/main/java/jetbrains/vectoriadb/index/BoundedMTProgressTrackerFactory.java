@@ -42,6 +42,11 @@ public class BoundedMTProgressTrackerFactory {
         }
 
         @Override
+        public void start(String indexName) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void pushPhase(String phaseName, String... parameters) {
             throw new UnsupportedOperationException();
         }
@@ -69,6 +74,11 @@ public class BoundedMTProgressTrackerFactory {
         @Override
         public boolean isProgressUpdatedRequired() {
             return true;
+        }
+
+        @Override
+        public void finish() {
+            throw new UnsupportedOperationException();
         }
 
         @Override

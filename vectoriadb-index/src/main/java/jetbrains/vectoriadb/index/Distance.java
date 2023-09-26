@@ -18,56 +18,56 @@ package jetbrains.vectoriadb.index;
 public enum Distance {
     L2 {
         @Override
-        DistanceFunction searchDistanceFunction() {
+        public DistanceFunction searchDistanceFunction() {
             return L2DistanceFunction.INSTANCE;
         }
 
         @Override
-        DistanceFunction buildDistanceFunction() {
+        public DistanceFunction buildDistanceFunction() {
             return L2DistanceFunction.INSTANCE;
         }
 
         @Override
-        Quantizer quantizer() {
+        public Quantizer quantizer() {
             return new L2PQQuantizer();
         }
     },
     DOT {
         @Override
-        DistanceFunction searchDistanceFunction() {
+        public DistanceFunction searchDistanceFunction() {
             return DotDistanceFunction.INSTANCE;
         }
 
         @Override
-        DistanceFunction buildDistanceFunction() {
+        public DistanceFunction buildDistanceFunction() {
             return DotDistanceFunction.INSTANCE;
         }
 
         @Override
-        Quantizer quantizer() {
+        public Quantizer quantizer() {
             return new L2PQQuantizer();
         }
     },
     COSINE {
         @Override
-        DistanceFunction searchDistanceFunction() {
+        public DistanceFunction searchDistanceFunction() {
             return CosineDistanceFunction.INSTANCE;
         }
 
         @Override
-        DistanceFunction buildDistanceFunction() {
+        public DistanceFunction buildDistanceFunction() {
             return CosineDistanceFunction.INSTANCE;
         }
 
         @Override
-        Quantizer quantizer() {
+        public Quantizer quantizer() {
             return new L2PQQuantizer();
         }
     };
 
-    abstract DistanceFunction searchDistanceFunction();
+    public abstract DistanceFunction searchDistanceFunction();
 
-    abstract DistanceFunction buildDistanceFunction();
+    public abstract DistanceFunction buildDistanceFunction();
 
-    abstract Quantizer quantizer();
+    public abstract Quantizer quantizer();
 }

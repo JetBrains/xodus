@@ -13,17 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.vectoriadb.index;
+package jetbrains.vectoriadb.server;
 
-public interface ProgressTracker {
-    void start(String indexName);
-    void pushPhase(String phaseName, String... parameters);
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-    void progress(double progress);
-
-    void pullPhase();
-
-    boolean isProgressUpdatedRequired();
-
-    void finish();
+@SpringBootApplication
+public class ServerMain {
+    public static void main(String[] args) {
+        SpringApplication.run(ServerMain.class, args);
+    }
 }
