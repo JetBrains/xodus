@@ -30,9 +30,10 @@ public class RunBigANNBench {
         var queryFileName = "bigann_query.bvecs";
         var queryFilePath = benchPath.resolve(queryFileName);
 
-        var queryArchiveName = "bigann_query.bvecs.gz";
-        var queryArchivePath = BenchUtils.downloadBenchFile(benchPath, queryArchiveName);
         if (!Files.exists(queryFilePath) || Files.size(queryFilePath) == 0) {
+            var queryArchiveName = "bigann_query.bvecs.gz";
+            var queryArchivePath = BenchUtils.downloadBenchFile(benchPath, queryArchiveName);
+
             BenchUtils.extractGzArchive(queryFilePath, queryArchivePath);
         }
 
@@ -49,12 +50,13 @@ public class RunBigANNBench {
 
         System.out.printf("%d queries for BigANN bench are read%n", bigAnnQueryVectors.length);
 
-        var baseArchiveName = "bigann_base.bvecs.gz";
-        var baseArchivePath = BenchUtils.downloadBenchFile(benchPath, baseArchiveName);
         var dataFileName = "bigann_base.bvecs";
         var dataFilePath = benchPath.resolve(dataFileName);
 
         if (!Files.exists(dataFilePath) || Files.size(dataFilePath) == 0) {
+            var baseArchiveName = "bigann_base.bvecs.gz";
+            var baseArchivePath = BenchUtils.downloadBenchFile(benchPath, baseArchiveName);
+
             BenchUtils.extractGzArchive(dataFilePath, baseArchivePath);
         }
 
