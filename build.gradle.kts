@@ -171,7 +171,6 @@ subprojects {
         isFailOnError = false
         options.quiet()
         (options as CoreJavadocOptions).addStringOption("Xdoclint:none", "-quiet")
-        (options as CoreJavadocOptions).addBooleanOption("--enable-preview", true)
     }
 
     dependencies {

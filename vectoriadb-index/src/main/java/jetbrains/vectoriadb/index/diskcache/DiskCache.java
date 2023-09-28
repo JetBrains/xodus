@@ -20,6 +20,7 @@ import com.sun.nio.file.ExtendedOpenOption;
 import it.unimi.dsi.fastutil.Hash;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import jetbrains.vectoriadb.index.util.collections.BlockingLongArrayQueue;
+import jetbrains.vectoriadb.index.util.collections.NonBlockingHashMapLongLong;
 import org.jctools.maps.NonBlockingHashMapLong;
 import org.jctools.queues.MpscGrowableArrayQueue;
 import org.jetbrains.annotations.NotNull;
@@ -157,8 +158,6 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
     private static final Object futurePlaceHolder = new Object();
 
-    private final int filePagesCount;
-
     private final ReentrantLock evictionLock;
     private final PerformCleanupTask drainBuffersTask;
 
@@ -207,9 +206,14 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
     private final ExecutorService pagePreLoaders;
 
-    private final FileChannel fileChannel;
-
     private final NonBlockingHashMapLong<Object> preloadingPages = new NonBlockingHashMapLong<>();
+    private final NonBlockingHashMapLongLong fileIdOffset = new NonBlockingHashMapLongLong(16);
+
+    private final NonBlockingHashMapLong<FileChannel> fileChannels = new NonBlockingHashMapLong<>(16);
+
+    private final ReentrantLock fileChannelsLock = new ReentrantLock();
+
+    private long fileOffsetTracker;
 
     private final long vectorRecordOffset;
     private final long edgesCountOffset;
@@ -225,8 +229,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
     private final LongAdder hitsCount = new LongAdder();
 
-    public DiskCache(long cacheSize, int vectorDim, int maxConnectionsPerVertex,
-                     final Path graphFile) throws IOException {
+    public DiskCache(long cacheSize, int vectorDim, int maxConnectionsPerVertex) {
 
         var pagesStructure = createPagesStructure(cacheSize,
                 vectorDim, maxConnectionsPerVertex);
@@ -258,11 +261,6 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         this.edgesOffset = pagesStructure.pageStructure.recordEdgesOffset;
         this.verticesCountPerPage = pagesStructure.pageStructure.verticesCountPerPage;
         this.vectorRecordOffset = pagesStructure.pageStructure.recordVectorsOffset;
-
-        fileChannel = FileChannel.open(graphFile, StandardOpenOption.READ,
-                ExtendedOpenOption.DIRECT);
-
-        this.filePagesCount = (int) (fileChannel.size() / pageSize);
 
         int cachePagesCount = pagesStructure.cachePagesCount;
 
@@ -325,12 +323,12 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return inMemoryPageIndex * pageSize + recordOffset + vectorRecordOffset;
     }
 
-    public int fetchEdges(long vertexIndex, int[] edges) {
+    public int fetchEdges(long indexId, long vertexIndex, int[] edges, Path filePath) {
         var recordOffset = (vertexIndex % verticesCountPerPage) * vertexRecordSize + Long.BYTES;
         var edgeCountOffset = recordOffset + edgesCountOffset;
         var edgesOffset = recordOffset + this.edgesOffset;
 
-        var inMemoryPageIndex = readLocked(vertexIndex);
+        var inMemoryPageIndex = readLocked(indexId, vertexIndex, filePath);
         var edgesCount = pages.get(ValueLayout.JAVA_INT, edgeCountOffset);
         MemorySegment.copy(pages, ValueLayout.JAVA_INT, inMemoryPageIndex * pageSize + edgesOffset, edges,
                 0, edgesCount);
@@ -338,8 +336,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return edgesCount;
     }
 
-    public long readLock(long vertexIndex) {
-        long pageIndex = vertexIndex / verticesCountPerPage;
+    public long readLock(long indexId, long vertexIndex, Path filePath) {
+        var pageOffset = fetchPageOffset(indexId, filePath);
+        long pageIndex = vertexIndex / verticesCountPerPage + pageOffset;
 
         while (true) {
             var inMemoryPageIndex = readLockIfPresent(pageIndex);
@@ -349,7 +348,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
             var future = preloadingPages.putIfAbsent(pageIndex + 1, futurePlaceHolder);
             if (future == null) {
-                future = schedulePagePreLoading(pageIndex);
+                future = schedulePagePreLoading(indexId, pageIndex, pageOffset);
 
                 //noinspection unchecked
                 inMemoryPageIndex = waitForPreloadingCompletion((Future<Void>) future, pageIndex);
@@ -369,8 +368,39 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         }
     }
 
-    public long readLocked(long vertexIndex) {
-        long pageIndex = vertexIndex / verticesCountPerPage;
+    private long fetchPageOffset(long indexId, Path filePath) {
+        try {
+            var pageOffset = fileIdOffset.get(indexId + 1);
+
+            if (pageOffset < 0) {
+                fileChannelsLock.lock();
+                try {
+                    pageOffset = fileIdOffset.get(indexId + 1);
+                    if (pageOffset < 0) {
+                        var fileChannel = fileChannels.get(indexId);
+
+                        if (fileChannel == null) {
+                            fileChannel = FileChannel.open(filePath, StandardOpenOption.READ, ExtendedOpenOption.DIRECT);
+                            fileChannels.put(indexId, fileChannel);
+                        }
+
+                        pageOffset = fileOffsetTracker;
+                        fileOffsetTracker += fileChannel.size();
+                        fileIdOffset.put(indexId + 1, pageOffset);
+                    }
+                } finally {
+                    fileChannelsLock.unlock();
+                }
+            }
+            return pageOffset;
+        } catch (IOException e) {
+            throw new RuntimeException("Error during opening of file channel", e);
+        }
+    }
+
+    public long readLocked(long indexId, long vertexIndex, Path filePath) {
+        var pageOffset = fetchPageOffset(indexId, filePath);
+        long pageIndex = vertexIndex / verticesCountPerPage + pageOffset;
 
         requestsCount.increment();
         while (true) {
@@ -414,8 +444,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return false;
     }
 
-    public void unlock(long vertexIndex) {
-        long pageIndex = vertexIndex / verticesCountPerPage;
+    public void unlock(long indexId, long vertexIndex, Path filePath) {
+        var pageOffset = fetchPageOffset(indexId, filePath);
+        long pageIndex = vertexIndex / verticesCountPerPage + pageOffset;
 
         while (true) {
             var node = data.get(pageIndex + 1);
@@ -450,10 +481,6 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
     private long readLockIfPresent(long pageIndex) {
-        if (pageIndex >= filePagesCount) {
-            throw new IllegalArgumentException();
-        }
-
         requestsCount.increment();
         Node node;
 
@@ -500,8 +527,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return inMemoryPageIndex;
     }
 
-    public void preloadIfNeeded(long vertexIndex) {
-        long pageIndex = vertexIndex / verticesCountPerPage;
+    public void preloadIfNeeded(long indexId, long vertexIndex, Path filePath) {
+        var pageOffset = fetchPageOffset(indexId, filePath);
+        long pageIndex = vertexIndex / verticesCountPerPage + pageOffset;
 
         while (true) {
             var inMemoryIndex = readLockIfPresent(pageIndex);
@@ -533,11 +561,11 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
         var future = preloadingPages.putIfAbsent(pageIndex + 1, futurePlaceHolder);
         if (future == null) {
-            schedulePagePreLoading(pageIndex);
+            schedulePagePreLoading(indexId, pageIndex, pageOffset);
         }
     }
 
-    private Future<Void> schedulePagePreLoading(long pageIndex) {
+    private Future<Void> schedulePagePreLoading(long indexId, long pageIndex, long pageOffset) {
         var future = CompletableFuture.runAsync(() -> {
             try {
                 long inMemoryPageIndex;
@@ -557,7 +585,10 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                 var pageSegment = pages.asSlice(pageSize * inMemoryPageIndex, pageSize);
                 var buffer = pageSegment.asByteBuffer();
 
-                var position = pageIndex * pageSize;
+                var position = (pageIndex - pageOffset) * pageSize;
+                var fileChannel = fileChannels.get(indexId);
+                assert fileChannel != null;
+
                 while (buffer.remaining() > 0) {
                     var r = fileChannel.read(buffer, position + buffer.position());
 
@@ -1392,7 +1423,10 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     @Override
     public void close() throws IOException {
         arena.close();
-        fileChannel.close();
+
+        for (var fileChannel : fileChannels.values()) {
+            fileChannel.close();
+        }
 
         assert assertAllUnlocked();
     }

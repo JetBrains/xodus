@@ -32,9 +32,12 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.SecureRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class IndexReader implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(IndexReader.class);
+    private static final IndexIdGen indexIdGen = new IndexIdGen();
     private final int medoid;
     private final DiskCache diskCache;
     private final int vectorDim;
@@ -43,11 +46,15 @@ public final class IndexReader implements AutoCloseable {
     private final Quantizer quantizer;
     private final int maxAmountOfCandidates;
     private final Path path;
+    private final Path graphFilePath;
     private final String name;
     private volatile boolean closed;
 
+    private final long id;
+
+
     public IndexReader(String name, int vectorDim, Path indexDirPath, long directMemoryConsumption,
-                       Distance distance) throws IOException {
+                       Distance distance) {
         this(name, vectorDim, IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX,
                 IndexBuilder.DEFAULT_MAX_AMOUNT_OF_CANDIDATES, IndexBuilder.DEFAULT_COMPRESSION_RATIO,
                 indexDirPath,
@@ -56,7 +63,8 @@ public final class IndexReader implements AutoCloseable {
 
     public IndexReader(String name, int vectorDim, int maxConnectionsPerVertex, int maxAmountOfCandidates,
                        int pqCompression, Path indexDirPath, long directMemoryConsumption,
-                       Distance distance) throws IOException {
+                       Distance distance) {
+        this.id = indexIdGen.nextId();
         this.vectorDim = vectorDim;
         this.maxAmountOfCandidates = maxAmountOfCandidates;
         this.distanceFunction = distance.searchDistanceFunction();
@@ -80,7 +88,7 @@ public final class IndexReader implements AutoCloseable {
         }
 
         var pqFilePath = indexDirPath.resolve(name + ".data");
-        var graphFilePath = indexDirPath.resolve(name + ".graph");
+        graphFilePath = indexDirPath.resolve(name + ".graph");
         try (var pqInputStream = new BufferedInputStream(Files.newInputStream(pqFilePath, StandardOpenOption.READ),
                 64 * 1024 * 1024)) {
             try (var dataInputStream = new DataInputStream(pqInputStream)) {
@@ -116,7 +124,7 @@ public final class IndexReader implements AutoCloseable {
         assert directMemoryPool != null;
 
         this.diskCache = new DiskCache(directMemoryConsumption - directMemoryPool.getMemoryUsed(),
-                vectorDim, maxConnectionsPerVertex, graphFilePath);
+                vectorDim, maxConnectionsPerVertex);
 
         logger.info("Vector index {} has been initialized.", name);
     }
@@ -145,7 +153,7 @@ public final class IndexReader implements AutoCloseable {
 
         vector = distanceFunction.preProcess(vector, vectorPreProcessingResult);
 
-        var startVertexInMemoryPageIndex = diskCache.readLock(startVertexIndex);
+        var startVertexInMemoryPageIndex = diskCache.readLock(id, startVertexIndex, graphFilePath);
         var startVectorOffset = diskCache.vectorOffset(startVertexInMemoryPageIndex, startVertexIndex);
         nearestCandidates.add(startVertexIndex,
                 distanceFunction.computeDistance(diskCache.pages, startVectorOffset, vector, 0,
@@ -210,7 +218,7 @@ public final class IndexReader implements AutoCloseable {
             }
 
 
-            var edgesCount = diskCache.fetchEdges(currentVertex, vertexNeighbours);
+            var edgesCount = diskCache.fetchEdges(id, currentVertex, vertexNeighbours, graphFilePath);
             assert vertexIndexesToCheck.isEmpty();
 
             for (var i = 0; i < edgesCount; i++) {
@@ -243,12 +251,12 @@ public final class IndexReader implements AutoCloseable {
             assert vertexIndexesToCheck.isEmpty();
             assert nearestCandidates.size() <= maxAmountOfCandidates;
 
-            diskCache.unlock(currentVertex);
+            diskCache.unlock(id, currentVertex, graphFilePath);
         }
 
         var unlockSize = nearestCandidates.fetchAllLocked(vertexToPreload);
         for (int i = 0; i < unlockSize; i++) {
-            diskCache.unlock(vertexToPreload[i]);
+            diskCache.unlock(id, vertexToPreload[i], graphFilePath);
         }
 
         nearestCandidates.vertexIndices(result, resultSize);
@@ -259,7 +267,7 @@ public final class IndexReader implements AutoCloseable {
 
         for (int n = 0; n < preLoadSize; n++) {
             var preLoadVertexIndex = vertexToPreload[n];
-            diskCache.preloadIfNeeded(preLoadVertexIndex);
+            diskCache.preloadIfNeeded(id, preLoadVertexIndex, graphFilePath);
         }
     }
 
@@ -316,7 +324,7 @@ public final class IndexReader implements AutoCloseable {
                 //all checked pages are unlocked in main cycle
                 //but unchecked
                 if (removed < 0) {
-                    diskCache.unlock(-removed - 1);
+                    diskCache.unlock(id, -removed - 1, graphFilePath);
                 }
             }
         }
@@ -337,7 +345,7 @@ public final class IndexReader implements AutoCloseable {
                     throw new IllegalStateException("Vertex " + vertexIndex + " is not preloaded");
                 }
 
-                long inMemoryPageIndex = diskCache.readLocked(vertexIndex);
+                long inMemoryPageIndex = diskCache.readLocked(id, vertexIndex, graphFilePath);
                 var vectorOffset = diskCache.vectorOffset(inMemoryPageIndex, vertexIndex);
 
                 var preciseDistance = distanceFunction.computeDistance(diskCache.pages, vectorOffset,
@@ -376,10 +384,10 @@ public final class IndexReader implements AutoCloseable {
                 throw new IllegalStateException("Vertex " + vertexIndex4 + " is not preloaded");
             }
 
-            long inMemoryPageIndex1 = diskCache.readLocked(vertexIndex1);
-            long inMemoryPageIndex2 = diskCache.readLocked(vertexIndex2);
-            long inMemoryPageIndex3 = diskCache.readLocked(vertexIndex3);
-            long inMemoryPageIndex4 = diskCache.readLocked(vertexIndex4);
+            long inMemoryPageIndex1 = diskCache.readLocked(id, vertexIndex1, graphFilePath);
+            long inMemoryPageIndex2 = diskCache.readLocked(id, vertexIndex2, graphFilePath);
+            long inMemoryPageIndex3 = diskCache.readLocked(id, vertexIndex3, graphFilePath);
+            long inMemoryPageIndex4 = diskCache.readLocked(id, vertexIndex4, graphFilePath);
 
             var vectorOffset1 = diskCache.vectorOffset(inMemoryPageIndex1, vertexIndex1);
             var vectorOffset2 = diskCache.vectorOffset(inMemoryPageIndex2, vertexIndex2);
@@ -490,6 +498,19 @@ public final class IndexReader implements AutoCloseable {
             this.vertexToPreload = vertexToPreload;
             this.vectorPreprocessingResult = vectorPreprocessingResult;
             this.distanceResult = new float[4];
+        }
+    }
+
+    private static final class IndexIdGen {
+        private final AtomicInteger counter = new AtomicInteger();
+        private final SecureRandom secureRandom = new SecureRandom();
+
+        private long nextId() {
+            var id = counter.incrementAndGet();
+            var ts = System.currentTimeMillis();
+            var random = secureRandom.nextInt();
+
+            return (((long) id) << 32) | ((0xFFFF & ts) << 16) | (0xFFFF & random);
         }
     }
 }
