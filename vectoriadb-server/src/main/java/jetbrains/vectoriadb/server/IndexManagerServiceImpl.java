@@ -32,11 +32,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
+import java.lang.foreign.Arena;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.SymbolLookup;
+import java.lang.foreign.ValueLayout;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -45,6 +54,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @GrpcService
 public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBase {
+    private static final long EIGHT_TB = 8L * 1024 * 1024 * 1024 * 1024;
+
     public static final String DIMENSIONS_PROPERTY = "vector-index.dimensions";
     public static final String MAX_CONNECTIONS_PER_VERTEX_PROPERTY = "vector-index.max-connections-per-vertex";
     public static final String MAX_CANDIDATES_RETURNED_PROPERTY = "vector-index.max-candidates-returned";
@@ -85,10 +96,26 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 IndexBuilder.DEFAULT_DISTANCE_MULTIPLIER);
 
         if (!environment.containsProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY)) {
-            var msg = "Property " + INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY +
-                    " is not set.";
-            logger.error(msg);
-            throw new IllegalArgumentException(msg);
+            var availableRAM = fetchAvailableRAM();
+
+            if (availableRAM >= EIGHT_TB) {
+                var msg = "Property " + INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY +
+                        " is not set.";
+                logger.error(msg);
+                throw new IllegalArgumentException(msg);
+            }
+
+            var heapSize = Runtime.getRuntime().maxMemory();
+            var leftMemory = availableRAM - heapSize;
+            var osMemory = Math.min(leftMemory / 10, 1024L * 1024 * 1024);
+
+            indexBuildingMaxMemoryConsumption = (leftMemory - osMemory) / 2;
+
+            logger.info("Property " + INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY + " is not set. " +
+                    "Using " + indexBuildingMaxMemoryConsumption + " bytes for index building. " +
+                    "Heap size : " + heapSize + " bytes, available RAM " + availableRAM +
+                    " bytes, memory left for OS needs " + osMemory + " bytes. The rest of "
+                    + indexBuildingMaxMemoryConsumption + " bytes will be used for disk page cache.");
         } else {
             var memoryConsumption = environment.getProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY, Long.class);
 
@@ -461,6 +488,110 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             case UPLOADING -> IndexManagerOuterClass.IndexState.UPLOADING;
         };
     }
+
+    private static long fetchAvailableRAM() {
+        var osName = System.getProperty("os.name").toLowerCase(Locale.US);
+        if (osName.contains("linux")) {
+            return availableMemoryLinux();
+        } else if (osName.contains("windows")) {
+            return availableMemoryWindows();
+        }
+
+        return Integer.MAX_VALUE;
+    }
+
+    private static long availableMemoryWindows() {
+        try (var arena = Arena.openConfined()) {
+            var memoryStatusExLayout = MemoryLayout.structLayout(
+                    ValueLayout.JAVA_INT.withName("dwLength"),
+                    ValueLayout.JAVA_INT.withName("dwMemoryLoad"),
+                    ValueLayout.JAVA_LONG.withName("ullTotalPhys"),
+                    ValueLayout.JAVA_LONG.withName("ullAvailPhys"),
+                    ValueLayout.JAVA_LONG.withName("ullTotalPageFile"),
+                    ValueLayout.JAVA_LONG.withName("ullAvailPageFile"),
+                    ValueLayout.JAVA_LONG.withName("ullTotalVirtual"),
+                    ValueLayout.JAVA_LONG.withName("ullAvailVirtual"),
+                    ValueLayout.JAVA_LONG.withName("ullAvailExtendedVirtual")
+            );
+
+            var memoryStatusExSize = memoryStatusExLayout.byteSize();
+            var memoryStatusExSegment = arena.allocate(memoryStatusExLayout);
+
+            memoryStatusExSegment.set(ValueLayout.JAVA_LONG, memoryStatusExLayout.byteOffset(
+                    MemoryLayout.PathElement.groupElement("dwLength")), memoryStatusExSize);
+
+            var linker = Linker.nativeLinker();
+
+            var lookup = SymbolLookup.libraryLookup("kernel32.dll", arena.scope());
+            var globalMemoryStatusExOptional = lookup.find("GlobalMemoryStatusEx");
+            if (globalMemoryStatusExOptional.isEmpty()) {
+                logger.error("Failed to find GlobalMemoryStatusEx in kernel32.dll");
+                return Integer.MAX_VALUE;
+            }
+
+            var globalMemoryStatusEx = globalMemoryStatusExOptional.get();
+            var globalMemoryStatusExHandle = linker.downcallHandle(globalMemoryStatusEx,
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
+            try {
+                globalMemoryStatusExHandle.invoke(memoryStatusExSegment);
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
+
+
+            return memoryStatusExLayout.byteOffset(MemoryLayout.PathElement.groupElement("ullTotalPhys"));
+        }
+    }
+
+    private static long availableMemoryLinux() {
+        var memInfoMemory = fetchMemInfoMemory();
+        var cGroupV1Memory = fetchCGroupV1Memory();
+        var cGroupV2Memory = fetchCGroupV2Memory();
+
+        return Math.min(memInfoMemory, Math.min(cGroupV1Memory, cGroupV2Memory));
+    }
+
+    private static long fetchMemInfoMemory() {
+        try (var bufferedReader = new BufferedReader(new FileReader("/proc/meminfo"))) {
+
+            String memTotalLine = bufferedReader.readLine();
+
+            String[] memTotalParts = memTotalLine.split("\\s+");
+            return Long.parseLong(memTotalParts[1]) * 1024;
+        } catch (IOException e) {
+            logger.error("Failed to read /proc/meminfo", e);
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    private static long fetchCGroupV1Memory() {
+        if (!Files.exists(Path.of("/sys/fs/cgroup/memory/memory.limit_in_bytes"))) {
+            return Long.MAX_VALUE;
+        }
+
+        try (var bufferedReader = new BufferedReader(new FileReader("/sys/fs/cgroup/memory/memory.limit_in_bytes"))) {
+            String memoryLimitLine = bufferedReader.readLine();
+            return Long.parseLong(memoryLimitLine.split("\\s+")[0]);
+        } catch (IOException | NumberFormatException e) {
+            logger.error("Failed to read /sys/fs/cgroup/memory/memory.limit_in_bytes", e);
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    private static long fetchCGroupV2Memory() {
+        if (!Files.exists(Path.of("/sys/fs/cgroup/memory.max"))) {
+            return Long.MAX_VALUE;
+        }
+
+        try (var bufferedReader = new BufferedReader(new FileReader("/sys/fs/cgroup/memory.max"))) {
+            String memoryLimitLine = bufferedReader.readLine();
+            return Long.parseLong(memoryLimitLine.split("\\s+")[0]);
+        } catch (IOException | NumberFormatException e) {
+            logger.error("Failed to read /sys/fs/cgroup/memory.max", e);
+            return Integer.MAX_VALUE;
+        }
+    }
+
 
     @PreDestroy
     public void shutdown() {
