@@ -60,7 +60,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
 
 public final class IndexBuilder {
     public static final int DEFAULT_MAX_CONNECTIONS_PER_VERTEX = 128;
-    public static final int DEFAULT_MAX_AMOUNT_OF_CANDIDATES = 256;
+    public static final int DEFAULT_MAX_AMOUNT_OF_CANDIDATES = 128;
     public static final float DEFAULT_DISTANCE_MULTIPLIER = 2.0f;
     public static final int DEFAULT_COMPRESSION_RATIO = 32;
 
