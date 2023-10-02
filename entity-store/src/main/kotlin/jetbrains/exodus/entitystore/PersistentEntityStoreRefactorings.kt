@@ -322,7 +322,11 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     if (missedLinks.isNotEmpty()) {
                         store.environment.executeInExclusiveTransaction { txn ->
                             for (missedLink in missedLinks) {
-                                linksTable.put(txn, missedLink.first, missedLink.second)
+                                val propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
+                                linksTable.put(
+                                    txn, propertyKey.entityLocalId, missedLink.second, false,
+                                    propertyKey.propertyId
+                                )
                             }
                         }
 
@@ -333,7 +337,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
 
                         logInfo(
                             missedLinks.size.toString() + " links missing in second  " +
-                                    "table found for [" + entityType + " ] and targets: $redundantLinkTypeNames"
+                                    "table found for [" + entityType + " ] and targets: $redundantLinkTypeNames and fixed"
                         )
 
                         missedLinks.clear()
@@ -363,12 +367,24 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     }
 
                     if (missedLinks.isNotEmpty()) {
+                        store.environment.executeInExclusiveTransaction { txn ->
+                            for (missedLink in missedLinks) {
+                                val propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
+
+                                linksTable.put(
+                                    txn, propertyKey.entityLocalId, missedLink.second, false,
+                                    propertyKey.propertyId
+                                )
+                            }
+                        }
+
                         val redundantLinkTypeNames = HashSet<String>(missedLinkTypes.size)
                         for (typeId in missedLinkTypes) {
                             redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
                         }
 
-                        logInfo("${missedLinks.size} links missing in first table found for [$entityType] and targets: $redundantLinkTypeNames")
+                        logInfo("${missedLinks.size} links missing in first table found for [$entityType] " +
+                                "and targets: $redundantLinkTypeNames and fixed")
                     }
                 }
             }
