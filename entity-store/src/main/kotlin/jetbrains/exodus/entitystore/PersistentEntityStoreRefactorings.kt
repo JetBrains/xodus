@@ -340,25 +340,36 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         missedLinkTypes.clear()
                     }
 
-//                    linksTable.getSecondIndexCursor(envTxn).use { cursor ->
-//                        while (cursor.next) {
-//                            val second = cursor.key
-//                            val first = cursor.value
-//
-//                            if (!linksTable.contains(envTxn, first, second)) {
-//                                missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
-//                            }
-//                        }
-//                    }
-//
-//                    if (missedLinks.isNotEmpty()) {
-//                        val redundantLinkTypeNames = HashSet<String>(missedLinkTypes.size)
-//                        for (typeId in missedLinkTypes) {
-//                            redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
-//                        }
-//
-//                        logInfo("${missedLinks.size} links missing in first table found for [$entityType] and targets: $redundantLinkTypeNames")
-//                    }
+                    linksTable.getSecondIndexCursor(envTxn).use { cursor ->
+                        while (cursor.next) {
+                            val second = cursor.key
+                            val first = cursor.value
+
+                            var linkValue: LinkValue? = null
+                            try {
+                                linkValue = LinkValue.entryToLinkValue(second)
+                            } catch (ignore: ArrayIndexOutOfBoundsException) {
+                            }
+
+                            if (linkValue != null) {
+                                val targetEntityId = linkValue!!.entityId
+
+                                if (!linksTable.contains(envTxn, first, second)) {
+                                    missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
+                                    missedLinkTypes.add(targetEntityId.typeId)
+                                }
+                            }
+                        }
+                    }
+
+                    if (missedLinks.isNotEmpty()) {
+                        val redundantLinkTypeNames = HashSet<String>(missedLinkTypes.size)
+                        for (typeId in missedLinkTypes) {
+                            redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
+                        }
+
+                        logInfo("${missedLinks.size} links missing in first table found for [$entityType] and targets: $redundantLinkTypeNames")
+                    }
                 }
             }
         }
