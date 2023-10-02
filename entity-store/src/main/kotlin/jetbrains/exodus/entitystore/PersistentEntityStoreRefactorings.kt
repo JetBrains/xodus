@@ -285,6 +285,85 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
         }
     }
 
+    fun refactorAddMissedLinks() {
+        store.executeInReadonlyTransaction { txn ->
+            txn as PersistentStoreTransaction
+            for (entityType in store.getEntityTypes(txn)) {
+                logInfo("Refactoring restoring missed links in [$entityType]")
+                runReadonlyTransactionSafeForEntityType(entityType) {
+
+                    val missedLinks = ArrayList<Pair<ByteIterable, ByteIterable>>()
+                    val entityTypeId = store.getEntityTypeId(txn, entityType, false)
+                    val linksTable = store.getLinksTable(txn, entityTypeId)
+                    val envTxn = txn.environmentTransaction
+                    val missedLinkTypes = IntHashSet()
+
+                    linksTable.getFirstIndexCursor(envTxn).use { cursor ->
+                        while (cursor.next) {
+                            val first = cursor.key
+                            val second = cursor.value
+                            var linkValue: LinkValue? = null
+
+                            try {
+                                linkValue = LinkValue.entryToLinkValue(second)
+                            } catch (ignore: ArrayIndexOutOfBoundsException) {
+                            }
+
+                            if (linkValue != null) {
+                                val targetEntityId = linkValue.entityId
+
+                                if (!linksTable.contains2(envTxn, first, second)) {
+                                    missedLinkTypes.add(targetEntityId.typeId)
+                                    missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
+                                }
+                            }
+                        }
+                    }
+                    if (missedLinks.isNotEmpty()) {
+//                        store.environment.executeInExclusiveTransaction { txn ->
+//                            for (missedLink in missedLinks) {
+//                                linksTable.put(txn, missedLink.first, missedLink.second)
+//                            }
+//                        }
+
+                        val redundantLinkTypeNames = ArrayList<String>(missedLinkTypes.size)
+                        for (typeId in missedLinkTypes) {
+                            redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
+                        }
+
+                        logInfo(
+                            missedLinks.size.toString() + " links missing in second  " +
+                                    "table found for [" + entityType + " ] and targets: $redundantLinkTypeNames"
+                        )
+
+                        missedLinks.clear()
+                        missedLinkTypes.clear()
+                    }
+
+                    linksTable.getSecondIndexCursor(envTxn).use { cursor ->
+                        while (cursor.next) {
+                            val second = cursor.key
+                            val first = cursor.value
+
+                            if (!linksTable.contains(envTxn, first, second)) {
+                                missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
+                            }
+                        }
+                    }
+
+                    if (missedLinks.isNotEmpty()) {
+                        val redundantLinkTypeNames = ArrayList<String>(missedLinkTypes.size)
+                        for (typeId in missedLinkTypes) {
+                            redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
+                        }
+
+                        logInfo("${missedLinks.size} links missing in first table found for [$entityType] and targets: $redundantLinkTypeNames")
+                    }
+                }
+            }
+        }
+    }
+
     fun refactorMakeLinkTablesConsistent(internalSettings: Store) {
         store.executeInReadonlyTransaction { txn ->
             txn as PersistentStoreTransaction

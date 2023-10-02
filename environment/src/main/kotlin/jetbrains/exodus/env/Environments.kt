@@ -28,12 +28,13 @@ import jetbrains.exodus.log.LogConfig
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.StartupMetadata
 import jetbrains.exodus.tree.ExpiredLoggableCollection
+import mu.KLogging
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.CountDownLatch
 
-object Environments {
+object Environments : KLogging() {
 
     @JvmStatic
     fun newInstance(dir: String, subDir: String, ec: EnvironmentConfig): Environment =
@@ -179,7 +180,7 @@ object Environments {
                         EnvironmentImpl.loggerInfo(msg.toString())
                     }
                 } else {
-                    env.copyTo(tempDir, false) { msg ->
+                    env.copyTo(tempDir, false, logger) { msg ->
                         EnvironmentImpl.loggerInfo(msg.toString())
                     }
                 }
