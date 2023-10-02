@@ -326,7 +326,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
 //                            }
 //                        }
 
-                        val redundantLinkTypeNames = ArrayList<String>(missedLinkTypes.size)
+                        val redundantLinkTypeNames = HashSet<String>(missedLinkTypes.size)
                         for (typeId in missedLinkTypes) {
                             redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
                         }
@@ -352,7 +352,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     }
 
                     if (missedLinks.isNotEmpty()) {
-                        val redundantLinkTypeNames = ArrayList<String>(missedLinkTypes.size)
+                        val redundantLinkTypeNames = HashSet<String>(missedLinkTypes.size)
                         for (typeId in missedLinkTypes) {
                             redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
                         }
