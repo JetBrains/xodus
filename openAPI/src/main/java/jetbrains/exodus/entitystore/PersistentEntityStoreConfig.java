@@ -100,6 +100,8 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      */
     public static final String REFACTORING_HEAVY_LINKS = "exodus.entityStore.refactoring.heavyLinks";
 
+    public static final String REFACTORING_MISSED_LINKS = "exodus.entityStore.refactoring.missedLinks";
+
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code false}.
      * <p>Mutable at runtime: no
@@ -400,6 +402,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(REFACTORING_NULL_INDICES, false),
                 new Pair(REFACTORING_BLOB_NULL_INDICES, false),
                 new Pair(REFACTORING_HEAVY_LINKS, false),
+                new Pair(REFACTORING_MISSED_LINKS, false),
                 new Pair(REFACTORING_HEAVY_PROPS, false),
                 new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
                 new Pair(REFACTORING_CLEAR_BROKEN_BLOBS, false),
@@ -483,6 +486,10 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public boolean getRefactoringHeavyLinks() {
         return getRefactoringForceAll() || (Boolean) getSetting(REFACTORING_HEAVY_LINKS);
+    }
+
+    public boolean getRefactorMissedLinks() {
+        return (Boolean) getSetting(REFACTORING_MISSED_LINKS);
     }
 
     public PersistentEntityStoreConfig setRefactoringHeavyLinks(final boolean heavyLinks) {
