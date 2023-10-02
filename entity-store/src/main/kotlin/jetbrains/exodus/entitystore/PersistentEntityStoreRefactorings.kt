@@ -320,11 +320,11 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         }
                     }
                     if (missedLinks.isNotEmpty()) {
-//                        store.environment.executeInExclusiveTransaction { txn ->
-//                            for (missedLink in missedLinks) {
-//                                linksTable.put(txn, missedLink.first, missedLink.second)
-//                            }
-//                        }
+                        store.environment.executeInExclusiveTransaction { txn ->
+                            for (missedLink in missedLinks) {
+                                linksTable.put(txn, missedLink.first, missedLink.second)
+                            }
+                        }
 
                         val redundantLinkTypeNames = HashSet<String>(missedLinkTypes.size)
                         for (typeId in missedLinkTypes) {
@@ -340,25 +340,25 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                         missedLinkTypes.clear()
                     }
 
-                    linksTable.getSecondIndexCursor(envTxn).use { cursor ->
-                        while (cursor.next) {
-                            val second = cursor.key
-                            val first = cursor.value
-
-                            if (!linksTable.contains(envTxn, first, second)) {
-                                missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
-                            }
-                        }
-                    }
-
-                    if (missedLinks.isNotEmpty()) {
-                        val redundantLinkTypeNames = HashSet<String>(missedLinkTypes.size)
-                        for (typeId in missedLinkTypes) {
-                            redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
-                        }
-
-                        logInfo("${missedLinks.size} links missing in first table found for [$entityType] and targets: $redundantLinkTypeNames")
-                    }
+//                    linksTable.getSecondIndexCursor(envTxn).use { cursor ->
+//                        while (cursor.next) {
+//                            val second = cursor.key
+//                            val first = cursor.value
+//
+//                            if (!linksTable.contains(envTxn, first, second)) {
+//                                missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
+//                            }
+//                        }
+//                    }
+//
+//                    if (missedLinks.isNotEmpty()) {
+//                        val redundantLinkTypeNames = HashSet<String>(missedLinkTypes.size)
+//                        for (typeId in missedLinkTypes) {
+//                            redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
+//                        }
+//
+//                        logInfo("${missedLinks.size} links missing in first table found for [$entityType] and targets: $redundantLinkTypeNames")
+//                    }
                 }
             }
         }
