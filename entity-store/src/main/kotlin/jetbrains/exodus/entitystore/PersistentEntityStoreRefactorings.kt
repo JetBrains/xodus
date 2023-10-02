@@ -324,7 +324,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             for (missedLink in missedLinks) {
                                 val propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
                                 linksTable.put(
-                                    txn, propertyKey.entityLocalId, missedLink.second, false,
+                                    txn, propertyKey.entityLocalId, missedLink.second, true,
                                     propertyKey.propertyId
                                 )
                             }
@@ -372,7 +372,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                 val propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
 
                                 linksTable.put(
-                                    txn, propertyKey.entityLocalId, missedLink.second, false,
+                                    txn, propertyKey.entityLocalId, missedLink.second, true,
                                     propertyKey.propertyId
                                 )
                             }
