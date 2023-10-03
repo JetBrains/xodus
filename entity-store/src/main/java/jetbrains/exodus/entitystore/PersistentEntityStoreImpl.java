@@ -388,6 +388,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             }
             if (config.getRefactorMissedLinks()) {
                 refactorings.refactorAddMissedLinks();
+                refactorings.refactorMakeLinkTablesConsistent(internalSettings);
             }
             if (fromScratch || Settings.get(internalSettings, "refactorMakePropTablesConsistent() applied") == null || config.getRefactoringHeavyProps()) {
                 if (!fromScratch) {
