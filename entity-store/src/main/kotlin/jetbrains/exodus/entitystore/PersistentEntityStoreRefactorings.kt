@@ -310,30 +310,47 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             }
 
                             if (linkValue != null) {
-                                val targetEntityId = linkValue.entityId
-
                                 if (!linksTable.contains2(envTxn, first, second)) {
-                                    missedLinkTypes.add(targetEntityId.typeId)
-                                    missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
+                                    var propertyKey: PropertyKey? = null
+                                    try {
+                                        propertyKey = PropertyKey.entryToPropertyKey(first)
+                                    } catch (ignore: Exception) {
+                                    }
+
+                                    try {
+                                        txn.getEntity(linkValue.entityId)
+                                    } catch (e: EntityRemovedInDatabaseException) {
+                                        linkValue = null
+                                    }
+
+                                    if (linkValue != null) {
+                                        try {
+                                            store.getEntityType(txn, linkValue.entityId.typeId)
+                                        } catch (e: EntityRemovedInDatabaseException) {
+                                            linkValue = null
+                                        }
+                                    }
+
+                                    if (propertyKey != null && linkValue != null) {
+                                        val targetEntityId = linkValue.entityId
+
+                                        missedLinkTypes.add(targetEntityId.typeId)
+                                        missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
+                                    }
                                 }
                             }
                         }
                     }
+
                     if (missedLinks.isNotEmpty()) {
                         store.environment.executeInExclusiveTransaction { txn ->
                             for (missedLink in missedLinks) {
-                                var propertyKey: PropertyKey? = null
-                                try {
-                                    propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
-                                } catch (ignore: Exception) {
-                                }
+                                val propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
 
-                                if (propertyKey != null) {
-                                    linksTable.put(
-                                        txn, propertyKey.entityLocalId, missedLink.second, true,
-                                        propertyKey.propertyId
-                                    )
-                                }
+                                linksTable.put(
+                                    txn, propertyKey.entityLocalId, missedLink.second, true,
+                                    propertyKey.propertyId
+                                )
                             }
                         }
 
@@ -363,11 +380,32 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             }
 
                             if (linkValue != null) {
-                                val targetEntityId = linkValue!!.entityId
-
                                 if (!linksTable.contains(envTxn, first, second)) {
-                                    missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
-                                    missedLinkTypes.add(targetEntityId.typeId)
+                                    var propertyKey: PropertyKey? = null
+                                    try {
+                                        propertyKey = PropertyKey.entryToPropertyKey(first)
+                                    } catch (ignore: Exception) {
+                                    }
+
+                                    try {
+                                        txn.getEntity(linkValue!!.entityId)
+                                    } catch (e: EntityRemovedInDatabaseException) {
+                                        linkValue = null
+                                    }
+
+                                    if (linkValue != null) {
+                                        try {
+                                            store.getEntityType(txn, linkValue!!.entityId.typeId)
+                                        } catch (e: EntityRemovedInDatabaseException) {
+                                            linkValue = null
+                                        }
+                                    }
+
+                                    if (propertyKey != null && linkValue != null) {
+                                        val targetEntityId = linkValue!!.entityId
+                                        missedLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
+                                        missedLinkTypes.add(targetEntityId.typeId)
+                                    }
                                 }
                             }
                         }
@@ -376,18 +414,12 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     if (missedLinks.isNotEmpty()) {
                         store.environment.executeInExclusiveTransaction { txn ->
                             for (missedLink in missedLinks) {
-                                var propertyKey: PropertyKey? = null
-                                try {
-                                    propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
-                                } catch (ignore: Exception) {
-                                }
+                                val propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
 
-                                if (propertyKey != null) {
-                                    linksTable.put(
-                                        txn, propertyKey!!.entityLocalId, missedLink.second, true,
-                                        propertyKey!!.propertyId
-                                    )
-                                }
+                                linksTable.put(
+                                    txn, propertyKey.entityLocalId, missedLink.second, true,
+                                    propertyKey.propertyId
+                                )
                             }
                         }
 
