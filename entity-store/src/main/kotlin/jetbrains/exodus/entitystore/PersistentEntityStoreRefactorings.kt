@@ -306,7 +306,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
 
                             try {
                                 linkValue = LinkValue.entryToLinkValue(second)
-                            } catch (ignore: ArrayIndexOutOfBoundsException) {
+                            } catch (ignore: Exception) {
                             }
 
                             if (linkValue != null) {
@@ -322,11 +322,18 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     if (missedLinks.isNotEmpty()) {
                         store.environment.executeInExclusiveTransaction { txn ->
                             for (missedLink in missedLinks) {
-                                val propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
-                                linksTable.put(
-                                    txn, propertyKey.entityLocalId, missedLink.second, true,
-                                    propertyKey.propertyId
-                                )
+                                var propertyKey: PropertyKey? = null
+                                try {
+                                    propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
+                                } catch (ignore: Exception) {
+                                }
+
+                                if (propertyKey != null) {
+                                    linksTable.put(
+                                        txn, propertyKey.entityLocalId, missedLink.second, true,
+                                        propertyKey.propertyId
+                                    )
+                                }
                             }
                         }
 
@@ -352,7 +359,7 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             var linkValue: LinkValue? = null
                             try {
                                 linkValue = LinkValue.entryToLinkValue(second)
-                            } catch (ignore: ArrayIndexOutOfBoundsException) {
+                            } catch (ignore: Exception) {
                             }
 
                             if (linkValue != null) {
@@ -369,12 +376,18 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                     if (missedLinks.isNotEmpty()) {
                         store.environment.executeInExclusiveTransaction { txn ->
                             for (missedLink in missedLinks) {
-                                val propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
+                                var propertyKey: PropertyKey? = null
+                                try {
+                                    propertyKey = PropertyKey.entryToPropertyKey(missedLink.first)
+                                } catch (ignore: Exception) {
+                                }
 
-                                linksTable.put(
-                                    txn, propertyKey.entityLocalId, missedLink.second, true,
-                                    propertyKey.propertyId
-                                )
+                                if (propertyKey != null) {
+                                    linksTable.put(
+                                        txn, propertyKey!!.entityLocalId, missedLink.second, true,
+                                        propertyKey!!.propertyId
+                                    )
+                                }
                             }
                         }
 
@@ -383,8 +396,10 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             redundantLinkTypeNames.add(store.getEntityType(txn, typeId))
                         }
 
-                        logInfo("${missedLinks.size} links missing in first table found for [$entityType] " +
-                                "and targets: $redundantLinkTypeNames and fixed")
+                        logInfo(
+                            "${missedLinks.size} links missing in first table found for [$entityType] " +
+                                    "and targets: $redundantLinkTypeNames and fixed"
+                        )
                     }
                 }
             }
