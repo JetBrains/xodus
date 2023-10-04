@@ -319,14 +319,14 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
 
                                     try {
                                         txn.getEntity(linkValue.entityId)
-                                    } catch (e: EntityRemovedInDatabaseException) {
+                                    } catch (e: Exception) {
                                         linkValue = null
                                     }
 
                                     if (linkValue != null) {
                                         try {
                                             store.getEntityType(txn, linkValue.entityId.typeId)
-                                        } catch (e: EntityRemovedInDatabaseException) {
+                                        } catch (e: Exception) {
                                             linkValue = null
                                         }
                                     }
@@ -389,14 +389,14 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
 
                                     try {
                                         txn.getEntity(linkValue!!.entityId)
-                                    } catch (e: EntityRemovedInDatabaseException) {
+                                    } catch (e: Exception) {
                                         linkValue = null
                                     }
 
                                     if (linkValue != null) {
                                         try {
                                             store.getEntityType(txn, linkValue!!.entityId.typeId)
-                                        } catch (e: EntityRemovedInDatabaseException) {
+                                        } catch (e: Exception) {
                                             linkValue = null
                                         }
                                     }
