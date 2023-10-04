@@ -196,21 +196,21 @@ object Environments : KLogging() {
 
                 val locationPath = Paths.get(location)
 
-                val firstMetadataPath = locationPath.resolve(StartupMetadata.FIRST_FILE_NAME)
+                val firstMetadataPath = locationPath.resolve(StartupMetadata.ZERO_FILE_NAME)
 
                 if (Files.exists(firstMetadataPath)) {
                     val delFirstMetadataPath = locationPath.resolve(
-                        StartupMetadata.FIRST_FILE_NAME +
+                        StartupMetadata.ZERO_FILE_NAME +
                                 AsyncFileDataWriter.DELETED_FILE_EXTENSION
                     )
                     Files.move(firstMetadataPath, delFirstMetadataPath)
                 }
 
-                val secondMetadataPath = locationPath.resolve(StartupMetadata.SECOND_FILE_NAME)
+                val secondMetadataPath = locationPath.resolve(StartupMetadata.FIRST_FILE_NAME)
 
                 if (Files.exists(secondMetadataPath)) {
                     val delSecondMetadataPath = locationPath.resolve(
-                        StartupMetadata.SECOND_FILE_NAME +
+                        StartupMetadata.FIRST_FILE_NAME +
                                 AsyncFileDataWriter.DELETED_FILE_EXTENSION
                     )
                     Files.move(secondMetadataPath, delSecondMetadataPath)
@@ -268,6 +268,11 @@ object Environments : KLogging() {
             if (env.log.restoredFromBackup) {
                 env.isClearBrokenBlobs = true
                 env.isCheckLuceneDirectory = true
+
+                if (env.environmentConfig.checkBackupConsistency) {
+                    logger.warn("Data structures consistency is going to be checked after restoring from backup")
+                    (env as EnvironmentImpl).checkDataStructuresConsistency()
+                }
             }
         } else {
             EnvironmentImpl.loggerInfo(

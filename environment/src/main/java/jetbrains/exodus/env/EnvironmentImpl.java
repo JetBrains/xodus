@@ -239,6 +239,38 @@ public class EnvironmentImpl implements Environment {
         return log.getLocation();
     }
 
+    public void checkDataStructuresConsistency() {
+        logger.warn("Checking data structures consistency...");
+
+        executeInReadonlyTransaction(txn -> {
+            var storeNames = new ArrayList<>(getAllStoreNames(txn));
+            storeNames.add(GarbageCollector.UTILIZATION_PROFILE_STORE_NAME);
+
+            for (int i = 0; i < storeNames.size(); i++) {
+                var storeName = storeNames.get(i);
+                if (storeExists(storeName, txn)) {
+                    logger.warn("Checking store: '" + storeNames.get(i) + "' ... " + (i * 100 / storeNames.size()) + "%");
+
+                    var store = openStore(storeName, StoreConfig.USE_EXISTING, txn);
+                    var it = ((TransactionBase) txn).getTree(store).addressIterator();
+                    while (it.hasNext()) {
+                        var address = it.next();
+                        log.read(address);
+                    }
+                }
+            }
+
+            logger.warn("Checking meta tree...");
+            var it = ((MetaTreeImpl) getMetaTree()).addressIterator();
+            while (it.hasNext()) {
+                var address = it.next();
+                log.read(address);
+            }
+        });
+
+        logger.warn("Checking data structures consistency finished");
+    }
+
     @Override
     public @NotNull BitmapImpl openBitmap(@NotNull String name,
                                           @NotNull final StoreConfig config,

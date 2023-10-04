@@ -202,23 +202,23 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     backupMetadataBuffer.rewind()
                     val backupMetadata = BackupMetadata.deserialize(
                         backupMetadataBuffer,
-                        startupMetadata.currentVersion, startupMetadata.isUseFirstFile
+                        startupMetadata.currentVersion, startupMetadata.isUseZeroFile
                     )
                     Files.deleteIfExists(backupLocation)
 
                     if (backupMetadata == null || backupMetadata.rootAddress < 0 ||
                         (backupMetadata.lastFileOffset % backupMetadata.pageSize.toLong()) != 0L
                     ) {
-                        logger.warn("Dynamic backup is not stored correctly for database $location.")
+                        logger.warn("Backup is not stored correctly for database $location.")
                     } else {
                         val lastFileName = LogUtil.getLogFilename(backupMetadata.lastFileAddress)
                         val lastSegmentFile = Path.of(location).resolve(lastFileName)
 
                         if (!Files.exists(lastSegmentFile)) {
-                            logger.warn("Dynamic backup is not stored correctly for database $location.")
+                            logger.warn("Backup is not stored correctly for database $location.")
                         } else {
                             logger.info(
-                                "Found dynamic backup. " +
+                                "Found backup. " +
                                         "Database $location will be restored till file $lastFileName, " +
                                         " file length will be set too " +
                                         "${backupMetadata.lastFileOffset}. DB root address ${backupMetadata.rootAddress}"
@@ -270,6 +270,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     Files.deleteIfExists(Path.of(blockToDelete.toURI()))
                                 }
 
+                                backupMetadata.alterMetadata(startupMetadata)
                                 startupMetadata = backupMetadata
                                 restoredFromBackup = true
                             } catch (ex: Exception) {

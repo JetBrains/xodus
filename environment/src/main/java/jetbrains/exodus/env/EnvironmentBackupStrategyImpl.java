@@ -18,6 +18,7 @@ package jetbrains.exodus.env;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.FileDescriptorInputStream;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
+import jetbrains.exodus.log.BackupMetadata;
 import jetbrains.exodus.log.DataCorruptionException;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.StartupMetadata;
@@ -35,9 +36,12 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
 
     private long highAddress;
     private long fileLastAddress;
+    private long lastFileOffset;
+
     private long fileLengthBound;
     private long rootAddress;
     private final int pageSize;
+    private boolean backupMetadataWasSent;
     private boolean startupMetadataWasSent;
 
     public EnvironmentBackupStrategyImpl(@NotNull EnvironmentImpl environment) {
@@ -56,7 +60,8 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
         rootAddress = highAndRootAddress[1];
 
         fileLengthBound = environment.getLog().getFileLengthBound();
-        fileLastAddress = (highAddress / fileLengthBound) * fileLengthBound;
+        fileLastAddress = environment.getLog().getFileAddress(highAddress);
+        lastFileOffset = highAddress - fileLastAddress;
     }
 
     @Override
@@ -115,21 +120,21 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                             }
                         }
 
-                        if (!startupMetadataWasSent) {
-                            startupMetadataWasSent = true;
+                        if (!backupMetadataWasSent) {
+                            backupMetadataWasSent = true;
 
-                            final ByteBuffer metadataContent =
-                                    StartupMetadata.serialize(0, environment.getCurrentFormatVersion(), rootAddress,
+                            final ByteBuffer backupMetadataContent =
+                                    BackupMetadata.serialize(0, environment.getCurrentFormatVersion(), rootAddress,
                                             environment.getLog().getCachePageSize(),
                                             environment.getLog().getFileLengthBound(),
-                                            true);
+                                            true, fileLastAddress, lastFileOffset);
 
-                            next = new FileDescriptor(new File(StartupMetadata.FIRST_FILE_NAME),
-                                    "", metadataContent.remaining()) {
+                            next = new FileDescriptor(new File(BackupMetadata.BACKUP_METADATA_FILE_NAME),
+                                    "", backupMetadataContent.remaining()) {
                                 @Override
                                 public @NotNull InputStream getInputStream() {
-                                    return new ByteArrayInputStream(metadataContent.array(),
-                                            metadataContent.arrayOffset(), metadataContent.remaining());
+                                    return new ByteArrayInputStream(backupMetadataContent.array(),
+                                            backupMetadataContent.arrayOffset(), backupMetadataContent.remaining());
                                 }
 
                                 @Override
@@ -153,6 +158,45 @@ class EnvironmentBackupStrategyImpl extends BackupStrategy {
                                 }
                             };
                             return true;
+                        } else if (!startupMetadataWasSent) {
+                            startupMetadataWasSent = true;
+
+                            final ByteBuffer startupMetadataContent =
+                                    StartupMetadata.serialize(0, environment.getCurrentFormatVersion(), rootAddress,
+                                            environment.getLog().getCachePageSize(),
+                                            environment.getLog().getFileLengthBound(),
+                                            false);
+
+                            next = new FileDescriptor(new File(StartupMetadata.ZERO_FILE_NAME),
+                                    "", startupMetadataContent.remaining()) {
+                                @Override
+                                public @NotNull InputStream getInputStream() {
+                                    return new ByteArrayInputStream(startupMetadataContent.array(),
+                                            startupMetadataContent.arrayOffset(), startupMetadataContent.remaining());
+                                }
+
+                                @Override
+                                public boolean shouldCloseStream() {
+                                    return false;
+                                }
+
+                                @Override
+                                public boolean hasContent() {
+                                    return true;
+                                }
+
+                                @Override
+                                public long getTimeStamp() {
+                                    return System.currentTimeMillis();
+                                }
+
+                                @Override
+                                public boolean canBeEncrypted() {
+                                    return false;
+                                }
+                            };
+                            return true;
+
                         }
 
                         return false;

@@ -52,7 +52,7 @@ public final class LogUtil {
                     path.endsWith(LogUtil.TMP_TRUNCATION_FILE_EXTENSION);
 
     public static final FilenameFilter LOG_METADATA_FILE_NAME_FILTER = (dir, name) ->
-            name.equals(StartupMetadata.FIRST_FILE_NAME) || name.equals(StartupMetadata.SECOND_FILE_NAME);
+            name.equals(StartupMetadata.ZERO_FILE_NAME) || name.equals(StartupMetadata.FIRST_FILE_NAME);
 
 
     private static final char[] LOG_FILE_EXTENSION_CHARS = LOG_FILE_EXTENSION.toCharArray();
