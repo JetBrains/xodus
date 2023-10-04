@@ -38,12 +38,12 @@ public class PrepareBigANNBench {
     public static final String INDEX_NAME = "bigann_index_" + NAME_SUFFIX;
 
     public static void main(String[] args) {
-        var benchPathStr = System.getProperty("bench.path");
-        Path benchPath;
-
-        benchPath = Path.of(Objects.requireNonNullElse(benchPathStr, "."));
-
         try {
+            var benchPathStr = System.getProperty("bench.path");
+            Path benchPath;
+
+            benchPath = Path.of(Objects.requireNonNullElse(benchPathStr, "."));
+
             var baseArchiveName = "bigann_base.bvecs.gz";
             var dataFileName = "bigann_base.bvecs";
             var dataFilePath = benchPath.resolve(dataFileName);
@@ -62,7 +62,9 @@ public class PrepareBigANNBench {
 
             var recordSize = Integer.BYTES + VECTOR_DIMENSIONS;
             try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
-                var buffer = ByteBuffer.allocate((64 * 1024 * 1024 / recordSize) * recordSize).order(ByteOrder.LITTLE_ENDIAN);
+                var buffer =
+                        ByteBuffer.allocate(
+                                (64 * 1024 * 1024 / recordSize) * recordSize).order(ByteOrder.LITTLE_ENDIAN);
 
                 while (buffer.remaining() > 0) {
                     channel.read(buffer);
@@ -106,8 +108,10 @@ public class PrepareBigANNBench {
             var ts2 = System.nanoTime();
 
             System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            //noinspection CallToPrintStackTrace
+            e.printStackTrace();
+            System.exit(1);
         }
     }
 }
