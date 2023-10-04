@@ -31,15 +31,17 @@ To start using Xodus, define dependencies:
     <version>2.0.1</version>
 </dependency>
 ```
-```groovy
+
+```kotlin
 // in Gradle project
 dependencies {
-    compile 'org.jetbrains.xodus:xodus-openAPI:2.0.1'
+    implementation("org.jetbrains.xodus:xodus-openAPI:2.0.1")
 }
 ```
+
 Read more about [managing dependencies](https://github.com/JetBrains/xodus/wiki/Managing-Dependencies).
 
-There are three different ways to deal with data, which results in three different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments), [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores) and [Virtual File Systems](https://github.com/JetBrains/xodus/wiki/Virtual-File-Systems).
+There are two different ways to deal with data, which results in two different API layers: [Environments](https://github.com/JetBrains/xodus/wiki/Environments) and [Entity Stores](https://github.com/JetBrains/xodus/wiki/Entity-Stores).
  
 ### Environments
 
@@ -65,25 +67,6 @@ try (PersistentEntityStore entityStore = PersistentEntityStores.newInstance("/ho
     });
 }
 ```
-### Virtual File Systems
-
-Add dependency on `org.jetbrains.xodus:xodus-vfs:2.0.1` and `org.jetbrains.xodus:xodus-environment:2.0.1`.
-
-```java
-try (Environment env = Environments.newInstance("/home/me/.myAppData")) {
-    final VirtualFileSystem vfs = new VirtualFileSystem(env);
-    env.executeInTransaction(txn -> {
-        final File file = vfs.createFile(txn, "Messages");
-        try (DataOutputStream output = new DataOutputStream(vfs.writeFile(txn, file))) {
-            output.writeUTF("Hello ");
-            output.writeUTF("World!");
-        } catch (IOException e) {
-            throw new ExodusException(e);
-        }
-    });
-    vfs.shutdown();
-}
-```
 
 ## Building from Source
 [Gradle](https://www.gradle.org) is used to build, test, and publish. JDK 1.8 or higher is required. To build the project, run:
@@ -94,15 +77,7 @@ To assemble JARs and skip running tests, run:
 
     ./gradlew assemble
 
-## Join our Xodus community!
-
-If you are interested in Xodus, consider joining our [Xodus](https://xodus.zulipchat.com/) community. Tell us about
-exciting applications you are building, ask for help, or just chat with friends 😃
 
 ## Find out More
 - [Xodus wiki](https://github.com/JetBrains/xodus/wiki)
 - [Report an issue](https://youtrack.jetbrains.com/issues/XD)
-- [Stack Overflow](https://stackoverflow.com/questions/tagged/xodus)
-- [Xodus-DNQ: data definition and queries Kotlin DSL over Xodus](https://github.com/JetBrains/xodus-dnq)
-- [EntityStore browser](https://github.com/JetBrains/xodus-entity-browser)
-- [Check out the latest builds](https://teamcity.jetbrains.com/viewType.html?buildTypeId=Xodus_Build)
