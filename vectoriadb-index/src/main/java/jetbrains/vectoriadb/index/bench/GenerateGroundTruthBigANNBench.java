@@ -15,6 +15,7 @@
  */
 package jetbrains.vectoriadb.index.bench;
 
+import jetbrains.vectoriadb.index.DotDistanceFunction;
 import jetbrains.vectoriadb.index.L2DistanceFunction;
 import jetbrains.vectoriadb.index.util.collections.BoundedGreedyVertexPriorityQueue;
 
@@ -34,7 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class GenerateGroundTruthBigANNBench {
-    public static final String GROUND_TRUTH_FILE = "ground-truth-" + PrepareBigANNBench.NAME_SUFFIX + ".bin";
+    public static final String GROUND_TRUTH_FILE = "ground-truth-dot-" + PrepareBigANNBench.NAME_SUFFIX + ".bin";
     public static final int NEIGHBOURS_COUNT = 5;
 
     public static void main(String[] args) throws Exception {
@@ -69,7 +70,7 @@ public class GenerateGroundTruthBigANNBench {
         var threads = Runtime.getRuntime().availableProcessors();
         int maxQueryVectorsPerThread = (bigAnnQueryVectors.length + threads - 1) / threads;
         var groundTruth = new int[bigAnnQueryVectors.length][NEIGHBOURS_COUNT];
-        var distanceFunction = L2DistanceFunction.INSTANCE;
+        var distanceFunction = DotDistanceFunction.INSTANCE;
 
         var progressCounter = new AtomicInteger(0);
         var progressReportedId = new AtomicInteger(-1);
