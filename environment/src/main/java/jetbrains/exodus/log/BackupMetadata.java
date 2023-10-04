@@ -48,6 +48,11 @@ public class BackupMetadata extends StartupMetadata {
         return lastFileOffset;
     }
 
+    public void alterMetadata(StartupMetadata startupMetadata) {
+        this.useZeroFile = startupMetadata.useZeroFile;
+        this.currentVersion = startupMetadata.currentVersion;
+    }
+
     public static ByteBuffer serialize(final long version, final int environmentFormatVersion,
                                        final long rootAddress, final int pageSize,
                                        final long fileLengthBoundary,
@@ -98,6 +103,10 @@ public class BackupMetadata extends StartupMetadata {
 
         return new BackupMetadata(useFirstFile, dbRootAddress, closedFlag, pageSize, version,
                 environmentFormatVersion, fileLengthBoundary, lastFileAddress, lastFileOffset);
+    }
+
+    public static boolean isBackupFileName(String name) {
+        return BACKUP_METADATA_FILE_NAME.equals(name);
     }
 
 

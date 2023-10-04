@@ -325,10 +325,10 @@ public class BackupUtil {
                         }
 
                         IOUtils.copyLarge(entryInputStream, entryOutputStream, readBuffer);
-                    } else if (name.equals(StartupMetadata.FIRST_FILE_NAME) ||
-                            name.endsWith("/" + StartupMetadata.FIRST_FILE_NAME) ||
-                            name.equals(StartupMetadata.SECOND_FILE_NAME) ||
-                            name.endsWith("/" + StartupMetadata.SECOND_FILE_NAME)) {
+                    } else if (name.equals(StartupMetadata.ZERO_FILE_NAME) ||
+                            name.endsWith("/" + StartupMetadata.ZERO_FILE_NAME) ||
+                            name.equals(StartupMetadata.FIRST_FILE_NAME) ||
+                            name.endsWith("/" + StartupMetadata.FIRST_FILE_NAME)) {
                         final String rootName = extractRootName(namePath);
                         DbMetadata dbMetadata = metadataMap.get(rootName);
 

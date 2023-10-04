@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.backup.VirtualFileDescriptor;
+import jetbrains.exodus.log.BackupMetadata;
 import jetbrains.exodus.log.LogUtil;
 import jetbrains.exodus.log.StartupMetadata;
 import org.jetbrains.annotations.NotNull;
@@ -136,7 +137,8 @@ public class PersistentEntityStoreBackupStrategy extends BackupStrategy {
 
     @Override
     public long acceptFile(@NotNull final VirtualFileDescriptor file) {
-        return LogUtil.isLogFileName(file.getName()) || StartupMetadata.isStartupFileName(file.getName()) ?
+        return LogUtil.isLogFileName(file.getName()) || StartupMetadata.isStartupFileName(file.getName()) ||
+                BackupMetadata.isBackupFileName(file.getName()) ?
                 environmentBackupStrategy.acceptFile(file) :
                 blobVaultBackupStrategy.acceptFile(file);
     }
