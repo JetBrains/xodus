@@ -55,27 +55,27 @@ public class StartupMetadata {
 
     public static final int FILE_SIZE = CORRECTLY_CLOSED_FLAG_OFFSET + CLOSED_FLAG_BYTES;
 
-    public static final String FIRST_FILE_NAME = "startup-metadata-0";
-    public static final String SECOND_FILE_NAME = "startup-metadata-1";
+    public static final String ZERO_FILE_NAME = "startup-metadata-0";
+    public static final String FIRST_FILE_NAME = "startup-metadata-1";
 
 
     static final int FORMAT_VERSION = 1;
 
-    private final boolean useFirstFile;
+    protected volatile boolean useZeroFile;
 
     private volatile long rootAddress;
     private final boolean isCorrectlyClosed;
     private final int pageSize;
-    private final long currentVersion;
+    protected volatile long currentVersion;
 
     private final int environmentFormatVersion;
     private final long fileLengthBoundary;
 
-    protected StartupMetadata(final boolean useFirstFile, final long rootAddress,
+    protected StartupMetadata(final boolean useZeroFile, final long rootAddress,
                               final boolean isCorrectlyClosed, int pageSize, long currentVersion,
                               int environmentFormatVersion,
                               long fileLengthBoundary) {
-        this.useFirstFile = useFirstFile;
+        this.useZeroFile = useZeroFile;
         this.rootAddress = rootAddress;
         this.isCorrectlyClosed = isCorrectlyClosed;
         this.pageSize = pageSize;
@@ -112,15 +112,15 @@ public class StartupMetadata {
         return currentVersion;
     }
 
-    public boolean isUseFirstFile() {
-        return useFirstFile;
+    public boolean isUseZeroFile() {
+        return useZeroFile;
     }
 
     public void closeAndUpdate(final FileDataReader reader) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
         final ByteBuffer content = serialize(currentVersion, environmentFormatVersion, rootAddress,
                 pageSize, fileLengthBoundary, true);
-        store(content, dbPath, useFirstFile);
+        store(content, dbPath, useZeroFile);
     }
 
     public static @Nullable StartupMetadata open(final FileDataReader reader, final int pageSize,
@@ -128,17 +128,29 @@ public class StartupMetadata {
                                                  final long fileLengthBoundary,
                                                  final boolean logContainsBlocks) throws IOException {
         final Path dbPath = Paths.get(reader.getLocation());
+        final Path zeroFilePath = dbPath.resolve(ZERO_FILE_NAME);
         final Path firstFilePath = dbPath.resolve(FIRST_FILE_NAME);
-        final Path secondFilePath = dbPath.resolve(SECOND_FILE_NAME);
 
+        long zeroFileVersion;
         long firstFileVersion;
-        long secondFileVersion;
 
+        final ByteBuffer zeroFileContent;
         final ByteBuffer firstFileContent;
-        final ByteBuffer secondFileContent;
 
-        @SuppressWarnings("DuplicatedCode") final boolean firstFileExist = Files.exists(firstFilePath);
+        @SuppressWarnings("DuplicatedCode") final boolean zeroFileExist = Files.exists(zeroFilePath);
 
+        if (zeroFileExist) {
+            try (final FileChannel channel = FileChannel.open(zeroFilePath, StandardOpenOption.READ)) {
+                zeroFileContent = IOUtil.readFully(channel);
+            }
+
+            zeroFileVersion = getFileVersion(zeroFileContent);
+        } else {
+            zeroFileVersion = -1;
+            zeroFileContent = null;
+        }
+
+        final boolean firstFileExist = Files.exists(firstFilePath);
         if (firstFileExist) {
             try (final FileChannel channel = FileChannel.open(firstFilePath, StandardOpenOption.READ)) {
                 firstFileContent = IOUtil.readFully(channel);
@@ -150,67 +162,55 @@ public class StartupMetadata {
             firstFileContent = null;
         }
 
-        final boolean secondFileExist = Files.exists(secondFilePath);
-        if (secondFileExist) {
-            try (final FileChannel channel = FileChannel.open(secondFilePath, StandardOpenOption.READ)) {
-                secondFileContent = IOUtil.readFully(channel);
-            }
-
-            secondFileVersion = getFileVersion(secondFileContent);
-        } else {
-            secondFileVersion = -1;
-            secondFileContent = null;
+        if (zeroFileVersion < 0 && zeroFileExist) {
+            Files.deleteIfExists(zeroFilePath);
         }
 
         if (firstFileVersion < 0 && firstFileExist) {
             Files.deleteIfExists(firstFilePath);
         }
 
-        if (secondFileVersion < 0 && secondFileExist) {
-            Files.deleteIfExists(secondFilePath);
-        }
-
         final ByteBuffer content;
         final long nextVersion;
-        final boolean useFirstFile;
+        final boolean useZeroFile;
 
-        if (firstFileVersion < secondFileVersion) {
-            if (firstFileExist) {
-                Files.deleteIfExists(firstFilePath);
-            }
-
-            nextVersion = secondFileVersion + 1;
-            content = secondFileContent;
-            useFirstFile = true;
-        } else if (secondFileVersion < firstFileVersion) {
-            if (secondFileExist) {
-                Files.deleteIfExists(secondFilePath);
+        if (zeroFileVersion < firstFileVersion) {
+            if (zeroFileExist) {
+                Files.deleteIfExists(zeroFilePath);
             }
 
             nextVersion = firstFileVersion + 1;
             content = firstFileContent;
-            useFirstFile = false;
+            useZeroFile = true;
+        } else if (firstFileVersion < zeroFileVersion) {
+            if (firstFileExist) {
+                Files.deleteIfExists(firstFilePath);
+            }
+
+            nextVersion = zeroFileVersion + 1;
+            content = zeroFileContent;
+            useZeroFile = false;
         } else {
             content = null;
             nextVersion = 0;
-            useFirstFile = true;
+            useZeroFile = true;
         }
 
         if (content == null) {
             if (!logContainsBlocks) {
                 final ByteBuffer updatedMetadata = serialize(2, environmentFormatVersion, -1,
                         pageSize, fileLengthBoundary, false);
-                store(updatedMetadata, dbPath, useFirstFile);
+                store(updatedMetadata, dbPath, useZeroFile);
             }
 
             return null;
         }
 
-        final StartupMetadata result = deserialize(content, nextVersion + 1, !useFirstFile);
+        final StartupMetadata result = deserialize(content, nextVersion + 1, !useZeroFile);
 
         final ByteBuffer updatedMetadata = serialize(nextVersion, result.environmentFormatVersion, -1,
                 result.pageSize, result.fileLengthBoundary, false);
-        store(updatedMetadata, dbPath, useFirstFile);
+        store(updatedMetadata, dbPath, useZeroFile);
 
         return result;
     }
@@ -223,13 +223,13 @@ public class StartupMetadata {
     }
 
 
-    private static void store(ByteBuffer content, final Path dbPath, final boolean useFirstFile) throws IOException {
+    private static void store(ByteBuffer content, final Path dbPath, final boolean useZeroFile) throws IOException {
         final Path filePath;
 
-        if (useFirstFile) {
-            filePath = dbPath.resolve(FIRST_FILE_NAME);
+        if (useZeroFile) {
+            filePath = dbPath.resolve(ZERO_FILE_NAME);
         } else {
-            filePath = dbPath.resolve(SECOND_FILE_NAME);
+            filePath = dbPath.resolve(FIRST_FILE_NAME);
         }
 
         try (final FileChannel channel = FileChannel.open(filePath, StandardOpenOption.WRITE,
@@ -241,10 +241,10 @@ public class StartupMetadata {
             channel.force(true);
         }
 
-        if (useFirstFile) {
-            Files.deleteIfExists(dbPath.resolve(SECOND_FILE_NAME));
-        } else {
+        if (useZeroFile) {
             Files.deleteIfExists(dbPath.resolve(FIRST_FILE_NAME));
+        } else {
+            Files.deleteIfExists(dbPath.resolve(ZERO_FILE_NAME));
         }
     }
 
@@ -304,6 +304,6 @@ public class StartupMetadata {
     }
 
     public static boolean isStartupFileName(String name) {
-        return FIRST_FILE_NAME.equals(name) || SECOND_FILE_NAME.equals(name);
+        return ZERO_FILE_NAME.equals(name) || FIRST_FILE_NAME.equals(name);
     }
 }
