@@ -16,7 +16,6 @@
 package jetbrains.vectoriadb.index.bench;
 
 import jetbrains.vectoriadb.index.DotDistanceFunction;
-import jetbrains.vectoriadb.index.L2DistanceFunction;
 import jetbrains.vectoriadb.index.util.collections.BoundedGreedyVertexPriorityQueue;
 
 import java.io.BufferedInputStream;
@@ -74,7 +73,7 @@ public class GenerateGroundTruthBigANNBench {
 
         var progressCounter = new AtomicInteger(0);
         var progressReportedId = new AtomicInteger(-1);
-        var maxBufferSize = (Integer.MAX_VALUE / recordSize) * recordSize;
+        var maxBufferSize = (1024 * 1024 * 1024 / recordSize) * recordSize;
 
         System.out.printf("Generating ground truth for %d vectors and %d query vectors using %d threads...%n",
                 PrepareBigANNBench.VECTORS_COUNT, bigAnnQueryVectors.length, threads);
