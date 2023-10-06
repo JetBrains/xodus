@@ -436,6 +436,8 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String ENV_CHECK_BACKUP_CONSISTENCY = "exodus.env.checkBackupConsistency";
 
+    public static final String ENV_CHECK_DATA_STRUCTURES_CONSISTENCY = "exodus.env.checkDataStructuresConsistency";
+
     /**
      * Defines the number of millisecond which a {@linkplain Transaction} can try to flush without attempts to upgrade
      * (switch to an exclusive mode). Default value is {@code 2000L}.
@@ -801,6 +803,7 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
                 new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
                 new Pair(ENV_CHECK_BACKUP_CONSISTENCY, false),
+                new Pair(ENV_CHECK_DATA_STRUCTURES_CONSISTENCY, false),
                 new Pair(ENV_TXN_TRACE_FINISH, false),
                 new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
@@ -1875,6 +1878,11 @@ public class EnvironmentConfig extends AbstractConfig {
         return (Boolean) getSetting(ENV_CHECK_BACKUP_CONSISTENCY);
     }
 
+    public boolean getCheckDataStructuresConsistency() {
+        return (Boolean) getSetting(ENV_CHECK_DATA_STRUCTURES_CONSISTENCY);
+    }
+
+
     /**
      * Returns the number of millisecond which a {@linkplain Transaction} can try to flush without attempts to upgrade
      * (switch to an exclusive mode). Default value is {@code 2000L}.
@@ -1894,7 +1902,7 @@ public class EnvironmentConfig extends AbstractConfig {
      * <p>Mutable at runtime: yes
      *
      * @param timeout number of millisecond which a {@linkplain Transaction} can try to flush without attempts to upgrade
-     * @return this {@code EnvironmentConfig} instance
+     * @return this {@code EnvironmentConfig} instanceR
      * @see Transaction
      * @see #setEnvTxnReplayMaxCount(int)
      */
