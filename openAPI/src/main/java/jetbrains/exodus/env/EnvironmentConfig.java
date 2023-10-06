@@ -431,7 +431,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * If is set to {@code true} then {@linkplain Environment} performs check of consistency of datastructures
      * stored in backup files.
-     * Default value is {@code true}.
+     * Default value is {@code false}.
      * Mutable at runtime: no
      */
     public static final String ENV_CHECK_BACKUP_CONSISTENCY = "exodus.env.checkBackupConsistency";
@@ -800,7 +800,7 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
                 new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
                 new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
-                new Pair(ENV_CHECK_BACKUP_CONSISTENCY, true),
+                new Pair(ENV_CHECK_BACKUP_CONSISTENCY, false),
                 new Pair(ENV_TXN_TRACE_FINISH, false),
                 new Pair(ENV_MAX_PARALLEL_TXNS, Integer.MAX_VALUE),
                 new Pair(ENV_MONITOR_TXNS_TIMEOUT, 0),
@@ -1868,7 +1868,7 @@ public class EnvironmentConfig extends AbstractConfig {
     /**
      * If is set to {@code true} then {@linkplain Environment} performs check of consistency of datastructures
      * stored in backup files.
-     * Default value is {@code true}.
+     * Default value is {@code false}.
      * <p>Mutable at runtime: no
      */
     public boolean getCheckBackupConsistency() {
