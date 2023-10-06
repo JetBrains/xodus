@@ -272,12 +272,7 @@ object Environments : KLogging() {
                 if (env.environmentConfig.checkBackupConsistency) {
                     logger.warn("Data structures consistency is going to be checked after restoring from backup")
                     (env as EnvironmentImpl).checkDataStructuresConsistency()
-                } else if (env.environmentConfig.checkDataStructuresConsistency) {
-                    logger.warn("Data structures consistency is going to be checked because setting " +
-                            EnvironmentConfig.ENV_CHECK_DATA_STRUCTURES_CONSISTENCY + " is set to true")
-                    (env as EnvironmentImpl).checkDataStructuresConsistency()
                 }
-
             }
         } else {
             EnvironmentImpl.loggerInfo(
@@ -309,6 +304,12 @@ object Environments : KLogging() {
             env.isCheckLuceneDirectory = true
 
             EnvironmentImpl.loggerInfo("Computation of space utilization for environment ${env.log.location} is completed")
+        }
+
+        if (env.environmentConfig.checkDataStructuresConsistency) {
+            logger.warn("Data structures consistency is going to be checked because setting " +
+                    EnvironmentConfig.ENV_CHECK_DATA_STRUCTURES_CONSISTENCY + " is set to true")
+            (env as EnvironmentImpl).checkDataStructuresConsistency()
         }
 
         val metaServer = ec.metaServer
