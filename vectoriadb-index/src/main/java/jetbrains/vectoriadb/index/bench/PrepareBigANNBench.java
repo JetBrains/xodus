@@ -35,7 +35,7 @@ public class PrepareBigANNBench {
 
     public static final int VECTORS_COUNT = 500_000_000;
     public static final String NAME_SUFFIX = "500m";
-    public static final String INDEX_NAME = "bigann_index_" + NAME_SUFFIX;
+    public static final String INDEX_NAME = "bigann_index_dot_" + NAME_SUFFIX;
 
     public static void main(String[] args) {
         try {
@@ -103,7 +103,7 @@ public class PrepareBigANNBench {
             }
 
             IndexBuilder.buildIndex(INDEX_NAME, VECTOR_DIMENSIONS, dbDir, DataStore.dataLocation(INDEX_NAME, dbDir),
-                    60L * 1024 * 1024 * 1024, Distance.L2,
+                    60L * 1024 * 1024 * 1024, Distance.DOT,
                     new Slf4jPeriodicProgressTracker(5));
             var ts2 = System.nanoTime();
 
