@@ -55,7 +55,7 @@ tasks {
             executable = "$jdkHome/bin/java"
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
         }
     }
@@ -82,7 +82,7 @@ tasks {
             executable = "$jdkHome/bin/java"
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
         }
     }
@@ -110,7 +110,7 @@ tasks {
             executable = "$jdkHome/bin/java"
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
         }
     }
@@ -134,7 +134,7 @@ tasks {
             executable = "$jdkHome/bin/java"
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
         }
     }
@@ -158,7 +158,7 @@ tasks {
             executable = "$jdkHome/bin/java"
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
         }
     }
@@ -185,7 +185,7 @@ tasks {
             executable = "$jdkHome/bin/java"
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
         }
     }
@@ -211,7 +211,7 @@ tasks {
             executable = "$jdkHome/bin/java"
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
         }
     }
@@ -239,7 +239,7 @@ tasks {
             executable = "$jdkHome/bin/java"
         } else {
             javaLauncher.set(rootProject.javaToolchains.launcherFor {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             })
         }
     }

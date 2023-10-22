@@ -9,6 +9,7 @@ pluginManagement {
         id("com.google.protobuf") version ("0.9.4")
         id("org.springframework.boot") version ("3.1.4")
         id("org.jetbrains.gradle.plugin.idea-ext") version "1.1.7"
+        id("org.gradle.toolchains.foojay-resolver-convention") version ("0.7.0")
     }
     repositories {
         maven(url = "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
