@@ -902,7 +902,7 @@ open class EnvironmentImpl internal constructor(log: Log, ec: EnvironmentConfig)
             synchronized(txnSafeTasks) {
                 while (true) {
                     if (!txnSafeTasks.isEmpty()) {
-                        val r = txnSafeTasks.first
+                        val r = txnSafeTasks[0]
                         if (r.txnRoot < oldestTxnRoot) {
                             txnSafeTasks.removeFirst()
                             if (tasksToRun == null) {
