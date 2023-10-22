@@ -294,7 +294,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         data = new NonBlockingHashMapLong<>(pagesStructure.allocatedPagesCount, false);
         freePagesQueue = new BlockingLongArrayQueue(ADD_BUFFER_MAX);
 
-        arena = Arena.openShared();
+        arena = Arena.ofShared();
 
         pages = arena.allocate((long) pageSize * pagesStructure.allocatedPagesCount, pageSize);
 

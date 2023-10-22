@@ -122,7 +122,7 @@ final class KMeansMiniBatchGD {
         }
 
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var size = vectorReader.size();
             var clusterIndexesPerVector = arena.allocate((long) size * Integer.BYTES,
                     ValueLayout.JAVA_INT.byteAlignment());

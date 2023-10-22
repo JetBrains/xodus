@@ -63,7 +63,7 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
         }
 
 
-        try (var arena = Arena.openShared()) {
+        try (var arena = Arena.ofShared()) {
             var flatDirectPqVectors = arena.allocateArray(ValueLayout.JAVA_BYTE, 100 * quantizersCount);
             var flatHeapVectors = new byte[100 * quantizersCount];
 

@@ -191,10 +191,10 @@ public final class PrepareRandomVectorBench {
             this.recordSize = Float.BYTES * vectorDimensions;
 
 
-            arena = Arena.openShared();
+            arena = Arena.ofShared();
 
             try (var channel = FileChannel.open(path, StandardOpenOption.READ)) {
-                segment = channel.map(FileChannel.MapMode.READ_ONLY, 0, Files.size(path), arena.scope());
+                segment = channel.map(FileChannel.MapMode.READ_ONLY, 0, Files.size(path), arena);
                 this.size = (int) (channel.size() / recordSize);
             }
         }
