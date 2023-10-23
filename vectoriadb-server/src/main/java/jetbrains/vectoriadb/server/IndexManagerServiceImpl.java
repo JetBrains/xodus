@@ -50,6 +50,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 @GrpcService
@@ -82,6 +84,9 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     private final int compressionRatio;
     private final float distanceMultiplier;
     private final long indexBuildingMaxMemoryConsumption;
+
+    private final Semaphore modeSemaphore = new Semaphore(Integer.MAX_VALUE);
+    private volatile Mode mode;
 
     public IndexManagerServiceImpl(Environment environment) {
         dimensions = environment.getProperty(DIMENSIONS_PROPERTY, Integer.class, DEFAULT_DIMENSIONS);
@@ -144,296 +149,90 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                         "indexBuildingMaxMemoryConsumption = {}",
                 dimensions, maxConnectionsPerVertex, maxCandidatesReturned, compressionRatio, distanceMultiplier,
                 indexBuildingMaxMemoryConsumption);
+        mode = new BuildMode();
     }
+
 
     @Override
     public void createIndex(IndexManagerOuterClass.CreateIndexRequest request,
                             StreamObserver<IndexManagerOuterClass.CreateIndexResponse> responseObserver) {
         try {
-            var indexName = request.getIndexName();
-            var indexState = indexStates.putIfAbsent(indexName, IndexState.CREATING);
+            initBuildMode();
+        } catch (InterruptedException e) {
+            responseObserver.onError(new StatusRuntimeException(Status.CANCELLED.withCause(e)));
+            return;
+        }
+        modeSemaphore.acquireUninterruptibly();
+        try {
+            mode.createIndex(request, responseObserver);
+        } finally {
+            modeSemaphore.release();
+        }
+    }
 
-            if (indexState != null) {
-                var msg = "Index " + indexName + " already exists";
-                logger.error(msg);
-
-                responseObserver.onError(new StatusRuntimeException(Status.ALREADY_EXISTS.withDescription(msg)));
-                return;
-            }
-
-            var responseBuilder = IndexManagerOuterClass.CreateIndexResponse.newBuilder();
-            try {
-                var indexDir = Path.of(indexName);
-                Files.createDirectory(indexDir);
-
-                var statusFilePath = indexDir.resolve("status");
-                Files.writeString(statusFilePath, IndexState.CREATED.name(), StandardOpenOption.SYNC,
-                        StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-
-                indexMetadatas.put(indexName, new IndexMetadata(Distance.valueOf(request.getDistance().name())));
-                if (!indexStates.replace(indexName, IndexState.CREATING, IndexState.CREATED)) {
-                    var msg = "Failed to create index " + indexName;
-                    logger.error(msg);
-                    responseObserver.onError(new IllegalStateException(msg));
-
-                    indexStates.put(indexName, IndexState.BROKEN);
-                    Files.writeString(statusFilePath, IndexState.BROKEN.name(), StandardOpenOption.WRITE,
-                            StandardOpenOption.SYNC);
+    private void initBuildMode() throws InterruptedException {
+        if (mode == null) {
+            while (true) {
+                if (!modeSemaphore.tryAcquire(Integer.MAX_VALUE, 1, TimeUnit.SECONDS)) {
+                    if (mode != null) {
+                        return;
+                    }
+                    continue;
                 }
 
-                responseObserver.onNext(responseBuilder.build());
-                responseObserver.onCompleted();
-            } catch (IOException e) {
-                logger.error("Failed to create index " + indexName, e);
-                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                break;
             }
-        } catch (StatusRuntimeException e) {
-            responseObserver.onError(e);
-        } catch (Exception e) {
-            logger.error("Failed to create index", e);
-            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+
+            try {
+                if (mode == null) {
+                    mode = new BuildMode();
+                }
+            } finally {
+                modeSemaphore.release(Integer.MAX_VALUE);
+            }
         }
     }
 
     @Override
     public void buildIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
         try {
-            var indexName = request.getIndexName();
-            var indexState = indexStates.compute(indexName, (name, state) -> {
-                if (state == IndexState.CREATED) {
-                    return IndexState.IN_BUILD_QUEUE;
-                } else {
-                    return state;
-                }
-            });
-
-            if (indexState == null) {
-                var msg = "Index " + indexName + " does not exist";
-                logger.error(msg);
-
-                responseObserver.onError(new StatusRuntimeException(Status.NOT_FOUND.withDescription(msg)));
-                return;
-            }
-
-            if (indexState != IndexState.IN_BUILD_QUEUE) {
-                var msg = "Index " + indexName + " is not in CREATED state";
-                logger.error(msg);
-
-                responseObserver.onError(new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
-                return;
-            }
-
-            indexBuilderExecutor.execute(new IndexBuilderTask(indexName));
-
-            responseObserver.onNext(Empty.newBuilder().build());
-            responseObserver.onCompleted();
-        } catch (StatusRuntimeException e) {
-            responseObserver.onError(e);
-        } catch (Exception e) {
-            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            initBuildMode();
+        } catch (InterruptedException e) {
+            responseObserver.onError(new StatusRuntimeException(Status.CANCELLED.withCause(e)));
+            return;
         }
-
+        modeSemaphore.acquireUninterruptibly();
+        try {
+            mode.buildIndex(request, responseObserver);
+        } finally {
+            modeSemaphore.release();
+        }
     }
 
     @Override
     public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(
             StreamObserver<Empty> responseObserver) {
-        return new StreamObserver<>() {
-            private DataStore store;
-            private String indexName;
+        try {
+            initBuildMode();
+        } catch (InterruptedException e) {
+            responseObserver.onError(new StatusRuntimeException(Status.CANCELLED.withCause(e)));
+            return null;
+        }
 
-            @Override
-            public void onNext(IndexManagerOuterClass.UploadVectorsRequest value) {
-                var indexName = value.getIndexName();
-                if (this.indexName == null) {
-                    if (!indexStates.replace(indexName, IndexState.CREATED, IndexState.UPLOADING)) {
-                        var msg = "Index " + indexName + " is not in CREATED state";
-                        logger.error(msg);
+        modeSemaphore.acquireUninterruptibly();
+        return mode.uploadVectors(responseObserver);
 
-                        responseObserver.onError(
-                                new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
-                        return;
-                    }
-
-                    uploaderLock.lock();
-                    try {
-                        if (!uploadingIndexes.contains(indexName)) {
-                            if (uploadingIndexes.size() == MAXIMUM_UPLOADERS_COUNT) {
-                                indexStates.put(indexName, IndexState.CREATED);
-
-                                responseObserver.onError(new StatusRuntimeException(
-                                        Status.RESOURCE_EXHAUSTED.withDescription("Maximum uploaders count reached")));
-                                return;
-                            }
-
-                            uploadingIndexes.add(indexName);
-                        }
-                    } finally {
-                        uploaderLock.unlock();
-                    }
-
-                    var indexDir = Path.of(indexName);
-                    var metadata = indexMetadatas.get(indexName);
-
-                    try {
-                        store = DataStore.create(indexName, dimensions, metadata.distance.buildDistanceFunction(),
-                                indexDir);
-                    } catch (IOException e) {
-                        var msg = "Failed to create data store for index " + indexName;
-                        logger.error(msg, e);
-
-                        responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
-
-                        indexStates.put(indexName, IndexState.BROKEN);
-                    }
-
-                    this.indexName = indexName;
-                } else {
-                    var indexState = indexStates.get(indexName);
-                    if (indexState != IndexState.UPLOADING) {
-                        var msg = "Index " + indexName + " is not in UPLOADING state";
-                        logger.error(msg);
-
-                        responseObserver.onError(
-                                new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
-                        return;
-                    }
-
-                    if (!indexName.equals(this.indexName)) {
-                        var msg = "Index name mismatch: expected " + this.indexName + ", got " + indexName;
-                        logger.error(msg);
-                        responseObserver.onError(
-                                new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
-                    }
-                }
-
-                var componentsCount = value.getVectorComponentsCount();
-                var indexMetadata = IndexManagerServiceImpl.this.indexMetadatas.get(indexName);
-                if (indexMetadata == null) {
-                    var msg = "Index " + indexName + " does not exist";
-                    logger.error(msg);
-
-                    responseObserver.onError(new StatusRuntimeException(Status.NOT_FOUND.withDescription(msg)));
-                    return;
-                }
-
-                if (componentsCount != dimensions) {
-                    var msg = "Index " + indexName + " has " + dimensions + " dimensions, but " +
-                            componentsCount + " were provided";
-                    logger.error(msg);
-
-                    responseObserver.onError(new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(msg)));
-                    return;
-                }
-
-
-                var vector = new float[componentsCount];
-                for (var i = 0; i < componentsCount; i++) {
-                    vector[i] = value.getVectorComponents(i);
-                }
-                try {
-                    store.add(vector);
-                } catch (IOException e) {
-                    var msg = "Failed to add vector to index " + indexName;
-                    logger.error(msg, e);
-
-                    responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
-                    indexStates.put(indexName, IndexState.BROKEN);
-                }
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                var indexName = this.indexName;
-
-                if (indexName != null) {
-                    indexStates.put(indexName, IndexState.BROKEN);
-                }
-                logger.error("Failed to upload vectors for index " + indexName, t);
-                try {
-                    if (store != null) {
-                        store.close();
-                    }
-                } catch (IOException e) {
-                    logger.error("Failed to close data store for index " + indexName, e);
-                }
-
-                responseObserver.onError(t);
-            }
-
-            @Override
-            public void onCompleted() {
-                try {
-                    if (store != null) {
-                        store.close();
-                    }
-
-                    indexStates.put(indexName, IndexState.CREATED);
-                } catch (IOException e) {
-                    var msg = "Failed to close data store for index " + indexName;
-                    logger.error(msg, e);
-                    responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
-                }
-
-                responseObserver.onCompleted();
-            }
-        };
     }
 
     @Override
     public void buildStatus(final Empty request,
                             final StreamObserver<IndexManagerOuterClass.BuildStatusResponse> responseObserver) {
-        var buildListener = new IndexBuildProgressListener() {
-            private final Context context = Context.current();
-
-            @Override
-            public void progress(IndexBuildProgressInfo progressInfo) {
-                if (context.isCancelled()) {
-                    try {
-                        responseObserver.onCompleted();
-                    } catch (Exception e) {
-                        progressTracker.removeListener(this);
-                        responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
-                    }
-                }
-
-                try {
-                    var responseBuilder = IndexManagerOuterClass.BuildStatusResponse.newBuilder();
-                    responseBuilder.setIndexName(progressInfo.indexName());
-
-                    for (IndexBuildProgressPhase(String name, double progress, String[] parameters) :
-                            progressInfo.phases()) {
-                        var phaseBuilder = IndexManagerOuterClass.BuildPhase.newBuilder();
-
-                        phaseBuilder.setName(name);
-                        phaseBuilder.setCompletionPercentage(progress);
-                        for (var parameter : parameters) {
-                            phaseBuilder.addParameters(parameter);
-                        }
-
-                        responseBuilder.addPhases(phaseBuilder);
-                    }
-
-
-                    responseObserver.onNext(responseBuilder.build());
-                } catch (StatusRuntimeException e) {
-                    if (e.getStatus() == Status.CANCELLED) {
-                        progressTracker.removeListener(this);
-                        responseObserver.onCompleted();
-                    } else {
-                        logger.error("Failed to send build status", e);
-                        progressTracker.removeListener(this);
-                        responseObserver.onError(e);
-                    }
-                } catch (Exception e) {
-                    logger.error("Failed to send build status", e);
-                    progressTracker.removeListener(this);
-                    responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
-                }
-            }
-        };
-
-        progressTracker.addListener(buildListener);
+        modeSemaphore.acquireUninterruptibly();
+        try {
+            mode.buildStatus(request, responseObserver);
+        } finally {
+            modeSemaphore.release();
+        }
     }
 
     @Override
@@ -596,6 +395,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     @PreDestroy
     public void shutdown() {
         indexBuilderExecutor.shutdown();
+
+        modeSemaphore.acquireUninterruptibly();
+        try {
+            mode.shutdown();
+        } finally {
+            modeSemaphore.release();
+        }
     }
 
     private final class IndexBuilderTask implements Runnable {
@@ -634,5 +440,330 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     private record IndexMetadata(Distance distance) {
+    }
+
+    private interface Mode {
+
+        void createIndex(IndexManagerOuterClass.CreateIndexRequest request,
+                         StreamObserver<IndexManagerOuterClass.CreateIndexResponse> responseObserver);
+
+        void buildIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver);
+
+        StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(
+                StreamObserver<Empty> responseObserver);
+
+        void buildStatus(final Empty request,
+                         final StreamObserver<IndexManagerOuterClass.BuildStatusResponse> responseObserver);
+
+        void shutdown();
+    }
+
+    private final class BuildMode implements Mode {
+        @Override
+        public void createIndex(IndexManagerOuterClass.CreateIndexRequest request,
+                                StreamObserver<IndexManagerOuterClass.CreateIndexResponse> responseObserver) {
+            try {
+                var indexName = request.getIndexName();
+                var indexState = indexStates.putIfAbsent(indexName, IndexState.CREATING);
+
+                if (indexState != null) {
+                    var msg = "Index " + indexName + " already exists";
+                    logger.error(msg);
+
+                    responseObserver.onError(new StatusRuntimeException(Status.ALREADY_EXISTS.withDescription(msg)));
+                    return;
+                }
+
+                var responseBuilder = IndexManagerOuterClass.CreateIndexResponse.newBuilder();
+                try {
+                    var indexDir = Path.of(indexName);
+                    Files.createDirectory(indexDir);
+
+                    var statusFilePath = indexDir.resolve("status");
+                    Files.writeString(statusFilePath, IndexState.CREATED.name(), StandardOpenOption.SYNC,
+                            StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+
+                    indexMetadatas.put(indexName, new IndexMetadata(Distance.valueOf(request.getDistance().name())));
+                    if (!indexStates.replace(indexName, IndexState.CREATING, IndexState.CREATED)) {
+                        var msg = "Failed to create index " + indexName;
+                        logger.error(msg);
+                        responseObserver.onError(new IllegalStateException(msg));
+
+                        indexStates.put(indexName, IndexState.BROKEN);
+                        Files.writeString(statusFilePath, IndexState.BROKEN.name(), StandardOpenOption.WRITE,
+                                StandardOpenOption.SYNC);
+                    }
+
+                    responseObserver.onNext(responseBuilder.build());
+                    responseObserver.onCompleted();
+                } catch (IOException e) {
+                    logger.error("Failed to create index " + indexName, e);
+                    responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                }
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+            } catch (Exception e) {
+                logger.error("Failed to create index", e);
+                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            }
+        }
+
+        @Override
+        public void buildIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
+            try {
+                var indexName = request.getIndexName();
+                var indexState = indexStates.compute(indexName, (name, state) -> {
+                    if (state == IndexState.CREATED) {
+                        return IndexState.IN_BUILD_QUEUE;
+                    } else {
+                        return state;
+                    }
+                });
+
+                if (indexState == null) {
+                    var msg = "Index " + indexName + " does not exist";
+                    logger.error(msg);
+
+                    responseObserver.onError(new StatusRuntimeException(Status.NOT_FOUND.withDescription(msg)));
+                    return;
+                }
+
+                if (indexState != IndexState.IN_BUILD_QUEUE) {
+                    var msg = "Index " + indexName + " is not in CREATED state";
+                    logger.error(msg);
+
+                    responseObserver.onError(new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
+                    return;
+                }
+
+                indexBuilderExecutor.execute(new IndexBuilderTask(indexName));
+
+                responseObserver.onNext(Empty.newBuilder().build());
+                responseObserver.onCompleted();
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+            } catch (Exception e) {
+                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            }
+        }
+
+        @Override
+        public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
+            return new StreamObserver<>() {
+                private DataStore store;
+                private String indexName;
+
+                @Override
+                public void onNext(IndexManagerOuterClass.UploadVectorsRequest value) {
+                    var indexName = value.getIndexName();
+                    if (this.indexName == null) {
+                        if (!indexStates.replace(indexName, IndexState.CREATED, IndexState.UPLOADING)) {
+                            var msg = "Index " + indexName + " is not in CREATED state";
+                            logger.error(msg);
+
+                            responseObserver.onError(
+                                    new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
+                            return;
+                        }
+
+                        uploaderLock.lock();
+                        try {
+                            if (!uploadingIndexes.contains(indexName)) {
+                                if (uploadingIndexes.size() == MAXIMUM_UPLOADERS_COUNT) {
+                                    indexStates.put(indexName, IndexState.CREATED);
+
+                                    responseObserver.onError(new StatusRuntimeException(
+                                            Status.RESOURCE_EXHAUSTED.withDescription("Maximum uploaders count reached")));
+                                    return;
+                                }
+
+                                uploadingIndexes.add(indexName);
+                            }
+                        } finally {
+                            uploaderLock.unlock();
+                        }
+
+                        var indexDir = Path.of(indexName);
+                        var metadata = indexMetadatas.get(indexName);
+
+                        try {
+                            store = DataStore.create(indexName, dimensions, metadata.distance.buildDistanceFunction(),
+                                    indexDir);
+                        } catch (IOException e) {
+                            var msg = "Failed to create data store for index " + indexName;
+                            logger.error(msg, e);
+
+                            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+
+                            indexStates.put(indexName, IndexState.BROKEN);
+                        }
+
+                        this.indexName = indexName;
+                    } else {
+                        var indexState = indexStates.get(indexName);
+                        if (indexState != IndexState.UPLOADING) {
+                            var msg = "Index " + indexName + " is not in UPLOADING state";
+                            logger.error(msg);
+
+                            responseObserver.onError(
+                                    new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
+                            return;
+                        }
+
+                        if (!indexName.equals(this.indexName)) {
+                            var msg = "Index name mismatch: expected " + this.indexName + ", got " + indexName;
+                            logger.error(msg);
+                            responseObserver.onError(
+                                    new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
+                        }
+                    }
+
+                    var componentsCount = value.getVectorComponentsCount();
+                    var indexMetadata = IndexManagerServiceImpl.this.indexMetadatas.get(indexName);
+                    if (indexMetadata == null) {
+                        var msg = "Index " + indexName + " does not exist";
+                        logger.error(msg);
+
+                        responseObserver.onError(new StatusRuntimeException(Status.NOT_FOUND.withDescription(msg)));
+                        return;
+                    }
+
+                    if (componentsCount != dimensions) {
+                        var msg = "Index " + indexName + " has " + dimensions + " dimensions, but " +
+                                componentsCount + " were provided";
+                        logger.error(msg);
+
+                        responseObserver.onError(new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(msg)));
+                        return;
+                    }
+
+
+                    var vector = new float[componentsCount];
+                    for (var i = 0; i < componentsCount; i++) {
+                        vector[i] = value.getVectorComponents(i);
+                    }
+                    try {
+                        store.add(vector);
+                    } catch (IOException e) {
+                        var msg = "Failed to add vector to index " + indexName;
+                        logger.error(msg, e);
+
+                        responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                        indexStates.put(indexName, IndexState.BROKEN);
+                    }
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    try {
+                        var indexName = this.indexName;
+
+                        if (indexName != null) {
+                            indexStates.put(indexName, IndexState.BROKEN);
+                        }
+                        logger.error("Failed to upload vectors for index " + indexName, t);
+                        try {
+                            if (store != null) {
+                                store.close();
+                            }
+                        } catch (IOException e) {
+                            logger.error("Failed to close data store for index " + indexName, e);
+                        }
+
+                        responseObserver.onError(t);
+                    } finally {
+                        modeSemaphore.release();
+                    }
+                }
+
+                @Override
+                public void onCompleted() {
+                    try {
+                        try {
+                            if (store != null) {
+                                store.close();
+                            }
+
+                            indexStates.put(indexName, IndexState.CREATED);
+                        } catch (IOException e) {
+                            var msg = "Failed to close data store for index " + indexName;
+                            logger.error(msg, e);
+                            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                        }
+
+                        responseObserver.onCompleted();
+                    } finally {
+                        modeSemaphore.release();
+                    }
+                }
+            };
+        }
+
+        @Override
+        public void buildStatus(Empty request,
+                                StreamObserver<IndexManagerOuterClass.BuildStatusResponse> responseObserver) {
+            var buildListener = new ServiceIndexBuildProgressListener(responseObserver);
+            progressTracker.addListener(buildListener);
+        }
+
+        @Override
+        public void shutdown() {
+        }
+    }
+
+    private class ServiceIndexBuildProgressListener implements IndexBuildProgressListener {
+        private final Context context;
+        private final StreamObserver<IndexManagerOuterClass.BuildStatusResponse> responseObserver;
+
+        public ServiceIndexBuildProgressListener(StreamObserver<IndexManagerOuterClass.BuildStatusResponse> responseObserver) {
+            this.responseObserver = responseObserver;
+            context = Context.current();
+        }
+
+        @Override
+        public void progress(IndexBuildProgressInfo progressInfo) {
+            if (context.isCancelled()) {
+                try {
+                    responseObserver.onCompleted();
+                } catch (Exception e) {
+                    progressTracker.removeListener(this);
+                    responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                }
+            }
+
+            try {
+                var responseBuilder = IndexManagerOuterClass.BuildStatusResponse.newBuilder();
+                responseBuilder.setIndexName(progressInfo.indexName());
+
+                for (IndexBuildProgressPhase(String name, double progress, String[] parameters) :
+                        progressInfo.phases()) {
+                    var phaseBuilder = IndexManagerOuterClass.BuildPhase.newBuilder();
+
+                    phaseBuilder.setName(name);
+                    phaseBuilder.setCompletionPercentage(progress);
+                    for (var parameter : parameters) {
+                        phaseBuilder.addParameters(parameter);
+                    }
+
+                    responseBuilder.addPhases(phaseBuilder);
+                }
+
+
+                responseObserver.onNext(responseBuilder.build());
+            } catch (StatusRuntimeException e) {
+                if (e.getStatus() == Status.CANCELLED) {
+                    progressTracker.removeListener(this);
+                    responseObserver.onCompleted();
+                } else {
+                    logger.error("Failed to send build status", e);
+                    progressTracker.removeListener(this);
+                    responseObserver.onError(e);
+                }
+            } catch (Exception e) {
+                logger.error("Failed to send build status", e);
+                progressTracker.removeListener(this);
+                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            }
+        }
     }
 }
