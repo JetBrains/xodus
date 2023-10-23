@@ -373,6 +373,17 @@ public class EnvironmentImpl implements Environment {
     }
 
     @NotNull
+    public TransactionBase beginReadOnlyUnmonitoredTransaction(){
+        checkIsOperative();
+        return new ReadonlyTransaction(this, false, null) {
+            @Override
+            boolean isIgnoreInStuckTransactionMonitor() {
+                return true;
+            }
+        };
+    }
+
+    @NotNull
     public ReadWriteTransaction beginGCTransaction() {
         if (isReadOnly()) {
             throw new ReadonlyTransactionException("Can't start GC transaction on read-only Environment");

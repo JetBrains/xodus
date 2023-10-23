@@ -215,6 +215,10 @@ public abstract class TransactionBase implements Transaction {
         return false;
     }
 
+    boolean isIgnoreInStuckTransactionMonitor(){
+        return false;
+    }
+
     @Nullable
     TreeMetaInfo getTreeMetaInfo(@NotNull final String name) {
         checkIsFinished();
