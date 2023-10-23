@@ -15,6 +15,7 @@
  */
 package jetbrains.vectoriadb.index;
 
+import jetbrains.vectoriadb.index.diskcache.DiskCache;
 import jetbrains.vectoriadb.index.siftbench.SiftBenchUtils;
 import jetbrains.vectoriadb.index.util.collections.BoundedGreedyVertexPriorityQueue;
 import org.apache.commons.lang3.ArrayUtils;
@@ -69,29 +70,30 @@ public class DiskANNTest {
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         var totalRecall = 0.0;
-        try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
-                256 * 1024 * 1024,
-                Distance.L2)) {
-            ts1 = System.nanoTime();
-            for (var j = 0; j < vectorsCount; j++) {
-                var vector = queries[j];
-                var result = new int[recallCount];
-                indexReader.nearest(vector, result, recallCount);
-                totalRecall += recall(result, groundTruth[j]);
+        try (var diskCache = new DiskCache(256 * 1024 * 1024, vectorDimensions,
+                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir, Distance.L2, diskCache)) {
+                ts1 = System.nanoTime();
+                for (var j = 0; j < vectorsCount; j++) {
+                    var vector = queries[j];
+                    var result = new int[recallCount];
+                    indexReader.nearest(vector, result, recallCount);
+                    totalRecall += recall(result, groundTruth[j]);
 
-                if ((j + 1) % 1_000 == 0) {
-                    System.out.println("Processed " + (j + 1));
+                    if ((j + 1) % 1_000 == 0) {
+                        System.out.println("Processed " + (j + 1));
+                    }
                 }
+
+                ts2 = System.nanoTime();
+                var recall = totalRecall / vectorsCount;
+
+                System.out.printf("Avg. query %d time us, R@%d : %f, cache hits %d%% %n",
+                        (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall, indexReader.hits());
+                Assert.assertTrue("Recall is too low " + recall + " < 0.92",
+                        recall >= 0.92);
+                indexReader.deleteIndex();
             }
-
-            ts2 = System.nanoTime();
-            var recall = totalRecall / vectorsCount;
-
-            System.out.printf("Avg. query %d time us, R@%d : %f, cache hits %d%% %n",
-                    (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall, indexReader.hits());
-            Assert.assertTrue("Recall is too low " + recall + " < 0.92",
-                    recall >= 0.92);
-            indexReader.deleteIndex();
         }
     }
 
@@ -134,29 +136,30 @@ public class DiskANNTest {
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         var totalRecall = 0.0;
-        try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
-                256 * 1024 * 1024,
-                Distance.DOT)) {
-            ts1 = System.nanoTime();
-            for (var j = 0; j < vectorsCount; j++) {
-                var vector = queryVectors[j];
-                var result = new int[recallCount];
-                indexReader.nearest(vector, result, recallCount);
-                totalRecall += recall(result, groundTruth[j]);
+        try (var diskCache = new DiskCache(256 * 1024 * 1024, vectorDimensions,
+                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir, Distance.DOT, diskCache)) {
+                ts1 = System.nanoTime();
+                for (var j = 0; j < vectorsCount; j++) {
+                    var vector = queryVectors[j];
+                    var result = new int[recallCount];
+                    indexReader.nearest(vector, result, recallCount);
+                    totalRecall += recall(result, groundTruth[j]);
 
-                if ((j + 1) % 1_000 == 0) {
-                    System.out.println("Processed " + (j + 1));
+                    if ((j + 1) % 1_000 == 0) {
+                        System.out.println("Processed " + (j + 1));
+                    }
                 }
+
+                ts2 = System.nanoTime();
+
+                var recall = totalRecall / vectorsCount;
+                System.out.printf("Avg. query %d time us, R@%d: %f, cache hits %d%% %n",
+                        (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall,
+                        indexReader.hits());
+                Assert.assertTrue("Recall is too low " + recall + " < 0.85", recall >= 0.85);
+                indexReader.deleteIndex();
             }
-
-            ts2 = System.nanoTime();
-
-            var recall = totalRecall / vectorsCount;
-            System.out.printf("Avg. query %d time us, R@%d: %f, cache hits %d%% %n",
-                    (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall,
-                    indexReader.hits());
-            Assert.assertTrue("Recall is too low " + recall + " < 0.85", recall >= 0.85);
-            indexReader.deleteIndex();
         }
     }
 
@@ -201,32 +204,34 @@ public class DiskANNTest {
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
-        try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
-                256 * 1024 * 1024,
-                Distance.COSINE)) {
-            var totalRecall = 0.0;
-            ts1 = System.nanoTime();
-            for (var j = 0; j < vectorsCount; j++) {
-                var vector = queryVectors[j];
-                var result = new int[recallCount];
-                indexReader.nearest(vector, result, recallCount);
+        try (var diskCache = new DiskCache(256 * 1024 * 1024, vectorDimensions,
+                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
+                    Distance.COSINE, diskCache)) {
+                var totalRecall = 0.0;
+                ts1 = System.nanoTime();
+                for (var j = 0; j < vectorsCount; j++) {
+                    var vector = queryVectors[j];
+                    var result = new int[recallCount];
+                    indexReader.nearest(vector, result, recallCount);
 
-                totalRecall += recall(result, groundTruth[j]);
+                    totalRecall += recall(result, groundTruth[j]);
 
-                if ((j + 1) % 1_000 == 0) {
-                    System.out.println("Processed " + (j + 1));
+                    if ((j + 1) % 1_000 == 0) {
+                        System.out.println("Processed " + (j + 1));
+                    }
                 }
+
+                ts2 = System.nanoTime();
+
+                var recall = totalRecall / vectorsCount;
+                System.out.printf("Avg. query %d time us, R@%d: %f, cache hits %d%% %n",
+                        (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall,
+                        indexReader.hits());
+
+                Assert.assertTrue("Recall is too low " + recall + " < 0.69", recall >= 0.69);
+                indexReader.deleteIndex();
             }
-
-            ts2 = System.nanoTime();
-
-            var recall = totalRecall / vectorsCount;
-            System.out.printf("Avg. query %d time us, R@%d: %f, cache hits %d%% %n",
-                    (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall,
-                    indexReader.hits());
-
-            Assert.assertTrue("Recall is too low " + recall + " < 0.69", recall >= 0.69);
-            indexReader.deleteIndex();
         }
     }
 
@@ -355,30 +360,32 @@ public class DiskANNTest {
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
-        try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir,
-                256 * 1024 * 1024, Distance.L2)) {
-            System.out.println("Searching...");
+        try (var diskCache = new DiskCache(256 * 1024 * 1024, vectorDimensions,
+                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir, Distance.L2, diskCache)) {
+                System.out.println("Searching...");
 
-            var errorsCount = 0;
-            ts1 = System.nanoTime();
-            for (var index = 0; index < queryVectors.length; index++) {
-                var vector = queryVectors[index];
-                var result = new int[1];
-                indexReader.nearest(vector, result, 1);
+                var errorsCount = 0;
+                ts1 = System.nanoTime();
+                for (var index = 0; index < queryVectors.length; index++) {
+                    var vector = queryVectors[index];
+                    var result = new int[1];
+                    indexReader.nearest(vector, result, 1);
 
-                Assert.assertEquals("j = " + index, 1, result.length);
-                if (groundTruth[index][0] != result[0]) {
-                    errorsCount++;
+                    Assert.assertEquals("j = " + index, 1, result.length);
+                    if (groundTruth[index][0] != result[0]) {
+                        errorsCount++;
+                    }
                 }
-            }
-            ts2 = System.nanoTime();
-            var errorPercentage = errorsCount * 100.0 / queryVectors.length;
+                ts2 = System.nanoTime();
+                var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-            System.out.printf("Avg. query time : %d us, errors: %f%%, cache hits %d%%%n",
-                    (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage, indexReader.hits());
-            Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 5",
-                    errorPercentage <= 5);
-            indexReader.deleteIndex();
+                System.out.printf("Avg. query time : %d us, errors: %f%%, cache hits %d%%%n",
+                        (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage, indexReader.hits());
+                Assert.assertTrue("Error percentage is too high " + errorPercentage + " > 5",
+                        errorPercentage <= 5);
+                indexReader.deleteIndex();
+            }
         }
     }
 }
