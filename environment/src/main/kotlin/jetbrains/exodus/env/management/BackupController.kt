@@ -34,7 +34,7 @@ class BackupController(private val env: EnvironmentImpl) : MBeanBase(getObjectNa
                 throw IllegalStateException("Backup is already in progress")
             }
 
-            backupTransaction = env.beginReadonlyTransaction()
+            backupTransaction = env.beginReadOnlyUnmonitoredTransaction()
             return env.prepareForBackup()
         } finally {
             backupTransactionLock.unlock()
