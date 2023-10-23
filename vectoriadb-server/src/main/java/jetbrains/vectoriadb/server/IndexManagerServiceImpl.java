@@ -30,6 +30,7 @@ import jetbrains.vectoriadb.index.diskcache.DiskCache;
 import jetbrains.vectoriadb.service.base.IndexManagerGrpc;
 import jetbrains.vectoriadb.service.base.IndexManagerOuterClass;
 import net.devh.boot.grpc.server.service.GrpcService;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -59,15 +60,18 @@ import java.util.concurrent.locks.ReentrantLock;
 public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBase {
     private static final long EIGHT_TB = 8L * 1024 * 1024 * 1024 * 1024;
 
-    public static final String DIMENSIONS_PROPERTY = "vector-index.dimensions";
-    public static final String MAX_CONNECTIONS_PER_VERTEX_PROPERTY = "vector-index.max-connections-per-vertex";
-    public static final String MAX_CANDIDATES_RETURNED_PROPERTY = "vector-index.max-candidates-returned";
-    public static final String COMPRESSION_RATIO_PROPERTY = "vector-index.compression-ratio";
-    public static final String DISTANCE_MULTIPLIER_PROPERTY = "vector-index.distance-multiplier";
+    public static final String DIMENSIONS_PROPERTY = "vectoriadb.index.dimensions";
+    public static final String MAX_CONNECTIONS_PER_VERTEX_PROPERTY = "vectoriadb.index.max-connections-per-vertex";
+    public static final String MAX_CANDIDATES_RETURNED_PROPERTY = "vectoriadb.index.max-candidates-returned";
+    public static final String COMPRESSION_RATIO_PROPERTY = "vectoriadb.index.compression-ratio";
+    public static final String DISTANCE_MULTIPLIER_PROPERTY = "vectoriadb.index.distance-multiplier";
     public static final String INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY =
-            "vector-index.building.max-memory-consumption";
+            "vectoriadb.index.building.max-memory-consumption";
     public static final String INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION =
-            "vector-index.reader.disk-cache-memory-consumption";
+            "vectoriadb.index.reader.disk-cache-memory-consumption";
+
+    public static final String BASE_PATH = "vectoriadb.index.base-path";
+
     private static final int DEFAULT_DIMENSIONS = 128;
     private static final Logger logger = LoggerFactory.getLogger(IndexManagerServiceImpl.class);
     private final ConcurrentHashMap<String, IndexState> indexStates = new ConcurrentHashMap<>();
@@ -89,6 +93,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     private final ReentrantLock modeLock = new ReentrantLock();
     private volatile Mode mode;
 
+    private final Path basePath;
+
     public IndexManagerServiceImpl(Environment environment) {
         dimensions = environment.getProperty(DIMENSIONS_PROPERTY, Integer.class, DEFAULT_DIMENSIONS);
 
@@ -100,6 +106,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 IndexBuilder.DEFAULT_COMPRESSION_RATIO);
         distanceMultiplier = environment.getProperty(DISTANCE_MULTIPLIER_PROPERTY, Float.class,
                 IndexBuilder.DEFAULT_DISTANCE_MULTIPLIER);
+
+        basePath = Path.of(environment.getProperty(BASE_PATH, String.class, "."));
 
         var availableRAM = fetchAvailableRAM();
         if (availableRAM >= EIGHT_TB) {
@@ -475,13 +483,12 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             operationsSemaphore.acquireUninterruptibly();
             try {
                 try {
-                    var indexDir = Path.of(indexName);
-
                     var metadata = indexMetadatas.get(indexName);
                     if (indexStates.replace(indexName, IndexState.IN_BUILD_QUEUE, IndexState.BUILDING)) {
                         try {
                             IndexBuilder.buildIndex(indexName, dimensions, compressionRatio,
-                                    distanceMultiplier, indexDir, DataStore.dataLocation(indexName, indexDir),
+                                    distanceMultiplier, metadata.dir,
+                                    DataStore.dataLocation(indexName, metadata.dir),
                                     indexBuildingMaxMemoryConsumption, maxConnectionsPerVertex,
                                     maxCandidatesReturned,
                                     metadata.distance, progressTracker);
@@ -505,7 +512,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
     }
 
-    private record IndexMetadata(Distance distance) {
+    private record IndexMetadata(Distance distance, Path dir) {
     }
 
     private interface Mode {
@@ -562,6 +569,51 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         public void findNearestNeighbours(IndexManagerOuterClass.FindNearestNeighboursRequest request,
                                           StreamObserver<IndexManagerOuterClass.FindNearestNeighboursResponse> responseObserver) {
             var indexName = request.getIndexName();
+            if (checkBuildState(responseObserver, indexName)) {
+                return;
+            }
+
+            var responseBuilder = IndexManagerOuterClass.FindNearestNeighboursResponse.newBuilder();
+            try {
+                @SuppressWarnings("resource") var indexReader = fetchIndexReader(indexName);
+
+                var neighboursCount = request.getK();
+                var queryVector = request.getVectorComponentsList();
+                var result = new int[neighboursCount];
+
+                var vector = new float[dimensions];
+                for (int i = 0; i < dimensions; i++) {
+                    vector[i] = queryVector.get(i);
+                }
+
+                indexReader.nearest(vector, result, neighboursCount);
+
+
+                for (var vectorIndex : result) {
+                    responseBuilder.addIds(vectorIndex);
+                }
+            } catch (Exception e) {
+                logger.error("Failed to find nearest neighbours", e);
+                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+
+                return;
+            }
+
+            responseObserver.onNext(responseBuilder.build());
+            responseObserver.onCompleted();
+        }
+
+        @NotNull
+        private IndexReader fetchIndexReader(final String indexName) {
+            return indexReaders.computeIfAbsent(indexName, name -> {
+                var metadata = indexMetadatas.get(indexName);
+                return new IndexReader(indexName, dimensions, maxConnectionsPerVertex, maxCandidatesReturned,
+                        compressionRatio, metadata.dir, metadata.distance, diskCache);
+
+            });
+        }
+
+        private boolean checkBuildState(final StreamObserver<?> responseObserver, final String indexName) {
             var indexState = indexStates.get(indexName);
 
             if (indexState != IndexState.BUILT) {
@@ -569,35 +621,10 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 logger.error(msg);
 
                 responseObserver.onError(new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
-                return;
+                return true;
             }
 
-            @SuppressWarnings("resource") var indexReader = indexReaders.computeIfAbsent(indexName, name -> {
-                var indexDir = Path.of(indexName);
-                var metadata = indexMetadatas.get(indexName);
-                return new IndexReader(indexName, dimensions, maxConnectionsPerVertex, maxCandidatesReturned,
-                        compressionRatio, indexDir, metadata.distance, diskCache);
-
-            });
-
-            var neighboursCount = request.getK();
-            var queryVector = request.getVectorComponentsList();
-            var result = new int[neighboursCount];
-
-            var vector = new float[dimensions];
-            for (int i = 0; i < dimensions; i++) {
-                vector[i] = queryVector.get(i);
-            }
-
-            indexReader.nearest(vector, result, neighboursCount);
-
-            var responseBuilder = IndexManagerOuterClass.FindNearestNeighboursResponse.newBuilder();
-            for (var vectorIndex : result) {
-                responseBuilder.addIds(vectorIndex);
-            }
-
-            responseObserver.onNext(responseBuilder.build());
-            responseObserver.onCompleted();
+            return false;
         }
 
         @Override
@@ -645,14 +672,15 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                 var responseBuilder = IndexManagerOuterClass.CreateIndexResponse.newBuilder();
                 try {
-                    var indexDir = Path.of(indexName);
+                    var indexDir = basePath.resolve(indexName);
                     Files.createDirectory(indexDir);
 
                     var statusFilePath = indexDir.resolve("status");
                     Files.writeString(statusFilePath, IndexState.CREATED.name(), StandardOpenOption.SYNC,
                             StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 
-                    indexMetadatas.put(indexName, new IndexMetadata(Distance.valueOf(request.getDistance().name())));
+                    indexMetadatas.put(indexName,
+                            new IndexMetadata(Distance.valueOf(request.getDistance().name()), indexDir));
                     if (!indexStates.replace(indexName, IndexState.CREATING, IndexState.CREATED)) {
                         var msg = "Failed to create index " + indexName;
                         logger.error(msg);
@@ -665,7 +693,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                     responseObserver.onNext(responseBuilder.build());
                     responseObserver.onCompleted();
-                } catch (IOException e) {
+                } catch (Exception e) {
+                    indexMetadatas.remove(indexName);
                     logger.error("Failed to create index " + indexName, e);
                     responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
                 }
@@ -752,12 +781,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             uploaderLock.unlock();
                         }
 
-                        var indexDir = Path.of(indexName);
                         var metadata = indexMetadatas.get(indexName);
 
                         try {
                             store = DataStore.create(indexName, dimensions, metadata.distance.buildDistanceFunction(),
-                                    indexDir);
+                                    metadata.dir);
                         } catch (IOException e) {
                             var msg = "Failed to create data store for index " + indexName;
                             logger.error(msg, e);
