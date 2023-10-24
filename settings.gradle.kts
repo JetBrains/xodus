@@ -42,7 +42,7 @@ dependencyResolutionManagement {
             version("protobuf", "3.24.3")
             version("javax-annotation", "1.3.2")
 
-            version("spring-boot", "3.1.4")
+            version("spring-boot", "3.1.5")
             version("grpc-boot-starter", "2.14.0.RELEASE")
 
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
@@ -99,6 +99,7 @@ dependencyResolutionManagement {
             library("grpc-java", "io.grpc", "protoc-gen-grpc-java").versionRef("grpc")
             library("grpc-stub", "io.grpc", "grpc-stub").versionRef("grpc")
             library("grpc-protobuf", "io.grpc", "grpc-protobuf").versionRef("grpc")
+            library("grpc-test", "io.grpc", "grpc-testing").versionRef("grpc")
 
             library(
                 "javax-annotation-api", "javax.annotation",
@@ -108,6 +109,11 @@ dependencyResolutionManagement {
             library(
                 "spring-boot-starter", "org.springframework.boot",
                 "spring-boot-starter"
+            ).versionRef("spring-boot")
+
+            library(
+                "spring-boot-starter-test", "org.springframework.boot",
+                "spring-boot-starter-test"
             ).versionRef("spring-boot")
 
             library(

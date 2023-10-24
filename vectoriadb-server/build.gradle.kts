@@ -5,4 +5,7 @@ dependencies {
 
     implementation(project(":xodus-vectoriadb-interface"))
     implementation(project(":xodus-vectoriadb-index"))
+
+    testImplementation(libs.grpc.test)
+    testImplementation(libs.spring.boot.starter.test)
 }
