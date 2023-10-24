@@ -30,6 +30,7 @@ import jetbrains.vectoriadb.index.diskcache.DiskCache;
 import jetbrains.vectoriadb.service.base.IndexManagerGrpc;
 import jetbrains.vectoriadb.service.base.IndexManagerOuterClass;
 import net.devh.boot.grpc.server.service.GrpcService;
+import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -343,6 +344,16 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
     }
 
+    @Override
+    public void dropIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
+        operationsSemaphore.acquireUninterruptibly();
+        try {
+            mode.dropIndex(request, responseObserver);
+        } finally {
+            operationsSemaphore.release();
+        }
+    }
+
     private IndexManagerOuterClass.IndexState convertToAPIState(IndexState indexState) {
         return switch (indexState) {
             case BROKEN -> IndexManagerOuterClass.IndexState.BROKEN;
@@ -516,7 +527,6 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     private interface Mode {
-
         void createIndex(IndexManagerOuterClass.CreateIndexRequest request,
                          StreamObserver<IndexManagerOuterClass.CreateIndexResponse> responseObserver);
 
@@ -530,6 +540,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
         void findNearestNeighbours(IndexManagerOuterClass.FindNearestNeighboursRequest request,
                                    StreamObserver<IndexManagerOuterClass.FindNearestNeighboursResponse> responseObserver);
+
+        void dropIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver);
 
         void shutdown() throws IOException;
     }
@@ -603,6 +615,27 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             responseObserver.onCompleted();
         }
 
+        @Override
+        public void dropIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
+            var indexName = request.getIndexName();
+            if (checkBuildState(responseObserver, indexName)) {
+                return;
+            }
+
+            try {
+                @SuppressWarnings("resource") var indexReader = fetchIndexReader(indexName);
+                indexReader.deleteIndex();
+
+                indexReaders.remove(indexName);
+
+                responseObserver.onNext(Empty.newBuilder().build());
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.error("Failed dropping an index '" + indexName + "'", e);
+                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            }
+        }
+
         @NotNull
         private IndexReader fetchIndexReader(final String indexName) {
             return indexReaders.computeIfAbsent(indexName, name -> {
@@ -644,6 +677,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     private final class BuildMode implements Mode {
         private final ExecutorService indexBuilderExecutor;
+        private final ReentrantLock indexCreationLock = new ReentrantLock();
 
 
         private BuildMode() {
@@ -658,6 +692,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         @Override
         public void createIndex(IndexManagerOuterClass.CreateIndexRequest request,
                                 StreamObserver<IndexManagerOuterClass.CreateIndexResponse> responseObserver) {
+            indexCreationLock.lock();
             try {
                 var indexName = request.getIndexName();
                 var indexState = indexStates.putIfAbsent(indexName, IndexState.CREATING);
@@ -703,6 +738,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             } catch (Exception e) {
                 logger.error("Failed to create index", e);
                 responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            } finally {
+                indexCreationLock.unlock();
             }
         }
 
@@ -907,7 +944,44 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         public void findNearestNeighbours(IndexManagerOuterClass.FindNearestNeighboursRequest request,
                                           StreamObserver<IndexManagerOuterClass.FindNearestNeighboursResponse> responseObserver) {
             responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE.augmentDescription(
-                    "Index manager is in build mode. Please switch to query mode.")));
+                    "Index manager is in build mode. Please switch to search mode.")));
+        }
+
+        @Override
+        public void dropIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
+            indexCreationLock.lock();
+            try {
+                var indexName = request.getIndexName();
+
+                indexStates.compute(indexName, (name, state) -> {
+                    if (state == IndexState.CREATED || state == IndexState.BUILT) {
+                        return IndexState.BROKEN;
+                    } else {
+                        return state;
+                    }
+                });
+
+                var state = indexStates.get(indexName);
+                if (state != IndexState.BROKEN) {
+                    var msg = "Index " + request.getIndexName() + " is not in CREATED or BUILT state";
+                    logger.error(msg);
+
+                    responseObserver.onError(new StatusRuntimeException(Status.FAILED_PRECONDITION.withDescription(msg)));
+                    return;
+                }
+
+                var indexDir = indexMetadatas.get(indexName).dir;
+                FileUtils.deleteDirectory(indexDir.toFile());
+
+                indexMetadatas.remove(indexName);
+                indexStates.remove(indexName);
+            } catch (Exception e) {
+                indexStates.put(request.getIndexName(), IndexState.BROKEN);
+                logger.error("Failed to drop index " + request.getIndexName(), e);
+                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            } finally {
+                indexCreationLock.unlock();
+            }
         }
 
         @Override
