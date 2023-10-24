@@ -71,7 +71,12 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public static final String INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION =
             "vectoriadb.index.reader.disk-cache-memory-consumption";
 
-    public static final String BASE_PATH = "vectoriadb.index.base-path";
+    public static final String BASE_PATH_PROPERTY = "vectoriadb.server.base-path";
+    public static final String DEFAULT_MODE_PROPERTY = "vectoriadb.server.default-mode";
+
+    public static final String BUILD_MODE = "build";
+
+    public static final String SEARCH_MODE = "search";
 
     private static final int DEFAULT_DIMENSIONS = 128;
     private static final Logger logger = LoggerFactory.getLogger(IndexManagerServiceImpl.class);
@@ -108,7 +113,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         distanceMultiplier = environment.getProperty(DISTANCE_MULTIPLIER_PROPERTY, Float.class,
                 IndexBuilder.DEFAULT_DISTANCE_MULTIPLIER);
 
-        basePath = Path.of(environment.getProperty(BASE_PATH, String.class, "."));
+        basePath = Path.of(environment.getProperty(BASE_PATH_PROPERTY, String.class, "."));
 
         var availableRAM = fetchAvailableRAM();
         if (availableRAM >= EIGHT_TB) {
@@ -122,7 +127,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         var osMemory = Math.min(leftMemory / 10, 1024L * 1024 * 1024);
 
         long maxMemoryConsumption = leftMemory - osMemory;
-        logger.info("Max direct memory consumption : " + maxMemoryConsumption + " bytes, " +
+        logger.info("Direct memory size : " + maxMemoryConsumption + " bytes, " +
                 "heap size : " + heapSize + " bytes, available RAM " + availableRAM +
                 " bytes, memory left for OS needs " + osMemory + " bytes");
 
@@ -170,15 +175,28 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                     " bytes will be used to keep primary index in memory.");
         }
 
+        var modeName = environment.getProperty(DEFAULT_MODE_PROPERTY, String.class, BUILD_MODE).toLowerCase(Locale.ROOT);
+
+        if (modeName.equals(BUILD_MODE)) {
+            mode = new BuildMode();
+        } else if (modeName.equals(SEARCH_MODE)) {
+            mode = new SearchMode();
+        } else {
+            var msg = "Unknown mode " + modeName;
+            logger.error(msg);
+            throw new IllegalArgumentException(msg);
+        }
+
 
         logger.info("Index manager initialized with parameters " +
                         "dimensions = {}, " +
                         "maxConnectionsPerVertex = {}, " +
                         "maxCandidatesReturned = {}, " +
                         "compressionRatio = {}, " +
-                        "distanceMultiplier = {}",
-                dimensions, maxConnectionsPerVertex, maxCandidatesReturned, compressionRatio, distanceMultiplier);
-        mode = new BuildMode();
+                        "distanceMultiplier = {}, " +
+                        "mode = {}",
+                dimensions, maxConnectionsPerVertex, maxCandidatesReturned, compressionRatio,
+                distanceMultiplier, modeName);
     }
 
 
