@@ -9,9 +9,9 @@ name: JDK 17 - master
 
 on:
   push:
-    branches: [ "release-3.0"]
+    branches: [ "master"]
   pull_request:
-    branches: [ "release-3.0"]
+    branches: [ "master"]
 
 permissions:
   contents: read
