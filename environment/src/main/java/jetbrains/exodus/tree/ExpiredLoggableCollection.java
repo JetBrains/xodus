@@ -60,7 +60,7 @@ class MutableExpiredLoggableCollection implements ExpiredLoggableCollection {
     private int _size;
 
     public MutableExpiredLoggableCollection(Log log) {
-        this(log, null, new LongArrayList(), new IntArrayList(), null);
+        this(log, null, new LongArrayList(), new IntArrayList(), null, 0);
     }
 
     public MutableExpiredLoggableCollection(
@@ -68,13 +68,13 @@ class MutableExpiredLoggableCollection implements ExpiredLoggableCollection {
             MutableExpiredLoggableCollection parent,
             @NotNull LongArrayList addresses,
             @NotNull IntArrayList lengths,
-            Long2IntOpenHashMap accumulatedStats) {
+            Long2IntOpenHashMap accumulatedStats, int size) {
         this.log = log;
         this.parent = parent;
         this.addresses = addresses;
         this.lengths = lengths;
         this.accumulatedStats = accumulatedStats;
-        this._size = 0;
+        this._size = size;
     }
 
     @Override
@@ -162,8 +162,10 @@ class MutableExpiredLoggableCollection implements ExpiredLoggableCollection {
         if (parent instanceof MutableExpiredLoggableCollection) {
             MutableExpiredLoggableCollection parentAsMutable = (MutableExpiredLoggableCollection) parent;
             return (this.parent != null ? new MutableExpiredLoggableCollection(log,
-                    this, parentAsMutable.addresses, parentAsMutable.lengths, parentAsMutable.accumulatedStats)
-                    : new MutableExpiredLoggableCollection(log, parentAsMutable, addresses, lengths, accumulatedStats))
+                    this, parentAsMutable.addresses, parentAsMutable.lengths, parentAsMutable.accumulatedStats,
+                    parentAsMutable._size)
+                    : new MutableExpiredLoggableCollection(log, parentAsMutable, addresses, lengths, accumulatedStats,
+                    _size))
                     .applyAccumulateStats();
         }
 
