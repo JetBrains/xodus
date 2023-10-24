@@ -49,7 +49,7 @@ fun shouldApplyDokka(project: Project): Boolean {
 }
 
 tasks.wrapper {
-    gradleVersion = "8.1.1"
+    gradleVersion = "8.4"
 }
 
 defaultTasks("assemble")
@@ -94,6 +94,8 @@ subprojects {
         extraProperties["owner"] = "JetBrains s.r.o."
         include("**/*.kt")
         include("**/*.java")
+        exclude("**/jetbrains/exodus/diskann/diskcache/**")
+        exclude("**/vectoriadb/service/base/**")
         mapping(
             mapOf(
                 "kt" to "SLASHSTAR_STYLE",
@@ -129,6 +131,7 @@ subprojects {
     }
     tasks.withType<JavaCompile> {
         options.encoding = "UTF-8"
+        options.compilerArgs = listOf("--add-modules", "jdk.incubator.vector", "--enable-preview")
     }
 
     tasks.jar {
@@ -141,10 +144,16 @@ subprojects {
     }
 
     tasks.test {
-        systemProperty("exodus.tests.buildDirectory", project.buildDir)
+        systemProperty("exodus.tests.buildDirectory", project.layout.buildDirectory.asFile.get())
         minHeapSize = "1g"
         maxHeapSize = "1g"
-        jvmArgs = listOf("-ea", "-XX:+HeapDumpOnOutOfMemoryError")
+        jvmArgs = listOf(
+            "-ea",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "--enable-preview"
+        )
     }
 
     tasks.javadoc {
@@ -160,14 +169,12 @@ subprojects {
 
     tasks.compileKotlin {
         kotlinOptions {
-            jvmTarget = "11"
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
         }
     }
     tasks.compileTestKotlin {
         kotlinOptions {
-            jvmTarget = "11"
             languageVersion = libs.versions.kotlin.lang.get()
             apiVersion = libs.versions.kotlin.lang.get()
         }
@@ -178,7 +185,7 @@ subprojects {
         withSourcesJar()
 
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(11))
+            languageVersion.set(JavaLanguageVersion.of(20))
         }
     }
 

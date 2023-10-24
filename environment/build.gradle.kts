@@ -20,11 +20,6 @@ tasks {
         add("testArtifacts", jarTest)
     }
 
-    named("compileJava", JavaCompile::class) {
-        options.isWarnings = true
-        options.compilerArgs.add("-Werror")
-    }
-
     named("compileKotlin", KotlinCompile::class) {
         kotlinOptions {
             allWarningsAsErrors = true
