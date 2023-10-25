@@ -998,6 +998,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                         if (indexName != null) {
                             indexStates.put(indexName, IndexState.BROKEN);
+                            uploadingIndexes.remove(indexName);
                         }
                         logger.error("Failed to upload vectors for index " + indexName, t);
                         try {
@@ -1022,6 +1023,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                                 store.close();
                             }
 
+                            uploadingIndexes.remove(indexName);
                             indexStates.put(indexName, IndexState.CREATED);
                         } catch (IOException e) {
                             var msg = "Failed to close data store for index " + indexName;
