@@ -262,6 +262,10 @@ public class DiskANNTest {
         var environment = new MockEnvironment();
         environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
+        environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
+                String.valueOf(64 * 1024 * 1024));
+        environment.setProperty(IndexManagerServiceImpl.INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION,
+                String.valueOf(64 * 1024 * 1024));
 
         var indexManagerService = new IndexManagerServiceImpl(environment);
         try {
