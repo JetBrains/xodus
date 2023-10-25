@@ -17,6 +17,7 @@ package jetbrains.vectoriadb.server;
 
 import com.google.protobuf.Empty;
 import io.grpc.internal.testing.StreamRecorder;
+import jetbrains.vectoriadb.index.CosineDistanceFunction;
 import jetbrains.vectoriadb.index.DistanceFunction;
 import jetbrains.vectoriadb.index.DotDistanceFunction;
 import jetbrains.vectoriadb.index.L2DistanceFunction;
@@ -39,150 +40,17 @@ import java.util.concurrent.TimeUnit;
 public class DiskANNTest {
     @Test
     public void testFindLoadedVectorsL2Distance() throws Exception {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
-
-        var indexName = "testFindLoadedVectorsL2Distance";
-        var indexDir = Path.of(buildDir).resolve(indexName);
-
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
-        }
-
-        var recallCount = 5;
-        var vectorDimensions = 64;
-        var vectorsCount = 10_000;
-
-        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-
-        var vectors = new float[vectorsCount][vectorDimensions];
-        var queries = new float[vectorsCount][vectorDimensions];
-
-        generateUniqueVectorSet(vectors, rng);
-        generateUniqueVectorSet(queries, rng);
-
-        var groundTruth = calculateGroundTruthVectors(vectors, queries, L2DistanceFunction.INSTANCE, recallCount);
-
-        var environment = new MockEnvironment();
-        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
-        environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
-
-        var indexManagerService = new IndexManagerServiceImpl(environment);
-        try {
-            createIndex(indexName, indexManagerService, IndexManagerOuterClass.Distance.L2);
-            uploadVectors(indexManagerService, vectors, indexName);
-
-            var ts1 = System.nanoTime();
-            buildIndex(indexName, indexManagerService);
-            var ts2 = System.nanoTime();
-
-            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
-
-            switchToSearchMode(indexManagerService);
-
-            ts1 = System.nanoTime();
-            var totalRecall = 0.0;
-
-            for (var j = 0; j < vectorsCount; j++) {
-                var vector = queries[j];
-                var result = findNearestNeighbours(indexManagerService, vector, indexName, recallCount);
-                totalRecall += recall(result, groundTruth[j]);
-
-                if ((j + 1) % 1_000 == 0) {
-                    System.out.println("Processed " + (j + 1));
-                }
-            }
-
-            ts2 = System.nanoTime();
-            var recall = totalRecall / vectorsCount;
-
-            System.out.printf("Avg. query %d time us, R@%d : %f%n",
-                    (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall);
-            Assert.assertTrue("Recall is too low " + recall + " < 0.92",
-                    recall >= 0.92);
-        } finally {
-            indexManagerService.shutdown();
-        }
-
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
-        }
+        testIndex("testFindLoadedVectorsL2Distance", L2DistanceFunction.INSTANCE, 0.92);
     }
 
     @Test
     public void testFindLoadedVectorsDotDistance() throws Exception {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
+        testIndex("testFindLoadedVectorsDotDistance", DotDistanceFunction.INSTANCE, 0.85);
+    }
 
-        var indexName = "testFindLoadedVectorsDotDistance";
-        var indexDir = Path.of(buildDir).resolve(indexName);
-
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
-        }
-
-        var recallCount = 5;
-        var vectorDimensions = 64;
-        var vectorsCount = 10_000;
-
-        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-
-        var vectors = new float[vectorsCount][vectorDimensions];
-        var queries = new float[vectorsCount][vectorDimensions];
-
-        generateUniqueVectorSet(vectors, rng);
-        generateUniqueVectorSet(queries, rng);
-
-        var groundTruth = calculateGroundTruthVectors(vectors, queries, DotDistanceFunction.INSTANCE, recallCount);
-
-        var environment = new MockEnvironment();
-        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
-        environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
-
-        var indexManagerService = new IndexManagerServiceImpl(environment);
-        try {
-            createIndex(indexName, indexManagerService, IndexManagerOuterClass.Distance.DOT);
-            uploadVectors(indexManagerService, vectors, indexName);
-
-            var ts1 = System.nanoTime();
-            buildIndex(indexName, indexManagerService);
-            var ts2 = System.nanoTime();
-
-            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
-
-            switchToSearchMode(indexManagerService);
-
-            ts1 = System.nanoTime();
-            var totalRecall = 0.0;
-
-            for (var j = 0; j < vectorsCount; j++) {
-                var vector = queries[j];
-                var result = findNearestNeighbours(indexManagerService, vector, indexName, recallCount);
-                totalRecall += recall(result, groundTruth[j]);
-
-                if ((j + 1) % 1_000 == 0) {
-                    System.out.println("Processed " + (j + 1));
-                }
-            }
-
-            ts2 = System.nanoTime();
-            var recall = totalRecall / vectorsCount;
-
-            System.out.printf("Avg. query %d time us, R@%d : %f%n",
-                    (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall);
-            Assert.assertTrue("Recall is too low " + recall + " < 0.85",
-                    recall >= 0.85);
-        } finally {
-            indexManagerService.shutdown();
-        }
-
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
-        }
+    @Test
+    public void testFindLoadedVectorsCosineDistance() throws Exception {
+        testIndex("testFindLoadedVectorsCosineDistance", CosineDistanceFunction.INSTANCE, 0.72);
     }
 
 
@@ -355,6 +223,85 @@ public class DiskANNTest {
         Assert.assertTrue(completed);
         if (recorder.getError() != null) {
             Assert.fail(recorder.getError().getMessage());
+        }
+    }
+
+    private static void testIndex(String indexName, DistanceFunction distanceFunction, double recallThreshold) throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
+        var distance = switch (distanceFunction) {
+            case L2DistanceFunction l2DistanceFunction -> IndexManagerOuterClass.Distance.L2;
+            case DotDistanceFunction dotDistanceFunction -> IndexManagerOuterClass.Distance.DOT;
+            case CosineDistanceFunction cosineDistanceFunction -> IndexManagerOuterClass.Distance.COSINE;
+            case null, default -> throw new IllegalArgumentException("Unknown distance function " + distanceFunction);
+        };
+
+        var indexDir = Path.of(buildDir).resolve(indexName);
+
+        if (Files.exists(indexDir)) {
+            FileUtils.deleteDirectory(indexDir.toFile());
+        }
+
+        var recallCount = 5;
+        var vectorDimensions = 64;
+        var vectorsCount = 10_000;
+
+        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+
+        var vectors = new float[vectorsCount][vectorDimensions];
+        var queries = new float[vectorsCount][vectorDimensions];
+
+        generateUniqueVectorSet(vectors, rng);
+        generateUniqueVectorSet(queries, rng);
+
+        var groundTruth = calculateGroundTruthVectors(vectors, queries, distanceFunction, recallCount);
+
+        var environment = new MockEnvironment();
+        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
+        environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
+
+        var indexManagerService = new IndexManagerServiceImpl(environment);
+        try {
+            createIndex(indexName, indexManagerService, distance);
+            uploadVectors(indexManagerService, vectors, indexName);
+
+            var ts1 = System.nanoTime();
+            buildIndex(indexName, indexManagerService);
+            var ts2 = System.nanoTime();
+
+            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+
+            switchToSearchMode(indexManagerService);
+
+            ts1 = System.nanoTime();
+            var totalRecall = 0.0;
+
+            for (var j = 0; j < vectorsCount; j++) {
+                var vector = queries[j];
+                var result = findNearestNeighbours(indexManagerService, vector, indexName, recallCount);
+                totalRecall += recall(result, groundTruth[j]);
+
+                if ((j + 1) % 1_000 == 0) {
+                    System.out.println("Processed " + (j + 1));
+                }
+            }
+
+            ts2 = System.nanoTime();
+            var recall = totalRecall / vectorsCount;
+
+            System.out.printf("Avg. query %d time us, R@%d : %f%n",
+                    (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall);
+            Assert.assertTrue("Recall is too low " + recall + " < " + recallThreshold,
+                    recall >= recallThreshold);
+        } finally {
+            indexManagerService.shutdown();
+        }
+
+        if (Files.exists(indexDir)) {
+            FileUtils.deleteDirectory(indexDir.toFile());
         }
     }
 }
