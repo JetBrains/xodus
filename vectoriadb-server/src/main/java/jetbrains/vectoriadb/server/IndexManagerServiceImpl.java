@@ -82,6 +82,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     private static final int DEFAULT_DIMENSIONS = 128;
     private static final Logger logger = LoggerFactory.getLogger(IndexManagerServiceImpl.class);
     public static final String STATUS_FILE_NAME = "status";
+    public static final String METADATA_FILE_NAME = "metadata";
 
     private final ConcurrentHashMap<String, IndexState> indexStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IndexMetadata> indexMetadatas = new ConcurrentHashMap<>();
@@ -107,7 +108,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     private final Path basePath;
 
-    public IndexManagerServiceImpl(Environment environment) {
+    public IndexManagerServiceImpl(Environment environment) throws IOException {
         dimensions = environment.getProperty(INDEX_DIMENSIONS_PROPERTY, Integer.class, DEFAULT_DIMENSIONS);
 
         maxConnectionsPerVertex = environment.getProperty(MAX_CONNECTIONS_PER_VERTEX_PROPERTY, Integer.class,
@@ -203,6 +204,67 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                         "mode = {}",
                 dimensions, maxConnectionsPerVertex, maxCandidatesReturned, compressionRatio,
                 distanceMultiplier, modeName);
+        findIndexesOnDisk();
+    }
+
+    private void findIndexesOnDisk() throws IOException {
+        logger.info("Scanning existing indexes on disk {}", basePath.toAbsolutePath());
+        //noinspection resource
+        Files.list(basePath)
+                .filter(Files::isDirectory)
+                .forEach(this::loadIndex);
+        logger.info("Scanning of existing indexes on disk {} completed", basePath.toAbsolutePath());
+    }
+
+    private void loadIndex(Path path) {
+        var indexName = path.getFileName().toString();
+        logger.info("Loading index `{}`", indexName);
+
+        if (indexStates.containsKey(indexName)) {
+            logger.warn("Index {} already exists", indexName);
+        }
+
+        try {
+            var statusFile = path.resolve(STATUS_FILE_NAME);
+            if (!Files.exists(statusFile)) {
+                logger.error("Status file {} does not exist for index {}", statusFile, indexName);
+                return;
+            }
+
+            var status = Files.readString(statusFile);
+            IndexState indexState;
+            try {
+                indexState = IndexState.valueOf(status);
+            } catch (Exception e) {
+                logger.error("Failed to parse index state " + status + " for index " + indexName, e);
+                return;
+            }
+
+            if (indexState == IndexState.CREATING ||
+                    indexState == IndexState.UPLOADING ||
+                    indexState == IndexState.BUILDING ||
+                    indexState == IndexState.IN_BUILD_QUEUE ||
+                    indexState == IndexState.BROKEN) {
+                logger.error("Index {} is in invalid state {}. Will not load it", indexName, indexState);
+                return;
+            }
+
+            var metadataFile = path.resolve(METADATA_FILE_NAME);
+            if (!Files.exists(metadataFile)) {
+                logger.error("Metadata file {} does not exist for index {}", metadataFile, indexName);
+                return;
+            }
+
+            var distance = Distance.valueOf(Files.readString(metadataFile));
+            indexMetadatas.put(indexName, new IndexMetadata(distance, path));
+            indexStates.put(indexName, indexState);
+
+            logger.info("Index {} loaded", indexName);
+
+        } catch (IOException e) {
+            logger.error("Failed to load index " + indexName, e);
+            throw new RuntimeException(e);
+        }
     }
 
 
@@ -823,8 +885,9 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                     Files.createDirectories(indexDir);
 
                     updateIndexStatusInFS(indexDir, IndexState.CREATING);
+                    var distance = request.getDistance().name();
                     indexMetadatas.put(indexName,
-                            new IndexMetadata(Distance.valueOf(request.getDistance().name()), indexDir));
+                            new IndexMetadata(Distance.valueOf(distance), indexDir));
 
                     if (!indexStates.replace(indexName, IndexState.CREATING, IndexState.CREATED)) {
                         var msg = "Failed to create index " + indexName;
@@ -836,6 +899,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                         return;
                     }
 
+                    Files.writeString(indexDir.resolve(METADATA_FILE_NAME), distance, StandardOpenOption.SYNC,
+                            StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
                     updateIndexStatusInFS(indexDir, IndexState.CREATED);
 
                     responseObserver.onNext(responseBuilder.build());

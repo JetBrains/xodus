@@ -32,6 +32,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.mock.env.MockEnvironment;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -288,7 +289,7 @@ public class IndexManagerTest {
     }
 
     @NotNull
-    private static IndexManagerServiceImpl initIndexService(String buildDir) {
+    private static IndexManagerServiceImpl initIndexService(String buildDir) throws IOException  {
         var environment = new MockEnvironment();
 
         environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
