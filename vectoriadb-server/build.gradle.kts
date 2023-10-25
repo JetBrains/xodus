@@ -8,4 +8,11 @@ dependencies {
 
     testImplementation(libs.grpc.test)
     testImplementation(libs.spring.boot.starter.test)
+
+    testImplementation(libs.commons.rng.simple)
+    testImplementation(libs.commons.rng.sampling)
+
+    testImplementation(libs.commons.net)
+    testImplementation(libs.commons.compress)
+    testImplementation(libs.commons.lang)
 }

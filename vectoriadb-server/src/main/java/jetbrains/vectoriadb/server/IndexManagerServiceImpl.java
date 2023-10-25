@@ -61,7 +61,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBase {
     private static final long EIGHT_TB = 8L * 1024 * 1024 * 1024 * 1024;
 
-    public static final String DIMENSIONS_PROPERTY = "vectoriadb.index.dimensions";
+    public static final String INDEX_DIMENSIONS_PROPERTY = "vectoriadb.index.dimensions";
     public static final String MAX_CONNECTIONS_PER_VERTEX_PROPERTY = "vectoriadb.index.max-connections-per-vertex";
     public static final String MAX_CANDIDATES_RETURNED_PROPERTY = "vectoriadb.index.max-candidates-returned";
     public static final String COMPRESSION_RATIO_PROPERTY = "vectoriadb.index.compression-ratio";
@@ -102,7 +102,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     private final Path basePath;
 
     public IndexManagerServiceImpl(Environment environment) {
-        dimensions = environment.getProperty(DIMENSIONS_PROPERTY, Integer.class, DEFAULT_DIMENSIONS);
+        dimensions = environment.getProperty(INDEX_DIMENSIONS_PROPERTY, Integer.class, DEFAULT_DIMENSIONS);
 
         maxConnectionsPerVertex = environment.getProperty(MAX_CONNECTIONS_PER_VERTEX_PROPERTY, Integer.class,
                 IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX);
@@ -284,6 +284,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     @Override
     public void switchToBuildMode(Empty request, StreamObserver<Empty> responseObserver) {
+        var releasePermits = false;
         modeLock.lock();
         try {
             if (mode instanceof BuildMode) {
@@ -299,6 +300,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
                 return;
             }
+            releasePermits = true;
 
             mode.shutdown();
 
@@ -312,6 +314,9 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             logger.error("Failed to switch to build mode", e);
             responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
         } finally {
+            if (releasePermits) {
+                operationsSemaphore.release(Integer.MAX_VALUE);
+            }
             modeLock.unlock();
         }
     }
@@ -319,6 +324,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     @Override
     public void switchToSearchMode(Empty request, StreamObserver<Empty> responseObserver) {
         modeLock.lock();
+        var releasePermits = false;
+
         try {
             if (mode instanceof SearchMode) {
                 logger.info("Will not switch to search mode, because it is already active");
@@ -329,12 +336,14 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             }
 
             if (!operationsSemaphore.tryAcquire(Integer.MAX_VALUE)) {
-                logger.error("Failed to switch to search mode because of ongoing operations");
+                var msg = "Failed to switch to search mode because of ongoing operations";
+                logger.error(msg);
 
-                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE.withDescription(msg)));
                 return;
             }
 
+            releasePermits = true;
             mode.shutdown();
 
             mode = new SearchMode();
@@ -344,9 +353,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             responseObserver.onError(e);
         } catch (Exception e) {
             logger.error("Failed to switch to search mode", e);
-
             responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
         } finally {
+            if (releasePermits) {
+                operationsSemaphore.release(Integer.MAX_VALUE);
+            }
             modeLock.unlock();
         }
     }
@@ -396,7 +407,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     private static long availableMemoryWindows() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.openShared()) {
             var memoryStatusExLayout = MemoryLayout.structLayout(
                     ValueLayout.JAVA_INT.withName("dwLength"),
                     ValueLayout.JAVA_INT.withName("dwMemoryLoad"),
@@ -434,7 +445,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             }
 
 
-            return memoryStatusExLayout.byteOffset(MemoryLayout.PathElement.groupElement("ullTotalPhys"));
+            return memoryStatusExSegment.get(ValueLayout.JAVA_LONG,
+                    memoryStatusExLayout.byteOffset(MemoryLayout.PathElement.groupElement("ullTotalPhys")));
         }
     }
 
@@ -727,7 +739,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 var responseBuilder = IndexManagerOuterClass.CreateIndexResponse.newBuilder();
                 try {
                     var indexDir = basePath.resolve(indexName);
-                    Files.createDirectory(indexDir);
+                    Files.createDirectories(indexDir);
 
                     var statusFilePath = indexDir.resolve("status");
                     Files.writeString(statusFilePath, IndexState.CREATED.name(), StandardOpenOption.SYNC,
@@ -1041,7 +1053,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 var responseBuilder = IndexManagerOuterClass.BuildStatusResponse.newBuilder();
                 responseBuilder.setIndexName(progressInfo.indexName());
 
-                for (var phase : progressInfo.phases()) {
+                for (@SuppressWarnings("ForEachWithRecordPatternCanBeUsed") var phase : progressInfo.phases()) {
                     var name = phase.name();
                     var progress = phase.progress();
                     var parameters = phase.parameters();

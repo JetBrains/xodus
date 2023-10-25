@@ -152,7 +152,8 @@ subprojects {
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
-            "--enable-preview"
+            "--enable-preview",
+            "-XX:MaxDirectMemorySize=1024g"
         )
     }
 
