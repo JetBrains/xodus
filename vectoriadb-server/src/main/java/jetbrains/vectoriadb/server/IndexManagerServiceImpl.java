@@ -80,6 +80,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     private static final int DEFAULT_DIMENSIONS = 128;
     private static final Logger logger = LoggerFactory.getLogger(IndexManagerServiceImpl.class);
+
     private final ConcurrentHashMap<String, IndexState> indexStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IndexMetadata> indexMetadatas = new ConcurrentHashMap<>();
 
@@ -97,6 +98,9 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     private final long diskCacheMemoryConsumption;
     private final Semaphore operationsSemaphore = new Semaphore(Integer.MAX_VALUE);
     private final ReentrantLock modeLock = new ReentrantLock();
+
+    private boolean closed = false;
+
     private volatile Mode mode;
 
     private final Path basePath;
@@ -205,6 +209,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             StreamObserver<IndexManagerOuterClass.CreateIndexResponse> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
+            }
+
             mode.createIndex(request, responseObserver);
         } finally {
             operationsSemaphore.release();
@@ -216,6 +225,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public void buildIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
+            }
+
             mode.buildIndex(request, responseObserver);
         } finally {
             operationsSemaphore.release();
@@ -225,7 +239,14 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     @Override
     public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(
             StreamObserver<Empty> responseObserver) {
+
         operationsSemaphore.acquireUninterruptibly();
+        if (closed) {
+            responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+            operationsSemaphore.release();
+            return null;
+        }
+
         return mode.uploadVectors(responseObserver);
 
     }
@@ -235,6 +256,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             final StreamObserver<IndexManagerOuterClass.BuildStatusResponse> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
+            }
+
             mode.buildStatus(request, responseObserver);
         } finally {
             operationsSemaphore.release();
@@ -244,42 +270,63 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     @Override
     public void indexState(IndexManagerOuterClass.IndexNameRequest request,
                            StreamObserver<IndexManagerOuterClass.IndexStateResponse> responseObserver) {
+        operationsSemaphore.acquireUninterruptibly();
         try {
-            var indexName = request.getIndexName();
-            var state = indexStates.get(indexName);
-            if (state == null) {
-                responseObserver.onError(new StatusException(Status.NOT_FOUND));
-            } else {
-                responseObserver.onNext(IndexManagerOuterClass.IndexStateResponse.newBuilder()
-                        .setState(convertToAPIState(state))
-                        .build());
-                responseObserver.onCompleted();
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
             }
-        } catch (StatusRuntimeException e) {
-            responseObserver.onError(e);
-        } catch (Exception e) {
-            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+
+            try {
+                var indexName = request.getIndexName();
+                var state = indexStates.get(indexName);
+                if (state == null) {
+                    responseObserver.onError(new StatusException(Status.NOT_FOUND));
+                } else {
+                    responseObserver.onNext(IndexManagerOuterClass.IndexStateResponse.newBuilder()
+                            .setState(convertToAPIState(state))
+                            .build());
+                    responseObserver.onCompleted();
+                }
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+            } catch (Exception e) {
+                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            }
+        } finally {
+            operationsSemaphore.release();
         }
     }
 
     @Override
     public void list(Empty request, StreamObserver<IndexManagerOuterClass.IndexListResponse> responseObserver) {
-        var responseBuilder = IndexManagerOuterClass.IndexListResponse.newBuilder();
+        operationsSemaphore.acquireUninterruptibly();
         try {
-            for (var entry : indexStates.entrySet()) {
-                if (entry.getValue() != IndexState.BROKEN) {
-                    responseBuilder.addIndexNames(entry.getKey());
-                }
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
             }
 
-            responseObserver.onNext(responseBuilder.build());
-            responseObserver.onCompleted();
-        } catch (StatusRuntimeException e) {
-            responseObserver.onError(e);
-        } catch (Exception e) {
-            logger.error("Failed to list indexes", e);
-            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            var responseBuilder = IndexManagerOuterClass.IndexListResponse.newBuilder();
+            try {
+                for (var entry : indexStates.entrySet()) {
+                    if (entry.getValue() != IndexState.BROKEN) {
+                        responseBuilder.addIndexNames(entry.getKey());
+                    }
+                }
+
+                responseObserver.onNext(responseBuilder.build());
+                responseObserver.onCompleted();
+            } catch (StatusRuntimeException e) {
+                responseObserver.onError(e);
+            } catch (Exception e) {
+                logger.error("Failed to list indexes", e);
+                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+            }
+        } finally {
+            operationsSemaphore.release();
         }
+
     }
 
     @Override
@@ -300,6 +347,12 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
                 return;
             }
+
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
+            }
+
             releasePermits = true;
 
             mode.shutdown();
@@ -343,6 +396,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 return;
             }
 
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
+            }
+
             releasePermits = true;
             mode.shutdown();
 
@@ -367,6 +425,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                                       StreamObserver<IndexManagerOuterClass.FindNearestNeighboursResponse> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
+            }
+
             mode.findNearestNeighbours(request, responseObserver);
         } finally {
             operationsSemaphore.release();
@@ -377,6 +440,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public void dropIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
+            if (closed) {
+                responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
+                return;
+            }
+
             mode.dropIndex(request, responseObserver);
         } finally {
             operationsSemaphore.release();
@@ -504,6 +572,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public void shutdown() {
         operationsSemaphore.acquireUninterruptibly(Integer.MAX_VALUE);
         try {
+            closed = true;
+
             mode.shutdown();
         } catch (IOException e) {
             throw new RuntimeException(e);
