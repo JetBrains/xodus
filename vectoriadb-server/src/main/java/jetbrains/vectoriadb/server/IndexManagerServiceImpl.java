@@ -48,6 +48,7 @@ import java.lang.foreign.ValueLayout;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Set;
@@ -80,6 +81,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     private static final int DEFAULT_DIMENSIONS = 128;
     private static final Logger logger = LoggerFactory.getLogger(IndexManagerServiceImpl.class);
+    public static final String STATUS_FILE_NAME = "status";
 
     private final ConcurrentHashMap<String, IndexState> indexStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IndexMetadata> indexMetadatas = new ConcurrentHashMap<>();
@@ -460,6 +462,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             case CREATING -> IndexManagerOuterClass.IndexState.CREATING;
             case IN_BUILD_QUEUE -> IndexManagerOuterClass.IndexState.IN_BUILD_QUEUE;
             case UPLOADING -> IndexManagerOuterClass.IndexState.UPLOADING;
+            case UPLOADED -> IndexManagerOuterClass.IndexState.UPLOADED;
         };
     }
 
@@ -596,6 +599,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 try {
                     var metadata = indexMetadatas.get(indexName);
                     if (indexStates.replace(indexName, IndexState.IN_BUILD_QUEUE, IndexState.BUILDING)) {
+                        updateIndexStatusInFS(metadata.dir, IndexState.BUILDING);
                         try {
                             IndexBuilder.buildIndex(indexName, dimensions, compressionRatio,
                                     distanceMultiplier, metadata.dir,
@@ -606,13 +610,18 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                         } catch (Exception e) {
                             logger.error("Failed to build index " + indexName, e);
                             indexStates.put(indexName, IndexState.BROKEN);
+                            updateIndexStatusInFS(metadata.dir, IndexState.BROKEN);
                             return;
                         }
 
                         indexStates.put(indexName, IndexState.BUILT);
+                        updateIndexStatusInFS(metadata.dir, IndexState.BUILT);
                     } else {
                         logger.warn("Failed to build index " + indexName + " because it is not in IN_BUILD_QUEUE state");
                     }
+                } catch (IOException e) {
+                    logger.error("Index builder task failed", e);
+                    throw new RuntimeException(e);
                 } catch (Throwable t) {
                     logger.error("Index builder task failed", t);
                     throw t;
@@ -620,7 +629,6 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             } finally {
                 operationsSemaphore.release();
             }
-
         }
     }
 
@@ -814,21 +822,21 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                     var indexDir = basePath.resolve(indexName);
                     Files.createDirectories(indexDir);
 
-                    var statusFilePath = indexDir.resolve("status");
-                    Files.writeString(statusFilePath, IndexState.CREATED.name(), StandardOpenOption.SYNC,
-                            StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-
+                    updateIndexStatusInFS(indexDir, IndexState.CREATING);
                     indexMetadatas.put(indexName,
                             new IndexMetadata(Distance.valueOf(request.getDistance().name()), indexDir));
+
                     if (!indexStates.replace(indexName, IndexState.CREATING, IndexState.CREATED)) {
                         var msg = "Failed to create index " + indexName;
                         logger.error(msg);
                         responseObserver.onError(new IllegalStateException(msg));
 
                         indexStates.put(indexName, IndexState.BROKEN);
-                        Files.writeString(statusFilePath, IndexState.BROKEN.name(), StandardOpenOption.WRITE,
-                                StandardOpenOption.SYNC);
+                        updateIndexStatusInFS(indexDir, IndexState.BROKEN);
+                        return;
                     }
+
+                    updateIndexStatusInFS(indexDir, IndexState.CREATED);
 
                     responseObserver.onNext(responseBuilder.build());
                     responseObserver.onCompleted();
@@ -852,7 +860,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             try {
                 var indexName = request.getIndexName();
                 var indexState = indexStates.compute(indexName, (k, state) -> {
-                    if (state == IndexState.CREATED) {
+                    if (state == IndexState.UPLOADED || state == IndexState.CREATED) {
                         return IndexState.IN_BUILD_QUEUE;
                     } else {
                         return state;
@@ -875,6 +883,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                     return;
                 }
 
+                updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.IN_BUILD_QUEUE);
                 indexBuilderExecutor.execute(new IndexBuilderTask(indexName));
 
                 responseObserver.onNext(Empty.newBuilder().build());
@@ -905,11 +914,27 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             return;
                         }
 
+                        try {
+                            updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.UPLOADING);
+                        } catch (IOException e) {
+                            logger.error("Failed to update index status in FS", e);
+                            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                            return;
+                        }
+
                         uploaderLock.lock();
                         try {
                             if (!uploadingIndexes.contains(indexName)) {
                                 if (uploadingIndexes.size() == MAXIMUM_UPLOADERS_COUNT) {
                                     indexStates.put(indexName, IndexState.CREATED);
+
+                                    try {
+                                        updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.CREATED);
+                                    } catch (IOException e) {
+                                        logger.error("Failed to update index status in FS", e);
+                                        responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                                        return;
+                                    }
 
                                     responseObserver.onError(new StatusRuntimeException(
                                             Status.RESOURCE_EXHAUSTED.withDescription("Maximum uploaders count reached")));
@@ -934,6 +959,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
 
                             indexStates.put(indexName, IndexState.BROKEN);
+                            try {
+                                updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.UPLOADING);
+                            } catch (IOException ioe) {
+                                logger.error("Failed to update index status in FS", ioe);
+                                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                                return;
+                            }
                         }
 
                         this.indexName = indexName;
@@ -988,6 +1020,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                         responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
                         indexStates.put(indexName, IndexState.BROKEN);
+
+                        try {
+                            updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.BROKEN);
+                        } catch (IOException ioe) {
+                            logger.error("Failed to update index status in FS", ioe);
+                            responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
+                        }
                     }
                 }
 
@@ -998,6 +1037,14 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                         if (indexName != null) {
                             indexStates.put(indexName, IndexState.BROKEN);
+
+                            try {
+                                updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.BROKEN);
+                            } catch (IOException ioe) {
+                                logger.error("Failed to update index status in FS", ioe);
+                                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(ioe)));
+                            }
+
                             uploadingIndexes.remove(indexName);
                         }
                         logger.error("Failed to upload vectors for index " + indexName, t);
@@ -1024,7 +1071,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             }
 
                             uploadingIndexes.remove(indexName);
-                            indexStates.put(indexName, IndexState.CREATED);
+                            indexStates.put(indexName, IndexState.UPLOADED);
+                            try {
+                                updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.BROKEN);
+                            } catch (IOException ioe) {
+                                logger.error("Failed to update index status in FS", ioe);
+                                responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(ioe)));
+                            }
                         } catch (IOException e) {
                             var msg = "Failed to close data store for index " + indexName;
                             logger.error(msg, e);
@@ -1060,7 +1113,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 var indexName = request.getIndexName();
 
                 indexStates.compute(indexName, (k, state) -> {
-                    if (state == IndexState.CREATED || state == IndexState.BUILT) {
+                    if (state == IndexState.CREATED || state == IndexState.BUILT || state == IndexState.UPLOADED) {
                         return IndexState.BROKEN;
                     } else {
                         return state;
@@ -1093,15 +1146,45 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
         @Override
         public void shutdown() {
-            for (var indexes : indexStates.keySet()) {
-                var indexState = indexStates.get(indexes);
+            indexStateLoop:
+            while (true) {
+                for (var indexes : indexStates.keySet()) {
+                    var indexState = indexStates.get(indexes);
 
-                if (indexState == IndexState.IN_BUILD_QUEUE || indexState == IndexState.BUILDING) {
-                    indexStates.put(indexes, IndexState.BROKEN);
+                    if (indexState == IndexState.IN_BUILD_QUEUE || indexState == IndexState.BUILDING) {
+                        if (indexStates.replace(indexes, IndexState.IN_BUILD_QUEUE, IndexState.UPLOADED)) {
+                            try {
+                                updateIndexStatusInFS(indexMetadatas.get(indexes).dir, IndexState.UPLOADED);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        } else {
+                            logger.warn("Index {} is in {} state. Waiting for it to finish", indexes, indexState);
+                            try {
+                                Thread.sleep(Duration.ofSeconds(5));
+                                continue indexStateLoop;
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                    }
                 }
+                break;
             }
 
             indexBuilderExecutor.shutdown();
+        }
+    }
+
+    private static void updateIndexStatusInFS(Path indexDir, IndexState state) throws IOException {
+        var statusFilePath = indexDir.resolve(STATUS_FILE_NAME);
+
+        if (state == IndexState.CREATING) {
+            Files.writeString(statusFilePath, state.toString(), StandardOpenOption.SYNC,
+                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        } else {
+            Files.writeString(statusFilePath, state.toString(), StandardOpenOption.SYNC,
+                    StandardOpenOption.WRITE);
         }
     }
 

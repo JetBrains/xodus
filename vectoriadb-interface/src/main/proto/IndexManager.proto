@@ -80,10 +80,11 @@ enum IndexState {
   CREATING = 0;
   CREATED = 1;
   UPLOADING = 2;
-  IN_BUILD_QUEUE = 3;
-  BUILDING = 4;
-  BUILT = 5;
-  BROKEN = 6;
+  UPLOADED = 3;
+  IN_BUILD_QUEUE = 4;
+  BUILDING = 5;
+  BUILT = 6;
+  BROKEN = 7;
 }
 
 message BuildStatusResponse {
