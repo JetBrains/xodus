@@ -18,6 +18,7 @@ package jetbrains.vectoriadb.server;
 import com.google.protobuf.Empty;
 import io.grpc.internal.testing.StreamRecorder;
 import jetbrains.vectoriadb.index.DistanceFunction;
+import jetbrains.vectoriadb.index.DotDistanceFunction;
 import jetbrains.vectoriadb.index.L2DistanceFunction;
 import jetbrains.vectoriadb.index.util.collections.BoundedGreedyVertexPriorityQueue;
 import jetbrains.vectoriadb.service.base.IndexManagerOuterClass;
@@ -70,7 +71,7 @@ public class DiskANNTest {
 
         var indexManagerService = new IndexManagerServiceImpl(environment);
         try {
-            createIndex(indexName, indexManagerService);
+            createIndex(indexName, indexManagerService, IndexManagerOuterClass.Distance.L2);
             uploadVectors(indexManagerService, vectors, indexName);
 
             var ts1 = System.nanoTime();
@@ -104,7 +105,86 @@ public class DiskANNTest {
         } finally {
             indexManagerService.shutdown();
         }
+
+        if (Files.exists(indexDir)) {
+            FileUtils.deleteDirectory(indexDir.toFile());
+        }
     }
+
+    @Test
+    public void testFindLoadedVectorsDotDistance() throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
+        var indexName = "testFindLoadedVectorsDotDistance";
+        var indexDir = Path.of(buildDir).resolve(indexName);
+
+        if (Files.exists(indexDir)) {
+            FileUtils.deleteDirectory(indexDir.toFile());
+        }
+
+        var recallCount = 5;
+        var vectorDimensions = 64;
+        var vectorsCount = 10_000;
+
+        var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+
+        var vectors = new float[vectorsCount][vectorDimensions];
+        var queries = new float[vectorsCount][vectorDimensions];
+
+        generateUniqueVectorSet(vectors, rng);
+        generateUniqueVectorSet(queries, rng);
+
+        var groundTruth = calculateGroundTruthVectors(vectors, queries, DotDistanceFunction.INSTANCE, recallCount);
+
+        var environment = new MockEnvironment();
+        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
+        environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
+
+        var indexManagerService = new IndexManagerServiceImpl(environment);
+        try {
+            createIndex(indexName, indexManagerService, IndexManagerOuterClass.Distance.DOT);
+            uploadVectors(indexManagerService, vectors, indexName);
+
+            var ts1 = System.nanoTime();
+            buildIndex(indexName, indexManagerService);
+            var ts2 = System.nanoTime();
+
+            System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+
+            switchToSearchMode(indexManagerService);
+
+            ts1 = System.nanoTime();
+            var totalRecall = 0.0;
+
+            for (var j = 0; j < vectorsCount; j++) {
+                var vector = queries[j];
+                var result = findNearestNeighbours(indexManagerService, vector, indexName, recallCount);
+                totalRecall += recall(result, groundTruth[j]);
+
+                if ((j + 1) % 1_000 == 0) {
+                    System.out.println("Processed " + (j + 1));
+                }
+            }
+
+            ts2 = System.nanoTime();
+            var recall = totalRecall / vectorsCount;
+
+            System.out.printf("Avg. query %d time us, R@%d : %f%n",
+                    (ts2 - ts1) / 1000 / vectorsCount, recallCount, recall);
+            Assert.assertTrue("Recall is too low " + recall + " < 0.85",
+                    recall >= 0.85);
+        } finally {
+            indexManagerService.shutdown();
+        }
+
+        if (Files.exists(indexDir)) {
+            FileUtils.deleteDirectory(indexDir.toFile());
+        }
+    }
+
 
     private static void uploadVectors(IndexManagerServiceImpl indexManagerService,
                                       float[][] vectors, String indexName) throws Exception {
@@ -120,33 +200,33 @@ public class DiskANNTest {
                 }
 
                 request.onNext(builder.build());
-                Assert.assertNull(vectorsUploadRecorder.getError());
+                if (vectorsUploadRecorder.getError() != null) {
+                    break;
+                }
             }
 
-            Assert.assertNull(vectorsUploadRecorder.getError());
+            if (vectorsUploadRecorder.getError() != null) {
+                Assert.fail(vectorsUploadRecorder.getError().getMessage());
+            }
             request.onCompleted();
         } catch (Exception e) {
             request.onError(e);
             throw e;
         }
 
-        var completed = vectorsUploadRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
-
-        Assert.assertNull(vectorsUploadRecorder.getError());
-        Assert.assertTrue(completed);
+        checkCompleteness(vectorsUploadRecorder);
     }
 
-    private static void createIndex(String indexName, IndexManagerServiceImpl indexManagerService) throws Exception {
+    private static void createIndex(String indexName, IndexManagerServiceImpl indexManagerService,
+                                    IndexManagerOuterClass.Distance distance) throws Exception {
         var createIndexRequestBuilder = IndexManagerOuterClass.CreateIndexRequest.newBuilder();
         createIndexRequestBuilder.setIndexName(indexName);
-        createIndexRequestBuilder.setDistance(IndexManagerOuterClass.Distance.L2);
+        createIndexRequestBuilder.setDistance(distance);
 
         var createIndexRecorder = StreamRecorder.<IndexManagerOuterClass.CreateIndexResponse>create();
         indexManagerService.createIndex(createIndexRequestBuilder.build(), createIndexRecorder);
 
-        var completed = createIndexRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
-        Assert.assertTrue(completed);
-        Assert.assertNull(createIndexRecorder.getError());
+        checkCompleteness(createIndexRecorder);
     }
 
     private static void buildIndex(String indexName, IndexManagerServiceImpl indexManagerService) throws Exception {
@@ -156,11 +236,7 @@ public class DiskANNTest {
         var buildIndexRecorder = StreamRecorder.<Empty>create();
         indexManagerService.buildIndex(indexNameRequestBuilder.build(), buildIndexRecorder);
 
-        var completed = buildIndexRecorder.awaitCompletion(1, TimeUnit.SECONDS);
-
-        Assert.assertNull(buildIndexRecorder.getError());
-        Assert.assertTrue(completed);
-
+        checkCompleteness(buildIndexRecorder);
         while (true) {
             var indexStateRequestBuilder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
             indexStateRequestBuilder.setIndexName(indexName);
@@ -168,13 +244,11 @@ public class DiskANNTest {
             var indexStateRecorder = StreamRecorder.<IndexManagerOuterClass.IndexStateResponse>create();
             indexManagerService.indexState(indexStateRequestBuilder.build(), indexStateRecorder);
 
-            completed = indexStateRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
-            Assert.assertTrue(completed);
-            Assert.assertNull(indexStateRecorder.getError());
+            checkCompleteness(indexStateRecorder);
 
             var response = indexStateRecorder.getValues().get(0);
             var indexState = response.getState();
-            if (indexState == IndexManagerOuterClass.IndexState.BUILDING) {
+            if (indexState == IndexManagerOuterClass.IndexState.BUILDING || indexState == IndexManagerOuterClass.IndexState.IN_BUILD_QUEUE) {
                 //noinspection BusyWait
                 Thread.sleep(100);
             } else if (indexState == IndexManagerOuterClass.IndexState.BUILT) {
@@ -207,9 +281,7 @@ public class DiskANNTest {
         var switchToSearchModeRecorder = StreamRecorder.<Empty>create();
         indexManagerService.switchToSearchMode(Empty.newBuilder().build(), switchToSearchModeRecorder);
 
-        var completed = switchToSearchModeRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
-        Assert.assertTrue(completed);
-        Assert.assertNull(switchToSearchModeRecorder.getError());
+        checkCompleteness(switchToSearchModeRecorder);
     }
 
     private static int[] findNearestNeighbours(IndexManagerServiceImpl indexManagerService,
@@ -225,9 +297,7 @@ public class DiskANNTest {
 
         indexManagerService.findNearestNeighbours(builder.build(), findNearestVectorsRecorder);
 
-        var completed = findNearestVectorsRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
-        Assert.assertTrue(completed);
-        Assert.assertNull(findNearestVectorsRecorder.getError());
+        checkCompleteness(findNearestVectorsRecorder);
 
         var response = findNearestVectorsRecorder.getValues().get(0);
         var nearestVectors = response.getIdsList();
@@ -278,6 +348,14 @@ public class DiskANNTest {
         }
 
         return answers * 1.0 / groundTruths.length;
+    }
+
+    private static void checkCompleteness(StreamRecorder<?> recorder) throws Exception {
+        var completed = recorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
+        Assert.assertTrue(completed);
+        if (recorder.getError() != null) {
+            Assert.fail(recorder.getError().getMessage());
+        }
     }
 }
 

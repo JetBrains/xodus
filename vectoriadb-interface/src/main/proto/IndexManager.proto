@@ -68,7 +68,7 @@ message CreateIndexResponse {
 
 enum Distance {
   L2 = 0;
-  IP = 1;
+  DOT = 1;
   COSINE = 2;
 }
 
