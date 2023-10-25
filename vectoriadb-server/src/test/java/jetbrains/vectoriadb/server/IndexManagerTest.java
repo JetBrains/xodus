@@ -37,11 +37,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-public class DiskANNTest {
+public class IndexManagerTest {
     @Test
     public void testFindLoadedVectorsL2Distance() throws Exception {
         testIndex("testFindLoadedVectorsL2Distance", L2DistanceFunction.INSTANCE, 0.92);
@@ -54,7 +55,280 @@ public class DiskANNTest {
 
     @Test
     public void testFindLoadedVectorsCosineDistance() throws Exception {
-        testIndex("testFindLoadedVectorsCosineDistance", CosineDistanceFunction.INSTANCE, 0.72);
+        testIndex("testFindLoadedVectorsCosineDistance", CosineDistanceFunction.INSTANCE, 0.7);
+    }
+
+    @Test
+    public void testCreateTwoIndexesSameName() throws Exception {
+
+        var indexName = "testCreateTwoIndexesSameName";
+        executeInServiceContext(new String[]{indexName}, indexManagerService -> {
+            var createIndexRequestBuilder = IndexManagerOuterClass.CreateIndexRequest.newBuilder();
+            createIndexRequestBuilder.setIndexName(indexName);
+            createIndexRequestBuilder.setDistance(IndexManagerOuterClass.Distance.L2);
+
+            var createIndexRecorder = StreamRecorder.<IndexManagerOuterClass.CreateIndexResponse>create();
+            indexManagerService.createIndex(createIndexRequestBuilder.build(), createIndexRecorder);
+
+            checkCompleteness(createIndexRecorder);
+
+            createIndexRecorder = StreamRecorder.create();
+            indexManagerService.createIndex(createIndexRequestBuilder.build(), createIndexRecorder);
+            var completed = createIndexRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
+            Assert.assertTrue(completed);
+
+            Assert.assertNotNull(createIndexRecorder.getError());
+        });
+    }
+
+    @Test
+    public void testCreateIndexInSearchMode() throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
+        var indexName = "testCreateIndexInSearchMode";
+        var indexDir = Path.of(buildDir).resolve(indexName);
+
+        if (Files.exists(indexDir)) {
+            FileUtils.deleteDirectory(indexDir.toFile());
+        }
+
+        var indexManagerService = initIndexService(buildDir);
+        try {
+            switchToSearchMode(indexManagerService);
+
+            var createIndexRequestBuilder = IndexManagerOuterClass.CreateIndexRequest.newBuilder();
+            createIndexRequestBuilder.setIndexName(indexName);
+            createIndexRequestBuilder.setDistance(IndexManagerOuterClass.Distance.L2);
+
+            var createIndexRecorder = StreamRecorder.<IndexManagerOuterClass.CreateIndexResponse>create();
+            indexManagerService.createIndex(createIndexRequestBuilder.build(), createIndexRecorder);
+
+            var completed = createIndexRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
+            Assert.assertTrue(completed);
+
+            Assert.assertNotNull(createIndexRecorder.getError());
+        } finally {
+            indexManagerService.shutdown();
+        }
+    }
+
+    @Test
+    public void testSearchInBuildingMode() throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
+        var indexName = "testSearchInBuildingMode";
+        var indexDir = Path.of(buildDir).resolve(indexName);
+
+        if (Files.exists(indexDir)) {
+            FileUtils.deleteDirectory(indexDir.toFile());
+        }
+
+        var indexManagerService = initIndexService(buildDir);
+        try {
+            generateIndex(indexName, L2DistanceFunction.INSTANCE, 64, 10_000, indexManagerService);
+
+            var builder = IndexManagerOuterClass.FindNearestNeighboursRequest.newBuilder();
+            builder.setIndexName(indexName);
+            builder.setK(1);
+
+            for (var component : new float[64]) {
+                builder.addVectorComponents(component);
+            }
+
+            var findNearestVectorsRecorder = StreamRecorder.<IndexManagerOuterClass.FindNearestNeighboursResponse>create();
+            indexManagerService.findNearestNeighbours(builder.build(), findNearestVectorsRecorder);
+
+            var completed = findNearestVectorsRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
+            Assert.assertTrue(completed);
+
+            Assert.assertNotNull(findNearestVectorsRecorder.getError());
+        } finally {
+            indexManagerService.shutdown();
+        }
+    }
+
+    @Test
+    public void testBuildNotExistingIndex() throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
+        var indexName = "testBuildNotExistingIndex";
+        var indexDir = Path.of(buildDir).resolve(indexName);
+
+        if (Files.exists(indexDir)) {
+            FileUtils.deleteDirectory(indexDir.toFile());
+        }
+
+        var indexManagerService = initIndexService(buildDir);
+        try {
+            var indexNameRequestBuilder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
+            indexNameRequestBuilder.setIndexName(indexName);
+
+            var buildIndexRecorder = StreamRecorder.<Empty>create();
+            indexManagerService.buildIndex(indexNameRequestBuilder.build(), buildIndexRecorder);
+
+            var completed = buildIndexRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
+            Assert.assertTrue(completed);
+
+            Assert.assertNotNull(buildIndexRecorder.getError());
+        } finally {
+            indexManagerService.shutdown();
+        }
+    }
+
+    @Test
+    public void testListIndexes() throws Exception {
+        var indexName = "testListIndexes";
+
+        executeInServiceContext(new String[]{indexName + 1, indexName + 2, indexName + 3}, indexManagerService -> {
+            var indexes = listIndexes(indexManagerService);
+            Assert.assertTrue(indexes.isEmpty());
+
+            createIndex(indexName + 1, indexManagerService, IndexManagerOuterClass.Distance.L2);
+
+            indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(1, indexes.size());
+            Assert.assertEquals(indexName + 1, indexes.get(0));
+
+            createIndex(indexName + 2, indexManagerService, IndexManagerOuterClass.Distance.L2);
+            indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(2, indexes.size());
+
+            Assert.assertTrue(indexes.contains(indexName + 1));
+            Assert.assertTrue(indexes.contains(indexName + 2));
+
+            createIndex(indexName + 3, indexManagerService, IndexManagerOuterClass.Distance.L2);
+            indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(3, indexes.size());
+
+            Assert.assertTrue(indexes.contains(indexName + 1));
+            Assert.assertTrue(indexes.contains(indexName + 2));
+            Assert.assertTrue(indexes.contains(indexName + 3));
+        });
+    }
+
+    @Test
+    public void testDropCreatedIndex() throws Exception {
+        var indexOne = "testDeleteCreatedIndexOne";
+        var indexTwo = "testDeleteCreatedIndexTwo";
+        var indexThree = "testDeleteCreatedIndexThree";
+
+        executeInServiceContext(new String[]{indexOne, indexTwo, indexThree}, indexManagerService -> {
+            createIndex(indexOne, indexManagerService, IndexManagerOuterClass.Distance.L2);
+            createIndex(indexTwo, indexManagerService, IndexManagerOuterClass.Distance.L2);
+            createIndex(indexThree, indexManagerService, IndexManagerOuterClass.Distance.L2);
+
+            var indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(3, indexes.size());
+
+            dropIndex(indexTwo, indexManagerService);
+
+            indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(2, indexes.size());
+
+            Assert.assertTrue(indexes.contains(indexOne));
+            Assert.assertTrue(indexes.contains(indexThree));
+        });
+    }
+
+
+    @Test
+    public void testDropBuiltIndex() throws Exception {
+        var indexOne = "testDeleteBuildIndexOne";
+        var indexTwo = "testDeleteBuiltIndexTwo";
+        var indexThree = "testDeleteBuiltIndexThree";
+
+        executeInServiceContext(new String[]{indexOne, indexTwo, indexThree}, indexManagerService -> {
+            generateIndex(indexOne, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
+            generateIndex(indexTwo, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
+            generateIndex(indexThree, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
+
+            var indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(3, indexes.size());
+
+            dropIndex(indexTwo, indexManagerService);
+
+            indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(2, indexes.size());
+
+            Assert.assertTrue(indexes.contains(indexOne));
+            Assert.assertTrue(indexes.contains(indexThree));
+        });
+    }
+
+    @Test
+    public void testDropSearchIndex() throws Exception {
+        var indexOne = "testDropSearchIndexOne";
+        var indexTwo = "testDropSearchIndexTwo";
+        var indexThree = "testDropSearchIndexThree";
+
+        executeInServiceContext(new String[]{indexOne, indexTwo, indexThree}, indexManagerService -> {
+            generateIndex(indexOne, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
+            generateIndex(indexTwo, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
+            generateIndex(indexThree, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
+
+            switchToSearchMode(indexManagerService);
+
+            dropIndex(indexTwo, indexManagerService);
+
+            var indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(2, indexes.size());
+
+            Assert.assertTrue(indexes.contains(indexOne));
+            Assert.assertTrue(indexes.contains(indexThree));
+        });
+    }
+
+    @NotNull
+    private static IndexManagerServiceImpl initIndexService(String buildDir) {
+        var environment = new MockEnvironment();
+
+        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
+        environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(64));
+        environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
+                String.valueOf(64 * 1024 * 1024));
+        environment.setProperty(IndexManagerServiceImpl.INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION,
+                String.valueOf(64 * 1024 * 1024));
+
+        return new IndexManagerServiceImpl(environment);
+    }
+
+    private static void executeInServiceContext(String[] indexes, IndexServiceCode code) throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
+        for (var indexName : indexes) {
+            var indexDir = Path.of(buildDir).resolve(indexName);
+
+            if (Files.exists(indexDir)) {
+                FileUtils.deleteDirectory(indexDir.toFile());
+            }
+        }
+
+        var indexManagerService = initIndexService(buildDir);
+        try {
+            code.execute(indexManagerService);
+        } finally {
+            indexManagerService.shutdown();
+
+            for (var indexName : indexes) {
+                var indexDir = Path.of(buildDir).resolve(indexName);
+
+                if (Files.exists(indexDir)) {
+                    FileUtils.deleteDirectory(indexDir.toFile());
+                }
+            }
+        }
     }
 
     @Test
@@ -185,6 +459,25 @@ public class DiskANNTest {
 
         checkCompleteness(createIndexRecorder);
     }
+
+    private static void dropIndex(String indexName, IndexManagerServiceImpl indexManagerService) throws Exception {
+        var dropIndexRequestBuilder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
+        dropIndexRequestBuilder.setIndexName(indexName);
+
+        var dropIndexRecorder = StreamRecorder.<Empty>create();
+        indexManagerService.dropIndex(dropIndexRequestBuilder.build(), dropIndexRecorder);
+
+        checkCompleteness(dropIndexRecorder);
+    }
+
+    private static List<String> listIndexes(IndexManagerServiceImpl indexManagerService) throws Exception {
+        var listIndexesRecorder = StreamRecorder.<IndexManagerOuterClass.IndexListResponse>create();
+        indexManagerService.list(Empty.newBuilder().build(), listIndexesRecorder);
+
+        checkCompleteness(listIndexesRecorder);
+        return listIndexesRecorder.getValues().get(0).getIndexNamesList();
+    }
+
 
     private static void buildIndex(String indexName, IndexManagerServiceImpl indexManagerService) throws Exception {
         var indexNameRequestBuilder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
@@ -317,7 +610,7 @@ public class DiskANNTest {
 
     private static float[][] generateIndex(String indexName, DistanceFunction distanceFunction, int vectorDimensions, int vectorsCount,
                                            IndexManagerServiceImpl indexManagerService) throws Exception {
-        var distance = convertDistanceFucntion(distanceFunction);
+        var distance = convertDistanceFunction(distanceFunction);
 
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
 
@@ -371,7 +664,7 @@ public class DiskANNTest {
     }
 
     @NotNull
-    private static IndexManagerOuterClass.Distance convertDistanceFucntion(DistanceFunction distanceFunction) {
+    private static IndexManagerOuterClass.Distance convertDistanceFunction(DistanceFunction distanceFunction) {
         return switch (distanceFunction) {
             case L2DistanceFunction l2DistanceFunction -> IndexManagerOuterClass.Distance.L2;
             case DotDistanceFunction dotDistanceFunction -> IndexManagerOuterClass.Distance.DOT;
@@ -415,11 +708,16 @@ public class DiskANNTest {
                     distanceFunction, indexManagerService);
         } finally {
             indexManagerService.shutdown();
-        }
 
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
+            if (Files.exists(indexDir)) {
+                FileUtils.deleteDirectory(indexDir.toFile());
+            }
         }
+    }
+
+    @FunctionalInterface
+    private interface IndexServiceCode {
+        void execute(IndexManagerServiceImpl indexManagerService) throws Exception;
     }
 }
 

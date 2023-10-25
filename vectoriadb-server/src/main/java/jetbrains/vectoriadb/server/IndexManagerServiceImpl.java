@@ -536,9 +536,10 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                         } catch (Exception e) {
                             logger.error("Failed to build index " + indexName, e);
                             indexStates.put(indexName, IndexState.BROKEN);
-                        } finally {
-                            indexStates.put(indexName, IndexState.BUILT);
+                            return;
                         }
+
+                        indexStates.put(indexName, IndexState.BUILT);
                     } else {
                         logger.warn("Failed to build index " + indexName + " because it is not in IN_BUILD_QUEUE state");
                     }
@@ -658,6 +659,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                 //noinspection resource
                 indexReaders.remove(indexName);
+                indexStates.remove(indexName);
+                indexMetadatas.remove(indexName);
 
                 responseObserver.onNext(Empty.newBuilder().build());
                 responseObserver.onCompleted();
@@ -1006,6 +1009,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                 indexMetadatas.remove(indexName);
                 indexStates.remove(indexName);
+                responseObserver.onCompleted();
             } catch (Exception e) {
                 indexStates.put(request.getIndexName(), IndexState.BROKEN);
                 logger.error("Failed to drop index " + request.getIndexName(), e);
