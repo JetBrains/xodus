@@ -86,6 +86,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public static final String STATUS_FILE_NAME = "status";
     public static final String METADATA_FILE_NAME = "metadata";
 
+    public static final String INDEXES_DIR = "indexes";
+
     private final ConcurrentHashMap<String, IndexState> indexStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IndexMetadata> indexMetadatas = new ConcurrentHashMap<>();
 
@@ -206,16 +208,19 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                         "mode = {}",
                 dimensions, maxConnectionsPerVertex, maxCandidatesReturned, compressionRatio,
                 distanceMultiplier, modeName);
+
+        Files.createDirectories(basePath.resolve(INDEXES_DIR));
         findIndexesOnDisk();
     }
 
     private void findIndexesOnDisk() throws IOException {
-        logger.info("Scanning existing indexes on disk {}", basePath.toAbsolutePath());
+        var indexesDir = basePath.resolve(INDEXES_DIR);
+        logger.info("Scanning existing indexes on disk {}", indexesDir.toAbsolutePath());
         //noinspection resource
-        Files.list(basePath)
+        Files.list(indexesDir)
                 .filter(Files::isDirectory)
                 .forEach(this::loadIndex);
-        logger.info("Scanning of existing indexes on disk {} completed", basePath.toAbsolutePath());
+        logger.info("Scanning of existing indexes on disk {} completed", indexesDir.toAbsolutePath());
     }
 
     private void loadIndex(Path path) {
@@ -906,7 +911,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                 var responseBuilder = IndexManagerOuterClass.CreateIndexResponse.newBuilder();
                 try {
-                    var indexDir = basePath.resolve(indexName);
+                    var indexDir = basePath.resolve(INDEXES_DIR).resolve(indexName);
                     Files.createDirectories(indexDir);
 
                     updateIndexStatusInFS(indexDir, IndexState.CREATING);
@@ -930,6 +935,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                     responseObserver.onNext(responseBuilder.build());
                     responseObserver.onCompleted();
+
+                    logger.info("Index {} created", indexName);
                 } catch (Exception e) {
                     indexMetadatas.remove(indexName);
                     logger.error("Failed to create index " + indexName, e);

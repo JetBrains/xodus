@@ -62,7 +62,7 @@ public class IndexManagerTest {
     @Test
     public void testCreateTwoIndexesSameName() throws Exception {
         var indexName = "testCreateTwoIndexesSameName";
-        executeInServiceContext(new String[]{indexName}, indexManagerService -> {
+        executeInServiceContext(indexManagerService -> {
             var createIndexRequestBuilder = IndexManagerOuterClass.CreateIndexRequest.newBuilder();
             createIndexRequestBuilder.setIndexName(indexName);
             createIndexRequestBuilder.setDistance(IndexManagerOuterClass.Distance.L2);
@@ -84,7 +84,7 @@ public class IndexManagerTest {
     @Test
     public void testCreateIndexInSearchMode() throws Exception {
         var indexName = "testCreateIndexInSearchMode";
-        executeInServiceContext(new String[]{indexName}, indexManagerService -> {
+        executeInServiceContext(indexManagerService -> {
             switchToSearchMode(indexManagerService);
 
             var createIndexRequestBuilder = IndexManagerOuterClass.CreateIndexRequest.newBuilder();
@@ -104,7 +104,7 @@ public class IndexManagerTest {
     @Test
     public void testSearchInBuildingMode() throws Exception {
         var indexName = "testSearchInBuildingMode";
-        executeInServiceContext(new String[]{indexName}, indexManagerService -> {
+        executeInServiceContext(indexManagerService -> {
             generateIndex(indexName, L2DistanceFunction.INSTANCE, 64, 10_000, indexManagerService);
 
             var builder = IndexManagerOuterClass.FindNearestNeighboursRequest.newBuilder();
@@ -128,7 +128,7 @@ public class IndexManagerTest {
     @Test
     public void testBuildNotExistingIndex() throws Exception {
         var indexName = "testBuildNotExistingIndex";
-        executeInServiceContext(new String[]{indexName}, indexManagerService -> {
+        executeInServiceContext(indexManagerService -> {
             var indexNameRequestBuilder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
             indexNameRequestBuilder.setIndexName(indexName);
 
@@ -145,7 +145,7 @@ public class IndexManagerTest {
     @Test
     public void testListIndexes() throws Exception {
         var indexName = "testListIndexes";
-        executeInServiceContext(new String[]{indexName + 1, indexName + 2, indexName + 3}, indexManagerService -> {
+        executeInServiceContext(indexManagerService -> {
             var indexes = listIndexes(indexManagerService);
             Assert.assertTrue(indexes.isEmpty());
 
@@ -178,7 +178,7 @@ public class IndexManagerTest {
         var indexTwo = "testDeleteCreatedIndexTwo";
         var indexThree = "testDeleteCreatedIndexThree";
 
-        executeInServiceContext(new String[]{indexOne, indexTwo, indexThree}, indexManagerService -> {
+        executeInServiceContext(indexManagerService -> {
             createIndex(indexOne, indexManagerService, IndexManagerOuterClass.Distance.L2);
             createIndex(indexTwo, indexManagerService, IndexManagerOuterClass.Distance.L2);
             createIndex(indexThree, indexManagerService, IndexManagerOuterClass.Distance.L2);
@@ -203,7 +203,7 @@ public class IndexManagerTest {
         var indexTwo = "testDeleteBuiltIndexTwo";
         var indexThree = "testDeleteBuiltIndexThree";
 
-        executeInServiceContext(new String[]{indexOne, indexTwo, indexThree}, indexManagerService -> {
+        executeInServiceContext(indexManagerService -> {
             generateIndex(indexOne, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
             generateIndex(indexTwo, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
             generateIndex(indexThree, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
@@ -227,7 +227,7 @@ public class IndexManagerTest {
         var indexTwo = "testDropSearchIndexTwo";
         var indexThree = "testDropSearchIndexThree";
 
-        executeInServiceContext(new String[]{indexOne, indexTwo, indexThree}, indexManagerService -> {
+        executeInServiceContext(indexManagerService -> {
             generateIndex(indexOne, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
             generateIndex(indexTwo, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
             generateIndex(indexThree, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
@@ -335,9 +335,7 @@ public class IndexManagerTest {
         var uploadedIndex = "testShutDownAndReloadUploaded";
         var builtIndex = "testShutDownAndReloadBuilt";
 
-        var indexes = new String[]{createdIndex, uploadedIndex, builtIndex};
-
-        executeInServiceContext(indexes, true, false,
+        executeInServiceContext(true, false,
                 indexManagerService -> {
                     createIndex(createdIndex, indexManagerService, IndexManagerOuterClass.Distance.L2);
 
@@ -352,7 +350,7 @@ public class IndexManagerTest {
                             indexManagerService);
                 });
 
-        executeInServiceContext(indexes, false, true, indexManagerService -> {
+        executeInServiceContext(false, true, indexManagerService -> {
             var currentIndexes = listIndexes(indexManagerService);
             Assert.assertEquals(3, currentIndexes.size());
 
@@ -376,41 +374,30 @@ public class IndexManagerTest {
         return new IndexManagerServiceImpl(environment);
     }
 
-    private static void executeInServiceContext(String[] indexes, IndexServiceCode code) throws Exception {
-        executeInServiceContext(indexes, true, true, code);
+    private static void executeInServiceContext(IndexServiceCode code) throws Exception {
+        executeInServiceContext(true, true, code);
     }
 
-    private static void executeInServiceContext(String[] indexes, boolean preDropIndexes, boolean dropIndexes,
+    private static void executeInServiceContext(boolean preDeleteDirectories, boolean deleteDirectoriesOnExit,
                                                 IndexServiceCode code) throws Exception {
         var buildDir = System.getProperty("exodus.tests.buildDirectory");
         if (buildDir == null) {
             Assert.fail("exodus.tests.buildDirectory is not set !!!");
         }
 
-        if (preDropIndexes) {
-            for (var indexName : indexes) {
-                var indexDir = Path.of(buildDir).resolve(indexName);
-
-                if (Files.exists(indexDir)) {
-                    FileUtils.deleteDirectory(indexDir.toFile());
-                }
-            }
+        var dbDir = Path.of(buildDir).resolve("vectoriadb");
+        if (preDeleteDirectories) {
+            FileUtils.deleteDirectory(dbDir.toFile());
         }
 
-        var indexManagerService = initIndexService(buildDir);
+        var indexManagerService = initIndexService(dbDir.toAbsolutePath().toString());
         try {
             code.execute(indexManagerService);
         } finally {
             indexManagerService.shutdown();
 
-            if (dropIndexes) {
-                for (var indexName : indexes) {
-                    var indexDir = Path.of(buildDir).resolve(indexName);
-
-                    if (Files.exists(indexDir)) {
-                        FileUtils.deleteDirectory(indexDir.toFile());
-                    }
-                }
+            if (deleteDirectoriesOnExit) {
+                FileUtils.deleteDirectory(dbDir.toFile());
             }
         }
     }
