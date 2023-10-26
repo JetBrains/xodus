@@ -45,8 +45,10 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.Locale;
@@ -1161,7 +1163,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             uploadingIndexes.remove(indexName);
                             indexStates.put(indexName, IndexState.UPLOADED);
                             try {
-                                updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.BROKEN);
+                                updateIndexStatusInFS(indexMetadatas.get(indexName).dir, IndexState.UPLOADED);
                             } catch (IOException ioe) {
                                 logger.error("Failed to update index status in FS", ioe);
                                 responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(ioe)));
@@ -1240,13 +1242,19 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     private static void updateIndexStatusInFS(Path indexDir, IndexState state) throws IOException {
         var statusFilePath = indexDir.resolve(STATUS_FILE_NAME);
-
         if (state == IndexState.CREATING) {
-            Files.writeString(statusFilePath, state.toString(), StandardOpenOption.SYNC,
-                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-        } else {
-            Files.writeString(statusFilePath, state.toString(), StandardOpenOption.SYNC,
-                    StandardOpenOption.WRITE);
+            if (Files.exists(statusFilePath)) {
+                throw new RuntimeException("Index already exist on disk in path " + indexDir);
+            }
+        }
+
+        var tmpFile = Files.createTempFile(indexDir, "status", ".tmp");
+        Files.writeString(tmpFile, state.name(), StandardOpenOption.SYNC, StandardOpenOption.WRITE);
+
+        try {
+            Files.move(tmpFile, statusFilePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tmpFile, statusFilePath, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

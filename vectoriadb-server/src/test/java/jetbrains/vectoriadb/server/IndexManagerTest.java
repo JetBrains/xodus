@@ -329,6 +329,39 @@ public class IndexManagerTest {
         }
     }
 
+    @Test
+    public void testShutDownAndReload() throws Exception {
+        var createdIndex = "testShutDownAndReloadCreated";
+        var uploadedIndex = "testShutDownAndReloadUploaded";
+        var builtIndex = "testShutDownAndReloadBuilt";
+
+        var indexes = new String[]{createdIndex, uploadedIndex, builtIndex};
+
+        executeInServiceContext(indexes, true, false,
+                indexManagerService -> {
+                    createIndex(createdIndex, indexManagerService, IndexManagerOuterClass.Distance.L2);
+
+                    var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+                    var vectors = new float[10][64];
+                    generateUniqueVectorSet(vectors, rng);
+
+                    createIndex(uploadedIndex, indexManagerService, IndexManagerOuterClass.Distance.L2);
+                    uploadVectors(uploadedIndex, vectors, indexManagerService);
+
+                    generateIndex(builtIndex, L2DistanceFunction.INSTANCE, 64, 10,
+                            indexManagerService);
+                });
+
+        executeInServiceContext(indexes, false, true, indexManagerService -> {
+            var currentIndexes = listIndexes(indexManagerService);
+            Assert.assertEquals(3, currentIndexes.size());
+
+            Assert.assertTrue(currentIndexes.contains(createdIndex));
+            Assert.assertTrue(currentIndexes.contains(uploadedIndex));
+            Assert.assertTrue(currentIndexes.contains(builtIndex));
+        });
+    }
+
     @NotNull
     private static IndexManagerServiceImpl initIndexService(String buildDir) throws IOException {
         var environment = new MockEnvironment();
@@ -344,16 +377,23 @@ public class IndexManagerTest {
     }
 
     private static void executeInServiceContext(String[] indexes, IndexServiceCode code) throws Exception {
+        executeInServiceContext(indexes, true, true, code);
+    }
+
+    private static void executeInServiceContext(String[] indexes, boolean preDropIndexes, boolean dropIndexes,
+                                                IndexServiceCode code) throws Exception {
         var buildDir = System.getProperty("exodus.tests.buildDirectory");
         if (buildDir == null) {
             Assert.fail("exodus.tests.buildDirectory is not set !!!");
         }
 
-        for (var indexName : indexes) {
-            var indexDir = Path.of(buildDir).resolve(indexName);
+        if (preDropIndexes) {
+            for (var indexName : indexes) {
+                var indexDir = Path.of(buildDir).resolve(indexName);
 
-            if (Files.exists(indexDir)) {
-                FileUtils.deleteDirectory(indexDir.toFile());
+                if (Files.exists(indexDir)) {
+                    FileUtils.deleteDirectory(indexDir.toFile());
+                }
             }
         }
 
@@ -363,18 +403,20 @@ public class IndexManagerTest {
         } finally {
             indexManagerService.shutdown();
 
-            for (var indexName : indexes) {
-                var indexDir = Path.of(buildDir).resolve(indexName);
+            if (dropIndexes) {
+                for (var indexName : indexes) {
+                    var indexDir = Path.of(buildDir).resolve(indexName);
 
-                if (Files.exists(indexDir)) {
-                    FileUtils.deleteDirectory(indexDir.toFile());
+                    if (Files.exists(indexDir)) {
+                        FileUtils.deleteDirectory(indexDir.toFile());
+                    }
                 }
             }
         }
     }
 
-    private static void uploadVectors(IndexManagerServiceImpl indexManagerService,
-                                      float[][] vectors, String indexName) throws Exception {
+    private static void uploadVectors(String indexName, float[][] vectors,
+                                      IndexManagerServiceImpl indexManagerService) throws Exception {
         var vectorsUploadRecorder = StreamRecorder.<Empty>create();
         var request = indexManagerService.uploadVectors(vectorsUploadRecorder);
         try {
@@ -576,7 +618,7 @@ public class IndexManagerTest {
         generateUniqueVectorSet(vectors, rng);
 
         createIndex(indexName, indexManagerService, distance);
-        uploadVectors(indexManagerService, vectors, indexName);
+        uploadVectors(indexName, vectors, indexManagerService);
 
         var ts1 = System.nanoTime();
         buildIndex(indexName, indexManagerService);
