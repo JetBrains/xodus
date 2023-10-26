@@ -48,7 +48,6 @@ import java.lang.foreign.ValueLayout;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Set;
@@ -56,6 +55,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 @GrpcService
@@ -635,20 +635,35 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     @PreDestroy
     public void shutdown() {
-        operationsSemaphore.acquireUninterruptibly(Integer.MAX_VALUE);
-        try {
-            if (closed) {
-                return;
+        logger.info("Shutting down index manager");
+        while (true) {
+            try {
+                var acquired = operationsSemaphore.tryAcquire(Integer.MAX_VALUE, 5, TimeUnit.SECONDS);
+                if (!acquired) {
+                    logger.warn("Failed to acquire semaphore to shutdown index manager because of running operations." +
+                            " Will retry in 5 seconds");
+                    continue;
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
 
-            closed = true;
+            try {
+                if (closed) {
+                    return;
+                }
 
-            mode.shutdown();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } finally {
-            operationsSemaphore.release(Integer.MAX_VALUE);
+                closed = true;
+
+                mode.shutdown();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } finally {
+                operationsSemaphore.release(Integer.MAX_VALUE);
+            }
+            break;
         }
+        logger.info("Shutdown of index manager completed");
     }
 
     private final class IndexBuilderTask implements Runnable {
@@ -662,6 +677,10 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         public void run() {
             operationsSemaphore.acquireUninterruptibly();
             try {
+                if (closed) {
+                    return;
+                }
+
                 try {
                     var metadata = indexMetadatas.get(indexName);
                     if (indexStates.replace(indexName, IndexState.IN_BUILD_QUEUE, IndexState.BUILDING)) {
@@ -1215,32 +1234,6 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
         @Override
         public void shutdown() {
-            indexStateLoop:
-            while (true) {
-                for (var indexes : indexStates.keySet()) {
-                    var indexState = indexStates.get(indexes);
-
-                    if (indexState == IndexState.IN_BUILD_QUEUE || indexState == IndexState.BUILDING) {
-                        if (indexStates.replace(indexes, IndexState.IN_BUILD_QUEUE, IndexState.UPLOADED)) {
-                            try {
-                                updateIndexStatusInFS(indexMetadatas.get(indexes).dir, IndexState.UPLOADED);
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        } else {
-                            logger.warn("Index {} is in {} state. Waiting for it to finish", indexes, indexState);
-                            try {
-                                Thread.sleep(Duration.ofSeconds(5));
-                                continue indexStateLoop;
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
-                    }
-                }
-                break;
-            }
-
             indexBuilderExecutor.shutdown();
         }
     }
