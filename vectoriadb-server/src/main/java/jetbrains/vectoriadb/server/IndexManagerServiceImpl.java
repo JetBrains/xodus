@@ -637,13 +637,17 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public void shutdown() {
         operationsSemaphore.acquireUninterruptibly(Integer.MAX_VALUE);
         try {
+            if (closed) {
+                return;
+            }
+
             closed = true;
 
             mode.shutdown();
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
-            operationsSemaphore.release();
+            operationsSemaphore.release(Integer.MAX_VALUE);
         }
     }
 

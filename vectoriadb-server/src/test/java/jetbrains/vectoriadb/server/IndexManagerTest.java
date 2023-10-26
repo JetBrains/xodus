@@ -61,7 +61,6 @@ public class IndexManagerTest {
 
     @Test
     public void testCreateTwoIndexesSameName() throws Exception {
-
         var indexName = "testCreateTwoIndexesSameName";
         executeInServiceContext(new String[]{indexName}, indexManagerService -> {
             var createIndexRequestBuilder = IndexManagerOuterClass.CreateIndexRequest.newBuilder();
@@ -84,20 +83,8 @@ public class IndexManagerTest {
 
     @Test
     public void testCreateIndexInSearchMode() throws Exception {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
-
         var indexName = "testCreateIndexInSearchMode";
-        var indexDir = Path.of(buildDir).resolve(indexName);
-
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
-        }
-
-        var indexManagerService = initIndexService(buildDir);
-        try {
+        executeInServiceContext(new String[]{indexName}, indexManagerService -> {
             switchToSearchMode(indexManagerService);
 
             var createIndexRequestBuilder = IndexManagerOuterClass.CreateIndexRequest.newBuilder();
@@ -111,27 +98,13 @@ public class IndexManagerTest {
             Assert.assertTrue(completed);
 
             Assert.assertNotNull(createIndexRecorder.getError());
-        } finally {
-            indexManagerService.shutdown();
-        }
+        });
     }
 
     @Test
     public void testSearchInBuildingMode() throws Exception {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
-
         var indexName = "testSearchInBuildingMode";
-        var indexDir = Path.of(buildDir).resolve(indexName);
-
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
-        }
-
-        var indexManagerService = initIndexService(buildDir);
-        try {
+        executeInServiceContext(new String[]{indexName}, indexManagerService -> {
             generateIndex(indexName, L2DistanceFunction.INSTANCE, 64, 10_000, indexManagerService);
 
             var builder = IndexManagerOuterClass.FindNearestNeighboursRequest.newBuilder();
@@ -149,27 +122,13 @@ public class IndexManagerTest {
             Assert.assertTrue(completed);
 
             Assert.assertNotNull(findNearestVectorsRecorder.getError());
-        } finally {
-            indexManagerService.shutdown();
-        }
+        });
     }
 
     @Test
     public void testBuildNotExistingIndex() throws Exception {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
-
         var indexName = "testBuildNotExistingIndex";
-        var indexDir = Path.of(buildDir).resolve(indexName);
-
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
-        }
-
-        var indexManagerService = initIndexService(buildDir);
-        try {
+        executeInServiceContext(new String[]{indexName}, indexManagerService -> {
             var indexNameRequestBuilder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
             indexNameRequestBuilder.setIndexName(indexName);
 
@@ -180,15 +139,12 @@ public class IndexManagerTest {
             Assert.assertTrue(completed);
 
             Assert.assertNotNull(buildIndexRecorder.getError());
-        } finally {
-            indexManagerService.shutdown();
-        }
+        });
     }
 
     @Test
     public void testListIndexes() throws Exception {
         var indexName = "testListIndexes";
-
         executeInServiceContext(new String[]{indexName + 1, indexName + 2, indexName + 3}, indexManagerService -> {
             var indexes = listIndexes(indexManagerService);
             Assert.assertTrue(indexes.isEmpty());
@@ -288,50 +244,6 @@ public class IndexManagerTest {
         });
     }
 
-    @NotNull
-    private static IndexManagerServiceImpl initIndexService(String buildDir) throws IOException  {
-        var environment = new MockEnvironment();
-
-        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
-        environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(64));
-        environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
-                String.valueOf(64 * 1024 * 1024));
-        environment.setProperty(IndexManagerServiceImpl.INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION,
-                String.valueOf(64 * 1024 * 1024));
-
-        return new IndexManagerServiceImpl(environment);
-    }
-
-    private static void executeInServiceContext(String[] indexes, IndexServiceCode code) throws Exception {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
-
-        for (var indexName : indexes) {
-            var indexDir = Path.of(buildDir).resolve(indexName);
-
-            if (Files.exists(indexDir)) {
-                FileUtils.deleteDirectory(indexDir.toFile());
-            }
-        }
-
-        var indexManagerService = initIndexService(buildDir);
-        try {
-            code.execute(indexManagerService);
-        } finally {
-            indexManagerService.shutdown();
-
-            for (var indexName : indexes) {
-                var indexDir = Path.of(buildDir).resolve(indexName);
-
-                if (Files.exists(indexDir)) {
-                    FileUtils.deleteDirectory(indexDir.toFile());
-                }
-            }
-        }
-    }
-
     @Test
     public void testTwoIndexesSimultaniously() throws Exception {
         var buildDir = System.getProperty("exodus.tests.buildDirectory");
@@ -417,6 +329,49 @@ public class IndexManagerTest {
         }
     }
 
+    @NotNull
+    private static IndexManagerServiceImpl initIndexService(String buildDir) throws IOException {
+        var environment = new MockEnvironment();
+
+        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
+        environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(64));
+        environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
+                String.valueOf(64 * 1024 * 1024));
+        environment.setProperty(IndexManagerServiceImpl.INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION,
+                String.valueOf(64 * 1024 * 1024));
+
+        return new IndexManagerServiceImpl(environment);
+    }
+
+    private static void executeInServiceContext(String[] indexes, IndexServiceCode code) throws Exception {
+        var buildDir = System.getProperty("exodus.tests.buildDirectory");
+        if (buildDir == null) {
+            Assert.fail("exodus.tests.buildDirectory is not set !!!");
+        }
+
+        for (var indexName : indexes) {
+            var indexDir = Path.of(buildDir).resolve(indexName);
+
+            if (Files.exists(indexDir)) {
+                FileUtils.deleteDirectory(indexDir.toFile());
+            }
+        }
+
+        var indexManagerService = initIndexService(buildDir);
+        try {
+            code.execute(indexManagerService);
+        } finally {
+            indexManagerService.shutdown();
+
+            for (var indexName : indexes) {
+                var indexDir = Path.of(buildDir).resolve(indexName);
+
+                if (Files.exists(indexDir)) {
+                    FileUtils.deleteDirectory(indexDir.toFile());
+                }
+            }
+        }
+    }
 
     private static void uploadVectors(IndexManagerServiceImpl indexManagerService,
                                       float[][] vectors, String indexName) throws Exception {
