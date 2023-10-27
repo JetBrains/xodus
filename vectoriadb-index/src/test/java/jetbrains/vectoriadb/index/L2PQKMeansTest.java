@@ -15,21 +15,19 @@
  */
 package jetbrains.vectoriadb.index;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
-
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.Random;
 
-public class L2PQKMeansTest extends AbstractVectorsTest {
+import static jetbrains.vectoriadb.index.LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS;
+import static jetbrains.vectoriadb.index.LoadVectorsUtil.loadSift10KVectors;
+
+public class L2PQKMeansTest {
     @Test
     public void distanceTablesTest() {
         var seed = System.nanoTime();
@@ -64,7 +62,6 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
             }
         }
 
-
         try (var arena = Arena.ofShared()) {
             var flatDirectPqVectors = arena.allocateArray(ValueLayout.JAVA_BYTE, 100 * quantizersCount);
             var flatHeapVectors = new byte[100 * quantizersCount];
@@ -87,7 +84,7 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
                         expectedDistance += distanceTables[k][firstCode][secondCode];
                     }
 
-                    var actualDistance = L2PQQuantizer.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
+                    var actualDistance = AbstractQuantizer.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
                             flatDistanceTables, quantizersCount, Quantizer.CODE_BASE_SIZE);
                     Assert.assertEquals(expectedDistance, actualDistance, 0.0f);
                 }
@@ -96,41 +93,26 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
     }
 
     @Test
-    public void testPQKMeansQuality() throws Exception {
+    public void PQKMeansQuality() throws Exception {
         var vectors = loadSift10KVectors();
         var clustersCount = 40;
 
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors),
-                    new NoOpProgressTracker());
+            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors), new NoOpProgressTracker());
 
             System.out.println("PQ codes generated. Calculating centroids...");
-            var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE,
-                    new NoOpProgressTracker());
+            var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, new NoOpProgressTracker());
 
             System.out.println("Centroids calculated. Clustering data vectors...");
 
-            var vectorsByClusters = new ArrayList<IntArrayList>();
-            for (int i = 0; i < clustersCount; i++) {
-                vectorsByClusters.add(new IntArrayList());
-            }
-
-            var secondClosestClusterIndexes = new int[vectors.length];
-            for (int i = 0; i < vectors.length; i++) {
-                float[] vector = vectors[i];
-                var clusters = findClosestAndSecondClosestCluster(centroids, vector,
-                        L2DistanceFunction.INSTANCE);
-                vectorsByClusters.get(clusters[0]).add(i);
-                secondClosestClusterIndexes[i] = clusters[1];
-            }
+            var silhouetteCoefficient = new SilhouetteCoefficient(centroids, vectors, L2DistanceFunction.INSTANCE);
 
             System.out.println("Data vectors clustered. Calculating silhouette coefficient...");
-            var silhouetteCoefficient = silhouetteCoefficient(vectorsByClusters, secondClosestClusterIndexes,
-                    vectors, L2DistanceFunction.INSTANCE);
-            System.out.printf("silhouetteCoefficient = %f%n", silhouetteCoefficient);
-            Assert.assertTrue("silhouetteCoefficient < 0.17:" + silhouetteCoefficient,
-                    silhouetteCoefficient >= 0.17);
+
+            var coefficientValue = silhouetteCoefficient.calculate();
+            System.out.printf("silhouetteCoefficient = %f%n", coefficientValue);
+            Assert.assertTrue("silhouetteCoefficient < 0.08:" + silhouetteCoefficient, coefficientValue >= 0.08);
         }
     }
 
@@ -171,38 +153,33 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
         }
         return expectedDistanceTables;
     }
+}
 
+record ArrayVectorReader(float[][] vectors) implements VectorReader {
+    public int size() {
+        return vectors.length;
+    }
 
-    record ArrayVectorReader(float[][] vectors) implements VectorReader {
-        public int size() {
-            return vectors.length;
-        }
+    @Override
+    public int dimensions() {
+        return vectors[0].length;
+    }
 
-        @Override
-        public int dimensions() {
-            return vectors[0].length;
-        }
+    public MemorySegment read(int index) {
+        var vectorSegment = MemorySegment.ofArray(new byte[vectors[index].length * Float.BYTES]);
 
-        public MemorySegment read(int index) {
-            var vectorSegment = MemorySegment.ofArray(new byte[vectors[index].length * Float.BYTES]);
+        MemorySegment.copy(MemorySegment.ofArray(vectors[index]), 0,
+                vectorSegment, 0, (long) vectors[index].length * Float.BYTES);
 
-            MemorySegment.copy(MemorySegment.ofArray(vectors[index]), 0,
-                    vectorSegment, 0, (long) vectors[index].length * Float.BYTES);
+        return vectorSegment;
+    }
 
-            return vectorSegment;
-        }
+    @Override
+    public MemorySegment id(int index) {
+        return null;
+    }
 
-        @Override
-        public MemorySegment id(int index) {
-            var buffer = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE);
-            buffer.order(ByteOrder.LITTLE_ENDIAN);
-            buffer.putInt(index);
-
-            return MemorySegment.ofBuffer(buffer);
-        }
-
-        @Override
-        public void close() {
-        }
+    @Override
+    public void close() {
     }
 }
