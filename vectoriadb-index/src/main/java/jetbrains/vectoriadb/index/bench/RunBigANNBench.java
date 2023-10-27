@@ -16,7 +16,9 @@
 package jetbrains.vectoriadb.index.bench;
 
 import jetbrains.vectoriadb.index.Distance;
+import jetbrains.vectoriadb.index.IndexBuilder;
 import jetbrains.vectoriadb.index.IndexReader;
+import jetbrains.vectoriadb.index.diskcache.DiskCache;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -68,18 +70,21 @@ public class RunBigANNBench {
         var m1QueryFile = m1BenchSiftsBaseDir.resolve("sift_query.fvecs");
         var m1QueryVectors = BenchUtils.readFVectors(m1QueryFile, PrepareBigANNBench.VECTOR_DIMENSIONS);
 
-        try (var indexReader = new IndexReader("test_index", PrepareBigANNBench.VECTOR_DIMENSIONS,
-                m1BenchDbDir, 110L * 1024 * 1024 * 1024, Distance.L2)) {
-            System.out.println("Reading queries for Sift1M bench...");
+        try (var diskCache = new DiskCache(100L * 1024 * 1024 * 1024, PrepareBigANNBench.VECTOR_DIMENSIONS,
+                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader("test_index", PrepareBigANNBench.VECTOR_DIMENSIONS,
+                    m1BenchDbDir, Distance.L2, diskCache)) {
+                System.out.println("Reading queries for Sift1M bench...");
 
-            System.out.println(m1QueryVectors.length + " queries for Sift1M bench are read");
+                System.out.println(m1QueryVectors.length + " queries for Sift1M bench are read");
 
-            System.out.println("Warming up ...");
+                System.out.println("Warming up ...");
 
-            var result = new int[1];
-            for (int i = 0; i < 50; i++) {
-                for (float[] vector : m1QueryVectors) {
-                    indexReader.nearest(vector, result, 1);
+                var result = new int[1];
+                for (int i = 0; i < 50; i++) {
+                    for (float[] vector : m1QueryVectors) {
+                        indexReader.nearest(vector, result, 1);
+                    }
                 }
             }
         }
@@ -90,19 +95,22 @@ public class RunBigANNBench {
         var totalTime = 0L;
 
         System.out.println("Loading BigANN index...");
-        try (var indexReader = new IndexReader(PrepareBigANNBench.INDEX_NAME, PrepareBigANNBench.VECTOR_DIMENSIONS,
-                bigAnnDbDir, 16L * 1024 * 1024 * 1024, Distance.DOT)) {
+        try (var diskCache = new DiskCache(16L * 1024 * 1024 * 1024, PrepareBigANNBench.VECTOR_DIMENSIONS,
+                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader(PrepareBigANNBench.INDEX_NAME, PrepareBigANNBench.VECTOR_DIMENSIONS,
+                    bigAnnDbDir, Distance.DOT, diskCache)) {
 
-            System.out.println("Running BigANN bench...");
-            var result = new int[recallCount];
-            var start = System.nanoTime();
-            for (int i = 0; i < bigAnnQueryVectors.length; i++) {
-                float[] vector = bigAnnQueryVectors[i];
-                indexReader.nearest(vector, result, recallCount);
-                totalRecall += recall(result, bigAnnGroundTruth[i], recallCount);
+                System.out.println("Running BigANN bench...");
+                var result = new int[recallCount];
+                var start = System.nanoTime();
+                for (int i = 0; i < bigAnnQueryVectors.length; i++) {
+                    float[] vector = bigAnnQueryVectors[i];
+                    indexReader.nearest(vector, result, recallCount);
+                    totalRecall += recall(result, bigAnnGroundTruth[i], recallCount);
+                }
+                var end = System.nanoTime();
+                totalTime = end - start;
             }
-            var end = System.nanoTime();
-            totalTime = end - start;
         }
 
         System.out.printf("BigANN bench done in %d ms, (%d ms per query) recall@%d = %f%n", totalTime / 1000000,

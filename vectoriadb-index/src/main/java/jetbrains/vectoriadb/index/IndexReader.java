@@ -27,8 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.lang.management.BufferPoolMXBean;
-import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -53,17 +51,17 @@ public final class IndexReader implements AutoCloseable {
     private final long id;
 
 
-    public IndexReader(String name, int vectorDim, Path indexDirPath, long directMemoryConsumption,
-                       Distance distance) {
+    public IndexReader(String name, int vectorDim, Path indexDirPath,
+                       Distance distance, DiskCache diskCache) {
         this(name, vectorDim, IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX,
                 IndexBuilder.DEFAULT_MAX_AMOUNT_OF_CANDIDATES, IndexBuilder.DEFAULT_COMPRESSION_RATIO,
                 indexDirPath,
-                directMemoryConsumption, distance);
+                distance, diskCache);
     }
 
     public IndexReader(String name, int vectorDim, int maxConnectionsPerVertex, int maxAmountOfCandidates,
-                       int pqCompression, Path indexDirPath, long directMemoryConsumption,
-                       Distance distance) {
+                       int pqCompression, Path indexDirPath,
+                       Distance distance, DiskCache diskCache) {
         this.id = indexIdGen.nextId();
         this.vectorDim = vectorDim;
         this.maxAmountOfCandidates = maxAmountOfCandidates;
@@ -110,22 +108,7 @@ public final class IndexReader implements AutoCloseable {
 
 
         logger.info("Index data were loaded from disk for database {}", name);
-
-        var pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
-        BufferPoolMXBean directMemoryPool = null;
-
-        for (var pool : pools) {
-            if (pool.getName().equals("direct")) {
-                directMemoryPool = pool;
-                break;
-            }
-        }
-
-        assert directMemoryPool != null;
-
-        this.diskCache = new DiskCache(directMemoryConsumption - directMemoryPool.getMemoryUsed(),
-                vectorDim, maxConnectionsPerVertex);
-
+        this.diskCache = diskCache;
         logger.info("Vector index {} has been initialized.", name);
     }
 
@@ -450,8 +433,6 @@ public final class IndexReader implements AutoCloseable {
         closed = true;
 
         quantizer.close();
-
-        diskCache.close();
     }
 
     public void deleteIndex() throws IOException {

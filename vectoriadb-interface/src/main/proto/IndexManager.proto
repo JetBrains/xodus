@@ -27,6 +27,8 @@ service IndexManager {
   rpc BuildStatus(google.protobuf.Empty) returns (stream BuildStatusResponse) {}
   rpc UploadVectors(stream UploadVectorsRequest) returns (google.protobuf.Empty) {}
   rpc FindNearestNeighbours(FindNearestNeighboursRequest) returns (FindNearestNeighboursResponse) {}
+  rpc switchToSearchMode(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc switchToBuildMode(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
 message FindNearestNeighboursRequest {

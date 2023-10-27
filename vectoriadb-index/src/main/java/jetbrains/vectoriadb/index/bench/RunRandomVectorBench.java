@@ -16,7 +16,9 @@
 package jetbrains.vectoriadb.index.bench;
 
 import jetbrains.vectoriadb.index.Distance;
+import jetbrains.vectoriadb.index.IndexBuilder;
 import jetbrains.vectoriadb.index.IndexReader;
+import jetbrains.vectoriadb.index.diskcache.DiskCache;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
@@ -57,27 +59,30 @@ public final class RunRandomVectorBench {
         var errors = 0;
         var result = new int[1];
 
-        try (var indexReader = new IndexReader("random_index", vectorDimensions, dbPath, 400 * 1024 * 1024,
-                Distance.DOT)) {
-            try (var queryVectors = new PrepareRandomVectorBench.MmapVectorReader(vectorDimensions, testDataPath)) {
-                var start = System.nanoTime();
-                for (var index = 0; index < groundTruthCount; index++) {
-                    var queryVectorSegment = queryVectors.read(index);
+        try (var diskCache = new DiskCache(400 * 1024 * 1024, vectorDimensions,
+                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader("random_index", vectorDimensions, dbPath,
+                    Distance.DOT, diskCache)) {
+                try (var queryVectors = new PrepareRandomVectorBench.MmapVectorReader(vectorDimensions, testDataPath)) {
+                    var start = System.nanoTime();
+                    for (var index = 0; index < groundTruthCount; index++) {
+                        var queryVectorSegment = queryVectors.read(index);
 
-                    var queryVector = new float[vectorDimensions];
-                    MemorySegment.copy(queryVectorSegment, ValueLayout.JAVA_FLOAT, 0, queryVector,
-                            0, vectorDimensions);
+                        var queryVector = new float[vectorDimensions];
+                        MemorySegment.copy(queryVectorSegment, ValueLayout.JAVA_FLOAT, 0, queryVector,
+                                0, vectorDimensions);
 
-                    indexReader.nearest(queryVector, result, 1);
-                    if (result[0] != groundTruth[index]) {
-                        errors++;
+                        indexReader.nearest(queryVector, result, 1);
+                        if (result[0] != groundTruth[index]) {
+                            errors++;
+                        }
                     }
+                    var end = System.nanoTime();
+                    System.out.printf("Queries done in %d ms.%n", (end - start) / 1000000);
                 }
-                var end = System.nanoTime();
-                System.out.printf("Queries done in %d ms.%n", (end - start) / 1000000);
-            }
 
-            System.out.printf("Errors: %f%%%n", 100.0 * errors / groundTruthCount);
+                System.out.printf("Errors: %f%%%n", 100.0 * errors / groundTruthCount);
+            }
         }
     }
 }

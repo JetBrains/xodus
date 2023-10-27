@@ -21,6 +21,7 @@ import jetbrains.vectoriadb.index.DataStore;
 import jetbrains.vectoriadb.index.IndexReader;
 import jetbrains.vectoriadb.index.L2DistanceFunction;
 import jetbrains.vectoriadb.index.Slf4jPeriodicProgressTracker;
+import jetbrains.vectoriadb.index.diskcache.DiskCache;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.utils.IOUtils;
@@ -73,55 +74,57 @@ final class BenchUtils {
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
-        try (var indexReader = new IndexReader(indexName, 128, dbDir,
-                100L * 1024 * 1024 * 1024, Distance.L2)) {
-            System.out.println("Reading queries...");
-            var queryFile = siftsBaseDir.resolve(queryFileName);
-            var queryVectors = readFVectors(queryFile, vectorDimensions);
+        try (var diskCache = new DiskCache(100L * 1024 * 1024 * 1024, vectorDimensions,
+                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader(indexName, 128, dbDir, Distance.L2, diskCache)) {
+                System.out.println("Reading queries...");
+                var queryFile = siftsBaseDir.resolve(queryFileName);
+                var queryVectors = readFVectors(queryFile, vectorDimensions);
 
-            System.out.println(queryVectors.length + " queries are read");
-            System.out.println("Reading ground truth...");
-            var groundTruthFile = siftsBaseDir.resolve(groundTruthFileName);
-            var groundTruth = readIVectors(groundTruthFile, 100);
+                System.out.println(queryVectors.length + " queries are read");
+                System.out.println("Reading ground truth...");
+                var groundTruthFile = siftsBaseDir.resolve(groundTruthFileName);
+                var groundTruth = readIVectors(groundTruthFile, 100);
 
-            System.out.println("Ground truth is read, searching...");
-            System.out.println("Warming up ...");
+                System.out.println("Ground truth is read, searching...");
+                System.out.println("Warming up ...");
 
-            //give GC chance to collect garbage
-            Thread.sleep(60 * 1000);
+                //give GC chance to collect garbage
+                Thread.sleep(60 * 1000);
 
-            var result = new int[1];
-            for (int i = 0; i < 10; i++) {
-                for (float[] vector : queryVectors) {
-                    indexReader.nearest(vector, result, 1);
-                }
-            }
-
-            System.out.println("Benchmark ...");
-
-            final long pid = ProcessHandle.current().pid();
-            System.out.println("PID: " + pid);
-
-
-            for (int i = 0; i < 50; i++) {
-                ts1 = System.nanoTime();
-                var errorsCount = 0;
-                for (var index = 0; index < queryVectors.length; index++) {
-                    var vector = queryVectors[index];
-                    indexReader.nearest(vector, result, 1);
-                    if (groundTruth[index][0] != result[0]) {
-                        errorsCount++;
+                var result = new int[1];
+                for (int i = 0; i < 10; i++) {
+                    for (float[] vector : queryVectors) {
+                        indexReader.nearest(vector, result, 1);
                     }
                 }
-                ts2 = System.nanoTime();
-                var errorPercentage = errorsCount * 100.0 / queryVectors.length;
 
-                System.out.printf("Avg. query time : %d us, errors: %f%%, cache hits %d%%%n",
-                        (ts2 - ts1) / 1000 / queryVectors.length,
-                        errorPercentage, indexReader.hits());
+                System.out.println("Benchmark ...");
+
+                final long pid = ProcessHandle.current().pid();
+                System.out.println("PID: " + pid);
+
+
+                for (int i = 0; i < 50; i++) {
+                    ts1 = System.nanoTime();
+                    var errorsCount = 0;
+                    for (var index = 0; index < queryVectors.length; index++) {
+                        var vector = queryVectors[index];
+                        indexReader.nearest(vector, result, 1);
+                        if (groundTruth[index][0] != result[0]) {
+                            errorsCount++;
+                        }
+                    }
+                    ts2 = System.nanoTime();
+                    var errorPercentage = errorsCount * 100.0 / queryVectors.length;
+
+                    System.out.printf("Avg. query time : %d us, errors: %f%%, cache hits %d%%%n",
+                            (ts2 - ts1) / 1000 / queryVectors.length,
+                            errorPercentage, indexReader.hits());
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 
