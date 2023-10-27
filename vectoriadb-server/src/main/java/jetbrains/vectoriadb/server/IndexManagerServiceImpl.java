@@ -71,8 +71,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public static final String DISTANCE_MULTIPLIER_PROPERTY = "vectoriadb.index.distance-multiplier";
     public static final String INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY =
             "vectoriadb.index.building.max-memory-consumption";
-    public static final String INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION =
-            "vectoriadb.index.reader.disk-cache-memory-consumption";
+    public static final String INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION =
+            "vectoriadb.index.search.disk-cache-memory-consumption";
 
     public static final String BASE_PATH_PROPERTY = "vectoriadb.server.base-path";
     public static final String DEFAULT_MODE_PROPERTY = "vectoriadb.server.default-mode";
@@ -81,13 +81,20 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     public static final String SEARCH_MODE = "search";
 
-    private static final int DEFAULT_DIMENSIONS = 128;
+    public static final int DEFAULT_DIMENSIONS = 128;
+    public static final int DEFAULT_MAX_CONNECTIONS_PER_VERTEX = 128;
+    public static final int DEFAULT_MAX_CANDIDATES_RETURNED = 128;
+    public static final int DEFAULT_COMPRESSION_RATIO = 32;
+    public static final float DEFAULT_DISTANCE_MULTIPLIER = 2.0f;
+
     private static final Logger logger = LoggerFactory.getLogger(IndexManagerServiceImpl.class);
     public static final String STATUS_FILE_NAME = "status";
     public static final String METADATA_FILE_NAME = "metadata";
 
     public static final String INDEXES_DIR = "indexes";
     public static final String LOGS_DIR = "logs";
+    public static final String CONFIG_DIR = "config";
+    public static final String CONFIG_YAML = "application.yml";
 
     private final ConcurrentHashMap<String, IndexState> indexStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IndexMetadata> indexMetadatas = new ConcurrentHashMap<>();
@@ -117,18 +124,31 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         dimensions = environment.getProperty(INDEX_DIMENSIONS_PROPERTY, Integer.class, DEFAULT_DIMENSIONS);
 
         maxConnectionsPerVertex = environment.getProperty(MAX_CONNECTIONS_PER_VERTEX_PROPERTY, Integer.class,
-                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX);
+                DEFAULT_MAX_CONNECTIONS_PER_VERTEX);
         maxCandidatesReturned = environment.getProperty(MAX_CANDIDATES_RETURNED_PROPERTY, Integer.class,
-                IndexBuilder.DEFAULT_MAX_AMOUNT_OF_CANDIDATES);
+                DEFAULT_MAX_CANDIDATES_RETURNED);
         compressionRatio = environment.getProperty(COMPRESSION_RATIO_PROPERTY, Integer.class,
-                IndexBuilder.DEFAULT_COMPRESSION_RATIO);
+                DEFAULT_COMPRESSION_RATIO);
         distanceMultiplier = environment.getProperty(DISTANCE_MULTIPLIER_PROPERTY, Float.class,
-                IndexBuilder.DEFAULT_DISTANCE_MULTIPLIER);
+                DEFAULT_DISTANCE_MULTIPLIER);
 
         basePath = Path.of(environment.getProperty(BASE_PATH_PROPERTY, String.class, "."));
 
         Files.createDirectories(basePath.resolve(INDEXES_DIR));
         Files.createDirectories(basePath.resolve(LOGS_DIR));
+
+        var configDirPath = basePath.resolve(CONFIG_DIR);
+        Files.createDirectories(configDirPath);
+
+        var configPath = configDirPath.resolve(CONFIG_YAML);
+
+        if (!Files.exists(configPath)) {
+            logger.info("Config file {} does not exist. Will create it with default values", configPath);
+            var defaultConfigStream = IndexManagerServiceImpl.class.getResourceAsStream("/" + CONFIG_YAML);
+            assert defaultConfigStream != null;
+
+            Files.copy(defaultConfigStream, configPath);
+        }
 
         var availableRAM = fetchAvailableRAM();
         if (availableRAM >= EIGHT_TB) {
@@ -146,7 +166,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 "heap size : " + heapSize + " bytes, available RAM " + availableRAM +
                 " bytes, memory left for OS needs " + osMemory + " bytes");
 
-        if (!environment.containsProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY)) {
+        if (environment.getProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY, Long.class,
+                -1L) <= 0) {
             indexBuildingMaxMemoryConsumption = maxMemoryConsumption / 2;
 
             logger.info("Property " + INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY + " is not set. " +
@@ -168,17 +189,17 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                     " bytes will be used for disk page cache.");
         }
 
-        if (!environment.containsProperty(INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION)) {
+        if (environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class, -1L) < 0) {
             diskCacheMemoryConsumption = maxMemoryConsumption / 2;
 
-            logger.info("Property " + INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION + " is not set. " +
+            logger.info("Property " + INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION + " is not set. " +
                     "Using " + diskCacheMemoryConsumption + " bytes for disk page cache." + diskCacheMemoryConsumption +
                     " bytes will be used to keep primary index in memory.");
         } else {
-            var memoryConsumption = environment.getProperty(INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION, Long.class);
+            var memoryConsumption = environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class);
 
             if (memoryConsumption == null) {
-                var msg = "Property " + INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION +
+                var msg = "Property " + INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION +
                         " is not a valid long value.";
                 logger.error(msg);
                 throw new IllegalArgumentException(msg);

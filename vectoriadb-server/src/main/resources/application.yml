@@ -1,0 +1,37 @@
+vectoriadb:
+  #Parameters for each index instance created by user
+  index:
+    #dimensions of the vectors expected by the index
+    dimensions: 128
+    #maximum connections per vertex created during building of search graph
+    max-connections-per-vertex: 128
+    #maximum number of candidates that can be returned during search
+    #the less this number the likely search stuck in local minima
+    #the more this number the more time search takes
+    #do not change this number unless you know what you are doing
+    max-candidates-returned: 128
+    #compression ratio of the PQ algorithm for the L1 index stored in memory
+    #the less this number the more memory is consumed
+    #the more this number the less accurate the search
+    compression-ratio: 32
+    #coefficient that regulates maximum length of edges between vertices
+    #the higher this number the longer building takes
+    #the lower this number the less precise the search
+    distance-multiplier: 2.0
+    #paramaters that are applied for building phase of the index
+    building:
+      #maximum amount of memory used to build single partition of the graph
+      #the bigger this number the less memory kept for the caching of disk IO operations
+      #by default half of the memory kept after allocation of JVM heap is used for building of partitions
+      #the lower this number the more numbers of partitions are created during building
+      #and as result the less precise the search
+      max-memory-consumption: -1
+      #parameters that are applied for search phase of the index
+    search:
+      #maximum amount of memory used to cache disk IO operations during search
+      #by default half of the memory kept after allocation of JVM heap is used for caching
+      disk-cache-memory-consumption: -1
+    server:
+      #defualt mode is set during server startup
+      default-mode: BUILD
+

@@ -267,7 +267,7 @@ public class IndexManagerTest {
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
         environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
                 String.valueOf(128 * 1024 * 1024));
-        environment.setProperty(IndexManagerServiceImpl.INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION,
+        environment.setProperty(IndexManagerServiceImpl.INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION,
                 String.valueOf(128 * 1024 * 1024));
 
         var indexManagerService = new IndexManagerServiceImpl(environment);
@@ -355,7 +355,7 @@ public class IndexManagerTest {
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(64));
         environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
                 String.valueOf(64 * 1024 * 1024));
-        environment.setProperty(IndexManagerServiceImpl.INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION,
+        environment.setProperty(IndexManagerServiceImpl.INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION,
                 String.valueOf(64 * 1024 * 1024));
 
         return new IndexManagerServiceImpl(environment);
@@ -666,7 +666,7 @@ public class IndexManagerTest {
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
         environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
                 String.valueOf(64 * 1024 * 1024));
-        environment.setProperty(IndexManagerServiceImpl.INDEX_READER_DISK_CACHE_MEMORY_CONSUMPTION,
+        environment.setProperty(IndexManagerServiceImpl.INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION,
                 String.valueOf(64 * 1024 * 1024));
 
         var indexManagerService = new IndexManagerServiceImpl(environment);
