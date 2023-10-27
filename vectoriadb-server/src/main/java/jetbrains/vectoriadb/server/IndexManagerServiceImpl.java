@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,6 +87,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public static final String METADATA_FILE_NAME = "metadata";
 
     public static final String INDEXES_DIR = "indexes";
+    public static final String LOGS_DIR = "logs";
 
     private final ConcurrentHashMap<String, IndexState> indexStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IndexMetadata> indexMetadatas = new ConcurrentHashMap<>();
@@ -125,6 +126,9 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 IndexBuilder.DEFAULT_DISTANCE_MULTIPLIER);
 
         basePath = Path.of(environment.getProperty(BASE_PATH_PROPERTY, String.class, "."));
+
+        Files.createDirectories(basePath.resolve(INDEXES_DIR));
+        Files.createDirectories(basePath.resolve(LOGS_DIR));
 
         var availableRAM = fetchAvailableRAM();
         if (availableRAM >= EIGHT_TB) {
@@ -209,7 +213,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 dimensions, maxConnectionsPerVertex, maxCandidatesReturned, compressionRatio,
                 distanceMultiplier, modeName);
 
-        Files.createDirectories(basePath.resolve(INDEXES_DIR));
+
         findIndexesOnDisk();
     }
 
@@ -547,7 +551,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     private static long availableMemoryWindows() {
-        try (var arena = Arena.openShared()) {
+        try (var arena = Arena.ofShared()) {
             var memoryStatusExLayout = MemoryLayout.structLayout(
                     ValueLayout.JAVA_INT.withName("dwLength"),
                     ValueLayout.JAVA_INT.withName("dwMemoryLoad"),
@@ -568,7 +572,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
             var linker = Linker.nativeLinker();
 
-            var lookup = SymbolLookup.libraryLookup("kernel32.dll", arena.scope());
+            var lookup = SymbolLookup.libraryLookup("kernel32.dll", arena);
             var globalMemoryStatusExOptional = lookup.find("GlobalMemoryStatusEx");
             if (globalMemoryStatusExOptional.isEmpty()) {
                 logger.error("Failed to find GlobalMemoryStatusEx in kernel32.dll");
@@ -883,9 +887,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         private final ExecutorService indexBuilderExecutor;
         private final ReentrantLock indexCreationLock = new ReentrantLock();
 
-
         private BuildMode() {
-
             indexBuilderExecutor = Executors.newFixedThreadPool(1, r -> {
                 var thread = new Thread(r, "Index builder");
                 thread.setDaemon(true);
@@ -1289,7 +1291,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 var responseBuilder = IndexManagerOuterClass.BuildStatusResponse.newBuilder();
                 responseBuilder.setIndexName(progressInfo.indexName());
 
-                for (@SuppressWarnings("ForEachWithRecordPatternCanBeUsed") var phase : progressInfo.phases()) {
+                for (var phase : progressInfo.phases()) {
                     var name = phase.name();
                     var progress = phase.progress();
                     var parameters = phase.parameters();

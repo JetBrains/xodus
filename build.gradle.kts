@@ -112,7 +112,10 @@ subprojects {
         implementation(rootProject.libs.kotlin.stdlib)
 
         testImplementation(rootProject.libs.junit)
-        testImplementation(rootProject.libs.slf4j.simple)
+
+        if (name != "vectoriadb-server") {
+            testImplementation(rootProject.libs.slf4j.simple)
+        }
     }
 
 
@@ -160,7 +163,11 @@ subprojects {
         isFailOnError = false
         options.quiet()
         (options as CoreJavadocOptions).addStringOption("Xdoclint:none", "-quiet")
+        (options as CoreJavadocOptions).addBooleanOption("-enable-preview", true)
+        (options as CoreJavadocOptions).addStringOption("source", 21.toString())
     }
+
+
 
     dependencies {
         implementation(rootProject.libs.kotlin.stdlib)
@@ -185,7 +192,7 @@ subprojects {
         withSourcesJar()
 
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(20))
+            languageVersion.set(JavaLanguageVersion.of(21))
         }
     }
 

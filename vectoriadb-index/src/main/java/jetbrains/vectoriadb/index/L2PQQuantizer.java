@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ class L2PQQuantizer extends AbstractQuantizer {
     private float[][][] centroids;
 
     L2PQQuantizer() {
-        this.arena = Arena.openShared();
+        this.arena = Arena.ofShared();
     }
 
     @Override
@@ -268,7 +268,7 @@ class L2PQQuantizer extends AbstractQuantizer {
                 "clusters count", String.valueOf(numClusters),
                 "vectors count", String.valueOf(numVectors),
                 "cores", String.valueOf(cores));
-        try (var memorySession = Arena.openShared()) {
+        try (var memorySession = Arena.ofShared()) {
             var centroidIndexes = memorySession.allocate(numVectors * Integer.SIZE,
                     ValueLayout.JAVA_INT.byteAlignment());
             var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();

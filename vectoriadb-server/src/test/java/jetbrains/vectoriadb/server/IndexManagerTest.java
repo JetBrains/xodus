@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -252,18 +252,9 @@ public class IndexManagerTest {
         }
 
         var indexNamePrefix = "testTwoIndexesSimultaniously";
-        var indexNameOne = indexNamePrefix + 0;
-        var indexDirOne = Path.of(buildDir).resolve(indexNameOne);
-
-        if (Files.exists(indexDirOne)) {
-            FileUtils.deleteDirectory(indexDirOne.toFile());
-        }
-
-        var indexNameTwo = indexNamePrefix + 1;
-        var indexDirTwo = Path.of(buildDir).resolve(indexNameTwo);
-
-        if (Files.exists(indexDirTwo)) {
-            FileUtils.deleteDirectory(indexDirTwo.toFile());
+        var dbDir = Path.of(buildDir).resolve("vectoriadb");
+        if (Files.exists(dbDir)) {
+            FileUtils.deleteDirectory(dbDir.toFile());
         }
 
         var recallCount = 5;
@@ -272,7 +263,7 @@ public class IndexManagerTest {
 
         var environment = new MockEnvironment();
 
-        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
+        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, dbDir.toAbsolutePath().toString());
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
         environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
                 String.valueOf(128 * 1024 * 1024));
@@ -320,12 +311,8 @@ public class IndexManagerTest {
             indexManagerService.shutdown();
         }
 
-        if (Files.exists(indexDirOne)) {
-            FileUtils.deleteDirectory(indexDirOne.toFile());
-        }
-
-        if (Files.exists(indexDirTwo)) {
-            FileUtils.deleteDirectory(indexDirTwo.toFile());
+        if (Files.exists(dbDir)) {
+            FileUtils.deleteDirectory(dbDir.toFile());
         }
     }
 
@@ -665,10 +652,9 @@ public class IndexManagerTest {
         }
 
 
-        var indexDir = Path.of(buildDir).resolve(indexName);
-
-        if (Files.exists(indexDir)) {
-            FileUtils.deleteDirectory(indexDir.toFile());
+        var dbDir = Path.of(buildDir).resolve("vectoriadb");
+        if (Files.exists(dbDir)) {
+            FileUtils.deleteDirectory(dbDir.toFile());
         }
 
         var recallCount = 5;
@@ -676,7 +662,7 @@ public class IndexManagerTest {
         var vectorsCount = 10_000;
 
         var environment = new MockEnvironment();
-        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
+        environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, dbDir.toString());
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
         environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
                 String.valueOf(64 * 1024 * 1024));
@@ -694,8 +680,8 @@ public class IndexManagerTest {
         } finally {
             indexManagerService.shutdown();
 
-            if (Files.exists(indexDir)) {
-                FileUtils.deleteDirectory(indexDir.toFile());
+            if (Files.exists(dbDir)) {
+                FileUtils.deleteDirectory(dbDir.toFile());
             }
         }
     }

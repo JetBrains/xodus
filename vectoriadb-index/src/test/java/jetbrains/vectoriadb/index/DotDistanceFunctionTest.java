@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import java.lang.foreign.ValueLayout;
 public class DotDistanceFunctionTest {
     @Test
     public void testSmallSegmentZeroOffset() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 2.0f, 3.0f);
             var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 4.0f, 5.0f);
 
@@ -39,7 +39,7 @@ public class DotDistanceFunctionTest {
 
     @Test
     public void testSmallSegmentFourBatchZeroOffset() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originalSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 2.0f, 3.0f);
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 4.0f, 5.0f);
@@ -66,7 +66,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testBigSegmentZeroOffset() {
         var count = 43;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
             var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
 
@@ -88,7 +88,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testBigSegment4BatchZeroOffset() {
         var count = 43;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originalSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
@@ -126,7 +126,7 @@ public class DotDistanceFunctionTest {
     public void testHugeSegmentZeroOffset() {
         for (int k = 1; k <= 3; k++) {
             var count = 107 * k;
-            try (var arena = Arena.openConfined()) {
+            try (var arena = Arena.ofConfined()) {
                 var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
                 var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
 
@@ -150,7 +150,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testHugeSegment4BatchZeroOffset() {
         var count = 107;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originalSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
@@ -186,7 +186,7 @@ public class DotDistanceFunctionTest {
 
     @Test
     public void testSmallSegmentNonZeroOffset() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 2.0f, 3.0f);
             var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 3.0f, 4.0f, 5.0f, 1.0f);
 
@@ -200,7 +200,7 @@ public class DotDistanceFunctionTest {
 
     @Test
     public void testSmallSegmentNonZeroOffset4Batch() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 2.0f, 3.0f);
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 3.0f, 4.0f, 5.0f, 1.0f);
@@ -226,7 +226,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testBigSegmentOffset() {
         var count = 43;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
             var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
 
@@ -258,7 +258,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testBigSegmentOffset4Batch() {
         var count = 43;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
@@ -321,7 +321,7 @@ public class DotDistanceFunctionTest {
     public void testHugeSegmentOffset() {
         for (int k = 1; k <= 3; k++) {
             var count = 107 * k;
-            try (var arena = Arena.openConfined()) {
+            try (var arena = Arena.ofConfined()) {
                 var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
                 var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
 
@@ -355,7 +355,7 @@ public class DotDistanceFunctionTest {
     public void testHugeSegmentOffset4Batch() {
         for (int k = 1; k <= 3; k++) {
             var count = 107 * k;
-            try (var arena = Arena.openConfined()) {
+            try (var arena = Arena.ofConfined()) {
                 var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
                 var secondSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
 
@@ -387,7 +387,7 @@ public class DotDistanceFunctionTest {
 
     @Test
     public void testSmallSegmentJavaVectorsZeroOffset() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 2.0f, 3.0f);
             var secondVector = new float[]{4.0f, 5.0f};
 
@@ -401,7 +401,7 @@ public class DotDistanceFunctionTest {
 
     @Test
     public void testSmallSegmentJavaVectorsZeroOffset4Batch() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originVector = new float[]{2.0f, 3.0f};
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 4.0f, 5.0f);
@@ -428,7 +428,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testBigSegmentJavaVectorsZeroOffset() {
         var count = 43;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
             var secondVector = new float[count];
 
@@ -450,7 +450,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testBigSegmentJavaVectorsZeroOffset4Batch() {
         var count = 43;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originVector = new float[count];
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
@@ -493,7 +493,7 @@ public class DotDistanceFunctionTest {
     public void testHugeSegmentJavaVectorsZeroOffset() {
         for (int k = 1; k <= 3; k++) {
             var count = 107 * k;
-            try (var arena = Arena.openConfined()) {
+            try (var arena = Arena.ofConfined()) {
                 var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
                 var secondVector = new float[count];
 
@@ -517,7 +517,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testHugeSegmentJavaVectorsZeroOffset4Batch() {
         var count = 107;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originSegment = new float[count];
 
             var firstVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
@@ -558,7 +558,7 @@ public class DotDistanceFunctionTest {
 
     @Test
     public void testSmallSegmentJavaVectorsNonZeroOffset() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 42.0f, 2.0f, 3.0f);
             var secondVector = new float[]{4.0f, 5.0f};
 
@@ -572,7 +572,7 @@ public class DotDistanceFunctionTest {
 
     @Test
     public void testSmallSegmentJavaVectorsNonZeroOffset4Batch() {
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originVector = new float[]{42.0f, 2.0f, 3.0f};
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, 4.0f, 5.0f);
@@ -600,7 +600,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testBigSegmentJavaVectorsOffset() {
         var count = 43;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
             var secondVector = new float[count];
 
@@ -627,7 +627,7 @@ public class DotDistanceFunctionTest {
     @Test
     public void testBigSegmentJavaVectorsOffset4Batch() {
         var count = 43;
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originVector = new float[count + 5];
 
             var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);
@@ -677,7 +677,7 @@ public class DotDistanceFunctionTest {
         for (int k = 1; k <= 3; k++) {
             var count = 107 * k;
 
-            try (var arena = Arena.openConfined()) {
+            try (var arena = Arena.ofConfined()) {
                 var firstSegment = arena.allocateArray(ValueLayout.JAVA_FLOAT, count + 5);
                 var secondVector = new float[count];
 
@@ -706,7 +706,7 @@ public class DotDistanceFunctionTest {
     public void testHugeSegmentJavaVectorsOffset4Batch() {
         var count = 107;
 
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var originSegment = new float[count + 5];
 
             var firstVector = arena.allocateArray(ValueLayout.JAVA_FLOAT, count);

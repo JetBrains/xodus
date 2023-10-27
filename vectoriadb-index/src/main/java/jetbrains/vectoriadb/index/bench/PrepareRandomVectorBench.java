@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -191,10 +191,10 @@ public final class PrepareRandomVectorBench {
             this.recordSize = Float.BYTES * vectorDimensions;
 
 
-            arena = Arena.openShared();
+            arena = Arena.ofShared();
 
             try (var channel = FileChannel.open(path, StandardOpenOption.READ)) {
-                segment = channel.map(FileChannel.MapMode.READ_ONLY, 0, Files.size(path), arena.scope());
+                segment = channel.map(FileChannel.MapMode.READ_ONLY, 0, Files.size(path), arena);
                 this.size = (int) (channel.size() / recordSize);
             }
         }

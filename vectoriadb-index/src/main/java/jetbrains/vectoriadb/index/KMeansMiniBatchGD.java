@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ final class KMeansMiniBatchGD {
         }
 
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-        try (var arena = Arena.openConfined()) {
+        try (var arena = Arena.ofConfined()) {
             var size = vectorReader.size();
             var clusterIndexesPerVector = arena.allocate((long) size * Integer.BYTES,
                     ValueLayout.JAVA_INT.byteAlignment());

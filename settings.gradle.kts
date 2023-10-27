@@ -1,6 +1,6 @@
 pluginManagement {
     plugins {
-        id("org.jetbrains.kotlin.jvm") version ("1.9.10")
+        id("org.jetbrains.kotlin.jvm") version ("1.9.20-RC2")
         id("org.jetbrains.dokka") version ("1.8.10")
         id("com.github.hierynomus.license") version ("0.16.1")
         id("io.codearte.nexus-staging") version ("0.30.0")
@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             version("kotlin-lang", "1.9")
-            version("kotlin", "1.9.10")
+            version("kotlin", "1.9.20-RC2")
 
             version("kotlin-logging", "3.0.5")
             version("lz4", "1.8.0")
@@ -45,8 +45,14 @@ dependencyResolutionManagement {
             version("protobuf", "3.24.3")
             version("javax-annotation", "1.3.2")
 
+            version("log4j", "2.21.1")
+
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
+
+            library("log4j2-slf4j", "org.apache.logging.log4j", "log4j-slf4j2-impl").versionRef("log4j")
+            library("log4j-api", "org.apache.logging.log4j", "log4j-api").versionRef("log4j")
+            library("log4j-core", "org.apache.logging.log4j", "log4j-core").versionRef("log4j")
 
             library("jetbrains-annotations", "org.jetbrains", "annotations").versionRef("jetbrains-annotations")
 
@@ -108,6 +114,11 @@ dependencyResolutionManagement {
             ).versionRef("spring-boot")
 
             library(
+                "spring-boot-starter-log4j2", "org.springframework.boot",
+                "spring-boot-starter-log4j2"
+            ).versionRef("spring-boot")
+
+            library(
                 "spring-boot-starter-test", "org.springframework.boot",
                 "spring-boot-starter-test"
             ).versionRef("spring-boot")
@@ -159,15 +170,15 @@ include("lucene-directory-v2")
 project(":lucene-directory-v2").name = "xodus-lucene-directory-v2"
 
 include("vectoriadb-index")
-project(":vectoriadb-index").name = "xodus-vectoriadb-index"
+project(":vectoriadb-index").name = "vectoriadb-index"
 
 include("vectoriadb-server")
-project(":vectoriadb-server").name = "xodus-vectoriadb-server"
+project(":vectoriadb-server").name = "vectoriadb-server"
 
 include("vectoriadb-interface")
-project(":vectoriadb-interface").name = "xodus-vectoriadb-interface"
+project(":vectoriadb-interface").name = "vectoriadb-interface"
 
 include("vectoriadb-java-client")
-project(":vectoriadb-java-client").name = "xodus-vectoriadb-java-client"
+project(":vectoriadb-java-client").name = "vectoriadb-java-client"
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -294,7 +294,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         data = new NonBlockingHashMapLong<>(pagesStructure.allocatedPagesCount, false);
         freePagesQueue = new BlockingLongArrayQueue(ADD_BUFFER_MAX);
 
-        arena = Arena.openShared();
+        arena = Arena.ofShared();
 
         pages = arena.allocate((long) pageSize * pagesStructure.allocatedPagesCount, pageSize);
 
@@ -1560,7 +1560,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         var pageLayout = MemoryLayout.structLayout(
                 ValueLayout.JAVA_LONG.withName("pageVersion"),
                 MemoryLayout.sequenceLayout(verticesCountPerPage, vertexLayout).withName("vertices"),
-                MemoryLayout.paddingLayout(8L * paddingSpace));
+                MemoryLayout.paddingLayout(paddingSpace));
         assert pageSize == pageLayout.byteSize();
 
         var recordVectorOffset = (int) vertexLayout.byteOffset(MemoryLayout.PathElement.groupElement("vector"));

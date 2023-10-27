@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
         }
 
 
-        try (var arena = Arena.openShared()) {
+        try (var arena = Arena.ofShared()) {
             var flatDirectPqVectors = arena.allocateArray(ValueLayout.JAVA_BYTE, 100 * quantizersCount);
             var flatHeapVectors = new byte[100 * quantizersCount];
 

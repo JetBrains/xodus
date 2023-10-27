@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ public final class IndexBuilder {
                 var recordEdgesCountOffset = pageStructure.recordEdgesCountOffset();
 
                 try (var vectorReader = new MmapVectorReader(vectorsDimension, dataStoreFilePath)) {
-                    try (var arena = Arena.openShared()) {
+                    try (var arena = Arena.ofShared()) {
 
                         var size = vectorReader.size();
                         if (size == 0) {
@@ -220,7 +220,7 @@ public final class IndexBuilder {
                             }
                         }
 
-                        try (var partitionsArena = Arena.openConfined()) {
+                        try (var partitionsArena = Arena.ofConfined()) {
                             var dmPartitions = new MemorySegment[partitions];
 
                             for (var i = 0; i < partitions; i++) {
@@ -535,7 +535,7 @@ public final class IndexBuilder {
         }
 
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-        try (var arena = Arena.openShared()) {
+        try (var arena = Arena.ofShared()) {
             var vectorIndexes = arena.allocateArray(ValueLayout.JAVA_INT, size);
 
             for (int i = 0; i < size; i++) {
@@ -669,7 +669,7 @@ public final class IndexBuilder {
             rwFile.setLength(fileLength);
 
             var channel = rwFile.getChannel();
-            diskCache = channel.map(FileChannel.MapMode.READ_WRITE, 0, fileLength, arena.scope());
+            diskCache = channel.map(FileChannel.MapMode.READ_WRITE, 0, fileLength, arena);
         }
 
         return diskCache;
@@ -763,7 +763,7 @@ public final class IndexBuilder {
             this.diskRecordVectorsOffset = diskRecordVectorsOffset;
             this.diskCache = diskCache;
 
-            this.edgesArena = Arena.openShared();
+            this.edgesArena = Arena.ofShared();
 
             var edgesLayout = MemoryLayout.sequenceLayout((long) (this.maxConnectionsPerVertex + 1) * capacity,
                     ValueLayout.JAVA_INT);
@@ -776,7 +776,7 @@ public final class IndexBuilder {
             try (var edgesChannel = FileChannel.open(edgesPath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE,
                     StandardOpenOption.READ)) {
                 this.edges = edgesChannel.map(FileChannel.MapMode.READ_WRITE, 0, edgesLayout.byteSize(),
-                        edgesArena.scope());
+                        edgesArena);
             }
 
             var globalIndexesPath = globalIndexesPath(id, name, path, filesTs);
@@ -785,11 +785,11 @@ public final class IndexBuilder {
                     StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
                 this.globalIndexes = globalIndexesChannel.map(FileChannel.MapMode.READ_WRITE, 0,
                         globalIndexesLayout.byteSize(),
-                        edgesArena.scope());
+                        edgesArena);
             }
 
             if (!skipVectors) {
-                this.vectorsArena = Arena.openShared();
+                this.vectorsArena = Arena.ofShared();
                 var vectorsLayout = MemoryLayout.sequenceLayout(
                         (long) capacity * this.vectorDimensions, ValueLayout.JAVA_FLOAT);
                 this.vectors = vectorsArena.allocate(vectorsLayout);
@@ -1236,7 +1236,7 @@ public final class IndexBuilder {
             }
 
             var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-            try (var arena = Arena.openConfined()) {
+            try (var arena = Arena.ofConfined()) {
                 var shuffledIndexes = arena.allocateArray(ValueLayout.JAVA_INT, size);
 
                 for (var i = 0; i < size; i++) {
@@ -1484,10 +1484,10 @@ public final class IndexBuilder {
             this.recordSize = Float.BYTES * vectorDimensions;
 
 
-            arena = Arena.openShared();
+            arena = Arena.ofShared();
 
             try (var channel = FileChannel.open(path, StandardOpenOption.READ)) {
-                segment = channel.map(FileChannel.MapMode.READ_ONLY, 0, Files.size(path), arena.scope());
+                segment = channel.map(FileChannel.MapMode.READ_ONLY, 0, Files.size(path), arena);
                 this.size = (int) (channel.size() / recordSize);
             }
         }
