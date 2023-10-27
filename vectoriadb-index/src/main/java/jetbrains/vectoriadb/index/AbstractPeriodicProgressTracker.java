@@ -19,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -33,7 +33,7 @@ public abstract class AbstractPeriodicProgressTracker implements ProgressTracker
 
     private final ReentrantLock timerLock = new ReentrantLock();
     private final AtomicBoolean requestProgressUpdate = new AtomicBoolean(true);
-    protected final ConcurrentLinkedQueue<ProgressPhase> phases = new ConcurrentLinkedQueue<>();
+    protected final ConcurrentLinkedDeque<ProgressPhase> phases = new ConcurrentLinkedDeque<>();
 
     public AbstractPeriodicProgressTracker(int period) {
         this.period = TimeUnit.SECONDS.toMillis(period);
@@ -56,7 +56,7 @@ public abstract class AbstractPeriodicProgressTracker implements ProgressTracker
     @Override
     public void pushPhase(String phaseName, String... parameters) {
         var phase = new ProgressPhase(indexName, phaseName, parameters);
-        phases.add(phase);
+        phases.addLast(phase);
         reportProgress();
     }
 
@@ -64,7 +64,7 @@ public abstract class AbstractPeriodicProgressTracker implements ProgressTracker
     public void progress(double progress) {
         scheduleProgressTimer();
 
-        var phase = phases.peek();
+        var phase = phases.peekLast();
         assert phase != null;
 
         phase.progress = Math.max(phase.progress, Math.min(100, Math.max(0, progress)));
@@ -142,7 +142,7 @@ public abstract class AbstractPeriodicProgressTracker implements ProgressTracker
 
     @Override
     public void pullPhase() {
-        phases.poll();
+        phases.removeLast();
     }
 
     @Override
