@@ -162,17 +162,27 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         var osMemory = Math.min(leftMemory / 10, 1024L * 1024 * 1024);
 
         long maxMemoryConsumption = leftMemory - osMemory;
-        logger.info("Direct memory size : " + maxMemoryConsumption + " bytes, " +
-                "heap size : " + heapSize + " bytes, available RAM " + availableRAM +
-                " bytes, memory left for OS needs " + osMemory + " bytes");
+        logger.info("Direct memory size : "
+                + maxMemoryConsumption + "bytes/"
+                + bytesToMb(maxMemoryConsumption) + "Mb/"
+                + bytesToGb(maxMemoryConsumption) + "Gb, " +
+                "heap size : " + heapSize + "bytes/" + bytesToMb(heapSize) + "Mb/" +
+                bytesToGb(heapSize) + "Gb, available RAM " + availableRAM + "bytes/" + bytesToMb(availableRAM) + "Mb/" +
+                bytesToGb(availableRAM) +
+                "Gb, memory booked for OS needs " + osMemory + "bytes/" + bytesToMb(osMemory) + "Mb/" + bytesToGb(osMemory) +
+                "Gb");
 
         if (environment.getProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY, Long.class,
                 -1L) <= 0) {
             indexBuildingMaxMemoryConsumption = maxMemoryConsumption / 2;
 
             logger.info("Property " + INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY + " is not set. " +
-                    "Using " + indexBuildingMaxMemoryConsumption + " bytes for index building. "
-                    + indexBuildingMaxMemoryConsumption + " bytes will be used for disk page cache.");
+                    "Using " + indexBuildingMaxMemoryConsumption + "bytes/" + bytesToMb(indexBuildingMaxMemoryConsumption) +
+                    "Mb/" + bytesToGb(indexBuildingMaxMemoryConsumption) +
+                    "Gb for index building. "
+                    + indexBuildingMaxMemoryConsumption + "bytes/" + bytesToMb(indexBuildingMaxMemoryConsumption) +
+                    "Mb/" + bytesToGb(indexBuildingMaxMemoryConsumption) +
+                    " Gb will be used for disk page cache.");
         } else {
             var memoryConsumption = environment.getProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY, Long.class);
 
@@ -184,16 +194,22 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             }
 
             indexBuildingMaxMemoryConsumption = memoryConsumption;
-            logger.info("Using " + indexBuildingMaxMemoryConsumption + " bytes for index building. " +
-                    (maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
-                    " bytes will be used for disk page cache.");
+            logger.info("Using " + indexBuildingMaxMemoryConsumption + "bytes/" + bytesToMb(indexBuildingMaxMemoryConsumption) +
+                    "Mb/" + bytesToGb(indexBuildingMaxMemoryConsumption) +
+                    "Gb for index building. " +
+                    (maxMemoryConsumption - indexBuildingMaxMemoryConsumption) + "bytes/" +
+                    bytesToMb(maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
+                    "Mb/" + bytesToGb(maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
+                    "/Gb will be used for disk page cache.");
         }
 
         if (environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class, -1L) < 0) {
             diskCacheMemoryConsumption = maxMemoryConsumption / 2;
 
             logger.info("Property " + INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION + " is not set. " +
-                    "Using " + diskCacheMemoryConsumption + " bytes for disk page cache." + diskCacheMemoryConsumption +
+                    "Using " + diskCacheMemoryConsumption + "bytes/" + bytesToMb(diskCacheMemoryConsumption) +
+                    "Mb/" + bytesToGb(diskCacheMemoryConsumption) +
+                    "Gb for disk page cache. " + diskCacheMemoryConsumption +
                     " bytes will be used to keep primary index in memory.");
         } else {
             var memoryConsumption = environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class);
@@ -206,9 +222,12 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             }
 
             diskCacheMemoryConsumption = memoryConsumption;
-            logger.info("Using " + diskCacheMemoryConsumption + " bytes for disk page cache." +
-                    (maxMemoryConsumption - diskCacheMemoryConsumption) +
-                    " bytes will be used to keep primary index in memory.");
+            logger.info("Using " + diskCacheMemoryConsumption + "bytes/" + bytesToMb(diskCacheMemoryConsumption) +
+                    "Mb/" + bytesToGb(diskCacheMemoryConsumption) +
+                    "Gb for disk page cache. " +
+                    (maxMemoryConsumption - diskCacheMemoryConsumption) + "bytes/" + bytesToMb(maxMemoryConsumption - diskCacheMemoryConsumption) +
+                    "Mb/" + bytesToGb(maxMemoryConsumption - diskCacheMemoryConsumption) +
+                    "Gb will be used to keep primary index in memory.");
         }
 
         var modeName = environment.getProperty(DEFAULT_MODE_PROPERTY, String.class, BUILD_MODE).toLowerCase(Locale.ROOT);
@@ -236,6 +255,14 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
 
         findIndexesOnDisk();
+    }
+
+    private static long bytesToMb(long bytes) {
+        return bytes / (1024 * 1024);
+    }
+
+    private static long bytesToGb(long bytes) {
+        return bytes / (1024 * 1024 * 1024);
     }
 
     private void findIndexesOnDisk() throws IOException {
