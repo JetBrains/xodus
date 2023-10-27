@@ -81,23 +81,31 @@ public class AbstractVectorsTest {
         return vectors;
     }
 
-    public static float avgDistance(IntArrayList fromVectors, IntArrayList toVectors, float[][] vectors,
-                                    DistanceFunction distanceFunction) {
+    public static float silhouetteCoefficient(List<IntArrayList> clusters,
+                                              int[] closestClusters, float[][] vectors,
+                                              DistanceFunction distanceFunction) {
         var sum = 0.0f;
-        var count = 0;
 
-        for (var vi : fromVectors) {
-            for (var wi : toVectors) {
-                var v = vectors[vi];
-                var w = vectors[wi];
-                if (!Arrays.equals(v, w)) {
-                    sum += distanceFunction.computeDistance(v, 0, w, 0, v.length);
-                    count++;
-                }
-            }
+        for (int i = 0; i < clusters.size(); i++) {
+            sum += clusterSilhouetteCoefficient(i, clusters, closestClusters, vectors, distanceFunction);
         }
 
-        return sum / count;
+        return sum / clusters.size();
+    }
+
+    public static float clusterSilhouetteCoefficient(int clusterIndex,
+                                                     List<IntArrayList> clusters,
+                                                     int[] closestClusters,
+                                                     float[][] vectors,
+                                                     DistanceFunction distanceFunction) {
+        var a = intraClusterDistance(clusters.get(clusterIndex), vectors, distanceFunction);
+        var b = interClusterDistance(clusterIndex, clusters, closestClusters, vectors, distanceFunction);
+
+        if (a == 0 && b == 0) {
+            return 0;
+        } else {
+            return (b - a) / Math.max(a, b);
+        }
     }
 
     public static float intraClusterDistance(IntArrayList vectorsInCluster, float[][] vectors, DistanceFunction distanceFunction) {
@@ -122,30 +130,102 @@ public class AbstractVectorsTest {
             count++;
         }
 
-        return sum / count;
+        if (count == 0) {
+            return 0;
+        } else {
+            return sum / count;
+        }
     }
 
-    public static float silhouetteCoefficient(List<IntArrayList> clusters,
-                                              int[] closestClusters, float[][] vectors,
-                                              DistanceFunction distanceFunction) {
+    public static float avgDistance(IntArrayList fromVectors, IntArrayList toVectors, float[][] vectors,
+                                    DistanceFunction distanceFunction) {
+        var sum = 0.0f;
+        var count = 0;
+
+        for (var vi : fromVectors) {
+            for (var wi : toVectors) {
+                var v = vectors[vi];
+                var w = vectors[wi];
+                if (!Arrays.equals(v, w)) {
+                    sum += distanceFunction.computeDistance(v, 0, w, 0, v.length);
+                    count++;
+                }
+            }
+        }
+        if (count == 0) {
+            return 0;
+        } else {
+            return sum / count;
+        }
+    }
+
+    public static float silhouetteCoefficientFixed(List<IntArrayList> clusters,
+                                                   int[] closestClusters, float[][] vectors,
+                                                   DistanceFunction distanceFunction) {
         var sum = 0.0f;
 
         for (int i = 0; i < clusters.size(); i++) {
-            sum += clusterSilhouetteCoefficient(i, clusters, closestClusters, vectors, distanceFunction);
+            var coef = clusterSilhouetteCoefficientFixed(i, clusters, closestClusters, vectors, distanceFunction);
+            sum += clusters.get(i).size() * coef;
         }
 
-        return sum / clusters.size();
+        return sum / vectors.length;
     }
 
-    public static float clusterSilhouetteCoefficient(int clusterIndex,
-                                                     List<IntArrayList> clusters,
-                                                     int[] closestClusters,
-                                                     float[][] vectors,
-                                                     DistanceFunction distanceFunction) {
+    public static float clusterSilhouetteCoefficientFixed(int clusterIndex,
+                                                          List<IntArrayList> clusters,
+                                                          int[] closestClusters,
+                                                          float[][] vectors,
+                                                          DistanceFunction distanceFunction) {
         var a = intraClusterDistance(clusters.get(clusterIndex), vectors, distanceFunction);
-        var b = interClusterDistance(clusterIndex, clusters, closestClusters, vectors, distanceFunction);
+        var b = interClusterDistanceFixed(clusterIndex, clusters, closestClusters, vectors, distanceFunction);
 
-        return (b - a) / Math.max(a, b);
+        if (a == 0 && b == 0) {
+            return 0;
+        } else {
+            return (b - a) / Math.max(a, b);
+        }
+    }
+
+    public static float interClusterDistanceFixed(int clusterIndex, List<IntArrayList> vectorsInClusters,
+                                                  int[] closestClusters,
+                                                  float[][] vectors,
+                                                  DistanceFunction distanceFunction) {
+        var sum = 0.0f;
+        var count = 0;
+
+        var vectorsInCluster = vectorsInClusters.get(clusterIndex);
+        for (int i = 0; i < vectorsInCluster.size(); i++) {
+            var vi = vectorsInCluster.getInt(i);
+            var closestClusterIndex = closestClusters[vi];
+
+            assert closestClusterIndex != clusterIndex;
+
+            sum += avgDistanceFixed(vi, vectorsInClusters.get(closestClusterIndex), vectors, distanceFunction);
+            count++;
+        }
+
+        if (count == 0) {
+            return 0;
+        } else {
+            return sum / count;
+        }
+    }
+
+    public static float avgDistanceFixed(int fromVectorIndex, IntArrayList toVectors, float[][] vectors, DistanceFunction distanceFunction) {
+        var sum = 0.0f;
+        var count = 0;
+
+        for (var wi : toVectors) {
+            var v = vectors[fromVectorIndex];
+            var w = vectors[wi];
+            assert !Arrays.equals(v, w);
+
+            sum += distanceFunction.computeDistance(v, 0, w, 0, v.length);
+            count++;
+        }
+
+        return sum / count;
     }
 
     public static int[] findClosestAndSecondClosestCluster(float[][] centroids, float[] vector,
