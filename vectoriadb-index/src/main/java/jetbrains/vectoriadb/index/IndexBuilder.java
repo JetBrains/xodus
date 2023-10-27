@@ -115,8 +115,7 @@ public final class IndexBuilder {
                         progressTracker.pushPhase("Calculating graph search entry point");
                         float[] centroid;
                         try {
-                            centroid = quantizer.calculateCentroids(1, 50,
-                                    distanceFunction, progressTracker)[0];
+                            centroid = quantizer.calculateCentroids(1, 50, distanceFunction, false, progressTracker)[0];
                         } finally {
                             progressTracker.pullPhase();
                         }
@@ -152,8 +151,7 @@ public final class IndexBuilder {
                             progressTracker.pushPhase("splitting vectors by partitions, iteration " + splitIteration);
                             try {
                                 var startPartition = System.nanoTime();
-                                vectorsByPartitions = quantizer.splitVectorsByPartitions(partitions, 50,
-                                        distanceFunction, progressTracker);
+                                vectorsByPartitions = quantizer.splitVectorsByPartitions(partitions, 50, distanceFunction, false, progressTracker);
 
                                 totalPartitionsSize = 0;
                                 var maxPartitionSize = Integer.MIN_VALUE;
