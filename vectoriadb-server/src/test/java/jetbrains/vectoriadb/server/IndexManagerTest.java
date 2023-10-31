@@ -263,6 +263,11 @@ public class IndexManagerTest {
 
         var environment = new MockEnvironment();
 
+        environment.setProperty(IndexManagerServiceImpl.MAX_CONNECTIONS_PER_VERTEX_PROPERTY, String.valueOf(128));
+        environment.setProperty(IndexManagerServiceImpl.MAX_CANDIDATES_RETURNED_PROPERTY, String.valueOf(128));
+        environment.setProperty(IndexManagerServiceImpl.COMPRESSION_RATIO_PROPERTY, String.valueOf(32));
+        environment.setProperty(IndexManagerServiceImpl.DISTANCE_MULTIPLIER_PROPERTY, String.valueOf(2.0));
+
         environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, dbDir.toAbsolutePath().toString());
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
         environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
@@ -353,6 +358,12 @@ public class IndexManagerTest {
 
         environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, buildDir);
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(64));
+
+        environment.setProperty(IndexManagerServiceImpl.MAX_CONNECTIONS_PER_VERTEX_PROPERTY, String.valueOf(128));
+        environment.setProperty(IndexManagerServiceImpl.MAX_CANDIDATES_RETURNED_PROPERTY, String.valueOf(128));
+        environment.setProperty(IndexManagerServiceImpl.COMPRESSION_RATIO_PROPERTY, String.valueOf(32));
+        environment.setProperty(IndexManagerServiceImpl.DISTANCE_MULTIPLIER_PROPERTY, String.valueOf(2.0));
+
         environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
                 String.valueOf(64 * 1024 * 1024));
         environment.setProperty(IndexManagerServiceImpl.INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION,
@@ -392,10 +403,10 @@ public class IndexManagerTest {
     private static void uploadVectors(String indexName, float[][] vectors,
                                       IndexManagerServiceImpl indexManagerService) throws Exception {
         var vectorsUploadRecorder = StreamRecorder.<Empty>create();
-        var request = indexManagerService.uploadVectors(vectorsUploadRecorder);
+        var request = indexManagerService.uploadData(vectorsUploadRecorder);
         try {
             for (var vector : vectors) {
-                var builder = IndexManagerOuterClass.UploadVectorsRequest.newBuilder();
+                var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
                 builder.setIndexName(indexName);
 
                 for (var component : vector) {
@@ -444,7 +455,7 @@ public class IndexManagerTest {
 
     private static List<String> listIndexes(IndexManagerServiceImpl indexManagerService) throws Exception {
         var listIndexesRecorder = StreamRecorder.<IndexManagerOuterClass.IndexListResponse>create();
-        indexManagerService.list(Empty.newBuilder().build(), listIndexesRecorder);
+        indexManagerService.indexList(Empty.newBuilder().build(), listIndexesRecorder);
 
         checkCompleteness(listIndexesRecorder);
         return listIndexesRecorder.getValues().get(0).getIndexNamesList();
@@ -664,6 +675,11 @@ public class IndexManagerTest {
         var environment = new MockEnvironment();
         environment.setProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY, dbDir.toString());
         environment.setProperty(IndexManagerServiceImpl.INDEX_DIMENSIONS_PROPERTY, String.valueOf(vectorDimensions));
+        environment.setProperty(IndexManagerServiceImpl.MAX_CONNECTIONS_PER_VERTEX_PROPERTY, String.valueOf(128));
+        environment.setProperty(IndexManagerServiceImpl.MAX_CANDIDATES_RETURNED_PROPERTY, String.valueOf(128));
+        environment.setProperty(IndexManagerServiceImpl.COMPRESSION_RATIO_PROPERTY, String.valueOf(32));
+        environment.setProperty(IndexManagerServiceImpl.DISTANCE_MULTIPLIER_PROPERTY, String.valueOf(2.0));
+
         environment.setProperty(IndexManagerServiceImpl.INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY,
                 String.valueOf(64 * 1024 * 1024));
         environment.setProperty(IndexManagerServiceImpl.INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION,

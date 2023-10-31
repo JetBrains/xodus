@@ -81,12 +81,6 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     public static final String SEARCH_MODE = "search";
 
-    public static final int DEFAULT_DIMENSIONS = 128;
-    public static final int DEFAULT_MAX_CONNECTIONS_PER_VERTEX = 128;
-    public static final int DEFAULT_MAX_CANDIDATES_RETURNED = 128;
-    public static final int DEFAULT_COMPRESSION_RATIO = 32;
-    public static final float DEFAULT_DISTANCE_MULTIPLIER = 2.0f;
-
     private static final Logger logger = LoggerFactory.getLogger(IndexManagerServiceImpl.class);
     public static final String STATUS_FILE_NAME = "status";
     public static final String METADATA_FILE_NAME = "metadata";
@@ -94,7 +88,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     public static final String INDEXES_DIR = "indexes";
     public static final String LOGS_DIR = "logs";
     public static final String CONFIG_DIR = "config";
-    public static final String CONFIG_YAML = "application.yml";
+    public static final String CONFIG_YAML = "vectoriadb.yml";
 
     private final ConcurrentHashMap<String, IndexState> indexStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, IndexMetadata> indexMetadatas = new ConcurrentHashMap<>();
@@ -121,16 +115,12 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     private final Path basePath;
 
     public IndexManagerServiceImpl(Environment environment) throws IOException {
-        dimensions = environment.getProperty(INDEX_DIMENSIONS_PROPERTY, Integer.class, DEFAULT_DIMENSIONS);
+        dimensions = environment.getRequiredProperty(INDEX_DIMENSIONS_PROPERTY, Integer.class);
 
-        maxConnectionsPerVertex = environment.getProperty(MAX_CONNECTIONS_PER_VERTEX_PROPERTY, Integer.class,
-                DEFAULT_MAX_CONNECTIONS_PER_VERTEX);
-        maxCandidatesReturned = environment.getProperty(MAX_CANDIDATES_RETURNED_PROPERTY, Integer.class,
-                DEFAULT_MAX_CANDIDATES_RETURNED);
-        compressionRatio = environment.getProperty(COMPRESSION_RATIO_PROPERTY, Integer.class,
-                DEFAULT_COMPRESSION_RATIO);
-        distanceMultiplier = environment.getProperty(DISTANCE_MULTIPLIER_PROPERTY, Float.class,
-                DEFAULT_DISTANCE_MULTIPLIER);
+        maxConnectionsPerVertex = environment.getRequiredProperty(MAX_CONNECTIONS_PER_VERTEX_PROPERTY, Integer.class);
+        maxCandidatesReturned = environment.getRequiredProperty(MAX_CANDIDATES_RETURNED_PROPERTY, Integer.class);
+        compressionRatio = environment.getRequiredProperty(COMPRESSION_RATIO_PROPERTY, Integer.class);
+        distanceMultiplier = environment.getRequiredProperty(DISTANCE_MULTIPLIER_PROPERTY, Float.class);
 
         basePath = Path.of(environment.getProperty(BASE_PATH_PROPERTY, String.class, "."));
 
@@ -360,7 +350,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     @Override
-    public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(
+    public StreamObserver<IndexManagerOuterClass.UploadDataRequest> uploadData(
             StreamObserver<Empty> responseObserver) {
 
         operationsSemaphore.acquireUninterruptibly();
@@ -371,7 +361,6 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         return mode.uploadVectors(responseObserver);
-
     }
 
     @Override
@@ -422,7 +411,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     @Override
-    public void list(Empty request, StreamObserver<IndexManagerOuterClass.IndexListResponse> responseObserver) {
+    public void indexList(Empty request, StreamObserver<IndexManagerOuterClass.IndexListResponse> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
             if (closed) {
@@ -785,7 +774,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
         void buildIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver);
 
-        StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(
+        StreamObserver<IndexManagerOuterClass.UploadDataRequest> uploadVectors(
                 StreamObserver<Empty> responseObserver);
 
         void buildStatus(final Empty request,
@@ -820,7 +809,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         @Override
-        public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
+        public StreamObserver<IndexManagerOuterClass.UploadDataRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
             searchOnly(responseObserver);
             return null;
         }
@@ -1043,13 +1032,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         @Override
-        public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
+        public StreamObserver<IndexManagerOuterClass.UploadDataRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
             return new StreamObserver<>() {
                 private DataStore store;
                 private String indexName;
 
                 @Override
-                public void onNext(IndexManagerOuterClass.UploadVectorsRequest value) {
+                public void onNext(IndexManagerOuterClass.UploadDataRequest value) {
                     var indexName = value.getIndexName();
                     if (this.indexName == null) {
                         if (!indexStates.replace(indexName, IndexState.CREATED, IndexState.UPLOADING)) {

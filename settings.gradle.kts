@@ -7,7 +7,8 @@ pluginManagement {
         id("com.github.johnrengelman.shadow") version ("8.1.1")
         id("me.champeau.jmh") version ("0.7.1")
         id("com.google.protobuf") version ("0.9.4")
-        id("org.springframework.boot") version ("3.1.4")
+        id("org.springframework.boot") version ("3.1.5")
+        id("com.bmuschko.docker-remote-api") version("9.3.6")
     }
     repositories {
         maven(url = "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
@@ -38,10 +39,10 @@ dependencyResolutionManagement {
             version("commons-rng", "1.5")
 
             version("spring-boot", "3.1.5")
-            version("grpc-boot-starter", "2.14.0.RELEASE")
+            version("grpc-boot-starter", "2.15.0.RELEASE")
 
             version("errorprone", "2.21.1")
-            version("grpc", "1.58.0")
+            version("grpc", "1.59.0")
             version("protobuf", "3.24.3")
             version("javax-annotation", "1.3.2")
 
@@ -99,9 +100,11 @@ dependencyResolutionManagement {
             library("protobuf-java", "com.google.protobuf", "protobuf-java").versionRef("protobuf")
 
             library("grpc-java", "io.grpc", "protoc-gen-grpc-java").versionRef("grpc")
+            library("grpc-api", "io.grpc", "grpc-api").versionRef("grpc")
             library("grpc-stub", "io.grpc", "grpc-stub").versionRef("grpc")
             library("grpc-protobuf", "io.grpc", "grpc-protobuf").versionRef("grpc")
             library("grpc-test", "io.grpc", "grpc-testing").versionRef("grpc")
+            library("grpc-netty-shaded", "io.grpc", "grpc-netty-shaded").versionRef("grpc")
 
             library(
                 "javax-annotation-api", "javax.annotation",
@@ -180,5 +183,4 @@ project(":vectoriadb-interface").name = "vectoriadb-interface"
 
 include("vectoriadb-java-client")
 project(":vectoriadb-java-client").name = "vectoriadb-java-client"
-
-
+include("vectoriadb-docker")

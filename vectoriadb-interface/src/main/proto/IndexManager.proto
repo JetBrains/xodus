@@ -22,13 +22,13 @@ service IndexManager {
   rpc CreateIndex(CreateIndexRequest) returns (CreateIndexResponse) {}
   rpc BuildIndex(IndexNameRequest) returns (google.protobuf.Empty) {}
   rpc DropIndex(IndexNameRequest) returns (google.protobuf.Empty) {}
-  rpc List(google.protobuf.Empty) returns (IndexListResponse) {}
+  rpc IndexList(google.protobuf.Empty) returns (IndexListResponse) {}
   rpc IndexState(IndexNameRequest) returns (IndexStateResponse) {}
   rpc BuildStatus(google.protobuf.Empty) returns (stream BuildStatusResponse) {}
-  rpc UploadVectors(stream UploadVectorsRequest) returns (google.protobuf.Empty) {}
+  rpc UploadData(stream UploadDataRequest) returns (google.protobuf.Empty) {}
   rpc FindNearestNeighbours(FindNearestNeighboursRequest) returns (FindNearestNeighboursResponse) {}
-  rpc switchToSearchMode(google.protobuf.Empty) returns (google.protobuf.Empty) {}
-  rpc switchToBuildMode(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc SwitchToSearchMode(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc SwitchToBuildMode(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
 message FindNearestNeighboursRequest {
@@ -41,7 +41,7 @@ message FindNearestNeighboursResponse {
   repeated int32 ids = 1;
 }
 
-message UploadVectorsRequest {
+message UploadDataRequest {
   string index_name = 1;
   repeated float vector_components = 2;
 }

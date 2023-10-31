@@ -34,4 +34,3 @@ vectoriadb:
     server:
       #defualt mode is set during server startup
       default-mode: BUILD
-
