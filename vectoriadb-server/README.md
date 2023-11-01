@@ -14,6 +14,6 @@ This task will build docker image and run it. As result:
 Each index will be stored in separate directory with name of index.
 - Directory vectoriadb-server/conf will contain configuration files.
 
-There is also supplementary task stopServer which stops server. This task works only with pair 
+There is also supplementary task ```stopServer``` which stops server. This task works only with pair 
 in ```runServer``` task. So should be used only as finalization task for other build tasks
 to start and stop server for functional testing.
