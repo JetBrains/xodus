@@ -401,8 +401,8 @@ class L2PQQuantizer extends AbstractQuantizer {
     /**
      * A smarter than random centroid initialization technique.
      * 1. Initialize the first centroid randomly.
-     * 2. Take the vector which has the largest distance to its closest centroid.
-     * 3. Make the vector new centroid.
+     * 2. Calculate the distance to the closest already chosen centroid `distanceToClosestCentroid` for all the vectors.
+     * 3. Choose a vector to become a new centroid based on the weighted probability proportional to `distanceToClosestCentroid^2`.
      * 4. Repeat from 2 until all the centroid initialized.
      * */
     public void initializeCentroidsKMeansPlusPlus(MemorySegment pqVectors, long numVectors, int quantizersCount, float[] distanceTable, int numClusters, byte[] pqCentroids, @NotNull ProgressTracker progressTracker) {
@@ -429,8 +429,7 @@ class L2PQQuantizer extends AbstractQuantizer {
             })) {
                 var assignmentSize = (numVectors + cores - 1) / cores;
                 var futures = new Future[cores];
-                var bestVectorIndices = new long[cores];
-                var maxDistancesToClosestCentroid = new float[cores];
+                var sumSquaredDistancesToClosestCentroid = new double[cores];
 
                 for (int newCentroidIdx = 1; newCentroidIdx < numClusters; newCentroidIdx++) {
                     progressTracker.pushPhase("Initialize centroid " + newCentroidIdx);
@@ -446,8 +445,7 @@ class L2PQQuantizer extends AbstractQuantizer {
                             futures[i] = executors.submit(() -> {
                                 try (var localTracker = mtProgressTracker.createThreadLocalTracker(id)) {
                                     var localSize = end - start;
-                                    long bestVectorIndex = -1;
-                                    float maxDistanceToClosestCentroid = 0;
+                                    double sumSquaredDistanceToClosestCentroid = 0f;
                                     for (long k = 0; k < localSize; k++) {
                                         long vectorIdx = start + k;
                                         float distanceToClosestCentroid = distancesToClosestCentroid.getAtIndex(ValueLayout.JAVA_FLOAT, vectorIdx);
@@ -457,14 +455,10 @@ class L2PQQuantizer extends AbstractQuantizer {
                                             distanceToClosestCentroid = distanceToLastCentroid;
                                             distancesToClosestCentroid.setAtIndex(ValueLayout.JAVA_FLOAT, vectorIdx, distanceToClosestCentroid);
                                         }
-                                        if (distanceToClosestCentroid > maxDistanceToClosestCentroid) {
-                                            maxDistanceToClosestCentroid = distanceToClosestCentroid;
-                                            bestVectorIndex = vectorIdx;
-                                        }
+                                        sumSquaredDistanceToClosestCentroid += (distanceToClosestCentroid * distanceToClosestCentroid);
                                         localTracker.progress(k * 100.0 / localSize);
                                     }
-                                    bestVectorIndices[id] = bestVectorIndex;
-                                    maxDistancesToClosestCentroid[id] = maxDistanceToClosestCentroid;
+                                    sumSquaredDistancesToClosestCentroid[id] = sumSquaredDistanceToClosestCentroid;
                                 }
                             });
                         }
@@ -478,15 +472,24 @@ class L2PQQuantizer extends AbstractQuantizer {
                         }
 
                         // reduce
-                        var bestVectorIndex = bestVectorIndices[0];
-                        var maxDistanceToClosestCentroid = maxDistancesToClosestCentroid[0];
-                        for (var i = 1; i < cores; i++) {
-                            if (maxDistancesToClosestCentroid[i] > maxDistanceToClosestCentroid) {
-                                maxDistanceToClosestCentroid = maxDistancesToClosestCentroid[i];
-                                bestVectorIndex = bestVectorIndices[i];
-                            }
+                        double sumSquaredDistanceToClosestCentroid = 0;
+                        for (var i = 0; i < cores; i++) {
+                            sumSquaredDistanceToClosestCentroid += sumSquaredDistancesToClosestCentroid[i];
                         }
-                        MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE, bestVectorIndex * quantizersCount, pqCentroids, newCentroidIdx * quantizersCount, quantizersCount);
+
+                        // choose a vector to become a new centroid
+                        var randomSum = rng.nextDouble(sumSquaredDistanceToClosestCentroid);
+                        double runningSum = 0;
+                        long vectorToBecomeCentroidIdx = 0;
+                        while (vectorToBecomeCentroidIdx < numVectors - 1) {
+                            var distance = distancesToClosestCentroid.getAtIndex(ValueLayout.JAVA_FLOAT, vectorToBecomeCentroidIdx);
+                            runningSum += (distance * distance);
+                            if (runningSum >= randomSum) {
+                                break;
+                            }
+                            vectorToBecomeCentroidIdx++;
+                        }
+                        MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE, vectorToBecomeCentroidIdx * quantizersCount, pqCentroids, newCentroidIdx * quantizersCount, quantizersCount);
                     } finally {
                         progressTracker.pullPhase(); // Another centroid initialized
                     }
