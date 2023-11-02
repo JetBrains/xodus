@@ -40,7 +40,7 @@ public final class VectoriaDBClient {
     }
 
     public VectoriaDBClient(String host, int port) {
-        var channel = ManagedChannelBuilder.forAddress(host, port).build();
+        var channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
         this.indexManagerBlockingStub = IndexManagerGrpc.newBlockingStub(channel);
         this.indexManagerAsyncStub = IndexManagerGrpc.newStub(channel);
     }
