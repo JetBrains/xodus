@@ -64,6 +64,15 @@ tasks {
         images.add("vectoriadb/vectoriadb-server:latest")
     }
 
+    val buildDockerImageDebug = register<DockerBuildImage>("buildDockerImageDebug") {
+        dependsOn(copyToLibs)
+        dockerFile = project.file("src/main/docker/Dockerfile-debug")
+
+        inputDir = project.projectDir
+        dockerFile = project.file("src/main/docker/Dockerfile")
+        images.add("vectoriadb/vectoriadb-server-debug:latest")
+    }
+
     register<DockerCreateContainer>("createDockerContainer") {
         dependsOn(buildDockerImage)
         targetImageId(buildDockerImage.get().imageId)
@@ -86,6 +95,32 @@ tasks {
         hostConfig.volumesFrom.add(logs.absolutePath + ":/vectoriadb/logs")
 
         hostConfig.portBindings.set(listOf("9090:9090"))
+        hostConfig.autoRemove.set(true)
+    }
+
+    register<DockerCreateContainer>("createDockerContainerDebug") {
+        dependsOn(buildDockerImageDebug)
+        targetImageId(buildDockerImageDebug.get().imageId)
+
+        containerName = "vectoriadb-server-debug"
+
+        val containerDirectory = project.layout.buildDirectory.asFile.get()
+        val imageDir = File(containerDirectory, "vectoriadb-server")
+
+        val config = File(imageDir, "config")
+        val indexes = File(imageDir, "indexes")
+        val logs = File(imageDir, "logs")
+
+        Files.createDirectories(config.toPath())
+        Files.createDirectories(indexes.toPath())
+        Files.createDirectories(logs.toPath())
+
+        hostConfig.volumesFrom.add(config.absolutePath + ":/vectoriadb/config")
+        hostConfig.volumesFrom.add(indexes.absolutePath + ":/vectoriadb/indexes")
+        hostConfig.volumesFrom.add(logs.absolutePath + ":/vectoriadb/logs")
+
+        hostConfig.portBindings.set(listOf("9090:9090"))
+        hostConfig.portBindings.set(listOf("5050:5050"))
         hostConfig.autoRemove.set(true)
     }
 }

@@ -107,8 +107,17 @@ public class ApplicationInitializer {
                 logger.info("Default config is copied");
             }
 
+            var debugServerProperty = System.getProperty("vectoriadb.debug.server", "false");
+            if (debugServerProperty.trim().isEmpty()) {
+                debugServerProperty = "false";
+            }
+            var debugServer = Boolean.parseBoolean(debugServerProperty);
+
             var jvmCommandLine = new ArrayList<String>();
             jvmCommandLine.add("java");
+            if (debugServer) {
+                jvmCommandLine.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005");
+            }
             jvmCommandLine.addAll(jvmParameters);
             jvmCommandLine.add("-D" + IndexManagerServiceImpl.BASE_PATH_PROPERTY + "=" + baseDir);
             jvmCommandLine.add("-cp");
