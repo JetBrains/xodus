@@ -90,9 +90,9 @@ tasks {
         Files.createDirectories(indexes.toPath())
         Files.createDirectories(logs.toPath())
 
-        hostConfig.volumesFrom.add(config.absolutePath + ":/vectoriadb/config")
-        hostConfig.volumesFrom.add(indexes.absolutePath + ":/vectoriadb/indexes")
-        hostConfig.volumesFrom.add(logs.absolutePath + ":/vectoriadb/logs")
+        hostConfig.volumesFrom.add(config.canonicalPath + ":/vectoriadb/config")
+        hostConfig.volumesFrom.add(indexes.canonicalPath + ":/vectoriadb/indexes")
+        hostConfig.volumesFrom.add(logs.canonicalPath + ":/vectoriadb/logs")
 
         hostConfig.portBindings.set(listOf("9090:9090"))
         hostConfig.autoRemove.set(true)
@@ -115,9 +115,9 @@ tasks {
         Files.createDirectories(indexes.toPath())
         Files.createDirectories(logs.toPath())
 
-        hostConfig.volumesFrom.add(config.absolutePath + ":/vectoriadb/config")
-        hostConfig.volumesFrom.add(indexes.absolutePath + ":/vectoriadb/indexes")
-        hostConfig.volumesFrom.add(logs.absolutePath + ":/vectoriadb/logs")
+        hostConfig.volumesFrom.add(config.canonicalPath + ":/vectoriadb/config")
+        hostConfig.volumesFrom.add(indexes.canonicalPath + ":/vectoriadb/indexes")
+        hostConfig.volumesFrom.add(logs.canonicalPath + ":/vectoriadb/logs")
 
         hostConfig.portBindings.set(listOf("9090:9090"))
         hostConfig.portBindings.set(listOf("5050:5050"))
