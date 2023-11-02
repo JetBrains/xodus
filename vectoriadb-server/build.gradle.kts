@@ -81,9 +81,9 @@ tasks {
         Files.createDirectories(indexes.toPath())
         Files.createDirectories(logs.toPath())
 
-        volumes.add(config.absolutePath + ":/vectoriadb/config")
-        volumes.add(indexes.absolutePath + ":/vectoriadb/indexes")
-        volumes.add(logs.absolutePath + ":/vectoriadb/logs")
+        hostConfig.volumesFrom.add(config.absolutePath + ":/vectoriadb/config")
+        hostConfig.volumesFrom.add(indexes.absolutePath + ":/vectoriadb/indexes")
+        hostConfig.volumesFrom.add(logs.absolutePath + ":/vectoriadb/logs")
 
         hostConfig.portBindings.set(listOf("9090:9090"))
         hostConfig.autoRemove.set(true)

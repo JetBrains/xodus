@@ -53,9 +53,17 @@ public class Sift1MBench {
                     vectors.length, vectorDimensions, indexName);
 
             var vectoriaDBHost = System.getProperty("vectoriadb.host", "localhost");
-            Objects.requireNonNull(vectoriaDBHost, "Server host is not provided");
+            if (vectoriaDBHost.trim().isEmpty()) {
+                vectoriaDBHost = "localhost";
+            }
 
-            var vectoriaDBPort = Integer.parseInt(System.getProperty("vectoriadb.port", "9090"));
+            var vectoriaDBPortProperty = System.getProperty("vectoriadb.port", "9090");
+            if (vectoriaDBPortProperty.trim().isEmpty()) {
+                vectoriaDBPortProperty = "9090";
+            }
+
+            var vectoriaDBPort = Integer.parseInt(vectoriaDBPortProperty);
+
             var client = new VectoriaDBClient(vectoriaDBHost, vectoriaDBPort);
 
             var ts1 = System.currentTimeMillis();
