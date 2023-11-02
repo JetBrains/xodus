@@ -1,9 +1,6 @@
 import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerStartContainer
-import com.bmuschko.gradle.docker.tasks.container.DockerStopContainer
 import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
-import org.jetbrains.kotlin.gradle.internal.ensureParentDirsCreated
-import org.jetbrains.kotlin.incremental.createDirectory
+import java.nio.file.Files
 
 plugins {
     id("com.bmuschko.docker-remote-api")
@@ -49,40 +46,40 @@ configurations {
 tasks {
     test {
         systemProperty(
-            "vectoriadb.log.dir",
-            File(project.layout.buildDirectory.asFile.get(), "logs").absoluteFile
+                "vectoriadb.log.dir",
+                File(project.layout.buildDirectory.asFile.get(), "logs").absoluteFile
         )
     }
+
     val copyToLibs = register<Copy>("copyToLibs") {
         dependsOn(jar)
         from(project.configurations.getByName("runtimeClasspath"))
         into(project.file("build/libs"))
     }
+
     val buildDockerImage = register<DockerBuildImage>("buildDockerImage") {
         dependsOn(copyToLibs)
         inputDir = project.projectDir
         dockerFile = project.file("src/main/docker/Dockerfile")
         images.add("vectoriadb/vectoriadb-server:latest")
     }
-    val createDockerContainer = register<DockerCreateContainer>("createDockerContainer") {
+
+    register<DockerCreateContainer>("createDockerContainer") {
         dependsOn(buildDockerImage)
         targetImageId(buildDockerImage.get().imageId)
 
-        val buildDir = project.layout.buildDirectory.asFile.get()
-        val imageDir = File(buildDir, "vectoriadb-server")
+        containerName = "vectoriadb-server"
+
+        val containerDirectory = project.layout.buildDirectory.asFile.get()
+        val imageDir = File(containerDirectory, "vectoriadb-server")
 
         val config = File(imageDir, "config")
         val indexes = File(imageDir, "indexes")
         val logs = File(imageDir, "logs")
 
-        config.ensureParentDirsCreated()
-        config.createDirectory()
-
-        indexes.ensureParentDirsCreated()
-        indexes.createDirectory()
-
-        logs.ensureParentDirsCreated()
-        logs.createDirectory()
+        Files.createDirectories(config.toPath())
+        Files.createDirectories(indexes.toPath())
+        Files.createDirectories(logs.toPath())
 
         volumes.add(config.absolutePath + ":/vectoriadb/config")
         volumes.add(indexes.absolutePath + ":/vectoriadb/indexes")
@@ -90,12 +87,5 @@ tasks {
 
         hostConfig.portBindings.set(listOf("9090:9090"))
         hostConfig.autoRemove.set(true)
-    }
-    register<DockerStartContainer>("runServer") {
-        dependsOn(createDockerContainer)
-        targetContainerId(createDockerContainer.get().containerId)
-    }
-    register<DockerStopContainer>("stopServer") {
-        targetContainerId(createDockerContainer.get().containerId)
     }
 }

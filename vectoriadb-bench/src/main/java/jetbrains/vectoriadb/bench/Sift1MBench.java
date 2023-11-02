@@ -20,6 +20,7 @@ import jetbrains.vectoriadb.client.IndexBuildStatusListener;
 import jetbrains.vectoriadb.client.IndexState;
 import jetbrains.vectoriadb.client.VectoriaDBClient;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -30,7 +31,11 @@ public class Sift1MBench {
         try {
             var benchPathStr = System.getProperty("bench.path");
             var benchPath = Path.of(Objects.requireNonNullElse(benchPathStr, "."));
+            Files.createDirectories(benchPath);
+
             var rootDir = benchPath.resolve("sift1m");
+            Files.createDirectories(rootDir);
+
             var siftArchiveName = "sift.tar.gz";
             var vectorDimensions = 128;
 
@@ -39,8 +44,9 @@ public class Sift1MBench {
             var siftArchivePath = BenchUtils.downloadBenchFile(rootDir, siftArchiveName);
             BenchUtils.extractTarGzArchive(rootDir, siftArchivePath);
 
+            var siftDir = rootDir.resolve("sift");
             var siftDataName = "sift_base.fvecs";
-            var vectors = BenchUtils.readFVectors(rootDir.resolve(siftDataName), vectorDimensions);
+            var vectors = BenchUtils.readFVectors(siftDir.resolve(siftDataName), vectorDimensions);
 
             var indexName = "sift1m";
             System.out.printf("%d data vectors loaded with dimension %d, building index %s...%n",
@@ -51,7 +57,6 @@ public class Sift1MBench {
 
             var vectoriaDBPort = Integer.parseInt(System.getProperty("vectoriadb.port", "9090"));
             var client = new VectoriaDBClient(vectoriaDBHost, vectoriaDBPort);
-
 
             var ts1 = System.currentTimeMillis();
             client.createIndex(indexName, Distance.L2);
@@ -91,14 +96,14 @@ public class Sift1MBench {
             var queryFileName = "sift_query.fvecs";
 
             System.out.println("Reading queries...");
-            var queryFile = rootDir.resolve(queryFileName);
+            var queryFile = siftDir.resolve(queryFileName);
             var queryVectors = BenchUtils.readFVectors(queryFile, vectorDimensions);
 
             System.out.println(queryVectors.length + " queries are read");
             System.out.println("Reading ground truth...");
 
             var groundTruthFileName = "sift_groundtruth.ivecs";
-            var groundTruthFile = rootDir.resolve(groundTruthFileName);
+            var groundTruthFile = siftDir.resolve(groundTruthFileName);
             var groundTruth = BenchUtils.readIVectors(groundTruthFile, 100);
 
             System.out.println("Ground truth is read, searching...");
