@@ -115,7 +115,7 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
     }
 
     @Test
-    @Ignore
+    //@Ignore
     public void clusterInitializersBenchmark() throws Exception {
         var vectors = loadSift1MVectors();
         var clustersCount = 40;
@@ -126,7 +126,8 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
             pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors), progressTracker);
 
             var count = 0;
-            var meanSilhCoeffDiff = 0f;
+            var meanPpRandomDiff = 0f;
+            var meanMaxDistanceRandomDiff = 0f;
             var meanSilhCoeffRandom = 0f;
             var meanSilhCoeffPP = 0f;
             var meanSilhCoeffMaxDistance = 0f;
@@ -139,17 +140,19 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
                 System.out.printf("silhouetteCoefficient k-means++ = %f%n", silhCoeffPP);
                 System.out.printf("silhouetteCoefficient max distance = %f%n", silhCoeffMaxDistance);
 
-                meanSilhCoeffDiff += silhCoeffPP - silhCoeffRandom;
+                meanPpRandomDiff += silhCoeffPP - silhCoeffRandom;
+                meanMaxDistanceRandomDiff += silhCoeffMaxDistance - silhCoeffRandom;
                 meanSilhCoeffRandom += silhCoeffRandom;
                 meanSilhCoeffPP += silhCoeffPP;
                 meanSilhCoeffMaxDistance += silhCoeffMaxDistance;
                 count++;
             }
-            meanSilhCoeffDiff = meanSilhCoeffDiff / count;
+            meanPpRandomDiff = meanPpRandomDiff / count;
+            meanMaxDistanceRandomDiff = meanMaxDistanceRandomDiff / count;
             meanSilhCoeffRandom = meanSilhCoeffRandom / count;
             meanSilhCoeffPP = meanSilhCoeffPP / count;
             meanSilhCoeffMaxDistance = meanSilhCoeffMaxDistance / count;
-            System.out.printf("meanSilhCoeffDiff: %f, meanSilhCoeffRandom: %f, meanSilhCoeffPP: %f, meanSilhCoeffMaxDistance: %f", meanSilhCoeffDiff, meanSilhCoeffRandom, meanSilhCoeffPP, meanSilhCoeffMaxDistance);
+            System.out.printf("k-means++ - random: %f, max distance - random: %f, meanSilhCoeffRandom: %f, meanSilhCoeffPP: %f, meanSilhCoeffMaxDistance: %f", meanPpRandomDiff, meanMaxDistanceRandomDiff, meanSilhCoeffRandom, meanSilhCoeffPP, meanSilhCoeffMaxDistance);
         }
     }
 

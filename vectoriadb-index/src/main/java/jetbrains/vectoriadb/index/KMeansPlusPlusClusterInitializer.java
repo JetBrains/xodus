@@ -16,18 +16,25 @@ import java.util.concurrent.Future;
  * 2. Calculate the distance to the closest already chosen centroid `distanceToClosestCentroid` for all the vectors.
  * 3. Choose a vector to become a new centroid based on the weighted probability proportional to `distanceToClosestCentroid^2`.
  * 4. Repeat from 2 until all the centroid initialized.
- * It is possible to adjust the behaviour by setting a random source.
+ * It is possible to adjust the behaviour by setting a random source and the power to calculate weighted probability.
  * */
 public class KMeansPlusPlusClusterInitializer implements ClusterInitializer {
     @NotNull
     private final RandomSource randomSource;
+    private final int power;
 
     KMeansPlusPlusClusterInitializer() {
         randomSource = RandomSource.XO_RO_SHI_RO_128_PP;
+        power = 2;
     }
 
-    KMeansPlusPlusClusterInitializer(@NotNull RandomSource randomSource) {
+    KMeansPlusPlusClusterInitializer(@NotNull RandomSource randomSource, int power) {
         this.randomSource = randomSource;
+        this.power = power;
+    }
+
+    private double weightedDistance(double distance) {
+        return Math.pow(distance, power);
     }
 
     public void initializeCentroids(
@@ -89,7 +96,8 @@ public class KMeansPlusPlusClusterInitializer implements ClusterInitializer {
                                             distanceToClosestCentroid = distanceToLastCentroid;
                                             distancesToClosestCentroid.setAtIndex(ValueLayout.JAVA_FLOAT, vectorIdx, distanceToClosestCentroid);
                                         }
-                                        sumSquaredDistanceToClosestCentroid += (distanceToClosestCentroid * distanceToClosestCentroid);
+
+                                        sumSquaredDistanceToClosestCentroid += weightedDistance(distanceToClosestCentroid);
                                         localTracker.progress(k * 100.0 / localSize);
                                     }
                                     sumSquaredDistancesToClosestCentroid[id] = sumSquaredDistanceToClosestCentroid;
@@ -117,7 +125,7 @@ public class KMeansPlusPlusClusterInitializer implements ClusterInitializer {
                         long vectorToBecomeCentroidIdx = 0;
                         while (vectorToBecomeCentroidIdx < numVectors - 1) {
                             var distance = distancesToClosestCentroid.getAtIndex(ValueLayout.JAVA_FLOAT, vectorToBecomeCentroidIdx);
-                            runningSum += (distance * distance);
+                            runningSum += weightedDistance(distance);
                             if (runningSum >= randomSum) {
                                 break;
                             }
