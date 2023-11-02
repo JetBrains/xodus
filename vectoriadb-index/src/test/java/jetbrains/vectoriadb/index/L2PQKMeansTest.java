@@ -115,7 +115,7 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
     }
 
     @Test
-    //@Ignore
+    @Ignore
     public void clusterInitializersBenchmark() throws Exception {
         var vectors = loadSift1MVectors();
         var clustersCount = 40;
