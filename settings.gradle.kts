@@ -8,7 +8,7 @@ pluginManagement {
         id("me.champeau.jmh") version ("0.7.1")
         id("com.google.protobuf") version ("0.9.4")
         id("org.springframework.boot") version ("3.1.5")
-        id("com.bmuschko.docker-remote-api") version("9.3.6")
+        id("com.bmuschko.docker-remote-api") version ("9.3.6")
     }
     repositories {
         maven(url = "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
@@ -176,11 +176,6 @@ include("vectoriadb-index")
 project(":vectoriadb-index").name = "vectoriadb-index"
 
 include("vectoriadb-server")
-project(":vectoriadb-server").name = "vectoriadb-server"
-
 include("vectoriadb-interface")
-project(":vectoriadb-interface").name = "vectoriadb-interface"
-
 include("vectoriadb-java-client")
-project(":vectoriadb-java-client").name = "vectoriadb-java-client"
-include("vectoriadb-docker")
+include("vectoriadb-bench")
