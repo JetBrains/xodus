@@ -29,7 +29,7 @@ public enum Distance {
 
         @Override
         public Quantizer quantizer() {
-            return new L2PQQuantizer();
+            return new L2PQQuantizer(new KMeansPlusPlusClusterInitializer());
         }
     },
     DOT {
@@ -45,7 +45,7 @@ public enum Distance {
 
         @Override
         public Quantizer quantizer() {
-            return new L2PQQuantizer();
+            return new L2PQQuantizer(new KMeansPlusPlusClusterInitializer());
         }
     },
     COSINE {
@@ -61,7 +61,7 @@ public enum Distance {
 
         @Override
         public Quantizer quantizer() {
-            return new L2PQQuantizer();
+            return new L2PQQuantizer(new KMeansPlusPlusClusterInitializer());
         }
     };
 

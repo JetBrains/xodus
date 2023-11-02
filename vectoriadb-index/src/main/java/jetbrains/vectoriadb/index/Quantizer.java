@@ -29,11 +29,9 @@ public interface Quantizer extends AutoCloseable {
 
     float[] decodeVector(byte[] vectors, int vectorIndex);
 
-    IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction,
-                                            boolean initializeCentroidsWithKMeansPlusPlus, @NotNull ProgressTracker progressTracker);
+    IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker);
 
-    float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction,
-                                 boolean initializeCentroidsWithKMeansPlusPlus, @NotNull ProgressTracker progressTracker);
+    float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker);
 
     void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader,
                          @NotNull ProgressTracker progressTracker);
