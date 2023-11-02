@@ -15,13 +15,10 @@
  */
 package jetbrains.vectoriadb.index;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import jetbrains.vectoriadb.index.siftbench.SiftBenchUtils;
 import org.junit.Assert;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 
 public class AbstractVectorsTest {
     public static int SIFT_VECTOR_DIMENSIONS = 128;
@@ -79,84 +76,6 @@ public class AbstractVectorsTest {
                 vectors.length, SIFT_VECTOR_DIMENSIONS);
 
         return vectors;
-    }
-
-    public static float silhouetteCoefficient(List<IntArrayList> clusters,
-                                              int[] closestClusters, float[][] vectors,
-                                              DistanceFunction distanceFunction) {
-        var sum = 0.0f;
-
-        for (int i = 0; i < clusters.size(); i++) {
-            sum += clusterSilhouetteCoefficient(i, clusters, closestClusters, vectors, distanceFunction);
-        }
-
-        return sum / clusters.size();
-    }
-
-    public static float clusterSilhouetteCoefficient(int clusterIndex,
-                                                     List<IntArrayList> clusters,
-                                                     int[] closestClusters,
-                                                     float[][] vectors,
-                                                     DistanceFunction distanceFunction) {
-        var a = intraClusterDistance(clusters.get(clusterIndex), vectors, distanceFunction);
-        var b = interClusterDistance(clusterIndex, clusters, closestClusters, vectors, distanceFunction);
-
-        if (a == 0 && b == 0) {
-            return 0;
-        } else {
-            return (b - a) / Math.max(a, b);
-        }
-    }
-
-    public static float intraClusterDistance(IntArrayList vectorsInCluster, float[][] vectors, DistanceFunction distanceFunction) {
-        return avgDistance(vectorsInCluster, vectorsInCluster, vectors, distanceFunction);
-    }
-
-    public static float interClusterDistance(int clusterIndex, List<IntArrayList> vectorsInClusters,
-                                             int[] closestClusters,
-                                             float[][] vectors,
-                                             DistanceFunction distanceFunction) {
-        var sum = 0.0f;
-        var count = 0;
-
-        var vectorsInCluster = vectorsInClusters.get(clusterIndex);
-        for (int i = 0; i < vectorsInCluster.size(); i++) {
-            var vi = vectorsInCluster.getInt(i);
-            var closestClusterIndex = closestClusters[vi];
-
-            assert closestClusterIndex != clusterIndex;
-
-            sum += avgDistance(vectorsInCluster, vectorsInClusters.get(closestClusterIndex), vectors, distanceFunction);
-            count++;
-        }
-
-        if (count == 0) {
-            return 0;
-        } else {
-            return sum / count;
-        }
-    }
-
-    public static float avgDistance(IntArrayList fromVectors, IntArrayList toVectors, float[][] vectors,
-                                    DistanceFunction distanceFunction) {
-        var sum = 0.0f;
-        var count = 0;
-
-        for (var vi : fromVectors) {
-            for (var wi : toVectors) {
-                var v = vectors[vi];
-                var w = vectors[wi];
-                if (!Arrays.equals(v, w)) {
-                    sum += distanceFunction.computeDistance(v, 0, w, 0, v.length);
-                    count++;
-                }
-            }
-        }
-        if (count == 0) {
-            return 0;
-        } else {
-            return sum / count;
-        }
     }
 
     public static int[] findClosestAndSecondClosestCluster(float[][] centroids, float[] vector,

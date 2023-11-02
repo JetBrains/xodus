@@ -16,12 +16,11 @@ import java.util.concurrent.Future;
  * 2. Calculate the distance to the closest already chosen centroid `distanceToClosestCentroid` for all the vectors.
  * 3. Choose a vector to become a new centroid based on the weighted probability proportional to `distanceToClosestCentroid^2`.
  * 4. Repeat from 2 until all the centroid initialized.
- *
  * It is possible to adjust the behaviour by setting a random source.
  * */
 public class KMeansPlusPlusClusterInitializer implements ClusterInitializer {
     @NotNull
-    private RandomSource randomSource;
+    private final RandomSource randomSource;
 
     KMeansPlusPlusClusterInitializer() {
         randomSource = RandomSource.XO_RO_SHI_RO_128_PP;

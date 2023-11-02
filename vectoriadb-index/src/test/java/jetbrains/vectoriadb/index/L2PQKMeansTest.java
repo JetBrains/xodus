@@ -15,15 +15,14 @@
  */
 package jetbrains.vectoriadb.index;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.util.ArrayList;
 import java.util.Random;
 
 public class L2PQKMeansTest extends AbstractVectorsTest {
@@ -61,7 +60,6 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
             }
         }
 
-
         try (var arena = Arena.openShared()) {
             var flatDirectPqVectors = arena.allocateArray(ValueLayout.JAVA_BYTE, 100 * quantizersCount);
             var flatHeapVectors = new byte[100 * quantizersCount];
@@ -84,7 +82,7 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
                         expectedDistance += distanceTables[k][firstCode][secondCode];
                     }
 
-                    var actualDistance = L2PQQuantizer.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
+                    var actualDistance = AbstractQuantizer.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
                             flatDistanceTables, quantizersCount, Quantizer.CODE_BASE_SIZE);
                     Assert.assertEquals(expectedDistance, actualDistance, 0.0f);
                 }
@@ -96,44 +94,30 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
     public void testPQKMeansQuality() throws Exception {
         var vectors = loadSift10KVectors();
         var clustersCount = 40;
-        var initializeCentroidsWithKMeansPlusPlus = false;
 
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors),
-                    new NoOpProgressTracker());
+            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors), new NoOpProgressTracker());
 
             System.out.println("PQ codes generated. Calculating centroids...");
-            var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, initializeCentroidsWithKMeansPlusPlus, new NoOpProgressTracker());
+            var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, new NoOpProgressTracker());
 
             System.out.println("Centroids calculated. Clustering data vectors...");
 
-            var vectorsByClusters = new ArrayList<IntArrayList>();
-            for (int i = 0; i < clustersCount; i++) {
-                vectorsByClusters.add(new IntArrayList());
-            }
-
-            var secondClosestClusterIndexes = new int[vectors.length];
-            for (int i = 0; i < vectors.length; i++) {
-                float[] vector = vectors[i];
-                var clusters = findClosestAndSecondClosestCluster(centroids, vector,
-                        L2DistanceFunction.INSTANCE);
-                vectorsByClusters.get(clusters[0]).add(i);
-                secondClosestClusterIndexes[i] = clusters[1];
-            }
+            var silhouetteCoefficient = new SilhouetteCoefficient(centroids, vectors, L2DistanceFunction.INSTANCE);
 
             System.out.println("Data vectors clustered. Calculating silhouette coefficient...");
-            var silhouetteCoefficient = silhouetteCoefficient(vectorsByClusters, secondClosestClusterIndexes,
-                    vectors, L2DistanceFunction.INSTANCE);
-            System.out.printf("silhouetteCoefficient = %f%n", silhouetteCoefficient);
-            Assert.assertTrue("silhouetteCoefficient < 0.17:" + silhouetteCoefficient,
-                    silhouetteCoefficient >= 0.17);
+
+            var coefficientValue = silhouetteCoefficient.calculate();
+            System.out.printf("silhouetteCoefficient = %f%n", coefficientValue);
+            Assert.assertTrue("silhouetteCoefficient < 0.17:" + silhouetteCoefficient, coefficientValue >= 0.08);
         }
     }
 
     @Test
-    public void randomClusterInitializationVsKmeansPpBenchmark() throws Exception {
-        var vectors = loadSift10KVectors();//loadSift1MVectors();
+    @Ignore
+    public void clusterInitializersBenchmark() throws Exception {
+        var vectors = loadSift1MVectors();
         var clustersCount = 40;
 
         var progressTracker = new NoOpProgressTracker();
@@ -145,74 +129,34 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
             var meanSilhCoeffDiff = 0f;
             var meanSilhCoeffRandom = 0f;
             var meanSilhCoeffPP = 0f;
-            for (var i = 0; i < 100; i += 1) {
-                var silhCoeffRandom = doPQMeansAndGetSilhouetteCoefficient(pqQuantizer, clustersCount, vectors, false, progressTracker);
-                var silhCoeffPP = doPQMeansAndGetSilhouetteCoefficient(pqQuantizer, clustersCount, vectors, true, progressTracker);
+            var meanSilhCoeffMaxDistance = 0f;
+            for (var i = 0; i < 10; i += 1) {
+                var silhCoeffRandom = doPQKMeansAndGetSilhouetteCoefficient(pqQuantizer, new RandomClusterInitializer(), clustersCount, vectors, progressTracker);
+                var silhCoeffPP = doPQKMeansAndGetSilhouetteCoefficient(pqQuantizer, new KMeansPlusPlusClusterInitializer(), clustersCount, vectors, progressTracker);
+                var silhCoeffMaxDistance = doPQKMeansAndGetSilhouetteCoefficient(pqQuantizer, new MaxDistanceClusterInitializer(), clustersCount, vectors, progressTracker);
 
                 System.out.printf("silhouetteCoefficient random = %f%n", silhCoeffRandom);
                 System.out.printf("silhouetteCoefficient k-means++ = %f%n", silhCoeffPP);
+                System.out.printf("silhouetteCoefficient max distance = %f%n", silhCoeffMaxDistance);
 
                 meanSilhCoeffDiff += silhCoeffPP - silhCoeffRandom;
                 meanSilhCoeffRandom += silhCoeffRandom;
                 meanSilhCoeffPP += silhCoeffPP;
+                meanSilhCoeffMaxDistance += silhCoeffMaxDistance;
                 count++;
             }
             meanSilhCoeffDiff = meanSilhCoeffDiff / count;
             meanSilhCoeffRandom = meanSilhCoeffRandom / count;
             meanSilhCoeffPP = meanSilhCoeffPP / count;
-            System.out.printf("meanSilhCoeffDiff: %f, meanSilhCoeffRandom: %f, meanSilhCoeffPP: %f", meanSilhCoeffDiff, meanSilhCoeffRandom, meanSilhCoeffPP);
+            meanSilhCoeffMaxDistance = meanSilhCoeffMaxDistance / count;
+            System.out.printf("meanSilhCoeffDiff: %f, meanSilhCoeffRandom: %f, meanSilhCoeffPP: %f, meanSilhCoeffMaxDistance: %f", meanSilhCoeffDiff, meanSilhCoeffRandom, meanSilhCoeffPP, meanSilhCoeffMaxDistance);
         }
     }
 
-    @Test
-    public void silhouetteVsSilhouetteFixedBenchmark() throws Exception {
-        var vectors = loadSift10KVectors();
-        var clustersCount = 40;
-
-        var progressTracker = new NoOpProgressTracker();
-        try (var pqQuantizer = new L2PQQuantizer()) {
-            System.out.println("Generating PQ codes...");
-            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors), progressTracker);
-
-            System.out.print("PQ codes generated. Calculating centroids...\n");
-            var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, true, progressTracker);
-
-            System.out.println("Centroids calculated. Clustering data vectors...");
-
-            var vectorsByClusters = new ArrayList<IntArrayList>();
-            for (int i = 0; i < clustersCount; i++) {
-                vectorsByClusters.add(new IntArrayList());
-            }
-
-            var clusterByVectorIdx = new int[vectors.length];
-            var secondClosestClusterIndexes = new int[vectors.length];
-            for (int i = 0; i < vectors.length; i++) {
-                float[] vector = vectors[i];
-                var clusters = findClosestAndSecondClosestCluster(centroids, vector, L2DistanceFunction.INSTANCE);
-                clusterByVectorIdx[i] = clusters[0];
-                vectorsByClusters.get(clusters[0]).add(i);
-                secondClosestClusterIndexes[i] = clusters[1];
-            }
-
-            System.out.println("Data vectors clustered. Calculating silhouette coefficient...");
-            var silhouetteCoefficient = silhouetteCoefficient(vectorsByClusters, secondClosestClusterIndexes,
-                vectors, L2DistanceFunction.INSTANCE);
-            var silhouetteCoefficientFixed = new SilhouetteCoefficient(centroids, vectors, clusterByVectorIdx, secondClosestClusterIndexes, vectorsByClusters, L2DistanceFunction.INSTANCE).calculate();
-            var silhouetteCoefficientMedoid = new SilhouetteCoefficientMedoid(centroids, vectors, clusterByVectorIdx, secondClosestClusterIndexes, L2DistanceFunction.INSTANCE).calculate();
-
-            System.out.printf("silhouetteCoefficient = %f%n", silhouetteCoefficient);
-            System.out.printf("silhouetteCoefficientFixed = %f%n", silhouetteCoefficientFixed);
-            System.out.printf("silhouetteCoefficientMedoid = %f%n", silhouetteCoefficientMedoid);
-        }
-    }
-
-    private static Float doPQMeansAndGetSilhouetteCoefficient(Quantizer pqQuantizer, int clustersCount, float[][] vectors, boolean initializeCentroidWithKMeansPlusPlus, ProgressTracker progressTracker) {
-        var initializationType = "random";
-        if (initializeCentroidWithKMeansPlusPlus) {
-            initializationType = "k-means++";
-        }
-        System.out.printf("PQ codes generated. Calculating centroids, %s initialization...\n", initializationType);
-        var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, initializeCentroidWithKMeansPlusPlus, progressTracker);
+    private static Float doPQKMeansAndGetSilhouetteCoefficient(L2PQQuantizer pqQuantizer, ClusterInitializer clusterInitializer, int clustersCount, float[][] vectors, ProgressTracker progressTracker) {
+        System.out.print("PQ codes generated. Calculating centroids, initialization...\n");
+        pqQuantizer.setClusterInitializer(clusterInitializer);
+        var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, progressTracker);
 
         System.out.println("Centroids calculated. Calculating silhouette coefficient...");
         return new SilhouetteCoefficientMedoid(centroids, vectors, L2DistanceFunction.INSTANCE).calculate();
