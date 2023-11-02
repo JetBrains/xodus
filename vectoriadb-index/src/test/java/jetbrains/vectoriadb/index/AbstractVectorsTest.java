@@ -16,64 +16,49 @@
 package jetbrains.vectoriadb.index;
 
 import jetbrains.vectoriadb.index.siftbench.SiftBenchUtils;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.io.IOException;
 
 public class AbstractVectorsTest {
     public static int SIFT_VECTOR_DIMENSIONS = 128;
+    public static int GIST_VECTOR_DIMENSIONS = 960;
 
     public static float[][] loadSift10KVectors() throws IOException {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
-
-        var siftArchive = "siftsmall.tar.gz";
-        SiftBenchUtils.downloadSiftBenchmark(siftArchive, buildDir);
-
-        var siftSmallDir = SiftBenchUtils.extractSiftDataSet(siftArchive, buildDir);
-
-        var siftDir = "siftsmall";
-        var sifSmallFilesDir = siftSmallDir.toPath().resolve(siftDir);
-
-        var siftBaseName = "siftsmall_base.fvecs";
-        var siftSmallBase = sifSmallFilesDir.resolve(siftBaseName);
-
-        System.out.println("Reading data vectors...");
-
-        var vectors = SiftBenchUtils.readFVectors(siftSmallBase, SIFT_VECTOR_DIMENSIONS);
-
-        System.out.printf("%d data vectors loaded with dimension %d%n",
-                vectors.length, SIFT_VECTOR_DIMENSIONS);
-
-        return vectors;
+        return loadVectors("siftsmall", SIFT_VECTOR_DIMENSIONS);
     }
 
     @SuppressWarnings("unused")
     public static float[][] loadSift1MVectors() throws IOException {
+        return loadVectors("sift", SIFT_VECTOR_DIMENSIONS);
+    }
+
+    public static float[][] loadGist1MVectors() throws IOException {
+        return loadVectors("gist", GIST_VECTOR_DIMENSIONS);
+    }
+
+    private static float[][] loadVectors(@NotNull String name, int vectorDimensions) throws IOException {
         var buildDir = System.getProperty("exodus.tests.buildDirectory");
         if (buildDir == null) {
             Assert.fail("exodus.tests.buildDirectory is not set !!!");
         }
 
-        var siftArchive = "sift.tar.gz";
-        SiftBenchUtils.downloadSiftBenchmark(siftArchive, buildDir);
+        var archive = name + ".tar.gz";
+        SiftBenchUtils.downloadSiftBenchmark(archive, buildDir);
 
-        var siftSmallDir = SiftBenchUtils.extractSiftDataSet(siftArchive, buildDir);
+        var dir = SiftBenchUtils.extractSiftDataSet(archive, buildDir);
 
-        var siftDir = "sift";
-        var sifSmallFilesDir = siftSmallDir.toPath().resolve(siftDir);
+        var filesDir = dir.toPath().resolve(name);
 
-        var siftBaseName = "sift_base.fvecs";
-        var siftSmallBase = sifSmallFilesDir.resolve(siftBaseName);
+        var baseName = name + "_base.fvecs";
+        var basePath = filesDir.resolve(baseName);
 
         System.out.println("Reading data vectors...");
 
-        var vectors = SiftBenchUtils.readFVectors(siftSmallBase, SIFT_VECTOR_DIMENSIONS);
+        var vectors = SiftBenchUtils.readFVectors(basePath, vectorDimensions);
 
-        System.out.printf("%d data vectors loaded with dimension %d%n",
-                vectors.length, SIFT_VECTOR_DIMENSIONS);
+        System.out.printf("%d data vectors loaded with dimension %d%n", vectors.length, vectorDimensions);
 
         return vectors;
     }
