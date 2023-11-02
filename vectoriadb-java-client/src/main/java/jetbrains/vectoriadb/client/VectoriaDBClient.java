@@ -94,7 +94,7 @@ public final class VectoriaDBClient {
         return response.getIndexNamesList();
     }
 
-    IndexState indexState(String indexName) {
+    public IndexState indexState(String indexName) {
         var builder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
         builder.setIndexName(indexName);
 
@@ -115,6 +115,14 @@ public final class VectoriaDBClient {
     }
 
     public void uploadVectors(final String indexName, final Iterator<float[]> vectors) {
+        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsList);
+    }
+
+    public void uploadVectors(final String indexName, final float[][] vectors) {
+        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsArray);
+    }
+
+    private <T> void uploadVectors(String indexName, T vectors, VectorsUploader<T> vectorsUploader) {
         var error = new Throwable[1];
         var finishedLatch = new CountDownLatch(1);
         var responseObserver = new StreamObserver<Empty>() {
@@ -138,22 +146,7 @@ public final class VectoriaDBClient {
 
         var requestObserver = indexManagerAsyncStub.uploadData(responseObserver);
         try {
-            while (vectors.hasNext()) {
-                var vector = vectors.next();
-                var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
-                builder.setIndexName(indexName);
-
-                for (var value : vector) {
-                    builder.addVectorComponents(value);
-                }
-
-                var request = builder.build();
-                requestObserver.onNext(request);
-
-                if (finishedLatch.getCount() == 0) {
-                    break;
-                }
-            }
+            vectorsUploader.uploadVectors(indexName, vectors, requestObserver, finishedLatch);
         } catch (RuntimeException e) {
             requestObserver.onError(e);
             throw e;
@@ -173,6 +166,47 @@ public final class VectoriaDBClient {
         }
     }
 
+    private static void uploadVectorsList(String indexName, Iterator<float[]> vectors,
+                                          StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
+                                          CountDownLatch finishedLatch) {
+        while (vectors.hasNext()) {
+            var vector = vectors.next();
+            var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
+            builder.setIndexName(indexName);
+
+            for (var value : vector) {
+                builder.addVectorComponents(value);
+            }
+
+            var request = builder.build();
+            requestObserver.onNext(request);
+
+            if (finishedLatch.getCount() == 0) {
+                break;
+            }
+        }
+    }
+
+    private static void uploadVectorsArray(String indexName, float[][] vectors,
+                                           StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
+                                           CountDownLatch finishedLatch) {
+        for (var vector : vectors) {
+            var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
+            builder.setIndexName(indexName);
+
+            for (var value : vector) {
+                builder.addVectorComponents(value);
+            }
+
+            var request = builder.build();
+            requestObserver.onNext(request);
+
+            if (finishedLatch.getCount() == 0) {
+                break;
+            }
+        }
+    }
+
     public void switchToSearchMode() {
         var builder = Empty.newBuilder();
         var request = builder.build();
@@ -187,10 +221,14 @@ public final class VectoriaDBClient {
         indexManagerBlockingStub.switchToBuildMode(request);
     }
 
-    public int[] findNearestNeighbours(final String indexName, int k) {
+    public int[] findNearestNeighbours(final String indexName, final float[] vector, int k) {
         var builder = IndexManagerOuterClass.FindNearestNeighboursRequest.newBuilder();
         builder.setIndexName(indexName);
         builder.setK(k);
+
+        for (var vectorComponent : vector) {
+            builder.addVectorComponents(vectorComponent);
+        }
 
         var request = builder.build();
         var response = indexManagerBlockingStub.findNearestNeighbours(request);
@@ -225,5 +263,51 @@ public final class VectoriaDBClient {
                 }
             }
         }
+    }
+
+    public void buildStatusAsync(IndexBuildStatusListener buildStatusListener) {
+        var builder = Empty.newBuilder();
+        var request = builder.build();
+
+        try (var cancellation = Context.current().withCancellation()) {
+            indexManagerAsyncStub.buildStatus(request, new StreamObserver<>() {
+                @Override
+                public void onNext(IndexManagerOuterClass.BuildStatusResponse value) {
+                    var indexName = value.getIndexName();
+
+                    var phasesResponse = value.getPhasesList();
+                    var phases = new ArrayList<IndexBuildStatusListener.Phase>(phasesResponse.size());
+
+                    for (var phase : phasesResponse) {
+                        var phaseName = phase.getName();
+                        var progress = phase.getCompletionPercentage();
+                        var parameters = phase.getParametersList().toArray(new String[0]);
+
+                        phases.add(new IndexBuildStatusListener.Phase(phaseName, progress, parameters));
+                    }
+
+                    if (!buildStatusListener.onIndexBuildStatusUpdate(indexName, phases)) {
+                        cancellation.cancel(new InterruptedException("Cancelled by build status listener"));
+                    }
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    logger.error("Error while getting build status", t);
+                    cancellation.cancel(t);
+                }
+
+                @Override
+                public void onCompleted() {
+                    //ignore
+                }
+            });
+        }
+    }
+
+    private interface VectorsUploader<T> {
+        void uploadVectors(String indexName, T vectors,
+                           StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
+                           CountDownLatch finishedLatch);
     }
 }
