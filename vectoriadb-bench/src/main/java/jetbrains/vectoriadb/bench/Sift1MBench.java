@@ -125,23 +125,23 @@ public class Sift1MBench {
             }
 
             System.out.println("Benchmark ...");
-            for (int i = 0; i < 10; i++) {
-                ts1 = System.nanoTime();
-                var errorsCount = 0;
-                for (var index = 0; index < queryVectors.length; index++) {
-                    var vector = queryVectors[index];
 
-                    var result = client.findNearestNeighbours(indexName, vector, 1);
-                    if (groundTruth[index][0] != result[0]) {
-                        errorsCount++;
-                    }
+            ts1 = System.nanoTime();
+            var errorsCount = 0;
+            for (var index = 0; index < queryVectors.length; index++) {
+                var vector = queryVectors[index];
+
+                var result = client.findNearestNeighbours(indexName, vector, 1);
+                if (groundTruth[index][0] != result[0]) {
+                    errorsCount++;
                 }
-                ts2 = System.nanoTime();
-                var errorPercentage = errorsCount * 100.0 / queryVectors.length;
-
-                System.out.printf("Avg. query time : %d us, errors: %f%% %n",
-                        (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage);
             }
+            ts2 = System.nanoTime();
+            var errorPercentage = errorsCount * 100.0 / queryVectors.length;
+
+            System.out.printf("Avg. query time : %d us, errors: %f%% %n",
+                    (ts2 - ts1) / 1000 / queryVectors.length, errorPercentage);
+
         } catch (Exception e) {
             //noinspection CallToPrintStackTrace
             e.printStackTrace();
