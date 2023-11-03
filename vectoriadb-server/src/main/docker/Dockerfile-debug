@@ -1,17 +1,22 @@
 FROM eclipse-temurin:21-alpine
 
-#ARG USER_ID
-#ARG GROUP_ID
-#
-#RUN addgroup -g ${GROUP_ID} -S vectoriadb; \
-#adduser -u ${USER_ID} -S vectoriadb -G vectoriadb; \
-#mkdir /vectoriadb; \
-#chown -R vectoriadb:vectoriadb /vectoriadb
+ARG USER_ID
+ARG GROUP_ID
+
+RUN addgroup -g ${GROUP_ID} -S vectoriadb; \
+adduser -u ${USER_ID} -S vectoriadb -G vectoriadb; \
+mkdir /vectoriadb; \
+chown -R vectoriadb:vectoriadb /vectoriadb
 
 EXPOSE 9090
 EXPOSE 5005
 
-#USER vectoriadb
+USER vectoriadb
+
+RUN mkdir /vectoriadb/logs; \
+mkdir /vectoriadb/config; \
+mkdir /vectoriadb/indexes; \
+mkdir /vectoriadb/bin
 
 COPY build/libs/*.jar /vectoriadb/bin/
 VOLUME ["/vectoriadb/logs", "/vectoriadb/config", "/vectoriadb/indexes"]

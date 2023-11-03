@@ -75,16 +75,12 @@ tasks {
         dockerFile = project.file("src/main/docker/Dockerfile-debug")
         inputDir = project.projectDir
 
-//        val userId = fetchCurrentUserId()
-//        val groupId = fetchCurrentUserGroupId()
-//
-//        if (userId >= 0) {
-//            logger.info("Container will be built as $userId:$groupId")
-//            buildArgs.set(mapOf("USER_ID" to userId.toString(),
-//                    "GROUP_ID" to groupId.toString()))
-//        } else {
-//            logger.info("Container will be built as root")
-//        }
+        val userId = fetchCurrentUserId()
+        val groupId = fetchCurrentUserGroupId()
+
+        logger.info("Image will be built with $userId:$groupId")
+        buildArgs.set(mapOf("USER_ID" to userId.toString(),
+                "GROUP_ID" to groupId.toString()))
 
         images.add("vectoriadb/vectoriadb-server-debug:latest")
     }
@@ -109,13 +105,11 @@ tasks {
         targetImageId(buildDockerImageDebug.get().imageId)
 
         containerName = "vectoriadb-server-debug"
-//        val userId = fetchCurrentUserId()
-//        val userGroup = fetchCurrentUserGroupId()
-//
-//        if (userId >= 0) {
-//            logger.info("Container will be run as $userId:$userGroup")
-//            user = "$userId:$userGroup"
-//        }
+        val userId = fetchCurrentUserId()
+        val userGroup = fetchCurrentUserGroupId()
+
+        logger.info("Container will be run as $userId:$userGroup")
+        user = "$userId:$userGroup"
 
         val containerDirectory = project.layout.buildDirectory.asFile.get()
         val imageDir = File(containerDirectory, "vectoriadb-server")
