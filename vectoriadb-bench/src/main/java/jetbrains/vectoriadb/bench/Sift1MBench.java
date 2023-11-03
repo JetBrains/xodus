@@ -69,12 +69,12 @@ public class Sift1MBench {
             var ts1 = System.currentTimeMillis();
             client.createIndex(indexName, Distance.L2);
             var ts2 = System.currentTimeMillis();
-            System.out.printf("Index %s created in %d ms%n", indexName, ts2 - ts1);
+            System.out.printf("Index %s created in %d ms, uploading vectors %n", indexName, ts2 - ts1);
 
             ts1 = System.currentTimeMillis();
             client.uploadVectors(indexName, vectors);
             ts2 = System.currentTimeMillis();
-            System.out.printf("%d vectors uploaded in %d ms%n", vectors.length, ts2 - ts1);
+            System.out.printf("%d vectors uploaded in %d ms, building index %n", vectors.length, ts2 - ts1);
 
             ts1 = System.currentTimeMillis();
             client.buildIndex(indexName);
@@ -100,6 +100,7 @@ public class Sift1MBench {
 
             ts2 = System.currentTimeMillis();
             System.out.printf("Index %s built in %d ms%n", indexName, ts2 - ts1);
+            client.switchToSearchMode();
 
             var queryFileName = "sift_query.fvecs";
 
@@ -124,7 +125,7 @@ public class Sift1MBench {
             }
 
             System.out.println("Benchmark ...");
-            for (int i = 0; i < 50; i++) {
+            for (int i = 0; i < 10; i++) {
                 ts1 = System.nanoTime();
                 var errorsCount = 0;
                 for (var index = 0; index < queryVectors.length; index++) {

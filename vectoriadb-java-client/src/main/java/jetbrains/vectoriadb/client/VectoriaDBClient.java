@@ -18,6 +18,8 @@ package jetbrains.vectoriadb.client;
 import com.google.protobuf.Empty;
 import io.grpc.Context;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.ClientCallStreamObserver;
+import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
 import jetbrains.vectoriadb.service.base.IndexManagerGrpc;
 import jetbrains.vectoriadb.service.base.IndexManagerOuterClass;
@@ -28,6 +30,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 public final class VectoriaDBClient {
@@ -40,7 +45,8 @@ public final class VectoriaDBClient {
     }
 
     public VectoriaDBClient(String host, int port) {
-        var channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+        var channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().
+                maxInboundMessageSize(10 * 1024 * 1024).build();
         this.indexManagerBlockingStub = IndexManagerGrpc.newBlockingStub(channel);
         this.indexManagerAsyncStub = IndexManagerGrpc.newStub(channel);
     }
@@ -125,7 +131,13 @@ public final class VectoriaDBClient {
     private <T> void uploadVectors(String indexName, T vectors, VectorsUploader<T> vectorsUploader) {
         var error = new Throwable[1];
         var finishedLatch = new CountDownLatch(1);
-        var responseObserver = new StreamObserver<Empty>() {
+        var onReadyHandler = new OnReadyHandler<IndexManagerOuterClass.UploadDataRequest>();
+        var responseObserver = new ClientResponseObserver<IndexManagerOuterClass.UploadDataRequest, Empty>() {
+            @Override
+            public void beforeStart(ClientCallStreamObserver<IndexManagerOuterClass.UploadDataRequest> requestStream) {
+                onReadyHandler.init(requestStream);
+            }
+
             @Override
             public void onNext(Empty value) {
                 //ignore
@@ -146,13 +158,13 @@ public final class VectoriaDBClient {
 
         var requestObserver = indexManagerAsyncStub.uploadData(responseObserver);
         try {
-            vectorsUploader.uploadVectors(indexName, vectors, requestObserver, finishedLatch);
+            vectorsUploader.uploadVectors(indexName, vectors, requestObserver, finishedLatch, onReadyHandler);
         } catch (RuntimeException e) {
             requestObserver.onError(e);
             throw e;
         }
 
-        responseObserver.onCompleted();
+        requestObserver.onCompleted();
         try {
             finishedLatch.await();
         } catch (InterruptedException e) {
@@ -168,18 +180,21 @@ public final class VectoriaDBClient {
 
     private static void uploadVectorsList(String indexName, Iterator<float[]> vectors,
                                           StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
-                                          CountDownLatch finishedLatch) {
+                                          CountDownLatch finishedLatch,
+                                          OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler) {
         while (vectors.hasNext()) {
-            var vector = vectors.next();
-            var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
-            builder.setIndexName(indexName);
+            onReadyHandler.callWhenReady(() -> {
+                var vector = vectors.next();
+                var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
+                builder.setIndexName(indexName);
 
-            for (var value : vector) {
-                builder.addVectorComponents(value);
-            }
+                for (var value : vector) {
+                    builder.addVectorComponents(value);
+                }
 
-            var request = builder.build();
-            requestObserver.onNext(request);
+                var request = builder.build();
+                requestObserver.onNext(request);
+            });
 
             if (finishedLatch.getCount() == 0) {
                 break;
@@ -189,17 +204,20 @@ public final class VectoriaDBClient {
 
     private static void uploadVectorsArray(String indexName, float[][] vectors,
                                            StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
-                                           CountDownLatch finishedLatch) {
+                                           CountDownLatch finishedLatch,
+                                           OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler) {
         for (var vector : vectors) {
-            var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
-            builder.setIndexName(indexName);
+            onReadyHandler.callWhenReady(() -> {
+                var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
+                builder.setIndexName(indexName);
 
-            for (var value : vector) {
-                builder.addVectorComponents(value);
-            }
+                for (var value : vector) {
+                    builder.addVectorComponents(value);
+                }
 
-            var request = builder.build();
-            requestObserver.onNext(request);
+                var request = builder.build();
+                requestObserver.onNext(request);
+            });
 
             if (finishedLatch.getCount() == 0) {
                 break;
@@ -308,6 +326,52 @@ public final class VectoriaDBClient {
     private interface VectorsUploader<T> {
         void uploadVectors(String indexName, T vectors,
                            StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
-                           CountDownLatch finishedLatch);
+                           CountDownLatch finishedLatch, OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler);
+    }
+
+    private static final class OnReadyHandler<T> implements Runnable {
+        private ClientCallStreamObserver<T> clientCallStreamObserver;
+        private final Lock lock = new ReentrantLock();
+        private final Condition readyCondition = lock.newCondition();
+
+        private boolean isReady;
+
+        private OnReadyHandler() {
+        }
+
+        private void init(ClientCallStreamObserver<T> clientCallStreamObserver) {
+            this.clientCallStreamObserver = clientCallStreamObserver;
+            clientCallStreamObserver.disableAutoRequestWithInitial(1);
+            clientCallStreamObserver.setOnReadyHandler(this);
+        }
+
+        private void callWhenReady(Runnable runnable) {
+            lock.lock();
+            try {
+                isReady = clientCallStreamObserver.isReady();
+                while (!isReady) {
+                    readyCondition.awaitUninterruptibly();
+                }
+
+                runnable.run();
+            } finally {
+                lock.unlock();
+            }
+
+        }
+
+        @Override
+        public void run() {
+            lock.lock();
+            try {
+                isReady = clientCallStreamObserver.isReady();
+                if (isReady) {
+                    readyCondition.signal();
+                }
+            } finally {
+                lock.unlock();
+            }
+
+        }
     }
 }

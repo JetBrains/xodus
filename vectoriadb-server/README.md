@@ -8,7 +8,7 @@ The distribution is done exclusively through a Docker image.
 To initiate the server, execute the following command:
 
 ```bash
-../gradlew clean createDockerContainerDebug
+../gradlew createDockerContainerDebug
 ```
 
 This command will:

@@ -21,6 +21,6 @@ mkdir /vectoriadb/bin
 COPY build/libs/*.jar /vectoriadb/bin/
 VOLUME ["/vectoriadb/logs", "/vectoriadb/config", "/vectoriadb/indexes"]
 WORKDIR /vectoriadb
-ENTRYPOINT ["java", "-Dvectoriadb.server.base-path=/vectoriadb" ,"-cp", "/vectoriadb/bin/*", \
+ENTRYPOINT ["java","-ea", "-Dvectoriadb.server.base-path=/vectoriadb" ,"-cp", "/vectoriadb/bin/*", \
 "--enable-preview", "-Dvectoriadb.log.dir=/vectoriadb/logs", "-Dvectoriadb.server.debug=true", \
 "jetbrains.vectoriadb.server.ApplicationInitializer"]
