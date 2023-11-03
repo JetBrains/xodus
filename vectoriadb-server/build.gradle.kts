@@ -1,6 +1,11 @@
 import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
+import com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer
 import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
 import java.nio.file.Files
+
 
 plugins {
     id("com.bmuschko.docker-remote-api")
@@ -57,7 +62,7 @@ tasks {
         into(project.file("build/libs"))
     }
 
-    val buildDockerImage = register<DockerBuildImage>("buildDockerImage") {
+    register<DockerBuildImage>("buildDockerImage") {
         dependsOn(copyToLibs)
         inputDir = project.projectDir
         dockerFile = project.file("src/main/docker/Dockerfile")
@@ -66,43 +71,51 @@ tasks {
 
     val buildDockerImageDebug = register<DockerBuildImage>("buildDockerImageDebug") {
         dependsOn(copyToLibs)
-        dockerFile = project.file("src/main/docker/Dockerfile-debug")
 
+        dockerFile = project.file("src/main/docker/Dockerfile-debug")
         inputDir = project.projectDir
-        dockerFile = project.file("src/main/docker/Dockerfile")
+
+//        val userId = fetchCurrentUserId()
+//        val groupId = fetchCurrentUserGroupId()
+//
+//        if (userId >= 0) {
+//            logger.info("Container will be built as $userId:$groupId")
+//            buildArgs.set(mapOf("USER_ID" to userId.toString(),
+//                    "GROUP_ID" to groupId.toString()))
+//        } else {
+//            logger.info("Container will be built as root")
+//        }
+
         images.add("vectoriadb/vectoriadb-server-debug:latest")
     }
 
-    register<DockerCreateContainer>("createDockerContainer") {
-        dependsOn(buildDockerImage)
-        targetImageId(buildDockerImage.get().imageId)
 
-        containerName = "vectoriadb-server"
+    val removeDockerContainerDebug = register<DockerRemoveContainer>("removeDockerContainerDebug") {
+        targetContainerId("vectoriadb-server-debug")
 
-        val containerDirectory = project.layout.buildDirectory.asFile.get()
-        val imageDir = File(containerDirectory, "vectoriadb-server")
+        onError {
+            val message = this.message
 
-        val config = File(imageDir, "config")
-        val indexes = File(imageDir, "indexes")
-        val logs = File(imageDir, "logs")
-
-        Files.createDirectories(config.toPath())
-        Files.createDirectories(indexes.toPath())
-        Files.createDirectories(logs.toPath())
-
-        hostConfig.volumesFrom.add(config.canonicalPath + ":/vectoriadb/config")
-        hostConfig.volumesFrom.add(indexes.canonicalPath + ":/vectoriadb/indexes")
-        hostConfig.volumesFrom.add(logs.canonicalPath + ":/vectoriadb/logs")
-
-        hostConfig.portBindings.set(listOf("9090:9090"))
-        hostConfig.autoRemove.set(true)
+            if (message != null && message.contains("No such container")) {
+                return@onError
+            }
+            throw RuntimeException(this)
+        }
     }
 
     register<DockerCreateContainer>("createDockerContainerDebug") {
         dependsOn(buildDockerImageDebug)
+        dependsOn(removeDockerContainerDebug)
         targetImageId(buildDockerImageDebug.get().imageId)
 
         containerName = "vectoriadb-server-debug"
+//        val userId = fetchCurrentUserId()
+//        val userGroup = fetchCurrentUserGroupId()
+//
+//        if (userId >= 0) {
+//            logger.info("Container will be run as $userId:$userGroup")
+//            user = "$userId:$userGroup"
+//        }
 
         val containerDirectory = project.layout.buildDirectory.asFile.get()
         val imageDir = File(containerDirectory, "vectoriadb-server")
@@ -115,12 +128,38 @@ tasks {
         Files.createDirectories(indexes.toPath())
         Files.createDirectories(logs.toPath())
 
-        hostConfig.volumesFrom.add(config.canonicalPath + ":/vectoriadb/config")
-        hostConfig.volumesFrom.add(indexes.canonicalPath + ":/vectoriadb/indexes")
-        hostConfig.volumesFrom.add(logs.canonicalPath + ":/vectoriadb/logs")
+        hostConfig.binds.set(mapOf(config.canonicalPath to "/vectoriadb/config",
+                indexes.canonicalPath to "/vectoriadb/indexes", logs.canonicalPath to "/vectoriadb/logs"))
+        hostConfig.portBindings.set(listOf("9090:9090", "5005:5005"))
+    }
+}
 
-        hostConfig.portBindings.set(listOf("9090:9090"))
-        hostConfig.portBindings.set(listOf("5050:5050"))
-        hostConfig.autoRemove.set(true)
+fun fetchCurrentUserId(): Int {
+    val username = System.getProperty("user.name")
+    try {
+        val processBuilder = ProcessBuilder("id", "-u", username)
+        val process = processBuilder.start()
+        BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
+            val line = reader.readLine()
+            return line?.toInt() ?: -1
+        }
+    } catch (e: IOException) {
+        e.printStackTrace()
+        return -1
+    }
+}
+
+fun fetchCurrentUserGroupId(): Int {
+    val username = System.getProperty("user.name")
+    try {
+        val processBuilder = ProcessBuilder("id", "-g", username)
+        val process = processBuilder.start()
+        BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
+            val line = reader.readLine()
+            return line?.toInt() ?: -1
+        }
+    } catch (e: IOException) {
+        e.printStackTrace()
+        return -1
     }
 }

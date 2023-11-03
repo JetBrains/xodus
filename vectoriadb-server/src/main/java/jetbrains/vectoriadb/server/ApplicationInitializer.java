@@ -107,7 +107,7 @@ public class ApplicationInitializer {
                 logger.info("Default config is copied");
             }
 
-            var debugServerProperty = System.getProperty("vectoriadb.debug.server", "false");
+            var debugServerProperty = System.getProperty("vectoriadb.server.debug", "false");
             if (debugServerProperty.trim().isEmpty()) {
                 debugServerProperty = "false";
             }
@@ -116,6 +116,7 @@ public class ApplicationInitializer {
             var jvmCommandLine = new ArrayList<String>();
             jvmCommandLine.add("java");
             if (debugServer) {
+                logger.info("Port 5005 is opened for remote debugging");
                 jvmCommandLine.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005");
             }
             jvmCommandLine.addAll(jvmParameters);
