@@ -103,6 +103,7 @@ public class Sift1MBench {
                 if (indexState == IndexState.BUILT) {
                     break;
                 }
+                //noinspection BusyWait
                 Thread.sleep(2_000);
             }
 
@@ -131,12 +132,12 @@ public class Sift1MBench {
             for (int i = 0; i < 5; i++) {
                 System.out.printf("Iteration %d out of 5 %n", (i + 1));
 
-                for (int j = 0; j < vectors.length; j++) {
-                    var vector =  vectors[j];
+                for (int j = 0; j < queryVectors.length; j++) {
+                    var vector =  queryVectors[j];
                     client.findNearestNeighbours(indexName, vector, 1);
 
                     if ((j + 1) % 1_000 == 0) {
-                        System.out.printf("%d vectors are processed out of %d%n", j, vectors.length);
+                        System.out.printf("%d vectors are processed out of %d%n", j + 1, vectors.length);
                     }
                 }
             }
