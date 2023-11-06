@@ -137,7 +137,7 @@ public class Sift1MBench {
                     client.findNearestNeighbours(indexName, vector, 1);
 
                     if ((j + 1) % 1_000 == 0) {
-                        System.out.printf("%d vectors are processed out of %d%n", j + 1, vectors.length);
+                        System.out.printf("%d vectors are processed out of %d%n", j + 1, queryVectors.length);
                     }
                 }
             }
