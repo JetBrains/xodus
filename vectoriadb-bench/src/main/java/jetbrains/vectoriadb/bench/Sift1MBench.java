@@ -72,7 +72,19 @@ public class Sift1MBench {
             System.out.printf("Index %s created in %d ms, uploading vectors %n", indexName, ts2 - ts1);
 
             ts1 = System.currentTimeMillis();
-            client.uploadVectors(indexName, vectors);
+
+            client.uploadVectors(indexName, vectors, (current, count) -> {
+                if (current >= 0 && current < Integer.MAX_VALUE) {
+                    if (current % 1_000 == 0) {
+                        System.out.printf("%d vectors uploaded out of %d%n", current, count);
+                    }
+                } else if (current < 0) {
+                    System.out.println("Waiting for confirmation from server side");
+                } else {
+                    System.out.println("Upload completed.");
+                }
+            });
+
             ts2 = System.currentTimeMillis();
             System.out.printf("%d vectors uploaded in %d ms, building index %n", vectors.length, ts2 - ts1);
 

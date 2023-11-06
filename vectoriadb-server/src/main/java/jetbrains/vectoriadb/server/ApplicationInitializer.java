@@ -16,12 +16,14 @@
 package jetbrains.vectoriadb.server;
 
 
+import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -34,18 +36,42 @@ public class ApplicationInitializer {
         var baseDir = System.getProperty(IndexManagerServiceImpl.BASE_PATH_PROPERTY);
 
         if (baseDir == null) {
-            throw new IllegalStateException("Base path is not specified");
+            var msg = "Base path is not specified";
+
+            logger.error(msg);
+            throw new IllegalStateException(msg);
         }
 
         try {
             var basePath = Path.of(baseDir);
+            var logsPath = basePath.resolve(IndexManagerServiceImpl.LOGS_DIR);
+            Files.createDirectories(logsPath);
+
+            var originalOut = System.out;
+            var stdLogFile = logsPath.resolve("vectoriadb-std.log");
+            if (!Files.exists(stdLogFile)) {
+                Files.createFile(stdLogFile);
+            }
+
+            var out = Files.newOutputStream(stdLogFile);
+            var multiplexer = new TeeOutputStream(originalOut, out);
+            System.setOut(new PrintStream(multiplexer, true));
+
+            var originalErr = System.err;
+            var stdErrorFile = logsPath.resolve("vectoriadb-err.log");
+            if (!Files.exists(stdErrorFile)) {
+                Files.createFile(stdErrorFile);
+            }
+            var err = Files.newOutputStream(stdErrorFile);
+            multiplexer = new TeeOutputStream(originalErr, err);
+
+            System.setErr(new PrintStream(multiplexer, true));
+
             var configPath = basePath.resolve(IndexManagerServiceImpl.CONFIG_DIR);
             var indexesPath = basePath.resolve(IndexManagerServiceImpl.INDEXES_DIR);
-            var logsPath = basePath.resolve(IndexManagerServiceImpl.LOGS_DIR);
 
             Files.createDirectories(configPath);
             Files.createDirectories(indexesPath);
-            Files.createDirectories(logsPath);
 
             logger.info("Initialization of vectoriadb server started");
             logger.info("Base path: {}", baseDir);

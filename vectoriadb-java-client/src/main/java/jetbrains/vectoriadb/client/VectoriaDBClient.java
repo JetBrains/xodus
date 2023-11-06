@@ -26,6 +26,7 @@ import jetbrains.vectoriadb.service.base.IndexManagerOuterClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -33,6 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 
 
 public final class VectoriaDBClient {
@@ -47,6 +49,7 @@ public final class VectoriaDBClient {
     public VectoriaDBClient(String host, int port) {
         var channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().
                 maxInboundMessageSize(10 * 1024 * 1024).build();
+
         this.indexManagerBlockingStub = IndexManagerGrpc.newBlockingStub(channel);
         this.indexManagerAsyncStub = IndexManagerGrpc.newStub(channel);
     }
@@ -120,15 +123,26 @@ public final class VectoriaDBClient {
         };
     }
 
+    public void uploadVectors(final String indexName, final Iterator<float[]> vectors,
+                              @Nullable BiConsumer<Integer, Integer> progressIndicator) {
+        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsList, progressIndicator);
+    }
+
     public void uploadVectors(final String indexName, final Iterator<float[]> vectors) {
-        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsList);
+        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsList, null);
+    }
+
+    public void uploadVectors(final String indexName, final float[][] vectors,
+                              @Nullable BiConsumer<Integer, Integer> progressIndicator) {
+        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsArray, progressIndicator);
     }
 
     public void uploadVectors(final String indexName, final float[][] vectors) {
-        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsArray);
+        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsArray, null);
     }
 
-    private <T> void uploadVectors(String indexName, T vectors, VectorsUploader<T> vectorsUploader) {
+    private <T> void uploadVectors(String indexName, T vectors, VectorsUploader<T> vectorsUploader,
+                                   @Nullable BiConsumer<Integer, Integer> progressIndicator) {
         var error = new Throwable[1];
         var finishedLatch = new CountDownLatch(1);
         var onReadyHandler = new OnReadyHandler<IndexManagerOuterClass.UploadDataRequest>();
@@ -158,13 +172,18 @@ public final class VectoriaDBClient {
 
         var requestObserver = indexManagerAsyncStub.uploadData(responseObserver);
         try {
-            vectorsUploader.uploadVectors(indexName, vectors, requestObserver, finishedLatch, onReadyHandler);
+            vectorsUploader.uploadVectors(indexName, vectors, requestObserver, finishedLatch, onReadyHandler,
+                    progressIndicator);
         } catch (RuntimeException e) {
             requestObserver.onError(e);
             throw e;
         }
 
-        requestObserver.onCompleted();
+        if (progressIndicator != null) {
+            progressIndicator.accept(-1, -1);
+            requestObserver.onCompleted();
+            progressIndicator.accept(Integer.MAX_VALUE, Integer.MAX_VALUE);
+        }
         try {
             finishedLatch.await();
         } catch (InterruptedException e) {
@@ -181,7 +200,9 @@ public final class VectoriaDBClient {
     private static void uploadVectorsList(String indexName, Iterator<float[]> vectors,
                                           StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
                                           CountDownLatch finishedLatch,
-                                          OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler) {
+                                          OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler,
+                                          @Nullable BiConsumer<Integer, Integer> progressIndicator) {
+        var counter = new int[1];
         while (vectors.hasNext()) {
             onReadyHandler.callWhenReady(() -> {
                 var vector = vectors.next();
@@ -194,6 +215,10 @@ public final class VectoriaDBClient {
 
                 var request = builder.build();
                 requestObserver.onNext(request);
+                if (progressIndicator != null) {
+                    counter[0]++;
+                    progressIndicator.accept(counter[0], -1);
+                }
             });
 
             if (finishedLatch.getCount() == 0) {
@@ -205,7 +230,9 @@ public final class VectoriaDBClient {
     private static void uploadVectorsArray(String indexName, float[][] vectors,
                                            StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
                                            CountDownLatch finishedLatch,
-                                           OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler) {
+                                           OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler,
+                                           @Nullable BiConsumer<Integer, Integer> progressIndicator) {
+        var counter = new int[1];
         for (var vector : vectors) {
             onReadyHandler.callWhenReady(() -> {
                 var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
@@ -217,6 +244,10 @@ public final class VectoriaDBClient {
 
                 var request = builder.build();
                 requestObserver.onNext(request);
+                if (progressIndicator != null) {
+                    counter[0]++;
+                    progressIndicator.accept(counter[0], vector.length);
+                }
             });
 
             if (finishedLatch.getCount() == 0) {
@@ -326,7 +357,8 @@ public final class VectoriaDBClient {
     private interface VectorsUploader<T> {
         void uploadVectors(String indexName, T vectors,
                            StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
-                           CountDownLatch finishedLatch, OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler);
+                           CountDownLatch finishedLatch, OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler,
+                           @Nullable BiConsumer<Integer, Integer> progressIndicator);
     }
 
     private static final class OnReadyHandler<T> implements Runnable {

@@ -444,6 +444,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     @Override
     public void switchToBuildMode(Empty request, StreamObserver<Empty> responseObserver) {
+        logger.info("Switching to build mode");
+
         var releasePermits = false;
         modeLock.lock();
         try {
@@ -461,12 +463,11 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 return;
             }
 
+            releasePermits = true;
             if (closed) {
                 responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
                 return;
             }
-
-            releasePermits = true;
 
             mode.shutdown();
 
@@ -485,13 +486,16 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             }
             modeLock.unlock();
         }
+
+        logger.info("Switched to build mode");
     }
 
     @Override
     public void switchToSearchMode(Empty request, StreamObserver<Empty> responseObserver) {
+        logger.info("Switching to search mode");
+
         modeLock.lock();
         var releasePermits = false;
-
         try {
             if (mode instanceof SearchMode) {
                 logger.info("Will not switch to search mode, because it is already active");
@@ -508,13 +512,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE.withDescription(msg)));
                 return;
             }
+            releasePermits = true;
 
             if (closed) {
                 responseObserver.onError(new StatusRuntimeException(Status.UNAVAILABLE));
                 return;
             }
 
-            releasePermits = true;
             mode.shutdown();
 
             mode = new SearchMode();
@@ -531,6 +535,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             }
             modeLock.unlock();
         }
+
+        logger.info("Switched to search mode");
     }
 
     @Override
