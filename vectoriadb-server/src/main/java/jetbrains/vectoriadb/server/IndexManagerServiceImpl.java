@@ -651,7 +651,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
             String[] memTotalParts = memTotalLine.split("\\s+");
             return Long.parseLong(memTotalParts[1]) * 1024;
-        } catch (IOException e) {
+        } catch (NumberFormatException | IOException e) {
             logger.error("Failed to read /proc/meminfo", e);
             return Integer.MAX_VALUE;
         }
@@ -1054,7 +1054,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 private DataStore store;
                 private String indexName;
 
-                private Lock streamObserverLock = new ReentrantLock();
+                private final Lock streamObserverLock = new ReentrantLock();
 
                 @Override
                 public void onNext(IndexManagerOuterClass.UploadDataRequest value) {
