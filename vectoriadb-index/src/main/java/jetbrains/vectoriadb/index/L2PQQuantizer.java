@@ -269,7 +269,7 @@ class L2PQQuantizer extends AbstractQuantizer {
                 "vectors count", String.valueOf(numVectors),
                 "cores", String.valueOf(cores));
         try (var memorySession = Arena.ofShared()) {
-            var centroidIndexes = memorySession.allocate(numVectors * Integer.SIZE,
+            var centroidIndexes = memorySession.allocate(numVectors * Integer.BYTES,
                     ValueLayout.JAVA_INT.byteAlignment());
             var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
 

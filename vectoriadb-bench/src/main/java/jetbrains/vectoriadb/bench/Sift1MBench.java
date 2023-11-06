@@ -100,15 +100,13 @@ public class Sift1MBench {
 
             while (true) {
                 var indexState = client.indexState(indexName);
-                if (indexState != IndexState.BUILDING && indexState != IndexState.BUILT &&
-                        indexState != IndexState.IN_BUILD_QUEUE) {
-                    throw new IllegalStateException("Unexpected index state: " + indexState);
-                }
-
                 if (indexState == IndexState.BUILT) {
                     break;
                 }
+                Thread.sleep(2_000);
             }
+
+            stopPrintStatus.set(true);
 
             ts2 = System.currentTimeMillis();
             System.out.printf("Index %s built in %d ms%n", indexName, ts2 - ts1);
@@ -130,9 +128,16 @@ public class Sift1MBench {
             System.out.println("Ground truth is read, searching...");
             System.out.println("Warming up ...");
 
-            for (int i = 0; i < 10; i++) {
-                for (float[] vector : queryVectors) {
+            for (int i = 0; i < 5; i++) {
+                System.out.printf("Iteration %d out of 5 %n", (i + 1));
+
+                for (int j = 0; j < vectors.length; j++) {
+                    var vector =  vectors[j];
                     client.findNearestNeighbours(indexName, vector, 1);
+
+                    if ((j + 1) % 1_000 == 0) {
+                        System.out.printf("%d vectors are processed out of %d%n", j, vectors.length);
+                    }
                 }
             }
 

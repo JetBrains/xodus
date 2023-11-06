@@ -246,7 +246,7 @@ public final class VectoriaDBClient {
                 requestObserver.onNext(request);
                 if (progressIndicator != null) {
                     counter[0]++;
-                    progressIndicator.accept(counter[0], vector.length);
+                    progressIndicator.accept(counter[0], vectors.length);
                 }
             });
 
