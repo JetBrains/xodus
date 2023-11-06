@@ -634,8 +634,12 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
     private static long availableMemoryLinux() {
         var memInfoMemory = fetchMemInfoMemory();
+        logger.info("Available memory according to /proc/meminfo is {} bytes", memInfoMemory);
         var cGroupV1Memory = fetchCGroupV1Memory();
+        logger.info("Available memory according to /sys/fs/cgroup/memory/memory.limit_in_bytes is {} bytes",
+                cGroupV1Memory);
         var cGroupV2Memory = fetchCGroupV2Memory();
+        logger.info("Available memory according to /sys/fs/cgroup/memory.max is {} bytes", cGroupV2Memory);
 
         return Math.min(memInfoMemory, Math.min(cGroupV1Memory, cGroupV2Memory));
     }
@@ -659,8 +663,14 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         try (var bufferedReader = new BufferedReader(new FileReader("/sys/fs/cgroup/memory/memory.limit_in_bytes"))) {
-            String memoryLimitLine = bufferedReader.readLine();
-            return Long.parseLong(memoryLimitLine.split("\\s+")[0]);
+            var memoryLimitLine = bufferedReader.readLine();
+
+            var memoryLimitPeace = memoryLimitLine.split("\\s+")[0];
+            if (memoryLimitPeace.equals("max")) {
+                return Long.MAX_VALUE;
+            }
+
+            return Long.parseLong(memoryLimitPeace);
         } catch (IOException | NumberFormatException e) {
             logger.error("Failed to read /sys/fs/cgroup/memory/memory.limit_in_bytes", e);
             return Integer.MAX_VALUE;
@@ -673,8 +683,14 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         try (var bufferedReader = new BufferedReader(new FileReader("/sys/fs/cgroup/memory.max"))) {
-            String memoryLimitLine = bufferedReader.readLine();
-            return Long.parseLong(memoryLimitLine.split("\\s+")[0]);
+            var memoryLimitLine = bufferedReader.readLine();
+
+            var memoryLimitPeace = memoryLimitLine.split("\\s+")[0];
+            if (memoryLimitPeace.equals("max")) {
+                return Long.MAX_VALUE;
+            }
+
+            return Long.parseLong(memoryLimitPeace);
         } catch (IOException | NumberFormatException e) {
             logger.error("Failed to read /sys/fs/cgroup/memory.max", e);
             return Integer.MAX_VALUE;

@@ -56,7 +56,22 @@ tasks {
         )
     }
 
+    val prepareContainerDirectories = register("prepareContainerDirectories") {
+        val buildDirectory = project.layout.buildDirectory.asFile.get()
+        val containerDir = File(buildDirectory, "vectoriadb-server")
+
+        val config = File(containerDir, "config")
+        val indexes = File(containerDir, "indexes")
+        val logs = File(containerDir, "logs")
+
+        Files.createDirectories(config.toPath())
+        Files.createDirectories(indexes.toPath())
+        Files.createDirectories(logs.toPath())
+    }
+
     val copyToLibs = register<Copy>("copyToLibs") {
+        dependsOn(prepareContainerDirectories)
+
         dependsOn(jar)
         from(project.configurations.getByName("runtimeClasspath"))
         into(project.file("build/libs"))
@@ -68,6 +83,7 @@ tasks {
         dockerFile = project.file("src/main/docker/Dockerfile")
         images.add("vectoriadb/vectoriadb-server:latest")
     }
+
 
     val buildDockerImageDebug = register<DockerBuildImage>("buildDockerImageDebug") {
         dependsOn(copyToLibs)
@@ -99,28 +115,22 @@ tasks {
         }
     }
 
+
     register<DockerCreateContainer>("createDockerContainerDebug") {
+        user = System.getProperty("user.name")
+
         dependsOn(buildDockerImageDebug)
         dependsOn(removeDockerContainerDebug)
         targetImageId(buildDockerImageDebug.get().imageId)
 
         containerName = "vectoriadb-server-debug"
-        val userId = fetchCurrentUserId()
-        val userGroup = fetchCurrentUserGroupId()
 
-        logger.info("Container will be run as $userId:$userGroup")
-        user = "$userId:$userGroup"
+        val buildDirectory = project.layout.buildDirectory.asFile.get()
+        val containerDir = File(buildDirectory, "vectoriadb-server")
 
-        val containerDirectory = project.layout.buildDirectory.asFile.get()
-        val imageDir = File(containerDirectory, "vectoriadb-server")
-
-        val config = File(imageDir, "config")
-        val indexes = File(imageDir, "indexes")
-        val logs = File(imageDir, "logs")
-
-        Files.createDirectories(config.toPath())
-        Files.createDirectories(indexes.toPath())
-        Files.createDirectories(logs.toPath())
+        val config = File(containerDir, "config")
+        val indexes = File(containerDir, "indexes")
+        val logs = File(containerDir, "logs")
 
         hostConfig.binds.set(mapOf(config.canonicalPath to "/vectoriadb/config",
                 indexes.canonicalPath to "/vectoriadb/indexes", logs.canonicalPath to "/vectoriadb/logs"))
