@@ -63,7 +63,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @GrpcService
 public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBase {
-    private static final long EIGHT_TB = 8L * 1024 * 1024 * 1024 * 1024;
+    public static final long EIGHT_TB = 8L * 1024 * 1024 * 1024 * 1024;
 
     public static final String INDEX_DIMENSIONS_PROPERTY = "vectoriadb.index.dimensions";
     public static final String MAX_CONNECTIONS_PER_VERTEX_PROPERTY = "vectoriadb.index.max-connections-per-vertex";
@@ -142,15 +142,10 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         var availableRAM = fetchAvailableRAM();
-        if (availableRAM >= EIGHT_TB) {
-            var msg = "Unable to detect amount of RAM available on server";
-            logger.error(msg);
-            throw new IllegalArgumentException(msg);
-        }
 
         var heapSize = Runtime.getRuntime().maxMemory();
         var leftMemory = availableRAM - heapSize;
-        var osMemory = Math.min(leftMemory / 10, 1024L * 1024 * 1024);
+        var osMemory = Math.min(512 * 1024 * 1024, leftMemory / 100);
 
         long maxMemoryConsumption = leftMemory - osMemory;
         logger.info("Direct memory size : "
@@ -195,7 +190,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         if (environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class, -1L) < 0) {
-            diskCacheMemoryConsumption = maxMemoryConsumption / 2;
+            diskCacheMemoryConsumption = 4 * maxMemoryConsumption / 5;
 
             logger.info("Property " + INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION + " is not set. " +
                     "Using " + diskCacheMemoryConsumption + "bytes/" + bytesToMb(diskCacheMemoryConsumption) +
@@ -246,6 +241,44 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
 
         findIndexesOnDisk();
+    }
+
+    private static long getMemoryProperty(String name) {
+        var memoryProperty = System.getProperty(name);
+        if (memoryProperty == null) {
+            return -1;
+        }
+
+        try {
+            memoryProperty = memoryProperty.toLowerCase(Locale.ROOT);
+
+            if (memoryProperty.endsWith("g")) {
+                return Long.parseLong(memoryProperty.substring(0, memoryProperty.length() - 1)) * 1024 * 1024 * 1024;
+            }
+            if (memoryProperty.endsWith("gb")) {
+                return Long.parseLong(memoryProperty.substring(0, memoryProperty.length() - 2)) * 1024 * 1024 * 1024;
+            }
+            if (memoryProperty.endsWith("m")) {
+                return Long.parseLong(memoryProperty.substring(0, memoryProperty.length() - 1)) * 1024 * 1024;
+            }
+            if (memoryProperty.endsWith("mb")) {
+                return Long.parseLong(memoryProperty.substring(0, memoryProperty.length() - 2)) * 1024 * 1024;
+            }
+            if (memoryProperty.endsWith("k")) {
+                return Long.parseLong(memoryProperty.substring(0, memoryProperty.length() - 1)) * 1024;
+            }
+            if (memoryProperty.endsWith("kb")) {
+                return Long.parseLong(memoryProperty.substring(0, memoryProperty.length() - 2)) * 1024;
+            }
+            if (memoryProperty.endsWith("b")) {
+                return Long.parseLong(memoryProperty.substring(0, memoryProperty.length() - 1));
+            }
+
+            return Long.parseLong(memoryProperty);
+        } catch (Exception e) {
+            logger.error("Error during parsin property " + name, e);
+            return -1;
+        }
     }
 
     private static long bytesToMb(long bytes) {
@@ -583,15 +616,23 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         };
     }
 
-    private static long fetchAvailableRAM() {
+    public static long fetchAvailableRAM() {
+        var result = Long.MAX_VALUE;
         var osName = System.getProperty("os.name").toLowerCase(Locale.US);
+
         if (osName.contains("linux")) {
-            return availableMemoryLinux();
+            result = availableMemoryLinux();
         } else if (osName.contains("windows")) {
-            return availableMemoryWindows();
+            result = availableMemoryWindows();
         }
 
-        return Integer.MAX_VALUE;
+        if (result >= EIGHT_TB) {
+            var msg = "Unable to detect amount of RAM available on server";
+            logger.error(msg);
+            throw new IllegalArgumentException(msg);
+        }
+
+        return result;
     }
 
     private static long availableMemoryWindows() {
@@ -638,14 +679,10 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
     }
 
-    private static long availableMemoryLinux() {
+    public static long availableMemoryLinux() {
         var memInfoMemory = fetchMemInfoMemory();
-        logger.info("Available memory according to /proc/meminfo is {} bytes", memInfoMemory);
         var cGroupV1Memory = fetchCGroupV1Memory();
-        logger.info("Available memory according to /sys/fs/cgroup/memory/memory.limit_in_bytes is {} bytes",
-                cGroupV1Memory);
         var cGroupV2Memory = fetchCGroupV2Memory();
-        logger.info("Available memory according to /sys/fs/cgroup/memory.max is {} bytes", cGroupV2Memory);
 
         return Math.min(memInfoMemory, Math.min(cGroupV1Memory, cGroupV2Memory));
     }

@@ -16,14 +16,12 @@
 package jetbrains.vectoriadb.server;
 
 
-import org.apache.commons.io.output.TeeOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -45,31 +43,10 @@ public class ApplicationInitializer {
         try {
             var basePath = Path.of(baseDir);
             var logsPath = basePath.resolve(IndexManagerServiceImpl.LOGS_DIR);
-            Files.createDirectories(logsPath);
-
-            var originalOut = System.out;
-            var stdLogFile = logsPath.resolve("vectoriadb-std.log");
-            if (!Files.exists(stdLogFile)) {
-                Files.createFile(stdLogFile);
-            }
-
-            var out = Files.newOutputStream(stdLogFile);
-            var multiplexer = new TeeOutputStream(originalOut, out);
-            System.setOut(new PrintStream(multiplexer, true));
-
-            var originalErr = System.err;
-            var stdErrorFile = logsPath.resolve("vectoriadb-err.log");
-            if (!Files.exists(stdErrorFile)) {
-                Files.createFile(stdErrorFile);
-            }
-            var err = Files.newOutputStream(stdErrorFile);
-            multiplexer = new TeeOutputStream(originalErr, err);
-
-            System.setErr(new PrintStream(multiplexer, true));
-
             var configPath = basePath.resolve(IndexManagerServiceImpl.CONFIG_DIR);
             var indexesPath = basePath.resolve(IndexManagerServiceImpl.INDEXES_DIR);
 
+            Files.createDirectories(logsPath);
             Files.createDirectories(configPath);
             Files.createDirectories(indexesPath);
 
@@ -105,15 +82,27 @@ public class ApplicationInitializer {
                 throw new IllegalStateException("Config file is not found");
             }
 
+            var heapSizeSet = false;
+            var directMemorySizeSet = false;
+
             var jvmParameters = new ArrayList<String>();
             try (var reader = new BufferedReader(new InputStreamReader(configStream))) {
                 var line = reader.readLine().trim();
-                while (line != null) {
+                while (line != null && !line.isEmpty()) {
                     if (!line.startsWith("#")) {
+                        if (line.toLowerCase().startsWith("-xms") || line.toLowerCase().startsWith("-xmx")) {
+                            heapSizeSet = true;
+                        }
+                        if (line.toLowerCase().startsWith("-xx:maxdirectmemorysize")) {
+                            directMemorySizeSet = true;
+                        }
                         jvmParameters.add(line);
                     }
 
                     line = reader.readLine();
+                    if (line != null) {
+                        line = line.trim();
+                    }
                 }
             }
 
@@ -133,6 +122,7 @@ public class ApplicationInitializer {
                 logger.info("Default config is copied");
             }
 
+
             var debugServerProperty = System.getProperty("vectoriadb.server.debug", "false");
             if (debugServerProperty.trim().isEmpty()) {
                 debugServerProperty = "false";
@@ -145,6 +135,24 @@ public class ApplicationInitializer {
                 logger.info("Port 5005 is opened for remote debugging");
                 jvmCommandLine.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005");
             }
+            if (!directMemorySizeSet || !heapSizeSet) {
+                var availableRam = IndexManagerServiceImpl.fetchAvailableRAM();
+                logger.info("{} Mb of memory detected on server", availableRam / 1024 / 1024);
+
+                if (!directMemorySizeSet) {
+                    logger.info("Maximum amount of direct memory available for JVM set to {} Mb",
+                            availableRam / 1024 / 1024);
+                    jvmParameters.add("-XX:MaxDirectMemorySize=" + availableRam);
+                }
+                if (!heapSizeSet) {
+                    logger.info("Maximum amount of heap memory size set to {} Mb", availableRam / 10 / 1024 / 1024);
+
+                    jvmParameters.add("-Xmx" + availableRam / 10);
+                    jvmParameters.add("-Xms" + availableRam / 10);
+
+                }
+            }
+
             jvmCommandLine.addAll(jvmParameters);
             jvmCommandLine.add("-D" + IndexManagerServiceImpl.BASE_PATH_PROPERTY + "=" + baseDir);
             jvmCommandLine.add("-cp");

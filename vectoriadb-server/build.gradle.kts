@@ -117,7 +117,10 @@ tasks {
 
 
     register<DockerCreateContainer>("createDockerContainerDebug") {
-        user = System.getProperty("user.name")
+        val userId = fetchCurrentUserId()
+        val groupId = fetchCurrentUserGroupId()
+
+        user = "$userId:$groupId"
 
         dependsOn(buildDockerImageDebug)
         dependsOn(removeDockerContainerDebug)
