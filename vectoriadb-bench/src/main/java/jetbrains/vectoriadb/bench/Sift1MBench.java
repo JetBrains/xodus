@@ -89,7 +89,7 @@ public class Sift1MBench {
             System.out.printf("%d vectors uploaded in %d ms, building index %n", vectors.length, ts2 - ts1);
 
             ts1 = System.currentTimeMillis();
-            client.buildIndex(indexName);
+            client.triggerIndexBuild(indexName);
 
             var stopPrintStatus = new AtomicBoolean();
 

@@ -77,13 +77,13 @@ public final class VectoriaDBClient {
                 response.getCompressionRatio(), response.getDistanceMultiplier());
     }
 
-    public void buildIndex(final String indexName) {
+    public void triggerIndexBuild(final String indexName) {
         var builder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
         builder.setIndexName(indexName);
 
         var request = builder.build();
         //noinspection ResultOfMethodCallIgnored
-        indexManagerBlockingStub.buildIndex(request);
+        indexManagerBlockingStub.triggerIndexBuild(request);
     }
 
     public void dropIndex(final String indexName) {

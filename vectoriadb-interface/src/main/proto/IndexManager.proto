@@ -20,7 +20,7 @@ import "google/protobuf/empty.proto";
 
 service IndexManager {
   rpc CreateIndex(CreateIndexRequest) returns (CreateIndexResponse) {}
-  rpc BuildIndex(IndexNameRequest) returns (google.protobuf.Empty) {}
+  rpc TriggerIndexBuild(IndexNameRequest) returns (google.protobuf.Empty) {}
   rpc DropIndex(IndexNameRequest) returns (google.protobuf.Empty) {}
   rpc ListIndexes(google.protobuf.Empty) returns (IndexListResponse) {}
   rpc RetrieveIndexState(IndexNameRequest) returns (IndexStateResponse) {}

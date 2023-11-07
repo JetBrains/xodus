@@ -133,7 +133,7 @@ public class IndexManagerTest {
             indexNameRequestBuilder.setIndexName(indexName);
 
             var buildIndexRecorder = StreamRecorder.<Empty>create();
-            indexManagerService.buildIndex(indexNameRequestBuilder.build(), buildIndexRecorder);
+            indexManagerService.triggerIndexBuild(indexNameRequestBuilder.build(), buildIndexRecorder);
 
             var completed = buildIndexRecorder.awaitCompletion(1, TimeUnit.MICROSECONDS);
             Assert.assertTrue(completed);
@@ -467,7 +467,7 @@ public class IndexManagerTest {
         indexNameRequestBuilder.setIndexName(indexName);
 
         var buildIndexRecorder = StreamRecorder.<Empty>create();
-        indexManagerService.buildIndex(indexNameRequestBuilder.build(), buildIndexRecorder);
+        indexManagerService.triggerIndexBuild(indexNameRequestBuilder.build(), buildIndexRecorder);
 
         checkCompleteness(buildIndexRecorder);
         while (true) {

@@ -359,7 +359,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
 
     @Override
-    public void buildIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
+    public void triggerIndexBuild(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
             if (closed) {
