@@ -99,7 +99,7 @@ public class Sift1MBench {
             });
 
             while (true) {
-                var indexState = client.indexState(indexName);
+                var indexState = client.retrieveIndexState(indexName);
                 if (indexState == IndexState.BUILT) {
                     break;
                 }

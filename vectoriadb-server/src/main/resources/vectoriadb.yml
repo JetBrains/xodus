@@ -10,7 +10,7 @@ vectoriadb:
     #the more this number the more time search takes
     #do not change this number unless you know what you are doing
     max-candidates-returned: 128
-    #compression ratio of the PQ algorithm for the L1 index stored in memory
+    #compression ratio of the PQ algorithm for the meta index stored in memory
     #the less this number the more memory is consumed
     #the more this number the less accurate the search
     compression-ratio: 32
@@ -29,7 +29,7 @@ vectoriadb:
       #parameters that are applied for search phase of the index
     search:
       #maximum amount of memory used to cache disk IO operations during search
-      #by default half of the memory kept after allocation of JVM heap is used for caching
+      #by default 80% of the memory kept after allocation of JVM heap is used for caching
       disk-cache-memory-consumption: -1
     server:
       #defualt mode is set during server startup

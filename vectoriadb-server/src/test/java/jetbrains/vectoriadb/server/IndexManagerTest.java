@@ -403,10 +403,10 @@ public class IndexManagerTest {
     private static void uploadVectors(String indexName, float[][] vectors,
                                       IndexManagerServiceImpl indexManagerService) throws Exception {
         var vectorsUploadRecorder = StreamRecorder.<Empty>create();
-        var request = indexManagerService.uploadData(vectorsUploadRecorder);
+        var request = indexManagerService.uploadVectors(vectorsUploadRecorder);
         try {
             for (var vector : vectors) {
-                var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
+                var builder = IndexManagerOuterClass.UploadVectorsRequest.newBuilder();
                 builder.setIndexName(indexName);
 
                 for (var component : vector) {
@@ -455,7 +455,7 @@ public class IndexManagerTest {
 
     private static List<String> listIndexes(IndexManagerServiceImpl indexManagerService) throws Exception {
         var listIndexesRecorder = StreamRecorder.<IndexManagerOuterClass.IndexListResponse>create();
-        indexManagerService.indexList(Empty.newBuilder().build(), listIndexesRecorder);
+        indexManagerService.listIndexes(Empty.newBuilder().build(), listIndexesRecorder);
 
         checkCompleteness(listIndexesRecorder);
         return listIndexesRecorder.getValues().get(0).getIndexNamesList();
@@ -475,13 +475,14 @@ public class IndexManagerTest {
             indexStateRequestBuilder.setIndexName(indexName);
 
             var indexStateRecorder = StreamRecorder.<IndexManagerOuterClass.IndexStateResponse>create();
-            indexManagerService.indexState(indexStateRequestBuilder.build(), indexStateRecorder);
+            indexManagerService.retrieveIndexState(indexStateRequestBuilder.build(), indexStateRecorder);
 
             checkCompleteness(indexStateRecorder);
 
             var response = indexStateRecorder.getValues().get(0);
             var indexState = response.getState();
-            if (indexState == IndexManagerOuterClass.IndexState.BUILDING || indexState == IndexManagerOuterClass.IndexState.IN_BUILD_QUEUE) {
+            if (indexState == IndexManagerOuterClass.IndexState.BUILDING ||
+                    indexState == IndexManagerOuterClass.IndexState.IN_BUILD_QUEUE) {
                 //noinspection BusyWait
                 Thread.sleep(100);
             } else if (indexState == IndexManagerOuterClass.IndexState.BUILT) {

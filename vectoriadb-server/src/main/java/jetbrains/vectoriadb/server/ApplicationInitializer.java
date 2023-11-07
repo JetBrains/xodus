@@ -50,25 +50,27 @@ public class ApplicationInitializer {
             Files.createDirectories(configPath);
             Files.createDirectories(indexesPath);
 
-            logger.info("Initialization of vectoriadb server started");
+            logger.info("Initialization of VectoriaDB server started");
             logger.info("Base path: {}", baseDir);
             logger.info("Config path: {}", configPath);
             logger.info("Indexes path: {}", indexesPath);
             logger.info("Logs path: {}", logsPath);
 
             var copyConfig = false;
+
             InputStream configStream;
             if (Files.exists(configPath.resolve(CONFIG_NAME))) {
                 configStream = Files.newInputStream(configPath.resolve(CONFIG_NAME));
             } else {
                 configStream = ApplicationInitializer.class.getResourceAsStream("/" + CONFIG_NAME);
-                logger.error("Config file is not found in the base path, using default config");
+                logger.info("JVM config file {} does not exist. Will create one with default values",
+                        configPath.resolve(CONFIG_NAME));
                 copyConfig = true;
             }
 
             var configYaml = configPath.resolve(IndexManagerServiceImpl.CONFIG_YAML);
             if (!Files.exists(configYaml)) {
-                logger.info("Config file {} does not exist. Will create it with default values", configYaml);
+                logger.info("Server config file {} does not exist. Will create one with default values", configYaml);
                 var defaultConfigStream = IndexManagerServiceImpl.class.getResourceAsStream("/" +
                         IndexManagerServiceImpl.CONFIG_YAML);
 
@@ -79,7 +81,7 @@ public class ApplicationInitializer {
             }
 
             if (configStream == null) {
-                throw new IllegalStateException("Config file is not found");
+                throw new IllegalStateException("JVM config file was not found");
             }
 
             var heapSizeSet = false;
@@ -109,17 +111,17 @@ public class ApplicationInitializer {
             logger.info("JVM parameters: {}", String.join(" ", jvmParameters));
 
             if (copyConfig) {
-                logger.info("Copying default config into the config directory : {}", configPath);
+                logger.info("Copying default JVM config file into the config directory : {}", configPath);
 
                 try (var copyStream = ApplicationInitializer.class.getResourceAsStream("/" + CONFIG_NAME)) {
                     if (copyStream == null) {
-                        throw new IllegalStateException("Config file is not found");
+                        throw new IllegalStateException("JVM config file is not found");
                     }
 
                     Files.copy(copyStream, configPath.resolve(CONFIG_NAME));
                 }
 
-                logger.info("Default config is copied");
+                logger.info("Default JVM config file is copied");
             }
 
 
@@ -160,20 +162,20 @@ public class ApplicationInitializer {
             jvmCommandLine.add(VectoriaDBServer.class.getName());
             jvmCommandLine.add("--spring.config.location=file:" + configYaml.toAbsolutePath());
 
-            logger.info("Starting vectoriadb server with the following command line: {}",
+            logger.info("Starting VectoriaDB server with the following command line: {}",
                     String.join(" ", jvmCommandLine));
             var processBuilder = new ProcessBuilder(jvmCommandLine);
             processBuilder.inheritIO();
             var process = processBuilder.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                logger.info("Stopping vectoriadb server");
+                logger.info("Stopping VectoriaDB server");
                 process.destroy();
             }, "VectoriaDB server shutdown hook"));
 
             process.waitFor();
             logger.info("VectoriaDB server is stopped");
         } catch (Throwable e) {
-            logger.error("Initialization of vectoriadb server failed", e);
+            logger.error("Initialization of VectoriaDB server failed", e);
             throw new RuntimeException(e);
         }
     }

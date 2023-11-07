@@ -99,16 +99,16 @@ public final class VectoriaDBClient {
         var builder = Empty.newBuilder();
         var request = builder.build();
 
-        var response = indexManagerBlockingStub.indexList(request);
+        var response = indexManagerBlockingStub.listIndexes(request);
         return response.getIndexNamesList();
     }
 
-    public IndexState indexState(String indexName) {
+    public IndexState retrieveIndexState(String indexName) {
         var builder = IndexManagerOuterClass.IndexNameRequest.newBuilder();
         builder.setIndexName(indexName);
 
         var request = builder.build();
-        var response = indexManagerBlockingStub.indexState(request);
+        var response = indexManagerBlockingStub.retrieveIndexState(request);
 
         return switch (response.getState()) {
             case CREATING -> IndexState.CREATING;
@@ -145,10 +145,10 @@ public final class VectoriaDBClient {
                                    @Nullable BiConsumer<Integer, Integer> progressIndicator) {
         var error = new Throwable[1];
         var finishedLatch = new CountDownLatch(1);
-        var onReadyHandler = new OnReadyHandler<IndexManagerOuterClass.UploadDataRequest>();
-        var responseObserver = new ClientResponseObserver<IndexManagerOuterClass.UploadDataRequest, Empty>() {
+        var onReadyHandler = new OnReadyHandler<IndexManagerOuterClass.UploadVectorsRequest>();
+        var responseObserver = new ClientResponseObserver<IndexManagerOuterClass.UploadVectorsRequest, Empty>() {
             @Override
-            public void beforeStart(ClientCallStreamObserver<IndexManagerOuterClass.UploadDataRequest> requestStream) {
+            public void beforeStart(ClientCallStreamObserver<IndexManagerOuterClass.UploadVectorsRequest> requestStream) {
                 onReadyHandler.init(requestStream);
             }
 
@@ -170,7 +170,7 @@ public final class VectoriaDBClient {
             }
         };
 
-        var requestObserver = indexManagerAsyncStub.uploadData(responseObserver);
+        var requestObserver = indexManagerAsyncStub.uploadVectors(responseObserver);
         try {
             vectorsUploader.uploadVectors(indexName, vectors, requestObserver, finishedLatch, onReadyHandler,
                     progressIndicator);
@@ -198,15 +198,15 @@ public final class VectoriaDBClient {
     }
 
     private static void uploadVectorsList(String indexName, Iterator<float[]> vectors,
-                                          StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
+                                          StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> requestObserver,
                                           CountDownLatch finishedLatch,
-                                          OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler,
+                                          OnReadyHandler<IndexManagerOuterClass.UploadVectorsRequest> onReadyHandler,
                                           @Nullable BiConsumer<Integer, Integer> progressIndicator) {
         var counter = new int[1];
         while (vectors.hasNext()) {
             onReadyHandler.callWhenReady(() -> {
                 var vector = vectors.next();
-                var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
+                var builder = IndexManagerOuterClass.UploadVectorsRequest.newBuilder();
                 builder.setIndexName(indexName);
 
                 for (var value : vector) {
@@ -228,14 +228,14 @@ public final class VectoriaDBClient {
     }
 
     private static void uploadVectorsArray(String indexName, float[][] vectors,
-                                           StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
+                                           StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> requestObserver,
                                            CountDownLatch finishedLatch,
-                                           OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler,
+                                           OnReadyHandler<IndexManagerOuterClass.UploadVectorsRequest> onReadyHandler,
                                            @Nullable BiConsumer<Integer, Integer> progressIndicator) {
         var counter = new int[1];
         for (var vector : vectors) {
             onReadyHandler.callWhenReady(() -> {
-                var builder = IndexManagerOuterClass.UploadDataRequest.newBuilder();
+                var builder = IndexManagerOuterClass.UploadVectorsRequest.newBuilder();
                 builder.setIndexName(indexName);
 
                 for (var value : vector) {
@@ -356,8 +356,8 @@ public final class VectoriaDBClient {
 
     private interface VectorsUploader<T> {
         void uploadVectors(String indexName, T vectors,
-                           StreamObserver<IndexManagerOuterClass.UploadDataRequest> requestObserver,
-                           CountDownLatch finishedLatch, OnReadyHandler<IndexManagerOuterClass.UploadDataRequest> onReadyHandler,
+                           StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> requestObserver,
+                           CountDownLatch finishedLatch, OnReadyHandler<IndexManagerOuterClass.UploadVectorsRequest> onReadyHandler,
                            @Nullable BiConsumer<Integer, Integer> progressIndicator);
     }
 

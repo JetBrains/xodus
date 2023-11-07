@@ -134,7 +134,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         var configPath = configDirPath.resolve(CONFIG_YAML);
 
         if (!Files.exists(configPath)) {
-            logger.info("Config file {} does not exist. Will create it with default values", configPath);
+            logger.info("Server config file {} does not exist. Using default one.", configPath);
             var defaultConfigStream = IndexManagerServiceImpl.class.getResourceAsStream("/" + CONFIG_YAML);
             assert defaultConfigStream != null;
 
@@ -144,31 +144,24 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         var availableRAM = fetchAvailableRAM();
 
         var heapSize = Runtime.getRuntime().maxMemory();
-        var leftMemory = availableRAM - heapSize;
-        var osMemory = Math.min(512 * 1024 * 1024, leftMemory / 100);
+        var availableDirectMemory = availableRAM - heapSize;
+        var osMemory = Math.min(512 * 1024 * 1024, availableDirectMemory / 100);
 
-        long maxMemoryConsumption = leftMemory - osMemory;
-        logger.info("Direct memory size : "
-                + maxMemoryConsumption + "bytes/"
-                + bytesToMb(maxMemoryConsumption) + "Mb/"
-                + bytesToGb(maxMemoryConsumption) + "Gb, " +
-                "heap size : " + heapSize + "bytes/" + bytesToMb(heapSize) + "Mb/" +
-                bytesToGb(heapSize) + "Gb, available RAM " + availableRAM + "bytes/" + bytesToMb(availableRAM) + "Mb/" +
-                bytesToGb(availableRAM) +
-                "Gb, memory booked for OS needs " + osMemory + "bytes/" + bytesToMb(osMemory) + "Mb/" + bytesToGb(osMemory) +
-                "Gb");
+        long maxMemoryConsumption = availableDirectMemory - osMemory;
+        logger.info("Available direct memory size : "
+                + printMemoryNumbers(maxMemoryConsumption) +
+                ", heap size : " + printMemoryNumbers(heapSize) +
+                ", available RAM : " + printMemoryNumbers(availableRAM) +
+                ", memory booked for OS needs " + printMemoryNumbers(osMemory));
 
         if (environment.getProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY, Long.class,
                 -1L) <= 0) {
             indexBuildingMaxMemoryConsumption = maxMemoryConsumption / 2;
 
             logger.info("Property " + INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY + " is not set. " +
-                    "Using " + indexBuildingMaxMemoryConsumption + "bytes/" + bytesToMb(indexBuildingMaxMemoryConsumption) +
-                    "Mb/" + bytesToGb(indexBuildingMaxMemoryConsumption) +
-                    "Gb for index building. "
-                    + indexBuildingMaxMemoryConsumption + "bytes/" + bytesToMb(indexBuildingMaxMemoryConsumption) +
-                    "Mb/" + bytesToGb(indexBuildingMaxMemoryConsumption) +
-                    " Gb will be used for disk page cache.");
+                    "Using " + printMemoryNumbers(indexBuildingMaxMemoryConsumption) + " for index building. "
+                    + printMemoryNumbers(maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
+                    " will be used for disk page cache.");
         } else {
             var memoryConsumption = environment.getProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY, Long.class);
 
@@ -180,22 +173,17 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             }
 
             indexBuildingMaxMemoryConsumption = memoryConsumption;
-            logger.info("Using " + indexBuildingMaxMemoryConsumption + "bytes/" + bytesToMb(indexBuildingMaxMemoryConsumption) +
-                    "Mb/" + bytesToGb(indexBuildingMaxMemoryConsumption) +
-                    "Gb for index building. " +
-                    (maxMemoryConsumption - indexBuildingMaxMemoryConsumption) + "bytes/" +
-                    bytesToMb(maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
-                    "Mb/" + bytesToGb(maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
-                    "/Gb will be used for disk page cache.");
+            logger.info("Using " + printMemoryNumbers(indexBuildingMaxMemoryConsumption) + " for index building. " +
+                    printMemoryNumbers(maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
+                    " will be used for disk page cache.");
         }
 
         if (environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class, -1L) < 0) {
             diskCacheMemoryConsumption = 4 * maxMemoryConsumption / 5;
 
             logger.info("Property " + INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION + " is not set. " +
-                    "Using " + diskCacheMemoryConsumption + "bytes/" + bytesToMb(diskCacheMemoryConsumption) +
-                    "Mb/" + bytesToGb(diskCacheMemoryConsumption) +
-                    "Gb for disk page cache. " + diskCacheMemoryConsumption +
+                    "Using " + printMemoryNumbers(diskCacheMemoryConsumption) +
+                    " for disk page cache. " + printMemoryNumbers(maxMemoryConsumption - diskCacheMemoryConsumption) +
                     " bytes will be used to keep primary index in memory.");
         } else {
             var memoryConsumption = environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class);
@@ -208,12 +196,10 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             }
 
             diskCacheMemoryConsumption = memoryConsumption;
-            logger.info("Using " + diskCacheMemoryConsumption + "bytes/" + bytesToMb(diskCacheMemoryConsumption) +
-                    "Mb/" + bytesToGb(diskCacheMemoryConsumption) +
-                    "Gb for disk page cache. " +
-                    (maxMemoryConsumption - diskCacheMemoryConsumption) + "bytes/" + bytesToMb(maxMemoryConsumption - diskCacheMemoryConsumption) +
-                    "Mb/" + bytesToGb(maxMemoryConsumption - diskCacheMemoryConsumption) +
-                    "Gb will be used to keep primary index in memory.");
+            logger.info("Using " + printMemoryNumbers(diskCacheMemoryConsumption) +
+                    " for disk page cache. " +
+                    printMemoryNumbers(maxMemoryConsumption - diskCacheMemoryConsumption) +
+                    " will be used to keep primary index in memory.");
         }
 
         var modeName = environment.getProperty(DEFAULT_MODE_PROPERTY, String.class, BUILD_MODE).toLowerCase(Locale.ROOT);
@@ -241,6 +227,10 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
 
         findIndexesOnDisk();
+    }
+
+    private static String printMemoryNumbers(long bytes) {
+        return bytes + "/" + bytesToMb(bytes) + "Mb/" + bytesToGb(bytes) + "Gb";
     }
 
     private static long getMemoryProperty(String name) {
@@ -384,7 +374,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     @Override
-    public StreamObserver<IndexManagerOuterClass.UploadDataRequest> uploadData(
+    public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(
             StreamObserver<Empty> responseObserver) {
 
         operationsSemaphore.acquireUninterruptibly();
@@ -414,8 +404,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     @Override
-    public void indexState(IndexManagerOuterClass.IndexNameRequest request,
-                           StreamObserver<IndexManagerOuterClass.IndexStateResponse> responseObserver) {
+    public void retrieveIndexState(IndexManagerOuterClass.IndexNameRequest request,
+                                   StreamObserver<IndexManagerOuterClass.IndexStateResponse> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
             if (closed) {
@@ -445,7 +435,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
     }
 
     @Override
-    public void indexList(Empty request, StreamObserver<IndexManagerOuterClass.IndexListResponse> responseObserver) {
+    public void listIndexes(Empty request, StreamObserver<IndexManagerOuterClass.IndexListResponse> responseObserver) {
         operationsSemaphore.acquireUninterruptibly();
         try {
             if (closed) {
@@ -834,7 +824,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
         void buildIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver);
 
-        StreamObserver<IndexManagerOuterClass.UploadDataRequest> uploadVectors(
+        StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(
                 StreamObserver<Empty> responseObserver);
 
         void buildStatus(final Empty request,
@@ -869,7 +859,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         @Override
-        public StreamObserver<IndexManagerOuterClass.UploadDataRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
+        public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
             searchOnly(responseObserver);
             return null;
         }
@@ -1092,7 +1082,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         }
 
         @Override
-        public StreamObserver<IndexManagerOuterClass.UploadDataRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
+        public StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> uploadVectors(StreamObserver<Empty> responseObserver) {
             return new StreamObserver<>() {
                 private DataStore store;
                 private String indexName;
@@ -1100,7 +1090,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 private final Lock streamObserverLock = new ReentrantLock();
 
                 @Override
-                public void onNext(IndexManagerOuterClass.UploadDataRequest value) {
+                public void onNext(IndexManagerOuterClass.UploadVectorsRequest value) {
                     streamObserverLock.lock();
                     try {
                         var indexName = value.getIndexName();
