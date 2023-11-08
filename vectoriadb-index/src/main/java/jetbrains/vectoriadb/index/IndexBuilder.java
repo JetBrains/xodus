@@ -422,7 +422,7 @@ public final class IndexBuilder {
                 assert edgesSize <= maxConnectionsPerVertex;
 
                 edgesOffset += Integer.BYTES;
-                diskCache.set(ValueLayout.JAVA_INT, resultEdgesCountOffset, (byte) edgesSize);
+                diskCache.set(ValueLayout.JAVA_INT, resultEdgesCountOffset, (int) edgesSize);
 
                 MemorySegment.copy(partition.edges,
                         edgesOffset,
