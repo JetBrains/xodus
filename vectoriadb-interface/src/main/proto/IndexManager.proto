@@ -18,16 +18,73 @@ syntax = "proto3";
 option java_package = "jetbrains.vectoriadb.service.base";
 import "google/protobuf/empty.proto";
 
+/*
+ * Service for handling (create, drop, build) and searching of neighbours in vector indexes.
+ * Service works in two modes:
+ * 1. Build mode - allows to create, upload vectors and build indexes, but does not allow to search nearest
+ * neighbours.
+ * 2. Search mode - allows to search nearest neighbors but does not allow to create or build new indexes.
+ *
+ * Each index undergoes several states during its lifecycle:
+ * 1. Created
+ * 2. Uploading vectors
+ * 3. In build queue
+ * 4. Building
+ * 5. Built
+ */
 service IndexManager {
+  /*
+   * Creates new index by name.
+   * If index with given name exist, error will be returned.
+   */
   rpc CreateIndex(CreateIndexRequest) returns (CreateIndexResponse) {}
+  /*
+   * Triggers build of index with already uploaded vectors.
+   * Index should be in UPLOADED or CREATED state.
+   * Otherwise error will be thrown.
+   * Command does not wait till index built will be completed it places index into build queue and exists.
+   * To check completeness of build RetrieveIndexStatus command can be called.
+   */
   rpc TriggerIndexBuild(IndexNameRequest) returns (google.protobuf.Empty) {}
+  /*
+   * Removes already existing indexes.
+   * Index can not be removed if vectors currently uploaded in index or if it is being build.
+   */
   rpc DropIndex(IndexNameRequest) returns (google.protobuf.Empty) {}
+  /*
+   * Returns list of indexes inside server.
+   */
   rpc ListIndexes(google.protobuf.Empty) returns (IndexListResponse) {}
+  /*
+   * Returns state of index by its name.
+   */
   rpc RetrieveIndexState(IndexNameRequest) returns (IndexStateResponse) {}
+  /*
+   * Returns current state of index build routine inside server.
+   * All indexes in build queue are built one by one on server.
+   * Each index build is split on several phases, each phase may have sub-phases.
+   * Each phase may use different parameters, and also if that is applicable, progress inside each phase
+   * also reported.
+   */
   rpc BuildStatus(google.protobuf.Empty) returns (stream BuildStatusResponse) {}
+  /*
+   * Uploads vectors that will then be indexed during build phase of index lifecycle.
+   * Once index is build new vectors can not be uploaded.
+   */
   rpc UploadVectors(stream UploadVectorsRequest) returns (google.protobuf.Empty) {}
+  /*
+   * Finds K nearest neighbors of passed in vectors in index.
+   * Index can be found only if server working in search mode.
+   */
   rpc FindNearestNeighbours(FindNearestNeighboursRequest) returns (FindNearestNeighboursResponse) {}
+  /*
+   * Switches server in search mode. This mode allows to find nearest neighbours of passed in vector, but not
+   * allows to build indexes.
+  */
   rpc SwitchToSearchMode(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  /*
+   * Switches server in build mode. This mode allows to build indexes but not allows to search nearest neighbours.
+   */
   rpc SwitchToBuildMode(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
