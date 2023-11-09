@@ -1,5 +1,7 @@
 vectoriadb:
-  #Parameters for each index instance created by user
+  #Parameters for each index instance created by user,
+  #please check https://youtrack.jetbrains.com/articles/JT-A-504/VectoriadDB-architecture to find more
+  #details
   index:
     #dimensions of the vectors expected by the index
     dimensions: 128

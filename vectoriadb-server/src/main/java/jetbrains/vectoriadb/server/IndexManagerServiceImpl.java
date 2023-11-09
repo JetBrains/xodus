@@ -154,8 +154,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 ", available RAM : " + printMemoryNumbers(availableRAM) +
                 ", memory booked for OS needs " + printMemoryNumbers(osMemory));
 
-        if (environment.getProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY, Long.class,
-                -1L) <= 0) {
+        if (getMemoryProperty(environment, INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY) <= 0) {
             indexBuildingMaxMemoryConsumption = maxMemoryConsumption / 2;
 
             logger.info("Property " + INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY + " is not set. " +
@@ -163,22 +162,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                     + printMemoryNumbers(maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
                     " will be used for disk page cache.");
         } else {
-            var memoryConsumption = environment.getProperty(INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY, Long.class);
-
-            if (memoryConsumption == null) {
-                var msg = "Property " + INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY +
-                        " is not a valid long value.";
-                logger.error(msg);
-                throw new IllegalArgumentException(msg);
-            }
-
-            indexBuildingMaxMemoryConsumption = memoryConsumption;
+            indexBuildingMaxMemoryConsumption = getMemoryProperty(environment, INDEX_BUILDING_MAX_MEMORY_CONSUMPTION_PROPERTY);
             logger.info("Using " + printMemoryNumbers(indexBuildingMaxMemoryConsumption) + " for index building. " +
                     printMemoryNumbers(maxMemoryConsumption - indexBuildingMaxMemoryConsumption) +
                     " will be used for disk page cache.");
         }
 
-        if (environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class, -1L) < 0) {
+        if (getMemoryProperty(environment, INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION) < 0) {
             diskCacheMemoryConsumption = 4 * maxMemoryConsumption / 5;
 
             logger.info("Property " + INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION + " is not set. " +
@@ -186,16 +176,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                     " for disk page cache. " + printMemoryNumbers(maxMemoryConsumption - diskCacheMemoryConsumption) +
                     " bytes will be used to keep primary index in memory.");
         } else {
-            var memoryConsumption = environment.getProperty(INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION, Long.class);
-
-            if (memoryConsumption == null) {
-                var msg = "Property " + INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION +
-                        " is not a valid long value.";
-                logger.error(msg);
-                throw new IllegalArgumentException(msg);
-            }
-
-            diskCacheMemoryConsumption = memoryConsumption;
+            diskCacheMemoryConsumption = getMemoryProperty(environment, INDEX_SEARCH_DISK_CACHE_MEMORY_CONSUMPTION);
             logger.info("Using " + printMemoryNumbers(diskCacheMemoryConsumption) +
                     " for disk page cache. " +
                     printMemoryNumbers(maxMemoryConsumption - diskCacheMemoryConsumption) +
@@ -233,8 +214,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         return bytes + "/" + bytesToMb(bytes) + "Mb/" + bytesToGb(bytes) + "Gb";
     }
 
-    private static long getMemoryProperty(String name) {
-        var memoryProperty = System.getProperty(name);
+    private static long getMemoryProperty(Environment environment, String name) {
+        var memoryProperty = environment.getProperty(name);
         if (memoryProperty == null) {
             return -1;
         }
