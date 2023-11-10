@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.util.HashSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -61,6 +62,7 @@ public class KMeansPlusPlusClusterInitializer implements ClusterInitializer {
             for (long vectorIdx = 0; vectorIdx < numVectors; vectorIdx++) {
                 distancesToClosestCentroid.setAtIndex(ValueLayout.JAVA_FLOAT, vectorIdx, Float.MAX_VALUE);
             }
+            var vectorsBecameCentroids = new HashSet<Long>();
 
             var cores = (int) Math.min(Runtime.getRuntime().availableProcessors(), numVectors);
             try (var executors = Executors.newFixedThreadPool(cores, r -> {
@@ -131,6 +133,12 @@ public class KMeansPlusPlusClusterInitializer implements ClusterInitializer {
                             }
                             vectorToBecomeCentroidIdx++;
                         }
+                        // make sure we do not make a single vector centroid twice
+                        while (vectorsBecameCentroids.contains(vectorToBecomeCentroidIdx)) {
+                            vectorToBecomeCentroidIdx++;
+                            vectorToBecomeCentroidIdx = vectorToBecomeCentroidIdx % numVectors;
+                        }
+                        vectorsBecameCentroids.add(vectorToBecomeCentroidIdx);
                         MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE, vectorToBecomeCentroidIdx * quantizersCount, pqCentroids, newCentroidIdx * quantizersCount, quantizersCount);
                     } finally {
                         progressTracker.pullPhase(); // Another centroid initialized
