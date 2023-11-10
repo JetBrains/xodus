@@ -1,12 +1,12 @@
 package jetbrains.vectoriadb.index;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.apache.commons.rng.simple.RandomSource;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.util.HashSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -62,7 +62,8 @@ public class KMeansPlusPlusClusterInitializer implements ClusterInitializer {
             for (long vectorIdx = 0; vectorIdx < numVectors; vectorIdx++) {
                 distancesToClosestCentroid.setAtIndex(ValueLayout.JAVA_FLOAT, vectorIdx, Float.MAX_VALUE);
             }
-            var vectorsBecameCentroids = new HashSet<Long>();
+
+            var vectorsBecameCentroids = new LongOpenHashSet(numClusters);
 
             var cores = (int) Math.min(Runtime.getRuntime().availableProcessors(), numVectors);
             try (var executors = Executors.newFixedThreadPool(cores, r -> {
