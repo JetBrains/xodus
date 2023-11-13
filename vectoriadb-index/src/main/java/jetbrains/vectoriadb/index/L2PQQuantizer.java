@@ -17,6 +17,7 @@ package jetbrains.vectoriadb.index;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.TestOnly;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -49,7 +50,7 @@ class L2PQQuantizer extends AbstractQuantizer {
 
     L2PQQuantizer() {
         this.arena = Arena.openShared();
-        this.clusterInitializer = new KMeansPlusPlusClusterInitializer();
+        this.clusterInitializer = new RandomClusterInitializer();
     }
 
     L2PQQuantizer(@NotNull ClusterInitializer clusterInitializer) {
@@ -57,6 +58,7 @@ class L2PQQuantizer extends AbstractQuantizer {
         this.clusterInitializer = clusterInitializer;
     }
 
+    @TestOnly
     public void setClusterInitializer(@NotNull ClusterInitializer clusterInitializer) {
         this.clusterInitializer = clusterInitializer;
     }
