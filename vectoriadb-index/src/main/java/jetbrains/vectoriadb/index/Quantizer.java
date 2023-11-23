@@ -25,25 +25,32 @@ import java.io.IOException;
 public interface Quantizer extends AutoCloseable {
     int CODE_BASE_SIZE = 256;
 
+    // Initialize, make PQ code for the vectors
+
+    void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker);
+
+
+    // Calculate distances using the lookup table
+
     float[] blankLookupTable();
 
-    float[] decodeVector(byte[] vectors, int vectorIndex);
-
-    IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction,
-                                            @NotNull ProgressTracker progressTracker);
-
-    float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction,
-                                 @NotNull ProgressTracker progressTracker);
-
-    void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader,
-                         @NotNull ProgressTracker progressTracker);
+    void buildLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction);
 
     float computeDistanceUsingLookupTable(float[] lookupTable, int vectorIndex);
 
-    void computeDistance4BatchUsingLookupTable(float[] lookupTable, int vectorIndex1, int vectorIndex2,
-                                               int vectorIndex3, int vectorIndex4, float[] result);
+    void computeDistance4BatchUsingLookupTable(float[] lookupTable, int vectorIndex1, int vectorIndex2, int vectorIndex3, int vectorIndex4, float[] result);
 
-    void buildLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction);
+
+    // PQ k-means clustering
+
+    IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker);
+
+    float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker);
+
+    float[] decodeVector(byte[] vectors, int vectorIndex);
+
+
+    // Other
 
     void load(DataInputStream dataInputStream) throws IOException;
 

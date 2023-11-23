@@ -29,26 +29,36 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 class L2PQQuantizer extends AbstractQuantizer {
     private static final VarHandle ATOMIC_HISTOGRAM_VARHANDLE = MethodHandles.arrayElementVarHandle(int[].class);
+    // how many codebooks we use to encode a vector
     private int quantizersCount;
+    // how many vector features we encode with a single codebook
     private int subVectorSize;
+    // how many values a single codebook should encode
     private int codeBaseSize;
+
     private int vectorsCount;
-    private final Arena arena;
+    // encoded vectors
     private MemorySegment pqVectors;
 
-    //1st dimension quantizer index
-    //2nd index of code inside code book
-    //3d dimension centroid vector
+    private final Arena arena;
+
+    // 1st dimension quantizer/codebook index
+    // 2nd index of code inside code book
+    // 3d dimension centroid vector
     private float[][][] centroids;
 
     L2PQQuantizer() {
         this.arena = Arena.ofShared();
     }
+
+
+    // Initialize, make PQ code for the vectors
 
     @Override
     public void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader,
@@ -183,345 +193,34 @@ class L2PQQuantizer extends AbstractQuantizer {
     }
 
     @Override
-    public float[] decodeVector(byte[] vectors, int vectorIndex) {
-        var result = new float[quantizersCount * subVectorSize];
-
-        var offset = vectorIndex * quantizersCount;
-        for (int i = 0, pqCentroidVectorOffset = 0; i < quantizersCount; i++,
-                pqCentroidVectorOffset += subVectorSize) {
-            var pqCentroidVector = Byte.toUnsignedInt(vectors[i + offset]);
-            System.arraycopy(centroids[i][pqCentroidVector], 0, result,
-                    pqCentroidVectorOffset, subVectorSize);
-        }
-
-        return result;
-    }
-
-    @Override
-    public IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction,
-                                                   @NotNull ProgressTracker progressTracker) {
-        progressTracker.pushPhase("split vectors by partitions",
-                "partitions count", String.valueOf(numClusters));
-        try {
-            var distanceTables = buildDistanceTables(centroids, quantizersCount, subVectorSize, distanceFunction);
-            var pqCentroids = new byte[numClusters * quantizersCount];
-
-            calculateClusters(numClusters, iterations, vectorsCount, pqCentroids, distanceTables, progressTracker);
-
-
-            var vectorsByPartitions = new IntArrayList[numClusters];
-            for (int i = 0; i < numClusters; i++) {
-                vectorsByPartitions[i] = new IntArrayList(vectorsCount / numClusters);
-            }
-
-            for (int i = 0; i < vectorsCount; i++) {
-                var twoClosestClusters = findTwoClosestClusters(i, pqCentroids, distanceTables);
-
-                var firstPartition = (int) (twoClosestClusters >>> 32);
-                var secondPartition = (int) twoClosestClusters;
-
-                vectorsByPartitions[firstPartition].add(i);
-
-                if (firstPartition != secondPartition) {
-                    vectorsByPartitions[secondPartition].add(i);
-                }
-
-                if (progressTracker.isProgressUpdatedRequired()) {
-                    progressTracker.progress(i * 100.0 / vectorsCount);
-                }
-            }
-
-            return vectorsByPartitions;
-        } finally {
-            progressTracker.pullPhase();
-        }
-    }
-
-    @Override
-    public float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction,
-                                        @NotNull ProgressTracker progressTracker) {
-        progressTracker.pushPhase("calculate centroids");
-        try {
-            var numVectors = (int) (pqVectors.byteSize() / quantizersCount);
-            var distanceTables = buildDistanceTables(centroids, quantizersCount, subVectorSize, distanceFunction);
-            var pqCentroids = new byte[clustersCount * quantizersCount];
-
-            calculateClusters(clustersCount, iterations, numVectors, pqCentroids, distanceTables, progressTracker);
-
-            var result = new float[clustersCount][];
-            for (int i = 0; i < clustersCount; i++) {
-                result[i] = decodeVector(pqCentroids, i);
-            }
-
-            return result;
-        } finally {
-            progressTracker.pullPhase();
-        }
-    }
-
-    private void calculateClusters(int numClusters, int iterations, long numVectors,
-                                   byte[] pqCentroids,
-                                   float[] distanceTables, @NotNull ProgressTracker progressTracker) {
-        var cores = (int) Math.min(Runtime.getRuntime().availableProcessors(), numVectors);
-        progressTracker.pushPhase("PQ k-means clustering",
-                "max iterations", String.valueOf(iterations),
-                "clusters count", String.valueOf(numClusters),
-                "vectors count", String.valueOf(numVectors),
-                "cores", String.valueOf(cores));
-        try (var memorySession = Arena.ofShared()) {
-            var centroidIndexes = memorySession.allocate(numVectors * Integer.BYTES,
-                    ValueLayout.JAVA_INT.byteAlignment());
-            var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-
-            for (int i = 0; i < numClusters; i++) {
-                var vecIndex = rng.nextLong(numVectors);
-                MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE,
-                        vecIndex * quantizersCount, pqCentroids,
-                        i * quantizersCount, quantizersCount);
-            }
-
-            var histogram = new float[numClusters * quantizersCount * codeBaseSize];
-            var atomicIntegerHistogram = new int[numClusters * quantizersCount * codeBaseSize];
-
-            var v = new float[codeBaseSize];
-            var mulBuffer = new float[4];
-
-            try (var executors = Executors.newFixedThreadPool(cores, r -> {
-                var thread = new Thread(r);
-                thread.setName("pq-kmeans-cluster-lookup-" + thread.threadId());
-                return thread;
-            })) {
-                var assignmentSize = (numVectors + cores - 1) / cores;
-                var futures = new Future[cores];
-
-                for (int iteration = 0; iteration < iterations; iteration++) {
-                    progressTracker.pushPhase("Iteration " + iteration);
-                    try {
-                        progressTracker.pushPhase("clusters assignment");
-                        try {
-                            var mtProgressTracker = new BoundedMTProgressTrackerFactory(cores,
-                                    progressTracker);
-                            for (int i = 0; i < cores; i++) {
-                                var start = i * assignmentSize;
-                                var end = Math.min(start + assignmentSize, numVectors);
-                                var id = i;
-
-                                futures[i] = executors.submit(() -> {
-                                    try (var localTracker = mtProgressTracker.createThreadLocalTracker(id)) {
-                                        boolean assignedDifferently = false;
-                                        var localSize = end - start;
-
-                                        for (long k = 0; k < localSize; k++) {
-                                            var vectorIndex = start + k;
-
-                                            var prevIndex = centroidIndexes.getAtIndex(ValueLayout.JAVA_INT, vectorIndex);
-                                            var centroidIndex = findClosestCluster(vectorIndex,
-                                                    pqCentroids, distanceTables);
-                                            centroidIndexes.setAtIndex(ValueLayout.JAVA_INT, vectorIndex, centroidIndex);
-                                            assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
-
-                                            localTracker.progress(k * 100.0 / localSize);
-                                        }
-
-                                        return assignedDifferently;
-                                    }
-                                });
-                            }
-
-                            var assignedDifferently = false;
-                            for (var future : futures) {
-                                try {
-                                    //noinspection unchecked
-                                    assignedDifferently = assignedDifferently || ((Future<Boolean>) future).get();
-                                } catch (InterruptedException | ExecutionException e) {
-                                    throw new RuntimeException("Error during cluster assigment phase in PQ kmeans clustering.", e);
-                                }
-                            }
-
-                            if (!assignedDifferently) {
-                                break;
-                            }
-                        } finally {
-                            progressTracker.pullPhase();
-                        }
-
-                        generateHistogram(pqVectors, centroidIndexes, quantizersCount, codeBaseSize,
-                                atomicIntegerHistogram, progressTracker);
-
-                        for (int i = 0; i < histogram.length; i++) {
-                            histogram[i] = (float) atomicIntegerHistogram[i];
-                        }
-
-                        progressTracker.pushPhase("centroids generation");
-                        try {
-                            var assignedDifferently = false;
-
-                            for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++) {
-                                for (int q = 0; q < quantizersCount; q++, histogramOffset += codeBaseSize) {
-                                    var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize,
-                                            codeBaseSize, q, 0, 0);
-                                    MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset,
-                                            codeBaseSize, codeBaseSize, histogram, histogramOffset,
-                                            v, mulBuffer);
-                                    var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
-                                    assert minIndex < codeBaseSize;
-
-                                    var prevIndex = Byte.toUnsignedInt(pqCentroids[centroidIndex]);
-
-                                    pqCentroids[centroidIndex] = (byte) minIndex;
-                                    assignedDifferently = assignedDifferently || prevIndex != minIndex;
-                                    centroidIndex++;
-                                }
-
-                                if (progressTracker.isProgressUpdatedRequired()) {
-                                    progressTracker.progress(k * 100.0 / numClusters);
-                                }
-                            }
-
-                            if (!assignedDifferently) {
-                                break;
-                            }
-                        } finally {
-                            progressTracker.pullPhase();
-                        }
-                    } finally {
-                        progressTracker.pullPhase();
-                    }
-                }
-            }
-        } finally {
-            progressTracker.pullPhase();
-        }
-    }
-
-    static void generateHistogram(final MemorySegment pqVectors,
-                                  final MemorySegment clusters,
-                                  final int quantizersCount,
-                                  final int codeBaseSize,
-                                  final int[] histogram, @NotNull ProgressTracker progressTracker) {
-        Arrays.fill(histogram, 0);
-
-        var numCodes = pqVectors.byteSize();
-        var numVectors = numCodes / quantizersCount;
-
-        var cores = (int) Math.min(Runtime.getRuntime().availableProcessors(), numVectors);
-        progressTracker.pushPhase("PQ k-means histogram generation",
-                "cores", String.valueOf(cores));
-
-        try (var executors = Executors.newFixedThreadPool(cores, r -> {
-            var thread = new Thread(r);
-            thread.setName("pq-kmeans-histogram-generator-" + thread.threadId());
-            return thread;
-        })) {
-            var assignmentSize = (numVectors + cores - 1) / cores;
-            var futures = new Future[cores];
-
-            var mtProgressTracker = new BoundedMTProgressTrackerFactory(cores, progressTracker);
-            for (int i = 0; i < cores; i++) {
-                var start = i * assignmentSize;
-                var end = Math.min(start + assignmentSize, numVectors);
-                var id = i;
-
-                futures[i] = executors.submit(() -> {
-                    try (var localTracker = mtProgressTracker.createThreadLocalTracker(id)) {
-                        var localSize = end - start;
-
-                        for (long k = 0, codeIndex = start * quantizersCount; k < localSize; k++) {
-                            var vectorIndex = start + k;
-                            var clusterIndex = clusters.getAtIndex(ValueLayout.JAVA_INT, vectorIndex);
-
-                            for (int n = 0; n < quantizersCount; n++) {
-                                var code = Byte.toUnsignedInt(pqVectors.get(ValueLayout.JAVA_BYTE, codeIndex));
-                                var histogramIndex = MatrixOperations.threeDMatrixIndex(quantizersCount,
-                                        codeBaseSize, clusterIndex, n, code);
-                                ATOMIC_HISTOGRAM_VARHANDLE.getAndAdd(histogram, histogramIndex, 1);
-                                codeIndex++;
-                            }
-
-                            localTracker.progress(k * 100.0 / localSize);
-                        }
-                    }
-                });
-            }
-
-            for (var future : futures) {
-                try {
-                    future.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException("Error during histogram generation phase in PQ kmeans clustering.", e);
-                }
-            }
-        } finally {
-            progressTracker.pullPhase();
-        }
-    }
-
-
-    private int findClosestCluster(final long vectorIndex, final byte[] centroids,
-                                   final float[] distanceTable) {
-        int minIndex = -1;
-        float minDistance = Float.MAX_VALUE;
-        var vectorsCount = centroids.length / quantizersCount;
-
-        for (int index = 0; index < vectorsCount; index++) {
-            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable,
-                    quantizersCount, codeBaseSize);
-
-            if (distance < minDistance) {
-                minDistance = distance;
-                minIndex = index;
-            }
-        }
-
-        return minIndex;
-    }
-
-    private long findTwoClosestClusters(final long vectorIndex, final byte[] centroids,
-                                        final float[] distanceTable) {
-        int firstMinIndex = 0;
-        float firstMinDistance = Float.MAX_VALUE;
-
-        int secondMindIndex = 0;
-        float secondMinDistance = Float.MAX_VALUE;
-
-        var vectorsCount = centroids.length / quantizersCount;
-
-        for (int index = 0; index < vectorsCount; index++) {
-            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable,
-                    quantizersCount, codeBaseSize);
-
-            if (distance < firstMinDistance) {
-                firstMinDistance = distance;
-                firstMinIndex = index;
-            }
-
-            if (distance < secondMinDistance && distance > firstMinDistance) {
-                secondMinDistance = distance;
-                secondMindIndex = index;
-            }
-        }
-
-        return (((long) firstMinIndex) << 32) | secondMindIndex;
-    }
-
-    @Override
-    MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
+    protected MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
         return arena.allocate((long) vectorsCount * quantizersCount);
     }
 
+
+    // Calculate distances using the lookup table
+
     @Override
     public float[] blankLookupTable() {
+        /*
+         * Every quantizer can get 256 values (one byte).
+         * Every value corresponds to a single vector (256 vectors per a single quantizer).
+         * So we want to have a precalculated distance from a query vector `q` to all the quantizersCount * 256 vectors.
+         * Having these precalculated distances we can easily calculate an approximate distance from
+         * the query vector `q` to any of the encoded vectors `pqVectors` in the database.
+         */
+        // todo why not to use CODE_BASE_SIZE=256 instead of 1 << Byte.SIZE, it may make the code easier to read
         return new float[quantizersCount * (1 << Byte.SIZE)];
     }
 
+    @Override
     public void buildLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction) {
         for (int i = 0; i < quantizersCount; i++) {
             var quantizerCentroids = centroids[i];
 
             for (int j = 0; j < quantizerCentroids.length; j++) {
                 var centroid = quantizerCentroids[j];
-                var distance = distanceFunction.computeDistance(centroid, 0, vector,
-                        i * subVectorSize, centroid.length);
+                var distance = distanceFunction.computeDistance(centroid, 0, vector, i * subVectorSize, centroid.length);
                 lookupTable[i * (1 << Byte.SIZE) + j] = distance;
             }
         }
@@ -577,55 +276,405 @@ class L2PQQuantizer extends AbstractQuantizer {
         result[3] = result4;
     }
 
-    @Override
-    public void store(DataOutputStream dataOutputStream) throws IOException {
-        dataOutputStream.writeInt(quantizersCount);
-        dataOutputStream.writeInt(codeBaseSize);
-        dataOutputStream.writeInt(subVectorSize);
 
-        for (int i = 0; i < quantizersCount; i++) {
-            for (int j = 0; j < codeBaseSize; j++) {
-                for (int k = 0; k < subVectorSize; k++) {
-                    dataOutputStream.writeFloat(centroids[i][j][k]);
+    // PQ k-means clustering
+
+    @Override
+    public IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction,
+                                                   @NotNull ProgressTracker progressTracker) {
+        progressTracker.pushPhase("split vectors by partitions",
+                "partitions count", String.valueOf(numClusters));
+        try {
+            var distanceTables = buildDistanceTables(centroids, quantizersCount, subVectorSize, distanceFunction);
+            var pqCentroids = new byte[numClusters * quantizersCount];
+
+            calculateClusters(numClusters, iterations, vectorsCount, pqCentroids, distanceTables, progressTracker);
+
+            var vectorsByPartitions = new IntArrayList[numClusters];
+            for (int i = 0; i < numClusters; i++) {
+                vectorsByPartitions[i] = new IntArrayList(vectorsCount / numClusters);
+            }
+
+            for (int i = 0; i < vectorsCount; i++) {
+                var twoClosestClusters = findTwoClosestClusters(i, pqCentroids, distanceTables);
+
+                var firstPartition = (int) (twoClosestClusters >>> 32);
+                var secondPartition = (int) twoClosestClusters;
+
+                vectorsByPartitions[firstPartition].add(i);
+
+                if (firstPartition != secondPartition) {
+                    vectorsByPartitions[secondPartition].add(i);
+                }
+
+                if (progressTracker.isProgressUpdatedRequired()) {
+                    progressTracker.progress(i * 100.0 / vectorsCount);
                 }
             }
-        }
 
-        var pqVectorsSize = pqVectors.byteSize();
-        dataOutputStream.writeLong(pqVectorsSize);
-
-        for (long i = 0; i < pqVectorsSize; i++) {
-            dataOutputStream.writeByte(pqVectors.get(ValueLayout.JAVA_BYTE, i));
+            return vectorsByPartitions;
+        } finally {
+            progressTracker.pullPhase();
         }
     }
 
     @Override
-    public void load(DataInputStream dataInputStream) throws IOException {
-        quantizersCount = dataInputStream.readInt();
-        codeBaseSize = dataInputStream.readInt();
-        subVectorSize = dataInputStream.readInt();
+    public float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction,
+                                        @NotNull ProgressTracker progressTracker) {
+        progressTracker.pushPhase("calculate centroids");
+        try {
+            var numVectors = (int) (pqVectors.byteSize() / quantizersCount);
+            var distanceTables = buildDistanceTables(centroids, quantizersCount, subVectorSize, distanceFunction);
+            var pqCentroids = new byte[clustersCount * quantizersCount];
 
-        centroids = new float[quantizersCount][codeBaseSize][subVectorSize];
-        for (int i = 0; i < quantizersCount; i++) {
-            for (int j = 0; j < codeBaseSize; j++) {
-                for (int k = 0; k < subVectorSize; k++) {
-                    centroids[i][j][k] = dataInputStream.readFloat();
+            calculateClusters(clustersCount, iterations, numVectors, pqCentroids, distanceTables, progressTracker);
+
+            var result = new float[clustersCount][];
+            for (int i = 0; i < clustersCount; i++) {
+                result[i] = decodeVector(pqCentroids, i);
+            }
+
+            return result;
+        } finally {
+            progressTracker.pullPhase();
+        }
+    }
+
+    @Override
+    public float[] decodeVector(byte[] vectors, int vectorIndex) {
+        var result = new float[quantizersCount * subVectorSize];
+
+        var offset = vectorIndex * quantizersCount;
+        for (int i = 0, pqCentroidVectorOffset = 0; i < quantizersCount; i++, pqCentroidVectorOffset += subVectorSize) {
+            var pqCentroidVector = Byte.toUnsignedInt(vectors[i + offset]);
+            System.arraycopy(centroids[i][pqCentroidVector], 0, result, pqCentroidVectorOffset, subVectorSize);
+        }
+
+        return result;
+    }
+
+    private void calculateClusters(int numClusters, int iterations, long numVectors, byte[] pqCentroids, float[] distanceTables, @NotNull ProgressTracker progressTracker) {
+        var cores = (int) Math.min(Runtime.getRuntime().availableProcessors(), numVectors);
+        progressTracker.pushPhase("PQ k-means clustering",
+                "max iterations", String.valueOf(iterations),
+                "clusters count", String.valueOf(numClusters),
+                "vectors count", String.valueOf(numVectors),
+                "cores", String.valueOf(cores));
+        try (var memorySession = Arena.ofShared()) {
+            var centroidIndexByVectorIndex = memorySession.allocate(numVectors * Integer.BYTES, ValueLayout.JAVA_INT.byteAlignment());
+            var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+
+            for (int i = 0; i < numClusters; i++) {
+                var vecIndex = rng.nextLong(numVectors);
+                MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE,
+                        vecIndex * quantizersCount, pqCentroids,
+                        i * quantizersCount, quantizersCount);
+            }
+
+            var histogram = new float[numClusters * quantizersCount * codeBaseSize];
+            var atomicIntegerHistogram = new int[numClusters * quantizersCount * codeBaseSize];
+
+            var v = new float[codeBaseSize];
+            var mulBuffer = new float[4];
+
+            try (
+                    // todo why not to use a single pool
+                    // if we need different names for the threads, we can override Runnable.toString() and use it as the thread name
+                    var assignVectorsExecutors = Executors.newFixedThreadPool(cores, r -> {
+                        var thread = new Thread(r);
+                        thread.setName("pq-kmeans-cluster-lookup-" + thread.threadId());
+                        return thread;
+                    });
+                    var generateHistogramExecutors = Executors.newFixedThreadPool(cores, r -> {
+                        var thread = new Thread(r);
+                        thread.setName("pq-kmeans-histogram-generator-" + thread.threadId());
+                        return thread;
+                    })
+            ) {
+                var assignmentSize = (numVectors + cores - 1) / cores;
+                var futures = new Future[cores];
+
+                for (int iteration = 0; iteration < iterations; iteration++) {
+                    progressTracker.pushPhase("Iteration " + iteration);
+                    try {
+                        var assignedDifferently = assignVectorsToClosestClusters(numVectors, assignmentSize, centroidIndexByVectorIndex, pqCentroids, distanceTables, assignVectorsExecutors, futures, progressTracker);
+                        if (!assignedDifferently) {
+                            break;
+                        }
+
+                        generateHistogram(assignmentSize, pqVectors, centroidIndexByVectorIndex, quantizersCount, codeBaseSize, atomicIntegerHistogram, generateHistogramExecutors, futures, progressTracker);
+                        for (int i = 0; i < histogram.length; i++) {
+                            histogram[i] = (float) atomicIntegerHistogram[i];
+                        }
+
+                        assignedDifferently = calculateClusterCentroids(numClusters, pqCentroids, distanceTables, histogram, v, mulBuffer, progressTracker);
+                        if (!assignedDifferently) {
+                            break;
+                        }
+                    } finally {
+                        progressTracker.pullPhase();
+                    }
                 }
+            }
+        } finally {
+            progressTracker.pullPhase();
+        }
+    }
+
+    /**
+     * Assigns vectors to closest clusters.
+     *
+     * @return true if the closest cluster is changed for any vector
+     * */
+    private boolean assignVectorsToClosestClusters(
+            long numVectors,
+            long assignmentSize,
+            // byteSize: numVectors * Integer.BYTES
+            MemorySegment centroidIndexByVectorIndex,
+            // size: numClusters * quantizersCount
+            byte[] pqCentroids,
+            // size: quantizersCount * codeSpaceSize * codeSpaceSize
+            float[] distanceTables,
+            ExecutorService executors,
+            // size: cores
+            @SuppressWarnings("rawtypes")
+            @NotNull Future[] futures,
+            @NotNull ProgressTracker progressTracker
+    ) {
+        progressTracker.pushPhase("clusters assignment");
+        try {
+            var cores = futures.length;
+            var mtProgressTracker = new BoundedMTProgressTrackerFactory(cores, progressTracker);
+            for (int i = 0; i < cores; i++) {
+                var start = i * assignmentSize;
+                var end = Math.min(start + assignmentSize, numVectors);
+                var id = i;
+
+                futures[i] = executors.submit(() -> {
+                    try (var localTracker = mtProgressTracker.createThreadLocalTracker(id)) {
+                        boolean assignedDifferently = false;
+                        var localSize = end - start;
+
+                        for (long k = 0; k < localSize; k++) {
+                            var vectorIndex = start + k;
+
+                            var prevIndex = centroidIndexByVectorIndex.getAtIndex(ValueLayout.JAVA_INT, vectorIndex);
+                            var centroidIndex = findClosestCluster(vectorIndex, pqCentroids, distanceTables);
+                            centroidIndexByVectorIndex.setAtIndex(ValueLayout.JAVA_INT, vectorIndex, centroidIndex);
+                            assignedDifferently = assignedDifferently || prevIndex != centroidIndex;
+
+                            localTracker.progress(k * 100.0 / localSize);
+                        }
+
+                        return assignedDifferently;
+                    }
+                });
+            }
+
+            var assignedDifferently = false;
+            for (var future : futures) {
+                try {
+                    //noinspection unchecked
+                    assignedDifferently = assignedDifferently || ((Future<Boolean>) future).get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException("Error during cluster assigment phase in PQ kmeans clustering.", e);
+                }
+            }
+
+            return assignedDifferently;
+        } finally {
+            progressTracker.pullPhase(); // clusters assignment
+        }
+    }
+
+    /**
+     * <p>The histogram helps to calculate new centroids faster.
+     *
+     * <p>Here we have vector codes and the index of the nearest cluster for every vector.
+     *
+     * <p>By the end of the procedure, we have in histogram[cluster1 * quantizer1 * code1] - the number of
+     * vectors that are assigned to cluster1 and have for quantizer1 value code1.
+     *
+     * <p>See {@link L2PQQuantizer#assignVectorsToClosestClusters} to get an idea of how new centroids are calculated
+     * using the histogram.
+     * */
+    static void generateHistogram(
+            long assignmentSize,
+            // byteSize: vectorsCount * quantizersCount
+            final MemorySegment pqVectors,
+            // byteSize: numVectors * Integer.BYTES
+            final MemorySegment clusterIdxByVectorIdx,
+            final int quantizersCount,
+            final int codeBaseSize,
+            // numClusters * quantizersCount * codeBaseSize
+            final int[] histogram,
+            ExecutorService executors,
+            // size: cores
+            @SuppressWarnings("rawtypes")
+            @NotNull Future[] futures,
+            @NotNull ProgressTracker progressTracker
+    ) {
+        Arrays.fill(histogram, 0);
+
+        var numCodes = pqVectors.byteSize();
+        var numVectors = numCodes / quantizersCount;
+
+        var cores = futures.length;
+        progressTracker.pushPhase("PQ k-means histogram generation", "cores", String.valueOf(cores));
+
+        try {
+            var mtProgressTracker = new BoundedMTProgressTrackerFactory(cores, progressTracker);
+            for (int i = 0; i < cores; i++) {
+                var start = i * assignmentSize;
+                var end = Math.min(start + assignmentSize, numVectors);
+                var id = i;
+
+                futures[i] = executors.submit(() -> {
+                    try (var localTracker = mtProgressTracker.createThreadLocalTracker(id)) {
+                        var localSize = end - start;
+
+                        for (long localVectorIndex = 0, codeIndex = start * quantizersCount; localVectorIndex < localSize; localVectorIndex++) {
+                            var vectorIndex = start + localVectorIndex;
+                            var clusterIndex = clusterIdxByVectorIdx.getAtIndex(ValueLayout.JAVA_INT, vectorIndex);
+
+                            for (int quantizerIndex = 0; quantizerIndex < quantizersCount; quantizerIndex++) {
+                                var code = Byte.toUnsignedInt(pqVectors.get(ValueLayout.JAVA_BYTE, codeIndex));
+                                var histogramIndex = MatrixOperations.threeDMatrixIndex(quantizersCount, codeBaseSize, clusterIndex, quantizerIndex, code);
+                                ATOMIC_HISTOGRAM_VARHANDLE.getAndAdd(histogram, histogramIndex, 1);
+                                codeIndex++;
+                            }
+
+                            localTracker.progress(localVectorIndex * 100.0 / localSize);
+                        }
+                    }
+                });
+            }
+
+            for (var future : futures) {
+                try {
+                    future.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException("Error during histogram generation phase in PQ kmeans clustering.", e);
+                }
+            }
+        } finally {
+            progressTracker.pullPhase();
+        }
+    }
+
+    /**
+     * Calculates new cluster centroids as means of current cluster vectors.
+     *
+     * @return true if any cluster centroid is changed
+     */
+    private boolean calculateClusterCentroids(
+            int numClusters,
+            // size: numClusters * quantizersCount
+            byte[] pqCentroids,
+            // size: quantizersCount * codeSpaceSize * codeSpaceSize
+            float[] distanceTables,
+            // size: numClusters * quantizersCount * codeBaseSize
+            float[] histogram,
+            // size: codeBaseSize
+            float[] v,
+            // size: 4
+            float[] mulBuffer,
+            @NotNull ProgressTracker progressTracker
+    ) {
+        /*
+         * The idea of how to calculate new centroids using distanceTable and histogram is the following:
+         *
+         * 1. Given:
+         *  - quantizer1
+         *  - For quantizer1, distanceTable1[codeSpaceSize * codeSpaceSize].
+         *    distanceTable1[codeI * codeJ] contains the distance between quantizer1.centroid[codeI] and quantizer1.centroid[codeJ].
+         *  - cluster1 and respectful clusterCentroid1
+         *  - For clusterCentroid1[quantizer1], histogram1[codeSpaceSize].
+         *    histogram1[code1] contains the number of vectors in cluster1 that have subVector[quantizer1] = code1.
+         * 2. Find codeX. quantizer1.centroid[codeX] should have the min sum distance to all the subVectors[quantizer1] in `cluster1`.
+         * 3. Matrix multiplication of distanceTable1 (2D matrix) and histogram1 (1D matrix) gives us sumDistances1[codeSpaceSize] (1D matrix).
+         *    sumDistances1[code1] contains the sum distance from quantizer1.centroid[code1] to all the subVectors[quantizer1] in cluster1.
+         *    Finding the min in `sumDistances1` gives us codeX.
+         * */
+        progressTracker.pushPhase("centroids generation");
+        try {
+            var assignedDifferently = false;
+
+            for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++) {
+                for (int q = 0; q < quantizersCount; q++, histogramOffset += codeBaseSize) {
+                    var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize, codeBaseSize, q, 0, 0);
+                    MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset, codeBaseSize, codeBaseSize, histogram, histogramOffset, v, mulBuffer);
+                    var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
+                    assert minIndex < codeBaseSize;
+
+                    var prevIndex = Byte.toUnsignedInt(pqCentroids[centroidIndex]);
+
+                    pqCentroids[centroidIndex] = (byte) minIndex;
+                    assignedDifferently = assignedDifferently || prevIndex != minIndex;
+                    centroidIndex++;
+                }
+
+                if (progressTracker.isProgressUpdatedRequired()) {
+                    progressTracker.progress(k * 100.0 / numClusters);
+                }
+            }
+
+            return assignedDifferently;
+        } finally {
+            progressTracker.pullPhase();
+        }
+    }
+
+    private int findClosestCluster(final long vectorIndex, final byte[] centroids,
+                                   final float[] distanceTable) {
+        int minIndex = -1;
+        float minDistance = Float.MAX_VALUE;
+        var vectorsCount = centroids.length / quantizersCount;
+
+        for (int index = 0; index < vectorsCount; index++) {
+            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable, quantizersCount, codeBaseSize);
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                minIndex = index;
             }
         }
 
-        var pqVectorsSize = dataInputStream.readLong();
-        pqVectors = arena.allocate(pqVectorsSize);
-        for (long i = 0; i < pqVectorsSize; i++) {
-            pqVectors.set(ValueLayout.JAVA_BYTE, i, dataInputStream.readByte());
+        return minIndex;
+    }
+
+    private long findTwoClosestClusters(final long vectorIndex, final byte[] centroids,
+                                        final float[] distanceTable) {
+        int firstMinIndex = 0;
+        float firstMinDistance = Float.MAX_VALUE;
+
+        int secondMindIndex = 0;
+        float secondMinDistance = Float.MAX_VALUE;
+
+        var vectorsCount = centroids.length / quantizersCount;
+
+        for (int index = 0; index < vectorsCount; index++) {
+            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable,
+                    quantizersCount, codeBaseSize);
+
+            if (distance < firstMinDistance) {
+                firstMinDistance = distance;
+                firstMinIndex = index;
+            }
+
+            if (distance < secondMinDistance && distance > firstMinDistance) {
+                secondMinDistance = distance;
+                secondMindIndex = index;
+            }
         }
+
+        return (((long) firstMinIndex) << 32) | secondMindIndex;
     }
 
     static float[] buildDistanceTables(float[][][] centroids, int quantizersCount, int subVectorSize,
                                        DistanceFunction distanceFunction) {
         var codeSpaceSize = centroids[0].length;
         var result = new float[quantizersCount * codeSpaceSize * codeSpaceSize];
-
 
         var batchResult = new float[4];
         for (int n = 0; n < quantizersCount; n++) {
@@ -676,7 +725,6 @@ class L2PQQuantizer extends AbstractQuantizer {
         return result;
     }
 
-
     static float symmetricDistance(MemorySegment pqVectors, long storedEncodedVectorIndex, byte[] encodedVectors, int encodedVectorIndex,
                                    float[] distanceTables, int quantizersCount, int codeBaseSize) {
         float result = 0.0f;
@@ -694,6 +742,53 @@ class L2PQQuantizer extends AbstractQuantizer {
         }
 
         return result;
+    }
+
+
+    // Other
+
+    @Override
+    public void store(DataOutputStream dataOutputStream) throws IOException {
+        dataOutputStream.writeInt(quantizersCount);
+        dataOutputStream.writeInt(codeBaseSize);
+        dataOutputStream.writeInt(subVectorSize);
+
+        for (int i = 0; i < quantizersCount; i++) {
+            for (int j = 0; j < codeBaseSize; j++) {
+                for (int k = 0; k < subVectorSize; k++) {
+                    dataOutputStream.writeFloat(centroids[i][j][k]);
+                }
+            }
+        }
+
+        var pqVectorsSize = pqVectors.byteSize();
+        dataOutputStream.writeLong(pqVectorsSize);
+
+        for (long i = 0; i < pqVectorsSize; i++) {
+            dataOutputStream.writeByte(pqVectors.get(ValueLayout.JAVA_BYTE, i));
+        }
+    }
+
+    @Override
+    public void load(DataInputStream dataInputStream) throws IOException {
+        quantizersCount = dataInputStream.readInt();
+        codeBaseSize = dataInputStream.readInt();
+        subVectorSize = dataInputStream.readInt();
+
+        centroids = new float[quantizersCount][codeBaseSize][subVectorSize];
+        for (int i = 0; i < quantizersCount; i++) {
+            for (int j = 0; j < codeBaseSize; j++) {
+                for (int k = 0; k < subVectorSize; k++) {
+                    centroids[i][j][k] = dataInputStream.readFloat();
+                }
+            }
+        }
+
+        var pqVectorsSize = dataInputStream.readLong();
+        pqVectors = arena.allocate(pqVectorsSize);
+        for (long i = 0; i < pqVectorsSize; i++) {
+            pqVectors.set(ValueLayout.JAVA_BYTE, i, dataInputStream.readByte());
+        }
     }
 
     @Override

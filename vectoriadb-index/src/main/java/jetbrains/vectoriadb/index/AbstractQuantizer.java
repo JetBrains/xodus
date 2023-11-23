@@ -19,5 +19,5 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.Arena;
 
 public abstract class AbstractQuantizer implements Quantizer {
-    abstract MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena);
+    protected abstract MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena);
 }
