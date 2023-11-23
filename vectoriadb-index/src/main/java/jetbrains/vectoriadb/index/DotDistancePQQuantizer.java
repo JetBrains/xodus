@@ -15,92 +15,133 @@
  */
 package jetbrains.vectoriadb.index;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import org.jetbrains.annotations.NotNull;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 
-@SuppressWarnings("unused")
-public final class DotDistancePQQuantizer { //}extends AbstractQuantizer {
-//    private int quantizersCount;
-//
-//    private L2UnitQuantizer l2UnitQuantizer;
-//
-//    private float[][][] centroids;
-//
-//
-//    @Override
-//    MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
-//        throw new UnsupportedOperationException();
-//    }
-//
-//    @Override
-//    public void generatePQCodes(final int vectorsDimension, final int compressionRatio, final VectorReader vectorReader) {
-//        l2UnitQuantizer = new L2UnitQuantizer();
-//
-//        var vectorNormalizingReader = new VectorNormalizingReader(vectorReader);
-//        l2UnitQuantizer.generatePQCodes(vectorsDimension, compressionRatio, vectorNormalizingReader);
-//
-//        var vectorsCount = vectorReader.size();
-//        var pqVectors = l2UnitQuantizer.encodedVectors();
-//
-//
-//        for (int i = 0; i < vectorsCount; i++) {
-//            var vector = vectorReader.read(i);
-//            var norm = -DotDistanceFunction.INSTANCE.computeDistance(vector, 0,
-//                    vector, 0, vectorsDimension);
-//        }
-//    }
-//
-//    @Override
-//    public void close() {
-//        l2UnitQuantizer.close();
-//    }
-//
-//    private static final class L2UnitQuantizer extends L2PQQuantizer {
-//        private MemorySegment pqVectors;
-//
-//        @Override
-//        public MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
-//            var allocationSize = (long) vectorsCount * (quantizersCount + 1);
-//            pqVectors = arena.allocate(allocationSize);
-//
-//            return pqVectors.asSlice(quantizersCount);
-//        }
-//    }
-//
-//    private static class VectorNormalizingReader implements VectorReader {
-//        private final VectorReader vectorReader;
-//
-//        private VectorNormalizingReader(VectorReader vectorReader) {
-//            this.vectorReader = vectorReader;
-//        }
-//
-//        @Override
-//        public MemorySegment read(int index) {
-//            var vector = vectorReader.read(index);
-//            var vectorSize = (int) (vector.byteSize() / Float.BYTES);
-//
-//            var norm = -DotDistanceFunction.INSTANCE.computeDistance(vector, 0,
-//                    vector, 0, vectorSize);
-//            var heapSegment = MemorySegment.ofArray(new byte[(int) vector.byteSize()]);
-//
-//            for (int i = 0; i < vectorSize; i++) {
-//                var value = vector.getAtIndex(ValueLayout.JAVA_FLOAT, i);
-//                heapSegment.setAtIndex(ValueLayout.JAVA_FLOAT, i, value / norm);
-//            }
-//
-//            return heapSegment;
-//        }
-//
-//        @Override
-//        public int size() {
-//            return vectorReader.size();
-//        }
-//
-//        @Override
-//        public void close() throws Exception {
-//            vectorReader.close();
-//        }
-//    }
+/**
+ * Ignore the compressionRation problem. Use additional space, you will fix (maybe) this problem later when everything works.
+ *
+ * */
+public final class DotDistancePQQuantizer extends AbstractQuantizer {
+
+    // Initialize, make PQ code for the vectors
+
+    @Override
+    protected MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
+        // todo It is used only internally in generatePQCodes(), so maybe hide it from the public interface.
+
+        // The implementation is just to allocate memory only for the norm quantization.
+        // We should not call L2 instance because it will call this method itself
+        return null;
+    }
+
+    @Override
+    public void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker) {
+        // 1. Create two private L2 quantizers: normalizedL2 and originalL2
+        // 2. Create a wrapper normalizedVectorReader, that wraps vectorReader and returns normalized vectors,
+        // it can remember vector norms on the way, so you will not have to recalculate them once more.
+        // 3. normalizedL2.generatePQCodes(normalizedVectorReader), originalL2.generatePQCodes(vectorReader)
+        // 4. Calculate relative norm lx=||X||/||approximatedX'||. Go through normalizedL2.codes, decode vectors, calculate norm for them
+        // get original norm from normalizedVectorReader.
+        // 5. Train norm codebooks to quantize lx. Provide the possibility to have an arbitrary number of codebooks (1 and > 1).
+        // Train codebooks using k-means. lx - is a vector with 1 dimension.
+    }
+
+
+    // Calculate distances using the lookup table
+
+    @Override
+    public float[] blankLookupTable() {
+        // It is used when initializing a thread local NearestGreedySearchCachedData in the IndexReader constructor.
+        // It is filled in IndexReader.nearest() when doing the search
+
+        // Delegate to the L2 implementation and return the result.
+        return new float[0];
+    }
+
+    @Override
+    public void buildLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction) {
+        // It is used in IndexReader.nearest() when doing the search.
+
+        // Delegate to the L2 implementation
+        // So we can calculate the inner product for `q` and the approximation of X'(normalized X)
+    }
+
+    @Override
+    public float computeDistanceUsingLookupTable(float[] lookupTable, int vectorIndex) {
+        // It is used in IndexReader.nearest() when doing the search.
+
+        // 1. Delegate to the L2 implementation, so you have `p` - the inner product for `q` and the approximation of the normalized vector `vectorIndex`
+        // 2. Calculate `l` - approximation of the norm for `vectorIndex` using the norm codebooks
+        // 3. return l*p
+        return 0;
+    }
+
+    @Override
+    public void computeDistance4BatchUsingLookupTable(float[] lookupTable, int vectorIndex1, int vectorIndex2, int vectorIndex3, int vectorIndex4, float[] result) {
+        // It is used in IndexReader.nearest() when doing the search.
+
+        // do the same as computeDistanceUsingLookupTable() but for the four vectors
+    }
+
+
+    // PQ k-means clustering
+
+    @Override
+    public IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
+        // It is used in IndexBuilder.buildIndex() to split the vectors into partitions to build graph indices for every partition separately.
+        // The whole graph index does not fit memory, so we have to split vectors into partitions.
+
+        // Use an extra L2 quantazier that is trained on the original vectors.
+        // Delegate the job to it.
+
+        return new IntArrayList[0];
+    }
+
+    @Override
+    public float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
+        // It is used in IndexBuilder.buildIndex() to calculate the graph medoid to start the search from.
+        // And also in tests to test the quality of k-means clustering
+
+        // Use an extra L2 quantazier that is trained on the original vectors.
+        // Delegate the job to it.
+
+        return new float[0][];
+    }
+
+    @Override
+    public float[] decodeVector(byte[] vectors, int vectorIndex) {
+        // todo It is used only internally in calculateCentroids() to calculate the approximation of the result pqCentroids, so maybe hide it from the public interface.
+
+        // We cannot implement this method because the param vectors does not contain norm codes.
+        // But it is not a big deal as it is not an actually public api.
+        // So we can delegate this method to L2 quantazier that is trained on the original vectors.
+        return new float[0];
+    }
+
+
+    // Store/load/close
+
+    @Override
+    public void load(DataInputStream dataInputStream) throws IOException {
+        // 1. Delegate to the L2
+        // 2. Load the local state of this instance
+    }
+
+    @Override
+    public void store(DataOutputStream dataOutputStream) throws IOException {
+        // 1. Delegate to the L2
+        // 2. Store the local state of this instance
+    }
+
+    @Override
+    public void close() {
+        // do the same as L2 quantizer
+    }
 }
