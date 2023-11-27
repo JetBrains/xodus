@@ -73,19 +73,7 @@ public final class CosineDistanceFunction implements DistanceFunction {
 
     @Override
     public float[] preProcess(float[] vector, float[] result) {
-        var norm = (float) Math.sqrt(-DotDistanceFunction.INSTANCE.computeDistance(vector, 0, vector,
-                0, vector.length));
-
-        if (Math.abs(norm - 1) > 1e-5) {
-            for (int i = 0; i < vector.length; i++) {
-                result[i] = vector[i] / norm;
-            }
-        } else {
-            return vector;
-        }
-
-        assert Math.abs(-DotDistanceFunction.INSTANCE.computeDistance(result, 0, result,
-                0, result.length) - 1) < 1e-5;
+        VectorOperations.normalizeL2(vector, result);
         return result;
     }
 }
