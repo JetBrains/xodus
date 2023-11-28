@@ -104,6 +104,9 @@ public class BigANN500LoaderMilvus {
 
             for (long i = 0; i < VECTORS_COUNT / batchSize; i++) {
                 for (int n = 0; n < batchSize; n++) {
+                    ids.clear();
+                    vectors.clear();
+
                     if (buffer.remaining() == 0) {
                         buffer.rewind();
 
