@@ -20,7 +20,7 @@ tasks {
                 "vectoriadb.host" to (project.findProperty("vectoriadb.host")),
                 "vectoriadb.port" to (project.findProperty("vectoriadb.port"))
         )
-   }
+    }
 
     register<JavaExec>("loadBigANNMilvus") {
         group = "application"
@@ -31,6 +31,9 @@ tasks {
                 "jdk.incubator.vector",
                 "-Djava.awt.headless=true",
                 "--enable-preview"
+        )
+        systemProperties = mapOf(
+                "bench.path" to (project.findProperty("bench.path")),
         )
     }
 }
