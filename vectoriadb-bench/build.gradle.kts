@@ -2,6 +2,7 @@ dependencies {
     implementation(libs.commons.net)
     implementation(project(":vectoriadb-java-client"))
     implementation("io.milvus:milvus-sdk-java:2.3.3")
+    implementation("org.slf4j:slf4j-simple:2.0.7")
 }
 
 tasks {
