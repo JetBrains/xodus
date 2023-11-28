@@ -1,6 +1,7 @@
 dependencies {
     implementation(libs.commons.net)
     implementation(project(":vectoriadb-java-client"))
+    implementation("io.milvus:milvus-sdk-java:2.3.3")
 }
 
 tasks {
@@ -20,4 +21,16 @@ tasks {
                 "vectoriadb.port" to (project.findProperty("vectoriadb.port"))
         )
    }
+
+    register<JavaExec>("loadBigANNMilvus") {
+        group = "application"
+        mainClass = "jetbrains.vectoriadb.bench.BigANN500LoaderMilvus"
+        classpath = sourceSets["main"].runtimeClasspath
+        jvmArgs = listOf(
+                "--add-modules",
+                "jdk.incubator.vector",
+                "-Djava.awt.headless=true",
+                "--enable-preview"
+        )
+    }
 }
