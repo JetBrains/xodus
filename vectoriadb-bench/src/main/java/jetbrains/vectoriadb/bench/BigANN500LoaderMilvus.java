@@ -98,33 +98,42 @@ public class BigANN500LoaderMilvus {
             }
             buffer.rewind();
 
-            for (long i = 0; i < VECTORS_COUNT; i++) {
-                if (buffer.remaining() == 0) {
-                    buffer.rewind();
+            var ids = new ArrayList<Long>();
+            var vectors = new ArrayList<ArrayList<Float>>();
+            var batchSize = 500_000;
 
-                    while (buffer.remaining() > 0) {
-                        var r = channel.read(buffer);
-                        if (r == -1) {
-                            break;
+            for (long i = 0; i < VECTORS_COUNT / batchSize; i++) {
+                for (int n = 0; n < batchSize; n++) {
+                    if (buffer.remaining() == 0) {
+                        buffer.rewind();
+
+                        while (buffer.remaining() > 0) {
+                            var r = channel.read(buffer);
+                            if (r == -1) {
+                                break;
+                            }
                         }
+                        buffer.clear();
                     }
-                    buffer.clear();
-                }
 
-                var dimensions = buffer.getInt();
-                if (dimensions != VECTOR_DIMENSIONS) {
-                    throw new RuntimeException("Vector dimensions mismatch : " +
-                            dimensions + " vs " + VECTOR_DIMENSIONS);
-                }
+                    var dimensions = buffer.getInt();
+                    if (dimensions != VECTOR_DIMENSIONS) {
+                        throw new RuntimeException("Vector dimensions mismatch : " +
+                                dimensions + " vs " + VECTOR_DIMENSIONS);
+                    }
 
-                var vector = new ArrayList<Float>(VECTOR_DIMENSIONS);
-                for (int j = 0; j < VECTOR_DIMENSIONS; j++) {
-                    vector.add((float) buffer.get());
+                    var vector = new ArrayList<Float>(VECTOR_DIMENSIONS);
+                    for (int j = 0; j < VECTOR_DIMENSIONS; j++) {
+                        vector.add((float) buffer.get());
+                    }
+
+                    ids.add(i);
+                    vectors.add(vector);
                 }
 
                 List<InsertParam.Field> fields = new ArrayList<>();
-                fields.add(new InsertParam.Field("id", new ArrayList<>(List.of(i))));
-                fields.add(new InsertParam.Field("vector", new ArrayList<>(List.of(vector))));
+                fields.add(new InsertParam.Field("id", ids));
+                fields.add(new InsertParam.Field("vector", vectors));
 
                 InsertParam insertParam = InsertParam.newBuilder()
                         .withCollectionName("test")
@@ -132,9 +141,7 @@ public class BigANN500LoaderMilvus {
                         .build();
                 milvusClient.insert(insertParam);
 
-                if ((i + 1) % 1_000_000 == 0) {
-                    System.out.printf("%d vectors loaded.%n", i + 1);
-                }
+                System.out.printf("%d vectors loaded.%n", i * batchSize);
             }
         }
 
