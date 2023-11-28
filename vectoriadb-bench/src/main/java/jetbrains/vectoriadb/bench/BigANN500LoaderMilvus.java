@@ -117,9 +117,9 @@ public class BigANN500LoaderMilvus {
                             dimensions + " vs " + VECTOR_DIMENSIONS);
                 }
 
-                var vector = new float[VECTOR_DIMENSIONS];
+                var vector = new ArrayList<Float>(VECTOR_DIMENSIONS);
                 for (int j = 0; j < VECTOR_DIMENSIONS; j++) {
-                    vector[j] = buffer.get();
+                    vector.add((float) buffer.get());
                 }
 
                 List<InsertParam.Field> fields = new ArrayList<>();
