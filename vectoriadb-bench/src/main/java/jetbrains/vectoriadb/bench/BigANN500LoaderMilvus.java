@@ -85,88 +85,89 @@ public class BigANN500LoaderMilvus {
                 .build();
         milvusClient.createCollection(createCollectionReq);
 
-        var recordSize = Integer.BYTES + VECTOR_DIMENSIONS;
-        System.out.println("Loading vectors into Milvus...");
-
-        try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
-            var buffer =
-                    ByteBuffer.allocate(
-                            (64 * 1024 * 1024 / recordSize) * recordSize).order(ByteOrder.LITTLE_ENDIAN);
-
-            while (buffer.remaining() > 0) {
-                channel.read(buffer);
-            }
-            buffer.rewind();
-
-            var ids = new ArrayList<Long>();
-            var vectors = new ArrayList<ArrayList<Float>>();
-            var batchSize = 500_000;
-
-            for (long i = 0; i < VECTORS_COUNT / batchSize; i++) {
-                ids.clear();
-                vectors.clear();
-
-                for (int n = 0; n < batchSize; n++) {
-                    if (buffer.remaining() == 0) {
-                        buffer.rewind();
-
-                        while (buffer.remaining() > 0) {
-                            var r = channel.read(buffer);
-                            if (r == -1) {
-                                break;
-                            }
-                        }
-                        buffer.clear();
-                    }
-
-                    var dimensions = buffer.getInt();
-                    if (dimensions != VECTOR_DIMENSIONS) {
-                        throw new RuntimeException("Vector dimensions mismatch : " +
-                                dimensions + " vs " + VECTOR_DIMENSIONS);
-                    }
-
-                    var vector = new ArrayList<Float>(VECTOR_DIMENSIONS);
-                    for (int j = 0; j < VECTOR_DIMENSIONS; j++) {
-                        vector.add((float) buffer.get());
-                    }
-
-                    ids.add(i);
-                    vectors.add(vector);
-                }
-
-                List<InsertParam.Field> fields = new ArrayList<>();
-                fields.add(new InsertParam.Field("id", ids));
-                fields.add(new InsertParam.Field("vector", vectors));
-
-                InsertParam insertParam = InsertParam.newBuilder()
-                        .withCollectionName("test")
-                        .withFields(fields)
-                        .build();
-                milvusClient.insert(insertParam);
-
-                System.out.printf("%d vectors loaded.%n", i * batchSize);
-            }
-        }
-
-        milvusClient.flush(FlushParam.newBuilder().withSyncFlush(true).build());
-        var ts2 = System.nanoTime();
-
-        System.out.printf("Data loaded in %d ms.%n", (ts2 - ts1) / 1000000);
-        System.out.println("Building index...");
-
-
-        ts1 = System.nanoTime();
-        milvusClient.createIndex(
-                CreateIndexParam.newBuilder()
-                        .withCollectionName("test")
-                        .withFieldName("vector")
-                        .withIndexType(IndexType.DISKANN)
-                        .withMetricType(MetricType.IP)
-                        .withSyncMode(Boolean.TRUE)
-                        .build()
-        );
-        ts2 = System.nanoTime();
-        System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
+//        var recordSize = Integer.BYTES + VECTOR_DIMENSIONS;
+//        System.out.println("Loading vectors into Milvus...");
+//
+//        try (var channel = FileChannel.open(dataFilePath, StandardOpenOption.READ)) {
+//            var buffer =
+//                    ByteBuffer.allocate(
+//                            (64 * 1024 * 1024 / recordSize) * recordSize).order(ByteOrder.LITTLE_ENDIAN);
+//
+//            while (buffer.remaining() > 0) {
+//                channel.read(buffer);
+//            }
+//            buffer.rewind();
+//
+//            var ids = new ArrayList<Long>();
+//            var vectors = new ArrayList<ArrayList<Float>>();
+//            var batchSize = 500_000;
+//
+//            for (long i = 0; i < VECTORS_COUNT / batchSize; i++) {
+//                ids.clear();
+//                vectors.clear();
+//
+//                for (int n = 0; n < batchSize; n++) {
+//                    if (buffer.remaining() == 0) {
+//                        buffer.rewind();
+//
+//                        while (buffer.remaining() > 0) {
+//                            var r = channel.read(buffer);
+//                            if (r == -1) {
+//                                break;
+//                            }
+//                        }
+//                        buffer.clear();
+//                    }
+//
+//                    var dimensions = buffer.getInt();
+//                    if (dimensions != VECTOR_DIMENSIONS) {
+//                        throw new RuntimeException("Vector dimensions mismatch : " +
+//                                dimensions + " vs " + VECTOR_DIMENSIONS);
+//                    }
+//
+//                    var vector = new ArrayList<Float>(VECTOR_DIMENSIONS);
+//                    for (int j = 0; j < VECTOR_DIMENSIONS; j++) {
+//                        vector.add((float) buffer.get());
+//                    }
+//
+//                    ids.add(i);
+//                    vectors.add(vector);
+//                }
+//
+//                List<InsertParam.Field> fields = new ArrayList<>();
+//                fields.add(new InsertParam.Field("id", ids));
+//                fields.add(new InsertParam.Field("vector", vectors));
+//
+//                InsertParam insertParam = InsertParam.newBuilder()
+//                        .withCollectionName("test")
+//                        .withFields(fields)
+//                        .build();
+//                milvusClient.insert(insertParam);
+//
+//                System.out.printf("%d vectors loaded.%n", i * batchSize);
+//            }
+//        }
+//
+//        milvusClient.flush(FlushParam.newBuilder().withSyncFlush(true).
+//                withCollectionNames(List.of("test")).build());
+//        var ts2 = System.nanoTime();
+//
+//        System.out.printf("Data loaded in %d ms.%n", (ts2 - ts1) / 1000000);
+//        System.out.println("Building index...");
+//
+//
+//        ts1 = System.nanoTime();
+//        milvusClient.createIndex(
+//                CreateIndexParam.newBuilder()
+//                        .withCollectionName("test")
+//                        .withFieldName("vector")
+//                        .withIndexType(IndexType.DISKANN)
+//                        .withMetricType(MetricType.IP)
+//                        .withSyncMode(Boolean.TRUE)
+//                        .build()
+//        );
+//        ts2 = System.nanoTime();
+//        System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
         milvusClient.close();
 
