@@ -100,7 +100,7 @@ public class BigANN500LoaderMilvus {
 
             var ids = new ArrayList<Long>();
             var vectors = new ArrayList<ArrayList<Float>>();
-            var batchSize = 500_000;
+            var batchSize = 100_000;
 
             for (long i = 0; i < VECTORS_COUNT / batchSize; i++) {
                 ids.clear();
@@ -144,7 +144,7 @@ public class BigANN500LoaderMilvus {
                         .build();
                 milvusClient.insert(insertParam);
 
-                System.out.printf("%d vectors loaded.%n", i * batchSize);
+                System.out.printf("%d vectors loaded.%n", (i + 1) * batchSize);
             }
         }
 
