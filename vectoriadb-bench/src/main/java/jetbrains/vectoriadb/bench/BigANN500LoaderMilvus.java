@@ -144,6 +144,8 @@ public class BigANN500LoaderMilvus {
                         .build();
                 milvusClient.insert(insertParam);
 
+                Thread.sleep(100);
+
                 System.out.printf("%d vectors loaded.%n", (i + 1) * batchSize);
             }
         }
