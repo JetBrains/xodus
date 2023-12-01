@@ -15,6 +15,7 @@
  */
 package jetbrains.vectoriadb.server;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import io.grpc.Context;
 import io.grpc.Status;
@@ -864,18 +865,20 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                 var neighboursCount = request.getK();
                 var queryVector = request.getVectorComponentsList();
-                var result = new int[neighboursCount];
 
                 var vector = new float[dimensions];
                 for (int i = 0; i < dimensions; i++) {
                     vector[i] = queryVector.get(i);
                 }
 
-                indexReader.nearest(vector, result, neighboursCount);
+                var ids = indexReader.nearest(vector, neighboursCount);
 
 
-                for (var vectorIndex : result) {
-                    responseBuilder.addIds(vectorIndex);
+                for (var id : ids) {
+                    var vectorId = IndexManagerOuterClass.VectorId.newBuilder();
+                    vectorId.setId(ByteString.copyFrom(id));
+
+                    responseBuilder.addIds(vectorId);
                 }
             } catch (Exception e) {
                 logger.error("Failed to find nearest neighbours", e);
@@ -1184,8 +1187,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             vector[i] = value.getVectorComponents(i);
                         }
                         try {
-                            store.add(vector);
-                        } catch (IOException e) {
+                            store.add(vector, value.getId().toByteArray());
+                        } catch (Exception e) {
                             var msg = "Failed to add vector to index " + indexName;
                             logger.error(msg, e);
 

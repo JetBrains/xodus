@@ -57,7 +57,6 @@ public final class RunRandomVectorBench {
 
         System.out.println("Running queries...");
         var errors = 0;
-        var result = new int[1];
 
         try (var diskCache = new DiskCache(400 * 1024 * 1024, vectorDimensions,
                 IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
@@ -72,8 +71,8 @@ public final class RunRandomVectorBench {
                         MemorySegment.copy(queryVectorSegment, ValueLayout.JAVA_FLOAT, 0, queryVector,
                                 0, vectorDimensions);
 
-                        indexReader.nearest(queryVector, result, 1);
-                        if (result[0] != groundTruth[index]) {
+                        var rawIds = indexReader.nearest(queryVector, 1);
+                        if (ByteBuffer.wrap(rawIds[0]).order(ByteOrder.LITTLE_ENDIAN).getInt() != groundTruth[index]) {
                             errors++;
                         }
                     }

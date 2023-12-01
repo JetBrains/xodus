@@ -37,8 +37,9 @@ public final class DataStore implements AutoCloseable {
         this.channel = channel;
         this.distanceFunction = distanceFunction;
 
-        var vectorSize = dimensions * Float.BYTES;
-        var bufferSize = Math.min(64 * 1024 * 1024 / vectorSize, 1) * vectorSize;
+        //record contains vector and its associated id
+        var recordSize = dimensions * Float.BYTES + IndexBuilder.VECTOR_ID_SIZE;
+        var bufferSize = Math.min(64 * 1024 * 1024 / recordSize, 1) * recordSize;
 
         this.buffer = ByteBuffer.allocate(bufferSize).order(ByteOrder.nativeOrder());
         this.preprocessingResult = new float[dimensions];
@@ -54,7 +55,12 @@ public final class DataStore implements AutoCloseable {
         return new DataStore(dimensions, distanceFunction, channel);
     }
 
-    public void add(final float[] vector) throws IOException {
+    public void add(final float[] vector, @NotNull byte[] id) throws IOException {
+        if (id.length != IndexBuilder.VECTOR_ID_SIZE) {
+            throw new IllegalArgumentException("Vector id size should be equal to " + IndexBuilder.VECTOR_ID_SIZE +
+                    ". Vector id size : " + id.length);
+        }
+
         var vectorToStore = distanceFunction.preProcess(vector, preprocessingResult);
 
         if (buffer.remaining() == 0) {
@@ -70,6 +76,8 @@ public final class DataStore implements AutoCloseable {
         for (var component : vectorToStore) {
             buffer.putFloat(component);
         }
+
+        buffer.put(id);
     }
 
     public static Path dataLocation(@NotNull final String name, final Path dataDirectoryPath) {

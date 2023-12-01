@@ -60,8 +60,15 @@ final class BenchUtils {
 
         var indexName = "test_index";
         try (var dataBuilder = DataStore.create(indexName, 128, L2DistanceFunction.INSTANCE, dbDir)) {
-            for (var vector : vectors) {
-                dataBuilder.add(vector);
+            for (int i = 0; i < vectors.length; i++) {
+                var buffer = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE);
+                buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+                buffer.putInt(i);
+                buffer.rewind();
+
+                var vector = vectors[i];
+                dataBuilder.add(vector, buffer.array());
             }
         }
 
@@ -91,11 +98,9 @@ final class BenchUtils {
 
                 //give GC chance to collect garbage
                 Thread.sleep(60 * 1000);
-
-                var result = new int[1];
                 for (int i = 0; i < 10; i++) {
                     for (float[] vector : queryVectors) {
-                        indexReader.nearest(vector, result, 1);
+                        indexReader.nearest(vector, 1);
                     }
                 }
 
@@ -110,8 +115,9 @@ final class BenchUtils {
                     var errorsCount = 0;
                     for (var index = 0; index < queryVectors.length; index++) {
                         var vector = queryVectors[index];
-                        indexReader.nearest(vector, result, 1);
-                        if (groundTruth[index][0] != result[0]) {
+                        var rawId = indexReader.nearest(vector, 1);
+
+                        if (groundTruth[index][0] != ByteBuffer.wrap(rawId[0]).order(ByteOrder.LITTLE_ENDIAN).getInt()) {
                             errorsCount++;
                         }
                     }

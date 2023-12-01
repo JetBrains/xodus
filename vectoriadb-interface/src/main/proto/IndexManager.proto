@@ -95,12 +95,17 @@ message FindNearestNeighboursRequest {
 }
 
 message FindNearestNeighboursResponse {
-  repeated int32 ids = 1;
+  repeated VectorId ids = 1;
+}
+
+message VectorId {
+  bytes id = 1;
 }
 
 message UploadVectorsRequest {
   string index_name = 1;
   repeated float vector_components = 2;
+  VectorId id = 3;
 }
 
 message IndexListResponse {

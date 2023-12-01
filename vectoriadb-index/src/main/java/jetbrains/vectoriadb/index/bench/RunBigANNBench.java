@@ -20,6 +20,8 @@ import jetbrains.vectoriadb.index.IndexBuilder;
 import jetbrains.vectoriadb.index.IndexReader;
 import jetbrains.vectoriadb.index.diskcache.DiskCache;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -80,10 +82,9 @@ public class RunBigANNBench {
 
                 System.out.println("Warming up ...");
 
-                var result = new int[1];
                 for (int i = 0; i < 50; i++) {
                     for (float[] vector : m1QueryVectors) {
-                        indexReader.nearest(vector, result, 1);
+                        indexReader.nearest(vector, 1);
                     }
                 }
             }
@@ -101,11 +102,18 @@ public class RunBigANNBench {
                     bigAnnDbDir, Distance.DOT, diskCache)) {
 
                 System.out.println("Running BigANN bench...");
-                var result = new int[recallCount];
+
                 var start = System.nanoTime();
                 for (int i = 0; i < bigAnnQueryVectors.length; i++) {
                     float[] vector = bigAnnQueryVectors[i];
-                    indexReader.nearest(vector, result, recallCount);
+                    var rawIds = indexReader.nearest(vector, recallCount);
+
+                    var result = new int[recallCount];
+                    for (int j = 0; j < rawIds.length; j++) {
+                        var rawId = rawIds[j];
+                        result[j] = ByteBuffer.wrap(rawId).order(ByteOrder.LITTLE_ENDIAN).getInt();
+                    }
+
                     totalRecall += recall(result, bigAnnGroundTruth[i], recallCount);
                 }
                 var end = System.nanoTime();

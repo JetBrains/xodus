@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -112,7 +113,7 @@ public final class IndexReader implements AutoCloseable {
         logger.info("Vector index {} has been initialized.", name);
     }
 
-    public void nearest(float[] vector, int[] result, int resultSize) {
+    public byte[][] nearest(float[] vector, int resultSize) {
         if (closed) {
             throw new IllegalStateException("Index is closed");
         }
@@ -242,7 +243,25 @@ public final class IndexReader implements AutoCloseable {
             diskCache.unlock(id, vertexToPreload[i], graphFilePath);
         }
 
-        nearestCandidates.vertexIndices(result, resultSize);
+        var vertexIndexes = new int[resultSize];
+        nearestCandidates.vertexIndices(vertexIndexes, resultSize);
+
+        var result = new byte[resultSize][];
+        for (int i = 0; i < resultSize; i++) {
+            var vertexIndex = vertexIndexes[i];
+            var inMemoryPageIndex = diskCache.readLock(id, vertexIndex, graphFilePath);
+            try {
+                var vectorIdOffset = diskCache.vectorIdOffset(inMemoryPageIndex, vertexIndex);
+                var vectorId = new byte[IndexBuilder.VECTOR_ID_SIZE];
+                MemorySegment.copy(diskCache.pages, vectorIdOffset, MemorySegment.ofArray(vectorId), 0,
+                        IndexBuilder.VECTOR_ID_SIZE);
+                result[i] = vectorId;
+            } finally {
+                diskCache.unlock(id, vertexIndex, graphFilePath);
+            }
+        }
+
+        return result;
     }
 
     private void preloadVertices(BoundedGreedyVertexPriorityQueue nearestCandidates, int[] vertexToPreload) {

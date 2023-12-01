@@ -25,6 +25,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -58,8 +60,11 @@ public class DiskANNTest {
         var indexName = "test_index";
         var ts1 = System.nanoTime();
         try (var dataBuilder = DataStore.create(indexName, vectorDimensions, L2DistanceFunction.INSTANCE, dbDir)) {
-            for (var vector : vectors) {
-                dataBuilder.add(vector);
+            for (int n = 0; n < vectorsCount; n++) {
+                var vector = vectors[n];
+                var id = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE).
+                        order(ByteOrder.LITTLE_ENDIAN).putInt(n).array();
+                dataBuilder.add(vector, id);
             }
         }
 
@@ -76,8 +81,13 @@ public class DiskANNTest {
                 ts1 = System.nanoTime();
                 for (var j = 0; j < vectorsCount; j++) {
                     var vector = queries[j];
+                    var rawIds = indexReader.nearest(vector, recallCount);
                     var result = new int[recallCount];
-                    indexReader.nearest(vector, result, recallCount);
+
+                    for (int n = 0; n < recallCount; n++) {
+                        result[n] = ByteBuffer.wrap(rawIds[n]).order(ByteOrder.LITTLE_ENDIAN).getInt();
+                    }
+
                     totalRecall += recall(result, groundTruth[j]);
 
                     if ((j + 1) % 1_000 == 0) {
@@ -124,8 +134,11 @@ public class DiskANNTest {
 
         var indexName = "test_index";
         try (var dataStore = DataStore.create(indexName, vectorDimensions, DotDistanceFunction.INSTANCE, dbDir)) {
-            for (var vector : vectors) {
-                dataStore.add(vector);
+            for (var n = 0; n < vectorsCount; n++) {
+                var id = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE).
+                        order(ByteOrder.LITTLE_ENDIAN).putInt(n).array();
+                var vector = vectors[n];
+                dataStore.add(vector, id);
             }
         }
 
@@ -142,8 +155,13 @@ public class DiskANNTest {
                 ts1 = System.nanoTime();
                 for (var j = 0; j < vectorsCount; j++) {
                     var vector = queryVectors[j];
+
+                    var rawIds = indexReader.nearest(vector, recallCount);
                     var result = new int[recallCount];
-                    indexReader.nearest(vector, result, recallCount);
+
+                    for (int n = 0; n < recallCount; n++) {
+                        result[n] = ByteBuffer.wrap(rawIds[n]).order(ByteOrder.LITTLE_ENDIAN).getInt();
+                    }
                     totalRecall += recall(result, groundTruth[j]);
 
                     if ((j + 1) % 1_000 == 0) {
@@ -192,8 +210,11 @@ public class DiskANNTest {
         var indexName = "test_index";
         try (var dataBuilder = DataStore.create(indexName, vectorDimensions,
                 CosineDistanceFunction.INSTANCE, dbDir)) {
-            for (var vector : vectors) {
-                dataBuilder.add(vector);
+            for (int n = 0; n < vectorsCount; n++) {
+                var vector = vectors[n];
+                var id = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE).
+                        order(ByteOrder.LITTLE_ENDIAN).putInt(n).array();
+                dataBuilder.add(vector, id);
             }
         }
 
@@ -212,9 +233,13 @@ public class DiskANNTest {
                 ts1 = System.nanoTime();
                 for (var j = 0; j < vectorsCount; j++) {
                     var vector = queryVectors[j];
-                    var result = new int[recallCount];
-                    indexReader.nearest(vector, result, recallCount);
 
+                    var rawIds = indexReader.nearest(vector, recallCount);
+                    var result = new int[recallCount];
+
+                    for (var n = 0; n < recallCount; n++) {
+                        result[n] = ByteBuffer.wrap(rawIds[n]).order(ByteOrder.LITTLE_ENDIAN).getInt();
+                    }
                     totalRecall += recall(result, groundTruth[j]);
 
                     if ((j + 1) % 1_000 == 0) {
@@ -350,8 +375,11 @@ public class DiskANNTest {
 
         var indexName = "test_index";
         try (var dataBuilder = DataStore.create(indexName, 128, L2DistanceFunction.INSTANCE, dbDir)) {
-            for (var vector : vectors) {
-                dataBuilder.add(vector);
+            for (int n = 0; n < vectors.length; n++) {
+                var vector = vectors[n];
+                var id = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE).
+                        order(ByteOrder.LITTLE_ENDIAN).putInt(n).array();
+                dataBuilder.add(vector, id);
             }
         }
 
@@ -369,11 +397,10 @@ public class DiskANNTest {
                 ts1 = System.nanoTime();
                 for (var index = 0; index < queryVectors.length; index++) {
                     var vector = queryVectors[index];
-                    var result = new int[1];
-                    indexReader.nearest(vector, result, 1);
 
-                    Assert.assertEquals("j = " + index, 1, result.length);
-                    if (groundTruth[index][0] != result[0]) {
+                    var rawIds = indexReader.nearest(vector, 1);
+                    Assert.assertEquals("j = " + index, 1, rawIds.length);
+                    if (groundTruth[index][0] != ByteBuffer.wrap(rawIds[0]).order(ByteOrder.LITTLE_ENDIAN).getInt()) {
                         errorsCount++;
                     }
                 }
