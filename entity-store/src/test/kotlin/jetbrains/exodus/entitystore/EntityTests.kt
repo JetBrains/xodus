@@ -49,7 +49,8 @@ class EntityTests : EntityStoreTestBase() {
                 "testAddPhantomLink",
                 "testTooBigProperty",
                 "testTransactionAt",
-                "testTransactionAtIsIdempotent"
+                "testTransactionAtIsIdempotent",
+                "testCreateAndRemoveEntityType"
         )
     }
 
@@ -123,6 +124,20 @@ class EntityTests : EntityStoreTestBase() {
         Assert.assertNotNull(sameEntity)
         Assert.assertEquals(entity.type, sameEntity.type)
         Assert.assertEquals(entity.id, sameEntity.id)
+    }
+
+    fun testCreateAndRemoveEntityType() {
+        var typeId = entityStore.computeInTransaction { txn ->
+            entityStore.getEntityTypeId(txn as PersistentStoreTransaction, "Issue", true)
+        }
+        Assert.assertNotEquals(-1, typeId)
+        entityStore.computeInTransaction {
+            entityStore.deleteEntityType(typeId)
+        }
+        typeId = entityStore.computeInTransaction { txn ->
+            entityStore.getEntityTypeId(txn as PersistentStoreTransaction, "Issue", false)
+        }
+        Assert.assertEquals(-1, typeId)
     }
 
     fun testRawProperty() {
