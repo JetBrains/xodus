@@ -49,7 +49,7 @@ fun shouldApplyDokka(project: Project): Boolean {
 }
 
 tasks.wrapper {
-    gradleVersion = "8.1.1"
+    gradleVersion = "8.5"
 }
 
 defaultTasks("assemble")

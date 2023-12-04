@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright ${inceptionYear} - ${year} ${owner}
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     val highReadAddress: Long
         get() {
-            return if (writeThread != null && writeThread == Thread.currentThread()) {
+            return if (writeThread == Thread.currentThread()) {
                 writer.currentHighAddress
             } else {
                 writer.highAddress
@@ -127,7 +127,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
 
     val highFileAddress: Long
-        get() = getFileAddress(highAddress)
+        get() = getFileAddress(highReadAddress)
 
     val diskUsage: Long
         get() {
@@ -1250,7 +1250,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     fun hasAddress(address: Long): Boolean {
         val fileAddress = getFileAddress(address)
         val files = writer.getFilesFrom(fileAddress)
-        val highAddress = writer.highAddress
+        val highAddress = highReadAddress
 
         if (!files.hasNext()) {
             return false
@@ -1262,7 +1262,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     fun hasAddressRange(from: Long, to: Long): Boolean {
         var fileAddress = getFileAddress(from)
         val files = writer.getFilesFrom(fileAddress)
-        val highAddress = writer.highAddress
+        val highAddress = highReadAddress
 
         do {
             if (!files.hasNext() || files.nextLong() != fileAddress) {
@@ -1395,7 +1395,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     fun getLoggableIterator(startAddress: Long): LoggableIterator {
-        return LoggableIterator(this, startAddress, highAddress)
+        return LoggableIterator(this, startAddress, highReadAddress)
     }
 
     fun tryWrite(type: Byte, structureId: Int, data: ByteIterable, expiredLoggables: ExpiredLoggableCollection): Long {
