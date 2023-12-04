@@ -138,7 +138,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
         return result;
     }
 
-    public int delete(@NotNull final PersistentStoreTransaction txn, @NotNull final String name, final int id) {
+    public int delete(@NotNull final String name, final int id) {
         if (id < 0) {
             // type doesn't exist, and it's ok
             return -1;
@@ -159,7 +159,7 @@ class PersistentSequentialDictionary implements FlushLog.Member {
 
     public int delete(@NotNull final PersistentStoreTransaction txn, @NotNull final String name) {
         final int id = getId(txn, name);
-        return delete(txn, name, id);
+        return delete(name, id);
     }
 
     public void rename(@NotNull final PersistentStoreTransaction txn, @NotNull final String oldName, @NotNull final String newName) {

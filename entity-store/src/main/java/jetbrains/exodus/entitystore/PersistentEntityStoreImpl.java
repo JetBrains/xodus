@@ -2053,7 +2053,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             return;
         }
 
-        entityTypes.delete(txn, entityTypeName, entityTypeId);
+        entityTypes.delete(entityTypeName, entityTypeId);
         deleteEntityType(entityTypeId, txn);
     }
 
