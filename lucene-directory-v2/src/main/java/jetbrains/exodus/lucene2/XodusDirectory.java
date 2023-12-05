@@ -550,7 +550,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         }
     }
 
-    private void privateDeleteFile(String file) {
+    private synchronized void privateDeleteFile(String file) {
         var cache = SharedOpenFilesCache.getInstance();
         var path = pendingDeletes.get(file);
         try {
