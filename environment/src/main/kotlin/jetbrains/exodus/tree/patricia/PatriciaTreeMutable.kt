@@ -268,16 +268,16 @@ internal class PatriciaTreeMutable(
     ): Boolean {
         var l = loggable
         var minAddress = l.address
-        if (minAddress == 520806596608L) {
-            println("Bad boy !!!")
-        }
+//        if (minAddress == 520806596608L) {
+//            println("Bad boy !!!")
+//        }
 
         while (true) {
             val type = l.type
 
-            if (l.address == 520806596608L) {
-                println("Bad boy !!!")
-            }
+//            if (l.address == 520806596608L) {
+//                println("Bad boy !!!")
+//            }
 
             if (type < NODE_WO_KEY_WO_VALUE_WO_CHILDREN || type > MAX_VALID_LOGGABLE_TYPE) {
                 if (type != NullLoggable.TYPE && type != HashCodeLoggable.TYPE) { // skip null loggable
@@ -299,9 +299,9 @@ internal class PatriciaTreeMutable(
         }
 
         val maxAddress = l.address
-        if (maxAddress == 520806596608L) {
-            println("Bad boy !!!")
-        }
+//        if (maxAddress == 520806596608L) {
+//            println("Bad boy !!!")
+//        }
 
         val sourceTree = PatriciaTreeForReclaim(log, maxAddress, structureId)
         val sourceRoot = sourceTree.root
