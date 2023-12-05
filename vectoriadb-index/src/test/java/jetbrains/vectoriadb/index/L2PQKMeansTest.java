@@ -178,6 +178,11 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
             return vectors.length;
         }
 
+        @Override
+        public int dimensions() {
+            return vectors[0].length;
+        }
+
         public MemorySegment read(int index) {
             var vectorSegment = MemorySegment.ofArray(new byte[vectors[index].length * Float.BYTES]);
 

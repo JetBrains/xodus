@@ -20,6 +20,8 @@ import java.lang.foreign.MemorySegment;
 public interface VectorReader extends AutoCloseable {
     int size();
 
+    int dimensions();
+
     MemorySegment read(int index);
 
     MemorySegment id(int index);

@@ -20,7 +20,7 @@ public final class FloatVectorSegment {
         this.vectors = vectors;
     }
 
-    public int getDimensions() {
+    public int dimensions() {
         return dimensions;
     }
 

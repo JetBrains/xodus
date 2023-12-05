@@ -1537,6 +1537,11 @@ public final class IndexBuilder {
         }
 
         @Override
+        public int dimensions() {
+            return vectorDimensions;
+        }
+
+        @Override
         public MemorySegment read(int index) {
             return segment.asSlice((long) index * recordSize, (long) Float.BYTES * vectorDimensions);
         }

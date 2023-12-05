@@ -21,6 +21,11 @@ public class FloatVectorSegmentReader implements VectorReader {
     }
 
     @Override
+    public int dimensions() {
+        return vectors.dimensions();
+    }
+
+    @Override
     public MemorySegment read(int index) {
         return vectors.get(index);
     }
