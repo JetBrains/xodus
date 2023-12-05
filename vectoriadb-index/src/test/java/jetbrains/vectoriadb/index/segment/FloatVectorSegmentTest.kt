@@ -1,6 +1,7 @@
 package jetbrains.vectoriadb.index.segment
 
 import jetbrains.vectoriadb.index.vector.VectorOperations.PRECISION
+import jetbrains.vectoriadb.index.vector.createRandomFloatVectorSegment
 import org.junit.Assert
 import org.junit.Test
 import java.lang.foreign.Arena
@@ -33,7 +34,7 @@ class FloatVectorSegmentTest {
     fun copy() {
         Arena.ofConfined().use { arena ->
             val count = 5
-            val v = arena.createRandomVectorSegment(count)
+            val v = arena.createRandomFloatVectorSegment(count, dimensions)
             val vCopy = v.copy()
             assert(v.equals(vCopy))
         }
@@ -42,8 +43,8 @@ class FloatVectorSegmentTest {
     @Test
     fun `simplest add`() = Arena.ofConfined().use { arena ->
         listOf(true, false).forEach { heapBasedSegments ->
-            val v1 = arena.createRandomVectorSegment(1, heapBasedSegments)
-            val v2 = arena.createRandomVectorSegment(1, heapBasedSegments)
+            val v1 = arena.createRandomFloatVectorSegment(1, dimensions, heapBasedSegments)
+            val v2 = arena.createRandomFloatVectorSegment(1, dimensions, heapBasedSegments)
 
             val v2Copy = v2.copy()
             val expectedResult = naiveSum(v1, 0, v2, 0)
@@ -94,8 +95,8 @@ class FloatVectorSegmentTest {
         listOf(false, true).forEach { heapBasedSegments ->
             val count1 = 4
             val count2 = 5
-            val v1 = arena.createRandomVectorSegment(count1, heapBasedSegments)
-            val v2 = arena.createRandomVectorSegment(count2, heapBasedSegments)
+            val v1 = arena.createRandomFloatVectorSegment(count1, dimensions, heapBasedSegments)
+            val v2 = arena.createRandomFloatVectorSegment(count2, dimensions, heapBasedSegments)
             val idx1 = 2
             val idx2 = 3
 
@@ -123,7 +124,7 @@ class FloatVectorSegmentTest {
     fun `div by scalar`() = Arena.ofConfined().use { arena ->
         listOf(false, true).forEach { heapBasedSegments ->
             val count1 = 4
-            val v1 = arena.createRandomVectorSegment(count1, heapBasedSegments)
+            val v1 = arena.createRandomFloatVectorSegment(count1, dimensions, heapBasedSegments)
             val idx1 = 1
             val scalar = 13f
 
@@ -145,7 +146,7 @@ class FloatVectorSegmentTest {
     fun `get whole vector`() = Arena.ofConfined().use { arena ->
         listOf(false, true).forEach { heapBasedSegments ->
             val count = 10
-            val segment = arena.createRandomVectorSegment(count, heapBasedSegments)
+            val segment = arena.createRandomFloatVectorSegment(count, dimensions, heapBasedSegments)
 
             repeat(count) { vectorIdx ->
                 val v = segment.get(vectorIdx)
@@ -172,21 +173,6 @@ class FloatVectorSegmentTest {
             result.set(0, i, v1.get(idx1, i) / scalar)
         }
         return result
-    }
-
-    private fun Arena.createRandomVectorSegment(count: Int, heapBased: Boolean = false): FloatVectorSegment {
-        val v1 = if (heapBased) {
-            FloatVectorSegment.makeArraySegment(count, dimensions)
-        } else {
-            FloatVectorSegment.makeNativeSegment(this, count, dimensions)
-        }
-
-        for (vectorIdx in 0 until count) {
-            for (dimension in 0 until dimensions) {
-                v1.set(vectorIdx, dimension, Random.nextDouble(1000.0).toFloat())
-            }
-        }
-        return v1
     }
 
     private fun Arena.createSequentialVectorSegment(count: Int, valueStartFrom: Float, native: Boolean = false): FloatVectorSegment {
