@@ -47,10 +47,6 @@ tasks {
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
         )
-
-        javaLauncher.set(rootProject.javaToolchains.launcherFor {
-            languageVersion.set(JavaLanguageVersion.of(20))
-        })
     }
 
     register<JavaExec>("runSift1MBench") {
@@ -70,11 +66,6 @@ tasks {
         systemProperties = mapOf(
             "bench.path" to (project.findProperty("bench.path"))
         )
-
-
-        javaLauncher.set(rootProject.javaToolchains.launcherFor {
-            languageVersion.set(JavaLanguageVersion.of(20))
-        })
     }
 
     register<JavaExec>("runBigANNBench") {
