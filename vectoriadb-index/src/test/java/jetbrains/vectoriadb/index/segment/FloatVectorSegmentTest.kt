@@ -1,7 +1,10 @@
 package jetbrains.vectoriadb.index.segment
 
+import jetbrains.vectoriadb.index.vector.VectorOperations.PRECISION
+import org.junit.Assert
 import org.junit.Test
 import java.lang.foreign.Arena
+import java.lang.foreign.ValueLayout
 import kotlin.random.Random
 
 class FloatVectorSegmentTest {
@@ -135,6 +138,22 @@ class FloatVectorSegmentTest {
                 assert(v1.equals(i, v1Copy, i))
             }
             assert(v1.equals(idx1, expectedResult, 0))
+        }
+    }
+
+    @Test
+    fun `get whole vector`() = Arena.ofConfined().use { arena ->
+        listOf(false, true).forEach { heapBasedSegments ->
+            val count = 10
+            val segment = arena.createRandomVectorSegment(count, heapBasedSegments)
+
+            repeat(count) { vectorIdx ->
+                val v = segment.get(vectorIdx)
+                repeat(dimensions) { dimensionIdx ->
+                    Assert.assertEquals(segment.get(vectorIdx, dimensionIdx), v.getAtIndex(ValueLayout.JAVA_FLOAT, dimensionIdx.toLong()), PRECISION)
+                }
+
+            }
         }
     }
 

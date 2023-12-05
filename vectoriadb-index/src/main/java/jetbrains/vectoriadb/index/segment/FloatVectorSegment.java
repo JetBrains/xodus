@@ -53,7 +53,7 @@ public final class FloatVectorSegment {
     }
 
     public MemorySegment get(int vectorIdx) {
-        return vectors.asSlice((long) vectorIdx * dimensions, LAYOUT);
+        return vectors.asSlice((long) vectorIdx * dimensions * BYTES, (long) dimensions * BYTES);
     }
 
     public void fill(byte value) {
@@ -61,7 +61,7 @@ public final class FloatVectorSegment {
     }
 
     public FloatVectorSegment copy() {
-        return new FloatVectorSegment(count, dimensions, MemorySegment.ofArray(vectors.toArray(ValueLayout.JAVA_FLOAT)));
+        return new FloatVectorSegment(count, dimensions, MemorySegment.ofArray(vectors.toArray(LAYOUT)));
     }
 
     public boolean equals(int idx1, FloatVectorSegment v2, int idx2) {
