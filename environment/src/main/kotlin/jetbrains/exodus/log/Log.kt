@@ -1057,7 +1057,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 }
 
                 rwIsReadonly = false
-                logger.error("Data corruption was fixed for environment $location.")
+                logger.info("Data corruption was fixed for environment $location.")
 
                 if (loadedDbRootAddress != dbRootAddress) {
                     logger.warn(
