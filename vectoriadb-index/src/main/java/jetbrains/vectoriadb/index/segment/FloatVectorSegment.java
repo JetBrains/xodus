@@ -97,7 +97,7 @@ public final class FloatVectorSegment {
 
         var result = new FloatVectorSegment[segmentCount];
         for (int i = 0; i < segmentCount; i++) {
-            result[i] = new FloatVectorSegment(vectorsPerSegment, dimensions, segment.asSlice((long) i * vectorsPerSegment * dimensions * Float.BYTES, (long) vectorsPerSegment * dimensions * Float.BYTES));
+            result[i] = new FloatVectorSegment(vectorsPerSegment, dimensions, segment.asSlice((long) i * vectorsPerSegment * dimensions * BYTES, (long) vectorsPerSegment * dimensions * BYTES));
         }
         return result;
     }
