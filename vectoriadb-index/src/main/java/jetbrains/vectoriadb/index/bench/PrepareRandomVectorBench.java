@@ -210,6 +210,15 @@ public final class PrepareRandomVectorBench {
         }
 
         @Override
+        public MemorySegment id(int index) {
+            var buffer = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            buffer.putInt(index);
+
+            return MemorySegment.ofBuffer(buffer);
+        }
+
+        @Override
         public void close() {
             arena.close();
         }

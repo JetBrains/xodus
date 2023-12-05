@@ -97,7 +97,9 @@ public class PrepareBigANNBench {
                             vector[j] = buffer.get();
                         }
 
-                        dataBuilder.add(vector);
+                        var id = ByteBuffer.allocate(Integer.BYTES).
+                                order(ByteOrder.LITTLE_ENDIAN).putInt((int) i).array();
+                        dataBuilder.add(vector, id);
                     }
                 }
             }

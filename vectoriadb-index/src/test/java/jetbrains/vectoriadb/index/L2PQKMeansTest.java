@@ -24,6 +24,8 @@ import org.junit.Test;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -183,6 +185,15 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
                     vectorSegment, 0, (long) vectors[index].length * Float.BYTES);
 
             return vectorSegment;
+        }
+
+        @Override
+        public MemorySegment id(int index) {
+            var buffer = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
+            buffer.putInt(index);
+
+            return MemorySegment.ofBuffer(buffer);
         }
 
         @Override

@@ -46,7 +46,12 @@ public class Sift1MBench {
 
             var siftDir = rootDir.resolve("sift");
             var siftDataName = "sift_base.fvecs";
+
             var vectors = BenchUtils.readFVectors(siftDir.resolve(siftDataName), vectorDimensions);
+            var ids = new int[vectors.length];
+            for (int i = 0; i < ids.length; i++) {
+                ids[i] = i;
+            }
 
             var indexName = "sift1m";
             System.out.printf("%d data vectors loaded with dimension %d, building index %s...%n",
@@ -73,7 +78,7 @@ public class Sift1MBench {
 
             ts1 = System.currentTimeMillis();
 
-            client.uploadVectors(indexName, vectors, (current, count) -> {
+            client.uploadVectors(indexName, vectors, ids, (current, count) -> {
                 if (current >= 0 && current < Integer.MAX_VALUE) {
                     if (current % 1_000 == 0) {
                         System.out.printf("%d vectors uploaded out of %d%n", current, count);
@@ -133,7 +138,7 @@ public class Sift1MBench {
                 System.out.printf("Iteration %d out of 5 %n", (i + 1));
 
                 for (int j = 0; j < queryVectors.length; j++) {
-                    var vector =  queryVectors[j];
+                    var vector = queryVectors[j];
                     client.findNearestNeighbours(indexName, vector, 1);
 
                     if ((j + 1) % 1_000 == 0) {
@@ -149,7 +154,7 @@ public class Sift1MBench {
             for (var index = 0; index < queryVectors.length; index++) {
                 var vector = queryVectors[index];
 
-                var result = client.findNearestNeighbours(indexName, vector, 1);
+                var result = client.findIntNearestNeighbours(indexName, vector, 1);
                 if (groundTruth[index][0] != result[0]) {
                     errorsCount++;
                 }

@@ -19,6 +19,7 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.sun.nio.file.ExtendedOpenOption;
 import it.unimi.dsi.fastutil.Hash;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import jetbrains.vectoriadb.index.IndexBuilder;
 import jetbrains.vectoriadb.index.util.collections.BlockingLongArrayQueue;
 import jetbrains.vectoriadb.index.util.collections.NonBlockingHashMapLongLong;
 import org.jctools.maps.NonBlockingHashMapLong;
@@ -133,25 +134,45 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     private static final Logger logger = LoggerFactory.getLogger(DiskCache.class);
     public static final int DISK_BLOCK_SIZE = 4 * 1024;
     private static final int NCPU = Runtime.getRuntime().availableProcessors();
-    /** The initial capacity of the write buffer. */
+    /**
+     * The initial capacity of the write buffer.
+     */
     private static final int ADD_BUFFER_MIN = 4;
-    /** The maximum capacity of the write buffer. */
+    /**
+     * The maximum capacity of the write buffer.
+     */
     private static final int ADD_BUFFER_MAX = 128 * Integer.highestOneBit(NCPU - 1) << 1;
-    /** The number of attempts to insert into the write buffer before yielding. */
+    /**
+     * The number of attempts to insert into the write buffer before yielding.
+     */
     private static final int ADD_BUFFER_RETRIES = 100;
-    /** The initial percent of the maximum weighted capacity dedicated to the main space. */
+    /**
+     * The initial percent of the maximum weighted capacity dedicated to the main space.
+     */
     private static final double PERCENT_MAIN = 0.99d;
-    /** The percent of the maximum weighted capacity dedicated to the main's protected space. */
+    /**
+     * The percent of the maximum weighted capacity dedicated to the main's protected space.
+     */
     private static final double PERCENT_MAIN_PROTECTED = 0.80d;
-    /** The difference in hit rates that restarts the climber. */
+    /**
+     * The difference in hit rates that restarts the climber.
+     */
     private static final double HILL_CLIMBER_RESTART_THRESHOLD = 0.05d;
-    /** The percent of the total size to adapt the window by. */
+    /**
+     * The percent of the total size to adapt the window by.
+     */
     private static final double HILL_CLIMBER_STEP_PERCENT = 0.0625d;
-    /** The rate to decrease the step size to adapt by. */
+    /**
+     * The rate to decrease the step size to adapt by.
+     */
     private static final double HILL_CLIMBER_STEP_DECAY_RATE = 0.98d;
-    /** The minimum popularity for allowing randomized admission. */
+    /**
+     * The minimum popularity for allowing randomized admission.
+     */
     private static final int ADMIT_HASHDOS_THRESHOLD = 6;
-    /** The maximum number of entries that can be transferred between queues. */
+    /**
+     * The maximum number of entries that can be transferred between queues.
+     */
     private static final int QUEUE_TRANSFER_THRESHOLD = 1_000;
 
     private static final long WARN_AFTER_LOCK_WAIT_NANOS = TimeUnit.SECONDS.toNanos(30);
@@ -216,6 +237,8 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     private long fileOffsetTracker;
 
     private final long vectorRecordOffset;
+
+    private final long vectorIdRecordOffset;
     private final long edgesCountOffset;
     private final long edgesOffset;
 
@@ -261,6 +284,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         this.edgesOffset = pagesStructure.pageStructure.recordEdgesOffset;
         this.verticesCountPerPage = pagesStructure.pageStructure.verticesCountPerPage;
         this.vectorRecordOffset = pagesStructure.pageStructure.recordVectorsOffset;
+        this.vectorIdRecordOffset = pagesStructure.pageStructure.recordIdOffset;
 
         int cachePagesCount = pagesStructure.cachePagesCount;
 
@@ -321,6 +345,12 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     public long vectorOffset(long inMemoryPageIndex, long vertexIndex) {
         var recordOffset = (vertexIndex % verticesCountPerPage) * vertexRecordSize + Long.BYTES;
         return inMemoryPageIndex * pageSize + recordOffset + vectorRecordOffset;
+    }
+
+    public long vectorIdOffset(long inMemoryPageIndex, long vertexIndex) {
+        //we add offset of the page version
+        var recordOffset = (vertexIndex % verticesCountPerPage) * vertexRecordSize + Long.BYTES;
+        return inMemoryPageIndex * pageSize + recordOffset + vectorIdRecordOffset;
     }
 
     public int fetchEdges(long indexId, long vertexIndex, int[] edges, Path filePath) {
@@ -624,9 +654,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
      * Adds a node to the policy and the data store. If an existing node is found, then its value is
      * updated if allowed.
      *
-     * @param key key with which the specified value is to be associated
+     * @param key               key with which the specified value is to be associated
      * @param inMemoryPageIndex index of the page inside the cache memory.
-     * @param pageVersion version of page during the caching of the page.
+     * @param pageVersion       version of page during the caching of the page.
      */
     private void add(long key, long inMemoryPageIndex, long pageVersion) {
         Node node = null;
@@ -734,7 +764,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
 
-    /** Acquires the eviction lock. */
+    /**
+     * Acquires the eviction lock.
+     */
     private void lock() {
         long remainingNanos = WARN_AFTER_LOCK_WAIT_NANOS;
         long end = System.nanoTime() + remainingNanos;
@@ -881,7 +913,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         }
     }
 
-    /** Adapts the eviction policy to towards the optimal recency / frequency configuration. */
+    /**
+     * Adapts the eviction policy to towards the optimal recency / frequency configuration.
+     */
     @GuardedBy("evictionLock")
     private void climb() {
         determineAdjustment();
@@ -895,7 +929,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         }
     }
 
-    /** Decreases the size of the admission window and increases the main's protected region. */
+    /**
+     * Decreases the size of the admission window and increases the main's protected region.
+     */
     @GuardedBy("evictionLock")
     private void decreaseWindow() {
         if (windowMaximum <= 1) {
@@ -927,7 +963,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
 
-    /** Transfers the nodes from the protected to the probation region if it exceeds the maximum. */
+    /**
+     * Transfers the nodes from the protected to the probation region if it exceeds the maximum.
+     */
     @GuardedBy("evictionLock")
     private void demoteFromMainProtected() {
         long mainProtectedMaximum = this.mainProtectedMaximum;
@@ -1004,7 +1042,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
 
-    /** Calculates the amount to adapt the window by and sets {@link #adjustment} accordingly. */
+    /**
+     * Calculates the amount to adapt the window by and sets {@link #adjustment} accordingly.
+     */
     @GuardedBy("evictionLock")
     private void determineAdjustment() {
         int requestCount = hitsInSample + missesInSample;
@@ -1028,7 +1068,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
 
-    /** Evicts entries if the cache exceeds the maximum. */
+    /**
+     * Evicts entries if the cache exceeds the maximum.
+     */
     @GuardedBy("evictionLock")
     private void evictEntries() {
         lockedNodes.clear();
@@ -1181,7 +1223,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
      * are admitted.
      *
      * @param candidateKey the key for the entry being proposed for long term retention
-     * @param victimKey the key for the entry chosen by the eviction policy for replacement
+     * @param victimKey    the key for the entry chosen by the eviction policy for replacement
      * @return if the candidate should be admitted and the victim ejected
      */
     @GuardedBy("evictionLock")
@@ -1285,7 +1327,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         }
     }
 
-    /** Logs if the node cannot be found in the map but is still alive. */
+    /**
+     * Logs if the node cannot be found in the map but is still alive.
+     */
     private void logIfAlive(Node node) {
         if (node.isAlive()) {
             String message = brokenEqualityMessage(node.getKey());
@@ -1293,7 +1337,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         }
     }
 
-    /** Returns the formatted broken equality error message. */
+    /**
+     * Returns the formatted broken equality error message.
+     */
     private static String brokenEqualityMessage(long key) {
         return String.format(US, "An invalid state was detected, occurring when the key's equals or "
                 + "hashCode was modified while residing in the cache. This violation of the Map "
@@ -1361,7 +1407,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
 
-    /** Drains the write buffer. */
+    /**
+     * Drains the write buffer.
+     */
     @GuardedBy("evictionLock")
     private void drainWriteBuffer() {
         for (int i = 0; i <= ADD_BUFFER_MAX; i++) {
@@ -1377,14 +1425,18 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         setDrainStatusOpaque(PROCESSING_TO_REQUIRED);
     }
 
-    /** Drains the read buffer. */
+    /**
+     * Drains the read buffer.
+     */
     @GuardedBy("evictionLock")
     private void drainReadBuffer() {
         readBuffer.drainTo(this::onAccess);
     }
 
 
-    /** Updates the node's location in the page replacement policy. */
+    /**
+     * Updates the node's location in the page replacement policy.
+     */
     @GuardedBy("evictionLock")
     private void onAccess(Node node) {
         var key = node.getKey();
@@ -1402,7 +1454,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
 
-    /** Promote the node from probation to protected on an access. */
+    /**
+     * Promote the node from probation to protected on an access.
+     */
     @GuardedBy("evictionLock")
     private void reorderProbation(Node node) {
         if (!accessOrderProbationDeque.contains(node)) {
@@ -1439,7 +1493,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
         return true;
     }
 
-    /** Updates the node's location in the policy's deque. */
+    /**
+     * Updates the node's location in the policy's deque.
+     */
     private static void reorder(LinkedDeque<Node> deque, Node node) {
         // An entry may be scheduled for reordering despite having been removed. This can occur when the
         // entry was concurrently read while a writer was removing it. If the entry is no longer linked
@@ -1450,7 +1506,9 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     }
 
 
-    /** A reusable task that performs the maintenance work; used to avoid wrapping by ForkJoinPool. */
+    /**
+     * A reusable task that performs the maintenance work; used to avoid wrapping by ForkJoinPool.
+     */
     private static final class PerformCleanupTask extends ForkJoinTask<Void> implements Runnable {
         private final WeakReference<DiskCache> reference;
 
@@ -1536,6 +1594,7 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
     @NotNull
     public static PageStructure createPageStructure(int vectorDim, int maxConnectionsPerVertex) {
         var vertexLayout = MemoryLayout.structLayout(
+                MemoryLayout.sequenceLayout(IndexBuilder.VECTOR_ID_SIZE, ValueLayout.JAVA_BYTE).withName("id"),
                 MemoryLayout.sequenceLayout(vectorDim, ValueLayout.JAVA_FLOAT).withName("vector"),
                 MemoryLayout.sequenceLayout(maxConnectionsPerVertex, ValueLayout.JAVA_INT).withName("edges"),
                 ValueLayout.JAVA_INT.withName("edgesCount")
@@ -1563,13 +1622,15 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
                 MemoryLayout.paddingLayout(paddingSpace));
         assert pageSize == pageLayout.byteSize();
 
+        var idOffset = (int) vertexLayout.byteOffset(MemoryLayout.PathElement.groupElement("id"));
         var recordVectorOffset = (int) vertexLayout.byteOffset(MemoryLayout.PathElement.groupElement("vector"));
         var recordEdgesOffset = (int) vertexLayout.byteOffset(MemoryLayout.PathElement.groupElement("edges"));
         var recordEdgesCountOffset =
                 (int) vertexLayout.byteOffset(MemoryLayout.PathElement.groupElement("edgesCount"));
 
         return new PageStructure(pageSize, verticesCountPerPage, vertexRecordSize,
-                recordVectorOffset, recordEdgesOffset, recordEdgesCountOffset, pageLayout);
+                recordVectorOffset, recordEdgesOffset, recordEdgesCountOffset, idOffset,
+                pageLayout);
     }
 
     private record PagesStructure(int cachePagesCount, int preLoadersCount, int allocatedPagesCount,
@@ -1578,12 +1639,16 @@ public final class DiskCache extends BLCHeader.DrainStatusRef implements AutoClo
 
     public record PageStructure(int pageSize, int verticesCountPerPage, int vertexRecordSize,
                                 int recordVectorsOffset,
-                                int recordEdgesOffset, int recordEdgesCountOffset, MemoryLayout pageLayout) {
+                                int recordEdgesOffset, int recordEdgesCountOffset,
+                                int recordIdOffset,
+                                MemoryLayout pageLayout) {
 
     }
 }
 
-/** The namespace for field padding through inheritance. */
+/**
+ * The namespace for field padding through inheritance.
+ */
 final class BLCHeader {
 
     @SuppressWarnings("unused")
@@ -1605,20 +1670,32 @@ final class BLCHeader {
         byte p112, p113, p114, p115, p116, p117, p118, p119;
     }
 
-    /** Enforces a memory layout to avoid false sharing by padding the drain status. */
+    /**
+     * Enforces a memory layout to avoid false sharing by padding the drain status.
+     */
     abstract static class DrainStatusRef extends BLCHeader.PadDrainStatus {
         static final VarHandle DRAIN_STATUS;
 
-        /** A drain is not taking place. */
+        /**
+         * A drain is not taking place.
+         */
         static final int IDLE = 0;
-        /** A drain is required due to a pending write modification. */
+        /**
+         * A drain is required due to a pending write modification.
+         */
         static final int REQUIRED = 1;
-        /** A drain is in progress and will transition to idle. */
+        /**
+         * A drain is in progress and will transition to idle.
+         */
         static final int PROCESSING_TO_IDLE = 2;
-        /** A drain is in progress and will transition to required. */
+        /**
+         * A drain is in progress and will transition to required.
+         */
         static final int PROCESSING_TO_REQUIRED = 3;
 
-        /** The draining status of the buffers. */
+        /**
+         * The draining status of the buffers.
+         */
         volatile int drainStatus = IDLE;
 
         /**

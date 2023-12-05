@@ -15,6 +15,7 @@
  */
 package jetbrains.vectoriadb.client;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import io.grpc.Context;
 import io.grpc.ManagedChannelBuilder;
@@ -27,6 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -36,8 +39,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 
-
+@SuppressWarnings({"UnusedReturnValue", "unused"})
 public final class VectoriaDBClient {
+    public static final int VECTOR_ID_SIZE = 16;
+
     private static final Logger logger = LoggerFactory.getLogger(VectoriaDBClient.class);
     private final IndexManagerGrpc.IndexManagerBlockingStub indexManagerBlockingStub;
     private final IndexManagerGrpc.IndexManagerStub indexManagerAsyncStub;
@@ -123,26 +128,40 @@ public final class VectoriaDBClient {
         };
     }
 
-    public void uploadVectors(final String indexName, final Iterator<float[]> vectors,
+    public void uploadVectors(final String indexName, final Iterator<float[]> vectors, final Iterator<byte[]> ids,
                               @Nullable BiConsumer<Integer, Integer> progressIndicator) {
-        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsList, progressIndicator);
+        uploadVectors(indexName, vectors, ids, VectoriaDBClient::uploadVectorsList, progressIndicator);
     }
 
-    public void uploadVectors(final String indexName, final Iterator<float[]> vectors) {
-        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsList, null);
+    public void uploadVectors(final String indexName, final Iterator<float[]> vectors, final Iterator<byte[]> ids) {
+        uploadVectors(indexName, vectors, ids, VectoriaDBClient::uploadVectorsList, null);
     }
 
-    public void uploadVectors(final String indexName, final float[][] vectors,
+    public void uploadVectors(final String indexName, final float[][] vectors, final byte[][] ids,
                               @Nullable BiConsumer<Integer, Integer> progressIndicator) {
-        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsArray, progressIndicator);
+        uploadVectors(indexName, vectors, ids, VectoriaDBClient::uploadVectorsArray, progressIndicator);
     }
 
-    public void uploadVectors(final String indexName, final float[][] vectors) {
-        uploadVectors(indexName, vectors, VectoriaDBClient::uploadVectorsArray, null);
+    public void uploadVectors(final String indexName, final float[][] vectors, byte[][] ids) {
+        uploadVectors(indexName, vectors, ids, VectoriaDBClient::uploadVectorsArray, null);
     }
 
-    private <T> void uploadVectors(String indexName, T vectors, VectorsUploader<T> vectorsUploader,
-                                   @Nullable BiConsumer<Integer, Integer> progressIndicator) {
+    public void uploadVectors(final String indexName, final float[][] vectors, final int[] ids,
+                              @Nullable BiConsumer<Integer, Integer> progressIndicator) {
+        var rawIds = new byte[ids.length][VECTOR_ID_SIZE];
+        for (int i = 0; i < ids.length; i++) {
+            //little endian because that is most used integer presentation format in CPU architecture
+            var buffer = ByteBuffer.allocate(VECTOR_ID_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+            buffer.putInt(i);
+
+            rawIds[i] = buffer.array();
+        }
+
+        uploadVectors(indexName, vectors, rawIds, VectoriaDBClient::uploadVectorsArray, progressIndicator);
+    }
+
+    private <T, U> void uploadVectors(String indexName, T vectors, U ids, VectorsUploader<T, U> vectorsUploader,
+                                      @Nullable BiConsumer<Integer, Integer> progressIndicator) {
         var error = new Throwable[1];
         var finishedLatch = new CountDownLatch(1);
         var onReadyHandler = new OnReadyHandler<IndexManagerOuterClass.UploadVectorsRequest>();
@@ -172,7 +191,7 @@ public final class VectoriaDBClient {
 
         var requestObserver = indexManagerAsyncStub.uploadVectors(responseObserver);
         try {
-            vectorsUploader.uploadVectors(indexName, vectors, requestObserver, finishedLatch, onReadyHandler,
+            vectorsUploader.uploadVectors(indexName, vectors, ids, requestObserver, finishedLatch, onReadyHandler,
                     progressIndicator);
         } catch (RuntimeException e) {
             requestObserver.onError(e);
@@ -197,7 +216,7 @@ public final class VectoriaDBClient {
         }
     }
 
-    private static void uploadVectorsList(String indexName, Iterator<float[]> vectors,
+    private static void uploadVectorsList(String indexName, Iterator<float[]> vectors, Iterator<byte[]> ids,
                                           StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> requestObserver,
                                           CountDownLatch finishedLatch,
                                           OnReadyHandler<IndexManagerOuterClass.UploadVectorsRequest> onReadyHandler,
@@ -206,12 +225,16 @@ public final class VectoriaDBClient {
         while (vectors.hasNext()) {
             onReadyHandler.callWhenReady(() -> {
                 var vector = vectors.next();
+                var id = ids.next();
+
                 var builder = IndexManagerOuterClass.UploadVectorsRequest.newBuilder();
                 builder.setIndexName(indexName);
 
                 for (var value : vector) {
                     builder.addVectorComponents(value);
                 }
+
+                builder.setId(IndexManagerOuterClass.VectorId.newBuilder().setId(ByteString.copyFrom(id)).build());
 
                 var request = builder.build();
                 requestObserver.onNext(request);
@@ -227,20 +250,26 @@ public final class VectoriaDBClient {
         }
     }
 
-    private static void uploadVectorsArray(String indexName, float[][] vectors,
+    private static void uploadVectorsArray(String indexName, float[][] vectors, byte[][] ids,
                                            StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> requestObserver,
                                            CountDownLatch finishedLatch,
                                            OnReadyHandler<IndexManagerOuterClass.UploadVectorsRequest> onReadyHandler,
                                            @Nullable BiConsumer<Integer, Integer> progressIndicator) {
         var counter = new int[1];
-        for (var vector : vectors) {
+        for (int i = 0; i < vectors.length; i++) {
+            var vector = vectors[i];
+            var id = ids[i];
+
             onReadyHandler.callWhenReady(() -> {
                 var builder = IndexManagerOuterClass.UploadVectorsRequest.newBuilder();
+
                 builder.setIndexName(indexName);
 
                 for (var value : vector) {
                     builder.addVectorComponents(value);
                 }
+
+                builder.setId(IndexManagerOuterClass.VectorId.newBuilder().setId(ByteString.copyFrom(id)).build());
 
                 var request = builder.build();
                 requestObserver.onNext(request);
@@ -270,7 +299,22 @@ public final class VectoriaDBClient {
         indexManagerBlockingStub.switchToBuildMode(request);
     }
 
-    public int[] findNearestNeighbours(final String indexName, final float[] vector, int k) {
+    public int[] findIntNearestNeighbours(final String indexName, final float[] vector, int k) {
+        var rawIds = findNearestNeighbours(indexName, vector, k);
+        var result = new int[rawIds.length];
+
+        var buffer = ByteBuffer.allocate(VECTOR_ID_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+        for (int i = 0; i < rawIds.length; i++) {
+            buffer.clear();
+            buffer.put(rawIds[i]);
+            buffer.flip();
+            result[i] = buffer.getInt();
+        }
+
+        return result;
+    }
+
+    public byte[][] findNearestNeighbours(final String indexName, final float[] vector, int k) {
         var builder = IndexManagerOuterClass.FindNearestNeighboursRequest.newBuilder();
         builder.setIndexName(indexName);
         builder.setK(k);
@@ -282,7 +326,7 @@ public final class VectoriaDBClient {
         var request = builder.build();
         var response = indexManagerBlockingStub.findNearestNeighbours(request);
 
-        return response.getIdsList().stream().mapToInt(Integer::intValue).toArray();
+        return response.getIdsList().stream().map(vectorId -> vectorId.getId().toByteArray()).toArray(byte[][]::new);
     }
 
     public void buildStatus(IndexBuildStatusListener buildStatusListener) {
@@ -354,8 +398,8 @@ public final class VectoriaDBClient {
         }
     }
 
-    private interface VectorsUploader<T> {
-        void uploadVectors(String indexName, T vectors,
+    private interface VectorsUploader<T, U> {
+        void uploadVectors(String indexName, T vectors, U ids,
                            StreamObserver<IndexManagerOuterClass.UploadVectorsRequest> requestObserver,
                            CountDownLatch finishedLatch, OnReadyHandler<IndexManagerOuterClass.UploadVectorsRequest> onReadyHandler,
                            @Nullable BiConsumer<Integer, Integer> progressIndicator);

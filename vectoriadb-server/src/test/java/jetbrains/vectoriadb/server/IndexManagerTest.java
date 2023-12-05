@@ -15,6 +15,7 @@
  */
 package jetbrains.vectoriadb.server;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import io.grpc.internal.testing.StreamRecorder;
 import jetbrains.vectoriadb.index.CosineDistanceFunction;
@@ -33,6 +34,8 @@ import org.junit.Test;
 import org.springframework.mock.env.MockEnvironment;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -334,9 +337,15 @@ public class IndexManagerTest {
                     var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
                     var vectors = new float[10][64];
                     generateUniqueVectorSet(vectors, rng);
+                    var ids = new byte[10][];
+
+                    for (int i = 0; i < ids.length; i++) {
+                        ids[i] = new byte[16];
+                        ByteBuffer.wrap(ids[i]).order(ByteOrder.LITTLE_ENDIAN).putInt(i);
+                    }
 
                     createIndex(uploadedIndex, indexManagerService, IndexManagerOuterClass.Distance.L2);
-                    uploadVectors(uploadedIndex, vectors, indexManagerService);
+                    uploadVectors(uploadedIndex, vectors, ids, indexManagerService);
 
                     generateIndex(builtIndex, L2DistanceFunction.INSTANCE, 64, 10,
                             indexManagerService);
@@ -400,18 +409,22 @@ public class IndexManagerTest {
         }
     }
 
-    private static void uploadVectors(String indexName, float[][] vectors,
+    private static void uploadVectors(String indexName, float[][] vectors, byte[][] ids,
                                       IndexManagerServiceImpl indexManagerService) throws Exception {
         var vectorsUploadRecorder = StreamRecorder.<Empty>create();
         var request = indexManagerService.uploadVectors(vectorsUploadRecorder);
         try {
-            for (var vector : vectors) {
+            for (var i = 0; i < vectors.length; i++) {
+                var vector = vectors[i];
+                var id = ids[i];
+
                 var builder = IndexManagerOuterClass.UploadVectorsRequest.newBuilder();
                 builder.setIndexName(indexName);
 
                 for (var component : vector) {
                     builder.addVectorComponents(component);
                 }
+                builder.setId(IndexManagerOuterClass.VectorId.newBuilder().setId(ByteString.copyFrom(id)).build());
 
                 request.onNext(builder.build());
                 if (vectorsUploadRecorder.getError() != null) {
@@ -518,8 +531,8 @@ public class IndexManagerTest {
         checkCompleteness(switchToSearchModeRecorder);
     }
 
-    private static int[] findNearestNeighbours(IndexManagerServiceImpl indexManagerService,
-                                               float[] queryVector, String indexName, int k) throws Exception {
+    private static byte[][] findNearestNeighbours(IndexManagerServiceImpl indexManagerService,
+                                                  float[] queryVector, String indexName, int k) throws Exception {
         var findNearestVectorsRecorder = StreamRecorder.<IndexManagerOuterClass.FindNearestNeighboursResponse>create();
         var builder = IndexManagerOuterClass.FindNearestNeighboursRequest.newBuilder();
         builder.setIndexName(indexName);
@@ -535,10 +548,10 @@ public class IndexManagerTest {
 
         var response = findNearestVectorsRecorder.getValues().get(0);
         var nearestVectors = response.getIdsList();
-        var result = new int[nearestVectors.size()];
+        var result = new byte[nearestVectors.size()][];
 
         for (int i = 0; i < nearestVectors.size(); i++) {
-            result[i] = nearestVectors.get(i);
+            result[i] = nearestVectors.get(i).getId().toByteArray();
         }
 
         return result;
@@ -602,9 +615,14 @@ public class IndexManagerTest {
 
 
         generateUniqueVectorSet(vectors, rng);
+        var ids = new byte[vectorsCount][];
+        for (int i = 0; i < ids.length; i++) {
+            ids[i] = new byte[16];
+            ByteBuffer.wrap(ids[i]).order(ByteOrder.LITTLE_ENDIAN).putInt(i);
+        }
 
         createIndex(indexName, indexManagerService, distance);
-        uploadVectors(indexName, vectors, indexManagerService);
+        uploadVectors(indexName, vectors, ids, indexManagerService);
 
         var ts1 = System.nanoTime();
         buildIndex(indexName, indexManagerService);
@@ -630,7 +648,13 @@ public class IndexManagerTest {
 
         for (var j = 0; j < vectorsCount; j++) {
             var vector = queries[j];
-            var result = findNearestNeighbours(indexManagerService, vector, indexName, recallCount);
+            var rawIds = findNearestNeighbours(indexManagerService, vector, indexName, recallCount);
+
+            var result = new int[rawIds.length];
+            for (int i = 0; i < rawIds.length; i++) {
+                result[i] = ByteBuffer.wrap(rawIds[i]).order(ByteOrder.LITTLE_ENDIAN).getInt();
+            }
+
             totalRecall += recall(result, groundTruth[j]);
 
             if ((j + 1) % 1_000 == 0) {

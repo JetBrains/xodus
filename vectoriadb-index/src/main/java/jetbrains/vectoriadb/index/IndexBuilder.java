@@ -59,6 +59,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 public final class IndexBuilder {
+    /**
+     * Maximum size of id  of related vector in bytes.
+     */
+    public static final int VECTOR_ID_SIZE = 16;
+
     public static final int DEFAULT_MAX_CONNECTIONS_PER_VERTEX = 128;
     public static final int DEFAULT_MAX_AMOUNT_OF_CANDIDATES = 128;
     public static final float DEFAULT_DISTANCE_MULTIPLIER = 2.0f;
@@ -95,14 +100,15 @@ public final class IndexBuilder {
                 var verticesCountPerPage = pageStructure.verticesCountPerPage();
                 var vertexRecordSize = pageStructure.vertexRecordSize();
                 var recordVectorsOffset = pageStructure.recordVectorsOffset();
+                var diskRecordVectorIdOffset = pageStructure.recordIdOffset();
                 var recordEdgesOffset = pageStructure.recordEdgesOffset();
                 var recordEdgesCountOffset = pageStructure.recordEdgesCountOffset();
 
                 try (var vectorReader = new MmapVectorReader(vectorsDimension, dataStoreFilePath)) {
                     try (var arena = Arena.ofShared()) {
 
-                        var size = vectorReader.size();
-                        if (size == 0) {
+                        var vectorsCount = vectorReader.size();
+                        if (vectorsCount == 0) {
                             logger.info("Vector index " + name + ". There are no vectors to index. Stopping index build.");
                             return;
                         }
@@ -141,7 +147,7 @@ public final class IndexBuilder {
 
                         var partitions =
                                 (int) Math.max(1,
-                                        3 * calculateGraphPartitionSize(2L * verticesCount,
+                                        3 * calculateGraphPartitionSizeInRAM(2L * verticesCount,
                                                 maxConnectionsPerVertex, vectorsDimension) / memoryConsumption);
 
                         var totalPartitionsSize = 0;
@@ -173,7 +179,7 @@ public final class IndexBuilder {
                                     }
                                 }
 
-                                checkRequestedFreeSpace(indexDirectoryPath, size, totalPartitionsSize, maxConnectionsPerVertex,
+                                checkRequestedFreeSpace(indexDirectoryPath, vectorsCount, totalPartitionsSize, maxConnectionsPerVertex,
                                         pageSize, verticesCountPerPage);
 
                                 var avgPartitionSize = totalPartitionsSize / partitions;
@@ -186,11 +192,11 @@ public final class IndexBuilder {
                                 }
 
                                 var endPartition = System.nanoTime();
-                                var maxPartitionSizeBytes = calculateGraphPartitionSize(maxPartitionSize, maxConnectionsPerVertex,
+                                var maxPartitionSizeBytes = calculateGraphPartitionSizeInRAM(maxPartitionSize, maxConnectionsPerVertex,
                                         vectorsDimension);
                                 long maxPartitionSizeKBytes = maxPartitionSizeBytes / 1024;
                                 long minPartitionSizeKBytes =
-                                        calculateGraphPartitionSize(minPartitionSize, maxConnectionsPerVertex, vectorsDimension) / 1024;
+                                        calculateGraphPartitionSizeInRAM(minPartitionSize, maxConnectionsPerVertex, vectorsDimension) / 1024;
 
                                 //noinspection IntegerDivisionInFloatingPointContext
                                 logger.info("Splitting vectors into {} partitions has been finished. Max. partition size {} vertexes " +
@@ -245,7 +251,7 @@ public final class IndexBuilder {
                                 Files.delete(graphFilePath);
                             }
 
-                            var diskCache = initFile(graphFilePath, size, verticesCountPerPage,
+                            var diskCache = initFile(graphFilePath, vectorsCount, verticesCountPerPage,
                                     pageSize, arena);
 
                             var graphs = new MMapedGraph[partitions];
@@ -261,9 +267,12 @@ public final class IndexBuilder {
                                     var partition = dmPartitions[i];
                                     var partitionSize = (int) partition.byteSize() / Integer.BYTES;
 
-                                    var graph = new MMapedGraph(partitionSize, i, name, indexDirectoryPath, maxConnectionsPerVertex,
-                                            vectorsDimension, distanceFunction, maxAmountOfCandidates, pageSize,
-                                            vertexRecordSize, recordVectorsOffset, diskCache);
+                                    var graph = new MMapedGraph(partitionSize, i, name, indexDirectoryPath,
+                                            maxConnectionsPerVertex, vectorsDimension, distanceFunction,
+                                            maxAmountOfCandidates, pageSize,
+                                            vertexRecordSize, recordVectorsOffset,
+                                            diskRecordVectorIdOffset,
+                                            diskCache);
                                     progressTracker.pushPhase("building search graph for partition " + i,
                                             "partition size", String.valueOf(partitionSize));
                                     try {
@@ -271,10 +280,14 @@ public final class IndexBuilder {
                                             var vectorIndex = partition.getAtIndex(ValueLayout.JAVA_INT, j);
 
                                             var vector = vectorReader.read(vectorIndex);
-                                            graph.addVector(vectorIndex, vector);
+                                            var vectorId = vectorReader.id(vectorIndex);
 
-                                            var currentDistance = distanceFunction.computeDistance(vector, 0, centroid,
+                                            graph.addVector(vectorIndex, vector, vectorId);
+
+                                            var currentDistance = distanceFunction.computeDistance(vector,
+                                                    0, centroid,
                                                     0, vectorsDimension);
+
                                             if (currentDistance < medoidMinDistance) {
                                                 medoidMinDistance = currentDistance;
                                                 medoidMinIndex = vectorIndex;
@@ -663,7 +676,7 @@ public final class IndexBuilder {
 
     private static MemorySegment initFile(Path path, int globalVertexCount, int verticesPerPage,
                                           int pageSize, Arena arena) throws IOException {
-        var fileLength = calculateRequestedFileLength(globalVertexCount, pageSize, verticesPerPage);
+        var fileLength = calculateSearchGraphFileSize(globalVertexCount, pageSize, verticesPerPage);
         MemorySegment diskCache;
         try (var rwFile = new RandomAccessFile(path.toFile(), "rw")) {
             rwFile.setLength(fileLength);
@@ -676,17 +689,24 @@ public final class IndexBuilder {
     }
 
 
-    private static void checkRequestedFreeSpace(Path dbPath, int size, int totalPartitionsSize,
+    private static void checkRequestedFreeSpace(Path dbPath, int vectorsCount, int totalPartitionsSize,
                                                 int maxConnectionsPerVertex, int pageSize,
                                                 int verticesPerPage) throws IOException {
         var fileStore = Files.getFileStore(dbPath);
         var usableSpace = fileStore.getUsableSpace();
-        var requiredGraphSpace = calculateRequestedFileLength(size, pageSize, verticesPerPage);
 
-        //space needed for mmap files to store edges and global indexes of all partitions.
+        var requiredGraphSpace = calculateSearchGraphFileSize(vectorsCount, pageSize, verticesPerPage);
+
+        //During index build data are stored in several files.
+        //All vectors are stored into the final file according to their dedicated positions along with their ids.
+        //Edges are stored in separate files for each partition, backed by mmap and then merged into the final file
+        //during the merge step.
+        //That is done to merge search graphs of several partitions into one in memory restricted environment.
+        //Space needed for MMAP files to store edges and global indexes.
+
         var requiredPartitionsSpace =
-                (long) totalPartitionsSize * (maxConnectionsPerVertex + 1) * Integer.BYTES +
-                        (long) totalPartitionsSize * Integer.BYTES;
+                (long) totalPartitionsSize * ((long) (maxConnectionsPerVertex + 1) * Integer.BYTES +
+                        Integer.BYTES);
         var requiredSpace = requiredGraphSpace + requiredPartitionsSpace;
 
         if (requiredSpace > usableSpace * 0.9) {
@@ -696,7 +716,7 @@ public final class IndexBuilder {
         }
     }
 
-    private static long calculateRequestedFileLength(long verticesCount, int pageSize, int verticesPerPage) {
+    private static long calculateSearchGraphFileSize(long verticesCount, int pageSize, int verticesPerPage) {
         var pagesToWrite = pagesToWrite(verticesCount, verticesPerPage);
         return (long) pagesToWrite * pageSize;
     }
@@ -705,12 +725,13 @@ public final class IndexBuilder {
         return (int) (verticesCount + verticesPerPage - 1) / verticesPerPage;
     }
 
-    private static long calculateGraphPartitionSize(long partitionSize, int maxConnectionsPerVertex, int vectorDim) {
+    private static long calculateGraphPartitionSizeInRAM(long partitionSize, int maxConnectionsPerVertex, int vectorDim) {
         //1. edges
-        //2. global indexes
-        //3. vertex records
-        return partitionSize * (maxConnectionsPerVertex + 1) * Integer.BYTES +
-                partitionSize * Integer.BYTES + partitionSize * vectorDim * Float.BYTES;
+        //2. vector position
+        //3. vector
+        //4. vector id
+        return partitionSize * ((long) (maxConnectionsPerVertex + 1) * Integer.BYTES +
+                Integer.BYTES + (long) vectorDim * Float.BYTES + VECTOR_ID_SIZE);
     }
 
     private static final class MMapedGraph implements AutoCloseable {
@@ -718,6 +739,9 @@ public final class IndexBuilder {
         private final MemorySegment edges;
         private final MemorySegment vectors;
         private final MemorySegment globalIndexes;
+
+        private final MemorySegment ids;
+
         @Nullable
         private AtomicLongArray edgeVersions;
         private final Arena edgesArena;
@@ -734,21 +758,25 @@ public final class IndexBuilder {
         private final int pageSize;
         private final int vertexRecordSize;
         private final int diskRecordVectorsOffset;
+        private final int diskRecordVectorIdOffset;
         private final MemorySegment diskCache;
 
 
         private MMapedGraph(int capacity, int id, String name, Path path, int maxConnectionsPerVertex,
                             int vectorDimensions, DistanceFunction distanceFunction, int maxAmountOfCandidates,
                             int pageSize, int vertexRecordSize, int diskRecordVectorsOffset,
+                            int diskRecordVectorIdOffset,
                             MemorySegment diskCache) throws IOException {
             this(capacity, false, id, name, path, maxConnectionsPerVertex, vectorDimensions,
-                    distanceFunction, maxAmountOfCandidates, pageSize, vertexRecordSize, diskRecordVectorsOffset, diskCache);
+                    distanceFunction, maxAmountOfCandidates, pageSize, vertexRecordSize, diskRecordVectorsOffset,
+                    diskRecordVectorIdOffset, diskCache);
         }
 
         private MMapedGraph(int capacity, boolean skipVectors, int id, String name, Path path,
                             int maxConnectionsPerVertex, int vectorDimensions,
                             DistanceFunction distanceFunction, int maxAmountOfCandidates, int pageSize,
                             int vertexRecordSize, int diskRecordVectorsOffset,
+                            int diskRecordVectorIdOffset,
                             MemorySegment diskCache) throws IOException {
             this.edgeVersions = new AtomicLongArray(capacity);
             this.name = name;
@@ -761,6 +789,7 @@ public final class IndexBuilder {
             this.pageSize = pageSize;
             this.vertexRecordSize = vertexRecordSize;
             this.diskRecordVectorsOffset = diskRecordVectorsOffset;
+            this.diskRecordVectorIdOffset = diskRecordVectorIdOffset;
             this.diskCache = diskCache;
 
             this.edgesArena = Arena.ofShared();
@@ -793,8 +822,11 @@ public final class IndexBuilder {
                 var vectorsLayout = MemoryLayout.sequenceLayout(
                         (long) capacity * this.vectorDimensions, ValueLayout.JAVA_FLOAT);
                 this.vectors = vectorsArena.allocate(vectorsLayout);
+                this.ids = vectorsArena.allocateArray(ValueLayout.JAVA_BYTE,
+                        (long) capacity * VECTOR_ID_SIZE);
             } else {
                 vectors = null;
+                this.ids = null;
             }
         }
 
@@ -855,12 +887,15 @@ public final class IndexBuilder {
         }
 
 
-        private void addVector(int globalIndex, MemorySegment vector) {
+        private void addVector(int globalIndex, MemorySegment vector, MemorySegment id) {
             var index = (long) size * vectorDimensions;
 
             MemorySegment.copy(vector, 0, vectors,
                     index * Float.BYTES,
                     (long) vectorDimensions * Float.BYTES);
+            MemorySegment.copy(id, 0, ids,
+                    (long) size * VECTOR_ID_SIZE,
+                    VECTOR_ID_SIZE);
             globalIndexes.setAtIndex(ValueLayout.JAVA_INT, size, globalIndex);
 
             size++;
@@ -1354,6 +1389,9 @@ public final class IndexBuilder {
 
                 var recordOffset = localPageOffset * vertexRecordSize + Long.BYTES + pageOffset;
 
+                diskCache.asSlice(recordOffset + diskRecordVectorIdOffset).copyFrom(
+                        ids.asSlice(i * VECTOR_ID_SIZE, VECTOR_ID_SIZE));
+
                 for (long j = 0; j < vectorDimensions; j++, vectorsIndex++) {
                     var vectorItem = vectors.get(ValueLayout.JAVA_FLOAT,
                             vectorsIndex * Float.BYTES);
@@ -1481,8 +1519,9 @@ public final class IndexBuilder {
 
         public MmapVectorReader(final int vectorDimensions, Path path) throws IOException {
             this.vectorDimensions = vectorDimensions;
-            this.recordSize = Float.BYTES * vectorDimensions;
 
+            //record size = vector size + vector id
+            this.recordSize = Float.BYTES * vectorDimensions + IndexBuilder.VECTOR_ID_SIZE;
 
             arena = Arena.ofShared();
 
@@ -1500,6 +1539,12 @@ public final class IndexBuilder {
         @Override
         public MemorySegment read(int index) {
             return segment.asSlice((long) index * recordSize, (long) Float.BYTES * vectorDimensions);
+        }
+
+        @Override
+        public MemorySegment id(int index) {
+            return segment.asSlice((long) index * recordSize + (long) Float.BYTES * vectorDimensions,
+                    IndexBuilder.VECTOR_ID_SIZE);
         }
 
         @Override
