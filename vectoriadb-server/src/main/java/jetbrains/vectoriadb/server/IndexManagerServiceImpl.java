@@ -1187,7 +1187,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                             vector[i] = value.getVectorComponents(i);
                         }
                         try {
-                            store.add(vector, value.getId().toByteArray());
+                            store.add(vector, value.getId().getId().toByteArray());
                         } catch (Exception e) {
                             var msg = "Failed to add vector to index " + indexName;
                             logger.error(msg, e);

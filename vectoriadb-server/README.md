@@ -54,8 +54,8 @@ Below is an example command to achieve this:
 
 ```bash
 docker run -d -p 9090:9090 \
--v /home/user/vectoriadb-server/logs:/vectoriadb-server/logs \
--v /home/user/vectoriadb-server/indexes:/vectoriadb-server/indexes \
--v /home/user/vectoriadb-server/conf:/vectoriadb-server/conf \
+-v /home/user/vectoriadb-server/logs:/vectoriadb/logs \
+-v /home/user/vectoriadb-server/indexes:/vectoriadb/indexes \
+-v /home/user/vectoriadb-server/config:/vectoriadb/config \
 --name vectoriadb-server vectoriadb/vectoriadb-server:latest
 ```
