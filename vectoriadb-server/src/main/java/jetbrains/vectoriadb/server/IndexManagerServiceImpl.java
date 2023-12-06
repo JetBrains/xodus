@@ -1317,6 +1317,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
                 indexMetadatas.remove(indexName);
                 indexStates.remove(indexName);
+                responseObserver.onNext(Empty.newBuilder().build());
                 responseObserver.onCompleted();
             } catch (Exception e) {
                 indexStates.put(request.getIndexName(), IndexState.BROKEN);
