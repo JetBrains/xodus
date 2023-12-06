@@ -53,7 +53,7 @@ class DotDistancePQQuantizer extends AbstractQuantizer {
     }
 
     @Override
-    protected MemorySegment allocateMemoryForPqVectors(int quantizersCount, long vectorsCount, Arena arena) {
+    protected MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
         // todo It is used only internally in generatePQCodes(), so maybe hide it from the public interface.
 
         // The implementation is just to allocate memory only for the norm quantization.
