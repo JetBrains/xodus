@@ -98,6 +98,9 @@ message FindNearestNeighboursResponse {
   repeated VectorId ids = 1;
 }
 
+/*
+ * Id if the vector. Length of contained byte string should be exactly 16 bytes.
+ */
 message VectorId {
   bytes id = 1;
 }
@@ -105,6 +108,10 @@ message VectorId {
 message UploadVectorsRequest {
   string index_name = 1;
   repeated float vector_components = 2;
+
+  /*
+  * Each vector has to have length of 16 bytes
+  */
   VectorId id = 3;
 }
 
