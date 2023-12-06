@@ -1,4 +1,4 @@
-package jetbrains.vectoriadb.index.segment
+package jetbrains.vectoriadb.index
 
 import org.junit.Test
 import java.lang.foreign.Arena

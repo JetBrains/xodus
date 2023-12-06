@@ -1,12 +1,10 @@
-package jetbrains.vectoriadb.index.vector;
+package jetbrains.vectoriadb.index;
 
-import jetbrains.vectoriadb.index.VectorReader;
-import jetbrains.vectoriadb.index.segment.FloatVectorSegment;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.foreign.MemorySegment;
 
-public class FloatVectorSegmentReader implements VectorReader {
+class FloatVectorSegmentReader implements VectorReader {
 
     @NotNull
     private final FloatVectorSegment vectors;

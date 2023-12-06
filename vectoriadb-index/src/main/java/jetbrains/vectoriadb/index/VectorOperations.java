@@ -1,4 +1,4 @@
-package jetbrains.vectoriadb.index.vector;
+package jetbrains.vectoriadb.index;
 
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorMask;
@@ -10,7 +10,7 @@ import java.nio.ByteOrder;
 
 import static java.lang.Math.abs;
 
-public final class VectorOperations {
+class VectorOperations {
 
     public static final float PRECISION = (float) 1e-5;
 

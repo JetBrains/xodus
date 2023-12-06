@@ -1,8 +1,6 @@
-package jetbrains.vectoriadb.index.vector
+package jetbrains.vectoriadb.index
 
-import jetbrains.vectoriadb.index.NoOpProgressTracker
-import jetbrains.vectoriadb.index.ParallelBuddy
-import jetbrains.vectoriadb.index.vector.VectorOperations.PRECISION
+import jetbrains.vectoriadb.index.VectorOperations.PRECISION
 import org.junit.Assert
 import org.junit.Test
 

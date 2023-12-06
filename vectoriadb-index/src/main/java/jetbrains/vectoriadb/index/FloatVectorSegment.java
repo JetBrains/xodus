@@ -1,12 +1,10 @@
-package jetbrains.vectoriadb.index.segment;
-
-import jetbrains.vectoriadb.index.vector.VectorOperations;
+package jetbrains.vectoriadb.index;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
-public final class FloatVectorSegment {
+class FloatVectorSegment {
     private static final ValueLayout.OfFloat LAYOUT = ValueLayout.JAVA_FLOAT;
     private static final int BYTES = Float.BYTES;
 

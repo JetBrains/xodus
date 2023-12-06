@@ -1,4 +1,4 @@
-package jetbrains.vectoriadb.index.segment;
+package jetbrains.vectoriadb.index;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -6,7 +6,7 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
-public class ByteCodeSegment implements CodeSegment {
+class ByteCodeSegment implements CodeSegment {
 
     @NotNull
     private final MemorySegment codes;

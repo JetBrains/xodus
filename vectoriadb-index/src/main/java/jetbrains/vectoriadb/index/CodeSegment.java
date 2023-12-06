@@ -1,6 +1,6 @@
-package jetbrains.vectoriadb.index.segment;
+package jetbrains.vectoriadb.index;
 
-public interface CodeSegment {
+interface CodeSegment {
 
     int count();
 

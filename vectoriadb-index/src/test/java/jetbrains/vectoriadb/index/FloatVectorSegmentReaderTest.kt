@@ -1,4 +1,4 @@
-package jetbrains.vectoriadb.index.vector
+package jetbrains.vectoriadb.index
 
 import org.junit.Assert
 import org.junit.Test

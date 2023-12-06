@@ -1,11 +1,11 @@
-package jetbrains.vectoriadb.index.segment;
+package jetbrains.vectoriadb.index;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
-public class SkippingByteCodeSegment implements CodeSegment {
+class SkippingByteCodeSegment implements CodeSegment {
 
     private final MemorySegment codes;
     private final int range;

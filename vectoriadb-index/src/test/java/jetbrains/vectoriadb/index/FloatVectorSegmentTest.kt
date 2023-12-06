@@ -1,7 +1,6 @@
-package jetbrains.vectoriadb.index.segment
+package jetbrains.vectoriadb.index
 
-import jetbrains.vectoriadb.index.vector.VectorOperations.PRECISION
-import jetbrains.vectoriadb.index.vector.createRandomFloatVectorSegment
+import jetbrains.vectoriadb.index.VectorOperations.PRECISION
 import org.junit.Assert
 import org.junit.Test
 import java.lang.foreign.Arena

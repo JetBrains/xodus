@@ -1,16 +1,15 @@
-package jetbrains.vectoriadb.index.vector
+package jetbrains.vectoriadb.index
 
-import jetbrains.vectoriadb.index.segment.FloatVectorSegment
 import java.lang.foreign.Arena
 import kotlin.random.Random
 
-fun createRandomFloatVectorSegment(count: Int, dimensions: Int): FloatVectorSegment {
+internal fun createRandomFloatVectorSegment(count: Int, dimensions: Int): FloatVectorSegment {
     val v1 = FloatVectorSegment.makeArraySegment(count, dimensions)
     v1.fillRandom()
     return v1
 }
 
-fun Arena.createRandomFloatVectorSegment(count: Int, dimensions: Int, heapBased: Boolean = false): FloatVectorSegment {
+internal fun Arena.createRandomFloatVectorSegment(count: Int, dimensions: Int, heapBased: Boolean = false): FloatVectorSegment {
     val v1 = if (heapBased) {
         FloatVectorSegment.makeArraySegment(count, dimensions)
     } else {

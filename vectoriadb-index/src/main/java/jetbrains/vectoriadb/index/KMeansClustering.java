@@ -1,8 +1,5 @@
 package jetbrains.vectoriadb.index;
 
-import jetbrains.vectoriadb.index.segment.CodeSegment;
-import jetbrains.vectoriadb.index.segment.FloatVectorSegment;
-import jetbrains.vectoriadb.index.segment.IntSegment;
 import org.apache.commons.rng.simple.RandomSource;
 import org.jetbrains.annotations.NotNull;
 
@@ -32,7 +29,7 @@ public final class KMeansClustering {
     @NotNull
     private final ParallelBuddy pBuddy;
 
-    public KMeansClustering(
+    KMeansClustering(
             @NotNull DistanceFunction distanceFun,
             @NotNull VectorReader vectorReader,
             @NotNull FloatVectorSegment centroids,

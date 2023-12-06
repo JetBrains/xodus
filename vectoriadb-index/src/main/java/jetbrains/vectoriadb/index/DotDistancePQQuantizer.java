@@ -16,12 +16,6 @@
 package jetbrains.vectoriadb.index;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import jetbrains.vectoriadb.index.segment.ByteCodeSegment;
-import jetbrains.vectoriadb.index.segment.CodeSegment;
-import jetbrains.vectoriadb.index.segment.FloatVectorSegment;
-import jetbrains.vectoriadb.index.vector.FloatVectorSegmentReader;
-import jetbrains.vectoriadb.index.vector.NormalizedVectorReader;
-import jetbrains.vectoriadb.index.vector.VectorOperations;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.DataInputStream;
@@ -33,7 +27,7 @@ import java.lang.foreign.MemorySegment;
 /**
  * Ignore the compressionRation problem. Use additional space, you will fix (maybe) this problem later when everything works.
  */
-public final class DotDistancePQQuantizer extends AbstractQuantizer {
+class DotDistancePQQuantizer extends AbstractQuantizer {
 
     private final Arena arena;
 
