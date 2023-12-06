@@ -31,6 +31,12 @@ public class FloatVectorSegmentReader implements VectorReader {
     }
 
     @Override
+    public MemorySegment id(int index) {
+        // this vector reader should not be used in a context where vector id is required
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void close() throws Exception {
 
     }

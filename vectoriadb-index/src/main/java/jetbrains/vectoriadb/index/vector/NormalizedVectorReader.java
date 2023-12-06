@@ -60,6 +60,11 @@ public final class NormalizedVectorReader implements VectorReader {
     }
 
     @Override
+    public MemorySegment id(int index) {
+        return source.id(index);
+    }
+
+    @Override
     public void close() {
         arena.close();
     }
