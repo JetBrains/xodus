@@ -16,6 +16,12 @@
 package jetbrains.vectoriadb.index;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import jetbrains.vectoriadb.index.segment.ByteCodeSegment;
+import jetbrains.vectoriadb.index.segment.CodeSegment;
+import jetbrains.vectoriadb.index.segment.FloatVectorSegment;
+import jetbrains.vectoriadb.index.vector.FloatVectorSegmentReader;
+import jetbrains.vectoriadb.index.vector.NormalizedVectorReader;
+import jetbrains.vectoriadb.index.vector.VectorOperations;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.DataInputStream;
@@ -26,14 +32,34 @@ import java.lang.foreign.MemorySegment;
 
 /**
  * Ignore the compressionRation problem. Use additional space, you will fix (maybe) this problem later when everything works.
- *
- * */
+ */
 public final class DotDistancePQQuantizer extends AbstractQuantizer {
 
-    // Initialize, make PQ code for the vectors
+    private final Arena arena;
+
+    private final int numWorkers;
+    private final int kMeansMaxIteration = 50;
+
+    // used for the inner product calculation, needed at the search time
+    private final L2PQQuantizer normalizedL2 = new L2PQQuantizer();
+
+    private final int normCodebooksCount;
+    private FloatVectorSegment[] codebooks;
+    private CodeSegment[] codes;
+
+    public DotDistancePQQuantizer() {
+        this(1);
+    }
+
+    DotDistancePQQuantizer(int normCodebooksCount) {
+        if (normCodebooksCount < 1) throw new IllegalArgumentException("normCodebooksCount should be greater or equal 1");
+        arena = Arena.ofShared();
+        this.normCodebooksCount = normCodebooksCount;
+        numWorkers = ParallelExecution.availableCores();
+    }
 
     @Override
-    protected MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
+    protected MemorySegment allocateMemoryForPqVectors(int quantizersCount, long vectorsCount, Arena arena) {
         // todo It is used only internally in generatePQCodes(), so maybe hide it from the public interface.
 
         // The implementation is just to allocate memory only for the norm quantization.
@@ -43,14 +69,80 @@ public final class DotDistancePQQuantizer extends AbstractQuantizer {
 
     @Override
     public void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker) {
-        // 1. Create two private L2 quantizers: normalizedL2 and originalL2
-        // 2. Create a wrapper normalizedVectorReader, that wraps vectorReader and returns normalized vectors,
-        // it can remember vector norms on the way, so you will not have to recalculate them once more.
-        // 3. normalizedL2.generatePQCodes(normalizedVectorReader), originalL2.generatePQCodes(vectorReader)
-        // 4. Calculate relative norm lx=||X||/||approximatedX'||. Go through normalizedL2.codes, decode vectors, calculate norm for them
-        // get original norm from normalizedVectorReader.
-        // 5. Train norm codebooks to quantize lx. Provide the possibility to have an arbitrary number of codebooks (1 and > 1).
-        // Train codebooks using k-means. lx - is a vector with 1 dimension.
+        progressTracker.pushPhase("Norm-explicit PQ codes creation", "norm quantizers count", String.valueOf(normCodebooksCount));
+
+        try (
+                var localArena = Arena.ofShared();
+                var normalizedVectorReader = new NormalizedVectorReader(vectorReader);
+                var pBuddy = new ParallelBuddy(numWorkers, "norm-explicit-pq-calc-")
+        ) {
+            codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebooksCount, vectorReader.size(), vectorsDimension);
+            codes = ByteCodeSegment.makeNativeSegments(arena, normCodebooksCount, vectorReader.size());
+
+            // precalculate original vector norms not to calculate them on every read
+            normalizedVectorReader.precalculateOriginalVectorNorms(pBuddy, progressTracker);
+
+            normalizedL2.generatePQCodes(vectorsDimension, compressionRatio, normalizedVectorReader, progressTracker);
+
+            // Calculate relativeNorm = originalVectorNorm / normalizedApproximatedVectorNorm, so later we can get originalVectorNorm = relativeNorm * normalizedApproximatedVectorNorm
+            var relativeNorms = FloatVectorSegment.makeNativeSegment(localArena, vectorReader.size(), 1);
+            calculateRelativeNorms(pBuddy, vectorReader, normalizedVectorReader, relativeNorms, progressTracker);
+
+            trainCodebook(pBuddy, relativeNorms, 0, progressTracker);
+
+            if (normCodebooksCount > 1) {
+                var normResiduals = FloatVectorSegment.makeNativeSegment(localArena, vectorReader.size(), 1);
+                for (int codebookIdx = 1; codebookIdx < normCodebooksCount; codebookIdx++) {
+                    calculateNormResiduals(pBuddy, relativeNorms, normResiduals, codebookIdx, progressTracker);
+                    trainCodebook(pBuddy, normResiduals, codebookIdx, progressTracker);
+                }
+            }
+
+        } finally {
+            progressTracker.pullPhase();
+        }
+    }
+
+    private void trainCodebook(ParallelBuddy pBuddy, FloatVectorSegment norms, int codebookIdx, ProgressTracker progressTracker) {
+        var kmeans = new KMeansClustering(
+                L2DistanceFunction.INSTANCE,
+                new FloatVectorSegmentReader(norms),
+                codebooks[codebookIdx],
+                codes[codebookIdx],
+                kMeansMaxIteration,
+                pBuddy
+        );
+        kmeans.calculateCentroids(progressTracker);
+    }
+
+    private void calculateRelativeNorms(ParallelBuddy pBuddy, VectorReader vectorReader, NormalizedVectorReader normalizedVectorReader, FloatVectorSegment relativeNorms, ProgressTracker progressTracker) {
+        pBuddy.run(
+                "Calculate relative norms",
+                vectorReader.size(),
+                progressTracker,
+                (_, vectorIdx) -> {
+                    var normalizedVectorApproximation = normalizedL2.getVectorApproximation(vectorIdx);
+                    var normalizedVectorApproximationNorm = VectorOperations.calculateL2Norm(normalizedVectorApproximation);
+                    var originalVectorNorm = normalizedVectorReader.getOriginalVectorNorm(vectorIdx);
+                    relativeNorms.set(vectorIdx, 0, originalVectorNorm / normalizedVectorApproximationNorm);
+                }
+        );
+    }
+
+    private void calculateNormResiduals(ParallelBuddy pBuddy, FloatVectorSegment relativeNorms, FloatVectorSegment normResiduals, int codebookIdx, ProgressTracker progressTracker) {
+        pBuddy.run(
+                "Calculate norm residuals " + codebookIdx,
+                relativeNorms.count(),
+                progressTracker,
+                (_, vectorIdx) -> {
+                    var relativeNorm = relativeNorms.get(vectorIdx, 0);
+                    var relativeNormApproximation = 0f;
+                    for (int i = 0; i < codebookIdx; i++) {
+                        relativeNormApproximation += codebooks[i].get(vectorIdx, 0);
+                    }
+                    normResiduals.set(vectorIdx, 0, relativeNorm - relativeNormApproximation);
+                }
+        );
     }
 
 

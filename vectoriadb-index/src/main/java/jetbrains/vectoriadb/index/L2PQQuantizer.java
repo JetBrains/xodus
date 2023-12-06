@@ -57,6 +57,21 @@ class L2PQQuantizer extends AbstractQuantizer {
         this.arena = Arena.ofShared();
     }
 
+    public float[] getVectorApproximation(int vectorIdx) {
+        var codedVector = pqVectors.asSlice((long) vectorIdx * quantizersCount, quantizersCount);
+        return decodeVector(codedVector);
+    }
+
+    private float[] decodeVector(MemorySegment codedVector) {
+        var result = new float[quantizersCount * subVectorSize];
+
+        for (int i = 0, dimensionOffset = 0; i < quantizersCount; i++, dimensionOffset += subVectorSize) {
+            var pqCentroidVector = Byte.toUnsignedInt(codedVector.getAtIndex(ValueLayout.JAVA_BYTE, i));
+            System.arraycopy(centroids[i][pqCentroidVector], 0, result, dimensionOffset, subVectorSize);
+        }
+
+        return result;
+    }
 
     // Initialize, make PQ code for the vectors
 
