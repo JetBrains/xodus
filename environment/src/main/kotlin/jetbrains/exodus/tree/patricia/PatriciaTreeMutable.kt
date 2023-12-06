@@ -268,14 +268,14 @@ internal class PatriciaTreeMutable(
     ): Boolean {
         var l = loggable
         var minAddress = l.address
-        if (minAddress == 520806596608L) {
+        if (minAddress == 520806663921L) {
             println("Bad boy !!!")
         }
 
         while (true) {
             val type = l.type
 
-            if (l.address == 520806596608L) {
+            if (l.address == 520806663921L) {
                 println("Bad boy !!!")
             }
 
@@ -299,7 +299,7 @@ internal class PatriciaTreeMutable(
         }
 
         val maxAddress = l.address
-        if (maxAddress == 520806596608L) {
+        if (maxAddress == 520806663921L) {
             println("Bad boy !!!")
         }
 

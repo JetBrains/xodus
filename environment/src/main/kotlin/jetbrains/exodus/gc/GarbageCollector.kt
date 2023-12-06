@@ -362,7 +362,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             val loggables = log.getLoggableIterator(fileAddress)
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
-                if (loggable.address == 520806596608L) {
+                if (loggable.address == 520806663921L) {
                     println("Bad boy !!!")
                 }
 
