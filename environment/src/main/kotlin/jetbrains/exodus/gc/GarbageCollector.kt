@@ -358,8 +358,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             )
         }
 
-        val addresses = TreeSet<Long>()
-        val lastAddress = 520806596608L + log.cachePageSize
+//     val addresses = TreeSet<Long>()
+//     val lastAddress = 520806596608L + log.cachePageSize
 
         try {
             val nextFileAddress = fileAddress + log.fileLengthBound
@@ -367,12 +367,12 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
 
-                if (loggable.address >=  520806596608L && loggable.address <=  lastAddress) {
-                    addresses.add(loggable.address)
-                }
-                if (loggable.address == 520806663897L) {
-                    println("Caught you !")
-                }
+//              if (loggable.address >=  520806596608L && loggable.address <=  lastAddress) {
+//                  addresses.add(loggable.address)
+//              }
+//              if (loggable.address == 520806663897L) {
+//                  println("Caught you !")
+//              }
 
                 if (loggable == null || loggable.address >= nextFileAddress) {
                     break
@@ -394,8 +394,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             throw e
         }
 
-        val lastProccessedAddress = addresses.floor(520806663921L)
-        println("lastProccessedAddress: $lastProccessedAddress")
+//       val lastProccessedAddress = addresses.floor(520806663921L)
+//       println("lastProccessedAddress: $lastProccessedAddress")
     }
 
     companion object : KLogging() {
