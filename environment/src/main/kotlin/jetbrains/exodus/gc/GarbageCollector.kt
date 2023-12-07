@@ -370,6 +370,9 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 if (loggable.address >=  520806596608L && loggable.address <=  lastAddress) {
                     addresses.add(loggable.address)
                 }
+                if (loggable.address == 520806663897L) {
+                    println("Caught you !")
+                }
 
                 if (loggable == null || loggable.address >= nextFileAddress) {
                     break
