@@ -40,6 +40,36 @@ class FloatVectorSegmentTest {
     }
 
     @Test
+    fun set() = Arena.ofConfined().use { arena ->
+        listOf(true, false).forEach { v1HeapBased ->
+            listOf(true, false).forEach { v2HeapBased ->
+                val v1 = arena.createRandomFloatVectorSegment(1, dimensions, v1HeapBased)
+                val v2 = arena.createRandomFloatVectorSegment(1, dimensions, v2HeapBased)
+
+                v1.set(0, v2.get(0))
+
+                assert(v1.equals(0, v2, 0))
+            }
+        }
+    }
+
+    @Test
+    fun toArray() = Arena.ofConfined().use { arena ->
+        listOf(true, false).forEach { heapBasedSegments ->
+            val count = 30
+            val v = arena.createRandomFloatVectorSegment(count, dimensions, heapBasedSegments)
+
+            val vArray = v.toArray()
+
+            repeat(count) { vectorIdx ->
+                repeat(dimensions) { dimension ->
+                    Assert.assertEquals(v.get(vectorIdx, dimension), vArray[vectorIdx][dimension], PRECISION)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `simplest add`() = Arena.ofConfined().use { arena ->
         listOf(true, false).forEach { heapBasedSegments ->
             val v1 = arena.createRandomFloatVectorSegment(1, dimensions, heapBasedSegments)

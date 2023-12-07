@@ -40,6 +40,11 @@ class ByteCodeSegment implements CodeSegment {
         return new ByteCodeSegment(memorySegment);
     }
 
+    public static CodeSegment makeArraySegment(int count) {
+        var segment = MemorySegment.ofArray(new byte[count]);
+        return new ByteCodeSegment(segment);
+    }
+
     /**
      * Allocates codes the way that, for a given vector, the codes are close to each other in the memory.
      * So physically, the memory layout looks like this

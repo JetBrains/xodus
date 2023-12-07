@@ -1,5 +1,7 @@
 package jetbrains.vectoriadb.index;
 
+import org.jetbrains.annotations.TestOnly;
+
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
@@ -12,7 +14,7 @@ class FloatVectorSegment {
     private final int count;
     private final MemorySegment vectors;
 
-    public FloatVectorSegment(int count, int dimensions, MemorySegment vectors) {
+    private FloatVectorSegment(int count, int dimensions, MemorySegment vectors) {
         this.dimensions = dimensions;
         this.count = count;
         this.vectors = vectors;
@@ -47,11 +49,19 @@ class FloatVectorSegment {
     }
 
     public void set(int vectorIdx, MemorySegment vector) {
-        MemorySegment.copy(vector, LAYOUT, 0, vectors, vectorIdx, dimensions);
+        MemorySegment.copy(vector, 0, vectors, (long) vectorIdx * dimensions * BYTES, (long) dimensions * BYTES);
     }
 
     public MemorySegment get(int vectorIdx) {
         return vectors.asSlice((long) vectorIdx * dimensions * BYTES, (long) dimensions * BYTES);
+    }
+
+    public float[][] toArray() {
+        var array = new float[count][dimensions];
+        for (int i = 0; i < count; i++) {
+            MemorySegment.copy(vectors, LAYOUT, (long) i * dimensions * BYTES, array[i], 0, dimensions);
+        }
+        return array;
     }
 
     public void fill(byte value) {
@@ -85,6 +95,13 @@ class FloatVectorSegment {
         return new FloatVectorSegment(count, dimensions, segment);
     }
 
+    /**
+     * Be careful using this method.
+     * L2DistanceFunction and DotDistanceFunction fail when working with array-based segment with float arrays behind.
+     * They work only with byte arrays behind. It is a bug in JVM, so until it is fixed, be careful using this method.
+     * Do not use it if you pass FloatVectorSegment to code that calculates distance using L2DistanceFunction and DotDistanceFunction.
+    * */
+    @TestOnly
     public static FloatVectorSegment makeArraySegment(int count, int dimensions) {
         var array = new float[count * dimensions];
         return new FloatVectorSegment(count, dimensions, MemorySegment.ofArray(array));

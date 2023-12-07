@@ -24,7 +24,7 @@ public final class KMeansClustering {
      * centroidIdx by vectorIdx
      * */
     @NotNull
-    private final CodeSegment codes;
+    private final CodeSegment centroidIdxByVectorIdx;
 
     @NotNull
     private final ParallelBuddy pBuddy;
@@ -33,7 +33,7 @@ public final class KMeansClustering {
             @NotNull DistanceFunction distanceFun,
             @NotNull VectorReader vectorReader,
             @NotNull FloatVectorSegment centroids,
-            @NotNull CodeSegment codes,
+            @NotNull CodeSegment centroidIdxByVectorIdx,
             int maxIterations,
             @NotNull ParallelBuddy pBuddy
     ) {
@@ -41,13 +41,13 @@ public final class KMeansClustering {
         this.numClusters = centroids.count();
 
         if (numVectors < numClusters) throw new IllegalArgumentException();
-        if (numClusters > codes.maxNumberOfCodes()) throw new IllegalArgumentException();
-        if (numVectors != codes.count()) throw new IllegalArgumentException();
+        if (numClusters > centroidIdxByVectorIdx.maxNumberOfCodes()) throw new IllegalArgumentException();
+        if (numVectors != centroidIdxByVectorIdx.count()) throw new IllegalArgumentException();
         if (vectorReader.dimensions() != centroids.dimensions()) throw new IllegalArgumentException();
 
         this.vectorDimensions = centroids.dimensions();
         this.centroids = centroids;
-        this.codes = codes;
+        this.centroidIdxByVectorIdx = centroidIdxByVectorIdx;
         this.distanceFun = distanceFun;
         this.vectorReader = vectorReader;
 
@@ -103,10 +103,10 @@ public final class KMeansClustering {
                 numVectors,
                 progressTracker,
                 (workerIdx, vectorIdx) -> {
-                    var prevIndex = codes.get(vectorIdx);
-                    var centroidIndex = findClosestCluster(vectorIdx);
-                    codes.set(vectorIdx, centroidIndex);
-                    assignedDifferently[workerIdx] = assignedDifferently[workerIdx] || prevIndex != centroidIndex;
+                    var prevCentroidIdx = centroidIdxByVectorIdx.get(vectorIdx);
+                    var centroidIdx = findClosestCluster(vectorIdx);
+                    centroidIdxByVectorIdx.set(vectorIdx, centroidIdx);
+                    assignedDifferently[workerIdx] = assignedDifferently[workerIdx] || prevCentroidIdx != centroidIdx;
                 }
         );
         for (var v : assignedDifferently) {
@@ -133,7 +133,7 @@ public final class KMeansClustering {
                 // process an item
                 (workerIdx, vectorIdx) -> {
                     var vector = vectorReader.read(vectorIdx);
-                    var centroidIdx = codes.get(vectorIdx);
+                    var centroidIdx = centroidIdxByVectorIdx.get(vectorIdx);
                     centroidsPerCore[workerIdx].add(centroidIdx, vector, 0);
                     vectorCountForCentroidPerCore[workerIdx].add(centroidIdx, 1);
                 }

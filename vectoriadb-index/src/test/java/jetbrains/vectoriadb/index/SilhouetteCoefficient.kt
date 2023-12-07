@@ -9,22 +9,15 @@ import kotlin.math.max
  * - O(vectors.count) if you have already clusterized the vectors
  * - O(vectors.count * centroids.count) if you have not clusterized the vectors
  * */
-class SilhouetteCoefficientMedoid {
-    val centroids: Array<FloatArray>
-    val vectors: Array<FloatArray>
+class SilhouetteCoefficientMedoid(
+    val centroids: Array<FloatArray>,
+    val vectors: Array<FloatArray>,
     val distanceFunction: DistanceFunction
+) {
     private val clusterByVectorIdx: IntArray
     private val closestClusterByVectorIdx: IntArray
 
-    constructor(
-        centroids: Array<FloatArray>,
-        vectors: Array<FloatArray>,
-        distanceFunction: DistanceFunction,
-    ) {
-        this.centroids = centroids
-        this.vectors = vectors
-        this.distanceFunction = distanceFunction
-
+    init {
         clusterByVectorIdx = IntArray(vectors.size)
         closestClusterByVectorIdx = IntArray(vectors.size)
         for (i in vectors.indices) {
@@ -33,20 +26,6 @@ class SilhouetteCoefficientMedoid {
             clusterByVectorIdx[i] = clusters[0]
             closestClusterByVectorIdx[i] = clusters[1]
         }
-    }
-
-    constructor(
-        centroids: Array<FloatArray>,
-        vectors: Array<FloatArray>,
-        clusterByVectorIdx: IntArray,
-        closestClusterByVectorIdx: IntArray,
-        distanceFunction: DistanceFunction,
-    ) {
-        this.centroids = centroids
-        this.vectors = vectors
-        this.distanceFunction = distanceFunction
-        this.clusterByVectorIdx = clusterByVectorIdx
-        this.closestClusterByVectorIdx = closestClusterByVectorIdx
     }
 
     fun calculate(): Float {
@@ -72,45 +51,22 @@ class SilhouetteCoefficientMedoid {
  * The basic/traditional/standard way to calculate Silhouette Coefficient.
  * Does the job in O(vectors.count^2).
  * */
-class SilhouetteCoefficient {
-    val centroids: Array<FloatArray>
-    val vectors: Array<FloatArray>
+class SilhouetteCoefficient(
+    centroids: Array<FloatArray>,
+    val vectors: Array<FloatArray>,
+    val distanceFunction: DistanceFunction
+) {
     val clusterByVectorIdx: IntArray
     val closestClusterByVectorIdx: IntArray
     val vectorsByClusterIdx: List<IntArrayList>
-    val distanceFunction: DistanceFunction
 
-    constructor(
-        centroids: Array<FloatArray>,
-        vectors: Array<FloatArray>,
-        clusterByVectorIdx: IntArray,
-        closestClusterByVectorIdx: IntArray,
-        vectorsByClusterIdx: List<IntArrayList>,
-        distanceFunction: DistanceFunction
-    ) {
-        this.centroids = centroids
-        this.vectors = vectors
-        this.clusterByVectorIdx = clusterByVectorIdx
-        this.closestClusterByVectorIdx = closestClusterByVectorIdx
-        this.vectorsByClusterIdx = vectorsByClusterIdx
-        this.distanceFunction = distanceFunction
-    }
-
-    constructor(
-        centroids: Array<FloatArray>,
-        vectors: Array<FloatArray>,
-        distanceFunction: DistanceFunction
-    ) {
-        this.centroids = centroids
-        this.vectors = vectors
-        this.distanceFunction = distanceFunction
-
+    init {
         clusterByVectorIdx = IntArray(vectors.size)
         closestClusterByVectorIdx = IntArray(vectors.size)
         vectorsByClusterIdx = MutableList(centroids.size) { IntArrayList() }
         for (i in vectors.indices) {
             val vector = vectors[i]
-            val clusters = findClosestAndSecondClosestCluster(centroids, vector, L2DistanceFunction.INSTANCE)
+            val clusters = findClosestAndSecondClosestCluster(centroids, vector, distanceFunction)
             clusterByVectorIdx[i] = clusters[0]
             closestClusterByVectorIdx[i] = clusters[1]
             vectorsByClusterIdx[clusters[0]].add(i)
@@ -153,7 +109,7 @@ class SilhouetteCoefficient {
 }
 
 private fun findClosestAndSecondClosestCluster(
-    centroids: Array<FloatArray>, vector: FloatArray?,
+    centroids: Array<FloatArray>, vector: FloatArray,
     distanceFunction: DistanceFunction
 ): IntArray {
     var closestClusterIndex = -1

@@ -103,7 +103,7 @@ class VectorOperations {
          * But for now, we have to hack this case around.
          * */
         FloatVector V;
-        if (v.heapBase().isEmpty()) {
+        if (v.heapBase().isEmpty() || v.heapBase().get() instanceof byte[]) {
             V = FloatVector.fromMemorySegment(species, v, valueIdx * Float.BYTES, ByteOrder.nativeOrder(), mask);
         } else {
             var arr = (float[]) v.heapBase().get();
@@ -119,7 +119,7 @@ class VectorOperations {
          * Most probably it is a temporary problem and some day they will fix it.
          * But for now, we have to hack this case around.
          * */
-        if (result.heapBase().isEmpty()) {
+        if (result.heapBase().isEmpty() || result.heapBase().get() instanceof byte[]) {
             R.intoMemorySegment(result, valueIdx * Float.BYTES, ByteOrder.nativeOrder(), mask);
         } else {
             var arr = (float[]) result.heapBase().get();

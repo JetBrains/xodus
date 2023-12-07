@@ -18,7 +18,7 @@ public class ClusterInitializerTest {
         progressTracker.start("Index");
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            pqQuantizer.generatePQCodes(GIST_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors), progressTracker);
+            pqQuantizer.generatePQCodes(GIST_VECTOR_DIMENSIONS, 32, new FloatArrayToByteArrayVectorReader(vectors), progressTracker);
 
             var count = 0;
             var meanPpRandomDiff = 0f;

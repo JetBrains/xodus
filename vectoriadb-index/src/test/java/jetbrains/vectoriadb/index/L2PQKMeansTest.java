@@ -20,7 +20,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.Random;
 
@@ -99,7 +98,7 @@ public class L2PQKMeansTest {
 
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors), new NoOpProgressTracker());
+            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new FloatArrayToByteArrayVectorReader(vectors), new NoOpProgressTracker());
 
             System.out.println("PQ codes generated. Calculating centroids...");
             var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, new NoOpProgressTracker());
@@ -152,34 +151,5 @@ public class L2PQKMeansTest {
             }
         }
         return expectedDistanceTables;
-    }
-}
-
-record ArrayVectorReader(float[][] vectors) implements VectorReader {
-    public int size() {
-        return vectors.length;
-    }
-
-    @Override
-    public int dimensions() {
-        return vectors[0].length;
-    }
-
-    public MemorySegment read(int index) {
-        var vectorSegment = MemorySegment.ofArray(new byte[vectors[index].length * Float.BYTES]);
-
-        MemorySegment.copy(MemorySegment.ofArray(vectors[index]), 0,
-                vectorSegment, 0, (long) vectors[index].length * Float.BYTES);
-
-        return vectorSegment;
-    }
-
-    @Override
-    public MemorySegment id(int index) {
-        return null;
-    }
-
-    @Override
-    public void close() {
     }
 }
