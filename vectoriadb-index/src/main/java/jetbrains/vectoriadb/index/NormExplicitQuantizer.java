@@ -26,6 +26,8 @@ import java.lang.foreign.MemorySegment;
 
 /**
  * Ignore the compressionRation problem. Use additional space, you will fix (maybe) this problem later when everything works.
+ * Do not use this class with L2DistanceFunction, it will not calculate distances properly.
+ * This class works only with DotDistanceFunction.
  */
 class NormExplicitQuantizer extends AbstractQuantizer {
 
@@ -145,17 +147,21 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     }
 
     public float[] getVectorApproximation(int vectorIdx) {
-        var norm = 0f;
-        for (int codeIdx = 0; codeIdx < normCodebooksCount; codeIdx++) {
-            var code = codes[codeIdx].get(vectorIdx);
-            var codebookValue = codebooks[codeIdx].get(code, 0);
-            norm += codebookValue;
-        }
+        var norm = getRelativeNormApproximation(vectorIdx);
 
         var normalizedVectorApproximation = normalizedL2.getVectorApproximation(vectorIdx);
         var segment = MemorySegment.ofArray(normalizedVectorApproximation);
         VectorOperations.mul(segment, 0, norm, segment, 0, normalizedVectorApproximation.length);
         return normalizedVectorApproximation;
+    }
+
+    private float getRelativeNormApproximation(int vectorIdx) {
+        var norm = 0f;
+        for (int codeIdx = 0; codeIdx < normCodebooksCount; codeIdx++) {
+            var code = codes[codeIdx].get(vectorIdx);
+            norm += codebooks[codeIdx].get(code, 0);
+        }
+        return norm;
     }
 
 
@@ -165,34 +171,33 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     public float[] blankLookupTable() {
         // It is used when initializing a thread local NearestGreedySearchCachedData in the IndexReader constructor.
         // It is filled in IndexReader.nearest() when doing the search
-
-        // Delegate to the L2 implementation and return the result.
-        return new float[0];
+        return normalizedL2.blankLookupTable();
     }
 
     @Override
     public void buildLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction) {
         // It is used in IndexReader.nearest() when doing the search.
-
-        // Delegate to the L2 implementation
-        // So we can calculate the inner product for `q` and the approximation of X'(normalized X)
+        normalizedL2.buildLookupTable(vector, lookupTable, distanceFunction);
     }
 
     @Override
     public float computeDistanceUsingLookupTable(float[] lookupTable, int vectorIndex) {
         // It is used in IndexReader.nearest() when doing the search.
 
-        // 1. Delegate to the L2 implementation, so you have `p` - the inner product for `q` and the approximation of the normalized vector `vectorIndex`
-        // 2. Calculate `l` - approximation of the norm for `vectorIndex` using the norm codebooks
-        // 3. return l*p
-        return 0;
+        var distance = normalizedL2.computeDistanceUsingLookupTable(lookupTable, vectorIndex);
+        var norm = getRelativeNormApproximation(vectorIndex);
+        return distance * norm;
     }
 
     @Override
     public void computeDistance4BatchUsingLookupTable(float[] lookupTable, int vectorIndex1, int vectorIndex2, int vectorIndex3, int vectorIndex4, float[] result) {
         // It is used in IndexReader.nearest() when doing the search.
 
-        // do the same as computeDistanceUsingLookupTable() but for the four vectors
+        normalizedL2.computeDistance4BatchUsingLookupTable(lookupTable, vectorIndex1, vectorIndex2, vectorIndex3, vectorIndex4, result);
+        result[0] *= getRelativeNormApproximation(vectorIndex1);
+        result[1] *= getRelativeNormApproximation(vectorIndex2);
+        result[2] *= getRelativeNormApproximation(vectorIndex3);
+        result[3] *= getRelativeNormApproximation(vectorIndex4);
     }
 
 

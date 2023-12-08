@@ -11,7 +11,7 @@ class L2QuantizerTest {
     }
 
     @Test
-    fun `lookup table`() = lookupTableTest(1e-1f) { L2PQQuantizer() }
+    fun `lookup table`() = lookupTableTest(L2DistanceFunction.INSTANCE, 1e-1f) { L2PQQuantizer() }
 }
 
 internal fun getVectorApproximationTest(delta: Double, quantizerBuilder: () -> Quantizer) = vectorTest(VectorDataset.Sift10K) {
@@ -45,9 +45,8 @@ internal fun getVectorApproximationTest(delta: Double, quantizerBuilder: () -> Q
     }
 }
 
-fun lookupTableTest(delta: Float, buildQuantizer: () -> Quantizer) = vectorTest(VectorDataset.Sift10K) {
+fun lookupTableTest(distanceFun: DistanceFunction, delta: Float, buildQuantizer: () -> Quantizer) = vectorTest(VectorDataset.Sift10K) {
     val compressionRatio = 32
-    val l2Distance = L2DistanceFunction.INSTANCE
 
     val l2Quantizer = buildQuantizer()
     l2Quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
@@ -64,13 +63,13 @@ fun lookupTableTest(delta: Float, buildQuantizer: () -> Quantizer) = vectorTest(
         val vector3Approximation = l2Quantizer.getVectorApproximation(vector3Idx)
         val vector4Approximation = l2Quantizer.getVectorApproximation(vector4Idx)
 
-        val distance1 = l2Distance.computeDistance(q, 0, vector1Approximation, 0, dimensions)
-        val distance2 = l2Distance.computeDistance(q, 0, vector2Approximation, 0, dimensions)
-        val distance3 = l2Distance.computeDistance(q, 0, vector3Approximation, 0, dimensions)
-        val distance4 = l2Distance.computeDistance(q, 0, vector4Approximation, 0, dimensions)
+        val distance1 = distanceFun.computeDistance(q, 0, vector1Approximation, 0, dimensions)
+        val distance2 = distanceFun.computeDistance(q, 0, vector2Approximation, 0, dimensions)
+        val distance3 = distanceFun.computeDistance(q, 0, vector3Approximation, 0, dimensions)
+        val distance4 = distanceFun.computeDistance(q, 0, vector4Approximation, 0, dimensions)
 
         val lookupTable = l2Quantizer.blankLookupTable()
-        l2Quantizer.buildLookupTable(q, lookupTable, l2Distance)
+        l2Quantizer.buildLookupTable(q, lookupTable, distanceFun)
 
         val tableDistance1 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector1Idx)
         val tableDistance2 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector2Idx)
@@ -100,7 +99,7 @@ class NormExplicitQuantizerTest {
     }
 
     @Test
-    fun `lookup table`() = lookupTableTest(1e-1f) { NormExplicitQuantizer(1) }
+    fun `lookup table`() = lookupTableTest(DotDistanceFunction.INSTANCE, 1e-1f) { NormExplicitQuantizer(1) }
 
     @Test
     fun `average norm error for norm-explicit quantization should be less that for l2 quantization`() = vectorTest(VectorDataset.Sift10K) {
