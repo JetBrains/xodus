@@ -207,11 +207,9 @@ class L2PQQuantizer extends AbstractQuantizer {
         progressTracker.pullPhase();
     }
 
-    @Override
-    protected MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
+    private MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
         return arena.allocate((long) vectorsCount * quantizersCount);
     }
-
 
     // Calculate distances using the lookup table
 

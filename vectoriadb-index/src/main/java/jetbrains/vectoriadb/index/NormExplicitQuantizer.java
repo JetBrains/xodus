@@ -57,15 +57,6 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     }
 
     @Override
-    protected MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena) {
-        // todo It is used only internally in generatePQCodes(), so maybe hide it from the public interface.
-
-        // The implementation is just to allocate memory only for the norm quantization.
-        // We should not call L2 instance because it will call this method itself
-        return null;
-    }
-
-    @Override
     public void generatePQCodes(int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker) {
         progressTracker.pushPhase("Norm-explicit PQ codes creation", "norm quantizers count", String.valueOf(normCodebooksCount));
 

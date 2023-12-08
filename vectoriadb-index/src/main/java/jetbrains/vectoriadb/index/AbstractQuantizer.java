@@ -16,12 +16,9 @@
 package jetbrains.vectoriadb.index;
 
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.Arena;
 import java.lang.foreign.ValueLayout;
 
 public abstract class AbstractQuantizer implements Quantizer {
-    protected abstract MemorySegment allocateMemoryForPqVectors(int quantizersCount, int vectorsCount, Arena arena);
-
     public static float symmetricDistance(MemorySegment pqVectors, long storedEncodedVectorIndex, byte[] encodedVectors, int encodedVectorIndex,
                                           float[] distanceTables, int quantizersCount, int codeBaseSize) {
         float result = 0.0f;
