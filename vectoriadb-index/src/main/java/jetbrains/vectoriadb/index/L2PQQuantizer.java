@@ -355,8 +355,7 @@ class L2PQQuantizer extends AbstractQuantizer {
         }
     }
 
-    @Override
-    public float[] decodeVector(byte[] vectors, int vectorIndex) {
+    private float[] decodeVector(byte[] vectors, int vectorIndex) {
         var result = new float[quantizersCount * subVectorSize];
 
         var offset = vectorIndex * quantizersCount;

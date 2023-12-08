@@ -47,8 +47,6 @@ public interface Quantizer extends AutoCloseable {
 
     float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker);
 
-    float[] decodeVector(byte[] vectors, int vectorIndex);
-
 
     // Other
 

@@ -225,16 +225,6 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         return new float[0][];
     }
 
-    @Override
-    public float[] decodeVector(byte[] vectors, int vectorIndex) {
-        // todo It is used only internally in calculateCentroids() to calculate the approximation of the result pqCentroids, so maybe hide it from the public interface.
-
-        // We cannot implement this method because the param vectors does not contain norm codes.
-        // But it is not a big deal as it is not an actually public api.
-        // So we can delegate this method to L2 quantazier that is trained on the original vectors.
-        return new float[0];
-    }
-
 
     // Store/load/close
 
