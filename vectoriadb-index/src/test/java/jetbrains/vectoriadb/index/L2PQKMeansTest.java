@@ -23,7 +23,6 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.ValueLayout;
 import java.util.Random;
 
-import static jetbrains.vectoriadb.index.LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS;
 import static jetbrains.vectoriadb.index.LoadVectorsUtil.loadSift10KVectors;
 
 public class L2PQKMeansTest {
@@ -98,7 +97,7 @@ public class L2PQKMeansTest {
 
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new FloatArrayToByteArrayVectorReader(vectors), new NoOpProgressTracker());
+            pqQuantizer.generatePQCodes(32, new FloatArrayToByteArrayVectorReader(vectors), new NoOpProgressTracker());
 
             System.out.println("PQ codes generated. Calculating centroids...");
             var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, new NoOpProgressTracker());

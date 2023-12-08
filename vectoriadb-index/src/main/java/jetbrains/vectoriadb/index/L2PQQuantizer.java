@@ -76,13 +76,13 @@ class L2PQQuantizer extends AbstractQuantizer {
     // Initialize, make PQ code for the vectors
 
     @Override
-    public void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader,
-                                @NotNull ProgressTracker progressTracker) {
+    public void generatePQCodes(int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker) {
         if (compressionRatio % Float.BYTES != 0) {
             throw new IllegalArgumentException(
                     "Vector should be divided during creation of PQ codes without remainder.");
         }
         subVectorSize = compressionRatio / Float.BYTES;
+        var vectorsDimension = vectorReader.dimensions();
 
         if (vectorsDimension % subVectorSize != 0) {
             throw new IllegalArgumentException(

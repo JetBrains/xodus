@@ -27,7 +27,7 @@ public interface Quantizer extends AutoCloseable {
 
     // Initialize, make PQ code for the vectors
 
-    void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker);
+    void generatePQCodes(int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker);
 
 
     // Calculate distances using the lookup table
