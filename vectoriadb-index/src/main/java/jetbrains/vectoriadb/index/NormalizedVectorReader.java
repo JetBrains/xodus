@@ -50,7 +50,7 @@ class NormalizedVectorReader implements VectorReader {
     public MemorySegment read(int index) {
         var vector = source.read(index);
         var norm = vectorNorms.getAtIndex(ValueLayout.JAVA_FLOAT, index);
-        var result = MemorySegment.ofArray(new float[dimensions()]);
+        var result = MemorySegment.ofArray(new byte[dimensions() * Float.BYTES]);
 
         VectorOperations.normalizeL2(vector, norm, result, dimensions());
         return result;
