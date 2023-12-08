@@ -75,7 +75,7 @@ final class KMeansMiniBatchGD {
             centroids = new float[size * subVecSize];
             for (int i = 0; i < size; i++) {
                 var vector = vectorReader.read(i);
-                MemorySegment.copy(vector, ValueLayout.JAVA_FLOAT, (long) subVecOffset * Float.BYTES,
+                MemorySegment.copy(vector, ValueLayout.JAVA_FLOAT_UNALIGNED, (long) subVecOffset * Float.BYTES,
                         centroids, i * subVecSize, subVecSize);
             }
         } else if (size < 4 * k) {
@@ -92,7 +92,7 @@ final class KMeansMiniBatchGD {
             for (int i = 0; i < k; i++) {
                 var centroidIndex = indexes[i];
                 var vector = vectorReader.read(centroidIndex);
-                MemorySegment.copy(vector, ValueLayout.JAVA_FLOAT, (long) subVecOffset * Float.BYTES,
+                MemorySegment.copy(vector, ValueLayout.JAVA_FLOAT_UNALIGNED, (long) subVecOffset * Float.BYTES,
                         centroids, i * subVecSize, subVecSize);
             }
         } else {
