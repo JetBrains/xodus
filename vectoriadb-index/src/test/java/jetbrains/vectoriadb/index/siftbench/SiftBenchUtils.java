@@ -117,11 +117,31 @@ public class SiftBenchUtils {
     }
 
     @NotNull
-    public static File extractSiftDataSet(String siftArchive, String buildDir) throws IOException {
-        var siftSmallDir = createTempDir();
-        System.out.printf("Extracting %s into %s%n", siftArchive, siftSmallDir.getAbsolutePath());
+    public static File extractDataSetToTempDirectory(String archive, String buildDir) throws IOException {
+        var targetDirectory = createTempDir();
+        extract(new File(buildDir, archive), targetDirectory);
+        return targetDirectory;
+    }
 
-        try (var fis = new FileInputStream(new File(buildDir).toPath().resolve(siftArchive).toFile())) {
+    /**
+     * If the target directory already exists, nothing will be done.
+     * */
+    @NotNull
+    public static Path extractDataSet(Path archive, Path targetDirectory) throws IOException {
+        if (Files.exists(targetDirectory)) {
+            System.out.printf("the archive is already extracted to %s, so extracting is not required\n", targetDirectory.toAbsolutePath());
+            return targetDirectory;
+        } else {
+            Files.createDirectory(targetDirectory);
+        }
+
+        extract(archive.toFile(), targetDirectory.toFile());
+        return targetDirectory;
+    }
+
+    private static void extract(File archive, File targetDirectory) throws IOException {
+        System.out.printf("Extracting %s into %s%n", archive.getAbsolutePath(), targetDirectory.getAbsolutePath());
+        try (var fis = new FileInputStream(archive)) {
             try (var giz = new GzipCompressorInputStream(fis)) {
                 try (var tar = new TarArchiveInputStream(giz)) {
                     var entry = tar.getNextTarEntry();
@@ -129,7 +149,7 @@ public class SiftBenchUtils {
                         var name = entry.getName();
                         if (name.endsWith(".fvecs") || name.endsWith(".ivecs")) {
                             System.out.printf("Extracting %s%n", name);
-                            var file = new File(siftSmallDir, name);
+                            var file = new File(targetDirectory, name);
                             if (!file.getParentFile().exists()) {
                                 //noinspection ResultOfMethodCallIgnored
                                 file.getParentFile().mkdirs();
@@ -144,9 +164,7 @@ public class SiftBenchUtils {
                 }
             }
         }
-
-        System.out.printf("%s extracted%n", siftArchive);
-        return siftSmallDir;
+        System.out.printf("%s extracted%n", archive.getAbsolutePath());
     }
 
     public static void downloadSiftBenchmark(String siftArchive, String buildDir) throws IOException {

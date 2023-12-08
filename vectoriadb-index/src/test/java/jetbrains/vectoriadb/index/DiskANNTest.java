@@ -341,7 +341,7 @@ public class DiskANNTest {
 
         SiftBenchUtils.downloadSiftBenchmark(siftArchive, buildDir);
 
-        var siftSmallDir = SiftBenchUtils.extractSiftDataSet(siftArchive, buildDir);
+        var siftSmallDir = SiftBenchUtils.extractDataSetToTempDirectory(siftArchive, buildDir);
 
         var sifSmallFilesDir = siftSmallDir.toPath().resolve(siftDir);
         var siftSmallBase = sifSmallFilesDir.resolve(siftBaseName);

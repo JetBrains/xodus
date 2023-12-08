@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 public class LoadVectorsUtil {
     public static int SIFT_VECTOR_DIMENSIONS = 128;
@@ -47,9 +48,9 @@ public class LoadVectorsUtil {
         var archive = name + ".tar.gz";
         SiftBenchUtils.downloadSiftBenchmark(archive, buildDir);
 
-        var dir = SiftBenchUtils.extractSiftDataSet(archive, buildDir);
+        var dir = SiftBenchUtils.extractDataSet(Path.of(buildDir, archive), Path.of(buildDir, name));
 
-        var filesDir = dir.toPath().resolve(name);
+        var filesDir = dir.resolve(name);
 
         var baseName = name + "_base.fvecs";
         var basePath = filesDir.resolve(baseName);
