@@ -7,23 +7,21 @@ import kotlin.math.abs
 class L2QuantizerTest {
     @Test
     fun `get vector approximation`() {
-        getVectorApproximationTest { L2PQQuantizer() }
+        getVectorApproximationTest(1e-5) { L2PQQuantizer() }
     }
+
+    @Test
+    fun `lookup table`() = lookupTableTest(1e-1f) { L2PQQuantizer() }
 }
 
-internal fun getVectorApproximationTest(quantizerBuilder: () -> Quantizer) {
+internal fun getVectorApproximationTest(delta: Double, quantizerBuilder: () -> Quantizer) = vectorTest(VectorDataset.Sift10K) {
+    val compressionRatio = 32
+    val l2Distance = L2DistanceFunction.INSTANCE
+
     val averageErrors = buildList {
-        val vectors = LoadVectorsUtil.loadSift10KVectors()
         listOf(Quantizer.CODE_BASE_SIZE, Quantizer.CODE_BASE_SIZE * 2, Quantizer.CODE_BASE_SIZE * 4, Quantizer.CODE_BASE_SIZE * 8).forEach { numVectors ->
-            val compressionRatio = 32
-            val l2Distance = L2DistanceFunction.INSTANCE
-
-            val dimensions = LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS
-            val vectorReader = FloatArrayToByteArrayVectorReader(vectors, numVectors)
-
-            val progressTracker = NoOpProgressTracker()
-
             val quantizer = quantizerBuilder()
+            val vectorReader = FloatArrayToByteArrayVectorReader(vectors, numVectors)
             quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
 
             var totalError = 0.0
@@ -39,7 +37,7 @@ internal fun getVectorApproximationTest(quantizerBuilder: () -> Quantizer) {
     }
 
     // if we quantize X vectors with X code base size, the approximated vectors should be equals (at least almost) to original vectors
-    Assert.assertEquals(0.0, averageErrors[0], 1e-3)
+    Assert.assertEquals(0.0, averageErrors[0], delta)
 
     // the more vectors the bigger average error we should get
     for (i in 1 until 4) {
@@ -47,25 +45,67 @@ internal fun getVectorApproximationTest(quantizerBuilder: () -> Quantizer) {
     }
 }
 
+fun lookupTableTest(delta: Float, buildQuantizer: () -> Quantizer) = vectorTest(VectorDataset.Sift10K) {
+    val compressionRatio = 32
+    val l2Distance = L2DistanceFunction.INSTANCE
+
+    val l2Quantizer = buildQuantizer()
+    l2Quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+
+    repeat(numVectors - 4) { vector1Idx ->
+        val vector2Idx = vector1Idx + 1
+        val vector3Idx = vector2Idx + 1
+        val vector4Idx = vector3Idx + 1
+
+        val q = vectors[vector1Idx]
+
+        val vector1Approximation = l2Quantizer.getVectorApproximation(vector1Idx)
+        val vector2Approximation = l2Quantizer.getVectorApproximation(vector2Idx)
+        val vector3Approximation = l2Quantizer.getVectorApproximation(vector3Idx)
+        val vector4Approximation = l2Quantizer.getVectorApproximation(vector4Idx)
+
+        val distance1 = l2Distance.computeDistance(q, 0, vector1Approximation, 0, dimensions)
+        val distance2 = l2Distance.computeDistance(q, 0, vector2Approximation, 0, dimensions)
+        val distance3 = l2Distance.computeDistance(q, 0, vector3Approximation, 0, dimensions)
+        val distance4 = l2Distance.computeDistance(q, 0, vector4Approximation, 0, dimensions)
+
+        val lookupTable = l2Quantizer.blankLookupTable()
+        l2Quantizer.buildLookupTable(q, lookupTable, l2Distance)
+
+        val tableDistance1 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector1Idx)
+        val tableDistance2 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector2Idx)
+        val tableDistance3 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector3Idx)
+        val tableDistance4 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector4Idx)
+
+        val batchTableDistances = FloatArray(4)
+        l2Quantizer.computeDistance4BatchUsingLookupTable(lookupTable, vector1Idx, vector2Idx, vector3Idx, vector4Idx, batchTableDistances)
+
+        Assert.assertEquals(distance1, tableDistance1, delta)
+        Assert.assertEquals(distance2, tableDistance2, delta)
+        Assert.assertEquals(distance3, tableDistance3, delta)
+        Assert.assertEquals(distance4, tableDistance4, delta)
+
+        Assert.assertEquals(distance1, batchTableDistances[0], delta)
+        Assert.assertEquals(distance2, batchTableDistances[1], delta)
+        Assert.assertEquals(distance4, batchTableDistances[3], delta)
+        Assert.assertEquals(distance3, batchTableDistances[2], delta)
+    }
+}
+
 class NormExplicitQuantizerTest {
 
     @Test
     fun `get vector approximation`() {
-        getVectorApproximationTest { NormExplicitQuantizer(1) }
+        getVectorApproximationTest(1e-2) { NormExplicitQuantizer(1) }
     }
 
     @Test
-    fun `average norm error for norm-explicit quantization should be less that for l2 quantization`() {
+    fun `lookup table`() = lookupTableTest(1e-1f) { NormExplicitQuantizer(1) }
+
+    @Test
+    fun `average norm error for norm-explicit quantization should be less that for l2 quantization`() = vectorTest(VectorDataset.Sift10K) {
         val compressionRatio = 32
         val l2Distance = L2DistanceFunction.INSTANCE
-
-        val dimensions = LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS
-        val vectors = LoadVectorsUtil.loadSift10KVectors()
-        val numVectors = vectors.count()
-        val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
-
-        val progressTracker = ConsolePeriodicProgressTracker(1)
-        progressTracker.start("test")
 
         val ipQuantizer1 = NormExplicitQuantizer(1)
         ipQuantizer1.generatePQCodes(compressionRatio, vectorReader, progressTracker)
