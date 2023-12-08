@@ -6,19 +6,13 @@ import kotlin.random.Random
 class KMeansClusteringTest {
 
     @Test
-    fun kMeansClustering() = parallelTest { pBuddy, arena ->
+    fun kMeansClustering() = parallelVectorTest(VectorDataset.Sift10K) {
         val distance = L2DistanceFunction.INSTANCE
-
-        val dimensions = LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS
-        val vectors = LoadVectorsUtil.loadSift10KVectors()
-        val numVectors = vectors.count()
-        val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
 
         val maxIteration = 50
         val numClusters = 33
         val centroids = FloatVectorSegment.makeNativeSegment(arena, numClusters, dimensions)
         val centroidIdxByVectorIdx = ByteCodeSegment.makeArraySegment(numVectors)
-        val progressTracker = NoOpProgressTracker()
 
         val kmeans = KMeansClustering(
             distance,

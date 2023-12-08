@@ -72,10 +72,19 @@ internal class FloatArrayToByteArrayVectorReader: VectorReader {
     }
 }
 
-internal fun parallelTest(numWorkers: Int = ParallelExecution.availableCores(), test: (ParallelBuddy, Arena) -> Unit) {
-    ParallelBuddy(numWorkers, "k-means clustering test").use { pBuddy ->
-        Arena.ofShared().use { arena ->
-            test(pBuddy, arena)
+abstract class VectorDataset {
+    abstract fun build(): VectorDatasetContext
+
+    data object Sift10K: VectorDataset() {
+        override fun build(): VectorDatasetContext {
+            val vectors = LoadVectorsUtil.loadSift10KVectors()
+            val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
+            return VectorDatasetContext(
+                vectors,
+                vectorReader,
+                vectors.count(),
+                LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS
+            )
         }
     }
 }
