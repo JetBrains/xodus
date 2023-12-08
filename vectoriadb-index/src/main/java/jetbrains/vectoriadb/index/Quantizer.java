@@ -52,6 +52,8 @@ public interface Quantizer extends AutoCloseable {
 
     // Other
 
+    float[] getVectorApproximation(int vectorIdx);
+
     void load(DataInputStream dataInputStream) throws IOException;
 
     void store(DataOutputStream dataOutputStream) throws IOException;

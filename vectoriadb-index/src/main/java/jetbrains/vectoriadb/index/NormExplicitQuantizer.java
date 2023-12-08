@@ -27,7 +27,7 @@ import java.lang.foreign.MemorySegment;
 /**
  * Ignore the compressionRation problem. Use additional space, you will fix (maybe) this problem later when everything works.
  */
-class DotDistancePQQuantizer extends AbstractQuantizer {
+class NormExplicitQuantizer extends AbstractQuantizer {
 
     private final Arena arena;
 
@@ -38,14 +38,16 @@ class DotDistancePQQuantizer extends AbstractQuantizer {
     private final L2PQQuantizer normalizedL2 = new L2PQQuantizer();
 
     private final int normCodebooksCount;
+    // how many values a single codebook should encode
+    private int codeBaseSize;
     private FloatVectorSegment[] codebooks;
     private CodeSegment[] codes;
 
-    public DotDistancePQQuantizer() {
+    public NormExplicitQuantizer() {
         this(1);
     }
 
-    DotDistancePQQuantizer(int normCodebooksCount) {
+    NormExplicitQuantizer(int normCodebooksCount) {
         if (normCodebooksCount < 1) throw new IllegalArgumentException("normCodebooksCount should be greater or equal 1");
         arena = Arena.ofShared();
         this.normCodebooksCount = normCodebooksCount;
@@ -62,7 +64,7 @@ class DotDistancePQQuantizer extends AbstractQuantizer {
     }
 
     @Override
-    public void generatePQCodes(int vectorsDimension, int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker) {
+    public void generatePQCodes(int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker) {
         progressTracker.pushPhase("Norm-explicit PQ codes creation", "norm quantizers count", String.valueOf(normCodebooksCount));
 
         try (
@@ -70,13 +72,15 @@ class DotDistancePQQuantizer extends AbstractQuantizer {
                 var normalizedVectorReader = new NormalizedVectorReader(vectorReader);
                 var pBuddy = new ParallelBuddy(numWorkers, "norm-explicit-pq-calc-")
         ) {
-            codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebooksCount, vectorReader.size(), vectorsDimension);
+            codeBaseSize = Math.min(CODE_BASE_SIZE, vectorReader.size());
+
+            codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebooksCount, codeBaseSize, 1); // norm has a single dimension
             codes = ByteCodeSegment.makeNativeSegments(arena, normCodebooksCount, vectorReader.size());
 
             // precalculate original vector norms not to calculate them on every read
             normalizedVectorReader.precalculateOriginalVectorNorms(pBuddy, progressTracker);
 
-            normalizedL2.generatePQCodes(vectorsDimension, compressionRatio, normalizedVectorReader, progressTracker);
+            normalizedL2.generatePQCodes(compressionRatio, normalizedVectorReader, progressTracker);
 
             // Calculate relativeNorm = originalVectorNorm / normalizedApproximatedVectorNorm, so later we can get originalVectorNorm = relativeNorm * normalizedApproximatedVectorNorm
             var relativeNorms = FloatVectorSegment.makeNativeSegment(localArena, vectorReader.size(), 1);
@@ -132,11 +136,26 @@ class DotDistancePQQuantizer extends AbstractQuantizer {
                     var relativeNorm = relativeNorms.get(vectorIdx, 0);
                     var relativeNormApproximation = 0f;
                     for (int i = 0; i < codebookIdx; i++) {
-                        relativeNormApproximation += codebooks[i].get(vectorIdx, 0);
+                        var code = codes[i].get(vectorIdx);
+                        relativeNormApproximation += codebooks[i].get(code, 0);
                     }
                     normResiduals.set(vectorIdx, 0, relativeNorm - relativeNormApproximation);
                 }
         );
+    }
+
+    public float[] getVectorApproximation(int vectorIdx) {
+        var norm = 0f;
+        for (int codeIdx = 0; codeIdx < normCodebooksCount; codeIdx++) {
+            var code = codes[codeIdx].get(vectorIdx);
+            var codebookValue = codebooks[codeIdx].get(code, 0);
+            norm += codebookValue;
+        }
+
+        var normalizedVectorApproximation = normalizedL2.getVectorApproximation(vectorIdx);
+        var segment = MemorySegment.ofArray(normalizedVectorApproximation);
+        VectorOperations.mul(segment, 0, norm, segment, 0, normalizedVectorApproximation.length);
+        return normalizedVectorApproximation;
     }
 
 
