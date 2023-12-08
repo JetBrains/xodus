@@ -28,12 +28,23 @@ private fun FloatVectorSegment.fillRandom() {
     }
 }
 
-@JvmRecord
-internal data class FloatArrayToByteArrayVectorReader(
+internal class FloatArrayToByteArrayVectorReader: VectorReader {
+
     private val vectors: Array<FloatArray>
-) : VectorReader {
+    private val size: Int
+
+    constructor(vectors: Array<FloatArray>) {
+        this.vectors = vectors
+        size = vectors.size
+    }
+
+    constructor(vectors: Array<FloatArray>, size: Int) {
+        this.vectors = vectors
+        this.size = size
+    }
+
     override fun size(): Int {
-        return vectors.size
+        return size
     }
 
     override fun dimensions(): Int {
@@ -58,5 +69,13 @@ internal data class FloatArrayToByteArrayVectorReader(
     }
 
     override fun close() {
+    }
+}
+
+internal fun parallelTest(numWorkers: Int = ParallelExecution.availableCores(), test: (ParallelBuddy, Arena) -> Unit) {
+    ParallelBuddy(numWorkers, "k-means clustering test").use { pBuddy ->
+        Arena.ofShared().use { arena ->
+            test(pBuddy, arena)
+        }
     }
 }

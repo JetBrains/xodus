@@ -1,13 +1,12 @@
 package jetbrains.vectoriadb.index
 
 import org.junit.Test
-import java.lang.foreign.Arena
 import kotlin.random.Random
 
 class KMeansClusteringTest {
 
     @Test
-    fun kMeansClustering() = runTest { pBuddy, arena ->
+    fun kMeansClustering() = parallelTest { pBuddy, arena ->
         val distance = L2DistanceFunction.INSTANCE
 
         val dimensions = LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS
@@ -43,13 +42,5 @@ class KMeansClusteringTest {
 
         println("coef: $coef, randomCoef: $randomCoef")
         assert(coef > randomCoef)
-    }
-
-    private fun runTest(test: (ParallelBuddy, Arena) -> Unit) {
-        ParallelBuddy(5, "k-means clustering test").use { pBuddy ->
-            Arena.ofShared().use { arena ->
-                test(pBuddy, arena)
-            }
-        }
     }
 }
