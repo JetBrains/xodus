@@ -31,6 +31,21 @@ class VectorOperations {
     }
 
     /**
+     * vector1 * scalar -> result
+     * */
+    public static void mul(MemorySegment v1, long idx1, float scalar, MemorySegment result, long resultIdx, int size) {
+        var species = FloatVector.SPECIES_PREFERRED;
+        var step = species.length();
+        for (int i = 0; i < size; i += step) {
+            var mask = species.indexInRange(i, size);
+            var V1 = toVector(v1, idx1 + i, species, mask);
+
+            var R = V1.mul(scalar);
+            intoResult(R, result, resultIdx + i, mask);
+        }
+    }
+
+    /**
      * vector1 / scalar -> result
      * */
     public static void div(MemorySegment v1, long idx1, float scalar, MemorySegment result, long resultIdx, int size) {
