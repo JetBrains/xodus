@@ -665,7 +665,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public CachedInstanceIterable getCachedInstance(@NotNull final EntityIterableBase sample) {
         final EntityIterableHandle handle = sample.getHandle();
         final EntityIterableCacheAdapter localCache = getLocalCache();
-        return localCache.tryKey(handle);
+        return localCache.getObject(handle);
     }
 
     @Nullable
@@ -678,6 +678,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public void addCachedInstance(@NotNull final CachedInstanceIterable cached) {
         final EntityIterableCacheAdapter localCache = getLocalCache();
         final EntityIterableHandle handle = cached.getHandle();
+        // ToDo: Should we get object from cache or better to try to cache it right away?
         if (localCache.getObject(handle) == null) {
             localCache.cacheObject(handle, cached);
             store.getEntityIterableCache().setCachedCount(handle, cached.size());
@@ -1147,7 +1148,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     private EntityIterableCacheAdapterMutable createMutableCache() {
-        final EntityIterableCacheAdapterMutable result = localCache.getClone();
+        final EntityIterableCacheAdapterMutable result = localCache.cloneToMutable();
         mutatedInTxn = new ArrayList<>();
         return result;
     }

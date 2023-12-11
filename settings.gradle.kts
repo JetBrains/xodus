@@ -48,6 +48,8 @@ dependencyResolutionManagement {
 
             version("log4j", "2.21.1")
 
+            version("caffeine", "3.1.8")
+
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
 
@@ -130,6 +132,8 @@ dependencyResolutionManagement {
                 "grpc-boot-starter", "net.devh",
                 "grpc-server-spring-boot-starter"
             ).versionRef("grpc-boot-starter")
+
+            library("caffeine-cache", "com.github.ben-manes.caffeine", "caffeine").versionRef("caffeine")
         }
     }
 }

@@ -247,6 +247,7 @@ public class FindTests extends EntityStoreTestBase {
             txn.flush();
             Assert.assertEquals("Iteration " + i, (long) (i + 1), txn.getAll("Issue").size());
         }
+        reportInLogEntityIterableCacheStats();
     }
 
     public void testCreateFindByPropValue() {

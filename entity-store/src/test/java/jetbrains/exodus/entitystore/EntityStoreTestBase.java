@@ -94,6 +94,14 @@ public abstract class EntityStoreTestBase extends TestBase {
         }
     }
 
+    public void reportInLogEntityIterableCacheStats() {
+        EntityIterableCacheStatistics cacheStats = getEntityStore().getEntityIterableCache().getStats();
+        logger.info(
+                "[EntityIterableCache] hits={}, misses={}, hitRate={}",
+                cacheStats.getTotalHits(), cacheStats.getTotalMisses(), cacheStats.getHitRate()
+        );
+    }
+
     public static String initTempFolder() {
         // Configure temp folder for database
         final String location = randomTempFolder();

@@ -15,55 +15,83 @@
  */
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.core.dataStructures.hash.HashMap
-import jetbrains.exodus.core.dataStructures.hash.HashSet
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap
-import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure
-import jetbrains.exodus.core.dataStructures.persistent.EvictListener
+import jetbrains.exodus.core.dataStructures.cache.PersistentCache
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.HandleCheckerAdapter
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 
-internal class EntityIterableCacheAdapterMutable private constructor(config: PersistentEntityStoreConfig,
-                                                                     private val handlesDistribution: HandlesDistribution,
-                                                                     stickyObjects: HashMap<EntityIterableHandle, Updatable>) : EntityIterableCacheAdapter(config, handlesDistribution.cache, stickyObjects) {
-    fun endWrite(): EntityIterableCacheAdapter {
-        return EntityIterableCacheAdapter(config, cache.endWrite(), stickyObjects)
+internal class EntityIterableCacheAdapterMutable private constructor(
+    config: PersistentEntityStoreConfig,
+    cache: PersistentCache<EntityIterableHandle, CachedInstanceIterable>,
+    stickyObjects: HashMap<EntityIterableHandle, Updatable>,
+    private val handleDistribution: HandleDistribution
+) : EntityIterableCacheAdapter(config, cache, stickyObjects) {
+
+    companion object {
+
+        fun cloneFrom(cacheAdapter: EntityIterableCacheAdapter): EntityIterableCacheAdapterMutable {
+            val oldCache = cacheAdapter.cache
+            val handleDistribution = HandleDistribution(oldCache.count())
+            val newCache = oldCache.createNextVersion { handle, value ->
+                handleDistribution.addHandle(handle)
+            }
+            val stickyObjects = HashMap(cacheAdapter.stickyObjects)
+            return EntityIterableCacheAdapterMutable(cacheAdapter.config, newCache, stickyObjects, handleDistribution)
+        }
     }
 
-    fun update(checker: HandleCheckerAdapter) {
-        val procedure: ObjectProcedure<EntityIterableHandle> = ObjectProcedure {
-            if (checker.checkHandle(it)) {
-                remove(it)
-            }
-            true
-        }
-        when {
-            checker.linkId >= 0 -> {
-                handlesDistribution.byLink.forEachHandle(checker.linkId, procedure)
-            }
-            checker.propertyId >= 0 -> {
-                handlesDistribution.byProp.forEachHandle(checker.propertyId, procedure)
-            }
-            checker.typeIdAffectingCreation >= 0 -> {
-                handlesDistribution.byTypeIdAffectingCreation.forEachHandle(checker.typeIdAffectingCreation, procedure)
-            }
-            checker.typeId >= 0 -> {
-                handlesDistribution.byTypeId.forEachHandle(checker.typeId, procedure)
-                handlesDistribution.byTypeId.forEachHandle(EntityIterableBase.NULL_TYPE_ID, procedure)
-            }
-            else -> {
-                forEachKey(procedure)
-            }
-        }
-        for (handle in stickyObjects.keys) {
-            checker.checkHandle(handle)
-        }
+    fun endWrite(): EntityIterableCacheAdapter {
+        return EntityIterableCacheAdapter(config, cache, stickyObjects)
     }
 
     override fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
         super.cacheObject(key, it)
-        handlesDistribution.addHandle(key)
+        handleDistribution.addHandle(key)
+    }
+
+    fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
+        super.cacheObject(handle, it)
+    }
+
+    fun update(checker: HandleCheckerAdapter) {
+        updateCacheWithChecker(checker)
+        updateStickyObjectsWithChecker(checker)
+    }
+
+    private fun updateCacheWithChecker(checker: HandleCheckerAdapter) {
+        val action: (EntityIterableHandle) -> Unit = {
+            if (checker.checkHandle(it)) {
+                remove(it)
+            }
+        }
+        when {
+            checker.linkId >= 0 -> {
+                handleDistribution.byLink.forEachHandle(checker.linkId, action)
+            }
+
+            checker.propertyId >= 0 -> {
+                handleDistribution.byProp.forEachHandle(checker.propertyId, action)
+            }
+
+            checker.typeIdAffectingCreation >= 0 -> {
+                handleDistribution.byTypeIdAffectingCreation.forEachHandle(checker.typeIdAffectingCreation, action)
+            }
+
+            checker.typeId >= 0 -> {
+                handleDistribution.byTypeId.forEachHandle(checker.typeId, action)
+                handleDistribution.byTypeId.forEachHandle(EntityIterableBase.NULL_TYPE_ID, action)
+            }
+
+            else -> {
+                cache.forEachEntry { handle, value -> action(handle) }
+            }
+        }
+    }
+
+    private fun updateStickyObjectsWithChecker(checker: HandleCheckerAdapter) {
+        for (handle in stickyObjects.keys) {
+            checker.checkHandle(handle)
+        }
     }
 
     fun registerStickyObject(handle: EntityIterableHandle, updatable: Updatable) {
@@ -72,52 +100,37 @@ internal class EntityIterableCacheAdapterMutable private constructor(config: Per
 
     override fun remove(key: EntityIterableHandle) {
         check(!key.isSticky) { "Cannot remove sticky object" }
-        super.remove(key)
-        handlesDistribution.removeHandle(key)
+        cache.remove(key)
+        handleDistribution.removeHandle(key)
     }
 
     override fun clear() {
         super.clear()
-        handlesDistribution.clear()
+        handleDistribution.clear()
     }
 
-    fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
-        super.cacheObject(handle, it)
-    }
+    private class HandleDistribution(cacheCount: Int) {
 
-    private class HandlesDistribution(cache: NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem>) : EvictListener<EntityIterableHandle, CacheItem> {
-
-        val cache: NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem>
         val removed: MutableSet<EntityIterableHandle>
-        val byLink: FieldIdGroupedHandles
-        val byProp: FieldIdGroupedHandles
-        val byTypeId: FieldIdGroupedHandles
-        val byTypeIdAffectingCreation: FieldIdGroupedHandles
+
+        val byLink: FieldIdGroupedHandleMap
+        val byProp: FieldIdGroupedHandleMap
+        val byTypeId: FieldIdGroupedHandleMap
+        val byTypeIdAffectingCreation: FieldIdGroupedHandleMap
 
         init {
-            this.cache = cache.getClone(this)
-            val count = cache.count()
             // this set is intentionally created quite disperse in order to reduce number of calls
             // to EntityIterableHandle.equals() during iteration of handle clusters
             removed = HashSet(10, .33f)
-            byLink = FieldIdGroupedHandles(count / 16, removed)
-            byProp = FieldIdGroupedHandles(count / 16, removed)
-            byTypeId = FieldIdGroupedHandles(count / 16, removed)
-            byTypeIdAffectingCreation = FieldIdGroupedHandles(count / 16, removed)
-            cache.forEachEntry { handle, value ->
-                val iterable = getCachedValue(value)
-                if (iterable != null) {
-                    addHandle(handle)
-                }
-                true
-            }
+            byLink = FieldIdGroupedHandleMap(cacheCount / 16, removed)
+            byProp = FieldIdGroupedHandleMap(cacheCount / 16, removed)
+            byTypeId = FieldIdGroupedHandleMap(cacheCount / 16, removed)
+            byTypeIdAffectingCreation = FieldIdGroupedHandleMap(cacheCount / 16, removed)
         }
 
-        override fun onEvict(key: EntityIterableHandle, value: CacheItem) {
-            removeHandle(key)
+        fun removeHandle(handle: EntityIterableHandle) {
+            removed.add(handle)
         }
-
-        fun removeHandle(handle: EntityIterableHandle) = removed.add(handle)
 
         fun addHandle(handle: EntityIterableHandle) {
             if (removed.isNotEmpty()) {
@@ -138,8 +151,10 @@ internal class EntityIterableCacheAdapterMutable private constructor(config: Per
         }
     }
 
-    private class FieldIdGroupedHandles(capacity: Int,
-                                        private val removed: Set<EntityIterableHandle>) : IntHashMap<MutableList<EntityIterableHandle>>(capacity) {
+    private class FieldIdGroupedHandleMap(
+        capacity: Int,
+        private val removed: Set<EntityIterableHandle>
+    ) : HashMap<Int, MutableList<EntityIterableHandle>>(capacity) {
 
         // it is allowed to add EntityIterableBase.NULL_TYPE_ID
         fun add(handle: EntityIterableHandle, fieldId: Int) {
@@ -155,29 +170,20 @@ internal class EntityIterableCacheAdapterMutable private constructor(config: Per
             }
         }
 
-        fun forEachHandle(fieldId: Int, procedure: ObjectProcedure<EntityIterableHandle>) {
+        fun forEachHandle(fieldId: Int, action: (EntityIterableHandle) -> Unit) {
             get(fieldId)?.let { handles ->
                 if (removed.isEmpty()) {
                     for (handle in handles) {
-                        procedure.execute(handle)
+                        action(handle)
                     }
                 } else {
                     for (handle in handles) {
                         if (!removed.contains(handle)) {
-                            procedure.execute(handle)
+                            action(handle)
                         }
                     }
                 }
             }
         }
     }
-
-    companion object {
-
-        fun create(source: EntityIterableCacheAdapter): EntityIterableCacheAdapterMutable {
-            val handlesDistribution = HandlesDistribution(source.cache)
-            return EntityIterableCacheAdapterMutable(source.config, handlesDistribution, HashMap(source.stickyObjects))
-        }
-    }
-
 }

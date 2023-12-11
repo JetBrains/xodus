@@ -32,4 +32,19 @@ public class MathUtil {
     public static long longLogarithm(final long l) {
         return l <= 0 ? 0 : Long.SIZE - Long.numberOfLeadingZeros(l - 1);
     }
+
+    /**
+     * Returns the sum of {@code a} and {@code b} unless it would overflow or underflow in which case
+     * {@code Long.MAX_VALUE} or {@code Long.MIN_VALUE} is returned, respectively.
+     */
+    public static long saturatedAdd(long a, long b) {
+        long naiveSum = a + b;
+        if (((a ^ b) < 0) | ((a ^ naiveSum) >= 0)) {
+            // If a and b have different signs or a has the same sign as the result then there was no
+            // overflow, return.
+            return naiveSum;
+        }
+        // we did over/under flow, if the sign is negative we should return MAX otherwise MIN
+        return Long.MAX_VALUE + ((naiveSum >>> (Long.SIZE - 1)) ^ 1);
+    }
 }
