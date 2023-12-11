@@ -93,7 +93,6 @@ public final class KMeansClustering {
         } finally {
             progressTracker.pullPhase();
         }
-
     }
 
     private boolean assignVectorsToClosestClusters(@NotNull final ProgressTracker progressTracker) {
@@ -161,7 +160,7 @@ public final class KMeansClustering {
         float minDistance = Float.MAX_VALUE;
         var vector = vectorReader.read(vectorIdx);
 
-        for (int i = 0; i < numClusters; i += 4) {
+        for (int i = 0; i < numClusters; i++) {
             var centroid = centroids.get(i);
 
             var distance = distanceFun.computeDistance(vector, 0, centroid, 0, vectorDimensions);
