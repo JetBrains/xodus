@@ -158,8 +158,8 @@ public final class IndexBuilder {
                             progressTracker.pushPhase("splitting vectors by partitions, iteration " + splitIteration);
                             try {
                                 var startPartition = System.nanoTime();
-                                vectorsByPartitions = quantizer.splitVectorsByPartitions(partitions, 50,
-                                        distanceFunction, progressTracker);
+                                var partitioningResult = quantizer.splitVectorsByPartitions(vectorReader, partitions, 50, distanceFunction, progressTracker);
+                                vectorsByPartitions = partitioningResult.vectorsByCentroidIdx();
 
                                 totalPartitionsSize = 0;
                                 var maxPartitionSize = Integer.MIN_VALUE;

@@ -15,7 +15,6 @@
  */
 package jetbrains.vectoriadb.index;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.DataInputStream;
@@ -43,7 +42,10 @@ public interface Quantizer extends AutoCloseable {
 
     // PQ k-means clustering
 
-    IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker);
+    /**
+     * Every vector is included into the two closest partitions
+     * */
+    VectorsByPartitions splitVectorsByPartitions(VectorReader vectorReader, int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker);
 
     float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker);
 

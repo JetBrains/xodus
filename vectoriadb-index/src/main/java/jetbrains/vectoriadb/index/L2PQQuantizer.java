@@ -293,8 +293,7 @@ class L2PQQuantizer extends AbstractQuantizer {
     // PQ k-means clustering
 
     @Override
-    public IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction,
-                                                   @NotNull ProgressTracker progressTracker) {
+    public VectorsByPartitions splitVectorsByPartitions(VectorReader vectorReader, int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
         progressTracker.pushPhase("split vectors by partitions",
                 "partitions count", String.valueOf(numClusters));
         try {
@@ -325,7 +324,8 @@ class L2PQQuantizer extends AbstractQuantizer {
                 }
             }
 
-            return vectorsByPartitions;
+            var centroids = decodeVectors(pqCentroids);
+            return new VectorsByPartitions(centroids, vectorsByPartitions);
         } finally {
             progressTracker.pullPhase();
         }
@@ -342,15 +342,19 @@ class L2PQQuantizer extends AbstractQuantizer {
 
             calculateClusters(clustersCount, iterations, numVectors, pqCentroids, distanceTables, progressTracker);
 
-            var result = new float[clustersCount][];
-            for (int i = 0; i < clustersCount; i++) {
-                result[i] = decodeVector(pqCentroids, i);
-            }
-
-            return result;
+            return decodeVectors(pqCentroids);
         } finally {
             progressTracker.pullPhase();
         }
+    }
+
+    private float[][] decodeVectors(byte[] vectors) {
+        var count = vectors.length / quantizersCount;
+        var result = new float[count][];
+        for (int i = 0; i < count; i++) {
+            result[i] = decodeVector(vectors, i);
+        }
+        return result;
     }
 
     private float[] decodeVector(byte[] vectors, int vectorIndex) {
