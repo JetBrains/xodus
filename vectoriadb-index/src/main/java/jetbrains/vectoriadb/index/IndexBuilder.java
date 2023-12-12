@@ -121,8 +121,7 @@ public final class IndexBuilder {
                         progressTracker.pushPhase("Calculating graph search entry point");
                         float[] centroid;
                         try {
-                            centroid = quantizer.calculateCentroids(1, 50,
-                                    distanceFunction, progressTracker)[0];
+                            centroid = quantizer.calculateCentroids(vectorReader, 1, 50, distanceFunction, progressTracker)[0];
                         } finally {
                             progressTracker.pullPhase();
                         }

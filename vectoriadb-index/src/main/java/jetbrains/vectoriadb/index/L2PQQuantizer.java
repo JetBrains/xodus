@@ -332,15 +332,14 @@ class L2PQQuantizer extends AbstractQuantizer {
     }
 
     @Override
-    public float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction,
-                                        @NotNull ProgressTracker progressTracker) {
+    public float[][] calculateCentroids(VectorReader vectorReader, int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
         progressTracker.pushPhase("calculate centroids");
         try {
             var numVectors = (int) (pqVectors.byteSize() / quantizersCount);
             var distanceTables = buildDistanceTables(centroids, quantizersCount, subVectorSize, distanceFunction);
-            var pqCentroids = new byte[clustersCount * quantizersCount];
+            var pqCentroids = new byte[numClusters * quantizersCount];
 
-            calculateClusters(clustersCount, iterations, numVectors, pqCentroids, distanceTables, progressTracker);
+            calculateClusters(numClusters, iterations, numVectors, pqCentroids, distanceTables, progressTracker);
 
             return decodeVectors(pqCentroids);
         } finally {
