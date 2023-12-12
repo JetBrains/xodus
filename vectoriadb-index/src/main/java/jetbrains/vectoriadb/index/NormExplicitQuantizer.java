@@ -195,14 +195,95 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     // PQ k-means clustering
 
     @Override
-    public IntArrayList[] splitVectorsByPartitions(int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
+    public VectorsByPartitions splitVectorsByPartitions(VectorReader vectorReader, int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
         // It is used in IndexBuilder.buildIndex() to split the vectors into partitions to build graph indices for every partition separately.
         // The whole graph index does not fit memory, so we have to split vectors into partitions.
 
-        // Use an extra L2 quantazier that is trained on the original vectors.
-        // Delegate the job to it.
+        // We cannot use PQ k-means clustering here as it does calculations using distance tables for the cluster centroids.
+        // We have only normalized centroids (because they are built on normalized vectors), so we can do PQ k-means clustering
+        // that is ok only for normalized vectors.
+        // Results of such clustering will be less accurate than clustering of the original vectors.
 
-        return new IntArrayList[0];
+        // So we do a regular k-means clustering on the original vectors.
+
+        try (
+                var pBuddy = new ParallelBuddy(numWorkers, "kmeans-clustering");
+                var arena = Arena.ofShared()
+        ) {
+            var centroids = FloatVectorSegment.makeNativeSegment(arena, numClusters, vectorReader.dimensions());
+            var centroidIdxByVectorIdx = ByteCodeSegment.makeNativeSegment(arena, vectorReader.size());
+            var kmeans = new KMeansClustering(
+                    distanceFunction,
+                    vectorReader,
+                    centroids,
+                    centroidIdxByVectorIdx,
+                    iterations,
+                    pBuddy
+            );
+            kmeans.calculateCentroids(progressTracker);
+
+            // prepare result storage for every worker
+            var resultPerWorker = new IntArrayList[numWorkers][];
+            var averageCapacityPerWorker = vectorReader.size() / numClusters / numWorkers * 2;
+            for (int workerIdx = 0; workerIdx < numWorkers; workerIdx++) {
+                resultPerWorker[workerIdx] = new IntArrayList[numClusters];
+                for (int centroidIdx = 0; centroidIdx < numClusters; centroidIdx++) {
+                    resultPerWorker[workerIdx][centroidIdx] = new IntArrayList(averageCapacityPerWorker);
+                }
+            }
+
+            pBuddy.run(
+                    "Calculate two closest centroids for each vector",
+                    vectorReader.size(),
+                    progressTracker,
+                    (workerIdx, vectorIdx) -> {
+                        var twoCentroidIndices = findTwoClosestClusters(vectorReader.read(vectorIdx), centroids, distanceFunction);
+                        var centroidIdx1 = (int) (twoCentroidIndices >>> 32);
+                        var centroidIdx2 = (int) twoCentroidIndices;
+                        resultPerWorker[workerIdx][centroidIdx1].add(vectorIdx);
+                        resultPerWorker[workerIdx][centroidIdx2].add(vectorIdx);
+                    }
+            );
+
+            // assemble the result
+            var result = new IntArrayList[numClusters];
+            var averageResultCapacity = vectorReader.size() / numClusters * 2;
+            for (int centroidIdx = 0; centroidIdx < numClusters; centroidIdx++) {
+                result[centroidIdx] = new IntArrayList(averageResultCapacity);
+                for (int workerIdx = 0; workerIdx < numWorkers; workerIdx++) {
+                    result[centroidIdx].addElements(result[centroidIdx].size(), resultPerWorker[workerIdx][centroidIdx].elements());
+                }
+            }
+            return new VectorsByPartitions(centroids.toArray(), result);
+        }
+    }
+
+    private long findTwoClosestClusters(MemorySegment vector, FloatVectorSegment centroids, DistanceFunction distanceFun) {
+        int minIndex1 = -1;
+        int minIndex2 = -1;
+        float minDistance1 = Float.MAX_VALUE;
+        float minDistance2 = Float.MAX_VALUE;
+
+        var numClusters = centroids.count();
+        var dimensions = centroids.dimensions();
+
+        for (int i = 0; i < numClusters; i++) {
+            var centroid = centroids.get(i);
+
+            var distance = distanceFun.computeDistance(vector, 0, centroid, 0, dimensions);
+            if (distance < minDistance1) {
+                minDistance2 = minDistance1;
+                minDistance1 = distance;
+
+                minIndex2 = minIndex1;
+                minIndex1 = i;
+            } else if (distance < minDistance2) {
+                minDistance2 = distance;
+                minIndex2 = i;
+            }
+        }
+
+        return (((long) minIndex1) << 32) | minIndex2;
     }
 
     @Override

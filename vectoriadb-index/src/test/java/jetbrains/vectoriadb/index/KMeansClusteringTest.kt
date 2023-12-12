@@ -1,7 +1,6 @@
 package jetbrains.vectoriadb.index
 
 import org.junit.Test
-import kotlin.random.Random
 
 class KMeansClusteringTest {
 
