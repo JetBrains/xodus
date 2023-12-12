@@ -39,7 +39,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     // used for the inner product calculation, needed at the search time
     private final L2PQQuantizer normalizedL2 = new L2PQQuantizer();
 
-    private final int normCodebooksCount;
+    private int normCodebooksCount;
     // how many values a single codebook should encode
     private int codeBaseSize;
     private FloatVectorSegment[] codebooks;
@@ -317,17 +317,55 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     @Override
     public void load(DataInputStream dataInputStream) throws IOException {
         // 1. Delegate to the L2
+        normalizedL2.load(dataInputStream);
         // 2. Load the local state of this instance
+        normCodebooksCount = dataInputStream.readInt();
+        codeBaseSize = dataInputStream.readInt();
+
+        codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebooksCount, codeBaseSize, 1); // norm has a single dimension
+        for (int codebookIdx = 0; codebookIdx < normCodebooksCount; codebookIdx++) {
+            for (int code = 0; code < codeBaseSize; code++) {
+                codebooks[codebookIdx].set(code, 0, dataInputStream.readFloat());
+            }
+        }
+
+        var vectorCount = dataInputStream.readInt();
+        codes = ByteCodeSegment.makeNativeSegments(arena, normCodebooksCount, vectorCount);
+
+        for (int vectorIdx = 0; vectorIdx < vectorCount; vectorIdx++) {
+            for (int codebookIdx = 0; codebookIdx < normCodebooksCount; codebookIdx++) {
+                codes[codebookIdx].set(vectorIdx, dataInputStream.readByte());
+            }
+        }
     }
 
     @Override
     public void store(DataOutputStream dataOutputStream) throws IOException {
         // 1. Delegate to the L2
+        normalizedL2.store(dataOutputStream);
         // 2. Store the local state of this instance
+        dataOutputStream.writeInt(normCodebooksCount);
+        dataOutputStream.writeInt(codeBaseSize);
+
+        for (int codebookIdx = 0; codebookIdx < normCodebooksCount; codebookIdx++) {
+            for (int code = 0; code < codeBaseSize; code++) {
+                dataOutputStream.writeFloat(codebooks[codebookIdx].get(code, 0));
+            }
+        }
+
+        var vectorCount = codes[0].count();
+        dataOutputStream.writeInt(vectorCount);
+
+        for (int vectorIdx = 0; vectorIdx < vectorCount; vectorIdx++) {
+            for (int codebookIdx = 0; codebookIdx < normCodebooksCount; codebookIdx++) {
+                dataOutputStream.writeByte(codes[codebookIdx].get(vectorIdx));
+            }
+        }
     }
 
     @Override
     public void close() {
-        // do the same as L2 quantizer
+        normalizedL2.close();
+        arena.close();
     }
 }

@@ -3,13 +3,12 @@ package jetbrains.vectoriadb.index
 import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Test
+import java.io.*
 import kotlin.math.abs
 
 class L2QuantizerTest {
     @Test
-    fun `get vector approximation`() {
-        getVectorApproximationTest(1e-5) { L2PQQuantizer() }
-    }
+    fun `get vector approximation`() = getVectorApproximationTest(VectorDataset.Sift10K, 1e-5) { L2PQQuantizer() }
 
     @Test
     fun `lookup table`() = lookupTableTest(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, 1e-1f) { L2PQQuantizer() }
@@ -19,14 +18,15 @@ class L2QuantizerTest {
 
     @Test
     fun `calculate centroids`() = calculateCentroids(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, L2PQQuantizer())
+
+    @Test
+    fun `store, load`() = storeLoad(VectorDataset.Sift10K, 1e-5) { L2PQQuantizer() }
 }
 
 class NormExplicitQuantizerTest {
 
     @Test
-    fun `get vector approximation`() {
-        getVectorApproximationTest(1e-2) { NormExplicitQuantizer(1) }
-    }
+    fun `get vector approximation`() = getVectorApproximationTest(VectorDataset.Sift10K, 1e-2) { NormExplicitQuantizer(1) }
 
     @Test
     fun `lookup table`() = lookupTableTest(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, 1e-1f) { NormExplicitQuantizer(1) }
@@ -36,6 +36,9 @@ class NormExplicitQuantizerTest {
 
     @Test
     fun `calculate centroids`() = calculateCentroids(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, NormExplicitQuantizer())
+
+    @Test
+    fun `store, load`() = storeLoad(VectorDataset.Sift10K, 1e-5) { NormExplicitQuantizer() }
 
     @Test
     fun `average norm error for norm-explicit quantization should be less that for l2 quantization`() = vectorTest(VectorDataset.Sift10K) {
@@ -128,6 +131,36 @@ class NormExplicitQuantizerTest {
     fun Double.formatPercent(digits: Int = 2): String = "%.${digits}f".format(this * 100) + "%"
 }
 
+internal fun storeLoad(dataset: VectorDataset, delta: Double, buildQuantizer: () -> Quantizer) = vectorTest(dataset) {
+    val compressionRatio = 32
+
+    val quantizer1 = buildQuantizer()
+    quantizer1.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+
+    val approximationError1 = quantizer1.calculateApproximationError(vectors, numVectors)
+
+    val data = ByteArrayOutputStream().use { outputStream ->
+        DataOutputStream(outputStream).use { dataOutputStream ->
+            quantizer1.store(dataOutputStream)
+            dataOutputStream.flush()
+        }
+        outputStream.toByteArray()
+    }
+
+    val quantizer2 = buildQuantizer()
+    ByteArrayInputStream(data).use { inputStream ->
+        DataInputStream(inputStream).use { dataInputStream ->
+            quantizer2.load(dataInputStream)
+        }
+    }
+
+    val approximationError2 = quantizer2.calculateApproximationError(vectors, numVectors)
+
+    println("approximationError1: $approximationError1, approximationError2: $approximationError2")
+
+    Assert.assertEquals(approximationError1, approximationError2, delta)
+}
+
 internal fun calculateCentroids(dataset:VectorDataset, distanceFun: DistanceFunction, quantizer: Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
     val numClusters = 33
@@ -191,25 +224,16 @@ internal fun splitVectorsByPartitions(dataset: VectorDataset, distanceFun: Dista
     assert(actuallyClosestVectorsShare >= expectedClosestVectorsShare)
 }
 
-internal fun getVectorApproximationTest(delta: Double, quantizerBuilder: () -> Quantizer) = vectorTest(VectorDataset.Sift10K) {
+internal fun getVectorApproximationTest(dataset: VectorDataset, delta: Double, quantizerBuilder: () -> Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
-    val l2Distance = L2DistanceFunction.INSTANCE
 
     val averageErrors = buildList {
         listOf(Quantizer.CODE_BASE_SIZE, Quantizer.CODE_BASE_SIZE * 2, Quantizer.CODE_BASE_SIZE * 4, Quantizer.CODE_BASE_SIZE * 8).forEach { numVectors ->
-            val quantizer = quantizerBuilder()
             val vectorReader = FloatArrayToByteArrayVectorReader(vectors, numVectors)
+            val quantizer = quantizerBuilder()
             quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
 
-            var totalError = 0.0
-            repeat(numVectors) { vectorIdx ->
-                val vector = vectors[vectorIdx]
-                val vectorApproximation = quantizer.getVectorApproximation(vectorIdx)
-
-                val error = l2Distance.computeDistance(vector, 0, vectorApproximation, 0, dimensions)
-                totalError += error
-            }
-            add(totalError / numVectors)
+            add(quantizer.calculateApproximationError(vectors, numVectors))
         }
     }
 
@@ -222,7 +246,21 @@ internal fun getVectorApproximationTest(delta: Double, quantizerBuilder: () -> Q
     }
 }
 
-fun lookupTableTest(dataset:VectorDataset, distanceFun: DistanceFunction, delta: Float, buildQuantizer: () -> Quantizer) = vectorTest(dataset) {
+private fun Quantizer.calculateApproximationError(vectors: Array<FloatArray>, numVectors: Int): Double {
+    val l2Distance = L2DistanceFunction.INSTANCE
+    var totalError = 0.0
+    val dimensions = vectors[0].size
+    repeat(numVectors) { vectorIdx ->
+        val vector = vectors[vectorIdx]
+        val vectorApproximation = this.getVectorApproximation(vectorIdx)
+
+        val error = l2Distance.computeDistance(vector, 0, vectorApproximation, 0, dimensions)
+        totalError += error
+    }
+    return totalError / numVectors
+}
+
+internal fun lookupTableTest(dataset:VectorDataset, distanceFun: DistanceFunction, delta: Float, buildQuantizer: () -> Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
 
     val l2Quantizer = buildQuantizer()
