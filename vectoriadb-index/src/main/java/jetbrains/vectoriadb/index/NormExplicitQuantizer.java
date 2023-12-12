@@ -258,6 +258,31 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         }
     }
 
+    @Override
+    public float[][] calculateCentroids(VectorReader vectorReader, int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
+        // It is used in IndexBuilder.buildIndex() to calculate the graph medoid to start the search from.
+        // And also in tests to test the quality of k-means clustering
+
+        try (
+                var pBuddy = new ParallelBuddy(numWorkers, "kmeans-clustering");
+                var arena = Arena.ofShared()
+        ) {
+            var centroids = FloatVectorSegment.makeNativeSegment(arena, numClusters, vectorReader.dimensions());
+            var centroidIdxByVectorIdx = ByteCodeSegment.makeNativeSegment(arena, vectorReader.size());
+            var kmeans = new KMeansClustering(
+                    distanceFunction,
+                    vectorReader,
+                    centroids,
+                    centroidIdxByVectorIdx,
+                    iterations,
+                    pBuddy
+            );
+            kmeans.calculateCentroids(progressTracker);
+
+            return centroids.toArray();
+        }
+    }
+
     private long findTwoClosestClusters(MemorySegment vector, FloatVectorSegment centroids, DistanceFunction distanceFun) {
         int minIndex1 = -1;
         int minIndex2 = -1;
@@ -284,17 +309,6 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         }
 
         return (((long) minIndex1) << 32) | minIndex2;
-    }
-
-    @Override
-    public float[][] calculateCentroids(int clustersCount, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
-        // It is used in IndexBuilder.buildIndex() to calculate the graph medoid to start the search from.
-        // And also in tests to test the quality of k-means clustering
-
-        // Use an extra L2 quantazier that is trained on the original vectors.
-        // Delegate the job to it.
-
-        return new float[0][];
     }
 
 

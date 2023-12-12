@@ -16,6 +16,9 @@ class L2QuantizerTest {
 
     @Test
     fun `split vectors by partitions`() = splitVectorsByPartitions(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, expectedClosestVectorsShare = 0.7) { L2PQQuantizer() }
+
+    @Test
+    fun `calculate centroids`() = calculateCentroids(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, L2PQQuantizer())
 }
 
 class NormExplicitQuantizerTest {
@@ -30,6 +33,9 @@ class NormExplicitQuantizerTest {
 
     @Test
     fun `split vectors by partitions`() = splitVectorsByPartitions(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, expectedClosestVectorsShare = 1.0) { NormExplicitQuantizer(1) }
+
+    @Test
+    fun `calculate centroids`() = calculateCentroids(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, NormExplicitQuantizer())
 
     @Test
     fun `average norm error for norm-explicit quantization should be less that for l2 quantization`() = vectorTest(VectorDataset.Sift10K) {
@@ -120,6 +126,24 @@ class NormExplicitQuantizerTest {
     }
 
     fun Double.formatPercent(digits: Int = 2): String = "%.${digits}f".format(this * 100) + "%"
+}
+
+internal fun calculateCentroids(dataset:VectorDataset, distanceFun: DistanceFunction, quantizer: Quantizer) = vectorTest(dataset) {
+    val compressionRatio = 32
+    val numClusters = 33
+    val maxIterations = 50
+
+    quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+
+    val centroids = quantizer.calculateCentroids(vectorReader, numClusters, maxIterations, distanceFun, progressTracker)
+
+    val randomCentroids = makeRandomCentroids(vectors, numClusters)
+
+    val coef = silhouetteCoefficient(distanceFun, centroids, vectors)
+    val randomCoef = silhouetteCoefficient(distanceFun, randomCentroids, vectors)
+    println("coef: $coef, randomCoef: $randomCoef")
+
+    assert(coef > randomCoef)
 }
 
 internal fun splitVectorsByPartitions(dataset: VectorDataset, distanceFun: DistanceFunction, expectedClosestVectorsShare: Double, quantizerBuilder: () -> Quantizer) = vectorTest(dataset) {
