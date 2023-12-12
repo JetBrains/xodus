@@ -25,14 +25,10 @@ class KMeansClusteringTest {
 
         kmeans.calculateCentroids(progressTracker)
 
-        val randomCentroids = Array(numClusters) { FloatArray(dimensions) }
-        repeat(numClusters) { centroidIdx ->
-            val vectorIdx = Random.nextInt(numVectors)
-            System.arraycopy(vectors[vectorIdx], 0, randomCentroids[centroidIdx], 0, dimensions)
-        }
+        val randomCentroids = makeRandomCentroids(vectors, numClusters)
 
-        val coef = SilhouetteCoefficient(centroids.toArray(), vectors, distance).calculate()
-        val randomCoef = SilhouetteCoefficient(randomCentroids, vectors, distance).calculate()
+        val coef = silhouetteCoefficient(distance, centroids.toArray(), vectors)
+        val randomCoef = silhouetteCoefficient(distance, randomCentroids, vectors)
 
         println("coef: $coef, randomCoef: $randomCoef")
         assert(coef > randomCoef)

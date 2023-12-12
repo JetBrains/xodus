@@ -12,7 +12,7 @@ import kotlin.math.max
 class SilhouetteCoefficientMedoid(
     val centroids: Array<FloatArray>,
     val vectors: Array<FloatArray>,
-    val distanceFunction: DistanceFunction
+    val computeDistance: (FloatArray, FloatArray) -> Float
 ) {
     private val clusterByVectorIdx: IntArray
     private val closestClusterByVectorIdx: IntArray
@@ -22,7 +22,7 @@ class SilhouetteCoefficientMedoid(
         closestClusterByVectorIdx = IntArray(vectors.size)
         for (i in vectors.indices) {
             val vector = vectors[i]
-            val clusters = findClosestAndSecondClosestCluster(centroids, vector, distanceFunction)
+            val clusters = findClosestAndSecondClosestCluster(centroids, vector, computeDistance)
             clusterByVectorIdx[i] = clusters[0]
             closestClusterByVectorIdx[i] = clusters[1]
         }
@@ -38,8 +38,8 @@ class SilhouetteCoefficientMedoid(
             val v = vectors[vectorIdx]
             val centroid = centroids[centroidIdx]
             val closestCentroid = centroids[closestCentroidIdx]
-            val a = distanceFunction.computeDistance(v, 0, centroid, 0, v.size)
-            val b = distanceFunction.computeDistance(v, 0, closestCentroid, 0, v.size)
+            val a = computeDistance(v, centroid)
+            val b = computeDistance(v, closestCentroid)
             val coef = (b - a) / max(a, b)
             sum += coef
         }
@@ -54,7 +54,7 @@ class SilhouetteCoefficientMedoid(
 class SilhouetteCoefficient(
     centroids: Array<FloatArray>,
     val vectors: Array<FloatArray>,
-    val distanceFunction: DistanceFunction
+    val computeDistance: (FloatArray, FloatArray) -> Float
 ) {
     val clusterByVectorIdx: IntArray
     val closestClusterByVectorIdx: IntArray
@@ -66,7 +66,7 @@ class SilhouetteCoefficient(
         vectorsByClusterIdx = MutableList(centroids.size) { IntArrayList() }
         for (i in vectors.indices) {
             val vector = vectors[i]
-            val clusters = findClosestAndSecondClosestCluster(centroids, vector, distanceFunction)
+            val clusters = findClosestAndSecondClosestCluster(centroids, vector, computeDistance)
             clusterByVectorIdx[i] = clusters[0]
             closestClusterByVectorIdx[i] = clusters[1]
             vectorsByClusterIdx[clusters[0]].add(i)
@@ -74,6 +74,9 @@ class SilhouetteCoefficient(
     }
 
     fun calculate(): Float {
+        /**
+         * todo use ParallelBuddy to get things done faster
+         * */
         var sum = 0f
         for (vectorIdx in vectors.indices) {
             val clusterIdx = clusterByVectorIdx[vectorIdx]
@@ -97,7 +100,7 @@ class SilhouetteCoefficient(
             if (fromVectorIndex == wi) continue
 
             val w = vectors[wi]
-            sum += distanceFunction.computeDistance(v, 0, w, 0, v.size)
+            sum += computeDistance(v, w)
             count++
         }
         return if (count == 0) {
@@ -109,8 +112,9 @@ class SilhouetteCoefficient(
 }
 
 private fun findClosestAndSecondClosestCluster(
-    centroids: Array<FloatArray>, vector: FloatArray,
-    distanceFunction: DistanceFunction
+    centroids: Array<FloatArray>,
+    vector: FloatArray,
+    computeDistance: (FloatArray, FloatArray) -> Float
 ): IntArray {
     var closestClusterIndex = -1
     var secondClosestClusterIndex = -1
@@ -118,7 +122,7 @@ private fun findClosestAndSecondClosestCluster(
     var secondClosestDistance = Float.MAX_VALUE
     for (i in centroids.indices) {
         val centroid = centroids[i]
-        val distance = distanceFunction.computeDistance(centroid, 0, vector,0, centroid.size)
+        val distance = computeDistance(centroid, vector)
         if (distance < closestDistance) {
             secondClosestClusterIndex = closestClusterIndex
             secondClosestDistance = closestDistance
@@ -131,4 +135,50 @@ private fun findClosestAndSecondClosestCluster(
     }
     assert(closestClusterIndex != secondClosestClusterIndex)
     return intArrayOf(closestClusterIndex, secondClosestClusterIndex)
+}
+
+fun VectorDatasetContext.silhouetteCoefficient(distanceFun: DistanceFunction, centroids: Array<FloatArray>, vectors: Array<FloatArray>): Float {
+    /**
+     * todo Silhouette Coefficient or Silhouette Coefficient Medoid
+     * It makes sense to choose either "proper" Silhouette Coefficient or Silhouette Coefficient Medoid depending
+     * on the dataset size. The "proper" Silhouette Coefficient O(numVectors^2), so for big datasets it will work
+     * too long. The Silhouette Coefficient Medoid on the other side is O(numVectors * numClusters) that is much
+     * better for big datasets.
+     */
+    val coef = when (distanceFun) {
+        is L2DistanceFunction -> distanceFun.l2SilhouetteCoefficient(centroids, vectors)
+        is DotDistanceFunction -> distanceFun.ipSilhouetteCoefficient(centroids, vectors, maxInnerProduct)
+        else -> throw NotImplementedError()
+    }
+    return coef.calculate()
+}
+
+fun l2SilhouetteCoefficientMedoid(centroids: Array<FloatArray>, vectors: Array<FloatArray>): SilhouetteCoefficientMedoid {
+    val distanceFun = L2DistanceFunction.INSTANCE
+    return SilhouetteCoefficientMedoid(centroids, vectors) { v1, v2 ->
+        distanceFun.computeDistance(v1, 0, v2, 0, v1.size)
+    }
+}
+
+
+fun L2DistanceFunction.l2SilhouetteCoefficient(centroids: Array<FloatArray>, vectors: Array<FloatArray>): SilhouetteCoefficient {
+    return SilhouetteCoefficient(centroids, vectors) { v1, v2 ->
+        computeDistance(v1, 0, v2, 0, v1.size)
+    }
+}
+
+private fun DotDistanceFunction.ipSilhouetteCoefficient(centroids: Array<FloatArray>, vectors: Array<FloatArray>, maxInnerProduct: Float): SilhouetteCoefficient {
+    /*
+    * DotDistanceFunction returns the -1 * (inner product). It is convenient when we compare distances -
+    * the smaller the distance, more similar the vectors.
+    *
+    * But the Silhouette Coefficient does not work with negative values, so we have to fix our distances somehow.
+    * We find the max overall inner product = -1 * (min overall distance) and add it to all the distances.
+    * So we make all the distances positive keeping "the smaller the distance, more similar vectors" property.
+    * */
+    val dimensions = vectors[0].size
+    return SilhouetteCoefficient(centroids, vectors) { v1, v2 ->
+        val distance = computeDistance(v1, 0, v2, 0, dimensions)
+        distance + maxInnerProduct
+    }
 }

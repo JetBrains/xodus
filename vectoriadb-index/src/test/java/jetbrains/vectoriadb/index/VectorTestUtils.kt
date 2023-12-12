@@ -83,8 +83,67 @@ abstract class VectorDataset {
                 vectors,
                 vectorReader,
                 vectors.count(),
-                LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS
+                LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS,
+                maxInnerProduct = 261205.0f
             )
         }
     }
+
+    data object Sift1M: VectorDataset() {
+        override fun build(): VectorDatasetContext {
+            val vectors = LoadVectorsUtil.loadSift1MVectors()
+            val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
+            return VectorDatasetContext(
+                vectors,
+                vectorReader,
+                vectors.count(),
+                LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS,
+                // todo calculate
+                maxInnerProduct = 261205.0f
+            )
+        }
+    }
+}
+
+internal fun findTwoClosestCentroids(
+    vector: FloatArray,
+    centroids: Array<FloatArray>,
+    distanceFun: DistanceFunction
+): Pair<Int, Int> {
+    var minIndex1 = -1
+    var minIndex2 = -1
+    var minDistance1 = Float.MAX_VALUE
+    var minDistance2 = Float.MAX_VALUE
+
+    val numClusters = centroids.count()
+    val dimensions = vector.size
+
+    for (i in 0 until numClusters) {
+        val centroid = centroids[i]
+
+        val distance = distanceFun.computeDistance(vector, 0, centroid, 0, dimensions)
+        if (distance < minDistance1) {
+            minDistance2 = minDistance1
+            minDistance1 = distance
+
+            minIndex2 = minIndex1
+            minIndex1 = i
+        } else if (distance < minDistance2) {
+            minDistance2 = distance
+            minIndex2 = i
+        }
+    }
+
+    return Pair(minIndex1, minIndex2)
+}
+
+internal fun makeRandomCentroids(vectors: Array<FloatArray>, numClusters: Int): Array<FloatArray> {
+    val numVectors = vectors.size
+    val dimensions = vectors[0].size
+    val randomCentroids = Array(numClusters) { FloatArray(dimensions) }
+    repeat(numClusters) { centroidIdx ->
+        val vectorIdx = Random.nextInt(numVectors)
+        System.arraycopy(vectors[vectorIdx], 0, randomCentroids[centroidIdx], 0, dimensions)
+    }
+    return randomCentroids
 }

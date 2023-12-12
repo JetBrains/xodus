@@ -24,6 +24,7 @@ import java.lang.foreign.ValueLayout;
 import java.util.Random;
 
 import static jetbrains.vectoriadb.index.LoadVectorsUtil.loadSift10KVectors;
+import static jetbrains.vectoriadb.index.SilhouetteCoefficientKt.l2SilhouetteCoefficient;
 
 public class L2PQKMeansTest {
     @Test
@@ -103,14 +104,12 @@ public class L2PQKMeansTest {
             var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, new NoOpProgressTracker());
 
             System.out.println("Centroids calculated. Clustering data vectors...");
-
-            var silhouetteCoefficient = new SilhouetteCoefficient(centroids, vectors, L2DistanceFunction.INSTANCE);
-
             System.out.println("Data vectors clustered. Calculating silhouette coefficient...");
 
-            var coefficientValue = silhouetteCoefficient.calculate();
-            System.out.printf("silhouetteCoefficient = %f%n", coefficientValue);
-            Assert.assertTrue("silhouetteCoefficient < 0.08:" + silhouetteCoefficient, coefficientValue >= 0.08);
+            var silhouetteCoeff = l2SilhouetteCoefficient(L2DistanceFunction.INSTANCE, centroids, vectors).calculate();
+
+            System.out.printf("silhouetteCoefficient = %f%n", silhouetteCoeff);
+            Assert.assertTrue("silhouetteCoefficient < 0.08:" + silhouetteCoeff, silhouetteCoeff >= 0.08);
         }
     }
 

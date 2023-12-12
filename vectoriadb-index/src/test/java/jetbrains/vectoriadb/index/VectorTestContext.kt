@@ -12,6 +12,7 @@ class ParallelVectorTestContext(
     datasetContext.vectorReader,
     datasetContext.numVectors,
     datasetContext.dimensions,
+    datasetContext.maxInnerProduct
 )
 
 class VectorTestContext(
@@ -22,13 +23,16 @@ class VectorTestContext(
     datasetContext.vectorReader,
     datasetContext.numVectors,
     datasetContext.dimensions,
+    datasetContext.maxInnerProduct
 )
 
 open class VectorDatasetContext(
     val vectors: Array<FloatArray>,
     val vectorReader: VectorReader,
     val numVectors: Int = vectorReader.size(),
-    val dimensions: Int = vectors[0].size
+    val dimensions: Int = vectors[0].size,
+    // we use it to calculate the Silhouette Coefficient using DotDistanceFunction
+    val maxInnerProduct: Float
 )
 
 fun vectorTest(datasetBuilder: VectorDataset, test: VectorTestContext.() -> Unit) {

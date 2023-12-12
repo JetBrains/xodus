@@ -5,6 +5,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import static jetbrains.vectoriadb.index.LoadVectorsUtil.loadGist1MVectors;
+import static jetbrains.vectoriadb.index.SilhouetteCoefficientKt.l2SilhouetteCoefficientMedoid;
 
 public class ClusterInitializerTest {
     @Test
@@ -57,6 +58,6 @@ public class ClusterInitializerTest {
         var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, progressTracker);
 
         System.out.println("Centroids calculated. Calculating silhouette coefficient...");
-        return new SilhouetteCoefficientMedoid(centroids, vectors, L2DistanceFunction.INSTANCE).calculate();
+        return l2SilhouetteCoefficientMedoid(centroids, vectors).calculate();
     }
 }
