@@ -22,11 +22,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 public interface Quantizer extends AutoCloseable {
-    int CODE_BASE_SIZE = 256;
-
     // Initialize, make PQ code for the vectors
 
-    void generatePQCodes(int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker);
+    void generatePQCodes(VectorReader vectorReader, int codebookCount, @NotNull ProgressTracker progressTracker);
 
 
     // Calculate distances using the lookup table

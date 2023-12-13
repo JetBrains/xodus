@@ -4,6 +4,7 @@ import org.apache.commons.rng.simple.RandomSource;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import static jetbrains.vectoriadb.index.LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS;
 import static jetbrains.vectoriadb.index.LoadVectorsUtil.loadGist1MVectors;
 
 public class ClusterInitializerTest {
@@ -17,7 +18,8 @@ public class ClusterInitializerTest {
         progressTracker.start("Index");
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            pqQuantizer.generatePQCodes(32, new FloatArrayToByteArrayVectorReader(vectors), progressTracker);
+            var codebookCount = CodebookInitializer.getCodebookCount(SIFT_VECTOR_DIMENSIONS, 32);
+            pqQuantizer.generatePQCodes(new FloatArrayToByteArrayVectorReader(vectors), codebookCount, progressTracker);
 
             var count = 0;
             var meanPpRandomDiff = 0f;

@@ -116,7 +116,8 @@ public final class IndexBuilder {
                         var quantizer = distance.quantizer();
                         var distanceFunction = distance.buildDistanceFunction();
 
-                        quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker);
+                        var codebookCount = CodebookInitializer.getCodebookCount(vectorsDimension, compressionRatio);
+                        quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker);
 
                         progressTracker.pushPhase("Calculating graph search entry point");
                         float[] centroid;

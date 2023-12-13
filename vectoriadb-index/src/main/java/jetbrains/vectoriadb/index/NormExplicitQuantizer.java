@@ -39,7 +39,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     // used for the inner product calculation, needed at the search time
     private final L2PQQuantizer normalizedL2 = new L2PQQuantizer();
 
-    private int normCodebooksCount;
+    private int normCodebookCount;
     // how many values a single codebook should encode
     private int codeBaseSize;
     private FloatVectorSegment[] codebooks;
@@ -49,31 +49,31 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         this(1);
     }
 
-    NormExplicitQuantizer(int normCodebooksCount) {
-        if (normCodebooksCount < 1) throw new IllegalArgumentException("normCodebooksCount should be greater or equal 1");
+    NormExplicitQuantizer(int normCodebookCount) {
+        if (normCodebookCount < 1) throw new IllegalArgumentException("normCodebooksCount should be greater or equal 1");
         arena = Arena.ofShared();
-        this.normCodebooksCount = normCodebooksCount;
+        this.normCodebookCount = normCodebookCount;
         numWorkers = ParallelExecution.availableCores();
     }
 
     @Override
-    public void generatePQCodes(int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker) {
-        progressTracker.pushPhase("Norm-explicit PQ codes creation", "norm quantizers count", String.valueOf(normCodebooksCount));
+    public void generatePQCodes(VectorReader vectorReader, int codebookCount, @NotNull ProgressTracker progressTracker) {
+        progressTracker.pushPhase("Norm-explicit PQ codes creation", "norm quantizers count", String.valueOf(normCodebookCount));
 
         try (
                 var localArena = Arena.ofShared();
                 var normalizedVectorReader = new NormalizedVectorReader(vectorReader);
                 var pBuddy = new ParallelBuddy(numWorkers, "norm-explicit-pq-calc-")
         ) {
-            codeBaseSize = Math.min(CODE_BASE_SIZE, vectorReader.size());
+            codeBaseSize = CodebookInitializer.getCodeBaseSize(vectorReader.size());
 
-            codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebooksCount, codeBaseSize, 1); // norm has a single dimension
-            codes = ByteCodeSegment.makeNativeSegments(arena, normCodebooksCount, vectorReader.size());
+            codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebookCount, codeBaseSize, 1); // norm has a single dimension
+            codes = ByteCodeSegment.makeNativeSegments(arena, normCodebookCount, vectorReader.size());
 
             // precalculate original vector norms not to calculate them on every read
             normalizedVectorReader.precalculateOriginalVectorNorms(pBuddy, progressTracker);
 
-            normalizedL2.generatePQCodes(compressionRatio, normalizedVectorReader, progressTracker);
+            normalizedL2.generatePQCodes(normalizedVectorReader, codebookCount - normCodebookCount, progressTracker);
 
             // Calculate relativeNorm = originalVectorNorm / normalizedApproximatedVectorNorm, so later we can get originalVectorNorm = relativeNorm * normalizedApproximatedVectorNorm
             var relativeNorms = FloatVectorSegment.makeNativeSegment(localArena, vectorReader.size(), 1);
@@ -81,9 +81,9 @@ class NormExplicitQuantizer extends AbstractQuantizer {
 
             trainCodebook(pBuddy, relativeNorms, 0, progressTracker);
 
-            if (normCodebooksCount > 1) {
+            if (normCodebookCount > 1) {
                 var normResiduals = FloatVectorSegment.makeNativeSegment(localArena, vectorReader.size(), 1);
-                for (int codebookIdx = 1; codebookIdx < normCodebooksCount; codebookIdx++) {
+                for (int codebookIdx = 1; codebookIdx < normCodebookCount; codebookIdx++) {
                     calculateNormResiduals(pBuddy, relativeNorms, normResiduals, codebookIdx, progressTracker);
                     trainCodebook(pBuddy, normResiduals, codebookIdx, progressTracker);
                 }
@@ -148,7 +148,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
 
     private float getRelativeNormApproximation(int vectorIdx) {
         var norm = 0f;
-        for (int codeIdx = 0; codeIdx < normCodebooksCount; codeIdx++) {
+        for (int codeIdx = 0; codeIdx < normCodebookCount; codeIdx++) {
             var code = codes[codeIdx].get(vectorIdx);
             norm += codebooks[codeIdx].get(code, 0);
         }
@@ -319,21 +319,21 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         // 1. Delegate to the L2
         normalizedL2.load(dataInputStream);
         // 2. Load the local state of this instance
-        normCodebooksCount = dataInputStream.readInt();
+        normCodebookCount = dataInputStream.readInt();
         codeBaseSize = dataInputStream.readInt();
 
-        codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebooksCount, codeBaseSize, 1); // norm has a single dimension
-        for (int codebookIdx = 0; codebookIdx < normCodebooksCount; codebookIdx++) {
+        codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebookCount, codeBaseSize, 1); // norm has a single dimension
+        for (int codebookIdx = 0; codebookIdx < normCodebookCount; codebookIdx++) {
             for (int code = 0; code < codeBaseSize; code++) {
                 codebooks[codebookIdx].set(code, 0, dataInputStream.readFloat());
             }
         }
 
         var vectorCount = dataInputStream.readInt();
-        codes = ByteCodeSegment.makeNativeSegments(arena, normCodebooksCount, vectorCount);
+        codes = ByteCodeSegment.makeNativeSegments(arena, normCodebookCount, vectorCount);
 
         for (int vectorIdx = 0; vectorIdx < vectorCount; vectorIdx++) {
-            for (int codebookIdx = 0; codebookIdx < normCodebooksCount; codebookIdx++) {
+            for (int codebookIdx = 0; codebookIdx < normCodebookCount; codebookIdx++) {
                 codes[codebookIdx].set(vectorIdx, dataInputStream.readByte());
             }
         }
@@ -344,10 +344,10 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         // 1. Delegate to the L2
         normalizedL2.store(dataOutputStream);
         // 2. Store the local state of this instance
-        dataOutputStream.writeInt(normCodebooksCount);
+        dataOutputStream.writeInt(normCodebookCount);
         dataOutputStream.writeInt(codeBaseSize);
 
-        for (int codebookIdx = 0; codebookIdx < normCodebooksCount; codebookIdx++) {
+        for (int codebookIdx = 0; codebookIdx < normCodebookCount; codebookIdx++) {
             for (int code = 0; code < codeBaseSize; code++) {
                 dataOutputStream.writeFloat(codebooks[codebookIdx].get(code, 0));
             }
@@ -357,7 +357,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         dataOutputStream.writeInt(vectorCount);
 
         for (int vectorIdx = 0; vectorIdx < vectorCount; vectorIdx++) {
-            for (int codebookIdx = 0; codebookIdx < normCodebooksCount; codebookIdx++) {
+            for (int codebookIdx = 0; codebookIdx < normCodebookCount; codebookIdx++) {
                 dataOutputStream.writeByte(codes[codebookIdx].get(vectorIdx));
             }
         }

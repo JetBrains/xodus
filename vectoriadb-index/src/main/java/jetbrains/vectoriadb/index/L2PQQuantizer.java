@@ -35,83 +35,82 @@ import java.util.concurrent.Future;
 
 class L2PQQuantizer extends AbstractQuantizer {
     private static final VarHandle ATOMIC_HISTOGRAM_VARHANDLE = MethodHandles.arrayElementVarHandle(int[].class);
+
     // how many codebooks we use to encode a vector
-    private int quantizersCount;
+    private int codebookCount;
     // how many vector features we encode with a single codebook
-    private int subVectorSize;
+    private int[] codebookDimensions;
+    private int maxCodebookDimensions;
+    private int[] codebookDimensionOffset;
     // how many values a single codebook should encode
     private int codeBaseSize;
+    // 1st dimension quantizer/codebook index
+    // 2nd index of code inside code book
+    // 3d dimension centroid vector
+    private float[][][] codebooks;
 
-    private int vectorsCount;
+    private int vectorCount;
+    private int vectorDimensions;
     // encoded vectors
     private MemorySegment pqVectors;
 
     private final Arena arena;
-
-    // 1st dimension quantizer/codebook index
-    // 2nd index of code inside code book
-    // 3d dimension centroid vector
-    private float[][][] centroids;
 
     L2PQQuantizer() {
         this.arena = Arena.ofShared();
     }
 
     public float[] getVectorApproximation(int vectorIdx) {
-        var codedVector = pqVectors.asSlice((long) vectorIdx * quantizersCount, quantizersCount);
+        var codedVector = pqVectors.asSlice((long) vectorIdx * codebookCount, codebookCount);
         return decodeVector(codedVector);
     }
 
     private float[] decodeVector(MemorySegment codedVector) {
-        var result = new float[quantizersCount * subVectorSize];
+        var result = new float[vectorDimensions];
 
-        for (int i = 0, dimensionOffset = 0; i < quantizersCount; i++, dimensionOffset += subVectorSize) {
-            var pqCentroidVector = Byte.toUnsignedInt(codedVector.getAtIndex(ValueLayout.JAVA_BYTE, i));
-            System.arraycopy(centroids[i][pqCentroidVector], 0, result, dimensionOffset, subVectorSize);
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            var code = Byte.toUnsignedInt(codedVector.getAtIndex(ValueLayout.JAVA_BYTE, codebookIdx));
+            System.arraycopy(codebooks[codebookIdx][code], 0, result, codebookDimensionOffset[codebookIdx], codebookDimensions[codebookIdx]);
         }
 
         return result;
     }
 
+    private void initializeCodebooks(int codebookCount, int vectorCount, int vectorDimensions) {
+        var init = new CodebookInitializer(codebookCount, vectorCount, vectorDimensions);
+        this.codebookCount = codebookCount;
+        codebookDimensions = init.getCodebookDimensions();
+        maxCodebookDimensions = init.getMaxCodebookDimensions();
+        codebookDimensionOffset = init.getCodebookDimensionOffset();
+        codeBaseSize = init.getCodeBaseSize();
+        codebooks = init.getCodebooks();
+        this.vectorCount = vectorCount;
+        this.vectorDimensions = vectorDimensions;
+    }
+
     // Initialize, make PQ code for the vectors
 
     @Override
-    public void generatePQCodes(int compressionRatio, VectorReader vectorReader, @NotNull ProgressTracker progressTracker) {
-        if (compressionRatio % Float.BYTES != 0) {
-            throw new IllegalArgumentException(
-                    "Vector should be divided during creation of PQ codes without remainder.");
-        }
-        subVectorSize = compressionRatio / Float.BYTES;
-        var vectorsDimension = vectorReader.dimensions();
-
-        if (vectorsDimension % subVectorSize != 0) {
-            throw new IllegalArgumentException(
-                    "Vector should be divided during creation of PQ codes without remainder.");
-        }
-
-        quantizersCount = vectorsDimension / subVectorSize;
-        codeBaseSize = Math.min(CODE_BASE_SIZE, vectorReader.size());
-        centroids = new float[quantizersCount][codeBaseSize][subVectorSize];
+    public void generatePQCodes(VectorReader vectorReader, int codebookCount, @NotNull ProgressTracker progressTracker) {
+        initializeCodebooks(codebookCount, vectorReader.size(), vectorReader.dimensions());
 
         var minBatchSize = 16;
 
-        var cores = Math.min(Runtime.getRuntime().availableProcessors(), quantizersCount);
-        var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * subVectorSize)) / cores;
+        var cores = Math.min(Runtime.getRuntime().availableProcessors(), codebookCount);
+        var batchSize = Math.max(minBatchSize, 2 * 1024 * 1024 / (Float.BYTES * maxCodebookDimensions)) / cores;
 
         progressTracker.pushPhase("PQ codes creation",
-                "quantizers count", String.valueOf(quantizersCount),
-                "sub vector size", String.valueOf(subVectorSize),
+                "codebook count", String.valueOf(codebookCount),
+                "max codebook dimension", String.valueOf(maxCodebookDimensions),
                 "code base size", String.valueOf(codeBaseSize));
 
         progressTracker.pushPhase("KMeans clustering", "batch size", String.valueOf(batchSize),
                 "min batch size", String.valueOf(minBatchSize),
                 "cores", String.valueOf(cores));
 
-        var kMeans = new KMeansMiniBatchGD[quantizersCount];
-        for (int i = 0; i < quantizersCount; i++) {
-            kMeans[i] = new KMeansMiniBatchGD(CODE_BASE_SIZE,
-                    50, i * subVectorSize, subVectorSize,
-                    vectorReader);
+        var kMeans = new KMeansMiniBatchGD[codebookCount];
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            kMeans[codebookIdx] = new KMeansMiniBatchGD(CodebookInitializer.CODE_BASE_SIZE, 50, codebookDimensionOffset[codebookIdx], codebookDimensions[codebookIdx], vectorReader);
         }
 
         try (var executors = Executors.newFixedThreadPool(cores, r -> {
@@ -119,13 +118,13 @@ class L2PQQuantizer extends AbstractQuantizer {
             thread.setName("pq-kmeans-thread-" + thread.threadId());
             return thread;
         })) {
-            var mtProgressTracker = new BoundedMTProgressTrackerFactory(quantizersCount, progressTracker);
+            var mtProgressTracker = new BoundedMTProgressTrackerFactory(codebookCount, progressTracker);
 
-            var futures = new Future[quantizersCount];
-            for (int i = 0; i < quantizersCount; i++) {
-                var km = kMeans[i];
-                var id = i;
-                futures[i] = executors.submit(() -> {
+            var futures = new Future[codebookCount];
+            for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+                var km = kMeans[codebookIdx];
+                var id = codebookIdx;
+                futures[codebookIdx] = executors.submit(() -> {
                     try (var localProgressTracker = mtProgressTracker.createThreadLocalTracker(id)) {
                         km.calculate(minBatchSize, batchSize, localProgressTracker);
                     }
@@ -143,21 +142,20 @@ class L2PQQuantizer extends AbstractQuantizer {
 
         progressTracker.progress(50);
 
-        vectorsCount = vectorReader.size();
-        cores = Math.min(Runtime.getRuntime().availableProcessors(), vectorsCount);
+        cores = Math.min(Runtime.getRuntime().availableProcessors(), vectorCount);
 
         progressTracker.pushPhase("PQ codes creation", "cores", String.valueOf(cores));
-        for (int i = 0; i < quantizersCount; i++) {
-            var centroids = kMeans[i].centroids;
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            var centroids = kMeans[codebookIdx].centroids;
 
             var index = 0;
-            for (int j = 0; j < codeBaseSize; j++) {
-                System.arraycopy(centroids, index, this.centroids[i][j], 0, subVectorSize);
-                index += subVectorSize;
+            for (int code = 0; code < codeBaseSize; code++) {
+                System.arraycopy(centroids, index, codebooks[codebookIdx][code], 0, codebookDimensions[codebookIdx]);
+                index += codebookDimensions[codebookIdx];
             }
         }
 
-        pqVectors = allocateMemoryForPqVectors(quantizersCount, vectorsCount, arena);
+        pqVectors = allocateMemoryForPqVectors(codebookCount, vectorCount, arena);
 
         try (var executors = Executors.newFixedThreadPool(cores, r -> {
             var thread = new Thread(r);
@@ -165,12 +163,12 @@ class L2PQQuantizer extends AbstractQuantizer {
             return thread;
         })) {
             var mtProgressTracker = new BoundedMTProgressTrackerFactory(cores, progressTracker);
-            var assignmentSize = (vectorsCount + cores - 1) / cores;
+            var assignmentSize = (vectorCount + cores - 1) / cores;
             var futures = new Future[cores];
 
             for (var n = 0; n < cores; n++) {
                 var start = n * assignmentSize;
-                var end = Math.min(start + assignmentSize, vectorsCount);
+                var end = Math.min(start + assignmentSize, vectorCount);
 
                 var id = n;
                 futures[n] = executors.submit(() -> {
@@ -180,11 +178,9 @@ class L2PQQuantizer extends AbstractQuantizer {
                             var vectorIndex = start + k;
                             var vector = vectorReader.read(vectorIndex);
 
-                            for (int i = 0; i < quantizersCount; i++) {
-                                var centroidIndex = L2DistanceFunction.INSTANCE.findClosestVector(kMeans[i].centroids,
-                                        vector, i * subVectorSize, subVectorSize);
-                                pqVectors.set(ValueLayout.JAVA_BYTE,
-                                        (long) vectorIndex * quantizersCount + i, (byte) centroidIndex);
+                            for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+                                var centroidIndex = L2DistanceFunction.INSTANCE.findClosestVector(kMeans[codebookIdx].centroids, vector, codebookDimensionOffset[codebookIdx], codebookDimensions[codebookIdx]);
+                                pqVectors.set(ValueLayout.JAVA_BYTE, (long) vectorIndex * codebookCount + codebookIdx, (byte) centroidIndex);
                             }
 
                             localProgressTracker.progress(k * 100.0 / localSize);
@@ -223,18 +219,16 @@ class L2PQQuantizer extends AbstractQuantizer {
          * the query vector `q` to any of the encoded vectors `pqVectors` in the database.
          */
         // todo why not to use CODE_BASE_SIZE=256 instead of 1 << Byte.SIZE, it may make the code easier to read
-        return new float[quantizersCount * (1 << Byte.SIZE)];
+        return new float[codebookCount * (1 << Byte.SIZE)];
     }
 
     @Override
     public void buildLookupTable(float[] vector, float[] lookupTable, DistanceFunction distanceFunction) {
-        for (int i = 0; i < quantizersCount; i++) {
-            var quantizerCentroids = centroids[i];
-
-            for (int j = 0; j < quantizerCentroids.length; j++) {
-                var centroid = quantizerCentroids[j];
-                var distance = distanceFunction.computeDistance(centroid, 0, vector, i * subVectorSize, centroid.length);
-                lookupTable[i * (1 << Byte.SIZE) + j] = distance;
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            for (int code = 0; code < codeBaseSize; code++) {
+                var codebookVector = codebooks[codebookIdx][code];
+                var distance = distanceFunction.computeDistance(codebookVector, 0, vector, codebookDimensionOffset[codebookIdx], codebookDimensions[codebookIdx]);
+                lookupTable[codebookIdx * (1 << Byte.SIZE) + code] = distance;
             }
         }
     }
@@ -243,8 +237,8 @@ class L2PQQuantizer extends AbstractQuantizer {
     public float computeDistanceUsingLookupTable(float[] lookupTable, int vectorIndex) {
         var distance = 0f;
 
-        var pqIndex = (long) quantizersCount * vectorIndex;
-        for (long i = pqIndex; i < pqIndex + quantizersCount; i++) {
+        var pqIndex = (long) codebookCount * vectorIndex;
+        for (long i = pqIndex; i < pqIndex + codebookCount; i++) {
             var code = pqVectors.get(ValueLayout.JAVA_BYTE, i) & 0xFF;
             distance += lookupTable[(int) ((i - pqIndex) * (1 << Byte.SIZE) + code)];
         }
@@ -257,17 +251,17 @@ class L2PQQuantizer extends AbstractQuantizer {
                                                       int vectorIndex3, int vectorIndex4, float[] result) {
         assert result.length == 4;
 
-        var pqIndex1 = (long) quantizersCount * vectorIndex1;
-        var pqIndex2 = (long) quantizersCount * vectorIndex2;
-        var pqIndex3 = (long) quantizersCount * vectorIndex3;
-        var pqIndex4 = (long) quantizersCount * vectorIndex4;
+        var pqIndex1 = (long) codebookCount * vectorIndex1;
+        var pqIndex2 = (long) codebookCount * vectorIndex2;
+        var pqIndex3 = (long) codebookCount * vectorIndex3;
+        var pqIndex4 = (long) codebookCount * vectorIndex4;
 
         var result1 = 0.0f;
         var result2 = 0.0f;
         var result3 = 0.0f;
         var result4 = 0.0f;
 
-        for (int i = 0; i < quantizersCount; i++) {
+        for (int i = 0; i < codebookCount; i++) {
             var rowOffset = i * (1 << Byte.SIZE);
 
             var code1 = pqVectors.get(ValueLayout.JAVA_BYTE, pqIndex1 + i) & 0xFF;
@@ -297,17 +291,17 @@ class L2PQQuantizer extends AbstractQuantizer {
         progressTracker.pushPhase("split vectors by partitions",
                 "partitions count", String.valueOf(numClusters));
         try {
-            var distanceTables = buildDistanceTables(centroids, quantizersCount, subVectorSize, distanceFunction);
-            var pqCentroids = new byte[numClusters * quantizersCount];
+            var distanceTables = buildDistanceTables(codebooks, codebookDimensions, distanceFunction);
+            var pqCentroids = new byte[numClusters * codebookCount];
 
-            calculateClusters(numClusters, iterations, vectorsCount, pqCentroids, distanceTables, progressTracker);
+            calculateClusters(numClusters, iterations, vectorCount, pqCentroids, distanceTables, progressTracker);
 
             var vectorsByPartitions = new IntArrayList[numClusters];
             for (int i = 0; i < numClusters; i++) {
-                vectorsByPartitions[i] = new IntArrayList(vectorsCount / numClusters);
+                vectorsByPartitions[i] = new IntArrayList(vectorCount / numClusters);
             }
 
-            for (int i = 0; i < vectorsCount; i++) {
+            for (int i = 0; i < vectorCount; i++) {
                 var twoClosestClusters = findTwoClosestClusters(i, pqCentroids, distanceTables);
 
                 var firstPartition = (int) (twoClosestClusters >>> 32);
@@ -320,7 +314,7 @@ class L2PQQuantizer extends AbstractQuantizer {
                 }
 
                 if (progressTracker.isProgressUpdatedRequired()) {
-                    progressTracker.progress(i * 100.0 / vectorsCount);
+                    progressTracker.progress(i * 100.0 / vectorCount);
                 }
             }
 
@@ -335,9 +329,9 @@ class L2PQQuantizer extends AbstractQuantizer {
     public float[][] calculateCentroids(VectorReader vectorReader, int numClusters, int iterations, DistanceFunction distanceFunction, @NotNull ProgressTracker progressTracker) {
         progressTracker.pushPhase("calculate centroids");
         try {
-            var numVectors = (int) (pqVectors.byteSize() / quantizersCount);
-            var distanceTables = buildDistanceTables(centroids, quantizersCount, subVectorSize, distanceFunction);
-            var pqCentroids = new byte[numClusters * quantizersCount];
+            var numVectors = (int) (pqVectors.byteSize() / codebookCount);
+            var distanceTables = buildDistanceTables(codebooks, codebookDimensions, distanceFunction);
+            var pqCentroids = new byte[numClusters * codebookCount];
 
             calculateClusters(numClusters, iterations, numVectors, pqCentroids, distanceTables, progressTracker);
 
@@ -348,7 +342,7 @@ class L2PQQuantizer extends AbstractQuantizer {
     }
 
     private float[][] decodeVectors(byte[] vectors) {
-        var count = vectors.length / quantizersCount;
+        var count = vectors.length / codebookCount;
         var result = new float[count][];
         for (int i = 0; i < count; i++) {
             result[i] = decodeVector(vectors, i);
@@ -357,12 +351,12 @@ class L2PQQuantizer extends AbstractQuantizer {
     }
 
     private float[] decodeVector(byte[] vectors, int vectorIndex) {
-        var result = new float[quantizersCount * subVectorSize];
+        var result = new float[vectorDimensions];
 
-        var offset = vectorIndex * quantizersCount;
-        for (int i = 0, pqCentroidVectorOffset = 0; i < quantizersCount; i++, pqCentroidVectorOffset += subVectorSize) {
-            var pqCentroidVector = Byte.toUnsignedInt(vectors[i + offset]);
-            System.arraycopy(centroids[i][pqCentroidVector], 0, result, pqCentroidVectorOffset, subVectorSize);
+        var offset = vectorIndex * codebookCount;
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            var code = Byte.toUnsignedInt(vectors[codebookIdx + offset]);
+            System.arraycopy(codebooks[codebookIdx][code], 0, result, codebookDimensionOffset[codebookIdx], codebookDimensions[codebookIdx]);
         }
 
         return result;
@@ -381,13 +375,11 @@ class L2PQQuantizer extends AbstractQuantizer {
 
             for (int i = 0; i < numClusters; i++) {
                 var vecIndex = rng.nextLong(numVectors);
-                MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE,
-                        vecIndex * quantizersCount, pqCentroids,
-                        i * quantizersCount, quantizersCount);
+                MemorySegment.copy(pqVectors, ValueLayout.JAVA_BYTE, vecIndex * codebookCount, pqCentroids, i * codebookCount, codebookCount);
             }
 
-            var histogram = new float[numClusters * quantizersCount * codeBaseSize];
-            var atomicIntegerHistogram = new int[numClusters * quantizersCount * codeBaseSize];
+            var histogram = new float[numClusters * codebookCount * codeBaseSize];
+            var atomicIntegerHistogram = new int[numClusters * codebookCount * codeBaseSize];
 
             var v = new float[codeBaseSize];
             var mulBuffer = new float[4];
@@ -417,7 +409,7 @@ class L2PQQuantizer extends AbstractQuantizer {
                             break;
                         }
 
-                        generateHistogram(assignmentSize, pqVectors, centroidIndexByVectorIndex, quantizersCount, codeBaseSize, atomicIntegerHistogram, generateHistogramExecutors, futures, progressTracker);
+                        generateHistogram(assignmentSize, pqVectors, centroidIndexByVectorIndex, codebookCount, codeBaseSize, atomicIntegerHistogram, generateHistogramExecutors, futures, progressTracker);
                         for (int i = 0; i < histogram.length; i++) {
                             histogram[i] = (float) atomicIntegerHistogram[i];
                         }
@@ -616,7 +608,7 @@ class L2PQQuantizer extends AbstractQuantizer {
             var assignedDifferently = false;
 
             for (int k = 0, histogramOffset = 0, centroidIndex = 0; k < numClusters; k++) {
-                for (int q = 0; q < quantizersCount; q++, histogramOffset += codeBaseSize) {
+                for (int q = 0; q < codebookCount; q++, histogramOffset += codeBaseSize) {
                     var clusterDistanceTableOffset = MatrixOperations.threeDMatrixIndex(codeBaseSize, codeBaseSize, q, 0, 0);
                     MatrixOperations.multiply(distanceTables, clusterDistanceTableOffset, codeBaseSize, codeBaseSize, histogram, histogramOffset, v, mulBuffer);
                     var minIndex = MatrixOperations.minIndex(v, 0, codeBaseSize);
@@ -644,10 +636,10 @@ class L2PQQuantizer extends AbstractQuantizer {
                                    final float[] distanceTable) {
         int minIndex = -1;
         float minDistance = Float.MAX_VALUE;
-        var vectorsCount = centroids.length / quantizersCount;
+        var vectorsCount = centroids.length / codebookCount;
 
         for (int index = 0; index < vectorsCount; index++) {
-            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable, quantizersCount, codeBaseSize);
+            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable, codebookCount, codeBaseSize);
 
             if (distance < minDistance) {
                 minDistance = distance;
@@ -666,11 +658,10 @@ class L2PQQuantizer extends AbstractQuantizer {
         int secondMindIndex = 0;
         float secondMinDistance = Float.MAX_VALUE;
 
-        var vectorsCount = centroids.length / quantizersCount;
+        var vectorsCount = centroids.length / codebookCount;
 
         for (int index = 0; index < vectorsCount; index++) {
-            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable,
-                    quantizersCount, codeBaseSize);
+            var distance = symmetricDistance(pqVectors, vectorIndex, centroids, index, distanceTable, codebookCount, codeBaseSize);
 
             if (distance < firstMinDistance) {
                 firstMinDistance = distance;
@@ -686,29 +677,31 @@ class L2PQQuantizer extends AbstractQuantizer {
         return (((long) firstMinIndex) << 32) | secondMindIndex;
     }
 
-    static float[] buildDistanceTables(float[][][] centroids, int quantizersCount, int subVectorSize,
-                                       DistanceFunction distanceFunction) {
-        var codeSpaceSize = centroids[0].length;
-        var result = new float[quantizersCount * codeSpaceSize * codeSpaceSize];
+    static float[] buildDistanceTables(float[][][] codebooks, int[] codebookDimensions, DistanceFunction distanceFunction) {
+        var codebookCount = codebooks.length;
+        var codeSpaceSize = codebooks[0].length;
+        var result = new float[codebookCount * codeSpaceSize * codeSpaceSize];
 
         var batchResult = new float[4];
-        for (int n = 0; n < quantizersCount; n++) {
-            for (int i = 0; i < codeSpaceSize; i++) {
-                var batchBoundary = i & -4;
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            for (int code = 0; code < codeSpaceSize; code++) {
+                var batchBoundary = code & -4;
 
-                var baseOffset = MatrixOperations.threeDMatrixIndex(codeSpaceSize, codeSpaceSize, n, i, 0);
+                var baseOffset = MatrixOperations.threeDMatrixIndex(codeSpaceSize, codeSpaceSize, codebookIdx, code, 0);
                 var j = 0;
                 for (; j < batchBoundary; j += 4) {
-                    var origin = centroids[n][i];
+                    var origin = codebooks[codebookIdx][code];
 
-                    var vector1 = centroids[n][j];
-                    var vector2 = centroids[n][j + 1];
-                    var vector3 = centroids[n][j + 2];
-                    var vector4 = centroids[n][j + 3];
+                    var vector1 = codebooks[codebookIdx][j];
+                    var vector2 = codebooks[codebookIdx][j + 1];
+                    var vector3 = codebooks[codebookIdx][j + 2];
+                    var vector4 = codebooks[codebookIdx][j + 3];
 
-                    distanceFunction.computeDistance(origin, 0, vector1, 0, vector2,
-                            0, vector3, 0, vector4, 0,
-                            batchResult, subVectorSize);
+                    distanceFunction.computeDistance(origin, 0,
+                            vector1, 0, vector2, 0,
+                            vector3, 0, vector4, 0,
+                            batchResult, codebookDimensions[codebookIdx]
+                    );
 
                     var offset = baseOffset + j;
                     result[offset] = batchResult[0];
@@ -718,19 +711,18 @@ class L2PQQuantizer extends AbstractQuantizer {
                 }
 
 
-                for (; j <= i; j++) {
-                    var origin = centroids[n][i];
-                    var vector = centroids[n][j];
+                for (; j <= code; j++) {
+                    var origin = codebooks[codebookIdx][code];
+                    var vector = codebooks[codebookIdx][j];
 
-                    result[baseOffset + j] = distanceFunction.computeDistance(origin, 0, vector,
-                            0, subVectorSize);
+                    result[baseOffset + j] = distanceFunction.computeDistance(origin, 0, vector, 0, codebookDimensions[codebookIdx]);
                 }
             }
 
             for (int i = 0; i < codeSpaceSize; i++) {
                 for (int j = i + 1; j < codeSpaceSize; j++) {
-                    var firstIndex = MatrixOperations.threeDMatrixIndex(codeSpaceSize, codeSpaceSize, n, i, j);
-                    var secondIndex = MatrixOperations.threeDMatrixIndex(codeSpaceSize, codeSpaceSize, n, j, i);
+                    var firstIndex = MatrixOperations.threeDMatrixIndex(codeSpaceSize, codeSpaceSize, codebookIdx, i, j);
+                    var secondIndex = MatrixOperations.threeDMatrixIndex(codeSpaceSize, codeSpaceSize, codebookIdx, j, i);
 
                     result[firstIndex] = result[secondIndex];
                 }
@@ -744,20 +736,19 @@ class L2PQQuantizer extends AbstractQuantizer {
 
     @Override
     public void store(DataOutputStream dataOutputStream) throws IOException {
-        dataOutputStream.writeInt(quantizersCount);
-        dataOutputStream.writeInt(codeBaseSize);
-        dataOutputStream.writeInt(subVectorSize);
+        dataOutputStream.writeInt(codebookCount);
+        dataOutputStream.writeInt(vectorCount);
+        dataOutputStream.writeInt(vectorDimensions);
 
-        for (int i = 0; i < quantizersCount; i++) {
-            for (int j = 0; j < codeBaseSize; j++) {
-                for (int k = 0; k < subVectorSize; k++) {
-                    dataOutputStream.writeFloat(centroids[i][j][k]);
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            for (int code = 0; code < codeBaseSize; code++) {
+                for (int dimensionIdx = 0; dimensionIdx < maxCodebookDimensions; dimensionIdx++) {
+                    dataOutputStream.writeFloat(codebooks[codebookIdx][code][dimensionIdx]);
                 }
             }
         }
 
-        var pqVectorsSize = pqVectors.byteSize();
-        dataOutputStream.writeLong(pqVectorsSize);
+        var pqVectorsSize = (long) vectorCount * codebookCount;
 
         for (long i = 0; i < pqVectorsSize; i++) {
             dataOutputStream.writeByte(pqVectors.get(ValueLayout.JAVA_BYTE, i));
@@ -766,20 +757,20 @@ class L2PQQuantizer extends AbstractQuantizer {
 
     @Override
     public void load(DataInputStream dataInputStream) throws IOException {
-        quantizersCount = dataInputStream.readInt();
-        codeBaseSize = dataInputStream.readInt();
-        subVectorSize = dataInputStream.readInt();
+        codebookCount = dataInputStream.readInt();
+        vectorCount = dataInputStream.readInt();
+        vectorDimensions = dataInputStream.readInt();
+        initializeCodebooks(codebookCount, vectorCount, vectorDimensions);
 
-        centroids = new float[quantizersCount][codeBaseSize][subVectorSize];
-        for (int i = 0; i < quantizersCount; i++) {
-            for (int j = 0; j < codeBaseSize; j++) {
-                for (int k = 0; k < subVectorSize; k++) {
-                    centroids[i][j][k] = dataInputStream.readFloat();
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            for (int code = 0; code < codeBaseSize; code++) {
+                for (int dimensionIdx = 0; dimensionIdx < maxCodebookDimensions; dimensionIdx++) {
+                    codebooks[codebookIdx][code][dimensionIdx] = dataInputStream.readFloat();
                 }
             }
         }
 
-        var pqVectorsSize = dataInputStream.readLong();
+        var pqVectorsSize = vectorCount * codebookCount;
         pqVectors = arena.allocate(pqVectorsSize);
         for (long i = 0; i < pqVectorsSize; i++) {
             pqVectors.set(ValueLayout.JAVA_BYTE, i, dataInputStream.readByte());

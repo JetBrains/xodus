@@ -3,7 +3,10 @@ package jetbrains.vectoriadb.index
 import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Test
-import java.io.*
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import kotlin.math.abs
 
 class L2QuantizerTest {
@@ -43,16 +46,17 @@ class NormExplicitQuantizerTest {
     @Test
     fun `average norm error for norm-explicit quantization should be less that for l2 quantization`() = vectorTest(VectorDataset.Sift10K) {
         val compressionRatio = 32
+        val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
         val l2Distance = L2DistanceFunction.INSTANCE
 
         val ipQuantizer1 = NormExplicitQuantizer(1)
-        ipQuantizer1.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+        ipQuantizer1.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
         val ipQuantizer2 = NormExplicitQuantizer(2)
-        ipQuantizer2.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+        ipQuantizer2.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
         val l2Quantizer = L2PQQuantizer()
-        l2Quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+        l2Quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
         var ip1TotalError = 0.0
         var ip2TotalError = 0.0
@@ -85,16 +89,18 @@ class NormExplicitQuantizerTest {
         val ip1AverageNormError = ip1TotalNormError / numVectors
         val ip2AverageNormError = ip2TotalNormError / numVectors
         println("""
+            Codebook count:      $codebookCount
+            Average vector norm: $averageNorm
+         
             Average approximation error (L2 distance)
             l2 quantization:                               ${l2TotalError / numVectors}
-            norm explicit quantization (1 norm codebook):  ${ip1TotalError / numVectors}
-            norm explicit quantization (2 norm codebooks): ${ip2TotalError / numVectors}
+            norm-explicit quantization (1 norm codebook):  ${ip1TotalError / numVectors}
+            norm-explicit quantization (2 norm codebooks): ${ip2TotalError / numVectors}
             
             Average approximation norm error
-            average vector norm:                           $averageNorm
             l2 quantization:                               $l2AverageNormError ${(l2AverageNormError / averageNorm).formatPercent(3)} 
-            norm explicit quantization (1 norm codebook):  $ip1AverageNormError ${(ip1AverageNormError / averageNorm).formatPercent(3)}
-            norm explicit quantization (2 norm codebooks): $ip2AverageNormError ${(ip2AverageNormError / averageNorm).formatPercent(3)}
+            norm-explicit quantization (1 norm codebook):  $ip1AverageNormError ${(ip1AverageNormError / averageNorm).formatPercent(3)}
+            norm-explicit quantization (2 norm codebooks): $ip2AverageNormError ${(ip2AverageNormError / averageNorm).formatPercent(3)}
         """.trimIndent())
 
         assert(ip2TotalNormError < ip1TotalNormError)
@@ -133,9 +139,10 @@ class NormExplicitQuantizerTest {
 
 internal fun storeLoad(dataset: VectorDataset, delta: Double, buildQuantizer: () -> Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
+    val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
 
     val quantizer1 = buildQuantizer()
-    quantizer1.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+    quantizer1.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
     val approximationError1 = quantizer1.calculateApproximationError(vectors, numVectors)
 
@@ -163,10 +170,11 @@ internal fun storeLoad(dataset: VectorDataset, delta: Double, buildQuantizer: ()
 
 internal fun calculateCentroids(dataset:VectorDataset, distanceFun: DistanceFunction, quantizer: Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
+    val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
     val numClusters = 33
     val maxIterations = 50
 
-    quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+    quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
     val centroids = quantizer.calculateCentroids(vectorReader, numClusters, maxIterations, distanceFun, progressTracker)
 
@@ -181,11 +189,12 @@ internal fun calculateCentroids(dataset:VectorDataset, distanceFun: DistanceFunc
 
 internal fun splitVectorsByPartitions(dataset: VectorDataset, distanceFun: DistanceFunction, expectedClosestVectorsShare: Double, quantizerBuilder: () -> Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
+    val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
     val numClusters = 35
     val maxIterations = 50
 
     val quantizer = quantizerBuilder()
-    quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+    quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
     val result = quantizer.splitVectorsByPartitions(vectorReader, numClusters, maxIterations, distanceFun, progressTracker)
     val centroids = result.partitionCentroids
@@ -226,12 +235,14 @@ internal fun splitVectorsByPartitions(dataset: VectorDataset, distanceFun: Dista
 
 internal fun getVectorApproximationTest(dataset: VectorDataset, delta: Double, quantizerBuilder: () -> Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
+    val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
+    val codeBaseSize = CodebookInitializer.CODE_BASE_SIZE
 
     val averageErrors = buildList {
-        listOf(Quantizer.CODE_BASE_SIZE, Quantizer.CODE_BASE_SIZE * 2, Quantizer.CODE_BASE_SIZE * 4, Quantizer.CODE_BASE_SIZE * 8).forEach { numVectors ->
+        listOf(codeBaseSize, codeBaseSize * 2, codeBaseSize * 4, codeBaseSize * 8).forEach { numVectors ->
             val vectorReader = FloatArrayToByteArrayVectorReader(vectors, numVectors)
             val quantizer = quantizerBuilder()
-            quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+            quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
             add(quantizer.calculateApproximationError(vectors, numVectors))
         }
@@ -262,9 +273,10 @@ private fun Quantizer.calculateApproximationError(vectors: Array<FloatArray>, nu
 
 internal fun lookupTableTest(dataset:VectorDataset, distanceFun: DistanceFunction, delta: Float, buildQuantizer: () -> Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
+    val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
 
     val l2Quantizer = buildQuantizer()
-    l2Quantizer.generatePQCodes(compressionRatio, vectorReader, progressTracker)
+    l2Quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
     repeat(numVectors - 4) { vector1Idx ->
         val vector2Idx = vector1Idx + 1
