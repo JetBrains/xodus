@@ -4,21 +4,19 @@ import org.apache.commons.rng.simple.RandomSource;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import static jetbrains.vectoriadb.index.LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS;
-import static jetbrains.vectoriadb.index.LoadVectorsUtil.loadGist1MVectors;
-
 public class ClusterInitializerTest {
     @Test
     @Ignore
     public void clusterInitializersBenchmark() throws Exception {
-        var vectors = loadGist1MVectors();//loadSift1MVectors();
+        var dataset = VectorDataset.Sift10K.INSTANCE.build();
+        var vectors = dataset.getVectors();
         var clustersCount = 100;
 
         var progressTracker = new ConsolePeriodicProgressTracker(1);
         progressTracker.start("Index");
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            var codebookCount = CodebookInitializer.getCodebookCount(SIFT_VECTOR_DIMENSIONS, 32);
+            var codebookCount = CodebookInitializer.getCodebookCount(dataset.getDimensions(), 32);
             pqQuantizer.generatePQCodes(new FloatArrayToByteArrayVectorReader(vectors), codebookCount, progressTracker);
 
             var count = 0;

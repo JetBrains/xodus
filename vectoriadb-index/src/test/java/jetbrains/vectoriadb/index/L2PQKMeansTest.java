@@ -25,8 +25,6 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static jetbrains.vectoriadb.index.CodebookInitializer.getCodebookCount;
-import static jetbrains.vectoriadb.index.LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS;
-import static jetbrains.vectoriadb.index.LoadVectorsUtil.loadSift10KVectors;
 import static jetbrains.vectoriadb.index.SilhouetteCoefficientKt.l2SilhouetteCoefficient;
 
 public class L2PQKMeansTest {
@@ -105,14 +103,15 @@ public class L2PQKMeansTest {
 
 
     @Test
-    public void PQKMeansQuality() throws Exception {
-        var vectors = loadSift10KVectors();
+    public void PQKMeansQuality() {
+        var dataset = VectorDataset.Sift10K.INSTANCE.build();
+        var vectors = dataset.getVectors();
         var clustersCount = 40;
 
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
             var vectorReader = new FloatArrayToByteArrayVectorReader(vectors);
-            var codebookCount = getCodebookCount(SIFT_VECTOR_DIMENSIONS, 32);
+            var codebookCount = getCodebookCount(dataset.getDimensions(), 32);
             pqQuantizer.generatePQCodes(vectorReader, codebookCount, new NoOpProgressTracker());
 
             System.out.println("PQ codes generated. Calculating centroids...");

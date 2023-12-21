@@ -11,13 +11,14 @@ abstract class VectorDataset {
 
     data object Sift10K: VectorDataset() {
         override fun build(): VectorDatasetContext {
-            val vectors = VectorDatasetInfo.Sift10K.readBaseVectorsForTest()
+            val dataset = VectorDatasetInfo.Sift10K
+            val vectors = dataset.readBaseVectorsForTest()
             val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
             return VectorDatasetContext(
                 vectors,
                 vectorReader,
                 vectors.count(),
-                LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS,
+                dataset.vectorDimensions,
                 maxInnerProduct = 261205.0f
             )
         }
@@ -25,13 +26,14 @@ abstract class VectorDataset {
 
     data object Sift1M: VectorDataset() {
         override fun build(): VectorDatasetContext {
-            val vectors = VectorDatasetInfo.Sift1M.readBaseVectorsForTest()
+            val dataset = VectorDatasetInfo.Sift1M
+            val vectors = dataset.readBaseVectorsForTest()
             val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
             return VectorDatasetContext(
                 vectors,
                 vectorReader,
                 vectors.count(),
-                LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS,
+                dataset.vectorDimensions,
                 // todo calculate
                 maxInnerProduct = 261205.0f
             )
