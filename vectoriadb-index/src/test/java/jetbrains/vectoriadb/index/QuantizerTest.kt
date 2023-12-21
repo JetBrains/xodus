@@ -3,21 +3,30 @@ package jetbrains.vectoriadb.index
 import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Test
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
+import java.io.*
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 class L2QuantizerTest {
     @Test
     fun `get vector approximation`() = getVectorApproximationTest(VectorDataset.Sift10K, 1e-5) { L2PQQuantizer() }
 
     @Test
-    fun `lookup table`() = lookupTableTest(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, 1e-1f) { L2PQQuantizer() }
+    fun `lookup table`() = lookupTableTest(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, 1f) { L2PQQuantizer() }
 
     @Test
-    fun `split vectors by partitions`() = splitVectorsByPartitions(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, expectedClosestVectorsShare = 0.7) { L2PQQuantizer() }
+    fun `split vectors by partitions`() = splitVectorsByPartitions(
+        VectorDataset.Sift10K,
+        L2DistanceFunction.INSTANCE,
+        // random clustering gives a better quality once in a while, so we do not check the clustering quality here
+        checkClusteringQuality = false,
+        expectedClosestVectorsShare = 0.65
+    ) { L2PQQuantizer() }
+
+    @Test
+    fun `split vectors by a single partition`() = splitVectorsBySinglePartition(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE) { L2PQQuantizer() }
 
     @Test
     fun `calculate centroids`() = calculateCentroids(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, L2PQQuantizer())
@@ -32,10 +41,13 @@ class NormExplicitQuantizerTest {
     fun `get vector approximation`() = getVectorApproximationTest(VectorDataset.Sift10K, 1e-2) { NormExplicitQuantizer(1) }
 
     @Test
-    fun `lookup table`() = lookupTableTest(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, 1e-1f) { NormExplicitQuantizer(1) }
+    fun `lookup table`() = lookupTableTest(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, 1f) { NormExplicitQuantizer(1) }
 
     @Test
-    fun `split vectors by partitions`() = splitVectorsByPartitions(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, expectedClosestVectorsShare = 1.0) { NormExplicitQuantizer(1) }
+    fun `split vectors by partitions`() = splitVectorsByPartitions(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, checkClusteringQuality = true, expectedClosestVectorsShare = 1.0) { NormExplicitQuantizer(1) }
+
+    @Test
+    fun `split vectors by a single partition`() = splitVectorsBySinglePartition(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE) { NormExplicitQuantizer(1) }
 
     @Test
     fun `calculate centroids`() = calculateCentroids(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, NormExplicitQuantizer())
@@ -117,7 +129,7 @@ class NormExplicitQuantizerTest {
         val distanceFun = DotDistanceFunction.INSTANCE
 
         val minDistancePerWorker = FloatArray(pBuddy.numWorkers()) { Float.MAX_VALUE }
-        pBuddy.run(
+        pBuddy.runSplitEvenly(
             "Calculate max inner product",
             numVectors,
             progressTracker
@@ -187,7 +199,7 @@ internal fun calculateCentroids(dataset:VectorDataset, distanceFun: DistanceFunc
     assert(coef > randomCoef)
 }
 
-internal fun splitVectorsByPartitions(dataset: VectorDataset, distanceFun: DistanceFunction, expectedClosestVectorsShare: Double, quantizerBuilder: () -> Quantizer) = vectorTest(dataset) {
+internal fun splitVectorsByPartitions(dataset: VectorDataset, distanceFun: DistanceFunction, expectedClosestVectorsShare: Double, checkClusteringQuality: Boolean, quantizerBuilder: () -> Quantizer) = vectorTest(dataset) {
     val compressionRatio = 32
     val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
     val numClusters = 35
@@ -200,12 +212,17 @@ internal fun splitVectorsByPartitions(dataset: VectorDataset, distanceFun: Dista
     val centroids = result.partitionCentroids
     val vectorsByCentroid = result.vectorsByCentroidIdx
 
-    // check the clustering quality
-    val randomCentroids = makeRandomCentroids(vectors, numClusters)
-    val coef = silhouetteCoefficient(distanceFun, centroids, vectors)
-    val randomCoef = silhouetteCoefficient(distanceFun, randomCentroids, vectors)
-    println("coef: $coef, randomCoef: $randomCoef")
-    assert(coef > randomCoef)
+    assert(result.partitionCentroids.size == numClusters)
+    assert(result.vectorsByCentroidIdx.size == numClusters)
+    Assert.assertEquals(numVectors * 2, result.vectorsByCentroidIdx.sumOf { it.size })
+
+    if (checkClusteringQuality) {
+        val randomCentroids = makeRandomCentroids(vectors, numClusters)
+        val coef = silhouetteCoefficient(distanceFun, centroids, vectors)
+        val randomCoef = silhouetteCoefficient(distanceFun, randomCentroids, vectors)
+        println("coef: $coef, randomCoef: $randomCoef")
+        assert(coef > randomCoef)
+    }
 
     val closestCentroidByVector1 = HashMap<Int, Int>(numVectors)
     val closestCentroidByVector2 = HashMap<Int, Int>(numVectors)
@@ -231,6 +248,34 @@ internal fun splitVectorsByPartitions(dataset: VectorDataset, distanceFun: Dista
     val actuallyClosestVectorsShare = (numVectors * 2 - (closestCentroidByVector1.size + closestCentroidByVector2.size)).toDouble() / (numVectors * 2)
     println("Actual closest vectors share $actuallyClosestVectorsShare")
     assert(actuallyClosestVectorsShare >= expectedClosestVectorsShare)
+}
+
+internal fun splitVectorsBySinglePartition(dataset: VectorDataset, distanceFun: DistanceFunction, quantizerBuilder: () -> Quantizer) = vectorTest(dataset) {
+    val compressionRatio = 32
+    val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
+    val numClusters = 1
+    val maxIterations = 50
+
+    val quantizer = quantizerBuilder()
+    quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
+
+    val result = quantizer.splitVectorsByPartitions(vectorReader, numClusters, maxIterations, distanceFun, progressTracker)
+    val centroids = result.partitionCentroids
+    val vectorsByCentroid = result.vectorsByCentroidIdx
+
+    assert(centroids.size == 1)
+    assert(vectorsByCentroid.size == 1)
+    assert(vectorsByCentroid[0].size == numVectors)
+
+    val allVectorIndices = mutableSetOf<Int>()
+    repeat(numVectors) { vectorIdx  ->
+        allVectorIndices.add(vectorIdx)
+    }
+
+    vectorsByCentroid[0].forEach { vectorIdx ->
+        allVectorIndices.remove(vectorIdx)
+    }
+    assert(allVectorIndices.size == 0)
 }
 
 internal fun getVectorApproximationTest(dataset: VectorDataset, delta: Double, quantizerBuilder: () -> Quantizer) = vectorTest(dataset) {
@@ -275,9 +320,11 @@ internal fun lookupTableTest(dataset:VectorDataset, distanceFun: DistanceFunctio
     val compressionRatio = 32
     val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
 
-    val l2Quantizer = buildQuantizer()
-    l2Quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
+    val quantizer = buildQuantizer()
+    quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
+    var totalComputeDistanceDuration = 0.seconds
+    var totalComputeDistance4BatchDuration = 0.seconds
     repeat(numVectors - 4) { vector1Idx ->
         val vector2Idx = vector1Idx + 1
         val vector3Idx = vector2Idx + 1
@@ -285,26 +332,32 @@ internal fun lookupTableTest(dataset:VectorDataset, distanceFun: DistanceFunctio
 
         val q = vectors[vector1Idx]
 
-        val vector1Approximation = l2Quantizer.getVectorApproximation(vector1Idx)
-        val vector2Approximation = l2Quantizer.getVectorApproximation(vector2Idx)
-        val vector3Approximation = l2Quantizer.getVectorApproximation(vector3Idx)
-        val vector4Approximation = l2Quantizer.getVectorApproximation(vector4Idx)
+        val vector1Approximation = quantizer.getVectorApproximation(vector1Idx)
+        val vector2Approximation = quantizer.getVectorApproximation(vector2Idx)
+        val vector3Approximation = quantizer.getVectorApproximation(vector3Idx)
+        val vector4Approximation = quantizer.getVectorApproximation(vector4Idx)
 
         val distance1 = distanceFun.computeDistance(q, 0, vector1Approximation, 0, dimensions)
         val distance2 = distanceFun.computeDistance(q, 0, vector2Approximation, 0, dimensions)
         val distance3 = distanceFun.computeDistance(q, 0, vector3Approximation, 0, dimensions)
         val distance4 = distanceFun.computeDistance(q, 0, vector4Approximation, 0, dimensions)
 
-        val lookupTable = l2Quantizer.blankLookupTable()
-        l2Quantizer.buildLookupTable(q, lookupTable, distanceFun)
+        val lookupTable = quantizer.blankLookupTable()
+        quantizer.buildLookupTable(q, lookupTable, distanceFun)
 
-        val tableDistance1 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector1Idx)
-        val tableDistance2 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector2Idx)
-        val tableDistance3 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector3Idx)
-        val tableDistance4 = l2Quantizer.computeDistanceUsingLookupTable(lookupTable, vector4Idx)
+        quantizer.computeDistanceUsingLookupTable(lookupTable, vector1Idx)
+        quantizer.computeDistanceUsingLookupTable(lookupTable, vector2Idx)
+        quantizer.computeDistanceUsingLookupTable(lookupTable, vector3Idx)
+        quantizer.computeDistanceUsingLookupTable(lookupTable, vector4Idx)
 
         val batchTableDistances = FloatArray(4)
-        l2Quantizer.computeDistance4BatchUsingLookupTable(lookupTable, vector1Idx, vector2Idx, vector3Idx, vector4Idx, batchTableDistances)
+        totalComputeDistance4BatchDuration += measureTime { quantizer.computeDistance4BatchUsingLookupTable(lookupTable, vector1Idx, vector2Idx, vector3Idx, vector4Idx, batchTableDistances) }
+
+        val (tableDistance1, duration1) = measureTimedValue { quantizer.computeDistanceUsingLookupTable(lookupTable, vector1Idx) }
+        val (tableDistance2, duration2) = measureTimedValue { quantizer.computeDistanceUsingLookupTable(lookupTable, vector2Idx) }
+        val (tableDistance3, duration3) = measureTimedValue { quantizer.computeDistanceUsingLookupTable(lookupTable, vector3Idx) }
+        val (tableDistance4, duration4) = measureTimedValue { quantizer.computeDistanceUsingLookupTable(lookupTable, vector4Idx) }
+        totalComputeDistanceDuration = totalComputeDistanceDuration + duration1 + duration2 + duration3 + duration4
 
         Assert.assertEquals(distance1, tableDistance1, delta)
         Assert.assertEquals(distance2, tableDistance2, delta)
@@ -316,4 +369,9 @@ internal fun lookupTableTest(dataset:VectorDataset, distanceFun: DistanceFunctio
         Assert.assertEquals(distance4, batchTableDistances[3], delta)
         Assert.assertEquals(distance3, batchTableDistances[2], delta)
     }
+    println("""
+        Avg. computeDistanceUsingLookupTable duration:                  ${totalComputeDistanceDuration / 4 / (numVectors - 4)}
+        Avg. computeDistance4BatchUsingLookupTable duration:            ${totalComputeDistance4BatchDuration / (numVectors - 4)}
+        Avg. computeDistance4BatchUsingLookupTable duration per vector: ${totalComputeDistance4BatchDuration / (numVectors - 4) / 4}
+    """.trimIndent())
 }

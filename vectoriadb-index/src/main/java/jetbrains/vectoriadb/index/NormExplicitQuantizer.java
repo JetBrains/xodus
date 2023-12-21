@@ -107,7 +107,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     }
 
     private void calculateRelativeNorms(ParallelBuddy pBuddy, VectorReader vectorReader, NormalizedVectorReader normalizedVectorReader, FloatVectorSegment relativeNorms, ProgressTracker progressTracker) {
-        pBuddy.run(
+        pBuddy.runSplitEvenly(
                 "Calculate relative norms",
                 vectorReader.size(),
                 progressTracker,
@@ -121,7 +121,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     }
 
     private void calculateNormResiduals(ParallelBuddy pBuddy, FloatVectorSegment relativeNorms, FloatVectorSegment normResiduals, int codebookIdx, ProgressTracker progressTracker) {
-        pBuddy.run(
+        pBuddy.runSplitEvenly(
                 "Calculate norm residuals " + codebookIdx,
                 relativeNorms.count(),
                 progressTracker,
@@ -222,36 +222,47 @@ class NormExplicitQuantizer extends AbstractQuantizer {
             );
             kmeans.calculateCentroids(progressTracker);
 
-            // prepare result storage for every worker
-            var resultPerWorker = new IntArrayList[numWorkers][];
-            var averageCapacityPerWorker = vectorReader.size() / numClusters / numWorkers * 2;
-            for (int workerIdx = 0; workerIdx < numWorkers; workerIdx++) {
-                resultPerWorker[workerIdx] = new IntArrayList[numClusters];
-                for (int centroidIdx = 0; centroidIdx < numClusters; centroidIdx++) {
-                    resultPerWorker[workerIdx][centroidIdx] = new IntArrayList(averageCapacityPerWorker);
-                }
-            }
-
-            pBuddy.run(
-                    "Calculate two closest centroids for each vector",
-                    vectorReader.size(),
-                    progressTracker,
-                    (workerIdx, vectorIdx) -> {
-                        var twoCentroidIndices = findTwoClosestClusters(vectorReader.read(vectorIdx), centroids, distanceFunction);
-                        var centroidIdx1 = (int) (twoCentroidIndices >>> 32);
-                        var centroidIdx2 = (int) twoCentroidIndices;
-                        resultPerWorker[workerIdx][centroidIdx1].add(vectorIdx);
-                        resultPerWorker[workerIdx][centroidIdx2].add(vectorIdx);
-                    }
-            );
-
-            // assemble the result
             var result = new IntArrayList[numClusters];
-            var averageResultCapacity = vectorReader.size() / numClusters * 2;
-            for (int centroidIdx = 0; centroidIdx < numClusters; centroidIdx++) {
-                result[centroidIdx] = new IntArrayList(averageResultCapacity);
+            if (numClusters > 2) {
+                // prepare result storage for every worker
+                var resultPerWorker = new IntArrayList[numWorkers][];
+                var averageCapacityPerWorker = vectorReader.size() * 2 / numClusters / numWorkers;
                 for (int workerIdx = 0; workerIdx < numWorkers; workerIdx++) {
-                    result[centroidIdx].addElements(result[centroidIdx].size(), resultPerWorker[workerIdx][centroidIdx].elements());
+                    resultPerWorker[workerIdx] = new IntArrayList[numClusters];
+                    for (int centroidIdx = 0; centroidIdx < numClusters; centroidIdx++) {
+                        resultPerWorker[workerIdx][centroidIdx] = new IntArrayList(averageCapacityPerWorker);
+                    }
+                }
+
+                pBuddy.runSplitEvenly(
+                        "Calculate two closest centroids for each vector",
+                        vectorReader.size(),
+                        progressTracker,
+                        (workerIdx, vectorIdx) -> {
+                            var twoCentroidIndices = findTwoClosestClusters(vectorReader.read(vectorIdx), centroids, distanceFunction);
+                            var centroidIdx1 = (int) (twoCentroidIndices >>> 32);
+                            var centroidIdx2 = (int) twoCentroidIndices;
+                            resultPerWorker[workerIdx][centroidIdx1].add(vectorIdx);
+                            resultPerWorker[workerIdx][centroidIdx2].add(vectorIdx);
+                        }
+                );
+
+                // assemble the result
+                var averageResultCapacity = vectorReader.size() * 2 / numClusters;
+                for (int centroidIdx = 0; centroidIdx < numClusters; centroidIdx++) {
+                    result[centroidIdx] = new IntArrayList(averageResultCapacity);
+                    for (int workerIdx = 0; workerIdx < numWorkers; workerIdx++) {
+                        result[centroidIdx].addElements(result[centroidIdx].size(), resultPerWorker[workerIdx][centroidIdx].elements(), 0, resultPerWorker[workerIdx][centroidIdx].size());
+                    }
+                }
+            } else {
+                // if numClusters is 1 or 2, we can just put all the vectors to the result
+                // so no actual clustering is required
+                for (int clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+                    result[clusterIdx] = new IntArrayList(vectorReader.size());
+                    for (int i = 0; i < vectorReader.size(); i++) {
+                        result[clusterIdx].add(i);
+                    }
                 }
             }
             return new VectorsByPartitions(centroids.toArray(), result);

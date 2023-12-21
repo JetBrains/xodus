@@ -97,7 +97,7 @@ public final class KMeansClustering {
 
     private boolean assignVectorsToClosestClusters(@NotNull final ProgressTracker progressTracker) {
         final var assignedDifferently = new boolean[pBuddy.numWorkers()];
-        pBuddy.run(
+        pBuddy.runSplitEvenly(
                 "clusters assigment",
                 numVectors,
                 progressTracker,
@@ -120,7 +120,7 @@ public final class KMeansClustering {
             final IntSegment vectorCountForCentroid,
             @NotNull final ProgressTracker progressTracker
     ) {
-        pBuddy.run(
+        pBuddy.runSplitEvenly(
                 "centroids calculation",
                 numVectors,
                 progressTracker,

@@ -30,7 +30,7 @@ class NormalizedVectorReader implements VectorReader {
 
     public void precalculateOriginalVectorNorms(@NotNull ParallelBuddy pBuddy, @NotNull ProgressTracker progressTracker) {
         vectorNorms = arena.allocate((long) source.size() * Float.BYTES, ValueLayout.JAVA_FLOAT.byteAlignment());
-        pBuddy.run(
+        pBuddy.runSplitEvenly(
                 "Original vector norms pre-calculation",
                 size(),
                 progressTracker,
