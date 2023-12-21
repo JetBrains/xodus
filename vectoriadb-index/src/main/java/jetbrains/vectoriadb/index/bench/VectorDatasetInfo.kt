@@ -4,7 +4,8 @@ import jetbrains.vectoriadb.index.Distance
 import java.nio.file.Path
 import kotlin.io.path.nameWithoutExtension
 
-sealed class VectorDatasetContext(
+sealed class VectorDatasetInfo(
+    val name: String,
     val archives: List<Archive>,
     val baseFile: String,
     val learnFile: String,
@@ -31,13 +32,14 @@ sealed class VectorDatasetContext(
 
     abstract val datasetSource: VectorDatasetSource
 
-    object Sift10K: SmallIrisaFrDatasetContext("siftsmall", 128, 10_000)
+    object Sift10K: SmallIrisaFrDataset("siftsmall", 128, 10_000)
 
-    object Sift1M: SmallIrisaFrDatasetContext("sift", 128, 1_000_000)
+    object Sift1M: SmallIrisaFrDataset("sift", 128, 1_000_000)
 
-    object Gist1M: SmallIrisaFrDatasetContext("gist", 960, 1_000_000)
+    object Gist1M: SmallIrisaFrDataset("gist", 960, 1_000_000)
 
-    abstract class SmallIrisaFrDatasetContext(name: String, vectorDimensions: Int, vectorCount: Int): VectorDatasetContext(
+    abstract class SmallIrisaFrDataset(name: String, vectorDimensions: Int, vectorCount: Int): VectorDatasetInfo(
+        name = name,
         archives = listOf(
             Archive(archiveName = "${name}.tar.gz", fileInside = "${name}_base.fvecs")
         ),
@@ -54,7 +56,8 @@ sealed class VectorDatasetContext(
 
     class BigANN(
         private val vectorCountMillions: Int
-    ): VectorDatasetContext(
+    ): VectorDatasetInfo(
+        name = "bigann${vectorCountMillions}m",
         archives = listOf(
             // 92GB before extracting, do not download it on your mum PC
             Archive("bigann_base.bvecs.gz", "bigann_base.bvecs"),
@@ -81,18 +84,18 @@ sealed class VectorDatasetContext(
     }
 }
 
-fun String.toDatasetContext(): VectorDatasetContext {
+fun String.toDatasetContext(): VectorDatasetInfo {
     val datasetName = this.lowercase().trim()
     return when {
-        datasetName == "sift10k" -> VectorDatasetContext.Sift10K
-        datasetName == "sift1m" -> VectorDatasetContext.Sift1M
-        datasetName == "gist1m" -> VectorDatasetContext.Gist1M
+        datasetName == "sift10k" -> VectorDatasetInfo.Sift10K
+        datasetName == "sift1m" -> VectorDatasetInfo.Sift1M
+        datasetName == "gist1m" -> VectorDatasetInfo.Gist1M
         datasetName.startsWith("bigann") -> {
             val vectorCountMillions = datasetName.removePrefix("bigann").removeSuffix("m").toIntOrNull()
             if (vectorCountMillions == null || vectorCountMillions < 1 || vectorCountMillions > 1000) {
                 throw IllegalArgumentException("$this dataset is not supported")
             }
-            VectorDatasetContext.BigANN(vectorCountMillions)
+            VectorDatasetInfo.BigANN(vectorCountMillions)
         }
         else -> throw IllegalArgumentException("$this dataset is not supported")
     }

@@ -35,7 +35,7 @@ class DownloadDataset {
     }
 }
 
-fun VectorDatasetContext.downloadDatasetArchives(targetDir: Path): List<DownloadedArchive> = buildList {
+fun VectorDatasetInfo.downloadDatasetArchives(targetDir: Path): List<DownloadedArchive> = buildList {
     archives.forEach { (archiveName, fileInside) ->
         val archiveFile = datasetSource.downloadArchive(archiveName, targetDir)
         add(DownloadedArchive(archiveFile, fileInside))

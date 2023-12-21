@@ -70,7 +70,7 @@ class RunBench {
     }
 }
 
-fun VectorDatasetContext.runBench(
+fun VectorDatasetInfo.runBench(
     benchPath: Path,
     distance: Distance,
     indexName: String,

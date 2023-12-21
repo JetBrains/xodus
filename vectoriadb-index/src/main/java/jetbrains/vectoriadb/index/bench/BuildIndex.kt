@@ -49,7 +49,7 @@ class BuildIndex {
     }
 }
 
-fun VectorDatasetContext.buildIndex(
+fun VectorDatasetInfo.buildIndex(
     benchPath: Path,
     distance: Distance,
     indexName: String,

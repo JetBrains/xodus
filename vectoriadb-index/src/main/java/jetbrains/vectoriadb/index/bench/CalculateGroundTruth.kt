@@ -43,7 +43,7 @@ class CalculateGroundTruth {
     }
 }
 
-fun VectorDatasetContext.calculateGroundTruth(benchPath: Path, distance: Distance, neighbourCount: Int) {
+fun VectorDatasetInfo.calculateGroundTruth(benchPath: Path, distance: Distance, neighbourCount: Int) {
     val distanceFun = distance.buildDistanceFunction()
     val groundTruthFile = groundTruthFile(distance)
     val groundTruthFilePath = benchPath.resolve(groundTruthFile)
