@@ -72,39 +72,6 @@ internal class FloatArrayToByteArrayVectorReader: VectorReader {
     }
 }
 
-abstract class VectorDataset {
-    abstract fun build(): VectorDatasetContext
-
-    data object Sift10K: VectorDataset() {
-        override fun build(): VectorDatasetContext {
-            val vectors = LoadVectorsUtil.loadSift10KVectors()
-            val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
-            return VectorDatasetContext(
-                vectors,
-                vectorReader,
-                vectors.count(),
-                LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS,
-                maxInnerProduct = 261205.0f
-            )
-        }
-    }
-
-    data object Sift1M: VectorDataset() {
-        override fun build(): VectorDatasetContext {
-            val vectors = LoadVectorsUtil.loadSift1MVectors()
-            val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
-            return VectorDatasetContext(
-                vectors,
-                vectorReader,
-                vectors.count(),
-                LoadVectorsUtil.SIFT_VECTOR_DIMENSIONS,
-                // todo calculate
-                maxInnerProduct = 261205.0f
-            )
-        }
-    }
-}
-
 internal fun findTwoClosestCentroids(
     vector: FloatArray,
     centroids: Array<FloatArray>,
