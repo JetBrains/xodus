@@ -25,9 +25,10 @@ public final class ParallelExecution {
     }
 
     /**
-     * Executes whatever you need in parallel using all the available cores
+     * Executes whatever you need in parallel using all the available cores.
+     * Splits totalSize evenly among the workers.
      * */
-    public static void execute(
+    public static void splitEvenly(
             @NotNull String procedureName,
             int totalSize,
             int cores,
@@ -35,13 +36,14 @@ public final class ParallelExecution {
             @NotNull ProgressTracker progressTracker,
             @NotNull Action action
     ) {
-        execute(procedureName, totalSize, cores, executors, progressTracker, (_) -> {}, action);
+        splitEvenly(procedureName, totalSize, cores, executors, progressTracker, (_) -> {}, action);
     }
 
     /**
-     * Executes whatever you need in parallel using all the available cores
+     * Executes whatever you need in parallel using all the available cores.
+     * Splits totalSize evenly among the workers.
      * */
-    public static void execute(
+    public static void splitEvenly(
             @NotNull String procedureName,
             int totalSize,
             int cores,
@@ -80,7 +82,67 @@ public final class ParallelExecution {
                 try {
                     future.get();
                 } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException("Error during original vector norms pre-calculation.", e);
+                    throw new RuntimeException(STR."Error during \{procedureName} parallel execution: \{e.getMessage()}", e);
+                }
+            }
+        } finally {
+            progressTracker.pullPhase();
+        }
+    }
+
+    /**
+     * Executes whatever you need in parallel using all the available cores.
+     * All the workers process all the items out of totalSize.
+     * */
+    public static void execute(
+            @NotNull String procedureName,
+            int totalSize,
+            int cores,
+            ExecutorService executors,
+            @NotNull ProgressTracker progressTracker,
+            @NotNull Action action
+    ) {
+        execute(procedureName, totalSize, cores, executors, progressTracker, (_) -> {}, action);
+    }
+
+    /**
+     * Executes whatever you need in parallel using all the available cores.
+     * All the workers process all the items out of totalSize.
+     * */
+    public static void execute(
+            @NotNull String procedureName,
+            int totalSize,
+            int cores,
+            ExecutorService executors,
+            @NotNull ProgressTracker progressTracker,
+            @NotNull Init init,
+            @NotNull Action action
+    ) {
+        progressTracker.pushPhase(procedureName);
+
+        try {
+            var futures = new Future[cores];
+            var mtProgressTracker = new BoundedMTProgressTrackerFactory(cores, progressTracker);
+
+            for (int i = 0; i < cores; i++) {
+                var workerId = i;
+
+                futures[workerId] = executors.submit(() -> {
+                    try (var localTracker = mtProgressTracker.createThreadLocalTracker(workerId)) {
+                        init.invoke(workerId);
+                        for (int itemIdx = 0; itemIdx < totalSize; itemIdx++) {
+                            action.invoke(workerId, itemIdx);
+                            localTracker.progress(itemIdx * 100.0 / totalSize);
+                        }
+                    }
+                });
+            }
+
+            for (var future : futures) {
+                try {
+                    future.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(STR."Error during \{procedureName} parallel execution: \{e.getMessage()}", e);
                 }
             }
         } finally {

@@ -10,6 +10,41 @@ class ParallelBuddyTest {
         val numWorkers = 10
         ParallelBuddy(numWorkers, "test").use { pBuddy ->
             val totalSize = 999
+
+            val data = IntArray(totalSize * numWorkers)
+
+            repeat(numWorkers) { workerIdx ->
+                for (itemIdx in workerIdx * totalSize until (workerIdx + 1) * totalSize) {
+                    data[itemIdx] = workerIdx + 1
+                }
+            }
+
+            val resultPerWorker = IntArray(numWorkers)
+            val progressTracker = NoOpProgressTracker()
+
+            pBuddy.run(
+                "test",
+                totalSize,
+                progressTracker
+            ) { workerIdx, itemIdx ->
+                resultPerWorker[workerIdx] += data[workerIdx * totalSize + itemIdx]
+            }
+
+            repeat(numWorkers) { workerIdx ->
+                var expectedResult = 0
+                for (itemIdx in workerIdx * totalSize until (workerIdx + 1) * totalSize) {
+                    expectedResult += data[itemIdx]
+                }
+                assert(resultPerWorker[workerIdx] == expectedResult)
+            }
+        }
+    }
+
+    @Test
+    fun runSplitEvenly() {
+        val numWorkers = 10
+        ParallelBuddy(numWorkers, "test").use { pBuddy ->
+            val totalSize = 999
             val assignmentSize = ParallelExecution.assignmentSize(totalSize, numWorkers)
 
             val data = IntArray(totalSize)
@@ -23,7 +58,7 @@ class ParallelBuddyTest {
             val resultPerWorker = IntArray(numWorkers)
             val progressTracker = NoOpProgressTracker()
 
-            pBuddy.run(
+            pBuddy.runSplitEvenly(
                 "test",
                 totalSize,
                 progressTracker
@@ -38,7 +73,7 @@ class ParallelBuddyTest {
                 assert(resultPerWorker[workerIdx] == (workerIdx + 1) * multiplier)
             }
 
-            pBuddy.run(
+            pBuddy.runSplitEvenly(
                 "test",
                 totalSize,
                 progressTracker,
