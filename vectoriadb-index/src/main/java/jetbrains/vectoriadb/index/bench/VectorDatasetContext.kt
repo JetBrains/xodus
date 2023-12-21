@@ -81,12 +81,6 @@ sealed class VectorDatasetContext(
     }
 }
 
-data class Archive(
-    val archiveName: String,
-    // fileInside lets us easily check whether the archive was extracted or not
-    val fileInside: String
-)
-
 fun String.toDatasetContext(): VectorDatasetContext {
     val datasetName = this.lowercase().trim()
     return when {
