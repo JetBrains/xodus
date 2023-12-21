@@ -1,8 +1,53 @@
 package jetbrains.vectoriadb.index
 
+import jetbrains.vectoriadb.index.bench.VectorDatasetInfo
+import jetbrains.vectoriadb.index.bench.downloadDatasetArchives
+import jetbrains.vectoriadb.index.bench.readGroundTruth
+import jetbrains.vectoriadb.index.bench.readVectors
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
+import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.random.Random
+
+fun requireBuildPath(): Path {
+    val buildDirStr = System.getProperty("exodus.tests.buildDirectory")
+        ?: throw RuntimeException("exodus.tests.buildDirectory is not set")
+    return Path.of(buildDirStr)
+}
+
+fun VectorDatasetInfo.requireDatasetPath(): Path = requireBuildPath().resolve(name)
+
+private fun VectorDatasetInfo.makeSureDatasetIsDownloadedAndExtracted(targetDir: Path) {
+    Files.createDirectories(targetDir)
+    downloadDatasetArchives(targetDir).forEach { archive ->
+        archive.extractTo(targetDir)
+    }
+}
+
+fun VectorDatasetInfo.readBaseVectors(): Array<FloatArray> {
+    val targetDir = requireDatasetPath()
+    makeSureDatasetIsDownloadedAndExtracted(targetDir)
+
+    val baseFilePath = targetDir.resolve(baseFile)
+    return readVectors(baseFilePath, vectorDimensions, vectorCount)
+}
+
+fun VectorDatasetInfo.readQueryVectors(): Array<FloatArray> {
+    val targetDir = requireDatasetPath()
+    makeSureDatasetIsDownloadedAndExtracted(targetDir)
+
+    val queryFilePath = targetDir.resolve(queryFile)
+    return readVectors(queryFilePath, vectorDimensions)
+}
+
+fun VectorDatasetInfo.readGroundTruthL2(): Array<IntArray> {
+    val targetDir = requireDatasetPath()
+    makeSureDatasetIsDownloadedAndExtracted(targetDir)
+
+    val groundTruthFilePath = targetDir.resolve(l2GroundTruthFile)
+    return readGroundTruth(groundTruthFilePath)
+}
 
 internal fun createRandomFloatVectorSegment(count: Int, dimensions: Int): FloatVectorSegment {
     val v1 = FloatVectorSegment.makeArraySegment(count, dimensions)

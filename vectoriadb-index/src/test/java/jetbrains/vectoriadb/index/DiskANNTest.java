@@ -15,8 +15,9 @@
  */
 package jetbrains.vectoriadb.index;
 
+import jetbrains.vectoriadb.index.bench.VectorDatasetInfo;
+import jetbrains.vectoriadb.index.bench.VectorFileReader;
 import jetbrains.vectoriadb.index.diskcache.DiskCache;
-import jetbrains.vectoriadb.index.siftbench.SiftBenchUtils;
 import jetbrains.vectoriadb.index.util.collections.BoundedGreedyVertexPriorityQueue;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.RestorableUniformRandomProvider;
@@ -31,6 +32,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
+
+import static jetbrains.vectoriadb.index.VectorTestUtilsKt.*;
+import static jetbrains.vectoriadb.index.bench.RunBenchKt.toVectorId;
 
 public class DiskANNTest {
     @Test
@@ -320,87 +324,68 @@ public class DiskANNTest {
     }
 
     @Test
-    public void testSearchSift10KVectors() throws IOException {
-        runSiftBenchmarks(
-                "siftsmall", "siftsmall.tar.gz",
-                "siftsmall_base.fvecs", "siftsmall_query.fvecs",
-                "siftsmall_groundtruth.ivecs", 128
-        );
-
+    public void testL2SearchSift10KVectors() throws IOException {
+        runL2Benchmarks(VectorDatasetInfo.Sift10K.INSTANCE);
     }
 
     @SuppressWarnings("SameParameterValue")
-    private void runSiftBenchmarks(
-            String siftDir, String siftArchive, String siftBaseName,
-            String queryFileName, String groundTruthFileName, int vectorDimensions
-    ) throws IOException {
-        var buildDir = System.getProperty("exodus.tests.buildDirectory");
-        if (buildDir == null) {
-            Assert.fail("exodus.tests.buildDirectory is not set !!!");
-        }
-
-        SiftBenchUtils.downloadSiftBenchmark(siftArchive, buildDir);
-
-        var siftSmallDir = SiftBenchUtils.extractDataSetToTempDirectory(siftArchive, buildDir);
-
-        var sifSmallFilesDir = siftSmallDir.toPath().resolve(siftDir);
-        var siftSmallBase = sifSmallFilesDir.resolve(siftBaseName);
-
-        System.out.println("Reading data vectors...");
-        var vectors = SiftBenchUtils.readFVectors(siftSmallBase, vectorDimensions);
-
-        System.out.printf("%d data vectors loaded with dimension %d%n",
-                vectors.length, vectorDimensions);
+    private void runL2Benchmarks(VectorDatasetInfo datasetInfo) throws IOException {
+        var buildPath = requireBuildPath();
 
         System.out.println("Reading queries...");
-        var queryFile = sifSmallFilesDir.resolve(queryFileName);
-        var queryVectors = SiftBenchUtils.readFVectors(queryFile, vectorDimensions);
+        var queryVectors = readQueryVectors(datasetInfo);
 
         System.out.printf("%d queries are read%n", queryVectors.length);
         System.out.println("Reading ground truth...");
 
-        var groundTruthFile = sifSmallFilesDir.resolve(groundTruthFileName);
-        var groundTruth = SiftBenchUtils.readIVectors(groundTruthFile, 100);
+        var groundTruth = readGroundTruthL2(datasetInfo);
         Assert.assertEquals(queryVectors.length, groundTruth.length);
 
         System.out.println("Ground truth is read");
 
-
         System.out.println("Building index...");
 
-        var dbDir = Files.createTempDirectory(Path.of(buildDir), "testSearchSift10KVectors");
+        var dbDir = Files.createTempDirectory(buildPath, "testSearchSift10KVectors");
         dbDir.toFile().deleteOnExit();
 
         var ts1 = System.nanoTime();
 
+        var distance = Distance.L2;
+        var dimensions = datasetInfo.getVectorDimensions();
+
         var indexName = "test_index";
-        try (var dataBuilder = DataStore.create(indexName, 128, L2DistanceFunction.INSTANCE, dbDir)) {
-            for (int n = 0; n < vectors.length; n++) {
-                var vector = vectors[n];
-                var id = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE).
-                        order(ByteOrder.LITTLE_ENDIAN).putInt(n).array();
-                dataBuilder.add(vector, id);
+        var vectorFilePath = requireDatasetPath(datasetInfo).resolve(datasetInfo.getBaseFile());
+        try (
+                var vectorReader = VectorFileReader.openFileReader(vectorFilePath, dimensions, datasetInfo.getVectorCount());
+                var dataBuilder = DataStore.create(indexName, dimensions, distance.buildDistanceFunction(), dbDir)
+        ) {
+            for (int vectorIdx = 0; vectorIdx < datasetInfo.getVectorCount(); vectorIdx++) {
+                var vector = vectorReader.read(vectorIdx);
+                var vectorId = vectorReader.readId(vectorIdx);
+                dataBuilder.add(vector, vectorId);
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
-        IndexBuilder.buildIndex(indexName, vectorDimensions, dbDir, DataStore.dataLocation(indexName, dbDir),
-                4 * 1024 * 1024, Distance.L2, new ConsolePeriodicProgressTracker(1));
+        IndexBuilder.buildIndex(indexName, dimensions, dbDir, DataStore.dataLocation(indexName, dbDir),
+                4 * 1024 * 1024, distance, new ConsolePeriodicProgressTracker(1));
         var ts2 = System.nanoTime();
         System.out.printf("Index built in %d ms.%n", (ts2 - ts1) / 1000000);
 
-        try (var diskCache = new DiskCache(256 * 1024 * 1024, vectorDimensions,
-                IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
-            try (var indexReader = new IndexReader(indexName, vectorDimensions, dbDir, Distance.L2, diskCache)) {
+        try (var diskCache = new DiskCache(256 * 1024 * 1024, dimensions, IndexBuilder.DEFAULT_MAX_CONNECTIONS_PER_VERTEX)) {
+            try (var indexReader = new IndexReader(indexName, dimensions, dbDir, distance, diskCache)) {
                 System.out.println("Searching...");
 
                 var errorsCount = 0;
                 ts1 = System.nanoTime();
-                for (var index = 0; index < queryVectors.length; index++) {
-                    var vector = queryVectors[index];
+                for (var queryIdx = 0; queryIdx < queryVectors.length; queryIdx++) {
+                    var query = queryVectors[queryIdx];
 
-                    var rawIds = indexReader.nearest(vector, 1);
-                    Assert.assertEquals("j = " + index, 1, rawIds.length);
-                    if (groundTruth[index][0] != ByteBuffer.wrap(rawIds[0]).order(ByteOrder.LITTLE_ENDIAN).getInt()) {
+                    var rawIds = indexReader.nearest(query, 1);
+                    Assert.assertEquals("j = " + queryIdx, 1, rawIds.length);
+                    var resultId = toVectorId(rawIds[0]);
+                    if (groundTruth[queryIdx][0] != resultId) {
                         errorsCount++;
                     }
                 }

@@ -145,4 +145,4 @@ fun VectorDatasetInfo.runBench(
     }
 }
 
-private fun ByteArray.toVectorId(): Int = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).getInt()
+fun ByteArray.toVectorId(): Int = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).getInt()

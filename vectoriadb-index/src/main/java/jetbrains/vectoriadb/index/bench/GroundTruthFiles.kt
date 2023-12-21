@@ -9,14 +9,16 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import kotlin.io.path.extension
+import kotlin.math.min
 
 class IvecsFileReader(
     filePath: Path,
-    private val neighbourCountToRead: Int
+    maxNeighbourCount: Int
 ): AutoCloseable {
     private val channel = FileChannel.open(filePath, StandardOpenOption.READ)
 
     private val neighbourCount: Int
+    private val neighbourCountToRead: Int
     private val recordSize: Int
     private val recordCount: Int
 
@@ -31,6 +33,7 @@ class IvecsFileReader(
         }
         neighbourCountBuffer.rewind()
         neighbourCount = neighbourCountBuffer.getInt()
+        neighbourCountToRead = min(neighbourCount, maxNeighbourCount)
         check(neighbourCount >= neighbourCountToRead) { "The file contains fewer neighbours $neighbourCount than required $neighbourCountToRead" }
 
         recordSize = Int.SIZE_BYTES * neighbourCount + Int.SIZE_BYTES
@@ -89,8 +92,8 @@ class IvecsFileWriter(
     }
 }
 
-fun readGroundTruth(filePath: Path, neighbourCountToRead: Int): Array<IntArray> = when (filePath.extension) {
-    "ivecs" -> IvecsFileReader(filePath, neighbourCountToRead).use { reader ->
+fun readGroundTruth(filePath: Path, maxNeighbourCount: Int = Int.MAX_VALUE): Array<IntArray> = when (filePath.extension) {
+    "ivecs" -> IvecsFileReader(filePath, maxNeighbourCount).use { reader ->
         reader.readAll()
     }
     else -> throw IllegalArgumentException("The file format ${filePath.fileName} is not supported")
