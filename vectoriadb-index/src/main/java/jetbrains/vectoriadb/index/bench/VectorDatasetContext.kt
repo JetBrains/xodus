@@ -97,9 +97,3 @@ fun String.toDatasetContext(): VectorDatasetContext {
         else -> throw IllegalArgumentException("$this dataset is not supported")
     }
 }
-
-fun String.toDistance(): Distance = when (this.lowercase().trim()) {
-    "l2" -> Distance.L2
-    "ip" -> Distance.DOT
-    else -> throw IllegalArgumentException("$this distance is not supported")
-}
