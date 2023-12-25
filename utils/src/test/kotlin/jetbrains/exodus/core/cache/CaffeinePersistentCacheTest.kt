@@ -5,6 +5,7 @@ import jetbrains.exodus.core.cache.FixedSizeEviction
 import jetbrains.exodus.core.cache.WeightSizeEviction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Duration
 
@@ -56,7 +57,6 @@ class CaffeinePersistentCacheTest {
         // When
         cache1.put("key", "value1")
         cache2.put("key", "value2")
-        cache2.forceEviction()
 
         // Then
         assertEquals(1, cache2.count())
@@ -71,31 +71,56 @@ class CaffeinePersistentCacheTest {
 
         // When
         cache1.put("key", "v1")
-        cache2.put("key", "v")
-        cache2.forceEviction()
+        cache2.put("key", "v2")
 
         // Then
         assertEquals(1, cache2.count())
-        assertEquals("v", cache2.get("key"))
+        // assert either of the values is present in cache as the eviction is not deterministic
+        assertTrue(cache1.get("key") == "v1" || cache2.get("key") == "v2")
     }
 
     @Test
     fun `should evict based on time`() {
         // Given
-        val cache1 = givenTimedCache(Duration.ofMillis(0))
+        val cache1 = givenTimedCache(Duration.ofMillis(1))
         val cache2 = cache1.createNextVersion()
 
         // When
         cache1.put("key", "value1")
         cache2.put("key", "value2")
-        cache2.forceEviction()
+        Thread.sleep(2)
+        val value1 = cache1.get("key")
+        val value2 = cache2.get("key")
 
         // Then
         assertEquals(0, cache2.count())
+        assertNull(value1)
+        assertNull(value2)
+    }
+
+    @Test
+    fun `should copy entries to new version`() {
+        // Given
+        val cache1 = givenSizedCache(4) // 2 entries for each version
+        cache1.put("key1", "value1")
+        cache1.put("key2", "value2")
+        val cache2 = cache1.createNextVersion()
+
+        // When
+        val value1 = cache2.get("key1")
+        val value2 = cache2.get("key2")
+
+        // Then
+        assertEquals(4, cache2.count())
+        assertEquals("value1", value1)
+        assertEquals("value2", value2)
     }
 
     private fun givenSizedCache(size: Long = 10): CaffeinePersistentCache<String, String> {
-        val config = CaffeineCacheConfig<String, String>(sizeEviction = FixedSizeEviction(size))
+        val config = CaffeineCacheConfig<String, String>(
+            sizeEviction = FixedSizeEviction(size),
+            directExecution = true
+        )
         return CaffeinePersistentCache.create(config)
     }
 
@@ -103,14 +128,18 @@ class CaffeinePersistentCacheTest {
         weight: Long = 10,
         weigher: (String, String) -> Int
     ): CaffeinePersistentCache<String, String> {
-        val config = CaffeineCacheConfig(sizeEviction = WeightSizeEviction(weight, weigher))
+        val config = CaffeineCacheConfig(
+            sizeEviction = WeightSizeEviction(weight, weigher),
+            directExecution = true
+        )
         return CaffeinePersistentCache.create(config)
     }
 
     private fun givenTimedCache(expireAfterAccess: Duration): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String, String>(
             sizeEviction = FixedSizeEviction(Long.MAX_VALUE),
-            expireAfterAccess = expireAfterAccess
+            expireAfterAccess = expireAfterAccess,
+            directExecution = true
         )
         return CaffeinePersistentCache.create(config)
     }

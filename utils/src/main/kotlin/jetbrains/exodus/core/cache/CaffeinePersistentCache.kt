@@ -57,6 +57,7 @@ class CaffeinePersistentCache<K, V> private constructor(
                 .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
                 // Reference eviction
                 .apply { if (config.useSoftValues) softValues() }
+                .apply { if (config.directExecution) executor(Runnable::run) }
                 .build<VersionedKey<K>, V>()
 
             val version = 0L
