@@ -122,7 +122,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
             // the greater is count, the longer it can live in the cache
             if (System.currentTimeMillis() - time <= max(config.entityIterableCacheCountsLifeTime, count)) {
                 stats.incTotalCountHits()
-                return count;
+                return count
             }
             // count is expired
             iterableCountsCache.remove(identity)
@@ -228,7 +228,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                             }
                         }
                     }
-                } catch (rte: ReadonlyTransactionException) {
+                } catch (_: ReadonlyTransactionException) {
                     // work around XD-626
                     val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
                     logger.error("$action failed with ReadonlyTransactionException. Re-queueing...")

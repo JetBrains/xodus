@@ -116,7 +116,7 @@ class CaffeinePersistentCacheTest {
         assertEquals("value2", value2)
     }
 
-    private fun givenSizedCache(size: Long = 10): CaffeinePersistentCache<String, String> {
+    private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String, String>(
             sizeEviction = FixedSizeEviction(size),
             directExecution = true
@@ -125,7 +125,7 @@ class CaffeinePersistentCacheTest {
     }
 
     private fun givenWeightedCache(
-        weight: Long = 10,
+        weight: Long,
         weigher: (String, String) -> Int
     ): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig(
