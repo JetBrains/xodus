@@ -94,18 +94,18 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         }
 
         // if cache is enough full, then cache iterables after they live some time in deferred cache
-//        if (localCache.halfFull) {
-//            val currentMillis = System.currentTimeMillis()
-//            val handleIdentity = handle.identity
-//            val whenCached = deferredIterablesCache.tryKey(handleIdentity)
-//            if (whenCached == null) {
-//                deferredIterablesCache.cacheObject(handleIdentity, currentMillis)
-//                return it
-//            }
-//            if (whenCached + config.entityIterableCacheDeferredDelay > currentMillis) {
-//                return it
-//            }
-//        }
+        if (localCache.halfFull) {
+            val currentMillis = System.currentTimeMillis()
+            val handleIdentity = handle.identity
+            val whenCached = deferredIterablesCache.tryKey(handleIdentity)
+            if (whenCached == null) {
+                deferredIterablesCache.cacheObject(handleIdentity, currentMillis)
+                return it
+            }
+            if (whenCached + config.entityIterableCacheDeferredDelay > currentMillis) {
+                return it
+            }
+        }
 
         // if we are already within an EntityStoreSharedAsyncProcessor's dispatcher,
         // then instantiate iterable without queueing a job.

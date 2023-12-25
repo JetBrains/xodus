@@ -6,6 +6,7 @@ import com.github.benmanes.caffeine.cache.Weigher
 import jetbrains.exodus.core.cache.CaffeineCacheConfig
 import jetbrains.exodus.core.cache.FixedSizeEviction
 import jetbrains.exodus.core.cache.WeightSizeEviction
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.BiConsumer
 import kotlin.collections.forEach
@@ -26,10 +27,42 @@ class CaffeinePersistentCache<K, V> private constructor(
     data class VersionedKey<K>(val key: K, val version: Long)
 
     private class VersionTracker(initialVersion: Long = 0) {
+
+        data class ClientVersion(val client: CacheClient, val version: Long)
+
+        private val registeredClients = ConcurrentHashMap.newKeySet<ClientVersion>()
+        private val versionClientCount = ConcurrentHashMap<Long, Long>()
         private val versionRef = AtomicLong(initialVersion)
+        val currentVersion get() = versionRef.get()
 
         fun next(): Long {
-            return versionRef.incrementAndGet()
+            return versionRef.updateAndGet {
+                val next = it + 1
+                if (next == Long.MAX_VALUE) 0 else next
+            }
+        }
+
+        fun register(client: CacheClient, version: Long) {
+            val wasAdded = registeredClients.add(ClientVersion(client, version))
+            if (wasAdded) {
+                versionClientCount.compute(version) { _, count -> if (count == null) 1 else count + 1 }
+            }
+        }
+
+        fun unregister(client: CacheClient, version: Long): Long {
+            val wasRemoved = registeredClients.remove(ClientVersion(client, version))
+            val clientsLeft = if (wasRemoved) {
+                versionClientCount.compute(version) { _, count ->
+                    if (count == null || (count - 1) == 0L) {
+                        null
+                    } else {
+                        count - 1
+                    }
+                }
+            } else {
+                versionClientCount.get(version)
+            }
+            return clientsLeft ?: 0
         }
     }
 
@@ -67,6 +100,8 @@ class CaffeinePersistentCache<K, V> private constructor(
         }
     }
 
+    private val currentVersionKeys = ConcurrentHashMap.newKeySet<K>()
+
     // Generic cache impl
     override fun size(): Long {
         return config.sizeEviction.size
@@ -84,15 +119,18 @@ class CaffeinePersistentCache<K, V> private constructor(
     override fun put(key: K, value: V) {
         val versionedKey = VersionedKey(key, version)
         cache.put(versionedKey, value)
+        currentVersionKeys.add(key)
     }
 
     override fun remove(key: K) {
         val versionedKey = VersionedKey(key, version)
         cache.invalidate(versionedKey)
+        currentVersionKeys.remove(key)
     }
 
     override fun clear() {
         cache.invalidateAll()
+        currentVersionKeys.clear()
     }
 
     override fun forceEviction() {
@@ -100,22 +138,53 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun forEachEntry(consumer: BiConsumer<K, V>) {
-        cache.asMap().entries.forEach { (key, value) ->
-            consumer.accept(key.key, value)
-        }
+        currentVersionKeys.forEachCacheEntry(consumer::accept)
     }
 
     // Persistent cache impl
     override fun createNextVersion(entryConsumer: BiConsumer<K, V>?): PersistentCache<K, V> {
         val nextVersion = versionTracker.next()
-        cache.asMap().forEach { (key, value) ->
-            // Take value only from the current version
-            if (value != null && key.version == version) {
-                val versionedKey = VersionedKey(key.key, nextVersion)
-                cache.put(versionedKey, value)
-                entryConsumer?.accept(key.key, value)
+        val newCache = CaffeinePersistentCache(cache, config, nextVersion, versionTracker)
+        currentVersionKeys.forEachCacheEntry { key, value ->
+            newCache.put(key, value)
+            entryConsumer?.accept(key, value)
+        }
+        return newCache
+    }
+
+    override fun register(): CacheClient {
+        val client = object : CacheClient {
+            override fun unregister() {
+                unregisterAndCleanUp(this)
             }
         }
-        return CaffeinePersistentCache(cache, config, nextVersion, versionTracker)
+        versionTracker.register(client, version)
+        return client
+    }
+
+    private fun unregisterAndCleanUp(client: CacheClient) {
+        val leftClients = versionTracker.unregister(client, version)
+        if (leftClients == 0L && version < versionTracker.currentVersion) {
+            currentVersionKeys.forEachVersionedKey {
+                cache.invalidate(it)
+            }
+        }
+    }
+
+    private fun Set<K>.forEachVersionedKey(consumer: (VersionedKey<K>) -> Unit) {
+        forEach { key ->
+            val versionedKey = VersionedKey(key, version)
+            consumer(versionedKey)
+        }
+    }
+
+    private fun Set<K>.forEachCacheEntry(consumer: (K, V) -> Unit) {
+        forEach { key ->
+            val versionedKey = VersionedKey(key, version)
+            val value = cache.getIfPresent(versionedKey)
+            if (value != null) {
+                consumer(key, value)
+            }
+        }
     }
 }

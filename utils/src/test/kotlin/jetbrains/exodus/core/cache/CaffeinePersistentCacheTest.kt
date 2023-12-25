@@ -114,6 +114,22 @@ class CaffeinePersistentCacheTest {
         assertEquals(4, cache2.count())
         assertEquals("value1", value1)
         assertEquals("value2", value2)
+
+    }
+
+    @Test
+    fun `should evict when client unregisters`() {
+        // Given
+        val cache1 = givenSizedCache(1)
+        val cache2 = cache1.createNextVersion()
+
+        // When
+        val registration = cache1.register()
+        cache1.put("key", "value")
+        registration.unregister()
+
+        // Then
+        assertEquals(0, cache2.count())
     }
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {

@@ -18,4 +18,14 @@ interface PersistentCache<K, V> : GenericCache<K, V> {
      * Creates new version of the cache with the same configuration.
      */
     fun createNextVersion(entryConsumer: BiConsumer<K, V>? = null): PersistentCache<K, V>
+
+    /**
+     * Register a client for the current version of the cache.
+     * Returns a client that should be used to unregister the client and clean up entries associated with its version.
+     */
+    fun register(): CacheClient
+}
+
+interface CacheClient {
+    fun unregister()
 }
