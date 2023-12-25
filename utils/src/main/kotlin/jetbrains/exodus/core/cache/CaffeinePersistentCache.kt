@@ -3,39 +3,23 @@ package jetbrains.exodus.core.dataStructures.cache
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Weigher
-import java.time.Duration
+import jetbrains.exodus.core.cache.CaffeineCacheConfig
+import jetbrains.exodus.core.cache.FixedSizeEviction
+import jetbrains.exodus.core.cache.WeightSizeEviction
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.BiConsumer
 import kotlin.collections.forEach
 
 
-data class CaffeineCacheConfig(
-    /**
-     * Has no effect for weighted cache
-     */
-    val maxSize: Long = -1,
-    val expireAfterAccess: Duration = Duration.ofMinutes(5),
-    val useSoftValues: Boolean = true,
-)
-
-data class WeightCacheConfig<K, V>(
-    val maxWeight: Long = -1,
-    val weigher: (K, V) -> Int
-)
-
 /**
  * This cache implementation is based on Caffeine cache. It versions each value stored using versioned key.
  * It's allowed to put or remove values any version not affecting others.
  * Creating new copy is done via coping all values from the current version to the next one.
- *
- * Read-write lock is used for thread safety:
- * - Read lock - for **key level** operations like put(key) or remove(key) to allow them to execute concurrently.
- * - Write lock - for **global operations** like clear() to prevent it from executing concurrently with other operations.
  */
 class CaffeinePersistentCache<K, V> private constructor(
     private val cache: Cache<VersionedKey<K>, V>,
-    private val config: CaffeineCacheConfig,
-    override val currentVersion: Long,
+    private val config: CaffeineCacheConfig<K, V>,
+    override val version: Long,
     private val versionTracker: VersionTracker,
 ) : PersistentCache<K, V> {
 
@@ -51,35 +35,30 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     companion object {
 
-        fun <K, V> createSized(config: CaffeineCacheConfig): CaffeinePersistentCache<K, V> {
-            return create(config)
-        }
-
-        fun <K, V> createWeighted(
-            config: CaffeineCacheConfig,
-            weightConfig: WeightCacheConfig<K, V>
-        ): CaffeinePersistentCache<K, V> {
-            return create(config, weightConfig)
-        }
-
-        private fun <K, V> create(
-            config: CaffeineCacheConfig,
-            weightCacheConfig: WeightCacheConfig<K, V>? = null
-        ): CaffeinePersistentCache<K, V> {
+        fun <K, V> create(config: CaffeineCacheConfig<K, V>): CaffeinePersistentCache<K, V> {
             val cache = Caffeine.newBuilder()
+                // Size eviction
                 .apply {
-                    if (weightCacheConfig != null) {
-                        maximumWeight(weightCacheConfig.maxWeight)
-                        weigher(Weigher { key: VersionedKey<K>, value: V ->
-                            weightCacheConfig.weigher(key.key, value)
-                        })
-                    } else {
-                        maximumSize(config.maxSize)
+                    val sizeEviction = config.sizeEviction
+                    when (sizeEviction) {
+                        is FixedSizeEviction -> {
+                            maximumSize(sizeEviction.maxSize)
+                        }
+
+                        is WeightSizeEviction -> {
+                            maximumWeight(sizeEviction.maxWeight)
+                            weigher(Weigher { key: VersionedKey<K>, value: V ->
+                                sizeEviction.weigher(key.key, value)
+                            })
+                        }
                     }
                 }
-                .expireAfterAccess(config.expireAfterAccess)
+                // Time eviction
+                .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
+                // Reference eviction
                 .apply { if (config.useSoftValues) softValues() }
                 .build<VersionedKey<K>, V>()
+
             val version = 0L
             val tracker = VersionTracker(version)
 
@@ -88,31 +67,35 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     // Generic cache impl
-    override fun size(): Int {
-        return config.maxSize.toInt()
+    override fun size(): Long {
+        return config.sizeEviction.size
     }
 
-    override fun count(): Int {
-        return cache.estimatedSize().toInt()
+    override fun count(): Long {
+        return cache.estimatedSize()
     }
 
     override fun get(key: K): V? {
-        val versionedKey = VersionedKey(key, currentVersion)
+        val versionedKey = VersionedKey(key, version)
         return cache.getIfPresent(versionedKey)
     }
 
     override fun put(key: K, value: V) {
-        val versionedKey = VersionedKey(key, currentVersion)
+        val versionedKey = VersionedKey(key, version)
         cache.put(versionedKey, value)
     }
 
     override fun remove(key: K) {
-        val versionedKey = VersionedKey(key, currentVersion)
+        val versionedKey = VersionedKey(key, version)
         cache.invalidate(versionedKey)
     }
 
     override fun clear() {
         cache.invalidateAll()
+    }
+
+    override fun forceEviction() {
+        cache.cleanUp()
     }
 
     override fun forEachEntry(consumer: BiConsumer<K, V>) {
@@ -126,7 +109,7 @@ class CaffeinePersistentCache<K, V> private constructor(
         val nextVersion = versionTracker.next()
         cache.asMap().forEach { (key, value) ->
             // Take value only from the current version
-            if (value != null && key.version == currentVersion) {
+            if (value != null && key.version == version) {
                 val versionedKey = VersionedKey(key.key, nextVersion)
                 cache.put(versionedKey, value)
                 entryConsumer?.accept(key.key, value)

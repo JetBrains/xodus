@@ -5,14 +5,15 @@ import java.util.function.BiConsumer
 interface GenericCache<K, V> {
 
     /**
-     * Returns the maximum number of elements in the cache.
+     * Returns the maximum number of elements in the cache or max weight of the cache
+     * depending on which configuration is used.
      */
-    fun size(): Int
+    fun size(): Long
 
     /**
      * Returns the current number of elements in the cache.
      */
-    fun count(): Int
+    fun count(): Long
 
     /**
      * Returns the value associated with the key, or null if there is no such value.
@@ -33,6 +34,12 @@ interface GenericCache<K, V> {
      * Removes all data from the cache.
      */
     fun clear()
+
+    /**
+     * Forces cache to evict stale entries.
+     * Exactly which activities are performed (if any) is implementation-dependent.
+     */
+    fun forceEviction()
 
     /**
      * Apply consumer to each entry in the cache. It's assumed that neither key nor value will be modified.

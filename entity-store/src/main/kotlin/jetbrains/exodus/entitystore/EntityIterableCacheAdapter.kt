@@ -15,10 +15,12 @@
  */
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.core.dataStructures.cache.CaffeineCacheConfig
+import jetbrains.exodus.core.cache.CaffeineCacheConfig
+import jetbrains.exodus.core.cache.FixedSizeEviction
+import jetbrains.exodus.core.cache.SizeEviction
+import jetbrains.exodus.core.cache.WeightSizeEviction
 import jetbrains.exodus.core.dataStructures.cache.CaffeinePersistentCache
 import jetbrains.exodus.core.dataStructures.cache.PersistentCache
-import jetbrains.exodus.core.dataStructures.cache.WeightCacheConfig
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
 import java.time.Duration
 
@@ -31,22 +33,22 @@ internal open class EntityIterableCacheAdapter(
     companion object {
 
         fun create(config: PersistentEntityStoreConfig): EntityIterableCacheAdapter {
+            val sizeEviction: SizeEviction<EntityIterableHandle, CachedInstanceIterable> =
+                if (config.entityIterableCacheWeight > 0) {
+                    WeightSizeEviction(
+                        maxWeight = config.entityIterableCacheWeight,
+                        weigher = { _, value -> value.size().toInt() }
+                    )
+                } else {
+                    FixedSizeEviction(config.entityIterableCacheSize.toLong())
+                }
             val cacheConfig = CaffeineCacheConfig(
-                maxSize = config.entityIterableCacheSize.toLong(),
+                sizeEviction = sizeEviction,
                 expireAfterAccess = Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong()),
                 useSoftValues = config.entityIterableCacheSoftValues
             )
 
-            val cache: CaffeinePersistentCache<EntityIterableHandle, CachedInstanceIterable> =
-                if (config.entityIterableCacheWeight > 0) {
-                    val weightConfig = WeightCacheConfig<EntityIterableHandle, CachedInstanceIterable>(
-                        maxWeight = config.entityIterableCacheWeight,
-                        weigher = { _, value -> value.size().toInt() }
-                    )
-                    CaffeinePersistentCache.createWeighted(cacheConfig, weightConfig)
-                } else {
-                    CaffeinePersistentCache.createSized(cacheConfig)
-                }
+            val cache = CaffeinePersistentCache.create(cacheConfig)
 
             return EntityIterableCacheAdapter(config, cache, HashMap())
         }

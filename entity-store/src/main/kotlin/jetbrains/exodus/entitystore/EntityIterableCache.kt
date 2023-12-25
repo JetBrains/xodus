@@ -58,7 +58,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     }
 
     fun count(): Int {
-        return cacheAdapter.count()
+        return cacheAdapter.count().toInt()
     }
 
     fun clear() {
