@@ -36,10 +36,7 @@ class CaffeinePersistentCache<K, V> private constructor(
         val currentVersion get() = versionRef.get()
 
         fun next(): Long {
-            return versionRef.updateAndGet {
-                val next = it + 1
-                if (next == Long.MAX_VALUE) 0 else next
-            }
+            return versionRef.incrementAndGet()
         }
 
         fun register(client: CacheClient, version: Long) {
