@@ -29,19 +29,20 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     companion object : KLogging() {
 
         fun toString(config: PersistentEntityStoreConfig, handle: EntityIterableHandle): String {
-            return if (config.entityIterableCacheUseHumanReadable)
+            return if (config.entityIterableCacheUseHumanReadable) {
                 EntityIterableBase.getHumanReadablePresentation(handle)
-            else
+            } else {
                 handle.toString()
+            }
         }
     }
 
     private val config = store.config
-    private val deferredIterablesCache =
+    private var deferredIterablesCache =
         ConcurrentObjectCache<Any, Long>(config.entityIterableCacheSize)
-    private val iterableCountsCache =
+    private var iterableCountsCache =
         ConcurrentObjectCache<Any, Pair<Long, Long>>(config.entityIterableCacheCountsCacheSize)
-    private val heavyIterablesCache =
+    private var heavyIterablesCache =
         ConcurrentObjectCache<Any, Long>(config.entityIterableCacheHeavyIterablesCacheSize)
 
     private var cacheAdapter = EntityIterableCacheAdapter.create(config)
@@ -63,8 +64,8 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
     fun clear() {
         cacheAdapter.clear()
-        deferredIterablesCache.clear()
-        iterableCountsCache.clear()
+        deferredIterablesCache = ConcurrentObjectCache(config.entityIterableCacheSize)
+        iterableCountsCache = ConcurrentObjectCache(config.entityIterableCacheCountsCacheSize)
     }
 
     /**

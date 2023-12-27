@@ -2,7 +2,7 @@ package jetbrains.exodus.core.dataStructures.cache
 
 import java.util.function.BiConsumer
 
-interface GenericCache<K, V> {
+interface BasicCache<K, V> {
 
     /**
      * Returns the maximum number of elements in the cache or max weight of the cache

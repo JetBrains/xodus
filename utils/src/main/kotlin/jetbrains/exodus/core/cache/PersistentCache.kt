@@ -7,7 +7,7 @@ import java.util.function.BiConsumer
  * so the update or delete of an entry in one version might not be visible in another.
  * The particular isolation guarantees are implementation-dependent.
  */
-interface PersistentCache<K, V> : GenericCache<K, V> {
+interface PersistentCache<K, V> : BasicCache<K, V> {
 
     /**
      * Current version of the cache.

@@ -100,7 +100,7 @@ internal class EntityIterableCacheAdapterMutable private constructor(
 
     override fun remove(key: EntityIterableHandle) {
         check(!key.isSticky) { "Cannot remove sticky object" }
-        cache.remove(key)
+        super.remove(key)
         handleDistribution.removeHandle(key)
     }
 
