@@ -18,9 +18,20 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Settings for local dev testing
         private val logIssueCreated = false
         private val logQueryResult = false
+
+        init {
+            System.setProperty("exodus.entityStore.entityIterableCache.size", "8192")
+            // System.setProperty("exodus.entityStore.entityIterableCache.weight", "128000")
+        }
     }
 
-    fun testHistCount() {
+    override fun casesThatDontNeedExplicitTxn() = arrayOf(
+        "testHitCount",
+        "testHitRate",
+        "testCacheTransactionIsolation"
+    )
+
+    fun testHitCount() {
         // Given
         val store = getEntityStore()
         val projects = Project.createMany(1, store)
@@ -40,7 +51,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         assertEquals(1, store.entityIterableCache.stats.totalHits)
     }
 
-    fun testHistRate() {
+    fun testHitRate() {
         // Given
         val projectCount = 2
         val userCount = 20
