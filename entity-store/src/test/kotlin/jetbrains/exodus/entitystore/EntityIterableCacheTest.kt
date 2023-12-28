@@ -72,8 +72,9 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val executor = Executors.newFixedThreadPool(queryConcurrencyLevel)
         repeat(queryCount) {
             executor.submit {
-                test.queryComplex()
+                test.queryComplexList()
                 Thread.sleep(queryDelayMillis)
+                test.queryComplexRoughSize()
             }
         }
         executor.shutdown()
@@ -165,7 +166,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
             }
         }
 
-        fun queryComplex() {
+        fun queryComplexList() {
             val project = projects.random(rnd)
             val assignee = users.random(rnd)
             val state = IssueState.entries.random(rnd)
@@ -185,6 +186,28 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
                 )
             }
         }
+
+        fun queryComplexRoughSize() {
+            val project = projects.random(rnd)
+            val assignee = users.random(rnd)
+            val state = IssueState.entries.random(rnd)
+            val sortAscending = testData.boolean()
+            store.executeInTransaction { tx ->
+                val roughSize = tx.findLinks("Issue", project, "project")
+                    .intersect(tx.findLinks("Issue", assignee, "assignee"))
+                    .intersect(tx.find("Issue", "state", state.name))
+                    .intersect(tx.sort("Issue", "createdAt", sortAscending))
+                    .roughSize
+                logger.logQueryResult(
+                    "Found $roughSize issues roughly" +
+                            "\n in project ${project.getProperty("name")}" +
+                            "\n assigned to ${assignee.getProperty("name")}" +
+                            "\n in state $state" +
+                            "\n sorted by createdAt ${if (sortAscending) "ascending" else "descending"}"
+                )
+            }
+        }
+
 
         fun changeIssueAssignee() {
             val issue = issues.random(rnd)

@@ -3,6 +3,7 @@ package jetbrains.exodus.core.dataStructures.cache
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Weigher
+import jetbrains.exodus.core.cache.CaffeineCacheBuilder
 import jetbrains.exodus.core.cache.CaffeineCacheConfig
 import jetbrains.exodus.core.cache.FixedSizeEviction
 import jetbrains.exodus.core.cache.WeightSizeEviction
@@ -24,7 +25,7 @@ class CaffeinePersistentCache<K, V> private constructor(
     private val versionTracker: VersionTracker,
 ) : PersistentCache<K, V> {
 
-    data class VersionedKey<K>(val key: K, val version: Long)
+    private data class VersionedKey<K>(val key: K, val version: Long)
 
     private class VersionTracker(initialVersion: Long = 0) {
 
@@ -66,30 +67,7 @@ class CaffeinePersistentCache<K, V> private constructor(
     companion object {
 
         fun <K, V> create(config: CaffeineCacheConfig<K, V>): CaffeinePersistentCache<K, V> {
-            val cache = Caffeine.newBuilder()
-                // Size eviction
-                .apply {
-                    val sizeEviction = config.sizeEviction
-                    when (sizeEviction) {
-                        is FixedSizeEviction -> {
-                            maximumSize(sizeEviction.maxSize)
-                        }
-
-                        is WeightSizeEviction -> {
-                            maximumWeight(sizeEviction.maxWeight)
-                            weigher(Weigher { key: VersionedKey<K>, value: V ->
-                                sizeEviction.weigher(key.key, value)
-                            })
-                        }
-                    }
-                }
-                // Time eviction
-                .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
-                // Reference eviction
-                .apply { if (config.useSoftValues) softValues() }
-                .apply { if (config.directExecution) executor(Runnable::run) }
-                .build<VersionedKey<K>, V>()
-
+            val cache = CaffeineCacheBuilder.build(config, VersionedKey<K>::key)
             val version = 0L
             val tracker = VersionTracker(version)
 

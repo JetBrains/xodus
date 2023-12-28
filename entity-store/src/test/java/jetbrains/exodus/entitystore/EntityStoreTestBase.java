@@ -100,6 +100,10 @@ public abstract class EntityStoreTestBase extends TestBase {
                 "[EntityIterableCache] hits={}, misses={}, hitRate={}",
                 cacheStats.getTotalHits(), cacheStats.getTotalMisses(), cacheStats.getHitRate()
         );
+        logger.info(
+                "[EntityIterableCache Count] hits={}, misses={}, hitRate={}",
+                cacheStats.getTotalCountHits(), cacheStats.getTotalCountMisses(), cacheStats.getCountHitRate()
+        );
     }
 
     public static String initTempFolder() {
