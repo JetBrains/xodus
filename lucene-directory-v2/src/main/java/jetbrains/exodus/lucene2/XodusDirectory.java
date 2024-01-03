@@ -340,14 +340,14 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 return null;
             }
 
-            return Long.valueOf(result);
+            return result;
         });
 
         if (address == null) {
             throw new FileNotFoundException("File " + name + " does not exist");
         }
 
-        return address.longValue();
+        return address;
     }
 
     @Override
@@ -367,7 +367,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
             return Boolean.FALSE;
         });
 
-        if (exist.booleanValue()) {
+        if (exist) {
             throw new FileAlreadyExistsException("File " + name + " already exists");
         }
 
@@ -504,14 +504,14 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
                 return null;
             }
 
-            return Long.valueOf(address);
+            return address;
         });
 
         if (addr == null) {
             throw new FileNotFoundException("File " + name + " does not exist");
         }
 
-        var indexFile = DirUtil.getFileNameByAddress(addr.longValue());
+        var indexFile = DirUtil.getFileNameByAddress(addr);
         pendingDeletes.put(name, luceneIndex.resolve(indexFile));
         privateDeleteFile(name);
 
@@ -552,27 +552,31 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
     private synchronized void privateDeleteFile(String file) {
         var cache = SharedOpenFilesCache.getInstance();
-        var path = pendingDeletes.get(file);
-        try {
-            if (cache != null) {
-                cache.removeFile(path.toFile());
+        pendingDeletes.compute(file, (k, path) -> {
+            if (path == null) {
+                return null;
             }
 
-            Files.deleteIfExists(path);
+            try {
+                if (cache != null) {
+                    cache.removeFile(path.toFile());
+                }
 
-            if (cipherKey != null) {
-                var ivPath = luceneIndex.resolve(DirUtil.getIvFileName(path.getFileName().toString()));
-                Files.deleteIfExists(ivPath);
+                Files.deleteIfExists(path);
+
+                if (cipherKey != null) {
+                    var ivPath = luceneIndex.resolve(DirUtil.getIvFileName(path.getFileName().toString()));
+                    Files.deleteIfExists(ivPath);
+                }
+
+                return null;
+            } catch (IOException ioe) {
+                // On windows, a file delete can fail because there's still an open
+                // file handle against it.  We record this in pendingDeletes and
+                // try again later.
+                return path;
             }
-
-            pendingDeletes.remove(file);
-        } catch (IOException ioe) {
-            // On windows, a file delete can fail because there's still an open
-            // file handle against it.  We record this in pendingDeletes and
-            // try again later.
-
-            pendingDeletes.put(file, path);
-        }
+        });
     }
 
 
