@@ -181,8 +181,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             utilizationProfile.removeFile(file)
             currentFile[0] = file
             environment.removeFiles(
-                    currentFile,
-                    if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
+                currentFile,
+                if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
             )
             aFileWasDeleted = true
         }
@@ -219,8 +219,8 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             environment.flushAndSync()
             val filesArray = filesToDelete.toArray()
             environment.removeFiles(
-                    filesArray,
-                    if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
+                filesArray,
+                if (ec.gcRenameFiles) RemoveBlockType.Rename else RemoveBlockType.Delete
             )
             filesArray.forEach { utilizationProfile.removeFile(it) }
             utilizationProfile.estimateTotalBytesAndWakeGcIfNecessary()
@@ -351,10 +351,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             val high = log.highReadAddress
             val highFile = log.highFileAddress
             logger.debug(
-                    String.format(
-                            "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
-                            high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
-                    )
+                String.format(
+                    "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
+                    high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
+                )
             )
         }
 
@@ -374,6 +374,26 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                     if (store == null) {
                         // TODO: remove openStoresCache when txn.openStoreByStructureId() is fast enough (XD-381)
                         store = txn.openStoreByStructureId(structureId)
+
+                        if (loggable.address == 520806663897L) {
+                            val tree = txn.getTree(store)
+                            val iterator = tree.addressIterator()
+                            println("Dear Roman please send me the following files:")
+                            var lastFile = -1L
+
+                            while(iterator.hasNext()) {
+                                val address = iterator.next()
+                                val currentFileAddress = log.getFileAddress(address)
+
+                                if (lastFile != currentFileAddress) {
+                                    println(LogUtil.getLogFilename(currentFileAddress))
+                                    lastFile = currentFileAddress
+                                }
+                            }
+                        }
+
+                        println("Thank you, Roman !")
+
                         openStoresCache[structureId] = store
                     }
                     store.reclaim(txn, loggable, loggables)
