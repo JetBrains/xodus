@@ -374,27 +374,27 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                     if (store == null) {
                         // TODO: remove openStoresCache when txn.openStoreByStructureId() is fast enough (XD-381)
                         store = txn.openStoreByStructureId(structureId)
+                        openStoresCache[structureId] = store
+                    }
 
-                        if (loggable.address == 520806663897L) {
-                            val tree = txn.getTree(store)
-                            val iterator = tree.addressIterator()
-                            println("Dear Roman please send me the following files:")
-                            var lastFile = -1L
+                    if (loggable.address == 520806663897L) {
+                        val tree = txn.getTree(store)
+                        val iterator = tree.addressIterator()
 
-                            while(iterator.hasNext()) {
-                                val address = iterator.next()
-                                val currentFileAddress = log.getFileAddress(address)
+                        println("Dear Roman please send me the following files:")
+                        var lastFile = -1L
 
-                                if (lastFile != currentFileAddress) {
-                                    println(LogUtil.getLogFilename(currentFileAddress))
-                                    lastFile = currentFileAddress
-                                }
+                        while (iterator.hasNext()) {
+                            val address = iterator.next()
+                            val currentFileAddress = log.getFileAddress(address)
+
+                            if (lastFile != currentFileAddress) {
+                                println(LogUtil.getLogFilename(currentFileAddress))
+                                lastFile = currentFileAddress
                             }
                         }
 
                         println("Thank you, Roman !")
-
-                        openStoresCache[structureId] = store
                     }
                     store.reclaim(txn, loggable, loggables)
                 }
