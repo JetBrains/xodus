@@ -377,25 +377,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                         openStoresCache[structureId] = store
                     }
 
-                    if (loggable.address == 520806663897L) {
-                        val tree = txn.getTree(store)
-                        val iterator = tree.addressIterator()
-
-                        println("Dear Roman please send me the following files:")
-                        var lastFile = -1L
-
-                        while (iterator.hasNext()) {
-                            val address = iterator.next()
-                            val currentFileAddress = log.getFileAddress(address)
-
-                            if (lastFile != currentFileAddress) {
-                                println(LogUtil.getLogFilename(currentFileAddress))
-                                lastFile = currentFileAddress
-                            }
-                        }
-
-                        println("Thank you, Roman !")
+                    if(loggable.address == 520806663897L) {
+                        println("Caught it !")
                     }
+
                     store.reclaim(txn, loggable, loggables)
                 }
             }
