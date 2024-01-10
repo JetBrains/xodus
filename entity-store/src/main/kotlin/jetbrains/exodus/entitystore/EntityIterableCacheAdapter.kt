@@ -19,8 +19,8 @@ import jetbrains.exodus.core.cache.CaffeineCacheConfig
 import jetbrains.exodus.core.cache.FixedSizeEviction
 import jetbrains.exodus.core.cache.SizeEviction
 import jetbrains.exodus.core.cache.WeightSizeEviction
-import jetbrains.exodus.core.dataStructures.cache.CaffeinePersistentCache
-import jetbrains.exodus.core.dataStructures.cache.PersistentCache
+import jetbrains.exodus.core.cache.CaffeinePersistentCache
+import jetbrains.exodus.core.cache.PersistentCache
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
 import java.time.Duration
 
