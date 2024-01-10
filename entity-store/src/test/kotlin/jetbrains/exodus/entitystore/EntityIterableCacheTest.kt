@@ -20,8 +20,8 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         private val logQueryResult = false
 
         init {
-            System.setProperty("exodus.entityStore.entityIterableCache.size", "8192")
-            // System.setProperty("exodus.entityStore.entityIterableCache.weight", "128000")
+            // Use for local experiments to change cache params
+            // System.setProperty("exodus.entityStore.entityIterableCache.size", "8192")
         }
     }
 
@@ -53,6 +53,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
     fun testHitRate() {
         // Given
+        // Use these params to experiment with cache locally
         val projectCount = 2
         val userCount = 20
         val issueCount = 1000
