@@ -67,7 +67,6 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     }
 
     fun clear() {
-        print("CACHE_CLEARED")
         cacheAdapter.clear()
         deferredIterablesCache.clear()
         iterableCountsCache.clear()
