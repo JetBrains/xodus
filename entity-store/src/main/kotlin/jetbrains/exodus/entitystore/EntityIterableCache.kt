@@ -17,9 +17,8 @@ package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.cache.CaffeineCache
-import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.core.dataStructures.Priority
-import jetbrains.exodus.core.dataStructures.cache.BasicCache
+import jetbrains.exodus.core.cache.BasicCache
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException

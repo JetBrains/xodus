@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.core.dataStructures.cache.PersistentCache
+import jetbrains.exodus.core.cache.PersistentCache
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.HandleCheckerAdapter
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase

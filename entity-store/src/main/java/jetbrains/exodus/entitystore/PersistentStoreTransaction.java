@@ -21,7 +21,7 @@ import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.*;
-import jetbrains.exodus.core.dataStructures.cache.CacheClient;
+import jetbrains.exodus.core.cache.CacheClient;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
