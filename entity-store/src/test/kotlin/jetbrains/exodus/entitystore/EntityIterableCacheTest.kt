@@ -48,7 +48,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
     fun testHitCount() {
         // Given
-        val store = getEntityStore()
+        val store = entityStore
         val projects = Project.createMany(1, store)
         val users = User.createMany(1, store)
         val issues = Issue.createMany(1, projects, users, store)
@@ -79,7 +79,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val updateConcurrently = false
         val updateDelayMillis = 10L
 
-        val store = getEntityStore()
+        val store = entityStore
         val projects = Project.createMany(projectCount, store)
         val users = User.createMany(userCount, store)
         val issues = Issue.createMany(issueCount, projects, users, store)
@@ -116,7 +116,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
     fun testCacheTransactionIsolation() {
         // Given
-        val store = getEntityStore()
+        val store = entityStore
         store.executeInTransaction {
             it.createNewIssue()
         }
@@ -128,18 +128,24 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         }
         store.waitForCacheJobs()
 
+        val read1Start = CountDownLatch(1)
+        val read2Start = CountDownLatch(1)
         val write1Finish = CountDownLatch(1)
         val write2Finish = CountDownLatch(1)
 
         var readCount1 = 0L
         val readThread1 = thread {
             store.executeInTransaction {
+                read1Start.countDown()
+                // Wait for write transaction to finish
                 write1Finish.await()
                 readCount1 = it.countAllIssues()
             }
         }
 
         var writeCount1 = 0L
+        // Wait for read transaction to start
+        read1Start.await()
         store.executeInTransaction {
             it.createNewIssue()
             writeCount1 = it.countAllIssues()
@@ -149,12 +155,14 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         var readCount2 = 0L
         val readThread2 = thread {
             store.executeInTransaction {
+                read2Start.countDown()
                 write2Finish.await()
                 readCount2 = it.countAllIssues()
             }
         }
 
         var writeCount2 = 0L
+        read2Start.await()
         store.executeInTransaction {
             it.createNewIssue()
             it.createNewIssue()
