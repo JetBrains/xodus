@@ -338,6 +338,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
      * @param txn         transaction
      */
     private fun cleanSingleFile(fileAddress: Long, txn: ReadWriteTransaction) {
+        if (fileAddress == 520806727680L) {
+            return
+        }
+
         // the file can be already cleaned
         if (isFileCleaned(fileAddress)) {
             throw ExodusException("Attempt to clean already cleaned file")
