@@ -148,6 +148,22 @@ class CaffeinePersistentCacheTest {
         assertEquals(0, cache2.count())
     }
 
+    @Test
+    fun `should not evict same values for next version`() {
+        // Given
+        val n = 100
+        val cache1 = givenSizedCache(n.toLong())
+        // Fill in cache up to capacity
+        repeat(n) { cache1.put("$it", "$it") }
+
+        // When
+        val cache2 = cache1.createNextVersion()
+
+        // Then
+        assertEquals(100, cache2.count())
+        repeat(n) {  assertEquals("$it", cache2.get("$it")) }
+    }
+
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String, String>(
             sizeEviction = FixedSizeEviction(size),
