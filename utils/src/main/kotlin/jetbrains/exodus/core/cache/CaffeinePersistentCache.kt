@@ -16,9 +16,11 @@
 package jetbrains.exodus.core.cache
 
 import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.RemovalListener
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.BiConsumer
+import kotlin.math.max
 
 
 /**
@@ -31,6 +33,7 @@ class CaffeinePersistentCache<K, V> private constructor(
     private val config: CaffeineCacheConfig<K, V>,
     override val version: Long,
     private val versionTracker: VersionTracker,
+    private val latestKeyVersions: MutableMap<K, Long>
 ) : PersistentCache<K, V> {
 
     private data class VersionedKey<K>(val key: K, val version: Long)
@@ -75,15 +78,27 @@ class CaffeinePersistentCache<K, V> private constructor(
     companion object {
 
         fun <K, V> create(config: CaffeineCacheConfig<K, V>): CaffeinePersistentCache<K, V> {
-            val cache = CaffeineCacheBuilder.build(config, VersionedKey<K>::key)
+            val latestVersionKeys = ConcurrentHashMap<K, Long>()
+            val evictionListener = RemovalListener<VersionedKey<K>, V> { versionedKey, _, _ ->
+                if (versionedKey == null) {
+                    return@RemovalListener
+                }
+                val (key, version) = versionedKey
+                latestVersionKeys.compute(key) { _, latestVersion ->
+                    if (version == latestVersion) null else latestVersion
+                }
+            }
+
+            val cache = CaffeineCacheBuilder.build(config, VersionedKey<K>::key, evictionListener)
             val version = 0L
             val tracker = VersionTracker(version)
 
-            return CaffeinePersistentCache(cache, config, version, tracker)
+            return CaffeinePersistentCache(cache, config, version, tracker, latestVersionKeys)
         }
     }
 
-    private val currentVersionKeys = ConcurrentHashMap.newKeySet<K>()
+    // Map of keys with their corresponding version available for the current version of cache
+    private val currentKeys = ConcurrentHashMap<K, Long>()
 
     // Generic cache impl
     override fun size(): Long {
@@ -95,25 +110,35 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun get(key: K): V? {
-        val versionedKey = VersionedKey(key, version)
+        val keyVersion = currentKeys[key] ?: return null
+        val versionedKey = VersionedKey(key, keyVersion)
         return cache.getIfPresent(versionedKey)
     }
 
     override fun put(key: K, value: V) {
-        val versionedKey = VersionedKey(key, version)
-        cache.put(versionedKey, value)
-        currentVersionKeys.add(key)
+        val currentVersion = version
+        currentKeys.compute(key) { _, _ ->
+            val versionedKey = VersionedKey(key, currentVersion)
+            cache.put(versionedKey, value)
+
+            currentVersion
+        }
+        latestKeyVersions.compute(key) { _, latestKeyVersion ->
+            max(currentVersion, latestKeyVersion ?: -1)
+        }
     }
 
     override fun remove(key: K) {
-        val versionedKey = VersionedKey(key, version)
-        cache.invalidate(versionedKey)
-        currentVersionKeys.remove(key)
+        currentKeys.computeIfPresent(key) { _, keyVersion ->
+            val versionedKey = VersionedKey(key, keyVersion)
+            cache.invalidate(versionedKey)
+            null
+        }
     }
 
     override fun clear() {
         cache.invalidateAll()
-        currentVersionKeys.clear()
+        currentKeys.clear()
     }
 
     override fun forceEviction() {
@@ -121,16 +146,23 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun forEachEntry(consumer: BiConsumer<K, V>) {
-        currentVersionKeys.forEachCacheEntry(consumer::accept)
+        currentKeys.forEachCacheEntry(consumer::accept)
     }
 
     // Persistent cache impl
     override fun createNextVersion(entryConsumer: BiConsumer<K, V>?): PersistentCache<K, V> {
         val nextVersion = versionTracker.next()
-        val newCache = CaffeinePersistentCache(cache, config, nextVersion, versionTracker)
-        currentVersionKeys.forEachCacheEntry { key, value ->
-            newCache.put(key, value)
-            entryConsumer?.accept(key, value)
+        val newCache = CaffeinePersistentCache(cache, config, nextVersion, versionTracker, latestKeyVersions)
+
+        // Copy keys available for the next cache
+        // It effectively prohibits new version from seeing updates for previous versions
+        currentKeys.forEach { (key, version) ->
+            val versionedKey = VersionedKey(key, version)
+            val value = cache.getIfPresent(versionedKey)
+            if (value != null) {
+                newCache.currentKeys[key] = version
+                entryConsumer?.accept(key, value)
+            }
         }
         return newCache
     }
@@ -148,21 +180,17 @@ class CaffeinePersistentCache<K, V> private constructor(
     private fun unregisterAndCleanUp(client: CacheClient) {
         val leftClients = versionTracker.unregister(client, version)
         if (leftClients == 0L && version < versionTracker.currentVersion) {
-            currentVersionKeys.forEachVersionedKey {
-                cache.invalidate(it)
+            currentKeys.forEach { (key, version) ->
+                val latestVersion = latestKeyVersions[key] ?: Long.MAX_VALUE
+                if (version <= latestVersion) {
+                    cache.invalidate(VersionedKey(key, version))
+                }
             }
         }
     }
 
-    private fun Set<K>.forEachVersionedKey(consumer: (VersionedKey<K>) -> Unit) {
-        forEach { key ->
-            val versionedKey = VersionedKey(key, version)
-            consumer(versionedKey)
-        }
-    }
-
-    private fun Set<K>.forEachCacheEntry(consumer: (K, V) -> Unit) {
-        forEach { key ->
+    private fun Map<K, Long>.forEachCacheEntry(consumer: (K, V) -> Unit) {
+        forEach { (key, version) ->
             val versionedKey = VersionedKey(key, version)
             val value = cache.getIfPresent(versionedKey)
             if (value != null) {

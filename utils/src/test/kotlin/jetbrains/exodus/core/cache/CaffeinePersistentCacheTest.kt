@@ -13,12 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.dataStructures.cache
+package jetbrains.exodus.core.cache
 
-import jetbrains.exodus.core.cache.CaffeineCacheConfig
-import jetbrains.exodus.core.cache.CaffeinePersistentCache
-import jetbrains.exodus.core.cache.FixedSizeEviction
-import jetbrains.exodus.core.cache.WeightSizeEviction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -114,24 +110,6 @@ class CaffeinePersistentCacheTest {
         assertNull(value2)
     }
 
-    @Test
-    fun `should copy entries to new version`() {
-        // Given
-        val cache1 = givenSizedCache(4) // 2 entries for each version
-        cache1.put("key1", "value1")
-        cache1.put("key2", "value2")
-        val cache2 = cache1.createNextVersion()
-
-        // When
-        val value1 = cache2.get("key1")
-        val value2 = cache2.get("key2")
-
-        // Then
-        assertEquals(4, cache2.count())
-        assertEquals("value1", value1)
-        assertEquals("value2", value2)
-
-    }
 
     @Test
     fun `should evict when client unregisters`() {

@@ -17,6 +17,7 @@ package jetbrains.exodus.core.cache
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.github.benmanes.caffeine.cache.RemovalListener
 
 internal object CaffeineCacheBuilder {
 
@@ -25,18 +26,23 @@ internal object CaffeineCacheBuilder {
      */
     fun <K, V, ConfigK> build(
         config: CaffeineCacheConfig<ConfigK, V>,
-        keyTransformer: ((K) -> ConfigK)
+        keyTransformer: ((K) -> ConfigK),
+        evictionListener: RemovalListener<K, V>? = null
     ): Cache<K, V> {
-        return doBuild(config, keyTransformer)
+        return doBuild(config, keyTransformer, evictionListener)
     }
 
-    fun <K, V> build(config: CaffeineCacheConfig<K, V>): Cache<K, V> {
-        return doBuild(config)
+    fun <K, V> build(
+        config: CaffeineCacheConfig<K, V>,
+        evictionListener: RemovalListener<K, V>? = null
+    ): Cache<K, V> {
+        return doBuild(config, null, evictionListener)
     }
 
     private fun <K, V, ConfigK> doBuild(
         config: CaffeineCacheConfig<ConfigK, V>,
-        keyTransformer: ((K) -> ConfigK)? = null
+        keyTransformer: ((K) -> ConfigK)? = null,
+        evictionListener: RemovalListener<K, V>? = null
     ): Cache<K, V> {
         return Caffeine.newBuilder()
             // Size eviction
@@ -50,7 +56,7 @@ internal object CaffeineCacheBuilder {
                     is WeightSizeEviction -> {
                         maximumWeight(sizeEviction.maxWeight)
                         weigher { key: K, value: V ->
-                            @Suppress("UNCHECKED_CAST")
+                            @Suppress("UNCHECKED_CAST", "NAME_SHADOWING")
                             val key = keyTransformer?.invoke(key) ?: (key as ConfigK)
                             sizeEviction.weigher(key, value)
                         }
@@ -62,6 +68,7 @@ internal object CaffeineCacheBuilder {
             // Reference eviction
             .apply { if (config.useSoftValues) softValues() }
             .apply { if (config.directExecution) executor(Runnable::run) }
+            .apply { if (evictionListener != null) evictionListener(evictionListener) }
             .build<K, V>()
     }
 }
