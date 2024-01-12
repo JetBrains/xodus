@@ -679,7 +679,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public void addCachedInstance(@NotNull final CachedInstanceIterable cached) {
         final EntityIterableCacheAdapter localCache = getLocalCache();
         final EntityIterableHandle handle = cached.getHandle();
-        // ToDo: Should we get object from cache or better to try to cache it right away?
         if (localCache.getObject(handle) == null) {
             localCache.cacheObject(handle, cached);
             store.getEntityIterableCache().setCachedCount(handle, cached.size());
