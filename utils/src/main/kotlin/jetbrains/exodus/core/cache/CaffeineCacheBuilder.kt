@@ -69,6 +69,6 @@ internal object CaffeineCacheBuilder {
             .apply { if (config.useSoftValues) softValues() }
             .apply { if (config.directExecution) executor(Runnable::run) }
             .apply { if (evictionListener != null) evictionListener(evictionListener) }
-            .build<K, V>()
+            .build()
     }
 }

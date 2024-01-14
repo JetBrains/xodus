@@ -46,7 +46,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         "testCacheTransactionIsolation"
     )
 
-    fun testHitCount() {
+    fun testTotalHits() {
         // Given
         val store = entityStore
         val projects = Project.createMany(1, store)

@@ -97,8 +97,8 @@ class CaffeinePersistentCache<K, V> private constructor(
         }
     }
 
-    // Map of keys with their corresponding version available for the current version of cache
-    private val currentKeys = ConcurrentHashMap<K, Long>()
+    // Local index as map of keys with their corresponding versions available for the current version of cache
+    private val keyVersions = ConcurrentHashMap<K, Long>()
 
     // Generic cache impl
     override fun size(): Long {
@@ -110,14 +110,14 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun get(key: K): V? {
-        val keyVersion = currentKeys[key] ?: return null
-        val versionedKey = VersionedKey(key, keyVersion)
+        val entryVersion = keyVersions[key] ?: return null
+        val versionedKey = VersionedKey(key, entryVersion)
         return cache.getIfPresent(versionedKey)
     }
 
     override fun put(key: K, value: V) {
         val currentVersion = version
-        currentKeys.compute(key) { _, _ ->
+        keyVersions.compute(key) { _, _ ->
             val versionedKey = VersionedKey(key, currentVersion)
             cache.put(versionedKey, value)
 
@@ -129,8 +129,8 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun remove(key: K) {
-        currentKeys.computeIfPresent(key) { _, keyVersion ->
-            val versionedKey = VersionedKey(key, keyVersion)
+        keyVersions.computeIfPresent(key) { _, entryVersion ->
+            val versionedKey = VersionedKey(key, entryVersion)
             cache.invalidate(versionedKey)
             null
         }
@@ -138,7 +138,8 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     override fun clear() {
         cache.invalidateAll()
-        currentKeys.clear()
+        keyVersions.clear()
+        latestKeyVersions.clear()
     }
 
     override fun forceEviction() {
@@ -146,7 +147,7 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun forEachEntry(consumer: BiConsumer<K, V>) {
-        currentKeys.forEachCacheEntry(consumer::accept)
+        keyVersions.forEachCacheEntry(consumer::accept)
     }
 
     // Persistent cache impl
@@ -155,15 +156,16 @@ class CaffeinePersistentCache<K, V> private constructor(
         val newCache = CaffeinePersistentCache(cache, config, nextVersion, versionTracker, latestKeyVersions)
 
         // Copy keys available for the next cache
-        // It effectively prohibits new version from seeing updates for previous versions
-        currentKeys.forEach { (key, version) ->
+        // It effectively prohibits new version from seeing new values cached for previous versions
+        keyVersions.forEach { (key, version) ->
             val versionedKey = VersionedKey(key, version)
             val value = cache.getIfPresent(versionedKey)
             if (value != null) {
-                newCache.currentKeys[key] = version
+                newCache.keyVersions[key] = version
                 entryConsumer?.accept(key, value)
             }
         }
+
         return newCache
     }
 
@@ -180,9 +182,10 @@ class CaffeinePersistentCache<K, V> private constructor(
     private fun unregisterAndCleanUp(client: CacheClient) {
         val leftClients = versionTracker.unregister(client, version)
         if (leftClients == 0L && version < versionTracker.currentVersion) {
-            currentKeys.forEach { (key, version) ->
-                val latestVersion = latestKeyVersions[key] ?: Long.MAX_VALUE
-                if (version <= latestVersion) {
+            keyVersions.forEach { (key, version) ->
+                // Invalidate value in case if current version is not the latest one
+                val latestVersion = latestKeyVersions[key]
+                if (latestVersion == null || version <= latestVersion) {
                     cache.invalidate(VersionedKey(key, version))
                 }
             }
