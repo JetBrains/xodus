@@ -109,6 +109,10 @@ internal class FloatArrayToByteArrayVectorReader: VectorReader {
         return vectorSegment
     }
 
+    override fun read(vectorIdx: Int, dimension: Int): Float {
+        return vectors[vectorIdx][dimension]
+    }
+
     override fun id(index: Int): MemorySegment? {
         return null
     }

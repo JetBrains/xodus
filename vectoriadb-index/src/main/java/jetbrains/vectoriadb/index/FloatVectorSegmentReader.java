@@ -29,6 +29,11 @@ class FloatVectorSegmentReader implements VectorReader {
     }
 
     @Override
+    public float read(int vectorIdx, int dimension) {
+        return vectors.get(vectorIdx, dimension);
+    }
+
+    @Override
     public MemorySegment id(int index) {
         // this vector reader should not be used in a context where vector id is required
         throw new UnsupportedOperationException();

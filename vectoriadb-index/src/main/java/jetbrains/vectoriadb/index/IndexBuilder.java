@@ -1547,6 +1547,11 @@ public final class IndexBuilder {
         }
 
         @Override
+        public float read(int vectorIdx, int dimension) {
+            return segment.getAtIndex(ValueLayout.JAVA_FLOAT, (long) vectorIdx * vectorDimensions + dimension);
+        }
+
+        @Override
         public MemorySegment id(int index) {
             return segment.asSlice((long) index * recordSize + (long) Float.BYTES * vectorDimensions,
                     IndexBuilder.VECTOR_ID_SIZE);

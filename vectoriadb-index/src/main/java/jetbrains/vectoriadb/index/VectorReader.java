@@ -24,5 +24,7 @@ public interface VectorReader extends AutoCloseable {
 
     MemorySegment read(int index);
 
+    float read(int vectorIdx, int dimension);
+
     MemorySegment id(int index);
 }

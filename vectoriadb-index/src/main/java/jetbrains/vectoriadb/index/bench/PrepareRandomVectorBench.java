@@ -25,6 +25,7 @@ import jetbrains.vectoriadb.index.VectorReader;
 import java.io.IOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -190,7 +191,6 @@ public final class PrepareRandomVectorBench {
             this.vectorDimensions = vectorDimensions;
             this.recordSize = Float.BYTES * vectorDimensions;
 
-
             arena = Arena.ofShared();
 
             try (var channel = FileChannel.open(path, StandardOpenOption.READ)) {
@@ -212,6 +212,11 @@ public final class PrepareRandomVectorBench {
         @Override
         public MemorySegment read(int index) {
             return segment.asSlice((long) index * recordSize, (long) Float.BYTES * vectorDimensions);
+        }
+
+        @Override
+        public float read(int vectorIdx, int dimension) {
+            return segment.getAtIndex(ValueLayout.JAVA_FLOAT, (long) vectorIdx * vectorDimensions + dimension);
         }
 
         @Override
