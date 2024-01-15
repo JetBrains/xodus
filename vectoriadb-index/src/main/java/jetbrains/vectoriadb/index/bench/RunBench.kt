@@ -6,6 +6,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.time.Duration
 import kotlin.time.measureTime
 
 @Suppress("unused")
@@ -124,6 +125,7 @@ fun VectorDatasetInfo.runBench(
 
             val pid = ProcessHandle.current().pid()
             println("PID: $pid")
+            var avgTimeOverall = Duration.ZERO
             repeat(repeatTimes) {
                 var errorsCount = 0
                 val duration = measureTime {
@@ -138,9 +140,12 @@ fun VectorDatasetInfo.runBench(
                     }
                 }
                 val errorPercentage = errorsCount * 100.0 / queryVectors.size
+                val avgTime = duration / queryVectors.size
+                avgTimeOverall += avgTime
 
-                println("Avg. query time : ${duration / queryVectors.size}, errors: ${errorPercentage}%, cache hits ${indexReader.hits()}%")
+                println("Avg. query time : $avgTime, errors: ${errorPercentage}%, cache hits ${indexReader.hits()}%")
             }
+            println("Avg. query time overall: ${avgTimeOverall / repeatTimes}")
         }
     }
 }
