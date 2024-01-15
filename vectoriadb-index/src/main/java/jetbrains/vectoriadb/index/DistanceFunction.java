@@ -22,6 +22,18 @@ import java.lang.foreign.MemorySegment;
 public interface DistanceFunction {
     int PREFERRED_SPECIES_LENGTH = FloatVector.SPECIES_PREFERRED.length();
 
+    float computeDistance(float[] firstVector, int firstVectorFrom,
+                          float[] secondVector, int secondVectorFrom,
+                          int size);
+
+    float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset,
+                          float[] secondVector, int secondVectorOffset,
+                          int size);
+
+    float computeDistance(MemorySegment firstSegment, long firstSegmentOffset,
+                          MemorySegment secondSegment, long secondSegmentOffset,
+                          int size);
+
     void computeDistance(MemorySegment originSegment, long originSegmentOffset,
                          MemorySegment firstSegment, long firstSegmentOffset,
                          MemorySegment secondSegment, long secondSegmentOffset,
@@ -29,27 +41,21 @@ public interface DistanceFunction {
                          MemorySegment fourthSegment, long fourthSegmentOffset,
                          int size, float[] result);
 
-    float computeDistance(MemorySegment firstSegment, long firstSegmentFromOffset,
-                          float[] secondVector, int secondVectorOffset, int size);
-
     void computeDistance(float[] originVector, @SuppressWarnings("SameParameterValue") int originVectorOffset,
-                         MemorySegment firstSegment,
-                         long firstSegmentFromOffset, MemorySegment secondSegment, long secondSegmentFromOffset,
+                         MemorySegment firstSegment, long firstSegmentFromOffset,
+                         MemorySegment secondSegment, long secondSegmentFromOffset,
                          MemorySegment thirdSegment, long thirdSegmentFromOffset,
                          MemorySegment fourthSegment, long fourthSegmentFromOffset,
                          int size, float[] result);
 
-    float computeDistance(float[] firstVector, int firstVectorFrom, float[] secondVector, int secondVectorFrom, int size);
-
     void computeDistance(float[] originVector, @SuppressWarnings("SameParameterValue") int originVectorOffset,
-                         float[] firstVector, int firstVectorOffset, float[] secondVector,
-                         int secondVectorOffset, float[] thirdVector,
-                         int thirdVectorOffset, float[] fourthVector,
-                         int fourthVectorOffset, final float[] result,
-                         int size);
+                         float[] firstVector, int firstVectorOffset,
+                         float[] secondVector, int secondVectorOffset,
+                         float[] thirdVector, int thirdVectorOffset,
+                         float[] fourthVector, int fourthVectorOffset,
+                         final float[] result, int size);
 
-    float computeDistance(MemorySegment firstSegment, long firstSegmentOffset, MemorySegment secondSegment,
-                          long secondSegmentOffset, int size);
+    float computeDistance(float scalar1, float scalar2);
 
     default float[] preProcess(float[] vector, float[] result) {
         return vector;

@@ -76,6 +76,11 @@ public final class DotDistanceFunction implements DistanceFunction {
                 PREFERRED_SPECIES_LENGTH);
     }
 
+    @Override
+    public float computeDistance(float scalar1, float scalar2) {
+        return -(scalar1 * scalar2);
+    }
+
     static void computeDotDistance(MemorySegment originSegment, long originSegmentOffset,
                                    MemorySegment firstSegment, long firstSegmentOffset,
                                    MemorySegment secondSegment, long secondSegmentOffset,

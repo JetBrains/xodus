@@ -72,6 +72,11 @@ public final class CosineDistanceFunction implements DistanceFunction {
     }
 
     @Override
+    public float computeDistance(float scalar1, float scalar2) {
+        return DotDistanceFunction.INSTANCE.computeDistance(scalar1, scalar2);
+    }
+
+    @Override
     public float[] preProcess(float[] vector, float[] result) {
         VectorOperations.normalizeL2(vector, result);
         return result;

@@ -76,6 +76,12 @@ public final class L2DistanceFunction implements DistanceFunction {
                 PREFERRED_SPECIES_LENGTH);
     }
 
+    @Override
+    public float computeDistance(float scalar1, float scalar2) {
+        var tmp = (scalar1 - scalar2);
+        return tmp * tmp;
+    }
+
     static float computeL2Distance(MemorySegment firstSegment, long firstSegmentOffset, float[] secondVector,
                                    int secondVectorOffset, int size, int speciesLength) {
         var step = DistanceFunction.closestSIMDStep(speciesLength, size);
