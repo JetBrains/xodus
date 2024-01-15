@@ -82,7 +82,14 @@ public final class KMeansClustering {
                 progressTracker.pushPhase("Iteration " + iteration);
                 try {
                     var assignedDifferently = assignVectorsToClosestClusters(progressTracker);
-                    if (!assignedDifferently) {
+                    /*
+                     * iteration > 0 is required for the case when we calculate a single centroid.
+                     * A single centroid can not be assigned differently obviously, and if we break here
+                     * the centroid will never be actually calculated, and we just return whatever the centroid
+                     * was initialized with.
+                     * So, we make sure centroids are calculated at least once.
+                     * */
+                    if (!assignedDifferently && iteration > 0) {
                         break;
                     }
                     calculateCentroids(centroidsPerCore, vectorCountForCentroidPerCore, vectorCountForCentroid, progressTracker);

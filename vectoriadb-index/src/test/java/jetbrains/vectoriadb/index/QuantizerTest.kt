@@ -32,6 +32,30 @@ class L2QuantizerTest {
     fun `calculate centroids`() = calculateCentroids(VectorDataset.Sift10K, L2DistanceFunction.INSTANCE, L2PQQuantizer())
 
     @Test
+    fun `calculate a single centroid, quantizer does calculate the centroid`() = vectorTest(VectorDataset.Sift10K) {
+        val numClusters = 1
+        val maxIterations = 50
+        val compressionRatio = 32
+        val codebookCount = CodebookInitializer.getCodebookCount(dimensions, compressionRatio)
+        val distanceFun = L2DistanceFunction.INSTANCE
+
+        val quantizer = L2PQQuantizer()
+        quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
+
+        val centroid = quantizer.calculateCentroids(vectorReader, numClusters, maxIterations, distanceFun, progressTracker)[0]
+
+        for (i in 0 until numVectors) {
+            val vectorApproximation = quantizer.getVectorApproximation(i)
+            var diff = 0f
+            for (d in 0 until dimensions) {
+                diff += abs(centroid[d] - vectorApproximation[d])
+            }
+            // if diff = 0, it means quantizer has not calculated anything and just returned a random vector
+            Assert.assertNotEquals(0f, diff)
+        }
+    }
+
+    @Test
     fun `store, load`() = storeLoad(VectorDataset.Sift10K, 1e-5) { L2PQQuantizer() }
 }
 
@@ -51,6 +75,28 @@ class NormExplicitQuantizerTest {
 
     @Test
     fun `calculate centroids`() = calculateCentroids(VectorDataset.Sift10K, DotDistanceFunction.INSTANCE, NormExplicitQuantizer())
+
+    @Test
+    fun `calculate a single centroid`() = vectorTest(VectorDataset.Sift10K) {
+        val numClusters = 1
+        val maxIterations = 50
+        val distanceFun = DotDistanceFunction.INSTANCE
+
+        val quantizer = NormExplicitQuantizer()
+
+        val centroid = quantizer.calculateCentroids(vectorReader, numClusters, maxIterations, distanceFun, progressTracker)[0]
+
+        val expectedCentroid = FloatArray(dimensions)
+        for (vector in vectors) {
+            for (i in 0 until dimensions) {
+                expectedCentroid[i] += vector[i]
+            }
+        }
+        for (i in 0 until dimensions) {
+            expectedCentroid[i] = expectedCentroid[i] / numVectors
+            Assert.assertEquals(expectedCentroid[i], centroid[i], 1e-3f)
+        }
+    }
 
     @Test
     fun `store, load`() = storeLoad(VectorDataset.Sift10K, 1e-5) { NormExplicitQuantizer() }
@@ -285,7 +331,7 @@ internal fun getVectorApproximationTest(dataset: VectorDataset, delta: Double, q
 
     val averageErrors = buildList {
         listOf(codeBaseSize, codeBaseSize * 2, codeBaseSize * 4, codeBaseSize * 8).forEach { numVectors ->
-            val vectorReader = FloatArrayToByteArrayVectorReader(vectors, numVectors)
+            val vectorReader = FloatArrayVectorReader(vectors, numVectors)
             val quantizer = quantizerBuilder()
             quantizer.generatePQCodes(vectorReader, codebookCount, progressTracker)
 
