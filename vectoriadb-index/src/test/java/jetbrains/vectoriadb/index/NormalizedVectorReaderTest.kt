@@ -1,6 +1,6 @@
 package jetbrains.vectoriadb.index
 
-import jetbrains.vectoriadb.index.VectorOperations.PRECISION
+import jetbrains.vectoriadb.index.VectorOperations.Companion.PRECISION
 import org.junit.Assert
 import org.junit.Test
 

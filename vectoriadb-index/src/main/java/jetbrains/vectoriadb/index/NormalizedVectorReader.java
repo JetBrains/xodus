@@ -50,10 +50,20 @@ class NormalizedVectorReader implements VectorReader {
     public MemorySegment read(int index) {
         var vector = source.read(index);
         var norm = vectorNorms.getAtIndex(ValueLayout.JAVA_FLOAT, index);
-        var result = MemorySegment.ofArray(new byte[dimensions() * Float.BYTES]);
+        // todo what about pooling a bunch of arrays and reusing them to avoid constant allocations?
+        // make those arrays thread local and clean them in close()
+        var result = MemorySegment.ofArray(new float[dimensions()]);
 
         VectorOperations.normalizeL2(vector, norm, result, dimensions());
         return result;
+    }
+
+
+    @Override
+    public float read(int vectorIdx, int dimension) {
+        var originalValue = source.read(vectorIdx, dimension);
+        var norm = vectorNorms.getAtIndex(ValueLayout.JAVA_FLOAT, vectorIdx);
+        return originalValue / norm;
     }
 
     @Override
