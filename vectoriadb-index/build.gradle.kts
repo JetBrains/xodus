@@ -168,6 +168,26 @@ tasks {
         })
     }
 
+    register<JavaExec>("runDistanceComputationBenchmark") {
+        group = "application"
+        mainClass = "jetbrains.vectoriadb.index.bench.DistanceComputationBenchmark"
+        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
+        jvmArgs = listOf(
+            "-server",
+            "-Xmx16g",
+            "-XX:MaxDirectMemorySize=82g",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "-Djava.awt.headless=true",
+            "--enable-preview"
+        )
+
+        javaLauncher.set(rootProject.javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        })
+    }
+
     register<JavaExec>("runL2DistanceBench") {
         group = "application"
         mainClass = "jetbrains.vectoriadb.index.bench.L2DistanceBench"
