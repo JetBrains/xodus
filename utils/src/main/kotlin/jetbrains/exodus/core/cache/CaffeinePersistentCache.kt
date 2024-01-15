@@ -16,12 +16,13 @@
 package jetbrains.exodus.core.cache
 
 import com.github.benmanes.caffeine.cache.Cache
-import com.github.benmanes.caffeine.cache.RemovalListener
+import com.github.benmanes.caffeine.cache.Caffeine
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.BiConsumer
-import kotlin.math.max
 
+typealias Version = Long
+typealias VersionedValueMap<V> = LinkedHashMap<Version, V>
 
 /**
  * This cache implementation is based on Caffeine cache. It versions each value stored using versioned key.
@@ -29,14 +30,11 @@ import kotlin.math.max
  * Creating new copy is done via coping all values from the current version to the next one.
  */
 class CaffeinePersistentCache<K, V> private constructor(
-    private val cache: Cache<VersionedKey<K>, V>,
-    private val config: CaffeineCacheConfig<K, V>,
+    private val cache: Cache<K, VersionedValueMap<V>>,
+    private val config: CaffeineCacheConfig,
     override val version: Long,
     private val versionTracker: VersionTracker,
-    private val latestKeyVersions: MutableMap<K, Long>
 ) : PersistentCache<K, V> {
-
-    private data class VersionedKey<K>(val key: K, val version: Long)
 
     private class VersionTracker(initialVersion: Long = 0) {
 
@@ -77,32 +75,27 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     companion object {
 
-        fun <K, V> create(config: CaffeineCacheConfig<K, V>): CaffeinePersistentCache<K, V> {
-            val latestVersionKeys = ConcurrentHashMap<K, Long>()
-            val evictionListener = RemovalListener<VersionedKey<K>, V> { versionedKey, _, _ ->
-                if (versionedKey == null) {
-                    return@RemovalListener
+        fun <K, V> create(config: CaffeineCacheConfig): CaffeinePersistentCache<K, V> {
+            val cache = Caffeine.newBuilder()
+                .withConfig(config)
+                .run {
+                    maximumWeight(config.maxSize)
+                    weigher { _: K, map: VersionedValueMap<V> -> map.size }
                 }
-                val (key, version) = versionedKey
-                latestVersionKeys.compute(key) { _, latestVersion ->
-                    if (version == latestVersion) null else latestVersion
-                }
-            }
-
-            val cache = CaffeineCacheBuilder.build(config, VersionedKey<K>::key, evictionListener)
+                .build<K, VersionedValueMap<V>>()
             val version = 0L
             val tracker = VersionTracker(version)
 
-            return CaffeinePersistentCache(cache, config, version, tracker, latestVersionKeys)
+            return CaffeinePersistentCache(cache, config, version, tracker)
         }
     }
 
-    // Local index as map of keys with their corresponding versions available for the current version of cache
+    // Local index as map of keys to corresponding versions available for the current version of cache
     private val keyVersions = ConcurrentHashMap<K, Long>()
 
     // Generic cache impl
     override fun size(): Long {
-        return config.sizeEviction.size
+        return config.maxSize
     }
 
     override fun count(): Long {
@@ -111,35 +104,29 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     override fun get(key: K): V? {
         val entryVersion = keyVersions[key] ?: return null
-        val versionedKey = VersionedKey(key, entryVersion)
-        return cache.getIfPresent(versionedKey)
+        return cache.getVersioned(key, entryVersion)
     }
 
     override fun put(key: K, value: V) {
-        val currentVersion = version
-        keyVersions.compute(key) { _, _ ->
-            val versionedKey = VersionedKey(key, currentVersion)
-            cache.put(versionedKey, value)
-
-            currentVersion
-        }
-        latestKeyVersions.compute(key) { _, latestKeyVersion ->
-            max(currentVersion, latestKeyVersion ?: -1)
+        cache.asMap().compute(key) { _, map ->
+            val versionedValues = map ?: VersionedValueMap()
+            versionedValues[version] = value
+            keyVersions[key] = version
+            versionedValues
         }
     }
 
     override fun remove(key: K) {
-        keyVersions.computeIfPresent(key) { _, entryVersion ->
-            val versionedKey = VersionedKey(key, entryVersion)
-            cache.invalidate(versionedKey)
-            null
+        cache.asMap().compute(key) { _, map ->
+            map?.remove(version)
+            keyVersions.remove(key)
+            map.orNullIfEmpty()
         }
     }
 
     override fun clear() {
         cache.invalidateAll()
         keyVersions.clear()
-        latestKeyVersions.clear()
     }
 
     override fun forceEviction() {
@@ -153,13 +140,12 @@ class CaffeinePersistentCache<K, V> private constructor(
     // Persistent cache impl
     override fun createNextVersion(entryConsumer: BiConsumer<K, V>?): PersistentCache<K, V> {
         val nextVersion = versionTracker.next()
-        val newCache = CaffeinePersistentCache(cache, config, nextVersion, versionTracker, latestKeyVersions)
+        val newCache = CaffeinePersistentCache(cache, config, nextVersion, versionTracker)
 
-        // Copy keys available for the next cache
+        // Copy key index for the next cache
         // It effectively prohibits new version from seeing new values cached for previous versions
         keyVersions.forEach { (key, version) ->
-            val versionedKey = VersionedKey(key, version)
-            val value = cache.getIfPresent(versionedKey)
+            val value = cache.getVersioned(key, version)
             if (value != null) {
                 newCache.keyVersions[key] = version
                 entryConsumer?.accept(key, value)
@@ -181,24 +167,35 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     private fun unregisterAndCleanUp(client: CacheClient) {
         val leftClients = versionTracker.unregister(client, version)
-        if (leftClients == 0L && version < versionTracker.currentVersion) {
-            keyVersions.forEach { (key, version) ->
-                // Invalidate value in case if current version is not the latest one
-                val latestVersion = latestKeyVersions[key]
-                if (latestVersion == null || version <= latestVersion) {
-                    cache.invalidate(VersionedKey(key, version))
+        if (leftClients > 0) {
+            // There are clients left, thus don't do anything
+            return
+        }
+        keyVersions.forEach { (key, _) ->
+            cache.asMap().compute(key) { _, map ->
+                // Remove only in case current version is not the latest one
+                if (map?.keys?.lastOrNull() != version) {
+                    map?.remove(version)
                 }
+               map.orNullIfEmpty()
             }
         }
     }
 
     private fun Map<K, Long>.forEachCacheEntry(consumer: (K, V) -> Unit) {
         forEach { (key, version) ->
-            val versionedKey = VersionedKey(key, version)
-            val value = cache.getIfPresent(versionedKey)
+            val value = cache.getVersioned(key, version)
             if (value != null) {
                 consumer(key, value)
             }
         }
+    }
+
+    private fun Cache<K, VersionedValueMap<V>>.getVersioned(key: K, version: Version): V? {
+        return this.getIfPresent(key)?.get(version)
+    }
+
+    private fun VersionedValueMap<V>?.orNullIfEmpty(): VersionedValueMap<V>? {
+        return if (isNullOrEmpty()) null else this
     }
 }

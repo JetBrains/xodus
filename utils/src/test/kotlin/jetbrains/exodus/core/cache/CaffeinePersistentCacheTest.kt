@@ -17,7 +17,6 @@ package jetbrains.exodus.core.cache
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Duration
 
@@ -67,28 +66,12 @@ class CaffeinePersistentCacheTest {
         val cache2 = cache1.createNextVersion()
 
         // When
-        cache1.put("key", "value1")
-        cache2.put("key", "value2")
+        cache1.put("key1", "value1")
+        cache2.put("key2", "value2")
 
         // Then
         assertEquals(1, cache2.count())
-        assertEquals("value2", cache2.get("key"))
-    }
-
-    @Test
-    fun `should evict based on weight`() {
-        // Given
-        val cache1 = givenWeightedCache(2, { _, value -> value.length })
-        val cache2 = cache1.createNextVersion()
-
-        // When
-        cache1.put("key", "v1")
-        cache2.put("key", "v2")
-
-        // Then
-        assertEquals(1, cache2.count())
-        // assert either of the values is present in cache as the eviction is not deterministic
-        assertTrue(cache1.get("key") == "v1" || cache2.get("key") == "v2")
+        assertEquals("value2", cache2.get("key2"))
     }
 
     @Test
@@ -98,11 +81,11 @@ class CaffeinePersistentCacheTest {
         val cache2 = cache1.createNextVersion()
 
         // When
-        cache1.put("key", "value1")
-        cache2.put("key", "value2")
+        cache1.put("key1", "value1")
+        cache2.put("key2", "value2")
         Thread.sleep(2)
-        val value1 = cache1.get("key")
-        val value2 = cache2.get("key")
+        val value1 = cache1.get("key1")
+        val value2 = cache2.get("key2")
 
         // Then
         assertEquals(0, cache2.count())
@@ -143,27 +126,16 @@ class CaffeinePersistentCacheTest {
     }
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
-        val config = CaffeineCacheConfig<String, String>(
-            sizeEviction = FixedSizeEviction(size),
-            directExecution = true
-        )
-        return CaffeinePersistentCache.create(config)
-    }
-
-    private fun givenWeightedCache(
-        weight: Long,
-        weigher: (String, String) -> Int
-    ): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig(
-            sizeEviction = WeightSizeEviction(weight, weigher),
+            maxSize = size,
             directExecution = true
         )
         return CaffeinePersistentCache.create(config)
     }
 
     private fun givenTimedCache(expireAfterAccess: Duration): CaffeinePersistentCache<String, String> {
-        val config = CaffeineCacheConfig<String, String>(
-            sizeEviction = FixedSizeEviction(Long.MAX_VALUE),
+        val config = CaffeineCacheConfig(
+            maxSize = Long.MAX_VALUE,
             expireAfterAccess = expireAfterAccess,
             directExecution = true
         )

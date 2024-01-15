@@ -16,9 +16,6 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.core.cache.CaffeineCacheConfig
-import jetbrains.exodus.core.cache.FixedSizeEviction
-import jetbrains.exodus.core.cache.SizeEviction
-import jetbrains.exodus.core.cache.WeightSizeEviction
 import jetbrains.exodus.core.cache.CaffeinePersistentCache
 import jetbrains.exodus.core.cache.PersistentCache
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
@@ -33,22 +30,13 @@ internal open class EntityIterableCacheAdapter(
     companion object {
 
         fun create(config: PersistentEntityStoreConfig): EntityIterableCacheAdapter {
-            val sizeEviction: SizeEviction<EntityIterableHandle, CachedInstanceIterable> =
-                if (config.entityIterableCacheWeight > 0) {
-                    WeightSizeEviction(
-                        maxWeight = config.entityIterableCacheWeight,
-                        weigher = { _, value -> value.size().toInt() }
-                    )
-                } else {
-                    FixedSizeEviction(config.entityIterableCacheSize.toLong())
-                }
             val cacheConfig = CaffeineCacheConfig(
-                sizeEviction = sizeEviction,
+                maxSize = config.entityIterableCacheSize.toLong(),
                 expireAfterAccess = Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong()),
                 useSoftValues = config.entityIterableCacheSoftValues
             )
 
-            val cache = CaffeinePersistentCache.create(cacheConfig)
+            val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig)
 
             return EntityIterableCacheAdapter(config, cache, HashMap())
         }
