@@ -15,22 +15,17 @@
  */
 package jetbrains.vectoriadb.index;
 
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.VectorSpecies;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.rng.sampling.PermutationSampler;
 import org.apache.commons.rng.simple.RandomSource;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.foreign.MemorySegment;
 import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.nio.ByteOrder;
 import java.util.BitSet;
 
 final class KMeansMiniBatchGD {
-    private final VectorSpecies<Float> species;
-
     float[] centroids;
     final int k;
     final VectorReader vectorReader;
@@ -50,24 +45,7 @@ final class KMeansMiniBatchGD {
         this.iterations = iterations;
         this.subVecSize = subVecSize;
 
-        var subVectorBits = subVecSize * Float.SIZE;
-        var preferredSpecies = FloatVector.SPECIES_PREFERRED;
-
         var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-
-        if (preferredSpecies.length() > subVectorBits) {
-            if (subVectorBits >= 512) {
-                species = FloatVector.SPECIES_512;
-            } else if (subVectorBits >= 256) {
-                species = FloatVector.SPECIES_256;
-            } else if (subVectorBits >= 128) {
-                species = FloatVector.SPECIES_128;
-            } else {
-                species = FloatVector.SPECIES_64;
-            }
-        } else {
-            species = preferredSpecies;
-        }
 
         var size = vectorReader.size();
         if (size <= k) {
@@ -226,29 +204,12 @@ final class KMeansMiniBatchGD {
                              int vectorOffset,
                              int vectorSize,
                              float learningRate) {
-        var index = 0;
-        var learningRateVector = FloatVector.broadcast(species, learningRate);
-        var loopBound = species.loopBound(vectorSize);
-        var step = species.length();
-
-        var vectorBytesOffset = (long) vectorOffset * Float.BYTES;
-        var vectorStep = step * Float.BYTES;
-        for (; index < loopBound; index += step, vectorBytesOffset += vectorStep) {
-            var centroidVector = FloatVector.fromArray(species, centroids, centroidOffset + index);
-            var pointVector = FloatVector.fromMemorySegment(species, vector, vectorBytesOffset,
-                    ByteOrder.nativeOrder());
-
-            var diff = pointVector.sub(centroidVector);
-            centroidVector = diff.fma(learningRateVector, centroidVector);
-            centroidVector.intoArray(centroids, centroidOffset + index);
-        }
-
-        var centroidMask = species.indexInRange(index, vectorSize);
-        var centroidVector = FloatVector.fromArray(species, centroids, centroidOffset + index, centroidMask);
-        var pointVector = FloatVector.fromMemorySegment(species, vector, vectorBytesOffset,
-                ByteOrder.nativeOrder(), centroidMask);
-        var diff = pointVector.sub(centroidVector, centroidMask);
-        centroidVector = diff.fma(learningRateVector, centroidVector);
-        centroidVector.intoArray(centroids, centroidOffset + index, centroidMask);
+        VectorOperations.computeGradientStep(
+                centroids, centroidOffset,
+                vector, vectorOffset,
+                centroids, centroidOffset,
+                vectorSize,
+                learningRate
+        );
     }
 }
