@@ -23,7 +23,8 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 
 public final class L2DistanceFunction implements DistanceFunction {
-    public static final L2DistanceFunction INSTANCE = new L2DistanceFunction();
+    //public static final L2DistanceFunction INSTANCE = new L2DistanceFunction();
+    public static final L2DistanceFunctionNew INSTANCE = new L2DistanceFunctionNew();
 
 
     @Override
