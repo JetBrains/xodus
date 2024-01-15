@@ -170,7 +170,7 @@ tasks {
 
     register<JavaExec>("runL2DistanceBench") {
         group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.L2DistanceBench"
+        mainClass = "jetbrains.vectoriadb.index.bench.L2DistanceBench"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server",
@@ -187,7 +187,7 @@ tasks {
         )
 
         javaLauncher.set(rootProject.javaToolchains.launcherFor {
-            languageVersion.set(JavaLanguageVersion.of(20))
+            languageVersion.set(JavaLanguageVersion.of(21))
         })
     }
 
