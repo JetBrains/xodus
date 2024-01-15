@@ -1,6 +1,6 @@
 package jetbrains.vectoriadb.index
 
-import jetbrains.vectoriadb.index.VectorOperations.PRECISION
+import jetbrains.vectoriadb.index.VectorOperations.Companion.PRECISION
 import org.junit.Assert
 import org.junit.Test
 import java.lang.foreign.Arena
@@ -77,11 +77,24 @@ class VectorOperationsTest {
 
     @Test
     fun innerProduct() {
-        val v1 = MemorySegment.ofArray(floatArrayOf(100f, 1f, 2f, 3f, 100f))
-        val v2 = MemorySegment.ofArray(floatArrayOf(100f, 100f, 4f, 5f, 6f, 100f))
+        val v1 = floatArrayOf(100f, 1f, 2f, 3f, 100f)
+        val v2 = floatArrayOf(100f, 100f, 4f, 5f, 6f, 100f)
 
-        val result = VectorOperations.innerProduct(v1, 1, v2, 2, 3)
-        Assert.assertEquals(32f, result, PRECISION)
+        Assert.assertEquals(32f, VectorOperations.innerProduct(v1, 1, v2, 2, 3))
+    }
+
+    @Test
+    fun l2Distance() {
+        val vectorSize = 5
+        val v1 = floatArrayOf(100f, 3f, 5f, 10f, 7f, 6f, 100f)
+        val v2 = floatArrayOf(100f, 100f, 9f, 3f, 4f, 8f, 2f, 100f)
+
+        var expectedResult = 0f
+        repeat(vectorSize) { i ->
+            expectedResult += (v1[1 + i] - v2[2 + i]) * (v1[1 + i] - v2[2 + i])
+        }
+
+        Assert.assertEquals(expectedResult, VectorOperations.l2Distance(v1, 1, v2, 2, vectorSize))
     }
 
     @Test
@@ -107,10 +120,31 @@ class VectorOperationsTest {
         VectorOperations.normalizeL2(v1Segment, VectorOperations.calculateL2Norm(v1Array), resultSegment, v1Array.size)
 
         Assert.assertEquals(1f, VectorOperations.calculateL2Norm(resultArray), PRECISION)
-        Assert.assertEquals(VectorOperations.calculateL2Norm(resultSegment, v1Array.size), VectorOperations.calculateL2Norm(resultArray), PRECISION)
+        Assert.assertEquals(1f, VectorOperations.calculateL2Norm(resultSegment, v1Array.size), PRECISION)
 
         Assert.assertNotEquals(1f, VectorOperations.calculateL2Norm(v1Array), PRECISION)
+        Assert.assertNotEquals(1f, VectorOperations.calculateL2Norm(v1Segment, v1Array.size), PRECISION)
+
         Assert.assertEquals(VectorOperations.calculateL2Norm(v1Segment, v1Array.size), VectorOperations.calculateL2Norm(v1Array), PRECISION)
+    }
+
+    @Test
+    fun computeGradientStep() {
+        val size = 5
+        val current = floatArrayOf(100f, 21f, 22f, 23f, 24f, 25f, 100f)
+        val target = MemorySegment.ofArray(floatArrayOf(100f, 100f, 11f, 12f, 13f, 14f, 15f, 100f))
+        val learningRate = 0.1f
+
+        val expectedResult = floatArrayOf(100f, 20f, 21f, 22f, 23f, 24f, 100f)
+
+        VectorOperations.computeGradientStep(
+            currentV = current, currentVIdx = 1,
+            targetV = target, targetVIdx = 2,
+            result = current, resultIdx = 1,
+            size, learningRate
+        )
+
+        Assert.assertArrayEquals(expectedResult, current, 1e-5f)
     }
 
     private fun MemorySegment.check(value: Float, fromIdx: Int, count: Int) {
