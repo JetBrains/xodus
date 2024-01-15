@@ -17,7 +17,7 @@ public class ClusterInitializerTest {
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
             var codebookCount = CodebookInitializer.getCodebookCount(dataset.getDimensions(), 32);
-            pqQuantizer.generatePQCodes(new FloatArrayToByteArrayVectorReader(vectors), codebookCount, progressTracker);
+            pqQuantizer.generatePQCodes(new FloatArrayVectorReader(vectors), codebookCount, progressTracker);
 
             var count = 0;
             var meanPpRandomDiff = 0f;

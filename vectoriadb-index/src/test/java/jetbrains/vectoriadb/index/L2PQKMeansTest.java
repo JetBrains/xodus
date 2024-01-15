@@ -110,7 +110,7 @@ public class L2PQKMeansTest {
 
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            var vectorReader = new FloatArrayToByteArrayVectorReader(vectors);
+            var vectorReader = new FloatArrayVectorReader(vectors);
             var codebookCount = getCodebookCount(dataset.getDimensions(), 32);
             pqQuantizer.generatePQCodes(vectorReader, codebookCount, new NoOpProgressTracker());
 

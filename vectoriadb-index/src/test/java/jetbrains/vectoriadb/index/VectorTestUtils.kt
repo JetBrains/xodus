@@ -73,7 +73,7 @@ private fun FloatVectorSegment.fillRandom() {
     }
 }
 
-internal class FloatArrayToByteArrayVectorReader: VectorReader {
+internal class FloatArrayVectorReader: VectorReader {
 
     private val vectors: Array<FloatArray>
     private val size: Int
@@ -97,16 +97,7 @@ internal class FloatArrayToByteArrayVectorReader: VectorReader {
     }
 
     override fun read(index: Int): MemorySegment {
-        val vectorSegment = MemorySegment.ofArray(
-            ByteArray(vectors[index].size * java.lang.Float.BYTES)
-        )
-
-        MemorySegment.copy(
-            MemorySegment.ofArray(vectors[index]), 0,
-            vectorSegment, 0, vectors[index].size.toLong() * java.lang.Float.BYTES
-        )
-
-        return vectorSegment
+        return MemorySegment.ofArray(vectors[index])
     }
 
     override fun read(vectorIdx: Int, dimension: Int): Float {

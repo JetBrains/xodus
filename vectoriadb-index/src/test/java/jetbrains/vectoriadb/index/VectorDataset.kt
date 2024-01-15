@@ -9,7 +9,7 @@ abstract class VectorDataset {
         override fun build(): VectorDatasetContext {
             val dataset = VectorDatasetInfo.Sift10K
             val vectors = dataset.readBaseVectors()
-            val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
+            val vectorReader = FloatArrayVectorReader(vectors)
             return VectorDatasetContext(
                 vectors,
                 vectorReader,
@@ -24,7 +24,7 @@ abstract class VectorDataset {
         override fun build(): VectorDatasetContext {
             val dataset = VectorDatasetInfo.Sift1M
             val vectors = dataset.readBaseVectors()
-            val vectorReader = FloatArrayToByteArrayVectorReader(vectors)
+            val vectorReader = FloatArrayVectorReader(vectors)
             return VectorDatasetContext(
                 vectors,
                 vectorReader,
