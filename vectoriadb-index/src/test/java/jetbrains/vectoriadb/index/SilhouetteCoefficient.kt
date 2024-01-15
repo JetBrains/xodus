@@ -9,6 +9,7 @@ import kotlin.math.max
  * - O(vectors.count) if you have already clusterized the vectors
  * - O(vectors.count * centroids.count) if you have not clusterized the vectors
  * */
+@Suppress("unused") // it will be used in VectorDatasetContext.silhouetteCoefficient(...)
 class SilhouetteCoefficientMedoid(
     val centroids: Array<FloatArray>,
     val vectors: Array<FloatArray>,
@@ -146,13 +147,17 @@ fun VectorDatasetContext.silhouetteCoefficient(distanceFun: DistanceFunction, ce
      * better for big datasets.
      */
     val coef = when (distanceFun) {
-        is L2DistanceFunction -> distanceFun.l2SilhouetteCoefficient(centroids, vectors)
-        is DotDistanceFunction -> distanceFun.ipSilhouetteCoefficient(centroids, vectors, maxInnerProduct)
+        is L2DistanceFunction,
+        is L2DistanceFunctionNew -> distanceFun.l2SilhouetteCoefficient(centroids, vectors)
+        is DotDistanceFunction,
+        is DotDistanceFunctionNew -> distanceFun.ipSilhouetteCoefficient(centroids, vectors, maxInnerProduct)
         else -> throw NotImplementedError()
     }
     return coef.calculate()
 }
 
+// it should be used in VectorDatasetContext.silhouetteCoefficient(...)
+@Suppress("unused")
 fun l2SilhouetteCoefficientMedoid(centroids: Array<FloatArray>, vectors: Array<FloatArray>): SilhouetteCoefficientMedoid {
     val distanceFun = L2DistanceFunction.INSTANCE
     return SilhouetteCoefficientMedoid(centroids, vectors) { v1, v2 ->
@@ -161,13 +166,13 @@ fun l2SilhouetteCoefficientMedoid(centroids: Array<FloatArray>, vectors: Array<F
 }
 
 
-fun L2DistanceFunction.l2SilhouetteCoefficient(centroids: Array<FloatArray>, vectors: Array<FloatArray>): SilhouetteCoefficient {
+fun DistanceFunction.l2SilhouetteCoefficient(centroids: Array<FloatArray>, vectors: Array<FloatArray>): SilhouetteCoefficient {
     return SilhouetteCoefficient(centroids, vectors) { v1, v2 ->
         computeDistance(v1, 0, v2, 0, v1.size)
     }
 }
 
-private fun DotDistanceFunction.ipSilhouetteCoefficient(centroids: Array<FloatArray>, vectors: Array<FloatArray>, maxInnerProduct: Float): SilhouetteCoefficient {
+private fun DistanceFunction.ipSilhouetteCoefficient(centroids: Array<FloatArray>, vectors: Array<FloatArray>, maxInnerProduct: Float): SilhouetteCoefficient {
     /*
     * DotDistanceFunction returns the -1 * (inner product). It is convenient when we compare distances -
     * the smaller the distance, more similar the vectors.

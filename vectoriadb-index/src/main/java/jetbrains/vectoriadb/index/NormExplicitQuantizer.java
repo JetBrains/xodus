@@ -34,6 +34,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     private final Arena arena;
 
     private final int numWorkers;
+    @SuppressWarnings("FieldCanBeLocal")
     private final int kMeansMaxIteration = 50;
 
     // used for the inner product calculation, needed at the search time
