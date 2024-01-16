@@ -41,7 +41,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     private val config = store.config
 
     private var deferredIterablesCache: BasicCache<Any, Long> =
-        CaffeineCache.create(config.entityIterableCacheSize)
+        CaffeineCache.create(config.entityIterableDeferredCacheSize)
 
     private var iterableCountsCache: BasicCache<Any, Pair<Long, Long>> =
         CaffeineCache.create(config.entityIterableCacheCountsCacheSize)

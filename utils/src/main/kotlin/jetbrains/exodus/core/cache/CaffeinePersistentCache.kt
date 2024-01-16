@@ -36,7 +36,7 @@ class CaffeinePersistentCache<K, V> private constructor(
     private val versionTracker: VersionTracker,
 ) : PersistentCache<K, V> {
 
-    // Thread safe container for cached versioned values
+    // Thread-safe container for cached versioned values
     private class VersionedValues<V>(private val weigher: ValueWeigher<V>) {
         // Version -> Value map
         private val map = ConcurrentHashMap<Version, V>()
@@ -117,10 +117,17 @@ class CaffeinePersistentCache<K, V> private constructor(
 
         fun <K, V> create(config: CaffeineCacheConfig<V>): CaffeinePersistentCache<K, V> {
             val cache = Caffeine.newBuilder()
-                .withConfig(config)
-                .run {
-                    maximumWeight(config.maxWeight)
-                    weigher { _: K, values: VersionedValues<V> -> values.totalWeight }
+                .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
+                .apply { if (config.useSoftValues) softValues() }
+                .apply { if (config.directExecution) executor(Runnable::run) }
+                .apply {
+                    if (config.sizeEviction is SizedEviction) {
+                        maximumSize(config.sizeEviction.maxSize)
+                    } else {
+                        val eviction = config.sizeEviction as WeightedEviction
+                        maximumWeight(eviction.maxWeight)
+                        weigher { _: K, values: VersionedValues<V> -> values.totalWeight }
+                    }
                 }
                 .build<K, VersionedValues<V>>()
             val version = 0L
@@ -135,7 +142,7 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     // Generic cache impl
     override fun size(): Long {
-        return config.maxWeight
+        return cache.policy().eviction().orElseThrow().maximum
     }
 
     override fun count(): Long {
@@ -151,7 +158,7 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     override fun put(key: K, value: V) {
         cache.asMap().compute(key) { _, map ->
-            val values = map ?: VersionedValues(config.weigher)
+            val values = map ?: VersionedValues((config.sizeEviction as? WeightedEviction<V>)?.weigher ?: { 1 })
             values.put(version, value)
             values.removeUnusedVersions(version)
             values

@@ -18,36 +18,24 @@ package jetbrains.exodus.core.cache
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import java.util.function.BiConsumer
+import kotlin.jvm.optionals.getOrNull
 
 class CaffeineCache<K, V>(
-    private val config: CaffeineCacheConfig<V>,
     private val cache: Cache<K, V>
 ) : BasicCache<K, V> {
 
     companion object {
 
         fun <K, V> create(size: Int): CaffeineCache<K, V> {
-            val config = CaffeineCacheConfig<V>(
-                maxWeight = size.toLong(),
-                weigher = { 1 }
-            )
-            return create(config)
-        }
-
-        fun <K, V> create(config: CaffeineCacheConfig<V>): CaffeineCache<K, V> {
             val cache = Caffeine.newBuilder()
-                .withConfig(config)
-                .run {
-                    maximumWeight(config.maxWeight)
-                    weigher { _: K, value: V -> config.weigher(value) }
-                }
+                .maximumSize(size.toLong())
                 .build<K, V>()
-            return CaffeineCache(config, cache)
+            return CaffeineCache(cache)
         }
     }
 
     override fun size(): Long {
-        return config.maxWeight
+        return cache.policy().eviction().orElseThrow().maximum
     }
 
     override fun count(): Long {

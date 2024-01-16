@@ -15,18 +15,13 @@
  */
 package jetbrains.exodus.core.cache
 
-import com.github.benmanes.caffeine.cache.Caffeine
 import java.time.Duration
 
-
 data class CaffeineCacheConfig<V>(
-    val maxWeight: Long,
+    val sizeEviction: SizeEviction<V>,
+    val maxWeight: Long? = null,
     val expireAfterAccess: Duration? = null,
     val useSoftValues: Boolean = true,
-    /**
-     * Weigher is used to determine the size of the value.
-     */
-    val weigher: ValueWeigher<V>,
     /**
      * Used for testing purposes only.
      *
@@ -37,9 +32,6 @@ data class CaffeineCacheConfig<V>(
     val directExecution: Boolean = false
 )
 
-internal fun <V> Caffeine<Any, Any>.withConfig(config: CaffeineCacheConfig<V>): Caffeine<Any, Any> {
-    return this
-        .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
-        .apply { if (config.useSoftValues) softValues() }
-        .apply { if (config.directExecution) executor(Runnable::run) }
-}
+sealed interface SizeEviction<V>
+class SizedEviction<V>(val maxSize: Long) : SizeEviction<V>
+class WeightedEviction<V>(val maxWeight: Long, val weigher: ValueWeigher<V>) : SizeEviction<V>
