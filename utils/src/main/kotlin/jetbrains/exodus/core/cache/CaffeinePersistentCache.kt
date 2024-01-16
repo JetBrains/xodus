@@ -51,7 +51,7 @@ class CaffeinePersistentCache<K, V> private constructor(
         fun put(version: Version, value: V) {
             map.compute(version) { _, prevValue ->
                 val toSubtract = prevValue?.let(weigher) ?: 0
-                totalWeightRef.updateAndGet { it + weigher(value) - toSubtract }
+                totalWeightRef.updateAndGet { (it + weigher(value) - toSubtract).coerceAtLeast(0) }
                 value
             }
         }
