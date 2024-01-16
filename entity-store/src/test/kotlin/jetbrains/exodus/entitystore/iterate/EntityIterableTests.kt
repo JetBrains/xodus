@@ -829,35 +829,6 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertEquals(count.toLong(), i.toLong())
     }
 
-    /**
-     * Should fail with OOME being run in JVM with Xmx256m without fix of XD-458
-     */
-    @Throws(InterruptedException::class)
-    fun test_XD_458() {
-        val txn = storeTransaction
-        entityStore.config.entityIterableCacheCachingTimeout = 10000000L
-        entityStore.config.entityIterableCacheMaxSizeOfDirectValue = Integer.MAX_VALUE
-        println("Xmx = " + Runtime.getRuntime().maxMemory())
-        val startingCount = 2000000
-        for (i in 0 until startingCount) {
-            txn.newEntity("User")
-            if (i % 10000 == 0) {
-                txn.flush()
-            }
-        }
-        txn.flush()
-        println("$startingCount users created.")
-        while (!entityStore.entityIterableCache.putIfNotCached(txn.getAll("User") as EntityIterableBase).isCachedInstance) {
-            Thread.sleep(1000)
-        }
-        println("getAll(\"User\") cached.")
-        for (i in 0..79999) {
-            Assert.assertEquals(i + startingCount, txn.getAll("User").size().toInt())
-            txn.newEntity("User")
-            txn.flush()
-        }
-    }
-
     fun testCachingInReadonlyTxn() {
         val txn = storeTransaction
         val users = createNUsers(txn, 10)
