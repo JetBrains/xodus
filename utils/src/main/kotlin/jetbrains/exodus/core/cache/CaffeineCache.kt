@@ -28,7 +28,7 @@ class CaffeineCache<K, V>(
 
         fun <K, V> create(size: Int): CaffeineCache<K, V> {
             val config = CaffeineCacheConfig<V>(
-                maxSize = size.toLong(),
+                maxWeight = size.toLong(),
                 weigher = { 1 }
             )
             return create(config)
@@ -38,7 +38,7 @@ class CaffeineCache<K, V>(
             val cache = Caffeine.newBuilder()
                 .withConfig(config)
                 .run {
-                    maximumWeight(config.maxSize)
+                    maximumWeight(config.maxWeight)
                     weigher { _: K, value: V -> config.weigher(value) }
                 }
                 .build<K, V>()
@@ -47,7 +47,7 @@ class CaffeineCache<K, V>(
     }
 
     override fun size(): Long {
-        return config.maxSize
+        return config.maxWeight
     }
 
     override fun count(): Long {

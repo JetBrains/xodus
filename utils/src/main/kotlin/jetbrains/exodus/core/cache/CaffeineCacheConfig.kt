@@ -20,7 +20,7 @@ import java.time.Duration
 
 
 data class CaffeineCacheConfig<V>(
-    val maxSize: Long,
+    val maxWeight: Long,
     val expireAfterAccess: Duration? = null,
     val useSoftValues: Boolean = true,
     /**

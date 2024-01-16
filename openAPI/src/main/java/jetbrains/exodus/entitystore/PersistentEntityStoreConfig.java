@@ -236,11 +236,16 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_SIZE = "exodus.entityStore.entityIterableCache.size";
 
     /**
-     * Specifies the coefficient that is used to multiple cache size to define the max weight of the cache.
-     * Weight of a single entry stored in cache is calculated as the size of each entity iterable.
+     * Specifies the percentage (from 0 to 100) of heap memory used for cache.
      * <p>Mutable at runtime: no
      */
-    public static final String ENTITY_ITERABLE_CACHE_WEIGHT_COEFFICIENT = "exodus.entityStore.entityIterableCache.weightCoefficient";
+    public static final String ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE = "exodus.entityStore.entityIterableCache.memoryPercentage";
+
+    /**
+     * Specifies the size of a single entity key stored in cached in bytes.
+     * <p>Mutable at runtime: no
+     */
+    public static final String ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT = "exodus.entityStore.entityIterableCache.weightCoefficient";
 
     /**
      * Defines the size of the counts cache of EntityIterableCache. EntityIterableCache is operable only if
@@ -444,7 +449,8 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
                 new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, defaultEntityIterableCacheSize()),
-                new Pair(ENTITY_ITERABLE_CACHE_WEIGHT_COEFFICIENT, 4),
+                new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 10),
+                new Pair(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT, 10), // 10 bytes per entity key
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
                 new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
@@ -673,11 +679,19 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public int getEntityIterableCacheSize() {
-        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_SIZE);
+        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_SIZE) * (Integer) getSetting(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT);
     }
 
-    public int getEntityIterableCacheWeightCoefficient() {
-        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_WEIGHT_COEFFICIENT);
+    public int getEntityIterableCacheMemoryPercentage() {
+        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE);
+    }
+
+    public int getEntityIterableCacheEntityWeight() {
+        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT);
+    }
+
+    public long getEntityIterableCacheWeight() {
+        return (Runtime.getRuntime().maxMemory() * getEntityIterableCacheMemoryPercentage() / 100) / getEntityIterableCacheEntityWeight();
     }
 
     public PersistentEntityStoreConfig setEntityIterableCacheSize(final int size) {

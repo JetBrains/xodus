@@ -172,7 +172,7 @@ class CaffeinePersistentCacheTest {
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String>(
-            maxSize = size,
+            maxWeight = size,
             weigher = { 1 },
             directExecution = true
         )
@@ -181,7 +181,7 @@ class CaffeinePersistentCacheTest {
 
     private fun givenTimedCache(expireAfterAccess: Duration): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String>(
-            maxSize = Long.MAX_VALUE,
+            maxWeight = Long.MAX_VALUE,
             expireAfterAccess = expireAfterAccess,
             weigher = { 1 },
             directExecution = true

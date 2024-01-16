@@ -119,7 +119,7 @@ class CaffeinePersistentCache<K, V> private constructor(
             val cache = Caffeine.newBuilder()
                 .withConfig(config)
                 .run {
-                    maximumWeight(config.maxSize)
+                    maximumWeight(config.maxWeight)
                     weigher { _: K, values: VersionedValues<V> -> values.totalWeight }
                 }
                 .build<K, VersionedValues<V>>()
@@ -135,7 +135,7 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     // Generic cache impl
     override fun size(): Long {
-        return config.maxSize
+        return config.maxWeight
     }
 
     override fun count(): Long {

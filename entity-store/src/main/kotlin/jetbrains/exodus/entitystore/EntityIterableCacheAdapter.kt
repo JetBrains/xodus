@@ -31,7 +31,7 @@ internal open class EntityIterableCacheAdapter(
 
         fun create(config: PersistentEntityStoreConfig): EntityIterableCacheAdapter {
             val cacheConfig = CaffeineCacheConfig<CachedInstanceIterable>(
-                maxSize = (config.entityIterableCacheSize * config.entityIterableCacheWeightCoefficient).toLong(),
+                maxWeight = config.entityIterableCacheWeight,
                 expireAfterAccess = Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong()),
                 useSoftValues = config.entityIterableCacheSoftValues,
                 weigher = { it.roughSize.toInt() }
