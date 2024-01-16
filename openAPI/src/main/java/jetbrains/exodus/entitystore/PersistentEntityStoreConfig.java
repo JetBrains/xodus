@@ -238,6 +238,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     /**
      * Specifies the coefficient that is used to multiple cache size to define the max weight of the cache.
      * Weight of a single entry stored in cache is calculated as the size of each entity iterable.
+     * <p>Mutable at runtime: no
      */
     public static final String ENTITY_ITERABLE_CACHE_WEIGHT_COEFFICIENT = "exodus.entityStore.entityIterableCache.weightCoefficient";
 
@@ -315,6 +316,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * once a fixed duration has elapsed after the entry's creation,
      * the most recent replacement of its value, or its last access.
      * Default values is 5 minutes (300 seconds).
+     * <p>Mutable at runtime: no
      */
     public static final String ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS = "exodus.entityStore.entityIterableCache.expireAfterAccessSeconds";
 
@@ -452,7 +454,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
                 new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
                 new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, 300),
-                new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, true),
+                new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, false),
                 new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, 60000L),
