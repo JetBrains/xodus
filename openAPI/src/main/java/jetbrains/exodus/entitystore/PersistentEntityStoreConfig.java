@@ -318,7 +318,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * Default value is {@code 512}.
      * <p>Mutable at runtime: yes
      *
-     * @Deprectated this value is not used anymore in favor of global usage of soft references, see {@linkplain #ENTITY_ITERABLE_CACHE_SOFT_VALUES}.
+     * @deprecated this value is not used anymore in favor of global usage of soft references, see {@linkplain #ENTITY_ITERABLE_CACHE_SOFT_VALUES}.
      */
     @Deprecated
     public static final String ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE = "exodus.entityStore.entityIterableCache.maxSizeOfDirectValue";
@@ -468,7 +468,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
                 new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
                 new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, 300),
-                new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, false),
+                new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, true),
                 new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, 60000L),
