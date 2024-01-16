@@ -23,20 +23,61 @@ import java.time.Duration
 class CaffeinePersistentCacheTest {
 
     @Test
+    fun `should put and then get with the same key`() {
+        // Given
+        val cache = givenSizedCache(2)
+
+        // When
+        cache.put("key", "value1")
+        cache.put("key", "value2")
+
+        // Then
+        assertEquals("value2", cache.get("key"))
+    }
+
+    @Test
+    fun `should put and then get with different keys`() {
+        // Given
+        val cache = givenSizedCache(2)
+
+        // When
+        cache.put("key1", "value1")
+        cache.put("key2", "value2")
+
+        // Then
+        assertEquals("value1", cache.get("key1"))
+        assertEquals("value2", cache.get("key2"))
+    }
+
+    @Test
+    fun `should evict`() {
+        // Given
+        val cache = givenSizedCache(1)
+
+        // When
+        cache.put("key1", "value1")
+        cache.put("key2", "value2")
+
+        // Then
+        assertEquals(null, cache.get("key1"))
+        assertEquals("value2", cache.get("key2"))
+    }
+
+    @Test
     fun `should be versioned when put`() {
         // Given
-        val cache1 = givenSizedCache(10)
+        val cache1 = givenSizedCache(2)
+        // Register client to prevent cache from being removed for it's version
+        cache1.register()
         val cache2 = cache1.createNextVersion()
 
         // When
         cache1.put("key", "value1")
         cache2.put("key", "value2")
-        val value1 = cache1.get("key")
-        val value2 = cache2.get("key")
 
         // Then
-        assertEquals("value1", value1)
-        assertEquals("value2", value2)
+        assertEquals("value1", cache1.get("key"))
+        assertEquals("value2", cache2.get("key"))
     }
 
     @Test
@@ -60,7 +101,7 @@ class CaffeinePersistentCacheTest {
     }
 
     @Test
-    fun `should evict based on size`() {
+    fun `should evict versioned based on size`() {
         // Given
         val cache1 = givenSizedCache(1)
         val cache2 = cache1.createNextVersion()
@@ -95,18 +136,22 @@ class CaffeinePersistentCacheTest {
 
 
     @Test
-    fun `should evict when client unregisters`() {
+    fun `should remove old version when client unregisters`() {
         // Given
-        val cache1 = givenSizedCache(1)
+        val cache1 = givenSizedCache(2)
         val cache2 = cache1.createNextVersion()
 
         // When
         val registration = cache1.register()
-        cache1.put("key", "value")
+        cache1.put("key", "value1")
+        cache2.put("key", "value2")
         registration.unregister()
+        // Trigger removal of unused values
+        cache2.get("key")
 
         // Then
-        assertEquals(0, cache2.count())
+        assertEquals(null, cache1.get("key"))
+        assertEquals("value2", cache2.get("key"))
     }
 
     @Test
@@ -122,21 +167,23 @@ class CaffeinePersistentCacheTest {
 
         // Then
         assertEquals(100, cache2.count())
-        repeat(n) {  assertEquals("$it", cache2.get("$it")) }
+        repeat(n) { assertEquals("$it", cache2.get("$it")) }
     }
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
-        val config = CaffeineCacheConfig(
+        val config = CaffeineCacheConfig<String>(
             maxSize = size,
+            weigher = { 1 },
             directExecution = true
         )
         return CaffeinePersistentCache.create(config)
     }
 
     private fun givenTimedCache(expireAfterAccess: Duration): CaffeinePersistentCache<String, String> {
-        val config = CaffeineCacheConfig(
+        val config = CaffeineCacheConfig<String>(
             maxSize = Long.MAX_VALUE,
             expireAfterAccess = expireAfterAccess,
+            weigher = { 1 },
             directExecution = true
         )
         return CaffeinePersistentCache.create(config)

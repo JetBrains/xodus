@@ -20,23 +20,27 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import java.util.function.BiConsumer
 
 class CaffeineCache<K, V>(
-    private val config: CaffeineCacheConfig,
+    private val config: CaffeineCacheConfig<V>,
     private val cache: Cache<K, V>
 ) : BasicCache<K, V> {
 
     companion object {
 
         fun <K, V> create(size: Int): CaffeineCache<K, V> {
-            val config = CaffeineCacheConfig(
-                maxSize = size.toLong()
+            val config = CaffeineCacheConfig<V>(
+                maxSize = size.toLong(),
+                weigher = { 1 }
             )
             return create(config)
         }
 
-        fun <K, V> create(config: CaffeineCacheConfig): CaffeineCache<K, V> {
+        fun <K, V> create(config: CaffeineCacheConfig<V>): CaffeineCache<K, V> {
             val cache = Caffeine.newBuilder()
                 .withConfig(config)
-                .apply { maximumSize(config.maxSize) }
+                .run {
+                    maximumWeight(config.maxSize)
+                    weigher { _: K, value: V -> config.weigher(value) }
+                }
                 .build<K, V>()
             return CaffeineCache(config, cache)
         }

@@ -36,7 +36,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
         init {
             // Use for local experiments to change cache params
-            // System.setProperty("exodus.entityStore.entityIterableCache.size", "8192")
+            //System.setProperty("exodus.entityStore.entityIterableCache.size", "8096")
         }
     }
 

@@ -30,12 +30,12 @@ internal open class EntityIterableCacheAdapter(
     companion object {
 
         fun create(config: PersistentEntityStoreConfig): EntityIterableCacheAdapter {
-            val cacheConfig = CaffeineCacheConfig(
-                maxSize = config.entityIterableCacheSize.toLong(),
+            val cacheConfig = CaffeineCacheConfig<CachedInstanceIterable>(
+                maxSize = (config.entityIterableCacheSize * config.entityIterableCacheWeightCoefficient).toLong(),
                 expireAfterAccess = Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong()),
-                useSoftValues = config.entityIterableCacheSoftValues
+                useSoftValues = config.entityIterableCacheSoftValues,
+                weigher = { it.roughSize.toInt() }
             )
-
             val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig)
 
             return EntityIterableCacheAdapter(config, cache, HashMap())

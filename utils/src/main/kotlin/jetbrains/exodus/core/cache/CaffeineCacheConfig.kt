@@ -19,10 +19,14 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import java.time.Duration
 
 
-data class CaffeineCacheConfig(
+data class CaffeineCacheConfig<V>(
     val maxSize: Long,
     val expireAfterAccess: Duration? = null,
     val useSoftValues: Boolean = true,
+    /**
+     * Weigher is used to determine the size of the value.
+     */
+    val weigher: ValueWeigher<V>,
     /**
      * Used for testing purposes only.
      *
@@ -33,7 +37,7 @@ data class CaffeineCacheConfig(
     val directExecution: Boolean = false
 )
 
-internal fun Caffeine<Any, Any>.withConfig(config: CaffeineCacheConfig): Caffeine<Any, Any> {
+internal fun <V> Caffeine<Any, Any>.withConfig(config: CaffeineCacheConfig<V>): Caffeine<Any, Any> {
     return this
         .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
         .apply { if (config.useSoftValues) softValues() }
