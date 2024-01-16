@@ -49,17 +49,16 @@ class CaffeinePersistentCache<K, V> private constructor(
         val keys get() = map.keys
 
         fun put(version: Version, value: V) {
-            map.compute(version) { _, _ ->
-                totalWeightRef.updateAndGet { it + weigher(value) }
+            map.compute(version) { _, prevValue ->
+                val toSubtract = prevValue?.let(weigher) ?: 0
+                totalWeightRef.updateAndGet { it + weigher(value) - toSubtract }
                 value
             }
         }
 
         fun remove(version: Version) {
-            map.compute(version) { _, value ->
-                if (value != null) {
-                    totalWeightRef.updateAndGet { (it - weigher(value)).coerceAtLeast(0) }
-                }
+            map.computeIfPresent(version) { _, value ->
+                totalWeightRef.updateAndGet { (it - weigher(value)).coerceAtLeast(0) }
                 null
             }
         }
@@ -73,6 +72,7 @@ class CaffeinePersistentCache<K, V> private constructor(
         }
     }
 
+    // Thread-safe class for tracking current version and clients registered for different versions
     private class VersionTracker(initialVersion: Long = 0) {
 
         data class ClientVersion(val client: CacheClient, val version: Long)
