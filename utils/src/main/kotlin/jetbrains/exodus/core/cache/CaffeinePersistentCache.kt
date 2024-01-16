@@ -160,13 +160,12 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun remove(key: K) {
-        cache.asMap().compute(key) { _, values ->
-            values?.remove(version)
-            values?.orNullIfEmpty()
+        cache.asMap().computeIfPresent(key) { _, values ->
+            values.remove(version)
+            values.orNullIfEmpty()
         }
         keyVersions.remove(key)
     }
-
 
     override fun clear() {
         cache.invalidateAll()
