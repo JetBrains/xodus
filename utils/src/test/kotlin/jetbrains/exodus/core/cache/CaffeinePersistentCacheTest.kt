@@ -50,6 +50,22 @@ class CaffeinePersistentCacheTest {
     }
 
     @Test
+    fun `should remove entry`() {
+        // Given
+        val cache = givenSizedCache(2)
+        cache.put("key1", "value1")
+        cache.put("key2", "value2")
+
+        // When
+        cache.remove("key1")
+
+        // Then
+        assertEquals(null, cache.get("key1"))
+        assertEquals("value2", cache.get("key2"))
+        assertEquals(1, cache.count())
+    }
+
+    @Test
     fun `should evict`() {
         // Given
         val cache = givenSizedCache(1)
@@ -172,7 +188,7 @@ class CaffeinePersistentCacheTest {
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String>(
-            sizeEviction = SizedEviction(size),
+            sizeEviction = WeightedEviction(size) { 1 },
             directExecution = true
         )
         return CaffeinePersistentCache.create(config)
