@@ -40,5 +40,4 @@ jobs:
     - name: Build with Gradle
       uses: gradle/gradle-build-action@v2
       with:
-        add-job-summary: 'on-failure'
         arguments: build
