@@ -232,7 +232,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      *
      * @see #CACHING_DISABLED
-     * @deprecated use {@linkplain #ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE} instead.
+     * @deprecated use weighted case in conjunction with {@linkplain #ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE} instead.
      */
     public static final String ENTITY_ITERABLE_CACHE_SIZE = "exodus.entityStore.entityIterableCache.size";
 
@@ -243,14 +243,20 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_DEFERRED_CACHE_SIZE = "exodus.entityStore.entityIterableCache.deferred.size";
 
     /**
-     * Specifies the percentage (from 0 to 100) of heap memory used for cache.
+     * Specifies the percentage (from 0 to 100) of heap memory used for entity iterable cache.
+     * This value is used to calculate max cache weight.
+     * The final formula for maxCacheWeight is: maxMemory * memoryPercentage / 100 / entityWeight.
      * <p>Mutable at runtime: no
+     *
+     * @see #ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT
      */
     public static final String ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE = "exodus.entityStore.entityIterableCache.memoryPercentage";
 
     /**
      * Specifies the size of a single entity key stored in cached in bytes.
      * <p>Mutable at runtime: no
+     *
+     * @see #ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE
      */
     public static final String ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT = "exodus.entityStore.entityIterableCache.weightCoefficient";
 
@@ -703,7 +709,10 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public long getEntityIterableCacheWeight() {
-        return (Runtime.getRuntime().maxMemory() * getEntityIterableCacheMemoryPercentage() / 100) / getEntityIterableCacheEntityWeight();
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        long percentage = getEntityIterableCacheMemoryPercentage();
+        long entityWeight = getEntityIterableCacheEntityWeight();
+        return (maxMemory * percentage) / (100 * entityWeight);
     }
 
     public PersistentEntityStoreConfig setEntityIterableCacheSize(final int size) {
