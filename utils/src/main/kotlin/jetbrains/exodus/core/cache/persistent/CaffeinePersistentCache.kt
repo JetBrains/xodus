@@ -13,105 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.cache
+package jetbrains.exodus.core.cache.persistent
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
 import java.util.function.BiConsumer
 
+
 typealias Version = Long
-typealias ValueWeigher<V> = (V) -> Int
 
 /**
  * This cache implementation is based on Caffeine cache. It versions each value stored.
- * Put or remove values for the current version doesn't affect other versions.
+ * Put or remove values for the current version doesn't affect other existing versions.
  */
 class CaffeinePersistentCache<K, V> private constructor(
-    private val cache: Cache<K, VersionedValues<V>>,
+    private val cache: Cache<K, WeightedValueMap<Version, V>>,
     private val config: CaffeineCacheConfig<V>,
     override val version: Long,
     private val versionTracker: VersionTracker,
 ) : PersistentCache<K, V> {
-
-    // Thread-safe container for cached versioned values
-    private class VersionedValues<V>(private val weigher: ValueWeigher<V>) {
-        // Version -> Value map
-        private val map = ConcurrentHashMap<Version, V>()
-
-        // Total weight of all values collectively
-        private val totalWeightRef = AtomicInteger()
-
-        val totalWeight get() = totalWeightRef.get()
-        val size get() = map.size
-        val keys get() = map.keys
-
-        fun put(version: Version, value: V) {
-            map.compute(version) { _, prevValue ->
-                val toSubtract = prevValue?.let(weigher) ?: 0
-                totalWeightRef.updateAndGet { (it + weigher(value) - toSubtract).coerceAtLeast(0) }
-                value
-            }
-        }
-
-        fun remove(version: Version) {
-            map.computeIfPresent(version) { _, value ->
-                totalWeightRef.updateAndGet { (it - weigher(value)).coerceAtLeast(0) }
-                null
-            }
-        }
-
-        fun get(version: Version): V? {
-            return map[version]
-        }
-
-        fun orNullIfEmpty(): VersionedValues<V>? {
-            return if (map.isEmpty()) null else this
-        }
-    }
-
-    // Thread-safe class for tracking current version and clients registered for different versions
-    private class VersionTracker(initialVersion: Long = 0) {
-
-        data class ClientVersion(val client: CacheClient, val version: Long)
-
-        private val registeredClients = ConcurrentHashMap.newKeySet<ClientVersion>()
-        private val versionClientCount = ConcurrentHashMap<Long, Long>()
-        private val versionRef = AtomicLong(initialVersion)
-
-        fun next(): Long {
-            return versionRef.incrementAndGet()
-        }
-
-        fun register(client: CacheClient, version: Long) {
-            val wasAdded = registeredClients.add(ClientVersion(client, version))
-            if (wasAdded) {
-                versionClientCount.compute(version) { _, count -> if (count == null) 1 else count + 1 }
-            }
-        }
-
-        fun unregister(client: CacheClient, version: Long): Long {
-            val wasRemoved = registeredClients.remove(ClientVersion(client, version))
-            val clientsLeft = if (wasRemoved) {
-                versionClientCount.compute(version) { _, count ->
-                    if (count == null || (count - 1) == 0L) {
-                        null
-                    } else {
-                        count - 1
-                    }
-                }
-            } else {
-                versionClientCount[version]
-            }
-            return clientsLeft ?: 0
-        }
-
-        fun hasNoClients(version: Version): Boolean {
-            return !versionClientCount.containsKey(version)
-        }
-    }
 
     companion object {
 
@@ -126,10 +47,10 @@ class CaffeinePersistentCache<K, V> private constructor(
                     } else {
                         val eviction = config.sizeEviction as WeightedEviction
                         maximumWeight(eviction.maxWeight)
-                        weigher { _: K, values: VersionedValues<V> -> values.totalWeight }
+                        weigher { _: K, values: WeightedValueMap<Version, V> -> values.totalWeight }
                     }
                 }
-                .build<K, VersionedValues<V>>()
+                .build<K, WeightedValueMap<Version, V>>()
             val version = 0L
             val tracker = VersionTracker(version)
 
@@ -158,12 +79,18 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     override fun put(key: K, value: V) {
         cache.asMap().compute(key) { _, map ->
-            val values = map ?: VersionedValues((config.sizeEviction as? WeightedEviction<V>)?.weigher ?: { 1 })
+            val values = map ?: createNewValueMap()
             values.put(version, value)
             values.removeUnusedVersions(version)
             values
         }
         keyVersions[key] = version
+    }
+
+    private fun createNewValueMap(): WeightedValueMap<Version, V> {
+        // Weigher is used only for weighted eviction
+        val evictionConfig = config.sizeEviction as? WeightedEviction<V>
+        return WeightedValueMap(evictionConfig?.weigher ?: { 1 })
     }
 
     override fun remove(key: K) {
@@ -194,7 +121,7 @@ class CaffeinePersistentCache<K, V> private constructor(
 
     // Persistent cache impl
     override fun createNextVersion(entryConsumer: BiConsumer<K, V>?): PersistentCache<K, V> {
-        val nextVersion = versionTracker.next()
+        val nextVersion = versionTracker.nextVersion()
         val newCache = CaffeinePersistentCache(cache, config, nextVersion, versionTracker)
 
         // Copy key index for the next cache
@@ -211,8 +138,8 @@ class CaffeinePersistentCache<K, V> private constructor(
         return newCache
     }
 
-    override fun register(): CacheClient {
-        val client = object : CacheClient {
+    override fun register(): PersistentCacheClient {
+        val client = object : PersistentCacheClient {
             override fun unregister() {
                 versionTracker.unregister(this, version)
             }
@@ -221,12 +148,12 @@ class CaffeinePersistentCache<K, V> private constructor(
         return client
     }
 
-    private fun Cache<K, VersionedValues<V>>.getVersioned(key: K, version: Version): V? {
+    private fun Cache<K, WeightedValueMap<Version, V>>.getVersioned(key: K, version: Version): V? {
         return this.getIfPresent(key)?.get(version)
     }
 
     // Returns true if values were changed
-    private fun VersionedValues<V>.removeUnusedVersions(currentVersion: Version): Boolean {
+    private fun WeightedValueMap<Version, V>.removeUnusedVersions(currentVersion: Version): Boolean {
         if (this.size <= 1) {
             return false
         }
@@ -240,7 +167,7 @@ class CaffeinePersistentCache<K, V> private constructor(
         return changed
     }
 
-    private fun VersionedValues<V>.removeUnusedVersionsAndPutBack(key: K, currentVersion: Version) {
+    private fun WeightedValueMap<Version, V>.removeUnusedVersionsAndPutBack(key: K, currentVersion: Version) {
         if (removeUnusedVersions(currentVersion)) {
             cache.put(key, this)
         }

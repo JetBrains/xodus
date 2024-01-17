@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.cache
+package jetbrains.exodus.core.cache.persistent
 
+import jetbrains.exodus.core.cache.BasicCache
 import java.util.function.BiConsumer
 
 /**
@@ -39,9 +40,9 @@ interface PersistentCache<K, V> : BasicCache<K, V> {
      * Returns a client that should be used to unregister the client to enable entries associated with its version
      * to be clean up later during the ordinary operations like get or put.
      */
-    fun register(): CacheClient
+    fun register(): PersistentCacheClient
 }
 
-interface CacheClient {
+interface PersistentCacheClient {
     fun unregister()
 }

@@ -21,7 +21,7 @@ import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.*;
-import jetbrains.exodus.core.cache.CacheClient;
+import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
@@ -944,7 +944,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         checkInvalidateBlobsFlag = true;
     }
 
-    private CacheClient cacheClient = null;
+    private PersistentCacheClient cacheClient = null;
 
     private void initCaches() {
         revertCaches(false);

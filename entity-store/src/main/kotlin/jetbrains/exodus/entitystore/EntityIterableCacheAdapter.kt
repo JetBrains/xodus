@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.core.cache.*
+import jetbrains.exodus.core.cache.persistent.*
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
 import java.time.Duration
 

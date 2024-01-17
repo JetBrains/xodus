@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.core.cache
+package jetbrains.exodus.core.cache.persistent
 
 import java.time.Duration
 
