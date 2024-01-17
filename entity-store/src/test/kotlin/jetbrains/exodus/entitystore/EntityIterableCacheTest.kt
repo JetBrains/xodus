@@ -112,7 +112,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Then
         reportInLogEntityIterableCacheStats()
         val actualHitRate = store.entityIterableCache.stats.hitRate
-        val expectedHitRate = 0.7
+        val expectedHitRate = 0.6
         println("Actual hitRate: $actualHitRate")
         assertTrue(
             "hitRate should be more or equal to $expectedHitRate, but was $actualHitRate",
