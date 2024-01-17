@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.entitystore.PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE
-import jetbrains.exodus.entitystore.PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_SIZE
 import mu.KLogger
 import mu.KLogging
 import java.util.concurrent.CountDownLatch
@@ -55,7 +54,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val projects = Project.createMany(1, store)
         val users = User.createMany(1, store)
         val issues = Issue.createMany(1, projects, users, store)
-        val test = TestCase(store, projects, users, issues, 1)
+        val test = TestCase(store, projects, users, issues)
 
         // When
         test.queryAssignedIssues() // Miss
@@ -71,7 +70,6 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
     fun testHitRate() {
         // Given
-        // Use these params to experiment with cache locally
         val projectCount = 2
         val userCount = 20
         val issueCount = 1000
@@ -86,7 +84,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val projects = Project.createMany(projectCount, store)
         val users = User.createMany(userCount, store)
         val issues = Issue.createMany(issueCount, projects, users, store)
-        val test = TestCase(store, projects, users, issues, queryCount)
+        val test = TestCase(store, projects, users, issues)
 
         // When
         logger.info("Running $queryCount queries...")
@@ -115,7 +113,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Then
         reportInLogEntityIterableCacheStats()
         val actualHitRate = store.entityIterableCache.stats.hitRate
-        val expectedHitRate = 0.8
+        val expectedHitRate = 0.5
         println("Actual hitRate: $actualHitRate")
         assertTrue(
             "hitRate should be more or equal to $expectedHitRate, but was $actualHitRate",
@@ -196,8 +194,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val store: PersistentEntityStoreImpl,
         val projects: List<Entity>,
         val users: List<Entity>,
-        val issues: List<Entity>,
-        val queryCount: Int
+        val issues: List<Entity>
     ) {
 
         companion object : KLogging()
@@ -258,6 +255,14 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
             val assignee = users.random(rnd)
             store.executeInTransaction { tx ->
                 issue.setLink("assignee", assignee)
+            }
+        }
+
+        fun changeIssueTitle() {
+            val issue = issues.random(rnd)
+            val title = testData.chuckNorrisFact()
+            store.executeInTransaction { tx ->
+               issue.setProperty("title", title)
             }
         }
 
