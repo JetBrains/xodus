@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.entitystore
 
+import jetbrains.exodus.entitystore.PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE
+import jetbrains.exodus.entitystore.PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_SIZE
 import mu.KLogger
 import mu.KLogging
 import java.util.concurrent.CountDownLatch
@@ -36,7 +38,8 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
         init {
             // Use for local experiments to change cache params
-            //System.setProperty("exodus.entityStore.entityIterableCache.size", "8096")
+            //System.setProperty(ENTITY_ITERABLE_CACHE_SIZE, "8096")
+            System.setProperty(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, "50")
         }
     }
 
@@ -112,7 +115,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Then
         reportInLogEntityIterableCacheStats()
         val actualHitRate = store.entityIterableCache.stats.hitRate
-        val expectedHitRate = 0.6
+        val expectedHitRate = 0.8
         println("Actual hitRate: $actualHitRate")
         assertTrue(
             "hitRate should be more or equal to $expectedHitRate, but was $actualHitRate",
