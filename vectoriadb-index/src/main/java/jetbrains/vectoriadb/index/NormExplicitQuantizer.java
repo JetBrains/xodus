@@ -62,13 +62,12 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         progressTracker.pushPhase("Norm-explicit PQ codes creation", "norm quantizers count", String.valueOf(normCodebookCount));
 
         try (
-                var localArena = Arena.ofShared();
                 var normalizedVectorReader = new NormalizedVectorReader(vectorReader);
                 var pBuddy = new ParallelBuddy(numWorkers, "norm-explicit-pq-calc-")
         ) {
             codeBaseSize = CodebookInitializer.getCodeBaseSize(vectorReader.size());
 
-            codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebookCount, codeBaseSize, 1); // norm has a single dimension
+            codebooks = FloatVectorSegment.makeSegments(normCodebookCount, codeBaseSize, 1); // norm has a single dimension
             codes = ByteCodeSegment.makeNativeSegments(arena, normCodebookCount, vectorReader.size());
 
             // precalculate original vector norms not to calculate them on every read
@@ -77,13 +76,13 @@ class NormExplicitQuantizer extends AbstractQuantizer {
             normalizedL2.generatePQCodes(normalizedVectorReader, codebookCount - normCodebookCount, progressTracker);
 
             // Calculate relativeNorm = originalVectorNorm / normalizedApproximatedVectorNorm, so later we can get originalVectorNorm = relativeNorm * normalizedApproximatedVectorNorm
-            var relativeNorms = FloatVectorSegment.makeNativeSegment(localArena, vectorReader.size(), 1);
+            var relativeNorms = FloatVectorSegment.makeSegment(vectorReader.size(), 1);
             calculateRelativeNorms(pBuddy, vectorReader, normalizedVectorReader, relativeNorms, progressTracker);
 
             trainCodebook(pBuddy, relativeNorms, 0, progressTracker);
 
             if (normCodebookCount > 1) {
-                var normResiduals = FloatVectorSegment.makeNativeSegment(localArena, vectorReader.size(), 1);
+                var normResiduals = FloatVectorSegment.makeSegment(vectorReader.size(), 1);
                 for (int codebookIdx = 1; codebookIdx < normCodebookCount; codebookIdx++) {
                     calculateNormResiduals(pBuddy, relativeNorms, normResiduals, codebookIdx, progressTracker);
                     trainCodebook(pBuddy, normResiduals, codebookIdx, progressTracker);
@@ -98,7 +97,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
     private void trainCodebook(ParallelBuddy pBuddy, FloatVectorSegment norms, int codebookIdx, ProgressTracker progressTracker) {
         var kmeans = new KMeansClustering(
                 L2DistanceFunction.INSTANCE,
-                new FloatVectorSegmentReader(norms),
+                new ScalarArrayReader(norms.getInternalArray()),
                 codebooks[codebookIdx],
                 codes[codebookIdx],
                 kMeansMaxIteration,
@@ -142,8 +141,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         var norm = getRelativeNormApproximation(vectorIdx);
 
         var normalizedVectorApproximation = normalizedL2.getVectorApproximation(vectorIdx);
-        var segment = MemorySegment.ofArray(normalizedVectorApproximation);
-        VectorOperations.mul(segment, 0, norm, segment, 0, normalizedVectorApproximation.length);
+        VectorOperations.mul(normalizedVectorApproximation, 0, norm, normalizedVectorApproximation, 0, normalizedVectorApproximation.length);
         return normalizedVectorApproximation;
     }
 
@@ -211,7 +209,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
                 var pBuddy = new ParallelBuddy(numWorkers, "kmeans-clustering");
                 var arena = Arena.ofShared()
         ) {
-            var centroids = FloatVectorSegment.makeNativeSegment(arena, numClusters, vectorReader.dimensions());
+            var centroids = FloatVectorSegment.makeSegment(numClusters, vectorReader.dimensions());
             var centroidIdxByVectorIdx = ByteCodeSegment.makeNativeSegment(arena, vectorReader.size());
             var kmeans = new KMeansClustering(
                     distanceFunction,
@@ -279,7 +277,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
                 var pBuddy = new ParallelBuddy(numWorkers, "kmeans-clustering");
                 var arena = Arena.ofShared()
         ) {
-            var centroids = FloatVectorSegment.makeNativeSegment(arena, numClusters, vectorReader.dimensions());
+            var centroids = FloatVectorSegment.makeSegment(numClusters, vectorReader.dimensions());
             var centroidIdxByVectorIdx = ByteCodeSegment.makeNativeSegment(arena, vectorReader.size());
             var kmeans = new KMeansClustering(
                     distanceFunction,
@@ -305,9 +303,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         var dimensions = centroids.dimensions();
 
         for (int i = 0; i < numClusters; i++) {
-            var centroid = centroids.get(i);
-
-            var distance = distanceFun.computeDistance(vector, 0, centroid, 0, dimensions);
+            var distance = distanceFun.computeDistance(vector, 0, centroids.getInternalArray(), centroids.offset(i), dimensions);
             if (distance < minDistance1) {
                 minDistance2 = minDistance1;
                 minDistance1 = distance;
@@ -334,7 +330,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
         normCodebookCount = dataInputStream.readInt();
         codeBaseSize = dataInputStream.readInt();
 
-        codebooks = FloatVectorSegment.makeNativeSegments(arena, normCodebookCount, codeBaseSize, 1); // norm has a single dimension
+        codebooks = FloatVectorSegment.makeSegments(normCodebookCount, codeBaseSize, 1); // norm has a single dimension
         for (int codebookIdx = 0; codebookIdx < normCodebookCount; codebookIdx++) {
             for (int code = 0; code < codeBaseSize; code++) {
                 codebooks[codebookIdx].set(code, 0, dataInputStream.readFloat());

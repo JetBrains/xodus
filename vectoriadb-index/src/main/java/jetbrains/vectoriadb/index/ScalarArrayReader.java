@@ -4,33 +4,33 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.foreign.MemorySegment;
 
-class FloatVectorSegmentReader implements VectorReader {
+class ScalarArrayReader implements VectorReader {
 
     @NotNull
-    private final FloatVectorSegment vectors;
+    private final float[] values;
 
-    public FloatVectorSegmentReader(@NotNull FloatVectorSegment vectors) {
-        this.vectors = vectors;
+    public ScalarArrayReader(@NotNull float[] values) {
+        this.values = values;
     }
 
     @Override
     public int size() {
-        return vectors.count();
+        return values.length;
     }
 
     @Override
     public int dimensions() {
-        return vectors.dimensions();
-    }
-
-    @Override
-    public MemorySegment read(int index) {
-        return vectors.get(index);
+        return 1;
     }
 
     @Override
     public float read(int vectorIdx, int dimension) {
-        return vectors.get(vectorIdx, dimension);
+        return values[vectorIdx];
+    }
+
+    @Override
+    public MemorySegment read(int index) {
+        return MemorySegment.ofArray(new float[] { values[index] });
     }
 
     @Override
