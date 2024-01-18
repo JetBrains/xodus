@@ -20,11 +20,20 @@ class VectorOperations {
     * 2. Do not use masked operations (at least for now, JVM 21). They affect performance very much.
     * 3. heap-byte-array-based segments are not supported intentionally. Using them affects performance when using
     * native-float segments, heap-float-array-based segments and just heap-float arrays.
+    * 4. Checking what MemorySegment we have (native one or heap-float-array-based) before running
+    * any computation helps JVM not to go crazy. Checking that inside the computation loop makes JVM
+    * "optimize" performance the way that all the operations become 2x slower.
     * */
     @Suppress("ProtectedInFinal")
     companion object {
 
         const val PRECISION: Float = 1e-5f
+
+        /*
+        *
+        * L2 DISTANCE
+        *
+        * */
 
         @JvmStatic
         fun l2Distance(
@@ -52,16 +61,10 @@ class VectorOperations {
             v2: FloatArray,
             idx2: Int,
             size: Int
-        ): Float {
-            return l2DistanceImpl(
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
-                v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
-
-                v2 = { i, species -> FloatVector.fromArray(species, v2, idx2 + i) },
-                v2Value = { i -> v2[idx2 + i] },
-
-                size
-            )
+        ): Float = if (v1.isNative) {
+            l2DistanceImpl(v1, idx1, v2, idx2, size)
+        } else {
+            l2Distance(v1.heapBase().get() as FloatArray, idx1.toInt(), v2, idx2, size)
         }
 
         @JvmStatic
@@ -71,17 +74,55 @@ class VectorOperations {
             v2: MemorySegment,
             idx2: Long,
             size: Int
+        ): Float = when {
+            v1.isNative && v2.isNative -> l2DistanceImpl(v1, idx1, v2, idx2, size)
+            v1.isNative -> l2DistanceImpl(v1, idx1, v2.heapBase().get() as FloatArray, idx2.toInt(), size)
+            v2.isNative -> l2DistanceImpl(v2, idx2, v1.heapBase().get() as FloatArray, idx1.toInt(), size)
+            else -> l2Distance(
+                v1.heapBase().get() as FloatArray,
+                idx1.toInt(),
+                v2.heapBase().get() as FloatArray,
+                idx2.toInt(),
+                size
+            )
+        }
+
+        @JvmStatic
+        protected fun l2DistanceImpl(
+            v1: MemorySegment,
+            idx1: Long,
+            v2: MemorySegment,
+            idx2: Long,
+            size: Int
         ): Float {
             return l2DistanceImpl(
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
+                v1 = { i, species -> FloatVector.fromMemorySegment(species, v1, (idx1 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
 
-                v2 = { i, species -> toVector(v2, idx2 + i, species) },
+                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, (idx2 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
 
                 size
             )
         }
+
+        @JvmStatic
+        protected fun l2DistanceImpl(
+            v1: MemorySegment,
+            idx1: Long,
+            v2: FloatArray,
+            idx2: Int,
+            size: Int
+        ): Float = l2DistanceImpl(
+            v1 = { i, species -> FloatVector.fromMemorySegment(species, v1, (idx1 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
+            v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
+
+            v2 = { i, species -> FloatVector.fromArray(species, v2, idx2 + i) },
+            v2Value = { i -> v2[idx2 + i] },
+
+            size
+        )
+
 
         @JvmStatic
         protected inline fun l2DistanceImpl(
@@ -153,19 +194,19 @@ class VectorOperations {
             size: Int, result: FloatArray
         ) {
             l2DistanceBatchImpl(
-                q = { i, species ->  toVector(q, idxQ + i, species) },
+                q = { i, species ->  FloatVector.fromMemorySegment(species, q, (idxQ + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 qValue = { i -> q.getAtIndex(ValueLayout.JAVA_FLOAT, idxQ + i) },
 
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
+                v1 = { i, species -> FloatVector.fromMemorySegment(species, v1, (idx1 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
 
-                v2 = { i, species -> toVector(v2, idx2 + i, species) },
+                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, (idx2 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
 
-                v3 = { i, species -> toVector(v3, idx3 + i, species) },
+                v3 = { i, species -> FloatVector.fromMemorySegment(species, v3, (idx3 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v3Value = { i -> v3.getAtIndex(ValueLayout.JAVA_FLOAT, idx3 + i) },
 
-                v4 = { i, species -> toVector(v4, idx4 + i, species) },
+                v4 = { i, species -> FloatVector.fromMemorySegment(species, v4, (idx4 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v4Value = { i -> v4.getAtIndex(ValueLayout.JAVA_FLOAT, idx4 + i) },
 
                 size, result
@@ -180,21 +221,41 @@ class VectorOperations {
             v3: MemorySegment, idx3: Long,
             v4: MemorySegment, idx4: Long,
             size: Int, result: FloatArray
+        ) =  if (v1.isNative) { // all the other are also native
+            l2DistanceBatchImpl(q, idxQ, v1, idx1, v2, idx2, v3, idx3, v4, idx4, size ,result)
+        } else {
+            l2DistanceBatch(q, idxQ,
+                v1.heapBase().get() as FloatArray, idx1.toInt(),
+                v2.heapBase().get() as FloatArray, idx2.toInt(),
+                v3.heapBase().get() as FloatArray, idx3.toInt(),
+                v4.heapBase().get() as FloatArray, idx4.toInt(),
+                size, result
+            )
+        }
+
+        @JvmStatic
+        protected fun l2DistanceBatchImpl(
+            q: FloatArray, idxQ: Int,
+            v1: MemorySegment, idx1: Long,
+            v2: MemorySegment, idx2: Long,
+            v3: MemorySegment, idx3: Long,
+            v4: MemorySegment, idx4: Long,
+            size: Int, result: FloatArray
         ) {
             l2DistanceBatchImpl(
                 q = { i, species -> FloatVector.fromArray(species, q, idxQ + i) },
                 qValue = { i -> q[idxQ + i] },
 
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
+                v1 = { i, species -> FloatVector.fromMemorySegment(species, v1, (idx1 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
 
-                v2 = { i, species -> toVector(v2, idx2 + i, species) },
+                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, (idx2 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
 
-                v3 = { i, species -> toVector(v3, idx3 + i, species) },
+                v3 = { i, species -> FloatVector.fromMemorySegment(species, v3, (idx3 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v3Value = { i -> v3.getAtIndex(ValueLayout.JAVA_FLOAT, idx3 + i) },
 
-                v4 = { i, species -> toVector(v4, idx4 + i, species) },
+                v4 = { i, species -> FloatVector.fromMemorySegment(species, v4, (idx4 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v4Value = { i -> v4.getAtIndex(ValueLayout.JAVA_FLOAT, idx4 + i) },
 
                 size, result
@@ -272,208 +333,11 @@ class VectorOperations {
             result[3] = sum4 + sumV4.reduceLanes(VectorOperators.ADD)
         }
 
-        /**
-         * vector1 + vector2 -> result
-         */
-        @JvmStatic
-        fun add(
-            v1: MemorySegment,
-            idx1: Long,
-            v2: MemorySegment,
-            idx2: Long,
-            result: MemorySegment,
-            resultIdx: Long,
-            size: Int
-        ) {
-            processVectors(
-                process = { i, species ->
-                    val V1 = toVector(v1, idx1 + i, species)
-                    val V2 = toVector(v2, idx2 + i, species)
-
-                    val R = V1.add(V2)
-                    intoResult(R, result, resultIdx + i)
-                },
-                processOneByOne = { i ->
-                    val sum = v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) + v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i)
-                    result.setAtIndex(ValueLayout.JAVA_FLOAT, resultIdx + i, sum)
-                },
-                size
-            )
-        }
-
-        /**
-         * vector1 * scalar -> result
-         */
-        @JvmStatic
-        fun mul(v1: MemorySegment, idx1: Long, scalar: Float, result: MemorySegment, resultIdx: Long, size: Int) {
-            processVectors(
-                process = { i, species ->
-                    val V1 = toVector(v1, idx1 + i, species)
-                    val R = V1.mul(scalar)
-                    intoResult(R, result, resultIdx + i)
-                },
-                processOneByOne = { i ->
-                    val res = v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) * scalar
-                    result.setAtIndex(ValueLayout.JAVA_FLOAT, resultIdx + i, res)
-                },
-                size
-            )
-        }
-
-
-        /**
-         * vector1 / scalar -> result
-         */
-        @JvmStatic
-        fun div(v1: MemorySegment, idx1: Long, scalar: Float, result: MemorySegment, resultIdx: Long, size: Int) {
-            divImpl(
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
-                v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
-
-                scalar = scalar,
-
-                intoResult = { i, R -> intoResult(R, result, resultIdx + i) },
-                intoResultValue = { i, value -> result.setAtIndex(ValueLayout.JAVA_FLOAT, resultIdx + i, value) },
-
-                size
-            )
-        }
-
-        @JvmStatic
-        protected inline fun divImpl(
-            v1: (Int, VectorSpecies<Float>) -> FloatVector,
-            v1Value: (Int) -> Float,
-
-            scalar: Float,
-
-            intoResult: (Int, FloatVector) -> Unit,
-            intoResultValue: (Int, Float) -> Unit,
-
-            size: Int
-        ) {
-            processVectors(
-                process = { i, species ->
-                    val V1 = v1(i, species)
-                    val R = V1.div(scalar)
-                    intoResult(i, R)
-                },
-                processOneByOne = { i ->
-                    val res = v1Value(i) / scalar
-                    intoResultValue(i, res)
-                },
-                size
-            )
-        }
-
-        @JvmStatic
-        fun calculateL2Norm(vector: FloatArray): Float {
-            return sqrt(innerProduct(vector, 0, vector, 0, vector.size).toDouble()).toFloat()
-        }
-
-        @JvmStatic
-        fun calculateL2Norm(vector: MemorySegment, size: Int): Float {
-            return sqrt(innerProduct(vector, 0, vector, 0, size).toDouble()).toFloat()
-        }
-
-        @JvmStatic
-        fun normalizeL2(vector: MemorySegment, vectorNorm: Float, result: MemorySegment, size: Int) {
-            normalizeL2Impl(
-                v1 = { i, species -> toVector(vector, i.toLong(), species) },
-                v1Value = { i -> vector.getAtIndex(ValueLayout.JAVA_FLOAT, i.toLong()) },
-
-                vectorNorm = vectorNorm,
-
-                intoResult = { i, R -> intoResult(R, result, i.toLong()) },
-                intoResultValue = { i, value -> result.setAtIndex(ValueLayout.JAVA_FLOAT, i.toLong(), value) },
-
-                copyVectorToResult = { result.copyFrom(vector) },
-                size
-            )
-        }
-
-        /**
-         * Normalizes the vector by L2 norm, writes result to the result
-         */
-        @JvmStatic
-        fun normalizeL2(vector: FloatArray, result: FloatArray) {
-            normalizeL2Impl(
-                v1 = { i, species -> FloatVector.fromArray(species, vector, i) },
-                v1Value = { i -> vector[i] },
-
-                vectorNorm = calculateL2Norm(vector),
-
-                intoResult = { i, R -> R.intoArray(result, i) },
-                intoResultValue = { i, value -> result[i] = value },
-
-                copyVectorToResult = { vector.copyInto(result) },
-                vector.size
-            )
-        }
-
-        @JvmStatic
-        protected inline fun normalizeL2Impl(
-            v1: (Int, VectorSpecies<Float>) -> FloatVector,
-            v1Value: (Int) -> Float,
-
-            vectorNorm: Float,
-
-            intoResult: (Int, FloatVector) -> Unit,
-            intoResultValue: (Int, Float) -> Unit,
-
-            copyVectorToResult: () -> Unit,
-            size: Int
-        ) {
-            if (abs(vectorNorm - 1) > PRECISION) {
-                divImpl(
-                    v1 = v1,
-                    v1Value = v1Value,
-                    scalar = vectorNorm,
-                    intoResult = intoResult,
-                    intoResultValue = intoResultValue,
-                    size
-                )
-            } else {
-                copyVectorToResult()
-            }
-        }
-
-        @JvmStatic
-        fun innerProduct(
-            v1: MemorySegment,
-            idx1: Long,
-            v2: MemorySegment,
-            idx2: Long,
-            size: Int
-        ): Float {
-            return innerProductImpl(
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
-                v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
-
-                v2 = { i, species -> toVector(v2, idx2 + i, species) },
-                v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
-
-                size
-            )
-        }
-
-        @JvmStatic
-        fun innerProduct(
-            v1: MemorySegment,
-            idx1: Long,
-            v2: FloatArray,
-            idx2: Int,
-            size: Int
-        ): Float {
-            return innerProductImpl(
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
-                v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
-
-                v2 = { i, species -> FloatVector.fromArray(species, v2, idx2 + i) },
-                v2Value = { i -> v2[idx2 + i] },
-
-                size
-            )
-        }
+        /*
+        *
+        * INNER PRODUCT
+        *
+        * */
 
         @JvmStatic
         fun innerProduct(
@@ -494,6 +358,70 @@ class VectorOperations {
             )
         }
 
+        @JvmStatic
+        fun innerProduct(
+            v1: MemorySegment,
+            idx1: Long,
+            v2: MemorySegment,
+            idx2: Long,
+            size: Int
+        ): Float = when {
+            v1.isNative && v2.isNative -> innerProductImpl(v1, idx1, v2, idx2, size)
+            v1.isNative -> innerProductImpl(v1, idx1, v2.heapBase().get() as FloatArray, idx2.toInt(), size)
+            v2.isNative -> innerProductImpl(v2, idx2, v1.heapBase().get() as FloatArray, idx1.toInt(), size)
+            else -> innerProduct(v1.heapBase().get() as FloatArray, idx1.toInt(), v2.heapBase().get() as FloatArray, idx2.toInt(), size)
+        }
+
+        @JvmStatic
+        fun innerProduct(
+            v1: MemorySegment,
+            idx1: Long,
+            v2: FloatArray,
+            idx2: Int,
+            size: Int
+        ): Float = if (v1.isNative) {
+            innerProductImpl(v1, idx1, v2, idx2, size)
+        } else {
+            innerProduct(v1.heapBase().get() as FloatArray, idx1.toInt(), v2, idx2, size)
+        }
+
+        @JvmStatic
+        protected fun innerProductImpl(
+            v1: MemorySegment,
+            idx1: Long,
+            v2: MemorySegment,
+            idx2: Long,
+            size: Int
+        ): Float {
+            return innerProductImpl(
+                v1 = { i, species -> FloatVector.fromMemorySegment(species, v1, (idx1 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
+                v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
+
+                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, (idx2 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
+                v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
+
+                size
+            )
+        }
+
+        @JvmStatic
+        protected fun innerProductImpl(
+            v1: MemorySegment,
+            idx1: Long,
+            v2: FloatArray,
+            idx2: Int,
+            size: Int
+        ): Float {
+            return innerProductImpl(
+                v1 = { i, species -> FloatVector.fromMemorySegment(species, v1, (idx1 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
+                v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
+
+                v2 = { i, species -> FloatVector.fromArray(species, v2, idx2 + i) },
+                v2Value = { i -> v2[idx2 + i] },
+
+                size
+            )
+        }
 
         @JvmStatic
         protected inline fun innerProductImpl(
@@ -564,16 +492,16 @@ class VectorOperations {
                 q = { i, species -> FloatVector.fromArray(species, q, idxQ + i) },
                 qValue = { i -> q[idxQ + i] },
 
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
+                v1 = { i, species -> FloatVector.fromMemorySegment(species, v1, (idx1 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
 
-                v2 = { i, species -> toVector(v2, idx2 + i, species) },
+                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, (idx2 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
 
-                v3 = { i, species -> toVector(v3, idx3 + i, species) },
+                v3 = { i, species -> FloatVector.fromMemorySegment(species, v3, (idx3 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v3Value = { i -> v3.getAtIndex(ValueLayout.JAVA_FLOAT, idx3 + i) },
 
-                v4 = { i, species -> toVector(v4, idx4 + i, species) },
+                v4 = { i, species -> FloatVector.fromMemorySegment(species, v4, (idx4 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v4Value = { i -> v4.getAtIndex(ValueLayout.JAVA_FLOAT, idx4 + i) },
 
                 size, result
@@ -590,19 +518,19 @@ class VectorOperations {
             size: Int, result: FloatArray
         ) {
             innerProductBatchImpl(
-                q = { i, species ->  toVector(q, idxQ + i, species) },
+                q = { i, species ->  FloatVector.fromMemorySegment(species, q, (idxQ + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 qValue = { i -> q.getAtIndex(ValueLayout.JAVA_FLOAT, idxQ + i) },
 
-                v1 = { i, species -> toVector(v1, idx1 + i, species) },
+                v1 = { i, species -> FloatVector.fromMemorySegment(species, v1, (idx1 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v1Value = { i -> v1.getAtIndex(ValueLayout.JAVA_FLOAT, idx1 + i) },
 
-                v2 = { i, species -> toVector(v2, idx2 + i, species) },
+                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, (idx2 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
 
-                v3 = { i, species -> toVector(v3, idx3 + i, species) },
+                v3 = { i, species -> FloatVector.fromMemorySegment(species, v3, (idx3 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v3Value = { i -> v3.getAtIndex(ValueLayout.JAVA_FLOAT, idx3 + i) },
 
-                v4 = { i, species -> toVector(v4, idx4 + i, species) },
+                v4 = { i, species -> FloatVector.fromMemorySegment(species, v4, (idx4 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v4Value = { i -> v4.getAtIndex(ValueLayout.JAVA_FLOAT, idx4 + i) },
 
                 size, result
@@ -671,8 +599,309 @@ class VectorOperations {
             result[3] = sum4 + sumV4.reduceLanes(VectorOperators.ADD)
         }
 
+        /**
+         * vector1 + vector2 -> vector1
+         */
+        @JvmStatic
+        fun add(
+            v1: FloatArray, idx1: Int,
+            v2: FloatArray, idx2: Int,
+            result: FloatArray, resultIdx: Int,
+            size: Int
+        ) {
+            addImpl(
+                v1 = { i, species -> FloatVector.fromArray(species, v1, idx1 + i) },
+                v1Value = { i -> v1[idx1 + i] },
+
+                v2 = { i, species -> FloatVector.fromArray(species, v2, idx2 + i) },
+                v2Value = { i -> v2[idx2 + i] },
+
+                intoResult = { i, R -> R.intoArray(result, resultIdx + i) },
+                intoResultValue = { i, value -> result[resultIdx + i] = value },
+
+                size
+            )
+        }
+
+        /**
+         * vector1 + vector2 -> vector1
+         */
+        @JvmStatic
+        fun add(
+            v1: FloatArray, idx1: Int,
+            v2: MemorySegment, idx2: Long,
+            result: FloatArray, resultIdx: Int,
+            size: Int
+        ) = if (v2.isNative) {
+            addImpl(v1, idx1, v2, idx2, result, resultIdx, size)
+        } else {
+            add(v1, idx1, v2.heapBase().get() as FloatArray, idx2.toInt(), result, resultIdx, size)
+        }
+
+        @JvmStatic
+        protected fun addImpl(
+            v1: FloatArray, idx1: Int,
+            v2: MemorySegment, idx2: Long,
+            result: FloatArray, resultIdx: Int,
+            size: Int
+        ) {
+            addImpl(
+                v1 = { i, species -> FloatVector.fromArray(species, v1, idx1 + i) },
+                v1Value = { i -> v1[idx1 + i] },
+
+                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, idx2 + i, ByteOrder.nativeOrder()) },
+                v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
+
+                intoResult = { i, R -> R.intoArray(result, resultIdx + i) },
+                intoResultValue = { i, value -> result[resultIdx + i] = value },
+
+                size
+            )
+        }
+
+        @JvmStatic
+        protected fun addImpl(
+            v1: (Int, VectorSpecies<Float>) -> FloatVector,
+            v1Value: (Int) -> Float,
+
+            v2: (Int, VectorSpecies<Float>) -> FloatVector,
+            v2Value: (Int) -> Float,
+
+            intoResult: (Int, FloatVector) -> Unit,
+            intoResultValue: (Int, Float) -> Unit,
+
+            size: Int
+        ) {
+            processVectors(
+                process = { i, species ->
+                    val V1 = v1(i, species)
+                    val V2 = v2(i, species)
+
+                    val R = V1.add(V2)
+                    intoResult(i, R)
+                },
+                processOneByOne = { i ->
+                    val sum = v1Value(i) + v2Value(i)
+                    intoResultValue(i, sum)
+                },
+                size
+            )
+        }
+
+        /**
+         * vector1 * scalar -> result
+         */
+        @JvmStatic
+        fun mul(
+            v1: FloatArray, idx1: Int,
+            scalar: Float,
+            result: FloatArray, resultIdx: Int,
+            size: Int
+        ) {
+            processVectors(
+                process = { i, species ->
+                    val V1 = FloatVector.fromArray(species, v1, idx1 + i)
+                    val R = V1.mul(scalar)
+                    R.intoArray(result, resultIdx + i)
+                },
+                processOneByOne = { i ->
+                    val res = v1[idx1 + i] * scalar
+                    result[resultIdx + i] = res
+                },
+                size
+            )
+        }
+
+
+        /**
+         * vector1 / scalar -> result
+         */
+        @JvmStatic
+        fun div(
+            v1: FloatArray, idx1: Int,
+            scalar: Float,
+            result: FloatArray, resultIdx: Int,
+            size: Int
+        ) {
+            divImpl(
+                v1 = { i, species -> FloatVector.fromArray(species, v1, idx1 + i) },
+                v1Value = { i -> v1[idx1 + i] },
+
+                scalar = scalar,
+
+                intoResult = { i, R -> R.intoArray(result, resultIdx + i) },
+                intoResultValue = { i, value -> result[resultIdx + i] = value },
+
+                size
+            )
+        }
+
+        @JvmStatic
+        protected inline fun divImpl(
+            v1: (Int, VectorSpecies<Float>) -> FloatVector,
+            v1Value: (Int) -> Float,
+
+            scalar: Float,
+
+            intoResult: (Int, FloatVector) -> Unit,
+            intoResultValue: (Int, Float) -> Unit,
+
+            size: Int
+        ) {
+            processVectors(
+                process = { i, species ->
+                    val V1 = v1(i, species)
+                    val R = V1.div(scalar)
+                    intoResult(i, R)
+                },
+                processOneByOne = { i ->
+                    val res = v1Value(i) / scalar
+                    intoResultValue(i, res)
+                },
+                size
+            )
+        }
+
+        @JvmStatic
+        fun calculateL2Norm(vector: FloatArray): Float {
+            return sqrt(innerProduct(vector, 0, vector, 0, vector.size).toDouble()).toFloat()
+        }
+
+        @JvmStatic
+        fun calculateL2Norm(vector: MemorySegment, size: Int): Float {
+            return sqrt(innerProduct(vector, 0, vector, 0, size).toDouble()).toFloat()
+        }
+
+        @JvmStatic
+        fun normalizeL2(vector: MemorySegment, vectorNorm: Float, result: FloatArray, size: Int) = if (vector.isNative) {
+            normalizeL2Impl(vector, vectorNorm, result, size)
+        } else {
+            normalizeL2Impl(vector.heapBase().get() as FloatArray, vectorNorm, result)
+        }
+
+        /**
+         * Normalizes the vector by L2 norm, writes result to the result
+         */
+        @JvmStatic
+        fun normalizeL2(vector: FloatArray, result: FloatArray) {
+            normalizeL2Impl(vector, calculateL2Norm(vector), result)
+        }
+
+        @JvmStatic
+        protected fun normalizeL2Impl(vector: MemorySegment, vectorNorm: Float, result: FloatArray, size: Int) {
+            normalizeL2Impl(
+                v1 = { i, species -> FloatVector.fromMemorySegment(species, vector, i.toLong() * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
+                v1Value = { i -> vector.getAtIndex(ValueLayout.JAVA_FLOAT, i.toLong()) },
+
+                vectorNorm = vectorNorm,
+
+                intoResult = { i, R -> R.intoArray(result, i) },
+                intoResultValue = { i, value -> result[i] = value },
+
+                copyVectorToResult = {
+                    for (i in 0 until size) {
+                        result[i] = vector.getAtIndex(ValueLayout.JAVA_FLOAT, i.toLong())
+                    }
+                },
+                size
+            )
+        }
+
+        @JvmStatic
+        protected fun normalizeL2Impl(vector: FloatArray, vectorNorm: Float, result: FloatArray) {
+            normalizeL2Impl(
+                v1 = { i, species -> FloatVector.fromArray(species, vector, i) },
+                v1Value = { i -> vector[i] },
+
+                vectorNorm = vectorNorm,
+
+                intoResult = { i, R -> R.intoArray(result, i) },
+                intoResultValue = { i, value -> result[i] = value },
+
+                copyVectorToResult = { vector.copyInto(result) },
+                vector.size
+            )
+        }
+
+        @JvmStatic
+        protected inline fun normalizeL2Impl(
+            v1: (Int, VectorSpecies<Float>) -> FloatVector,
+            v1Value: (Int) -> Float,
+
+            vectorNorm: Float,
+
+            intoResult: (Int, FloatVector) -> Unit,
+            intoResultValue: (Int, Float) -> Unit,
+
+            copyVectorToResult: () -> Unit,
+            size: Int
+        ) {
+            if (abs(vectorNorm - 1) > PRECISION) {
+                divImpl(
+                    v1 = v1,
+                    v1Value = v1Value,
+                    scalar = vectorNorm,
+                    intoResult = intoResult,
+                    intoResultValue = intoResultValue,
+                    size
+                )
+            } else {
+                copyVectorToResult()
+            }
+        }
+
         @JvmStatic
         fun computeGradientStep(
+            currentV: FloatArray,
+            currentVIdx: Int,
+
+            targetV: MemorySegment,
+            targetVIdx: Long,
+
+            result: FloatArray,
+            resultIdx: Int,
+
+            size: Int,
+
+            learningRate: Float
+        ) = if (targetV.isNative) {
+            computeGradientStepImpl(currentV, currentVIdx, targetV, targetVIdx, result, resultIdx, size, learningRate)
+        } else {
+            computeGradientStep(currentV, currentVIdx, targetV.heapBase().get() as FloatArray, targetVIdx.toInt(), result, resultIdx, size, learningRate)
+        }
+
+        @JvmStatic
+        fun computeGradientStep(
+            currentV: FloatArray,
+            currentVIdx: Int,
+
+            targetV: FloatArray,
+            targetVIdx: Int,
+
+            result: FloatArray,
+            resultIdx: Int,
+
+            size: Int,
+
+            learningRate: Float
+        ) {
+            computeGradientStepImpl(
+                current = { i, species -> FloatVector.fromArray(species, currentV, currentVIdx + i) },
+                currentValue = { i -> currentV[currentVIdx + i] },
+
+                target = { i, species -> FloatVector.fromArray(species, targetV, targetVIdx + i) },
+                targetValue = { i -> targetV[targetVIdx + i] },
+
+                intoResult = { i, R -> R.intoArray(result, resultIdx + i) },
+                intoResultValue = { i, r -> result[resultIdx + i] = r },
+
+                size,
+                learningRate
+            )
+        }
+
+        @JvmStatic
+        protected fun computeGradientStepImpl(
             currentV: FloatArray,
             currentVIdx: Int,
 
@@ -690,7 +919,7 @@ class VectorOperations {
                 current = { i, species -> FloatVector.fromArray(species, currentV, currentVIdx + i) },
                 currentValue = { i -> currentV[currentVIdx + i] },
 
-                target = { i, species -> toVector(targetV, targetVIdx + i, species) },
+                target = { i, species -> FloatVector.fromMemorySegment(species, targetV, (targetVIdx + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 targetValue = { i -> targetV.getAtIndex(ValueLayout.JAVA_FLOAT, targetVIdx + i) },
 
                 intoResult = { i, R -> R.intoArray(result, resultIdx + i) },
@@ -756,35 +985,6 @@ class VectorOperations {
             while (i < size) {
                 processOneByOne(i)
                 i++
-            }
-        }
-
-        /*
-        * Vector API supports only heap-based segments with byte[] arrays behind.
-        * If we use heap-based segments with float[] arrays behind, we will get a strange exception at runtime.
-        * Most probably it is a temporary problem and some day they will fix it.
-        * But for now, we have to hack this case around, so we explicitly check what segment we work with.
-        * */
-
-        @JvmStatic
-        protected fun toVector(v: MemorySegment, valueIdx: Long, species: VectorSpecies<Float>): FloatVector {
-            return if (v.isNative) {
-                FloatVector.fromMemorySegment(species, v, valueIdx * Float.SIZE_BYTES, ByteOrder.nativeOrder())
-            } else {
-                // byte[] will fail here intentionally
-                val arr = v.heapBase().get() as FloatArray
-                FloatVector.fromArray(species, arr, valueIdx.toInt())
-            }
-        }
-
-        @JvmStatic
-        protected fun intoResult(R: FloatVector, result: MemorySegment, valueIdx: Long) {
-            if (result.isNative) {
-                R.intoMemorySegment(result, valueIdx * Float.SIZE_BYTES, ByteOrder.nativeOrder())
-            } else {
-                // byte[] will fail here intentionally
-                val arr = result.heapBase().get() as FloatArray
-                R.intoArray(arr, valueIdx.toInt())
             }
         }
     }
