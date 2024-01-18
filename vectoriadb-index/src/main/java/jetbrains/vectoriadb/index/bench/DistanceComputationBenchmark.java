@@ -42,14 +42,14 @@ import java.util.concurrent.TimeUnit;
 // computeDistance_heap_array_4_batch                  ip-new  avgt    5   37,037 ±  1,383  ns/op
 
 // computeDistance_native_segment_1                        l2  avgt    5   23,344 ±  0,688  ns/op
-// computeDistance_native_segment_1                    l2-new  avgt    5   17,024 ±  0,870  ns/op
+// computeDistance_native_segment_1                    l2-new  avgt    5   16,823 ±  0,352  ns/op
 // computeDistance_native_segment_1                        ip  avgt    5   20,724 ±  0,333  ns/op
-// computeDistance_native_segment_1                    ip-new  avgt    5   15,438 ±  0,690  ns/op
+// computeDistance_native_segment_1                    ip-new  avgt    5   16,642 ±  0,970  ns/op
 
 // computeDistance_native_segment_4                        l2  avgt    5   97,697 ±  4,863  ns/op
-// computeDistance_native_segment_4                    l2-new  avgt    5  281,852 ±  2,112  ns/op
+// computeDistance_native_segment_4                    l2-new  avgt    5   80,522 ±  1,557  ns/op
 // computeDistance_native_segment_4                        ip  avgt    5   96,511 ±  0,914  ns/op
-// computeDistance_native_segment_4                    ip-new  avgt    5  388,897 ± 29,456  ns/op
+// computeDistance_native_segment_4                    ip-new  avgt    5  268,011 ±  7,819  ns/op
 
 // computeDistance_native_segment_4_batch                  l2  avgt    5   63,883 ±  1,094  ns/op
 // computeDistance_native_segment_4_batch              l2-new  avgt    5   46,069 ±  3,191  ns/op
