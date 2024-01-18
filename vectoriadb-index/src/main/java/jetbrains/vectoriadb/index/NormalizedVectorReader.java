@@ -6,6 +6,8 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
+import static java.lang.Math.abs;
+
 class NormalizedVectorReader implements VectorReader {
 
     private final VectorReader source;
@@ -50,12 +52,13 @@ class NormalizedVectorReader implements VectorReader {
     public MemorySegment read(int index) {
         var vector = source.read(index);
         var norm = vectorNorms.getAtIndex(ValueLayout.JAVA_FLOAT, index);
-        // todo what about pooling a bunch of arrays and reusing them to avoid constant allocations?
-        // make those arrays thread local and clean them in close()
-        var result = MemorySegment.ofArray(new float[dimensions()]);
+        if (abs(norm - 1) < VectorOperations.PRECISION) {
+            return vector;
+        }
+        var resultArr = new float[dimensions()];
+        VectorOperations.normalizeL2(vector, norm, resultArr, dimensions());
 
-        VectorOperations.normalizeL2(vector, norm, result, dimensions());
-        return result;
+        return MemorySegment.ofArray(resultArr);
     }
 
 

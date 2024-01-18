@@ -13,15 +13,14 @@ class NormalizedVectorReaderTest {
 
         val count = 10
         val dimensions = 30
-        val segment = createRandomFloatVectorSegment(count, dimensions)
-        val segmentReader = FloatVectorSegmentReader(segment)
-        val normReader = NormalizedVectorReader(segmentReader)
+        val reader = FloatArrayVectorReader(createRandomFloatArray2d(count, dimensions))
+        val normReader = NormalizedVectorReader(reader)
 
         normReader.precalculateOriginalVectorNorms(pBuddy, progressTracker)
 
         repeat(count) { vectorIdx ->
             val precalcNorm = normReader.getOriginalVectorNorm(vectorIdx)
-            val norm = VectorOperations.calculateL2Norm(segment.get(vectorIdx), dimensions)
+            val norm = VectorOperations.calculateL2Norm(reader.read(vectorIdx), dimensions)
             Assert.assertEquals(norm, precalcNorm, PRECISION)
         }
 
