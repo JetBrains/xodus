@@ -4,7 +4,6 @@ import jetbrains.vectoriadb.index.bench.VectorDatasetInfo
 import jetbrains.vectoriadb.index.bench.downloadDatasetArchives
 import jetbrains.vectoriadb.index.bench.readGroundTruth
 import jetbrains.vectoriadb.index.bench.readVectors
-import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.nio.file.Files
 import java.nio.file.Path
@@ -50,19 +49,21 @@ fun VectorDatasetInfo.readGroundTruthL2(): Array<IntArray> {
 }
 
 internal fun createRandomFloatVectorSegment(count: Int, dimensions: Int): FloatVectorSegment {
-    val v1 = FloatVectorSegment.makeArraySegment(count, dimensions)
+    val v1 = FloatVectorSegment.makeSegment(count, dimensions)
     v1.fillRandom()
     return v1
 }
 
-internal fun Arena.createRandomFloatVectorSegment(count: Int, dimensions: Int, heapBased: Boolean = false): FloatVectorSegment {
-    val v1 = if (heapBased) {
-        FloatVectorSegment.makeArraySegment(count, dimensions)
-    } else {
-        FloatVectorSegment.makeNativeSegment(this, count, dimensions)
+internal fun createRandomFloatArray(count: Int, dimensions: Int): FloatArray {
+    return FloatArray(count * dimensions) { Random.nextFloat() }
+}
+
+internal fun createRandomFloatArray2d(count: Int, dimensions: Int): Array<FloatArray> {
+    return Array(count) {
+        FloatArray(dimensions) {
+            Random.nextFloat()
+        }
     }
-    v1.fillRandom()
-    return v1
 }
 
 private fun FloatVectorSegment.fillRandom() {

@@ -3,7 +3,7 @@ package jetbrains.vectoriadb.index;
 import org.apache.commons.rng.simple.RandomSource;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.foreign.Arena;
+import java.util.Arrays;
 
 public final class KMeansClustering {
     @NotNull
@@ -62,39 +62,42 @@ public final class KMeansClustering {
                 "vectors count", String.valueOf(numVectors)
         );
 
-        try (
-                var sessionArena = Arena.ofShared()
-        ) {
-            var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
-            var vectorCountForCentroid = IntSegment.makeNativeSegment(sessionArena, numClusters);
+        try {
+            var vectorCountForCentroid = new int[numClusters];
             // use them to parallelize centroids calculation
-            var centroidsPerCore = FloatVectorSegment.makeNativeSegments(sessionArena, pBuddy.numWorkers(), numClusters, vectorDimensions);
-            var vectorCountForCentroidPerCore = IntSegment.makeNativeSegments(sessionArena, pBuddy.numWorkers(), numClusters);
-
-            // initialize centroids
-            // todo use centroid initializers from the other branch
-            for (int i = 0; i < numClusters; i++) {
-                var vectorIndex = rng.nextInt(numVectors);
-                centroids.set(i, vectorReader.read(vectorIndex));
+            var centroidsPerCore = FloatVectorSegment.makeSegments(pBuddy.numWorkers(), numClusters, vectorDimensions);
+            var vectorCountForCentroidPerCore = new int[pBuddy.numWorkers()][];
+            for (int i = 0; i < pBuddy.numWorkers(); i++) {
+                vectorCountForCentroidPerCore[i] = new int[numClusters];
             }
 
-            for (int iteration = 0; iteration < maxIterations; iteration++) {
-                progressTracker.pushPhase("Iteration " + iteration);
+            if (numClusters == 1) {
+                progressTracker.pushPhase("Iteration " + 1);
                 try {
-                    var assignedDifferently = assignVectorsToClosestClusters(progressTracker);
-                    /*
-                     * iteration > 0 is required for the case when we calculate a single centroid.
-                     * A single centroid can not be assigned differently obviously, and if we break here
-                     * the centroid will never be actually calculated, and we just return whatever the centroid
-                     * was initialized with.
-                     * So, we make sure centroids are calculated at least once.
-                     * */
-                    if (!assignedDifferently && iteration > 0) {
-                        break;
-                    }
                     calculateCentroids(centroidsPerCore, vectorCountForCentroidPerCore, vectorCountForCentroid, progressTracker);
                 } finally {
                     progressTracker.pullPhase();
+                }
+            } else {
+                var rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+                // initialize centroids
+                // todo use centroid initializers from the other branch
+                for (int i = 0; i < numClusters; i++) {
+                    var vectorIndex = rng.nextInt(numVectors);
+                    centroids.set(i, vectorReader.read(vectorIndex));
+                }
+
+                for (int iteration = 0; iteration < maxIterations; iteration++) {
+                    progressTracker.pushPhase("Iteration " + iteration);
+                    try {
+                        var assignedDifferently = assignVectorsToClosestClusters(progressTracker);
+                        if (!assignedDifferently) {
+                            break;
+                        }
+                        calculateCentroids(centroidsPerCore, vectorCountForCentroidPerCore, vectorCountForCentroid, progressTracker);
+                    } finally {
+                        progressTracker.pullPhase();
+                    }
                 }
             }
         } finally {
@@ -123,8 +126,8 @@ public final class KMeansClustering {
 
     private void calculateCentroids(
             final FloatVectorSegment[] centroidsPerCore,
-            final IntSegment[] vectorCountForCentroidPerCore,
-            final IntSegment vectorCountForCentroid,
+            final int[][] vectorCountForCentroidPerCore,
+            final int[] vectorCountForCentroid,
             @NotNull final ProgressTracker progressTracker
     ) {
         pBuddy.runSplitEvenly(
@@ -133,29 +136,29 @@ public final class KMeansClustering {
                 progressTracker,
                 // init worker
                 (workerIdx) -> {
-                    centroidsPerCore[workerIdx].fill((byte) 0);
-                    vectorCountForCentroidPerCore[workerIdx].fill((byte) 0);
+                    centroidsPerCore[workerIdx].fill(0);
+                    Arrays.fill(vectorCountForCentroidPerCore[workerIdx], 0);
                 },
                 // process an item
                 (workerIdx, vectorIdx) -> {
                     var vector = vectorReader.read(vectorIdx);
                     var centroidIdx = centroidIdxByVectorIdx.get(vectorIdx);
                     centroidsPerCore[workerIdx].add(centroidIdx, vector, 0);
-                    vectorCountForCentroidPerCore[workerIdx].add(centroidIdx, 1);
+                    vectorCountForCentroidPerCore[workerIdx][centroidIdx] += 1;
                 }
         );
 
-        centroids.fill((byte) 0);
-        vectorCountForCentroid.fill((byte) 0);
+        centroids.fill(0);
+        Arrays.fill(vectorCountForCentroid, 0);
         for (int workerId = 0; workerId < pBuddy.numWorkers(); workerId++) {
             for (int centroidIdx = 0; centroidIdx < numClusters; centroidIdx++) {
                 centroids.add(centroidIdx, centroidsPerCore[workerId], centroidIdx);
-                vectorCountForCentroid.add(centroidIdx, vectorCountForCentroidPerCore[workerId].get(centroidIdx));
+                vectorCountForCentroid[centroidIdx] += vectorCountForCentroidPerCore[workerId][centroidIdx];
             }
         }
 
         for (int centroidIdx = 0; centroidIdx < numClusters; centroidIdx++) {
-            var vectorCount = vectorCountForCentroid.get(centroidIdx);
+            var vectorCount = vectorCountForCentroid[centroidIdx];
             if (vectorCount > 0) {
                 centroids.div(centroidIdx, vectorCount);
             }
@@ -163,20 +166,40 @@ public final class KMeansClustering {
     }
 
     private int findClosestCluster(int vectorIdx) {
+        if (vectorDimensions == 1) {
+            return findClosestCluster1Dimension(vectorIdx);
+        }
         int minIndex = -1;
         float minDistance = Float.MAX_VALUE;
+        // todo slicing here causes a lot of heap allocations
         var vector = vectorReader.read(vectorIdx);
 
         for (int i = 0; i < numClusters; i++) {
-            var centroid = centroids.get(i);
-
-            var distance = distanceFun.computeDistance(vector, 0, centroid, 0, vectorDimensions);
+            var distance = distanceFun.computeDistance(vector, 0, centroids.getInternalArray(), centroids.offset(i), vectorDimensions);
             if (distance < minDistance) {
                 minDistance = distance;
                 minIndex = i;
             }
         }
 
+        return minIndex;
+    }
+
+    private int findClosestCluster1Dimension(int vectorIdx) {
+        int minIndex = -1;
+        float minDistance = Float.MAX_VALUE;
+
+        var vector = vectorReader.read(vectorIdx, 0);
+
+        for (int i = 0; i < numClusters; i++) {
+            var centroid = centroids.get(i, 0);
+
+            var distance = distanceFun.computeDistance(vector, centroid);
+            if (distance < minDistance) {
+                minDistance = distance;
+                minIndex = i;
+            }
+        }
         return minIndex;
     }
 }

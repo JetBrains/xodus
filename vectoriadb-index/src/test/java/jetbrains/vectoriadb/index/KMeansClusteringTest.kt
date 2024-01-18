@@ -6,11 +6,11 @@ class KMeansClusteringTest {
 
     @Test
     fun kMeansClustering() = parallelVectorTest(VectorDataset.Sift10K) {
-        val distance = L2DistanceFunction.INSTANCE
+        val distance = L2DistanceFunctionNew()
 
         val maxIteration = 50
         val numClusters = 33
-        val centroids = FloatVectorSegment.makeNativeSegment(arena, numClusters, dimensions)
+        val centroids = FloatVectorSegment.makeSegment(numClusters, dimensions)
         val centroidIdxByVectorIdx = ByteCodeSegment.makeArraySegment(numVectors)
 
         val kmeans = KMeansClustering(

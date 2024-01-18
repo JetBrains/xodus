@@ -1,20 +1,15 @@
 package jetbrains.vectoriadb.index;
 
-import org.jetbrains.annotations.TestOnly;
-
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.util.Arrays;
 
 class FloatVectorSegment {
-    private static final ValueLayout.OfFloat LAYOUT = ValueLayout.JAVA_FLOAT;
-    private static final int BYTES = Float.BYTES;
-
     private final int dimensions;
     private final int count;
-    private final MemorySegment vectors;
+    private final float[] vectors;
 
-    private FloatVectorSegment(int count, int dimensions, MemorySegment vectors) {
+    private FloatVectorSegment(int count, int dimensions, float[] vectors) {
         this.dimensions = dimensions;
         this.count = count;
         this.vectors = vectors;
@@ -29,47 +24,53 @@ class FloatVectorSegment {
     }
 
     public void add(int idx1, FloatVectorSegment v2, int idx2) {
-        add(idx1, v2.vectors, idx2);
+        VectorOperations.add(vectors, idx1 * dimensions, v2.vectors, idx2 * dimensions, vectors, idx1 * dimensions, dimensions);
     }
 
     public void add(int idx1, MemorySegment v2, int idx2) {
-        VectorOperations.add(vectors, (long) idx1 * dimensions, v2, (long) idx2 * dimensions, vectors, (long) idx1 * dimensions, dimensions);
+        VectorOperations.add(vectors, idx1 * dimensions, v2, (long) idx2 * dimensions, vectors, idx1 * dimensions, dimensions);
     }
 
     public void div(int idx, float scalar) {
-        VectorOperations.div(vectors, (long) idx * dimensions, scalar, vectors, (long) idx * dimensions, dimensions);
+        VectorOperations.div(vectors, idx * dimensions, scalar, vectors, idx * dimensions, dimensions);
     }
 
     public float get(int vectorIdx, int dimension) {
-        return vectors.getAtIndex(LAYOUT,(long) vectorIdx * dimensions + dimension);
+        return vectors[vectorIdx * dimensions + dimension];
     }
 
     public void set(int vectorIdx, int dimension, float value) {
-        vectors.setAtIndex(LAYOUT, (long) vectorIdx * dimensions + dimension, value);
+        vectors[vectorIdx * dimensions + dimension] = value;
     }
 
     public void set(int vectorIdx, MemorySegment vector) {
-        MemorySegment.copy(vector, 0, vectors, (long) vectorIdx * dimensions * BYTES, (long) dimensions * BYTES);
+        for (int i = 0; i < dimensions; i++) {
+            vectors[vectorIdx * dimensions + i] = vector.getAtIndex(ValueLayout.JAVA_FLOAT, i);
+        }
     }
 
-    public MemorySegment get(int vectorIdx) {
-        return vectors.asSlice((long) vectorIdx * dimensions * BYTES, (long) dimensions * BYTES);
+    public float[] getInternalArray() {
+        return vectors;
+    }
+
+    public int offset(int vectorIdx) {
+        return vectorIdx * dimensions;
     }
 
     public float[][] toArray() {
         var array = new float[count][dimensions];
         for (int i = 0; i < count; i++) {
-            MemorySegment.copy(vectors, LAYOUT, (long) i * dimensions * BYTES, array[i], 0, dimensions);
+            System.arraycopy(vectors, i * dimensions, array[i], 0, dimensions);
         }
         return array;
     }
 
-    public void fill(byte value) {
-        vectors.fill(value);
+    public void fill(float value) {
+        Arrays.fill(vectors, value);
     }
 
     public FloatVectorSegment copy() {
-        return new FloatVectorSegment(count, dimensions, MemorySegment.ofArray(vectors.toArray(LAYOUT)));
+        return new FloatVectorSegment(count, dimensions, vectors.clone());
     }
 
     public boolean equals(int idx1, FloatVectorSegment v2, int idx2) {
@@ -90,29 +91,14 @@ class FloatVectorSegment {
         return true;
     }
 
-    public static FloatVectorSegment makeNativeSegment(Arena arena, int count, int dimensions) {
-        var segment = arena.allocate((long) count * dimensions * BYTES, LAYOUT.byteAlignment());
-        return new FloatVectorSegment(count, dimensions, segment);
+    public static FloatVectorSegment makeSegment(int count, int dimensions) {
+        return new FloatVectorSegment(count, dimensions, new float[count * dimensions]);
     }
 
-    /**
-     * Be careful using this method.
-     * L2DistanceFunction and DotDistanceFunction fail when working with array-based segment with float arrays behind.
-     * They work only with byte arrays behind. It is a bug in JVM, so until it is fixed, be careful using this method.
-     * Do not use it if you pass FloatVectorSegment to code that calculates distance using L2DistanceFunction and DotDistanceFunction.
-    * */
-    @TestOnly
-    public static FloatVectorSegment makeArraySegment(int count, int dimensions) {
-        var array = new float[count * dimensions];
-        return new FloatVectorSegment(count, dimensions, MemorySegment.ofArray(array));
-    }
-
-    public static FloatVectorSegment[] makeNativeSegments(Arena arena, int segmentCount, int vectorsPerSegment, int dimensions) {
-        var segment = arena.allocate((long) segmentCount * vectorsPerSegment * dimensions * BYTES, LAYOUT.byteAlignment());
-
+    public static FloatVectorSegment[] makeSegments(int segmentCount, int vectorsPerSegment, int dimensions) {
         var result = new FloatVectorSegment[segmentCount];
         for (int i = 0; i < segmentCount; i++) {
-            result[i] = new FloatVectorSegment(vectorsPerSegment, dimensions, segment.asSlice((long) i * vectorsPerSegment * dimensions * BYTES, (long) vectorsPerSegment * dimensions * BYTES));
+            result[i] = new FloatVectorSegment(vectorsPerSegment, dimensions, new float[vectorsPerSegment * dimensions]);
         }
         return result;
     }
