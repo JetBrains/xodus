@@ -11,6 +11,8 @@ public final class KMeansClustering {
 
     @NotNull
     private final VectorReader vectorReader;
+    @NotNull
+    private final String name;
     private final int numVectors;
     private final int vectorDimensions;
 
@@ -30,6 +32,7 @@ public final class KMeansClustering {
     private final ParallelBuddy pBuddy;
 
     KMeansClustering(
+            @NotNull String name,
             @NotNull DistanceFunction distanceFun,
             @NotNull VectorReader vectorReader,
             @NotNull FloatVectorSegment centroids,
@@ -37,6 +40,7 @@ public final class KMeansClustering {
             int maxIterations,
             @NotNull ParallelBuddy pBuddy
     ) {
+        this.name = name;
         numVectors = vectorReader.size();
         this.numClusters = centroids.count();
 
@@ -56,7 +60,7 @@ public final class KMeansClustering {
     }
 
     public void calculateCentroids(@NotNull ProgressTracker progressTracker) {
-        progressTracker.pushPhase("K-means clustering",
+        progressTracker.pushPhase(name,
                 "max iterations", String.valueOf(maxIterations),
                 "clusters count", String.valueOf(numClusters),
                 "vectors count", String.valueOf(numVectors)

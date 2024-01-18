@@ -14,6 +14,7 @@ class KMeansClusteringTest {
         val centroidIdxByVectorIdx = ByteCodeSegment.makeArraySegment(numVectors)
 
         val kmeans = KMeansClustering(
+            "test clustering",
             distance,
             vectorReader,
             centroids,

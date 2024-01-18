@@ -96,6 +96,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
 
     private void trainCodebook(ParallelBuddy pBuddy, FloatVectorSegment norms, int codebookIdx, ProgressTracker progressTracker) {
         var kmeans = new KMeansClustering(
+                STR."Train \{codebookIdx} norm codebook",
                 L2DistanceFunction.INSTANCE,
                 new ScalarArrayReader(norms.getInternalArray()),
                 codebooks[codebookIdx],
@@ -212,6 +213,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
             var centroids = FloatVectorSegment.makeSegment(numClusters, vectorReader.dimensions());
             var centroidIdxByVectorIdx = ByteCodeSegment.makeNativeSegment(arena, vectorReader.size());
             var kmeans = new KMeansClustering(
+                    "Split vectors by partitions",
                     distanceFunction,
                     vectorReader,
                     centroids,
@@ -280,6 +282,7 @@ class NormExplicitQuantizer extends AbstractQuantizer {
             var centroids = FloatVectorSegment.makeSegment(numClusters, vectorReader.dimensions());
             var centroidIdxByVectorIdx = ByteCodeSegment.makeNativeSegment(arena, vectorReader.size());
             var kmeans = new KMeansClustering(
+                    "Calculate centroids",
                     distanceFunction,
                     vectorReader,
                     centroids,
