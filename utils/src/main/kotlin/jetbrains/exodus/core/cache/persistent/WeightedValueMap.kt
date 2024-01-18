@@ -24,6 +24,8 @@ typealias ValueWeigher<V> = (V) -> Int
 internal class WeightedValueMap<K, V>(private val weigher: ValueWeigher<V>) {
 
     private val map = ConcurrentHashMap<K, V>()
+    // Cache of weights of values in order now to calculate it only once
+    private val weights = HashMap<K, Int>()
 
     // Total weight of all values collectively
     private val totalWeightRef = AtomicInteger()
@@ -33,17 +35,18 @@ internal class WeightedValueMap<K, V>(private val weigher: ValueWeigher<V>) {
     val totalWeight get() = totalWeightRef.get()
 
     fun put(key: K, value: V) {
-        map.compute(key) { _, prevValue ->
-            val toSubtract = prevValue?.let(weigher) ?: 0
-            // Coersing is needed to avoid negative values as weigher can return different values for the same value
-            totalWeightRef.updateAndGet { (it + weigher(value) - toSubtract).coerceAtLeast(0) }
+        val weight = weigher(value)
+        map.compute(key) { _, _ ->
+            val prevWeight = weights.put(key, weight) ?: 0
+            totalWeightRef.updateAndGet { it + weight - prevWeight }
             value
         }
     }
 
     fun remove(key: K) {
         map.computeIfPresent(key) { _, value ->
-            totalWeightRef.updateAndGet { (it - weigher(value)).coerceAtLeast(0) }
+            val weight = weights.remove(key) ?: 0
+            totalWeightRef.updateAndGet { it - weight }
             null
         }
     }
