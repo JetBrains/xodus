@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.core.cache.persistent.*
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
+import mu.KLogging
 import java.time.Duration
 
 internal open class EntityIterableCacheAdapter(
@@ -25,12 +26,16 @@ internal open class EntityIterableCacheAdapter(
     val stickyObjects: HashMap<EntityIterableHandle, Updatable>
 ) {
 
-    companion object {
+    companion object : KLogging() {
 
         fun create(config: PersistentEntityStoreConfig): EntityIterableCacheAdapter {
             val sizeEviction = if (config.entityIterableCacheSize > 0) {
+                val maxSize = config.entityIterableCacheSize.toLong()
+                logger.info("Using sized eviction for entity iterable cache, maxSize = $maxSize")
                 SizedEviction<CachedInstanceIterable>(config.entityIterableCacheSize.toLong())
             } else {
+                val maxWeight = config.entityIterableCacheWeight
+                logger.info("Using weighted eviction for entity iterable cache, maxWeight = $maxWeight")
                 WeightedEviction(config.entityIterableCacheWeight) { it.roughSize.toInt() }
             }
             val cacheConfig = CaffeineCacheConfig(
