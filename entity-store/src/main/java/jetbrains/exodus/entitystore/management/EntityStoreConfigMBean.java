@@ -71,6 +71,8 @@ public interface EntityStoreConfigMBean {
 
     int getEntityIterableCacheSize();
 
+    long getEntityIterableCacheWeight();
+
     int getEntityIterableCacheCountsCacheSize();
 
     long getEntityIterableCacheCountsLifeTime();

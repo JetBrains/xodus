@@ -167,6 +167,11 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public long getEntityIterableCacheWeight() {
+        return config.getEntityIterableCacheWeight();
+    }
+
+    @Override
     public int getEntityIterableCacheCountsCacheSize() {
         return config.getEntityIterableCacheCountsCacheSize();
     }
