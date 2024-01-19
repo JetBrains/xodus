@@ -16,7 +16,7 @@
 package jetbrains.exodus.core.cache.persistent
 
 import jetbrains.exodus.core.cache.BasicCache
-import java.util.function.BiConsumer
+import java.util.function.Consumer
 
 /**
  * This interface represents a cache that can store its previous versions,
@@ -33,7 +33,7 @@ interface PersistentCache<K, V> : BasicCache<K, V> {
     /**
      * Creates new version of the cache with the same configuration.
      */
-    fun createNextVersion(entryConsumer: BiConsumer<K, V>? = null): PersistentCache<K, V>
+    fun createNextVersion(keyConsumer: Consumer<K>? = null): PersistentCache<K, V>
 
     /**
      * Register a client for the current version of the cache.

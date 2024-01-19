@@ -44,7 +44,7 @@ internal class WeightedValueMap<K, V>(private val weigher: ValueWeigher<V>) {
     }
 
     fun remove(key: K) {
-        map.computeIfPresent(key) { _, value ->
+        map.computeIfPresent(key) { _, _ ->
             val weight = weights.remove(key) ?: 0
             totalWeightRef.updateAndGet { it - weight }
             null

@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.entitystore.PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE
 import mu.KLogger
 import mu.KLogging
 import java.util.concurrent.CountDownLatch
@@ -38,7 +37,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         init {
             // Use for local experiments to change cache params
             //System.setProperty(ENTITY_ITERABLE_CACHE_SIZE, "8096")
-            System.setProperty(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, "50")
+            //System.setProperty(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, "50")
         }
     }
 
@@ -68,7 +67,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         assertEquals(1, store.entityIterableCache.stats.totalHits)
     }
 
-    fun testHitRate() {
+    fun testStressReadPerformance() {
         // Given
         val projectCount = 2
         val userCount = 20
@@ -77,8 +76,8 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val queryConcurrencyLevel = 10
         val queryDelayMillis = 1L
 
-        val updateConcurrently = false
-        val updateDelayMillis = 10L
+        val updateConcurrently = true
+        val updateDelayMillis = 100L
 
         val store = entityStore
         val projects = Project.createMany(projectCount, store)
@@ -89,14 +88,14 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // When
         logger.info("Running $queryCount queries...")
         val finishedRef = AtomicBoolean(false)
-        val updateProcess = thread {
-            while (!finishedRef.get()) {
-                if (updateConcurrently) {
+        val updateProcess = if(updateConcurrently) {
+            thread {
+                while (!finishedRef.get()) {
                     test.changeIssueAssignee()
+                    Thread.sleep(updateDelayMillis)
                 }
-                Thread.sleep(updateDelayMillis)
             }
-        }
+        } else null
         val executor = Executors.newFixedThreadPool(queryConcurrencyLevel)
         repeat(queryCount) {
             executor.submit {
@@ -108,17 +107,57 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         executor.shutdown()
         executor.awaitTermination(10, MINUTES)
         finishedRef.set(true)
-        updateProcess.join()
+        updateProcess?.join()
 
         // Then
         reportInLogEntityIterableCacheStats()
-        val actualHitRate = store.entityIterableCache.stats.hitRate
-        val expectedHitRate = 0.5
-        println("Actual hitRate: $actualHitRate")
-        assertTrue(
-            "hitRate should be more or equal to $expectedHitRate, but was $actualHitRate",
-            actualHitRate >= expectedHitRate
-        )
+        assertHitRateToBeNotLessThan(0.5)
+    }
+
+    fun testStressWritePerformance() {
+        // Given
+        // Use these params to experiment with cache locally
+        val projectCount = 2
+        val userCount = 20
+        val issueCount = 1000
+        val writeCount = 10000
+
+        val queryConcurrently = true
+        val queryDelayMillis = 100L
+
+        val store = entityStore
+        val projects = Project.createMany(projectCount, store)
+        val users = User.createMany(userCount, store)
+        val issues = Issue.createMany(issueCount, projects, users, store)
+        val test = TestCase(store, projects, users, issues)
+
+        // When
+        logger.info("Running $writeCount writes...")
+        val finishedRef = AtomicBoolean(false)
+        val queryThread = if(queryConcurrently) {
+            thread {
+                while (!finishedRef.get()) {
+                    test.queryComplexList()
+                    test.queryAssignedIssues()
+                    Thread.sleep(queryDelayMillis)
+                }
+            }
+        } else null
+        repeat(writeCount) {
+            test.changeIssueAssignee()
+            test.changeIssueTitle()
+            test.queryComplexList()
+            if (it % 1000 == 0) {
+                println("Progress: $it/$writeCount")
+            }
+        }
+        finishedRef.set(true)
+        queryThread?.join()
+
+        // Then
+        reportInLogEntityIterableCacheStats()
+        // Expected hit rate is low because of intensive concurrent writes
+        assertHitRateToBeNotLessThan(0.3)
     }
 
     fun testCacheTransactionIsolation() {
@@ -188,6 +227,16 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         assertEquals(4, writeCount2)
 
         reportInLogEntityIterableCacheStats()
+        assertHitRateToBeNotLessThan(0.5)
+    }
+
+    private fun assertHitRateToBeNotLessThan(expectedHitRate: Double) {
+        val actualHitRate = entityStore.entityIterableCache.stats.hitRate
+        println("Actual hitRate: $actualHitRate")
+        assertTrue(
+            "hitRate should be more or equal to $expectedHitRate, but was $actualHitRate",
+            actualHitRate >= expectedHitRate
+        )
     }
 
     data class TestCase(

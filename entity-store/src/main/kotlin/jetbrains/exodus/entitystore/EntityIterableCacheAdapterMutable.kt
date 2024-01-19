@@ -32,7 +32,7 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         fun cloneFrom(cacheAdapter: EntityIterableCacheAdapter): EntityIterableCacheAdapterMutable {
             val oldCache = cacheAdapter.cache
             val handleDistribution = HandleDistribution(oldCache.count().toInt())
-            val newCache = oldCache.createNextVersion { key, _ ->
+            val newCache = oldCache.createNextVersion { key ->
                 handleDistribution.addHandle(key)
             }
             val stickyObjects = HashMap(cacheAdapter.stickyObjects)

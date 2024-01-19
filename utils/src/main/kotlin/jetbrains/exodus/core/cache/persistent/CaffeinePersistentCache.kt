@@ -17,8 +17,11 @@ package jetbrains.exodus.core.cache.persistent
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import jetbrains.exodus.core.cache.CaffeineEvictionSubject
+import jetbrains.exodus.core.cache.EvictionListener
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.BiConsumer
+import java.util.function.Consumer
 
 
 typealias Version = Long
@@ -32,11 +35,16 @@ class CaffeinePersistentCache<K, V> private constructor(
     private val config: CaffeineCacheConfig<V>,
     override val version: Long,
     private val versionTracker: VersionTracker,
-) : PersistentCache<K, V> {
+    private val evictionSubject: CaffeineEvictionSubject<K, V>,
+    // Local index as map of keys to corresponding versions available for the current version of cache
+    // This map is eventually consistent with the cache and not intended to be in full sync with it due to performance reasons
+    private val keyVersions: ConcurrentHashMap<K, Version> = ConcurrentHashMap()
+) : PersistentCache<K, V>, EvictionListener<K, V> {
 
     companion object {
 
         fun <K, V> create(config: CaffeineCacheConfig<V>): CaffeinePersistentCache<K, V> {
+            val evictionSubject = CaffeineEvictionSubject<K, V>()
             val cache = Caffeine.newBuilder()
                 .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
                 .apply { if (config.useSoftValues) softValues() }
@@ -50,16 +58,23 @@ class CaffeinePersistentCache<K, V> private constructor(
                         weigher { _: K, values: WeightedValueMap<Version, V> -> values.totalWeight }
                     }
                 }
+                .apply { evictionListener(evictionSubject) }
                 .build<K, WeightedValueMap<Version, V>>()
             val version = 0L
             val tracker = VersionTracker(version)
 
-            return CaffeinePersistentCache(cache, config, version, tracker)
+            return CaffeinePersistentCache(cache, config, version, tracker, evictionSubject)
         }
     }
+    init {
+        evictionSubject.addListener(this)
+    }
 
-    // Local index as map of keys to corresponding versions available for the current version of cache
-    private val keyVersions = ConcurrentHashMap<K, Long>()
+    private val cacheMap = cache.asMap()
+
+    override fun onEvict(key: K?, value: V?) {
+        key?.let { keyVersions.remove(key) }
+    }
 
     // Generic cache impl
     override fun size(): Long {
@@ -73,12 +88,12 @@ class CaffeinePersistentCache<K, V> private constructor(
     override fun get(key: K): V? {
         val valueVersion = keyVersions[key] ?: return null
         val values = cache.getIfPresent(key) ?: return null
-        values.removeUnusedVersionsAndPutBack(key, valueVersion)
+        values.removeUnusedVersionsAndUpdateCache(key, valueVersion)
         return values.get(valueVersion)
     }
 
     override fun put(key: K, value: V) {
-        cache.asMap().compute(key) { _, map ->
+        cacheMap.compute(key) { _, map ->
             val values = map ?: createNewValueMap()
             values.put(version, value)
             values.removeUnusedVersions(version)
@@ -94,7 +109,7 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun remove(key: K) {
-        cache.asMap().computeIfPresent(key) { _, values ->
+        cacheMap.computeIfPresent(key) { _, values ->
             values.remove(version)
             values.orNullIfEmpty()
         }
@@ -120,22 +135,24 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     // Persistent cache impl
-    override fun createNextVersion(entryConsumer: BiConsumer<K, V>?): PersistentCache<K, V> {
+    override fun createNextVersion(keyConsumer: Consumer<K>?): PersistentCache<K, V> {
         val nextVersion = versionTracker.nextVersion()
-        val newCache = CaffeinePersistentCache(cache, config, nextVersion, versionTracker)
-
         // Copy key index for the next cache
         // It effectively prohibits new version from seeing new values cached for previous versions
         // as they might be stale, e.g. due to values already changed by another transaction
+        val keyVersionsCopy = ConcurrentHashMap<K, Version>(keyVersions.size)
         keyVersions.forEach { (key, version) ->
-            val value = cache.getVersioned(key, version)
-            if (value != null) {
-                newCache.keyVersions[key] = version
-                entryConsumer?.accept(key, value)
-            }
+            keyVersionsCopy[key] = version
+            keyConsumer?.accept(key)
         }
 
-        return newCache
+        return CaffeinePersistentCache(
+            cache, config,
+            nextVersion,
+            versionTracker,
+            evictionSubject,
+            keyVersionsCopy
+        )
     }
 
     override fun register(): PersistentCacheClient {
@@ -167,7 +184,7 @@ class CaffeinePersistentCache<K, V> private constructor(
         return changed
     }
 
-    private fun WeightedValueMap<Version, V>.removeUnusedVersionsAndPutBack(key: K, currentVersion: Version) {
+    private fun WeightedValueMap<Version, V>.removeUnusedVersionsAndUpdateCache(key: K, currentVersion: Version) {
         if (removeUnusedVersions(currentVersion)) {
             cache.put(key, this)
         }
