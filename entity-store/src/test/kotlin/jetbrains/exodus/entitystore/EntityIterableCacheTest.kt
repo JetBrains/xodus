@@ -22,13 +22,13 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit.MINUTES
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
-import kotlin.random.Random
 
 class EntityIterableCacheTest : EntityStoreTestBase() {
 
     companion object : KLogging() {
-        private val rnd = Random(0)
-        private val testData = TestData(rnd)
+        private val kRandom = kotlin.random.Random(0)
+        private val random = java.util.Random(0)
+        private val testData = TestData(kRandom)
 
         // Settings for local dev testing
         private val logIssueCreated = false
@@ -88,7 +88,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // When
         logger.info("Running $queryCount queries...")
         val finishedRef = AtomicBoolean(false)
-        val updateProcess = if(updateConcurrently) {
+        val updateProcess = if (updateConcurrently) {
             thread {
                 while (!finishedRef.get()) {
                     test.changeIssueAssignee()
@@ -134,7 +134,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // When
         logger.info("Running $writeCount writes...")
         val finishedRef = AtomicBoolean(false)
-        val queryThread = if(queryConcurrently) {
+        val queryThread = if (queryConcurrently) {
             thread {
                 while (!finishedRef.get()) {
                     test.queryComplexList()
@@ -249,7 +249,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         companion object : KLogging()
 
         fun queryAssignedIssues() {
-            val assignee = users.random(rnd)
+            val assignee = users.random(kRandom)
             store.executeInTransaction { tx ->
                 val result = tx.findLinks("Issue", assignee, "assignee").toList()
                 logger.logQueryResult("[1] Found ${result.size} issues assigned to ${assignee.getProperty("name")}")
@@ -257,9 +257,9 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         }
 
         fun queryComplexList() {
-            val project = projects.random(rnd)
-            val assignee = users.random(rnd)
-            val state = IssueState.entries.random(rnd)
+            val project = projects.randomGaussian(random)
+            val assignee = users.randomGaussian(random)
+            val state = IssueState.entries.randomGaussian(random)
             val sortAscending = testData.boolean()
             store.executeInTransaction { tx ->
                 val result = tx.findLinks("Issue", project, "project")
@@ -278,9 +278,9 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         }
 
         fun queryComplexRoughSize() {
-            val project = projects.random(rnd)
-            val assignee = users.random(rnd)
-            val state = IssueState.entries.random(rnd)
+            val project = projects.random(kRandom)
+            val assignee = users.random(kRandom)
+            val state = IssueState.entries.random(kRandom)
             val sortAscending = testData.boolean()
             store.executeInTransaction { tx ->
                 val roughSize = tx.findLinks("Issue", project, "project")
@@ -300,24 +300,26 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
 
         fun changeIssueAssignee() {
-            val issue = issues.random(rnd)
-            val assignee = users.random(rnd)
+            val issue = issues.randomGaussian(random)
+            val assignee = users.randomGaussian(random)
             store.executeInTransaction { tx ->
                 issue.setLink("assignee", assignee)
             }
         }
 
         fun changeIssueTitle() {
-            val issue = issues.random(rnd)
+            val issue = issues.random(kRandom)
             val title = testData.chuckNorrisFact()
             store.executeInTransaction { tx ->
-               issue.setProperty("title", title)
+                issue.setProperty("title", title)
             }
         }
 
         fun KLogger.logQueryResult(message: String) {
             if (logQueryResult) info(message)
         }
+
+
     }
 
     // Projects
@@ -372,8 +374,8 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Data
         val title: String = testData.chuckNorrisFact(),
         val summary: String = testData.rickAndMortyQuote(),
-        val state: IssueState = IssueState.entries.random(rnd),
-        val priority: IssuePriority = IssuePriority.entries.random(rnd),
+        val state: IssueState = IssueState.entries.random(kRandom),
+        val priority: IssuePriority = IssuePriority.entries.random(kRandom),
         val createdAt: Long = testData.pastDateUpToDays(100).time,
 
         // Links
@@ -390,9 +392,9 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
             ): List<Entity> {
                 logger.info("Creating $count issues...")
                 return (1..count).map {
-                    val project = projects.random(rnd)
-                    val reporter = users.random(rnd)
-                    val assignee = users.random(rnd)
+                    val project = projects.random(kRandom)
+                    val reporter = users.random(kRandom)
+                    val assignee = users.random(kRandom)
 
                     val issue = Issue(project = project, reporter = reporter, assignee = assignee)
                     issue.create(store)
