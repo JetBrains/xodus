@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicLong
 // Thread-safe class for tracking current version and clients registered for different versions
 internal class VersionTracker(initialVersion: Long = 0) {
 
-    @JvmRecord
     internal data class ClientVersion(val client: PersistentCacheClient, val version: Long)
 
     private val versionRef = AtomicLong(initialVersion)

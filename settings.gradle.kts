@@ -176,10 +176,11 @@ project(":environment-crash-tests").name = "xodus-environment-crash-tests"
 include("lucene-directory-v2")
 project(":lucene-directory-v2").name = "xodus-lucene-directory-v2"
 
-include("vectoriadb-index")
-project(":vectoriadb-index").name = "vectoriadb-index"
-
-include("vectoriadb-server")
-include("vectoriadb-interface")
-include("vectoriadb-java-client")
-include("vectoriadb-bench")
+// ToDo: remove back, commented to build xodus with java 17
+//include("vectoriadb-index")
+//project(":vectoriadb-index").name = "vectoriadb-index"
+//
+//include("vectoriadb-server")
+//include("vectoriadb-interface")
+//include("vectoriadb-java-client")
+//include("vectoriadb-bench")
