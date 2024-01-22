@@ -123,7 +123,7 @@ class BvecsFileReader(
         check(buffer.getInt() == vectorDimensions) { "Vector dimensions mismatch" }
 
         for (i in vector.indices) {
-            vector[i] = buffer.get().toFloat()
+            vector[i] = buffer.get().toUByte().toFloat()
         }
         buffer.clear()
     }
