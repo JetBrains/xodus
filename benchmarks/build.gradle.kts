@@ -1,11 +1,6 @@
 val currentJmhVersion = "1.35"
 
 buildscript {
-    repositories {
-        maven {
-            url = uri("https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
-        }
-    }
     dependencies {
         classpath("org.apache.commons:commons-lang3:3.5")
     }
