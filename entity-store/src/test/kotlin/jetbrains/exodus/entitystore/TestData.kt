@@ -77,7 +77,7 @@ class TestData(val kRandom: Random) {
         "Chuck Norris can solve the Towers of Hanoi in one move.",
         "The only pattern Chuck Norris knows is God Object.",
         "Chuck Norris finished World of Warcraft.",
-        "jetbrains.exodus.entitystore.Project managers never ask Chuck Norris for estimations... ever.",
+        "Project managers never ask Chuck Norris for estimations... ever.",
         "Chuck Norris doesn't use web standards as the web will conform to him.",
         "\"It works on my machine\" always holds true for Chuck Norris.",
         "Whiteboards are white because Chuck Norris scared them that way.",
