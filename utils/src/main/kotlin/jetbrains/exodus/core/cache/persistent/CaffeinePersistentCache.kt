@@ -104,6 +104,7 @@ class CaffeinePersistentCache<K, V> private constructor(
     override fun remove(key: K) {
         cacheMap.computeIfPresent(key) { _, values ->
             values.remove(version)
+            values.removeUnusedVersions(version)
             values.orNullIfEmpty()
         }
         keyVersions.remove(key)
