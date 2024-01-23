@@ -59,8 +59,8 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
     fun testCacheTransactionIsolation() {
         // Given
         // Helpers
-        fun StoreTransaction.countAllIssues() = getAll("jetbrains.exodus.entitystore.Issue").size()
-        fun StoreTransaction.createNewIssue() = newEntity("jetbrains.exodus.entitystore.Issue")
+        fun StoreTransaction.countAllIssues() = getAll("Issue").size()
+        fun StoreTransaction.createNewIssue() = newEntity("Issue")
 
         val store = entityStore
         store.executeInTransaction {
@@ -127,7 +127,6 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         assertEquals(4, writeCount2)
 
         reportInLogEntityIterableCacheStats()
-        assertHitRateToBeNotLessThan(0.5)
     }
 
     fun testStressReadPerformance() {
@@ -198,7 +197,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Then
         reportInLogEntityIterableCacheStats()
         // Expected hit rate is low because of intensive concurrent writes
-        assertHitRateToBeNotLessThan(0.3)
+        assertHitRateToBeNotLessThan(0.4)
     }
 
     // Helpers

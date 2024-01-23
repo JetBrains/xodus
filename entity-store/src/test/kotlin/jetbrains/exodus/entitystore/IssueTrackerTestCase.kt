@@ -42,7 +42,7 @@ class IssueTrackerTestCase(
     fun queryAssignedIssues() {
         val assignee = users.random(kRandom)
         store.executeInTransaction { tx ->
-            val result = tx.findLinks("jetbrains.exodus.entitystore.Issue", assignee, "assignee").toList()
+            val result = tx.findLinks("Issue", assignee, "assignee").toList()
             logger.logQueryResult("[1] Found ${result.size} issues assigned to ${assignee.getProperty("name")}")
         }
     }
@@ -53,10 +53,10 @@ class IssueTrackerTestCase(
         val state = IssueState.entries.randomGaussian(random)
         val sortAscending = testData.boolean()
         store.executeInTransaction { tx ->
-            val result = tx.findLinks("jetbrains.exodus.entitystore.Issue", project, "project")
-                .intersect(tx.findLinks("jetbrains.exodus.entitystore.Issue", assignee, "assignee"))
-                .intersect(tx.find("jetbrains.exodus.entitystore.Issue", "state", state.name))
-                .intersect(tx.sort("jetbrains.exodus.entitystore.Issue", "createdAt", sortAscending))
+            val result = tx.findLinks("Issue", project, "project")
+                .intersect(tx.findLinks("Issue", assignee, "assignee"))
+                .intersect(tx.find("Issue", "state", state.name))
+                .intersect(tx.sort("Issue", "createdAt", sortAscending))
                 .toList()
             logger.logQueryResult(
                 "Found ${result.size} issues" +
@@ -74,10 +74,10 @@ class IssueTrackerTestCase(
         val state = IssueState.entries.random(kRandom)
         val sortAscending = testData.boolean()
         store.executeInTransaction { tx ->
-            val roughSize = tx.findLinks("jetbrains.exodus.entitystore.Issue", project, "project")
-                .intersect(tx.findLinks("jetbrains.exodus.entitystore.Issue", assignee, "assignee"))
-                .intersect(tx.find("jetbrains.exodus.entitystore.Issue", "state", state.name))
-                .intersect(tx.sort("jetbrains.exodus.entitystore.Issue", "createdAt", sortAscending))
+            val roughSize = tx.findLinks("Issue", project, "project")
+                .intersect(tx.findLinks("Issue", assignee, "assignee"))
+                .intersect(tx.find("Issue", "state", state.name))
+                .intersect(tx.sort("Issue", "createdAt", sortAscending))
                 .roughSize
             logger.logQueryResult(
                 "Found $roughSize issues roughly" +
@@ -135,7 +135,7 @@ data class Project(val name: String) {
 
     fun createNewEntity(store: PersistentEntityStore): Entity {
         return store.computeInTransaction { tx ->
-            val project = tx.newEntity("jetbrains.exodus.entitystore.Project")
+            val project = tx.newEntity("Project")
             project.setProperty("name", name)
             project
         }
@@ -232,7 +232,7 @@ data class Issue(
 
     fun createNewEntity(store: PersistentEntityStore): Entity {
         return store.computeInTransaction { tx ->
-            val issue = tx.newEntity("jetbrains.exodus.entitystore.Issue")
+            val issue = tx.newEntity("Issue")
             issue.setProperty("title", title)
             issue.setProperty("summary", summary)
             issue.setProperty("state", state.name)
