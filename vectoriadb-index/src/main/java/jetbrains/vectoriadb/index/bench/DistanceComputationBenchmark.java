@@ -79,14 +79,25 @@ public class DistanceComputationBenchmark {
     private MemorySegment v1Seg;
     private MemorySegment[] vectorsSeg;
 
-    @Param({ "l2", "l2-new", "ip", "ip-new" })
+    @Param({
+            "l2-cur-j",
+            "l2-new-k",
+            "l2-new-j",
+
+            "ip-cur-j",
+            "ip-new-k",
+            "ip-new-j"
+    })
     public String distanceFunction;
 
     private final Map<String, DistanceFunction> distanceFunctions = Map.of(
-            "l2", new L2DistanceFunction(),
-            "l2-new", new L2DistanceFunctionNew(),
-            "ip", new DotDistanceFunction(),
-            "ip-new", new DotDistanceFunctionNew()
+            "l2-cur-j", new L2DistanceFunction(),
+            "l2-new-k", new L2DistanceFunctionNew(),
+            "l2-new-j", new L2DistanceFunctionNewJ(),
+
+            "ip-cur-j", new DotDistanceFunction(),
+            "ip-new-k", new DotDistanceFunctionNew(),
+            "ip-new-j", new DotDistanceFunctionNewJ()
     );
 
     private DistanceFunction distanceFun;
