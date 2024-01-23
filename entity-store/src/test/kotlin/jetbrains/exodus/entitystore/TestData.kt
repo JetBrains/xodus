@@ -18,22 +18,22 @@ package jetbrains.exodus.entitystore
 import java.util.Date
 import kotlin.random.Random
 
-class TestData(private val random: Random) {
+class TestData(val kRandom: Random) {
 
-    fun programmingLanguageCreator(): String = programmingLanguageCreators.random(random)
-    fun chuckNorrisFact(): String = chuckNorrisFacts.random(random)
-    fun rickAndMortyQuote(): String = rickAndMortyQuotes.random(random)
+    fun programmingLanguageCreator(): String = programmingLanguageCreators.random(kRandom)
+    fun chuckNorrisFact(): String = chuckNorrisFacts.random(kRandom)
+    fun rickAndMortyQuote(): String = rickAndMortyQuotes.random(kRandom)
 
     // Function that returns a random date up in past to specified number of days
     fun pastDateUpToDays(days: Int): Date {
-        val randomDays = random.nextInt(days)
+        val randomDays = kRandom.nextInt(days)
         val calendar = java.util.Calendar.getInstance()
         calendar.add(java.util.Calendar.DAY_OF_YEAR, -randomDays)
         return calendar.time
     }
 
     // return random boolean value
-    fun boolean(): Boolean = random.nextBoolean()
+    fun boolean(): Boolean = kRandom.nextBoolean()
 
     // https://github.com/DiUS/java-faker/blob/master/src/main/resources/en/programming_language.yml
     private val programmingLanguageCreators = arrayOf<String>(
@@ -77,7 +77,7 @@ class TestData(private val random: Random) {
         "Chuck Norris can solve the Towers of Hanoi in one move.",
         "The only pattern Chuck Norris knows is God Object.",
         "Chuck Norris finished World of Warcraft.",
-        "Project managers never ask Chuck Norris for estimations... ever.",
+        "jetbrains.exodus.entitystore.Project managers never ask Chuck Norris for estimations... ever.",
         "Chuck Norris doesn't use web standards as the web will conform to him.",
         "\"It works on my machine\" always holds true for Chuck Norris.",
         "Whiteboards are white because Chuck Norris scared them that way.",

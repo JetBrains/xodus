@@ -104,6 +104,7 @@ class CaffeinePersistentCache<K, V> private constructor(
     override fun remove(key: K) {
         cacheMap.computeIfPresent(key) { _, values ->
             values.remove(version)
+            values.removeUnusedVersions(version)
             values.orNullIfEmpty()
         }
         keyVersions.remove(key)
@@ -147,14 +148,21 @@ class CaffeinePersistentCache<K, V> private constructor(
         )
     }
 
+    private var client: PersistentCacheClient? = null
+
     override fun register(): PersistentCacheClient {
-        val client = object : PersistentCacheClient {
+        var existingClient = client
+        if (existingClient != null) {
+            return existingClient
+        }
+        existingClient = object : PersistentCacheClient {
             override fun unregister() {
-                versionTracker.unregister(this, version)
+                versionTracker.decrementClients(version)
             }
         }
-        versionTracker.register(client, version)
-        return client
+        versionTracker.incrementClients(version)
+        client = existingClient
+        return existingClient
     }
 
     private fun Cache<K, WeightedValueMap<Version, V>>.getVersioned(key: K, version: Version): V? {
