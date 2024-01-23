@@ -17,6 +17,7 @@ package jetbrains.exodus.core.cache.persistent
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import java.lang.ref.Cleaner
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.BiConsumer
 import java.util.function.Consumer
@@ -148,21 +149,19 @@ class CaffeinePersistentCache<K, V> private constructor(
         )
     }
 
-    private var client: PersistentCacheClient? = null
-
     override fun register(): PersistentCacheClient {
-        var existingClient = client
-        if (existingClient != null) {
-            return existingClient
-        }
-        existingClient = object : PersistentCacheClient {
+        val client = object : PersistentCacheClient {
+
+            private var unregistered = false
+
             override fun unregister() {
+                check(!unregistered) { "Client already unregistered" }
                 versionTracker.decrementClients(version)
+                unregistered = true
             }
         }
         versionTracker.incrementClients(version)
-        client = existingClient
-        return existingClient
+        return client
     }
 
     private fun Cache<K, WeightedValueMap<Version, V>>.getVersioned(key: K, version: Version): V? {

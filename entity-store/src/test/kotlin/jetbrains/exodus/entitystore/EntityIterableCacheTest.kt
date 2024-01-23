@@ -132,7 +132,9 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
     fun testStressReadPerformance() {
         // Given
-        val test = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
+        val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
+        // Uncomment to run heavy test with profiler
+        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 1000)
 
         val queryCount = 10000
         val queryConcurrencyLevel = 10
@@ -144,16 +146,16 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val finishedRef = AtomicBoolean(false)
         val updateProcess = thread {
             while (!finishedRef.get()) {
-                test.changeIssueAssignee()
+                testCase.changeIssueAssignee()
                 Thread.sleep(updateDelayMillis)
             }
         }
         val executor = Executors.newFixedThreadPool(queryConcurrencyLevel)
         repeat(queryCount) {
             executor.submit {
-                test.queryComplexList()
+                testCase.queryComplexList()
                 Thread.sleep(queryDelayMillis)
-                test.queryComplexRoughSize()
+                testCase.queryComplexRoughSize()
             }
         }
         executor.shutdown()
@@ -169,8 +171,10 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
     fun testStressWritePerformance() {
         // Given
         val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
+        // Uncomment to run heavy test with profiler
+        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 1000)
 
-        val writeCount = 10000
+        val writeCount = 100000
         val queryDelayMillis = 100L
 
         // When

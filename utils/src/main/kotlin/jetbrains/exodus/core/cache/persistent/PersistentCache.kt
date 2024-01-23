@@ -39,6 +39,8 @@ interface PersistentCache<K, V> : BasicCache<K, V> {
      * Register a client for the current version of the cache.
      * Returns a client that should be used to unregister the client to enable entries associated with its version
      * to be clean up later during the ordinary operations like get or put.
+     *
+     * Must be invoked once per client.
      */
     fun register(): PersistentCacheClient
 }
