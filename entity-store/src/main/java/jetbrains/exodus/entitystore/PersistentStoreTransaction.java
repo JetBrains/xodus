@@ -948,7 +948,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private void initCaches() {
         revertCaches(false);
-        cacheClient = localCache.getCache().register();
+        if (cacheClient == null) {
+            cacheClient = localCache.getCache().register();
+        }
     }
 
     private void revertCaches(final boolean clearPropsAndLinksCache) {
@@ -958,7 +960,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             blobStringsCache.clear();
         }
 
-        if(cacheClient != null) {
+        if (cacheClient != null) {
             cacheClient.unregister();
             cacheClient = null;
         }
