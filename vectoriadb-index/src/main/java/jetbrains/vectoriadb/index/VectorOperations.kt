@@ -649,7 +649,7 @@ class VectorOperations {
                 v1 = { i, species -> FloatVector.fromArray(species, v1, idx1 + i) },
                 v1Value = { i -> v1[idx1 + i] },
 
-                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, idx2 + i, ByteOrder.nativeOrder()) },
+                v2 = { i, species -> FloatVector.fromMemorySegment(species, v2, (idx2 + i) * Float.SIZE_BYTES, ByteOrder.nativeOrder()) },
                 v2Value = { i -> v2.getAtIndex(ValueLayout.JAVA_FLOAT, idx2 + i) },
 
                 intoResult = { i, R -> R.intoArray(result, resultIdx + i) },

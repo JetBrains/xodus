@@ -11,52 +11,27 @@ import kotlin.math.abs
 class VectorOperationsTest {
 
     @Test
-    fun add() {
-        val v1 = FloatArray(300)
-        v1.fill(1f, 0, 100)
-        v1.fill(2f, 100, 200)
-        v1.fill(3f, 200, 300)
+    fun add() = Arena.ofShared().use { arena ->
+        val vectorSize = 131
+        val v1Offset = 3
+        val v2Offset = 4
+        val v1 = createRandomFloatArray(1, vectorSize + v1Offset * 2)
+        val v2 = createRandomFloatArray(1, vectorSize + v2Offset * 2)
+        val v2HeapSeg = MemorySegment.ofArray(v2)
+        val v2NativeSeg = v2.copyToNativeSegment(arena)
 
-        val v2 = FloatArray(300)
-        v2.fill(10f, 0, 100)
-        v2.fill(20f, 100, 200)
-        v2.fill(30f, 200, 300)
+        val expectedResult = naiveAdd(v1, v1Offset, v2, v2Offset, vectorSize)
+        val result = Array(3) {
+            FloatArray(vectorSize)
+        }
 
-        VectorOperations.add(v1, 0, v2, 0, v1, 0, 100)
-        VectorOperations.add(v1, 100, v2, 100, v1, 100, 100)
-        VectorOperations.add(v1, 200, v2, 200, v1, 200, 100)
+        VectorOperations.add(v1, v1Offset, v2, v2Offset, result[0], 0, vectorSize)
+        VectorOperations.add(v1, v1Offset, v2HeapSeg, v2Offset.toLong(), result[1], 0, vectorSize)
+        VectorOperations.add(v1, v1Offset, v2NativeSeg, v2Offset.toLong(), result[2], 0, vectorSize)
 
-        v1.check(11f, 0, 100)
-        v1.check(22f, 100, 100)
-        v1.check(33f, 200, 100)
-        v2.check(10f, 0, 100)
-        v2.check(20f, 100, 100)
-        v2.check(30f, 200, 100)
-    }
-
-    @Test
-    fun `add skewed vectors`() {
-        val v1 = FloatArray(310)
-        v1.fill(1f, 10, 110)
-        v1.fill(2f, 110, 210)
-        v1.fill(3f, 210, 310)
-
-        val v2 = FloatArray(350)
-        v2.fill(10f, 50, 150)
-        v2.fill(20f, 150, 250)
-        v2.fill(30f, 250, 350)
-
-        VectorOperations.add(v1, 10, v2, 50, v1, 10, 100)
-        VectorOperations.add(v1, 110, v2, 150, v1, 110, 100)
-        VectorOperations.add(v1, 210, v2, 250, v1, 210, 100)
-
-        v1.check(11f, 10, 100)
-        v1.check(22f, 110, 100)
-        v1.check(33f, 210, 100)
-
-        v2.check(10f, 50, 100)
-        v2.check(20f, 150, 100)
-        v2.check(30f, 250, 100)
+        result.forEach {
+            expectedResult.assertEquals(it)
+        }
     }
 
     @Test
@@ -192,6 +167,12 @@ class VectorOperationsTest {
         }
 
         return res
+    }
+
+    private fun naiveAdd(v1: FloatArray, idx1: Int, v2: FloatArray, idx2: Int, size: Int): FloatArray {
+        return FloatArray(size) { i ->
+            v1[idx1 + i] + v2[idx2 + i]
+        }
     }
 
     private fun naiveL2Distance(v1: FloatArray, idx1: Int, v2: FloatArray, idx2: Int, size: Int): Float {

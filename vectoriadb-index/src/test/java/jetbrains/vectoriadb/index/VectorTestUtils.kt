@@ -58,6 +58,10 @@ internal fun createRandomFloatArray(count: Int, dimensions: Int): FloatArray {
     return FloatArray(count * dimensions) { Random.nextFloat() }
 }
 
+internal fun createFloatArrayOf(count: Int, dimensions: Int, value: Float): FloatArray {
+    return FloatArray(count * dimensions) { value }
+}
+
 internal fun createRandomFloatArray2d(count: Int, dimensions: Int): Array<FloatArray> {
     return Array(count) {
         FloatArray(dimensions) {
