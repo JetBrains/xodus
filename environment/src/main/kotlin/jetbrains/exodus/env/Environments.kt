@@ -146,6 +146,18 @@ object Environments : KLogging() {
         if (ec.logDataReaderWriterProvider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER &&
             (ec.envCompactOnOpen || ec.envCompactInSingleBatchOnOpen) && env.log.numberOfFiles > 1 || needsToBeMigrated
         ) {
+            if (env.environmentConfig.storesToRemoveBeforeCompaction != null) {
+                env.executeInTransaction { tx ->
+                    val storesToRemove = env.environmentConfig.storesToRemoveBeforeCompaction.split(",")
+
+                    for(storeToRemove in storesToRemove) {
+                        env.removeStore(storeToRemove, tx)
+                    }
+                }
+                EnvironmentImpl.loggerInfo(
+                    "Store(s) ${env.environmentConfig.storesToRemoveBeforeCompaction} was(were) removed from the database."
+                )
+            }
             if (needsToBeMigrated) {
                 EnvironmentImpl.loggerInfo(
                     "Outdated binary format is used in environment ${env.log.location} " +
@@ -307,8 +319,10 @@ object Environments : KLogging() {
         }
 
         if (env.environmentConfig.checkDataStructuresConsistency) {
-            logger.warn("Data structures consistency is going to be checked because setting " +
-                    EnvironmentConfig.ENV_CHECK_DATA_STRUCTURES_CONSISTENCY + " is set to true")
+            logger.warn(
+                "Data structures consistency is going to be checked because setting " +
+                        EnvironmentConfig.ENV_CHECK_DATA_STRUCTURES_CONSISTENCY + " is set to true"
+            )
             (env as EnvironmentImpl).checkDataStructuresConsistency()
         }
 

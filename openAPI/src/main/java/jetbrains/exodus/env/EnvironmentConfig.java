@@ -436,6 +436,11 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String ENV_CHECK_BACKUP_CONSISTENCY = "exodus.env.checkBackupConsistency";
 
+    /**
+     * List of stores to remove before compaction is started on environment.
+     */
+    public static final String ENV_STORES_TO_REMOVE_BEFORE_COMPACTION = "exodus.env.StoresToRemoveBeforeCompaction";
+
     public static final String ENV_CHECK_DATA_STRUCTURES_CONSISTENCY = "exodus.env.checkDataStructuresConsistency";
 
     /**
@@ -1852,6 +1857,13 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public boolean getEnvCloseForcedly() {
         return (Boolean) getSetting(ENV_CLOSE_FORCEDLY);
+    }
+
+    /**
+     * List of stores to remove before compaction is started on environment.
+     */
+    public String getStoresToRemoveBeforeCompaction() {
+        return (String) getSetting(ENV_STORES_TO_REMOVE_BEFORE_COMPACTION);
     }
 
     /**
