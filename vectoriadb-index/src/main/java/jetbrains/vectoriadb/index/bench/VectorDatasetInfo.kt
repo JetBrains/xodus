@@ -16,7 +16,7 @@ sealed class VectorDatasetInfo(
     val vectorCount: Int
 ) {
 
-    val dataFile: String = Path.of(baseFile).nameWithoutExtension
+    open val dataFile: String = Path.of(baseFile).nameWithoutExtension
 
     fun groundTruthFile(distance: Distance): String = when (distance) {
         Distance.L2 -> l2GroundTruthFile
@@ -74,6 +74,8 @@ sealed class VectorDatasetInfo(
         vectorDimensions = 128,
         vectorCount = vectorCountMillions * 1_000_000
     ) {
+        override val dataFile: String = "${Path.of(baseFile).nameWithoutExtension}_${vectorCountMillions}M"
+
         override val datasetSource: VectorDatasetSource = IrisaFrDatasetSource
 
         override fun defaultIndexName(distance: Distance): String = when (distance) {
