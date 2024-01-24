@@ -351,8 +351,6 @@ public final class IndexBuilder {
                         }
                     }
                 }
-
-                Files.deleteIfExists(dataStoreFilePath);
             } finally {
                 progressTracker.pullPhase();
             }
