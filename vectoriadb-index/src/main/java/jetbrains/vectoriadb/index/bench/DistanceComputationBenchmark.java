@@ -66,17 +66,14 @@ public class DistanceComputationBenchmark {
     private static final int vectorSize = 128;
 
     @SuppressWarnings("FieldCanBeLocal")
-    private final int numVectors = 4;
+    private final int numVectors = 100_000;
+    private int currentVector = 0;
 
-    private float[] qArr;
-    private float[] v1Arr;
     private float[][] vectorsArr;
     private float[] resultArr;
 
     private Arena arena;
 
-    private MemorySegment qSeg;
-    private MemorySegment v1Seg;
     private MemorySegment[] vectorsSeg;
 
     @Param({
@@ -107,11 +104,9 @@ public class DistanceComputationBenchmark {
         var rnd = ThreadLocalRandom.current();
         arena = Arena.ofShared();
 
-        qArr = new float[vectorSize];
         vectorsArr = new float[numVectors][];
         resultArr = new float[numVectors];
 
-        qSeg = arena.allocate(vectorSize * Float.BYTES, ValueLayout.JAVA_FLOAT.byteAlignment());
         vectorsSeg = new MemorySegment[numVectors];
 
         for (int i = 0; i < numVectors; i++) {
@@ -120,18 +115,14 @@ public class DistanceComputationBenchmark {
         }
 
         for (int dimensionIdx = 0; dimensionIdx < vectorSize; dimensionIdx++) {
-            qArr[dimensionIdx] = rnd.nextFloat();
-            qSeg.setAtIndex(ValueLayout.JAVA_FLOAT, dimensionIdx, rnd.nextFloat());
-
             for (int vectorIdx = 0; vectorIdx < numVectors; vectorIdx++) {
                 vectorsArr[vectorIdx][dimensionIdx] = rnd.nextFloat();
                 vectorsSeg[vectorIdx].setAtIndex(ValueLayout.JAVA_FLOAT, dimensionIdx, rnd.nextFloat());
             }
         }
-        v1Arr = vectorsArr[0];
-        v1Seg = vectorsSeg[0];
 
         distanceFun = distanceFunctions.get(distanceFunction);
+        currentVector = 0;
     }
 
     @TearDown(Level.Iteration)
@@ -142,52 +133,52 @@ public class DistanceComputationBenchmark {
 
     @Benchmark
     public float computeDistance_heap_array_1() {
-        return distanceFun.computeDistance(qArr, 0, v1Arr, 0, vectorSize);
+        return distanceFun.computeDistance(vectorsArr[currentVector++ % numVectors], 0, vectorsArr[currentVector++ % numVectors], 0, vectorSize);
     }
 
     @Benchmark
     public float computeDistance_heap_array_4() {
-        var res = distanceFun.computeDistance(qArr, 0, vectorsArr[0], 0, vectorSize);
-        res += distanceFun.computeDistance(qArr, 0, vectorsArr[1], 0, vectorSize);
-        res += distanceFun.computeDistance(qArr, 0, vectorsArr[2], 0, vectorSize);
-        res += distanceFun.computeDistance(qArr, 0, vectorsArr[3], 0, vectorSize);
+        var res = distanceFun.computeDistance(vectorsArr[currentVector++ % numVectors], 0, vectorsArr[currentVector++ % numVectors], 0, vectorSize);
+        res += distanceFun.computeDistance(vectorsArr[currentVector++ % numVectors], 0, vectorsArr[currentVector++ % numVectors], 0, vectorSize);
+        res += distanceFun.computeDistance(vectorsArr[currentVector++ % numVectors], 0, vectorsArr[currentVector++ % numVectors], 0, vectorSize);
+        res += distanceFun.computeDistance(vectorsArr[currentVector++ % numVectors], 0, vectorsArr[currentVector++ % numVectors], 0, vectorSize);
         return res;
     }
 
     @Benchmark
     public void computeDistance_heap_array_4_batch() {
         distanceFun.computeDistance(
-                qArr, 0,
-                vectorsArr[0], 0,
-                vectorsArr[1], 0,
-                vectorsArr[2], 0,
-                vectorsArr[3], 0,
+                vectorsArr[currentVector++ % numVectors], 0,
+                vectorsArr[currentVector++ % numVectors], 0,
+                vectorsArr[currentVector++ % numVectors], 0,
+                vectorsArr[currentVector++ % numVectors], 0,
+                vectorsArr[currentVector++ % numVectors], 0,
                 resultArr, vectorSize
         );
     }
 
     @Benchmark
     public float computeDistance_native_segment_1() {
-        return distanceFun.computeDistance(qSeg, 0, v1Seg, 0, vectorSize);
+        return distanceFun.computeDistance(vectorsSeg[currentVector++ % numVectors], 0, vectorsSeg[currentVector++ % numVectors], 0, vectorSize);
     }
     
     @Benchmark
     public float computeDistance_native_segment_4() {
-        var res = distanceFun.computeDistance(qSeg, 0, vectorsSeg[0], 0, vectorSize);
-        res += distanceFun.computeDistance(qSeg, 0, vectorsSeg[1], 0, vectorSize);
-        res += distanceFun.computeDistance(qSeg, 0, vectorsSeg[2], 0, vectorSize);
-        res += distanceFun.computeDistance(qSeg, 0, vectorsSeg[3], 0, vectorSize);
+        var res = distanceFun.computeDistance(vectorsSeg[currentVector++ % numVectors], 0, vectorsSeg[currentVector++ % numVectors], 0, vectorSize);
+        res += distanceFun.computeDistance(vectorsSeg[currentVector++ % numVectors], 0, vectorsSeg[currentVector++ % numVectors], 0, vectorSize);
+        res += distanceFun.computeDistance(vectorsSeg[currentVector++ % numVectors], 0, vectorsSeg[currentVector++ % numVectors], 0, vectorSize);
+        res += distanceFun.computeDistance(vectorsSeg[currentVector++ % numVectors], 0, vectorsSeg[currentVector++ % numVectors], 0, vectorSize);
         return res;
     }
 
     @Benchmark
     public void computeDistance_native_segment_4_batch() {
         distanceFun.computeDistance(
-                qSeg, 0,
-                vectorsSeg[0], 0,
-                vectorsSeg[1], 0,
-                vectorsSeg[2], 0,
-                vectorsSeg[3], 0,
+                vectorsSeg[currentVector++ % numVectors], 0,
+                vectorsSeg[currentVector++ % numVectors], 0,
+                vectorsSeg[currentVector++ % numVectors], 0,
+                vectorsSeg[currentVector++ % numVectors], 0,
+                vectorsSeg[currentVector++ % numVectors], 0,
                 vectorSize, resultArr
         );
     }
