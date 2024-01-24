@@ -8,8 +8,8 @@ pluginManagement {
         id("me.champeau.jmh") version ("0.7.1")
     }
     repositories {
-        maven(url = "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2")
-        maven(url = "https://cache-redirector.jetbrains.com/repo1.maven.org/maven2")
+        mavenCentral()
+        gradlePluginPortal()
     }
 }
 
