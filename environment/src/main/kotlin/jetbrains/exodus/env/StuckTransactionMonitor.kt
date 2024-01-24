@@ -44,7 +44,7 @@ internal class StuckTransactionMonitor(env: EnvironmentImpl) : Job() {
                     txn.trace?.let { trace ->
                         val creatingThread = txn.creatingThread
                         val msg = "Transaction timed out: created at ${Date(txn.startTime)}, " +
-                                "thread = $creatingThread(${creatingThread.threadId()})\n$trace"
+                                "thread = $creatingThread(${creatingThread.id})\n$trace"
                         logger.info(msg)
                         ++stuckTxnCount
                     }
