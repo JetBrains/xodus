@@ -79,22 +79,18 @@ public class DistanceComputationBenchmark {
     @Param({
             "l2-cur-j",
             "l2-new-k",
-            "l2-new-j",
 
             "ip-cur-j",
             "ip-new-k",
-            "ip-new-j"
     })
     public String distanceFunction;
 
     private final Map<String, DistanceFunction> distanceFunctions = Map.of(
             "l2-cur-j", new L2DistanceFunction(),
             "l2-new-k", new L2DistanceFunctionNew(),
-            "l2-new-j", new L2DistanceFunctionNewJ(),
 
             "ip-cur-j", new DotDistanceFunction(),
-            "ip-new-k", new DotDistanceFunctionNew(),
-            "ip-new-j", new DotDistanceFunctionNewJ()
+            "ip-new-k", new DotDistanceFunctionNew()
     );
 
     private DistanceFunction distanceFun;
