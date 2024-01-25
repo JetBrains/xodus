@@ -97,8 +97,8 @@ public abstract class EntityStoreTestBase extends TestBase {
     public void reportInLogEntityIterableCacheStats() {
         EntityIterableCacheStatistics cacheStats = getEntityStore().getEntityIterableCache().getStats();
         logger.info(
-                "[EntityIterableCache] hits={}, misses={}, hitRate={}",
-                cacheStats.getTotalHits(), cacheStats.getTotalMisses(), cacheStats.getHitRate()
+                "[EntityIterableCache] hits={}, misses={}, hitRate={}, count={}",
+                cacheStats.getTotalHits(), cacheStats.getTotalMisses(), cacheStats.getHitRate(), getEntityStore().getEntityIterableCache().count()
         );
         logger.info(
                 "[EntityIterableCache Count] hits={}, misses={}, hitRate={}",
