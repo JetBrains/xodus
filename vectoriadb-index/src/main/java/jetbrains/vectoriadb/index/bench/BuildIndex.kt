@@ -6,6 +6,7 @@ import jetbrains.vectoriadb.index.IndexBuilder
 import jetbrains.vectoriadb.index.Slf4jPeriodicProgressTracker
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.name
 import kotlin.time.measureTime
 
 @Suppress("unused")
@@ -69,16 +70,23 @@ fun VectorDatasetInfo.buildIndex(
 
     val dataFilePath = DataStore.dataLocation(dataFile, benchPath)
     if (!Files.exists(dataFilePath)) {
+        val progressTracker = Slf4jPeriodicProgressTracker(1)
+        progressTracker.start("prepare vector file")
+        progressTracker.pushPhase(dataFilePath.name)
         VectorFileReader.openFileReader(vectorFilePath, vectorDimensions, vectorCount).use { vectorReader ->
             DataStore.create(dataFile, vectorDimensions, distanceFun, benchPath).use { dataBuilder ->
                 for (vectorIdx in 0 until vectorCount) {
                     val vector = vectorReader.read(vectorIdx)
                     val vectorId = vectorReader.readId(vectorIdx)
                     dataBuilder.add(vector, vectorId)
+                    progressTracker.progress((vectorIdx.toDouble() / vectorCount) * 100)
                 }
             }
         }
+        progressTracker.pullPhase()
+        progressTracker.finish()
     }
+
     val indexBuiltIn = measureTime {
         IndexBuilder.buildIndex(
             indexName,
