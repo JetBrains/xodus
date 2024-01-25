@@ -113,6 +113,18 @@ public final class IndexBuilder {
                             return;
                         }
 
+                        var partitions = (int) Math.max(1, 3 * calculateGraphPartitionSizeInRAM(2L * vectorsCount, maxConnectionsPerVertex, vectorsDimension) / memoryConsumption);
+
+                        final int expectedPartitionsSize;
+                        if (partitions == 1) {
+                            expectedPartitionsSize = vectorsCount;
+                        } else {
+                            // every vector should be in two partitions
+                            expectedPartitionsSize = vectorsCount * 2;
+                        }
+                        checkRequestedFreeSpace(indexDirectoryPath, vectorsCount, expectedPartitionsSize, maxConnectionsPerVertex, pageSize, verticesCountPerPage);
+
+
                         var quantizer = distance.quantizer();
                         var distanceFunction = distance.buildDistanceFunction();
 
@@ -126,7 +138,6 @@ public final class IndexBuilder {
                         } finally {
                             progressTracker.pullPhase();
                         }
-
 
                         var medoidMinIndex = Integer.MAX_VALUE;
                         var medoidMinDistance = Float.MAX_VALUE;
@@ -143,14 +154,7 @@ public final class IndexBuilder {
                             }));
                         }
 
-                        var verticesCount = vectorReader.size();
-
-                        var partitions =
-                                (int) Math.max(1,
-                                        3 * calculateGraphPartitionSizeInRAM(2L * verticesCount,
-                                                maxConnectionsPerVertex, vectorsDimension) / memoryConsumption);
-
-                        var totalPartitionsSize = 0;
+                        var actualPartitionsSize = 0;
                         IntArrayList[] vectorsByPartitions;
                         var splitIteration = 0;
                         while (true) {
@@ -161,7 +165,7 @@ public final class IndexBuilder {
                                 var partitioningResult = quantizer.splitVectorsByPartitions(vectorReader, partitions, 50, distanceFunction, progressTracker);
                                 vectorsByPartitions = partitioningResult.vectorsByCentroidIdx();
 
-                                totalPartitionsSize = 0;
+                                actualPartitionsSize = 0;
                                 var maxPartitionSize = Integer.MIN_VALUE;
                                 var minPartitionSize = Integer.MAX_VALUE;
 
@@ -169,7 +173,7 @@ public final class IndexBuilder {
                                     var partition = vectorsByPartitions[i];
 
                                     var partitionSize = partition.size();
-                                    totalPartitionsSize += partitionSize;
+                                    actualPartitionsSize += partitionSize;
 
                                     if (partitionSize > maxPartitionSize) {
                                         maxPartitionSize = partitionSize;
@@ -178,11 +182,11 @@ public final class IndexBuilder {
                                         minPartitionSize = partitionSize;
                                     }
                                 }
+                                if (actualPartitionsSize != expectedPartitionsSize) {
+                                    throw new IllegalStateException(STR."actual total partitions size is \{actualPartitionsSize} that is different from the expected total partitions size \{expectedPartitionsSize}");
+                                }
 
-                                checkRequestedFreeSpace(indexDirectoryPath, vectorsCount, totalPartitionsSize, maxConnectionsPerVertex,
-                                        pageSize, verticesCountPerPage);
-
-                                var avgPartitionSize = totalPartitionsSize / partitions;
+                                var avgPartitionSize = actualPartitionsSize / partitions;
                                 var squareSum = 0L;
 
                                 for (var i = 0; i < partitions; i++) {
@@ -261,7 +265,7 @@ public final class IndexBuilder {
                             try {
                                 for (int i = 0; i < partitions; i++) {
                                     if (progressTracker.isProgressUpdatedRequired()) {
-                                        progressTracker.progress((double) 100 * verticesProcessed / totalPartitionsSize);
+                                        progressTracker.progress((double) 100 * verticesProcessed / actualPartitionsSize);
                                     }
 
                                     var partition = dmPartitions[i];
