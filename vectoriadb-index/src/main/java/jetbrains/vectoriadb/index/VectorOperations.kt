@@ -769,7 +769,7 @@ class VectorOperations {
 
         @JvmStatic
         fun calculateL2Norm(vector: MemorySegment, size: Int): Float {
-            return sqrt(innerProduct(vector, 0, vector, 0, size).toDouble()).toFloat()
+            return sqrt(innerProduct(vector, 0, vector, 0, size))
         }
 
         @JvmStatic
@@ -852,11 +852,11 @@ class VectorOperations {
 
         @JvmStatic
         fun computeGradientStep(
-            currentV: FloatArray,
-            currentVIdx: Int,
+            current: FloatArray,
+            currentIdx: Int,
 
-            targetV: MemorySegment,
-            targetVIdx: Long,
+            target: MemorySegment,
+            targetIdx: Long,
 
             result: FloatArray,
             resultIdx: Int,
@@ -864,19 +864,19 @@ class VectorOperations {
             size: Int,
 
             learningRate: Float
-        ) = if (targetV.isNative) {
-            computeGradientStepImpl(currentV, currentVIdx, targetV, targetVIdx, result, resultIdx, size, learningRate)
+        ) = if (target.isNative) {
+            computeGradientStepImpl(current, currentIdx, target, targetIdx, result, resultIdx, size, learningRate)
         } else {
-            computeGradientStep(currentV, currentVIdx, targetV.heapBase().get() as FloatArray, targetVIdx.toInt(), result, resultIdx, size, learningRate)
+            computeGradientStep(current, currentIdx, target.heapBase().get() as FloatArray, targetIdx.toInt(), result, resultIdx, size, learningRate)
         }
 
         @JvmStatic
         fun computeGradientStep(
-            currentV: FloatArray,
-            currentVIdx: Int,
+            current: FloatArray,
+            currentIdx: Int,
 
-            targetV: FloatArray,
-            targetVIdx: Int,
+            target: FloatArray,
+            targetIdx: Int,
 
             result: FloatArray,
             resultIdx: Int,
@@ -886,11 +886,11 @@ class VectorOperations {
             learningRate: Float
         ) {
             computeGradientStepImpl(
-                current = { i, species -> FloatVector.fromArray(species, currentV, currentVIdx + i) },
-                currentValue = { i -> currentV[currentVIdx + i] },
+                current = { i, species -> FloatVector.fromArray(species, current, currentIdx + i) },
+                currentValue = { i -> current[currentIdx + i] },
 
-                target = { i, species -> FloatVector.fromArray(species, targetV, targetVIdx + i) },
-                targetValue = { i -> targetV[targetVIdx + i] },
+                target = { i, species -> FloatVector.fromArray(species, target, targetIdx + i) },
+                targetValue = { i -> target[targetIdx + i] },
 
                 intoResult = { i, R -> R.intoArray(result, resultIdx + i) },
                 intoResultValue = { i, r -> result[resultIdx + i] = r },

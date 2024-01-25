@@ -83,9 +83,7 @@ internal fun Arena.allocateFloat(count: Int): MemorySegment {
     return allocate(count.toLong() * Float.SIZE_BYTES, ValueLayout.JAVA_FLOAT.byteAlignment())
 }
 
-internal fun createFloatArrayOf(count: Int, dimensions: Int, value: Float): FloatArray {
-    return FloatArray(count * dimensions) { value }
-}
+internal fun MemorySegment.toFloatArray(): FloatArray = this.toArray(ValueLayout.JAVA_FLOAT)
 
 internal fun createRandomFloatArray2d(count: Int, dimensions: Int): Array<FloatArray> {
     return Array(count) {

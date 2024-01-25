@@ -1,13 +1,13 @@
 package jetbrains.vectoriadb.index
 
-import jetbrains.vectoriadb.index.VectorOperations.Companion.PRECISION
 import org.junit.Assert
 import org.junit.Test
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.ValueLayout
-import kotlin.math.abs
+import kotlin.math.sqrt
+import kotlin.random.Random
 
+@Suppress("SameParameterValue")
 class VectorOperationsTest {
 
     @Test
@@ -41,60 +41,105 @@ class VectorOperationsTest {
         // original arrays has not changed
         v1.assertEquals(v1Clone)
         v2.assertEquals(v2Clone)
-        v2HeapSeg.toArray(ValueLayout.JAVA_FLOAT).assertEquals(v2)
-        v2NativeSeg.toArray(ValueLayout.JAVA_FLOAT).assertEquals(v2)
+        v2HeapSeg.toFloatArray().assertEquals(v2)
+        v2NativeSeg.toFloatArray().assertEquals(v2)
     }
 
 
-
-   /* @Test
-    fun `div by scalar1`() {
+    @Test
+    fun `div by scalar`() {
         val v1Offset = 4
         val size = 133
-        val v1 = randomFloatArray(133 + v1Offset * 2)
+        val v1 = randomFloatArray(size, v1Offset)
+        val v1Clone = v1.copyOf()
         val scalar = Random.nextDouble(1.0, 10.0).toFloat()
 
         val expectedResult = naiveDiv(v1, v1Offset, scalar, size)
 
         val resultOffset = 3
-        val result = randomFloatArray(size + resultOffset * 2)
+        val result = randomFloatArray(size, resultOffset)
 
-        //VectorOperations.div(v1, v1Offset, scalar, )
-        v1.fill(100f, 0, 100)
-        v1.fill(90f, 100, 200)
-        v1.fill(50f, 200, 300)
+        VectorOperations.div(v1, v1Offset, scalar, result, resultOffset, size)
 
-        VectorOperations.div(v1, 0, 2f, v1, 0, 100)
-        VectorOperations.div(v1, 100, 3f, v1, 100, 100)
-        VectorOperations.div(v1, 200, 5f, v1, 200, 100)
+        result.checkResult(expectedResult, resultOffset)
 
-        v1.check(50f, 0, 100)
-        v1.check(30f, 100, 100)
-        v1.check(10f, 200, 100)
+        v1.assertEquals(v1Clone)
     }
 
-    private fun naiveDiv(v: FloatArray, idx: Int, scalar: Float, size: Int): FloatArray {
-        val result = FloatArray(size)
-        for (i in result.indices) {
-            result[i] = v[idx + i] / scalar
-        }
-        return result
-    }*/
+    @Test
+    fun `mul by scalar`() {
+        val v1Offset = 4
+        val size = 147
+        val v1 = randomFloatArray(size, v1Offset)
+        val v1Clone = v1.copyOf()
+        val scalar = Random.nextDouble(1.0, 10.0).toFloat()
+
+        val expectedResult = naiveMul(v1, v1Offset, scalar, size)
+
+        val resultOffset = 3
+        val result = randomFloatArray(size, resultOffset)
+
+        VectorOperations.mul(v1, v1Offset, scalar, result, resultOffset, size)
+
+        result.checkResult(expectedResult, resultOffset)
+
+        v1.assertEquals(v1Clone)
+    }
 
     @Test
-    fun `div by scalar`() {
-        val v1 = FloatArray(300)
-        v1.fill(100f, 0, 100)
-        v1.fill(90f, 100, 200)
-        v1.fill(50f, 200, 300)
+    fun `calculate L2 norm`() = Arena.ofShared().use { arena ->
+        val size = 191
+        val v1Offset = 0
+        val v1 = randomFloatArray(size, v1Offset)
+        val v1Clone = v1.copyOf()
+        val v1HeapSeg = MemorySegment.ofArray(v1)
+        val v1NativeSeg = v1.copyToNativeSegment(arena)
 
-        VectorOperations.div(v1, 0, 2f, v1, 0, 100)
-        VectorOperations.div(v1, 100, 3f, v1, 100, 100)
-        VectorOperations.div(v1, 200, 5f, v1, 200, 100)
+        val expectedResult = naiveL2Norm(v1, v1Offset, size)
 
-        v1.check(50f, 0, 100)
-        v1.check(30f, 100, 100)
-        v1.check(10f, 200, 100)
+        listOf(
+            VectorOperations.calculateL2Norm(v1),
+            VectorOperations.calculateL2Norm(v1HeapSeg, size),
+            VectorOperations.calculateL2Norm(v1NativeSeg, size)
+        ).forEach {
+            Assert.assertEquals(expectedResult, it, 1e-3f)
+        }
+
+        v1.assertEquals(v1Clone)
+        v1HeapSeg.toFloatArray().assertEquals(v1)
+        v1NativeSeg.toFloatArray().assertEquals(v1)
+    }
+
+    @Test
+    fun `normalize L2`() = Arena.ofShared().use { arena ->
+        val size = 173
+        val v = randomFloatArray(size)
+        val vNorm = VectorOperations.calculateL2Norm(v)
+        val vClone = v.copyOf()
+        val v1HeapSeg = MemorySegment.ofArray(v)
+        val v1NativeSeg = v.copyToNativeSegment(arena)
+
+        val expectedResult = naiveNormalizeL2(v, vNorm)
+
+        val operationsCount = 3
+
+        val result = Array(operationsCount) {
+            randomFloatArray(size)
+        }
+
+        VectorOperations.normalizeL2(v, result[0])
+        VectorOperations.normalizeL2(v1HeapSeg, vNorm, result[1], v.size)
+        VectorOperations.normalizeL2(v1NativeSeg, vNorm, result[2], v.size)
+
+        repeat(operationsCount) { i ->
+            result[i].checkResult(expectedResult)
+        }
+
+        Assert.assertEquals(1f, VectorOperations.calculateL2Norm(result[0]), 1e-3f)
+
+        v.assertEquals(vClone)
+        v1HeapSeg.toFloatArray().assertEquals(v)
+        v1NativeSeg.toFloatArray().assertEquals(v)
     }
 
     @Test
@@ -102,8 +147,10 @@ class VectorOperationsTest {
         val vectorSize = 131
         val v1Offset = 3
         val v2Offset = 2
-        val v1 = randomFloatArray(vectorSize + 5)
-        val v2 = randomFloatArray(vectorSize + 5)
+        val v1 = randomFloatArray(vectorSize, v1Offset)
+        val v2 = randomFloatArray(vectorSize, v2Offset)
+        val v1Clone = v1.copyOf()
+        val v2Clone = v2.copyOf()
         val v1HeapSeg = MemorySegment.ofArray(v1)
         val v2HeapSeg = MemorySegment.ofArray(v2)
         val v1NativeSeg = v1.copyToNativeSegment(arena)
@@ -120,22 +167,29 @@ class VectorOperationsTest {
         ).forEach { result ->
             Assert.assertEquals(expectedResult, result, 1e-3f)
         }
+        v1.assertEquals(v1Clone)
+        v1HeapSeg.toFloatArray().assertEquals(v1)
+        v1NativeSeg.toFloatArray().assertEquals(v1)
+        v2.assertEquals(v2Clone)
+        v2HeapSeg.toFloatArray().assertEquals(v2)
+        v2NativeSeg.toFloatArray().assertEquals(v2)
     }
-
+    
     @Test
     fun innerProductBatch() = Arena.ofShared().use { arena ->
         val vectorSize = 131
         val offset = intArrayOf(1, 2, 3, 4, 5)
         val offsetL = offset.map { it.toLong() }
-        val v = Array(5) { randomFloatArray(vectorSize + 5) }
-        val vHeapSeg = v.map { MemorySegment.ofArray(it) }
+        val v = Array(5) { i -> randomFloatArray(vectorSize, offset[i]) }
+        val vClone = v.map { it.copyOf() }
         val vNativeSeg = v.map { it.copyToNativeSegment(arena) }
 
-        val expectedResult = FloatArray(4) { i ->
+        val operationsCount = 3
+        val expectedResult = FloatArray(operationsCount) { i ->
             naiveInnerProduct(v[0], offset[0], v[i + 1], offset[i + 1], vectorSize)
         }
 
-        val result = List(3) { FloatArray(4) }
+        val result = Array(operationsCount) { FloatArray(4) }
 
         VectorOperations.innerProductBatch(v[0], offset[0], v[1], offset[1], v[2], offset[2], v[3], offset[3], v[4], offset[4], vectorSize, result[0])
 
@@ -146,15 +200,21 @@ class VectorOperationsTest {
         result.forEach {
             it.checkResult(expectedResult)
         }
+        repeat(5) { i ->
+            v[i].assertEquals(vClone[i])
+            vNativeSeg[i].toFloatArray().assertEquals(vClone[i])
+        }
     }
 
     @Test
     fun l2Distance() = Arena.ofShared().use { arena ->
-        val vectorSize = 131
+        val vectorSize = 153
         val v1Offset = 3
-        val v2Offset = 2
-        val v1 = randomFloatArray(vectorSize + 5)
-        val v2 = randomFloatArray(vectorSize + 5)
+        val v2Offset = 4
+        val v1 = randomFloatArray(vectorSize, v1Offset)
+        val v2 = randomFloatArray(vectorSize, v2Offset)
+        val v1Clone = v1.copyOf()
+        val v2Clone = v2.copyOf()
         val v1HeapSeg = MemorySegment.ofArray(v1)
         val v2HeapSeg = MemorySegment.ofArray(v2)
         val v1NativeSeg = v1.copyToNativeSegment(arena)
@@ -170,8 +230,15 @@ class VectorOperationsTest {
             VectorOperations.l2Distance(v1NativeSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
             VectorOperations.l2Distance(v1HeapSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize)
         ).forEach { result ->
-            Assert.assertEquals(expectedResult, result, PRECISION)
+            Assert.assertEquals(expectedResult, result, 1e-3f)
         }
+
+        v1.assertEquals(v1Clone)
+        v1HeapSeg.toFloatArray().assertEquals(v1)
+        v1NativeSeg.toFloatArray().assertEquals(v1)
+        v2.assertEquals(v2Clone)
+        v2HeapSeg.toFloatArray().assertEquals(v2)
+        v2NativeSeg.toFloatArray().assertEquals(v2)
     }
 
     @Test
@@ -179,15 +246,16 @@ class VectorOperationsTest {
         val vectorSize = 131
         val offset = intArrayOf(1, 2, 3, 4, 5)
         val offsetL = offset.map { it.toLong() }
-        val v = Array(5) { randomFloatArray(vectorSize + 5) }
-        val vHeapSeg = v.map { MemorySegment.ofArray(it) }
+        val v = Array(5) { i -> randomFloatArray(vectorSize, offset[i]) }
+        val vClone = v.map { it.copyOf() }
         val vNativeSeg = v.map { it.copyToNativeSegment(arena) }
 
-        val expectedResult = FloatArray(4) { i ->
+        val operationsCount = 3
+        val expectedResult = FloatArray(operationsCount) { i ->
             naiveL2Distance(v[0], offset[0], v[i + 1], offset[i + 1], vectorSize)
         }
 
-        val result = List(3) { FloatArray(4) }
+        val result = List(operationsCount) { FloatArray(4) }
 
         VectorOperations.l2DistanceBatch(v[0], offset[0], v[1], offset[1], v[2], offset[2], v[3], offset[3], v[4], offset[4], vectorSize, result[0])
 
@@ -198,19 +266,76 @@ class VectorOperationsTest {
         result.forEach {
             it.checkResult(expectedResult)
         }
+        repeat(5) { i ->
+            v[i].assertEquals(vClone[i])
+            vNativeSeg[i].toFloatArray().assertEquals(vClone[i])
+        }
     }
 
-    private fun FloatArray.checkResult(expectedResult: FloatArray, arrOffset: Int = 0) {
-        assert(this.size - (arrOffset * 2) >= expectedResult.size)
-        for (i in 0 until arrOffset) {
-            Assert.assertEquals(this[i], 0f)
+    @Test
+    fun computeGradientStep() = Arena.ofShared().use { arena ->
+        val size = 173
+        val currentOffset = 3
+        val targetOffset = 4
+        val current = randomFloatArray(size, currentOffset)
+        val target = randomFloatArray(size, targetOffset)
+        val currentClone = current.copyOf()
+        val targetClone = target.copyOf()
+        val targetHeapSeg = MemorySegment.ofArray(target)
+        val targetNativeSeg = target.copyToNativeSegment(arena)
+        val learningRate = Random.nextFloat()
+
+        val expectedResult = naiveGradientStep(current, currentOffset, target, targetOffset, learningRate, size)
+
+        val operationsCount = 3
+        val resultOffset = Array(operationsCount) { it + 3 }
+        val result = Array(operationsCount) { i ->
+            randomFloatArray(size, resultOffset[i])
         }
-        for (i in arrOffset + expectedResult.size until arrOffset + expectedResult.size + arrOffset) {
-            Assert.assertEquals(this[i], 0f)
+
+        VectorOperations.computeGradientStep(
+            current = current, currentIdx = currentOffset,
+            target = target, targetIdx = targetOffset,
+            result = result[0], resultIdx = resultOffset[0],
+            size, learningRate
+        )
+        VectorOperations.computeGradientStep(
+            current = current, currentIdx = currentOffset,
+            target = targetHeapSeg, targetIdx = targetOffset.toLong(),
+            result = result[1], resultIdx = resultOffset[1],
+            size, learningRate
+        )
+        VectorOperations.computeGradientStep(
+            current = current, currentIdx = currentOffset,
+            target = targetNativeSeg, targetIdx = targetOffset.toLong(),
+            result = result[2], resultIdx = resultOffset[2],
+            size, learningRate
+        )
+
+        repeat(operationsCount) { i ->
+            result[i].checkResult(expectedResult, resultOffset[i])
         }
-        for (i in expectedResult.indices) {
-            Assert.assertEquals(expectedResult[i], this[i + arrOffset], 1e-3f)
+
+        current.assertEquals(currentClone)
+        target.assertEquals(targetClone)
+        targetHeapSeg.toFloatArray().assertEquals(targetClone)
+        targetNativeSeg.toFloatArray().assertEquals(targetClone)
+    }
+
+    private fun naiveDiv(v: FloatArray, idx: Int, scalar: Float, size: Int): FloatArray {
+        val result = FloatArray(size)
+        for (i in result.indices) {
+            result[i] = v[idx + i] / scalar
         }
+        return result
+    }
+
+    private fun naiveMul(v: FloatArray, idx: Int, scalar: Float, size: Int): FloatArray {
+        val result = FloatArray(size)
+        for (i in result.indices) {
+            result[i] = v[idx + i] * scalar
+        }
+        return result
     }
 
     private fun naiveInnerProduct(v1: FloatArray, idx1: Int, v2: FloatArray, idx2: Int, size: Int): Float {
@@ -237,84 +362,37 @@ class VectorOperationsTest {
         return res
     }
 
-    @Test
-    fun `calculate L2 norm`() {
-        val v1Array = floatArrayOf(1f, 3f, 1f, 3f, 1f, 2f)
-        val v1Segment = MemorySegment.ofArray(v1Array)
-
-        val arrayNorm = VectorOperations.calculateL2Norm(v1Array)
-        val segmentNorm = VectorOperations.calculateL2Norm(v1Segment, v1Array.size)
-
-        Assert.assertEquals(5f, segmentNorm, PRECISION)
-        Assert.assertEquals(arrayNorm, segmentNorm, PRECISION)
+    private fun naiveL2Norm(v: FloatArray, offset: Int, size: Int): Float {
+        var res = 0f
+        repeat(size) { i ->
+            res += v[i + offset] * v[i + offset]
+        }
+        return sqrt(res)
     }
 
-    @Test
-    fun `normalize L2`() = Arena.ofShared().use { arena ->
-        val v1Array = floatArrayOf(1f, 2f, 3f, 4f, 5f)
-        val v1Segment = v1Array.copyToNativeSegment(arena)
-        val resultArray1 = FloatArray(v1Array.size)
-        val resultArray2 = FloatArray(v1Array.size)
-
-        VectorOperations.normalizeL2(v1Segment, VectorOperations.calculateL2Norm(v1Segment, v1Array.size), resultArray1, v1Array.size)
-        VectorOperations.normalizeL2(v1Array, resultArray2)
-
-        Assert.assertEquals(1f, VectorOperations.calculateL2Norm(resultArray1), PRECISION)
-        Assert.assertEquals(1f, VectorOperations.calculateL2Norm(resultArray2), PRECISION)
-
-        Assert.assertNotEquals(1f, VectorOperations.calculateL2Norm(v1Array), PRECISION)
-        Assert.assertNotEquals(1f, VectorOperations.calculateL2Norm(v1Segment, v1Array.size), PRECISION)
-
-        Assert.assertEquals(VectorOperations.calculateL2Norm(v1Segment, v1Array.size), VectorOperations.calculateL2Norm(v1Array), PRECISION)
-    }
-
-    @Test
-    fun computeGradientStep() = Arena.ofShared().use { arena ->
-        val size = 5
-        val current = floatArrayOf(100f, 21f, 22f, 23f, 24f, 25f, 100f)
-        val target = floatArrayOf(100f, 100f, 11f, 12f, 13f, 14f, 15f, 100f)
-        val targetHeapBased = MemorySegment.ofArray(target)
-        val targetNative = target.copyToNativeSegment(arena)
-        val learningRate = 0.1f
-
-        val expectedResult = floatArrayOf(20f, 21f, 22f, 23f, 24f)
-        val result = FloatArray(size)
-
-        VectorOperations.computeGradientStep(
-            currentV = current, currentVIdx = 1,
-            targetV = target, targetVIdx = 2,
-            result = result, resultIdx = 0,
-            size, learningRate
-        )
-        Assert.assertArrayEquals(expectedResult, result, 1e-5f)
-        result.fill(0f)
-
-        VectorOperations.computeGradientStep(
-            currentV = current, currentVIdx = 1,
-            targetV = targetHeapBased, targetVIdx = 2,
-            result = result, resultIdx = 0,
-            size, learningRate
-        )
-        Assert.assertArrayEquals(expectedResult, result, 1e-5f)
-        result.fill(0f)
-
-        VectorOperations.computeGradientStep(
-            currentV = current, currentVIdx = 1,
-            targetV = targetNative, targetVIdx = 2,
-            result = result, resultIdx = 0,
-            size, learningRate
-        )
-        Assert.assertArrayEquals(expectedResult, result, 1e-5f)
-        result.fill(0f)
-    }
-
-    private fun FloatArray.check(value: Float, fromIdx: Int, count: Int) {
-        var idx = fromIdx
-        repeat(count) {
-            assert(abs(this[idx] - value) < PRECISION)
-            idx++
+    private fun naiveNormalizeL2(v: FloatArray, norm: Float): FloatArray {
+        return FloatArray(v.size) { i ->
+            v[i] / norm
         }
     }
 
+    private fun naiveGradientStep(current: FloatArray, currentOffset: Int, target: FloatArray, targetOffset: Int, learningRate: Float, size: Int): FloatArray {
+        return FloatArray(size) { i ->
+            current[i + currentOffset] + (target[i + targetOffset] - current[i + currentOffset]) * learningRate
+        }
+    }
+
+    private fun FloatArray.checkResult(expectedResult: FloatArray, arrOffset: Int = 0) {
+        assert(this.size - (arrOffset * 2) >= expectedResult.size)
+        for (i in 0 until arrOffset) {
+            Assert.assertEquals(this[i], 0f)
+        }
+        for (i in arrOffset + expectedResult.size until arrOffset + expectedResult.size + arrOffset) {
+            Assert.assertEquals(this[i], 0f)
+        }
+        for (i in expectedResult.indices) {
+            Assert.assertEquals(expectedResult[i], this[i + arrOffset], 1e-3f)
+        }
+    }
 
 }
