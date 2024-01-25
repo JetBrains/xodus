@@ -32,15 +32,15 @@ class FloatVectorSegmentTest {
     @Test
     fun copy() {
         val count = 5
-        val v = createRandomFloatVectorSegment(count, dimensions)
+        val v = randomFloatVectorSegment(count, dimensions)
         val vCopy = v.copy()
         assert(v.equals(vCopy))
     }
 
     @Test
     fun set() {
-        val v1 = createRandomFloatVectorSegment(1, dimensions)
-        val arr = createRandomFloatArray(1, dimensions)
+        val v1 = randomFloatVectorSegment(1, dimensions)
+        val arr = randomFloatArray(dimensions)
 
         v1.set(0, MemorySegment.ofArray(arr))
 
@@ -50,7 +50,7 @@ class FloatVectorSegmentTest {
     @Test
     fun toArray() {
         val count = 30
-        val v = createRandomFloatVectorSegment(count, dimensions)
+        val v = randomFloatVectorSegment(count, dimensions)
 
         val vArray = v.toArray()
 
@@ -63,8 +63,8 @@ class FloatVectorSegmentTest {
 
     @Test
     fun `simplest add`() {
-        val v1 = createRandomFloatVectorSegment(1, dimensions)
-        val v2 = createRandomFloatVectorSegment(1, dimensions)
+        val v1 = randomFloatVectorSegment(1, dimensions)
+        val v2 = randomFloatVectorSegment(1, dimensions)
 
         val v2Copy = v2.copy()
         val expectedResult = naiveSum(v1, 0, v2, 0)
@@ -111,8 +111,8 @@ class FloatVectorSegmentTest {
     fun add() {
         val count1 = 4
         val count2 = 5
-        val v1 = createRandomFloatVectorSegment(count1, dimensions)
-        val v2 = createRandomFloatVectorSegment(count2, dimensions)
+        val v1 = randomFloatVectorSegment(count1, dimensions)
+        val v2 = randomFloatVectorSegment(count2, dimensions)
         val idx1 = 2
         val idx2 = 3
 
@@ -138,7 +138,7 @@ class FloatVectorSegmentTest {
     @Test
     fun `div by scalar`() {
         val count1 = 4
-        val v1 = createRandomFloatVectorSegment(count1, dimensions)
+        val v1 = randomFloatVectorSegment(count1, dimensions)
         val idx1 = 1
         val scalar = 13f
 

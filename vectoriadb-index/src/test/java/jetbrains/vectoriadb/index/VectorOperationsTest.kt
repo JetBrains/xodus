@@ -15,24 +15,71 @@ class VectorOperationsTest {
         val vectorSize = 131
         val v1Offset = 3
         val v2Offset = 4
-        val v1 = createRandomFloatArray(1, vectorSize + v1Offset * 2)
-        val v2 = createRandomFloatArray(1, vectorSize + v2Offset * 2)
+        val v1 = randomFloatArray(vectorSize, v1Offset)
+        val v1Clone = v1.copyOf()
+        val v2 = randomFloatArray(vectorSize, v2Offset)
+        val v2Clone = v2.copyOf()
         val v2HeapSeg = MemorySegment.ofArray(v2)
         val v2NativeSeg = v2.copyToNativeSegment(arena)
 
         val expectedResult = naiveAdd(v1, v1Offset, v2, v2Offset, vectorSize)
-        val result = Array(3) {
-            FloatArray(vectorSize)
+
+        val operationsCount = 3
+        val resultOffset = IntArray(operationsCount) { it + 1 }
+        val result = Array(operationsCount) { i ->
+            randomFloatArray(vectorSize, resultOffset[i])
         }
 
-        VectorOperations.add(v1, v1Offset, v2, v2Offset, result[0], 0, vectorSize)
-        VectorOperations.add(v1, v1Offset, v2HeapSeg, v2Offset.toLong(), result[1], 0, vectorSize)
-        VectorOperations.add(v1, v1Offset, v2NativeSeg, v2Offset.toLong(), result[2], 0, vectorSize)
+        VectorOperations.add(v1, v1Offset, v2, v2Offset, result[0], resultOffset[0], vectorSize)
+        VectorOperations.add(v1, v1Offset, v2HeapSeg, v2Offset.toLong(), result[1], resultOffset[1], vectorSize)
+        VectorOperations.add(v1, v1Offset, v2NativeSeg, v2Offset.toLong(), result[2], resultOffset[2], vectorSize)
 
-        result.forEach {
-            expectedResult.assertEquals(it)
+        repeat(operationsCount) { i ->
+            result[i].checkResult(expectedResult, resultOffset[i])
         }
+
+        // original arrays has not changed
+        v1.assertEquals(v1Clone)
+        v2.assertEquals(v2Clone)
+        v2HeapSeg.toArray(ValueLayout.JAVA_FLOAT).assertEquals(v2)
+        v2NativeSeg.toArray(ValueLayout.JAVA_FLOAT).assertEquals(v2)
     }
+
+
+
+   /* @Test
+    fun `div by scalar1`() {
+        val v1Offset = 4
+        val size = 133
+        val v1 = randomFloatArray(133 + v1Offset * 2)
+        val scalar = Random.nextDouble(1.0, 10.0).toFloat()
+
+        val expectedResult = naiveDiv(v1, v1Offset, scalar, size)
+
+        val resultOffset = 3
+        val result = randomFloatArray(size + resultOffset * 2)
+
+        //VectorOperations.div(v1, v1Offset, scalar, )
+        v1.fill(100f, 0, 100)
+        v1.fill(90f, 100, 200)
+        v1.fill(50f, 200, 300)
+
+        VectorOperations.div(v1, 0, 2f, v1, 0, 100)
+        VectorOperations.div(v1, 100, 3f, v1, 100, 100)
+        VectorOperations.div(v1, 200, 5f, v1, 200, 100)
+
+        v1.check(50f, 0, 100)
+        v1.check(30f, 100, 100)
+        v1.check(10f, 200, 100)
+    }
+
+    private fun naiveDiv(v: FloatArray, idx: Int, scalar: Float, size: Int): FloatArray {
+        val result = FloatArray(size)
+        for (i in result.indices) {
+            result[i] = v[idx + i] / scalar
+        }
+        return result
+    }*/
 
     @Test
     fun `div by scalar`() {
@@ -55,8 +102,8 @@ class VectorOperationsTest {
         val vectorSize = 131
         val v1Offset = 3
         val v2Offset = 2
-        val v1 = createRandomFloatArray(1, vectorSize + 5)
-        val v2 = createRandomFloatArray(1, vectorSize + 5)
+        val v1 = randomFloatArray(vectorSize + 5)
+        val v2 = randomFloatArray(vectorSize + 5)
         val v1HeapSeg = MemorySegment.ofArray(v1)
         val v2HeapSeg = MemorySegment.ofArray(v2)
         val v1NativeSeg = v1.copyToNativeSegment(arena)
@@ -65,13 +112,13 @@ class VectorOperationsTest {
         val expectedResult = naiveInnerProduct(v1, v1Offset, v2, v2Offset, vectorSize)
 
         listOf(
-            VectorOperationsJ.innerProduct(v1, v1Offset, v2, v2Offset, vectorSize),
-            VectorOperationsJ.innerProduct(v1HeapSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
-            VectorOperationsJ.innerProduct(v1NativeSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize),
-            VectorOperationsJ.innerProduct(v1NativeSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
-            VectorOperationsJ.innerProduct(v1HeapSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize)
+            VectorOperations.innerProduct(v1, v1Offset, v2, v2Offset, vectorSize),
+            VectorOperations.innerProduct(v1HeapSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
+            VectorOperations.innerProduct(v1NativeSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize),
+            VectorOperations.innerProduct(v1NativeSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
+            VectorOperations.innerProduct(v1HeapSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize)
         ).forEach { result ->
-            Assert.assertEquals(expectedResult, result, PRECISION)
+            Assert.assertEquals(expectedResult, result, 1e-3f)
         }
     }
 
@@ -80,7 +127,7 @@ class VectorOperationsTest {
         val vectorSize = 131
         val offset = intArrayOf(1, 2, 3, 4, 5)
         val offsetL = offset.map { it.toLong() }
-        val v = Array(5) { createRandomFloatArray(1, vectorSize + 5) }
+        val v = Array(5) { randomFloatArray(vectorSize + 5) }
         val vHeapSeg = v.map { MemorySegment.ofArray(it) }
         val vNativeSeg = v.map { it.copyToNativeSegment(arena) }
 
@@ -90,14 +137,14 @@ class VectorOperationsTest {
 
         val result = List(3) { FloatArray(4) }
 
-        VectorOperationsJ.innerProductBatch(v[0], offset[0], v[1], offset[1], v[2], offset[2], v[3], offset[3], v[4], offset[4], vectorSize, result[0])
+        VectorOperations.innerProductBatch(v[0], offset[0], v[1], offset[1], v[2], offset[2], v[3], offset[3], v[4], offset[4], vectorSize, result[0])
 
-        VectorOperationsJ.innerProductBatch(v[0], offset[0], vNativeSeg[1], offsetL[1], vNativeSeg[2], offsetL[2], vNativeSeg[3], offsetL[3], vNativeSeg[4], offsetL[4], vectorSize, result[1])
+        VectorOperations.innerProductBatch(v[0], offset[0], vNativeSeg[1], offsetL[1], vNativeSeg[2], offsetL[2], vNativeSeg[3], offsetL[3], vNativeSeg[4], offsetL[4], vectorSize, result[1])
 
-        VectorOperationsJ.innerProductBatch(vNativeSeg[0], offsetL[0], vNativeSeg[1], offsetL[1], vNativeSeg[2], offsetL[2], vNativeSeg[3], offsetL[3], vNativeSeg[4], offsetL[4], vectorSize, result[2])
+        VectorOperations.innerProductBatch(vNativeSeg[0], offsetL[0], vNativeSeg[1], offsetL[1], vNativeSeg[2], offsetL[2], vNativeSeg[3], offsetL[3], vNativeSeg[4], offsetL[4], vectorSize, result[2])
 
         result.forEach {
-            it.assertEquals(expectedResult)
+            it.checkResult(expectedResult)
         }
     }
 
@@ -106,8 +153,8 @@ class VectorOperationsTest {
         val vectorSize = 131
         val v1Offset = 3
         val v2Offset = 2
-        val v1 = createRandomFloatArray(1, vectorSize + 5)
-        val v2 = createRandomFloatArray(1, vectorSize + 5)
+        val v1 = randomFloatArray(vectorSize + 5)
+        val v2 = randomFloatArray(vectorSize + 5)
         val v1HeapSeg = MemorySegment.ofArray(v1)
         val v2HeapSeg = MemorySegment.ofArray(v2)
         val v1NativeSeg = v1.copyToNativeSegment(arena)
@@ -116,12 +163,12 @@ class VectorOperationsTest {
         val expectedResult = naiveL2Distance(v1, v1Offset, v2, v2Offset, vectorSize)
 
         listOf(
-            VectorOperationsJ.l2Distance(v1, v1Offset, v2, v2Offset, vectorSize),
+            VectorOperations.l2Distance(v1, v1Offset, v2, v2Offset, vectorSize),
 
-            VectorOperationsJ.l2Distance(v1HeapSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
-            VectorOperationsJ.l2Distance(v1NativeSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize),
-            VectorOperationsJ.l2Distance(v1NativeSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
-            VectorOperationsJ.l2Distance(v1HeapSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize)
+            VectorOperations.l2Distance(v1HeapSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
+            VectorOperations.l2Distance(v1NativeSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize),
+            VectorOperations.l2Distance(v1NativeSeg, v1Offset.toLong(), v2HeapSeg, v2Offset.toLong(), vectorSize),
+            VectorOperations.l2Distance(v1HeapSeg, v1Offset.toLong(), v2NativeSeg, v2Offset.toLong(), vectorSize)
         ).forEach { result ->
             Assert.assertEquals(expectedResult, result, PRECISION)
         }
@@ -132,7 +179,7 @@ class VectorOperationsTest {
         val vectorSize = 131
         val offset = intArrayOf(1, 2, 3, 4, 5)
         val offsetL = offset.map { it.toLong() }
-        val v = Array(5) { createRandomFloatArray(1, vectorSize + 5) }
+        val v = Array(5) { randomFloatArray(vectorSize + 5) }
         val vHeapSeg = v.map { MemorySegment.ofArray(it) }
         val vNativeSeg = v.map { it.copyToNativeSegment(arena) }
 
@@ -142,21 +189,27 @@ class VectorOperationsTest {
 
         val result = List(3) { FloatArray(4) }
 
-        VectorOperationsJ.l2DistanceBatch(v[0], offset[0], v[1], offset[1], v[2], offset[2], v[3], offset[3], v[4], offset[4], vectorSize, result[0])
+        VectorOperations.l2DistanceBatch(v[0], offset[0], v[1], offset[1], v[2], offset[2], v[3], offset[3], v[4], offset[4], vectorSize, result[0])
 
-        VectorOperationsJ.l2DistanceBatch(v[0], offset[0], vNativeSeg[1], offsetL[1], vNativeSeg[2], offsetL[2], vNativeSeg[3], offsetL[3], vNativeSeg[4], offsetL[4], vectorSize, result[1])
+        VectorOperations.l2DistanceBatch(v[0], offset[0], vNativeSeg[1], offsetL[1], vNativeSeg[2], offsetL[2], vNativeSeg[3], offsetL[3], vNativeSeg[4], offsetL[4], vectorSize, result[1])
 
-        VectorOperationsJ.l2DistanceBatch(vNativeSeg[0], offsetL[0], vNativeSeg[1], offsetL[1], vNativeSeg[2], offsetL[2], vNativeSeg[3], offsetL[3], vNativeSeg[4], offsetL[4], vectorSize, result[2])
+        VectorOperations.l2DistanceBatch(vNativeSeg[0], offsetL[0], vNativeSeg[1], offsetL[1], vNativeSeg[2], offsetL[2], vNativeSeg[3], offsetL[3], vNativeSeg[4], offsetL[4], vectorSize, result[2])
 
         result.forEach {
-            it.assertEquals(expectedResult)
+            it.checkResult(expectedResult)
         }
     }
 
-    private fun FloatArray.assertEquals(arr: FloatArray) {
-        assert(this.size == arr.size)
-        for (i in this.indices) {
-            Assert.assertEquals(this[i], arr[i], 1e-3f)
+    private fun FloatArray.checkResult(expectedResult: FloatArray, arrOffset: Int = 0) {
+        assert(this.size - (arrOffset * 2) >= expectedResult.size)
+        for (i in 0 until arrOffset) {
+            Assert.assertEquals(this[i], 0f)
+        }
+        for (i in arrOffset + expectedResult.size until arrOffset + expectedResult.size + arrOffset) {
+            Assert.assertEquals(this[i], 0f)
+        }
+        for (i in expectedResult.indices) {
+            Assert.assertEquals(expectedResult[i], this[i + arrOffset], 1e-3f)
         }
     }
 
@@ -181,12 +234,6 @@ class VectorOperationsTest {
             res += (v1[idx1 + i] - v2[idx2 + i]) * (v1[idx1 + i] - v2[idx2 + i])
         }
 
-        return res
-    }
-
-    private fun FloatArray.copyToNativeSegment(arena: Arena): MemorySegment {
-        val res = arena.allocateFloat(this.size)
-        MemorySegment.copy(this, 0, res, ValueLayout.JAVA_FLOAT, 0, this.size)
         return res
     }
 
@@ -269,7 +316,5 @@ class VectorOperationsTest {
         }
     }
 
-    private fun Arena.allocateFloat(count: Int): MemorySegment {
-        return allocate(count.toLong() * Float.SIZE_BYTES, ValueLayout.JAVA_FLOAT.byteAlignment())
-    }
+
 }

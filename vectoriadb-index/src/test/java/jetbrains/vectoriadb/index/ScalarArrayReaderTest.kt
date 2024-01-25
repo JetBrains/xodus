@@ -10,7 +10,7 @@ class ScalarArrayReaderTest {
     fun read() {
         val count = 100
         val dimensions = 1
-        val v = createRandomFloatVectorSegment(count, dimensions)
+        val v = randomFloatVectorSegment(count, dimensions)
 
         val reader = ScalarArrayReader(v.internalArray)
 

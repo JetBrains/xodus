@@ -4,7 +4,10 @@ import jetbrains.vectoriadb.index.bench.VectorDatasetInfo
 import jetbrains.vectoriadb.index.bench.downloadDatasetArchives
 import jetbrains.vectoriadb.index.bench.readGroundTruth
 import jetbrains.vectoriadb.index.bench.readVectors
+import org.junit.Assert
+import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
+import java.lang.foreign.ValueLayout
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.random.Random
@@ -48,14 +51,36 @@ fun VectorDatasetInfo.readGroundTruthL2(): Array<IntArray> {
     return readGroundTruth(groundTruthFilePath)
 }
 
-internal fun createRandomFloatVectorSegment(count: Int, dimensions: Int): FloatVectorSegment {
+internal fun randomFloatVectorSegment(count: Int, dimensions: Int): FloatVectorSegment {
     val v1 = FloatVectorSegment.makeSegment(count, dimensions)
     v1.fillRandom()
     return v1
 }
 
-internal fun createRandomFloatArray(count: Int, dimensions: Int): FloatArray {
-    return FloatArray(count * dimensions) { Random.nextFloat() }
+internal fun randomFloatArray(count: Int): FloatArray {
+    return FloatArray(count) { Random.nextFloat() }
+}
+
+internal fun randomFloatArray(count: Int, offset: Int): FloatArray {
+    val result = FloatArray(count + offset * 2)
+    for (i in 0 until count) {
+        result[i + offset] = Random.nextFloat()
+    }
+    return result
+}
+
+internal fun FloatArray.assertEquals(another: FloatArray) {
+    Assert.assertArrayEquals(this, another, 1e-5f)
+}
+
+internal fun FloatArray.copyToNativeSegment(arena: Arena): MemorySegment {
+    val res = arena.allocateFloat(this.size)
+    MemorySegment.copy(this, 0, res, ValueLayout.JAVA_FLOAT, 0, this.size)
+    return res
+}
+
+internal fun Arena.allocateFloat(count: Int): MemorySegment {
+    return allocate(count.toLong() * Float.SIZE_BYTES, ValueLayout.JAVA_FLOAT.byteAlignment())
 }
 
 internal fun createFloatArrayOf(count: Int, dimensions: Int, value: Float): FloatArray {
