@@ -105,15 +105,13 @@ class CaffeinePersistentCacheTest {
 
         // When
         cache1.put("key", "value")
+        // Remove should not affect previous versions
         cache2.remove("key")
-        val value1 = cache1.get("key")
-        val value2 = cache2.get("key")
-        val value3 = cache3.get("key")
 
         // Then
-        assertEquals("value", value1)
-        assertNull(value2)
-        assertNull(value3)
+        assertEquals("value", cache1.get("key"))
+        assertNull(cache2.get("key"))
+        assertNull(cache3.get("key"))
     }
 
     @Test
@@ -141,13 +139,12 @@ class CaffeinePersistentCacheTest {
         cache1.put("key1", "value1")
         cache2.put("key2", "value2")
         Thread.sleep(2)
-        val value1 = cache1.get("key1")
-        val value2 = cache2.get("key2")
+        cache1.forceEviction()
 
         // Then
         assertEquals(0, cache2.count())
-        assertNull(value1)
-        assertNull(value2)
+        assertNull(cache1.get("key1"))
+        assertNull(cache2.get("key2"))
     }
 
 
@@ -184,6 +181,20 @@ class CaffeinePersistentCacheTest {
         // Then
         assertEquals(100, cache2.count())
         repeat(n) { assertEquals("$it", cache2.get("$it")) }
+    }
+
+    @Test
+    fun `should keep local index in sync with cache`() {
+        // Given
+        val cache = givenSizedCache(1)
+
+        // When-Then
+        cache.put("key1", "value1")
+        assertEquals(1, cache.localIndexSize())
+
+        cache.put("key2", "value2")
+        // Key should be removed from index on eviction
+        assertEquals(1, cache.localIndexSize())
     }
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {

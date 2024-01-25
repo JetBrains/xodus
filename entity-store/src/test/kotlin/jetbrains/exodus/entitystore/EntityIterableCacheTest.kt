@@ -28,7 +28,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
         init {
             // Use for local experiments to change cache params
-            //System.setProperty(ENTITY_ITERABLE_CACHE_SIZE, "8096")
+            //System.setProperty(ENTITY_ITERABLE_CACHE_SIZE, "4096")
             //System.setProperty(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, "50")
         }
     }
@@ -46,10 +46,10 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
         // When
         test.queryAssignedIssues() // Miss
-        entityStore.waitForCacheJobs()
+        entityStore.waitForCachingJobs()
         test.changeIssueTitle()
         test.queryAssignedIssues() // Hit
-        entityStore.waitForCacheJobs()
+        entityStore.waitForCachingJobs()
 
         // Then
         reportInLogEntityIterableCacheStats()
@@ -72,7 +72,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
             // Store issues in cache
             it.countAllIssues()
         }
-        store.waitForCacheJobs()
+        store.waitForCachingJobs()
 
         val read1Start = CountDownLatch(1)
         val read2Start = CountDownLatch(1)
@@ -143,7 +143,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // When
         logger.info("Running $queryCount queries...")
         val finishedRef = AtomicBoolean(false)
-        val updateProcess = thread {
+        val writeThread = thread {
             while (!finishedRef.get()) {
                 testCase.changeIssueAssignee()
                 Thread.sleep(updateDelayMillis)
@@ -160,7 +160,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         executor.shutdown()
         executor.awaitTermination(10, MINUTES)
         finishedRef.set(true)
-        updateProcess.join()
+        writeThread.join()
 
         // Then
         reportInLogEntityIterableCacheStats()
@@ -171,9 +171,10 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Given
         val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
         // Uncomment to run heavy test with profiler
-        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 1000)
+        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
 
-        val writeCount = 100000
+        val writeCount = 1000
+        val writeConcurrencyLevel = 4
         val queryDelayMillis = 100L
 
         // When
@@ -186,18 +187,28 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
                 Thread.sleep(queryDelayMillis)
             }
         }
+        val executor = Executors.newFixedThreadPool(writeConcurrencyLevel)
         repeat(writeCount) {
-            testCase.changeIssueAssignee()
-            testCase.changeIssueTitle()
-            testCase.queryComplexList()
+            executor.submit {
+                entityStore.executeInTransaction {
+                    testCase.changeIssueAssignee()
+                    testCase.changeIssueTitle()
+                    // Uncomment for heavier test
+                    //testCase.createIssue()
+                    testCase.queryComplexList()
+                }
+            }
         }
+        executor.shutdown()
+        executor.awaitTermination(10, MINUTES)
         finishedRef.set(true)
         queryThread.join()
+        entityStore.waitForCachingJobs()
 
         // Then
         reportInLogEntityIterableCacheStats()
         // Expected hit rate is low because of intensive concurrent writes
-        assertHitRateToBeNotLessThan(0.4)
+        assertHitRateToBeNotLessThan(0.3)
     }
 
     // Helpers
@@ -210,7 +221,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         )
     }
 
-    private fun PersistentEntityStoreImpl.waitForCacheJobs() {
+    private fun PersistentEntityStoreImpl.waitForCachingJobs() {
         entityIterableCache.processor.waitForJobs(5)
     }
 }
