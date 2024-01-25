@@ -183,6 +183,20 @@ class CaffeinePersistentCacheTest {
         repeat(n) { assertEquals("$it", cache2.get("$it")) }
     }
 
+    @Test
+    fun `should keep local index in sync with cache`() {
+        // Given
+        val cache = givenSizedCache(1)
+
+        // When-Then
+        cache.put("key1", "value1")
+        assertEquals(1, cache.localIndexSize())
+
+        cache.put("key2", "value2")
+        // Key should be removed from index on eviction
+        assertEquals(1, cache.localIndexSize())
+    }
+
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String>(
             sizeEviction = WeightedEviction(size) { 1 },

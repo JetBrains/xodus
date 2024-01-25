@@ -18,6 +18,7 @@ package jetbrains.exodus.core.cache.persistent
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import jetbrains.exodus.core.dataStructures.persistent.PersistentHashMap
+import java.lang.ref.Cleaner
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 
@@ -33,14 +34,19 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     private val config: CaffeineCacheConfig<V>,
     override val version: Long,
     private val versionTracker: VersionTracker,
+    private val evictionSubject: CacheEvictionSubject<K>,
     // Local index as map of keys to corresponding versions available for the current version of cache
     // This map is eventually consistent with the cache and not intended to be in full sync with it due to performance reasons
-    private val keyVersions: PersistentHashMap<K, Version> = PersistentHashMap()
+    private val keyVersions: PersistentHashMap<K, Version> = PersistentHashMap(),
 ) : PersistentCache<K, V> {
 
     companion object {
 
+        private val cleaner = Cleaner.create()
+
         fun <K : Any, V> create(config: CaffeineCacheConfig<V>): CaffeinePersistentCache<K, V> {
+            val evictionSubject = CacheEvictionSubject<K>()
+
             val cache = Caffeine.newBuilder()
                 .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
                 .apply { if (config.useSoftValues) softValues() }
@@ -54,15 +60,22 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
                         weigher { _: K, values: WeightedValueMap<Version, V> -> values.totalWeight }
                     }
                 }
+                .evictionListener(evictionSubject)
                 .build<K, WeightedValueMap<Version, V>>()
             val version = 0L
             val tracker = VersionTracker(version)
 
-            return CaffeinePersistentCache(cache, config, version, tracker)
+            return CaffeinePersistentCache(cache, config, version, tracker, evictionSubject)
         }
     }
 
     private val cacheMap = cache.asMap()
+
+    init {
+        val listener: EvictionListener<K> = { key: K? -> key?.let { keyVersions.removeKey(key) } }
+        evictionSubject.addListener(listener)
+        cleaner.register(this) { evictionSubject.removeListener(listener) }
+    }
 
     // Generic cache impl
     override fun size(): Long {
@@ -77,7 +90,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         val valueVersion = keyVersions.current.get(key) ?: return null
         val values = cache.getIfPresent(key)
         if (values == null) {
-            keyVersions.update { it.removeKey(key) }
+            keyVersions.removeKey(key)
             return null
         } else {
             values.removeUnusedVersionsAndUpdateCache(key, valueVersion)
@@ -92,7 +105,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             values.removeUnusedVersions(version)
             values
         }
-        keyVersions.update { it.put(key, version) }
+        keyVersions.put(key, version)
     }
 
     private fun createNewValueMap(): WeightedValueMap<Version, V> {
@@ -107,7 +120,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             values.removeUnusedVersions(version)
             values.orNullIfEmpty()
         }
-        keyVersions.update { it.removeKey(key) }
+        keyVersions.removeKey(key)
     }
 
     override fun clear() {
@@ -144,6 +157,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             cache, config,
             nextVersion,
             versionTracker,
+            evictionSubject,
             keyVersionsCopy
         )
     }
@@ -161,6 +175,19 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         }
         versionTracker.incrementClients(version)
         return client
+    }
+
+    // For tests
+    fun localIndexSize(): Int {
+        return keyVersions.current.size()
+    }
+
+    private fun <K : Any, V> PersistentHashMap<K, V>.removeKey(key: K) {
+        update { it.removeKey(key) }
+    }
+
+    private fun <K : Any, V : Any> PersistentHashMap<K, V>.put(key: K, value: V) {
+        update { it.put(key, value) }
     }
 
     private fun <K, V> PersistentHashMap<K, V>.update(block: (PersistentHashMap<K, V>.MutablePersistentHashMap) -> Unit) {
