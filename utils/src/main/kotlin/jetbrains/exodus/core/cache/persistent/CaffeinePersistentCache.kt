@@ -37,7 +37,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     private val evictionSubject: CacheEvictionSubject<K>,
     // Local index as map of keys to corresponding versions available for the current version of cache
     // This map is eventually consistent with the cache and not intended to be in full sync with it due to performance reasons
-    private val keyVersions: PersistentHashMap<K, Version> = PersistentHashMap(),
+    private val keyVersionIndex: PersistentHashMap<K, Version> = PersistentHashMap(),
 ) : PersistentCache<K, V> {
 
     companion object {
@@ -72,7 +72,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     private val cacheMap = cache.asMap()
 
     init {
-        val listener: EvictionListener<K> = { key: K? -> key?.let { keyVersions.removeKey(key) } }
+        val listener: EvictionListener<K> = { key: K? -> key?.let { keyVersionIndex.removeKey(key) } }
         evictionSubject.addListener(listener)
         cleaner.register(this) { evictionSubject.removeListener(listener) }
     }
@@ -87,13 +87,13 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     override fun get(key: K): V? {
-        val valueVersion = keyVersions.current.get(key) ?: return null
+        val valueVersion = keyVersionIndex.current.get(key) ?: return null
         val values = cache.getIfPresent(key)
         if (values == null) {
-            keyVersions.removeKey(key)
+            keyVersionIndex.removeKey(key)
             return null
         } else {
-            values.removeUnusedVersionsAndUpdateCache(key, valueVersion)
+            values.removeStaleVersionsAndUpdateCache(key, valueVersion)
             return values.get(valueVersion)
         }
     }
@@ -102,10 +102,10 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         cacheMap.compute(key) { _, map ->
             val values = map ?: createNewValueMap()
             values.put(version, value)
-            values.removeUnusedVersions(version)
+            values.removeStaleVersions(version)
             values
         }
-        keyVersions.put(key, version)
+        keyVersionIndex.put(key, version)
     }
 
     private fun createNewValueMap(): WeightedValueMap<Version, V> {
@@ -117,10 +117,10 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     override fun remove(key: K) {
         cacheMap.computeIfPresent(key) { _, values ->
             values.remove(version)
-            values.removeUnusedVersions(version)
+            values.removeStaleVersions(version)
             values.orNullIfEmpty()
         }
-        keyVersions.removeKey(key)
+        keyVersionIndex.removeKey(key)
     }
 
     override fun clear() {
@@ -132,7 +132,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     override fun forEachEntry(consumer: BiConsumer<K, V>) {
-        keyVersions.current.forEach { entry ->
+        keyVersionIndex.current.forEach { entry ->
             val key = entry.key
             val version = entry.value
             val value = cache.getVersioned(key, version)
@@ -148,9 +148,9 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         // Copy key index for the next cache
         // It effectively prohibits new version from seeing new values cached for previous versions
         // as they might be stale, e.g. due to values already changed by another transaction
-        val keyVersionsCopy = keyVersions.clone
+        val keyVersionIndexCopy = keyVersionIndex.clone
         if (keyConsumer != null) {
-            keyVersionsCopy.current.forEach { keyConsumer.accept(it.key) }
+            keyVersionIndexCopy.current.forEach { keyConsumer.accept(it.key) }
         }
 
         return CaffeinePersistentCache(
@@ -158,7 +158,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             nextVersion,
             versionTracker,
             evictionSubject,
-            keyVersionsCopy
+            keyVersionIndexCopy
         )
     }
 
@@ -179,7 +179,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
 
     // For tests
     fun localIndexSize(): Int {
-        return keyVersions.current.size()
+        return keyVersionIndex.current.size()
     }
 
     private fun <K : Any, V> PersistentHashMap<K, V>.removeKey(key: K) {
@@ -202,7 +202,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     // Returns true if values were changed
-    private fun WeightedValueMap<Version, V>.removeUnusedVersions(currentVersion: Version): Boolean {
+    private fun WeightedValueMap<Version, V>.removeStaleVersions(currentVersion: Version): Boolean {
         if (this.size <= 1) {
             return false
         }
@@ -216,8 +216,8 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         return changed
     }
 
-    private fun WeightedValueMap<Version, V>.removeUnusedVersionsAndUpdateCache(key: K, currentVersion: Version) {
-        if (removeUnusedVersions(currentVersion)) {
+    private fun WeightedValueMap<Version, V>.removeStaleVersionsAndUpdateCache(key: K, currentVersion: Version) {
+        if (removeStaleVersions(currentVersion)) {
             cache.put(key, this)
         }
     }
