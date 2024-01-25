@@ -28,7 +28,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
         init {
             // Use for local experiments to change cache params
-            //System.setProperty(ENTITY_ITERABLE_CACHE_SIZE, "8096")
+            //System.setProperty(ENTITY_ITERABLE_CACHE_SIZE, "4096")
             //System.setProperty(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, "50")
         }
     }
@@ -169,12 +169,12 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
     fun testStressWritePerformance() {
         // Given
-        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
+        val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
         // Uncomment to run heavy test with profiler
-        val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
+        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
 
-        val writeCount = 100000
-        val writeConcurrencyLevel = 10
+        val writeCount = 1000
+        val writeConcurrencyLevel = 4
         val queryDelayMillis = 100L
 
         // When
@@ -190,9 +190,13 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         val executor = Executors.newFixedThreadPool(writeConcurrencyLevel)
         repeat(writeCount) {
             executor.submit {
-                testCase.changeIssueAssignee()
-                testCase.changeIssueTitle()
-                testCase.queryComplexList()
+                entityStore.executeInTransaction {
+                    testCase.changeIssueAssignee()
+                    testCase.changeIssueTitle()
+                    // Uncomment for heavier test
+                    //testCase.createIssue()
+                    testCase.queryComplexList()
+                }
             }
         }
         executor.shutdown()

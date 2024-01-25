@@ -106,6 +106,10 @@ class IssueTrackerTestCase(
         }
     }
 
+    fun createIssue() {
+        Issue.createEntities(testData, 1, projects, users, store)
+    }
+
     private fun KLogger.logQueryResult(message: String) {
         if (logQueryResult) {
             info(message)

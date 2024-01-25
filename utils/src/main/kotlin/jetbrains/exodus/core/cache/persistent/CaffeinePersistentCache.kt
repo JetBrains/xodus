@@ -17,8 +17,7 @@ package jetbrains.exodus.core.cache.persistent
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
-import java.lang.ref.Cleaner
-import java.util.concurrent.ConcurrentHashMap
+import jetbrains.exodus.core.dataStructures.persistent.PersistentHashMap
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 
@@ -29,19 +28,19 @@ typealias Version = Long
  * This cache implementation is based on Caffeine cache. It versions each value stored.
  * Put or remove values for the current version doesn't affect other existing versions.
  */
-class CaffeinePersistentCache<K, V> private constructor(
+class CaffeinePersistentCache<K : Any, V> private constructor(
     private val cache: Cache<K, WeightedValueMap<Version, V>>,
     private val config: CaffeineCacheConfig<V>,
     override val version: Long,
     private val versionTracker: VersionTracker,
     // Local index as map of keys to corresponding versions available for the current version of cache
     // This map is eventually consistent with the cache and not intended to be in full sync with it due to performance reasons
-    private val keyVersions: ConcurrentHashMap<K, Version> = ConcurrentHashMap()
+    private val keyVersions: PersistentHashMap<K, Version> = PersistentHashMap()
 ) : PersistentCache<K, V> {
 
     companion object {
 
-        fun <K, V> create(config: CaffeineCacheConfig<V>): CaffeinePersistentCache<K, V> {
+        fun <K : Any, V> create(config: CaffeineCacheConfig<V>): CaffeinePersistentCache<K, V> {
             val cache = Caffeine.newBuilder()
                 .apply { if (config.expireAfterAccess != null) expireAfterAccess(config.expireAfterAccess) }
                 .apply { if (config.useSoftValues) softValues() }
@@ -75,10 +74,10 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun get(key: K): V? {
-        val valueVersion = keyVersions[key] ?: return null
+        val valueVersion = keyVersions.current.get(key) ?: return null
         val values = cache.getIfPresent(key)
         if (values == null) {
-            keyVersions.remove(key)
+            keyVersions.update { it.removeKey(key) }
             return null
         } else {
             values.removeUnusedVersionsAndUpdateCache(key, valueVersion)
@@ -93,7 +92,7 @@ class CaffeinePersistentCache<K, V> private constructor(
             values.removeUnusedVersions(version)
             values
         }
-        keyVersions[key] = version
+        keyVersions.update { it.put(key, version) }
     }
 
     private fun createNewValueMap(): WeightedValueMap<Version, V> {
@@ -108,12 +107,11 @@ class CaffeinePersistentCache<K, V> private constructor(
             values.removeUnusedVersions(version)
             values.orNullIfEmpty()
         }
-        keyVersions.remove(key)
+        keyVersions.update { it.removeKey(key) }
     }
 
     override fun clear() {
         cache.invalidateAll()
-        keyVersions.clear()
     }
 
     override fun forceEviction() {
@@ -121,7 +119,9 @@ class CaffeinePersistentCache<K, V> private constructor(
     }
 
     override fun forEachEntry(consumer: BiConsumer<K, V>) {
-        keyVersions.forEach { (key, version) ->
+        keyVersions.current.forEach { entry ->
+            val key = entry.key
+            val version = entry.value
             val value = cache.getVersioned(key, version)
             if (value != null) {
                 consumer.accept(key, value)
@@ -135,10 +135,9 @@ class CaffeinePersistentCache<K, V> private constructor(
         // Copy key index for the next cache
         // It effectively prohibits new version from seeing new values cached for previous versions
         // as they might be stale, e.g. due to values already changed by another transaction
-        val keyVersionsCopy = ConcurrentHashMap<K, Version>(keyVersions.size)
-        keyVersions.forEach { (key, version) ->
-            keyVersionsCopy[key] = version
-            keyConsumer?.accept(key)
+        val keyVersionsCopy = keyVersions.clone
+        if (keyConsumer != null) {
+            keyVersionsCopy.current.forEach { keyConsumer.accept(it.key) }
         }
 
         return CaffeinePersistentCache(
@@ -162,6 +161,13 @@ class CaffeinePersistentCache<K, V> private constructor(
         }
         versionTracker.incrementClients(version)
         return client
+    }
+
+    private fun <K, V> PersistentHashMap<K, V>.update(block: (PersistentHashMap<K, V>.MutablePersistentHashMap) -> Unit) {
+        beginWrite().apply {
+            block(this)
+            endWrite(this)
+        }
     }
 
     private fun Cache<K, WeightedValueMap<Version, V>>.getVersioned(key: K, version: Version): V? {
