@@ -34,6 +34,10 @@ class CacheEvictionSubject<K> : RemovalListener<K, Any> {
     }
 
     override fun onRemoval(key: K?, value: Any?, cause: RemovalCause?) {
+        if (cause == RemovalCause.REPLACED) {
+            // Ignore replaced values as key is not actually evicted
+            return
+        }
         listeners.forEach { it(key) }
     }
 }
