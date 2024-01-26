@@ -182,6 +182,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         return keyVersionIndex.current.size()
     }
 
+    // PersistentHashMap extensions
     private fun <K : Any, V> PersistentHashMap<K, V>.removeKey(key: K) {
         update { it.removeKey(key) }
     }
@@ -197,10 +198,12 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         }
     }
 
+    // Cache extensions
     private fun Cache<K, WeightedValueMap<Version, V>>.getVersioned(key: K, version: Version): V? {
         return this.getIfPresent(key)?.get(version)
     }
 
+    // WeightedValueMap extensions
     // Returns true if values were changed
     private fun WeightedValueMap<Version, V>.removeStaleVersions(currentVersion: Version): Boolean {
         if (this.size <= 1) {
