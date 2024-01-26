@@ -192,10 +192,9 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     private fun <K, V> PersistentHashMap<K, V>.update(block: (PersistentHashMap<K, V>.MutablePersistentHashMap) -> Unit) {
-        beginWrite().apply {
-            block(this)
-            endWrite(this)
-        }
+        val mutableMap = beginWrite()
+        block(mutableMap)
+        endWrite(mutableMap)
     }
 
     // Cache extensions
