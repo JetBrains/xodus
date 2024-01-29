@@ -130,6 +130,7 @@ tasks {
             "cacheSizeGb" to (project.findProperty("cacheSizeGb")),
             "doWarmingUp" to (project.findProperty("doWarmingUp")),
             "repeatTimes" to (project.findProperty("repeatTimes")),
+            "recallCount" to (project.findProperty("recallCount")),
         )
 
         javaLauncher.set(rootProject.javaToolchains.launcherFor {
@@ -161,6 +162,7 @@ tasks {
             "cacheSizeGb" to (project.findProperty("cacheSizeGb")),
             "doWarmingUp" to (project.findProperty("doWarmingUp")),
             "repeatTimes" to (project.findProperty("repeatTimes")),
+            "recallCount" to (project.findProperty("recallCount")),
         )
 
         javaLauncher.set(rootProject.javaToolchains.launcherFor {

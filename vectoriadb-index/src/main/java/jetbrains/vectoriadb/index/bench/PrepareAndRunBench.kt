@@ -15,6 +15,7 @@ class PrepareAndRunBench {
         val cacheSizeGbStr = System.getProperty("cacheSizeGb")
         val doWarmingUpStr = System.getProperty("doWarmingUp")
         val repeatTimesStr = System.getProperty("repeatTimes")
+        val recallCountStr = System.getProperty("recallCount")
 
         println("""
             Provided params:
@@ -27,6 +28,7 @@ class PrepareAndRunBench {
                 cacheSizeGb: $cacheSizeGbStr
                 doWarmingUp: $doWarmingUpStr
                 repeatTimes: $repeatTimesStr
+                recallCount: $recallCountStr
                                
         """.trimIndent())
 
@@ -40,6 +42,7 @@ class PrepareAndRunBench {
         indexName = if (indexName.isNullOrBlank()) datasetContext.defaultIndexName(distance) else indexName
         val indexPath = benchPath.resolve(indexName)
         val graphPartitionMemoryConsumptionGb = graphPartitionMemoryConsumptionGbStr.toDoubleOrNull() ?: 1.0
+        val recallCount = recallCountStr?.toIntOrNull() ?: neighbourCount
 
         println("""
             Effective benchmark params:
@@ -53,8 +56,11 @@ class PrepareAndRunBench {
                 cacheSizeGb: $cacheSizeGb
                 doWarmingUp: $doWarmingUp
                 repeatTimes: $repeatTimes
+                recallCount: $recallCount
                                
         """.trimIndent())
+
+        require(recallCount <= neighbourCount) { "recallCount: $recallCount must be less or equal to $neighbourCount" }
 
         val cacheSize = (cacheSizeGb * 1024 * 1024 * 1024).toLong()
         val graphPartitionMemoryConsumption = (graphPartitionMemoryConsumptionGb * 1024 * 1024 * 1024).toLong()
@@ -73,7 +79,7 @@ class PrepareAndRunBench {
             buildIndex(benchPath, distance, indexName, indexPath, graphPartitionMemoryConsumption)
             println()
 
-            runBench(benchPath, distance, indexName, indexPath, neighbourCount, cacheSize, doWarmingUp, repeatTimes)
+            runBench(benchPath, distance, indexName, indexPath, neighbourCount, cacheSize, doWarmingUp, repeatTimes, recallCount)
         }
     }
 }

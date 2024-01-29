@@ -1,13 +1,15 @@
 package jetbrains.vectoriadb.index.bench
 
-import jetbrains.vectoriadb.index.*
+import jetbrains.vectoriadb.index.Distance
+import jetbrains.vectoriadb.index.IndexBuilder
+import jetbrains.vectoriadb.index.IndexReader
 import jetbrains.vectoriadb.index.diskcache.DiskCache
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.time.Duration
-import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 @Suppress("unused")
 class RunBench {
@@ -20,6 +22,7 @@ class RunBench {
         val cacheSizeGbStr = System.getProperty("cacheSizeGb")
         val doWarmingUpStr = System.getProperty("doWarmingUp")
         val repeatTimesStr = System.getProperty("repeatTimes")
+        val recallCountStr = System.getProperty("recallCount")
 
         println("""
             Provided params:
@@ -31,6 +34,7 @@ class RunBench {
                 cacheSizeGb: $cacheSizeGbStr
                 doWarmingUp: $doWarmingUpStr
                 repeatTimes: $repeatTimesStr
+                recallCount: $recallCountStr
                                
         """.trimIndent())
 
@@ -43,6 +47,7 @@ class RunBench {
         val repeatTimes = repeatTimesStr.toIntOrNull() ?: 20
         indexName = if (indexName.isNullOrBlank()) datasetContext.defaultIndexName(distance) else indexName
         val indexPath = benchPath.resolve(indexName)
+        val recallCount = recallCountStr?.toIntOrNull() ?: neighbourCount
 
         println("""
             Effective benchmark params:
@@ -55,8 +60,11 @@ class RunBench {
                 cacheSizeGb: $cacheSizeGb
                 doWarmingUp: $doWarmingUp
                 repeatTimes: $repeatTimes
+                recallCount: $recallCount
                                
         """.trimIndent())
+
+        require(recallCount <= neighbourCount) { "recallCount: $recallCount must be less or equal to $neighbourCount" }
 
         datasetContext.runBench(
             benchPath,
@@ -66,7 +74,8 @@ class RunBench {
             neighbourCount,
             cacheSize = (cacheSizeGb * 1024 * 1024 * 1024).toLong(),
             doWarmingUp,
-            repeatTimes
+            repeatTimes,
+            recallCount
         )
     }
 }
@@ -79,7 +88,8 @@ fun VectorDatasetInfo.runBench(
     neighbourCount: Int,
     cacheSize: Long,
     doWarmingUp: Boolean,
-    repeatTimes: Int
+    repeatTimes: Int,
+    recallCount: Int
 ) {
     check(Files.exists(indexPath)) { "Index directory $indexPath not found" }
 
@@ -127,23 +137,42 @@ fun VectorDatasetInfo.runBench(
             println("PID: $pid")
             var avgTimeOverall = Duration.ZERO
             repeat(repeatTimes) {
-                var errorsCount = 0
-                val duration = measureTime {
-                    for (queryIdx in queryVectors.indices) {
-                        val queryVector = queryVectors[queryIdx]
-                        val foundNearestVectorId = indexReader.nearest(queryVector, 1)[0].toVectorId()
-                        val groundTruthNearestVectorId = groundTruth[queryIdx][0]
+                val recall = IntArray(recallCount)
+                var totalDuration = Duration.ZERO
 
-                        if (foundNearestVectorId != groundTruthNearestVectorId) {
-                            errorsCount++
+                for (queryIdx in queryVectors.indices) {
+                    val queryVector = queryVectors[queryIdx]
+                    val (foundNearestVectors, duration) = measureTimedValue {
+                        indexReader.nearest(queryVector, recallCount)
+                    }
+                    totalDuration += duration
+
+                    val foundNearestVectorsId = foundNearestVectors.map { it.toVectorId() }
+                    val groundTruthNearestVectorId = groundTruth[queryIdx][0]
+                    var found = false
+                    repeat(recallCount) { i ->
+                        if (foundNearestVectorsId[i] == groundTruthNearestVectorId) {
+                            found = true
+                        }
+                        if (found) {
+                            recall[i]++
                         }
                     }
                 }
-                val errorPercentage = errorsCount * 100.0 / queryVectors.size
-                val avgTime = duration / queryVectors.size
+
+                val recallPercentage = recall.map { it * 100.0 / queryVectors.size }
+                val avgTime = totalDuration / queryVectors.size
                 avgTimeOverall += avgTime
 
-                println("Avg. query time : $avgTime, errors: ${errorPercentage}%, cache hits ${indexReader.hits()}%")
+                val recallStr = buildString {
+                    repeat(recallCount) { i ->
+                        if (i > 0) {
+                            append(", ")
+                        }
+                        append("recall@${i + 1}: ${recallPercentage[i]}%")
+                    }
+                }
+                println("Avg. query time : $avgTime, $recallStr, cache hits ${indexReader.hits()}%")
             }
             println("Avg. query time overall: ${avgTimeOverall / repeatTimes}")
         }
