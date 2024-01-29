@@ -76,7 +76,7 @@ internal open class EntityIterableCacheAdapter(
         cache.remove(key)
     }
 
-    fun count() = cache.count()
+    open fun count() = cache.count()
 
     fun size() = cache.size()
 
