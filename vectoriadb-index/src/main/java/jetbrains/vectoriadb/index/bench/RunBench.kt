@@ -41,7 +41,7 @@ class RunBench {
         val distance = distanceStr.toDistance()
         val datasetContext = datasetName.toDatasetContext()
         val benchPath = Path.of(benchPathStr)
-        val neighbourCount = neighbourCountStr.toIntOrNull() ?: GenerateGroundTruthBigANNBench.NEIGHBOURS_COUNT
+        val neighbourCount = neighbourCountStr.toIntOrNull() ?: VectorDatasetInfo.DEFAULT_NEIGHBOURS_COUNT
         val cacheSizeGb = cacheSizeGbStr.toDoubleOrNull() ?: 1.0
         val doWarmingUp = doWarmingUpStr.toBooleanStrictOrNull() ?: false
         val repeatTimes = repeatTimesStr.toIntOrNull() ?: 20

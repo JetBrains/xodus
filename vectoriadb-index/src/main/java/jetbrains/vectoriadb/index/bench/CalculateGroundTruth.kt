@@ -28,7 +28,7 @@ class CalculateGroundTruth {
         val distance = distanceStr.toDistance()
         val datasetInfo = datasetName.toDatasetContext()
         val benchPath = Path.of(benchPathStr)
-        val neighbourCount = neighbourCountStr.toIntOrNull() ?: GenerateGroundTruthBigANNBench.NEIGHBOURS_COUNT
+        val neighbourCount = neighbourCountStr.toIntOrNull() ?: VectorDatasetInfo.DEFAULT_NEIGHBOURS_COUNT
 
         println("""
             Effective benchmark params:

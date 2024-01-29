@@ -15,6 +15,10 @@ sealed class VectorDatasetInfo(
     val vectorDimensions: Int,
     val vectorCount: Int
 ) {
+    companion object {
+        @JvmStatic
+        val DEFAULT_NEIGHBOURS_COUNT: Int = 5
+    }
 
     open val dataFile: String = Path.of(baseFile).nameWithoutExtension
 
