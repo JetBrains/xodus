@@ -40,9 +40,42 @@ interface PersistentCache<K, V> : BasicCache<K, V> {
      * Returns a client that should be used to unregister the client to enable entries associated with its version
      * to be clean up later during the ordinary operations like get or put.
      *
+     * Should be used when there several concurrent clients might use old versions of cache.
+     *
      * Must be invoked once per client.
+     *
+     * Should be used in the way like:
+     * ```
+     * val client = cache.registerClient()
+     * val nextCacheVersion = cache.createNextVersion()
+     * try {
+     *    // do something with the cache
+     *    cache.get(key)
+     *    cache.put(key, value)
+     *    // ...
+     * } finally {
+     *   // As soon as client is unregistered, all values stored with its version are considered as stale
+     *   client.unregister()
+     * }
      */
-    fun register(): PersistentCacheClient
+    fun registerClient(): PersistentCacheClient
+
+    /**
+     * Release resources associated with the cache when it is no longer needed.
+     *
+     * Should be used in the way like:
+     * ```
+     * val cache = PersistentCacheImpl(...)
+     * try {
+     *   // do something with the cache
+     *   cache.get(key)
+     *   cache.put(key, value)
+     *   // ...
+     * } finally {
+     *  cache.release()
+     * }
+     */
+    fun release()
 }
 
 interface PersistentCacheClient {

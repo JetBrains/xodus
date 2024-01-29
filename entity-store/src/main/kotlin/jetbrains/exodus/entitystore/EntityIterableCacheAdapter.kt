@@ -76,11 +76,19 @@ internal open class EntityIterableCacheAdapter(
         cache.remove(key)
     }
 
-    fun count() = cache.count()
+    open fun count() = cache.count()
 
     fun size() = cache.size()
 
     open fun clear() = cache.clear()
+
+    fun registerClient(): PersistentCacheClient {
+        return cache.registerClient()
+    }
+
+    fun release() {
+        cache.release()
+    }
 
     val halfFull: Boolean get() = cache.count() > cache.size() / 2
 
