@@ -135,46 +135,101 @@ fun VectorDatasetInfo.runBench(
 
             val pid = ProcessHandle.current().pid()
             println("PID: $pid")
-            var avgTimeOverall = Duration.ZERO
-            repeat(repeatTimes) {
-                val recall = IntArray(recallCount)
-                var totalDuration = Duration.ZERO
+            println()
 
+            val queryCount = queryVectors.size
+            val avgLatency = Array(6) { Duration.ZERO }
+            repeat(repeatTimes) { iteration ->
+                val recall = Recall(recallCount, queryCount)
+                var totalDuration = Duration.ZERO
+                val latency = Latency(queryCount)
                 for (queryIdx in queryVectors.indices) {
                     val queryVector = queryVectors[queryIdx]
                     val (foundNearestVectors, duration) = measureTimedValue {
                         indexReader.nearest(queryVector, recallCount)
                     }
+                    latency.set(queryIdx, duration)
                     totalDuration += duration
 
                     val foundNearestVectorsId = foundNearestVectors.map { it.toVectorId() }
                     val groundTruthNearestVectorId = groundTruth[queryIdx][0]
-                    var found = false
-                    repeat(recallCount) { i ->
+
+                    for (i in 0 until recallCount) {
                         if (foundNearestVectorsId[i] == groundTruthNearestVectorId) {
-                            found = true
-                        }
-                        if (found) {
-                            recall[i]++
+                            recall.match(i)
+                            break
                         }
                     }
                 }
 
-                val recallPercentage = recall.map { it * 100.0 / queryVectors.size }
-                val avgTime = totalDuration / queryVectors.size
-                avgTimeOverall += avgTime
-
-                val recallStr = buildString {
-                    repeat(recallCount) { i ->
-                        if (i > 0) {
-                            append(", ")
-                        }
-                        append("recall@${i + 1}: ${recallPercentage[i]}%")
-                    }
+                latency.sort()
+                val report = buildString {
+                    appendLine("Iteration ${iteration + 1}")
+                    appendLine("Cache hits: ${indexReader.hits()}%")
+                    appendLine("Latency:")
+                    appendLine("    50%  : ${latency.get(0.5)}")
+                    appendLine("    90%  : ${latency.get(0.9)}")
+                    appendLine("    95%  : ${latency.get(0.95)}")
+                    appendLine("    99%  : ${latency.get(0.99)}")
+                    appendLine("    99.9%: ${latency.get(0.999)}")
+                    appendLine("    100% : ${latency.get(1.0)}")
+                    recall.printResult(this)
                 }
-                println("Avg. query time : $avgTime, $recallStr, cache hits ${indexReader.hits()}%")
+                println(report)
+                avgLatency[0] += latency.get(0.5)
+                avgLatency[1] += latency.get(0.9)
+                avgLatency[2] += latency.get(0.95)
+                avgLatency[3] += latency.get(0.99)
+                avgLatency[4] += latency.get(0.999)
+                avgLatency[5] += latency.get(1.0)
             }
-            println("Avg. query time overall: ${avgTimeOverall / repeatTimes}")
+            println("""
+                Average latency:
+                    50%  : ${avgLatency[0] / repeatTimes}
+                    90%  : ${avgLatency[1] / repeatTimes}
+                    95%  : ${avgLatency[2] / repeatTimes}
+                    99%  : ${avgLatency[3] / repeatTimes}
+                    99.9%: ${avgLatency[4] / repeatTimes}
+                    100% : ${avgLatency[5] / repeatTimes}
+            """.trimIndent())
+        }
+    }
+}
+
+class Latency(
+    private val queryCount: Int
+) {
+    private val durations = Array(queryCount) { Duration.ZERO }
+
+    fun get(percentile: Double): Duration {
+        return durations[minOf((queryCount * percentile).toInt(), queryCount - 1)]
+    }
+
+    fun set(i: Int, duration: Duration) {
+        durations[i] = duration
+    }
+
+    fun sort() {
+        durations.sort()
+    }
+}
+
+class Recall(
+    val recallCount: Int,
+    val totalRequestCount: Int
+) {
+    private val nums = IntArray(recallCount)
+
+    fun match(idx: Int) {
+        for (i in idx until recallCount) {
+            nums[i]++
+        }
+    }
+
+    fun printResult(builder: StringBuilder) {
+        builder.appendLine("Recall:")
+        repeat(recallCount) { i ->
+            builder.appendLine("    @${i + 1}: ${nums[i] * 100.0 / totalRequestCount}%")
         }
     }
 }
