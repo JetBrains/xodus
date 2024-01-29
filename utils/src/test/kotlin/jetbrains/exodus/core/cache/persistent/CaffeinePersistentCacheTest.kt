@@ -84,7 +84,7 @@ class CaffeinePersistentCacheTest {
         // Given
         val cache1 = givenSizedCache(2)
         // Register client to prevent cache from being removed for it's version
-        cache1.register()
+        cache1.registerClient()
         val cache2 = cache1.createNextVersion()
 
         // When
@@ -154,17 +154,18 @@ class CaffeinePersistentCacheTest {
         val cache1 = givenSizedCache(2)
         val cache2 = cache1.createNextVersion()
 
-        // When
-        val registration = cache1.register()
+        // When register
+        val registration = cache1.registerClient()
         cache1.put("key", "value1")
         cache2.put("key", "value2")
+        assertEquals("value1", cache1.get("key"))
+
+        // When unregister
         registration.unregister()
-        // Trigger removal of unused values
-        cache2.get("key")
 
         // Then
+        assertEquals("value2", cache2.get("key")) // also triggers eviction of old value
         assertEquals(null, cache1.get("key"))
-        assertEquals("value2", cache2.get("key"))
     }
 
     @Test

@@ -82,6 +82,14 @@ internal open class EntityIterableCacheAdapter(
 
     open fun clear() = cache.clear()
 
+    fun registerClient(): PersistentCacheClient {
+        return cache.registerClient()
+    }
+
+    fun release() {
+        cache.release()
+    }
+
     val halfFull: Boolean get() = cache.count() > cache.size() / 2
 
     fun cloneToMutable(): EntityIterableCacheAdapterMutable {

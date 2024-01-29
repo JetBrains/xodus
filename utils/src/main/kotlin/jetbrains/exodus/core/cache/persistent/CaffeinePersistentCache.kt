@@ -60,7 +60,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
                         weigher { _: K, values: WeightedValueMap<Version, V> -> values.totalWeight }
                     }
                 }
-                .evictionListener(evictionSubject)
+                .removalListener(evictionSubject)
                 .build<K, WeightedValueMap<Version, V>>()
             val version = 0L
             val tracker = VersionTracker(version)
@@ -71,10 +71,13 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
 
     private val cacheMap = cache.asMap()
 
+    // The implementation assumes that there is at least a single the most actual cache client is registered for eviction,
+    // otherwise it might lead to memory leaks as key eviction is ignored and keys might retain in key index forever
+    private val evictionListener: EvictionListener<K> = { key: K? -> key?.let { keyVersionIndex.removeKey(key) } }
+
     init {
-        val listener: EvictionListener<K> = { key: K? -> key?.let { keyVersionIndex.removeKey(key) } }
-        evictionSubject.addListener(listener)
-        cleaner.register(this) { evictionSubject.removeListener(listener) }
+        evictionSubject.addListener(evictionListener)
+        cleaner.register(this) { evictionSubject.removeListener(evictionListener) }
     }
 
     // Generic cache impl
@@ -162,7 +165,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         )
     }
 
-    override fun register(): PersistentCacheClient {
+    override fun registerClient(): PersistentCacheClient {
         val client = object : PersistentCacheClient {
 
             private var unregistered = false
@@ -175,6 +178,10 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         }
         versionTracker.incrementClients(version)
         return client
+    }
+
+    override fun release() {
+        evictionSubject.removeListener(evictionListener)
     }
 
     // For tests
