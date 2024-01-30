@@ -927,6 +927,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         deferredBlobsToDelete.add(blobHandle);
     }
 
+    public void checkInvalidateBlobsFlag() {
+        checkInvalidateBlobsFlag = true;
+    }
+
     void closeCaches() {
         propsCache.close();
         linksCache.close();
