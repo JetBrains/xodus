@@ -40,48 +40,17 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         }
     }
 
-    private val entitiesToCache = HashMap<EntityIterableHandle, CachedInstanceIterable>()
-    private val entitiesToRemove = HashSet<EntityIterableHandle>()
-
-    override fun getObject(key: EntityIterableHandle): CachedInstanceIterable? {
-        if (entitiesToRemove.contains(key)) {
-            return null
-        }
-        return entitiesToCache[key] ?: super.getObject(key)
+    fun endWrite(): EntityIterableCacheAdapter {
+        return EntityIterableCacheAdapter(config, cache, stickyObjects)
     }
 
-    override fun getUpdatable(key: EntityIterableHandle): Updatable? {
-        return entitiesToCache[key] as Updatable? ?: super.getUpdatable(key)
-    }
-
-    override fun cacheObject(key: EntityIterableHandle, value: CachedInstanceIterable) {
-        entitiesToCache[key] = value
+    override fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
+        super.cacheObject(key, it)
         handleDistribution.addHandle(key)
     }
 
-    override fun count(): Long {
-        return super.count() + entitiesToCache.size - entitiesToRemove.size
-    }
-
-    fun cacheObjectNotAffectingHandleDistribution(key: EntityIterableHandle, value: CachedInstanceIterable) {
-        entitiesToCache[key] = value
-    }
-
-    override fun remove(key: EntityIterableHandle) {
-        entitiesToRemove.add(key)
-        handleDistribution.removeHandle(key)
-    }
-
-    override fun clear() {
-        entitiesToCache.clear()
-        entitiesToRemove.clear()
-        handleDistribution.clear()
-    }
-
-    fun endWrite(): EntityIterableCacheAdapter {
-        entitiesToCache.forEach { (handle, value) -> cache.put(handle, value) }
-        entitiesToRemove.forEach { cache.remove(it) }
-        return EntityIterableCacheAdapter(config, cache, stickyObjects)
+    fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
+        super.cacheObject(handle, it)
     }
 
     fun update(checker: HandleCheckerAdapter) {
@@ -127,6 +96,17 @@ internal class EntityIterableCacheAdapterMutable private constructor(
 
     fun registerStickyObject(handle: EntityIterableHandle, updatable: Updatable) {
         stickyObjects[handle] = updatable
+    }
+
+    override fun remove(key: EntityIterableHandle) {
+        check(!key.isSticky) { "Cannot remove sticky object" }
+        super.remove(key)
+        handleDistribution.removeHandle(key)
+    }
+
+    override fun clear() {
+        super.clear()
+        handleDistribution.clear()
     }
 
     private class HandleDistribution(cacheCount: Int) {
