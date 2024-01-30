@@ -60,9 +60,8 @@ class WeightedValueMapTest {
         // Given
         val map = givenWeightedValueMap()
         val value = "value" // weight is 5
-        val putTask = { i: Long -> map.put(i, "value") }
-        val removeTask = { i: Long -> map.remove(i) }
-        val rnd = Random(0)
+        val putValue = { i: Long -> map.put(i, "value") }
+        val removeValue = { i: Long -> map.remove(i) }
         val n = 100
 
         // When
@@ -70,11 +69,9 @@ class WeightedValueMapTest {
         val threads = (1..n).map { i ->
             thread {
                 barrier.await()
-                putTask(i.toLong())
-                Thread.sleep(rnd.nextLong(1, 10))
+                putValue(i.toLong())
                 if (i % 2 == 0) {
-                    // Remove only even keys
-                    removeTask(i.toLong())
+                    removeValue(i.toLong())
                 }
             }
         }
