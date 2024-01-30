@@ -32,39 +32,51 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         fun cloneFrom(cacheAdapter: EntityIterableCacheAdapter): EntityIterableCacheAdapterMutable {
             val oldCache = cacheAdapter.cache
             val handleDistribution = HandleDistribution(oldCache.count().toInt())
-            val newCache = oldCache.createNextVersion { key ->
-                handleDistribution.addHandle(key)
-            }
+            val newCache = oldCache.createNextVersion()
+            newCache.forEachKey(handleDistribution::addHandle)
             val stickyObjects = HashMap(cacheAdapter.stickyObjects)
             return EntityIterableCacheAdapterMutable(cacheAdapter.config, newCache, stickyObjects, handleDistribution)
         }
     }
 
+    // Can use non-thread-safe HashMap because transaction and in turn cache adapter are bound to a single thread
     private val entitiesToCache = HashMap<EntityIterableHandle, CachedInstanceIterable>()
     private val entitiesToRemove = HashSet<EntityIterableHandle>()
 
     override fun getObject(key: EntityIterableHandle): CachedInstanceIterable? {
+        if (key.isSticky) {
+            return getStickyObject(key) as CachedInstanceIterable
+        }
         if (entitiesToRemove.contains(key)) {
             return null
         }
-        return entitiesToCache[key] ?: super.getObject(key)
+        // First from sticky, then from local cache, then from global cache
+        return getStickyObjectUnsafe(key) as CachedInstanceIterable? ?: entitiesToCache[key] ?: cache.get(key)
     }
 
     override fun getUpdatable(key: EntityIterableHandle): Updatable? {
-        return entitiesToCache[key] as Updatable? ?: super.getUpdatable(key)
+        if (key.isSticky) {
+            return getStickyObject(key)
+        }
+        // First from sticky, then from local cache, then from global cache
+        return getStickyObjectUnsafe(key) ?: entitiesToCache[key] as Updatable? ?: cache.get(key) as Updatable?
     }
 
     override fun cacheObject(key: EntityIterableHandle, value: CachedInstanceIterable) {
-        entitiesToCache[key] = value
-        handleDistribution.addHandle(key)
-    }
-
-    override fun count(): Long {
-        return super.count() + entitiesToCache.size - entitiesToRemove.size
+        if (value is Updatable && stickyObjects.containsKey(key)) {
+            stickyObjects[key] = value
+        } else {
+            entitiesToCache[key] = value
+            handleDistribution.addHandle(key)
+        }
     }
 
     fun cacheObjectNotAffectingHandleDistribution(key: EntityIterableHandle, value: CachedInstanceIterable) {
         entitiesToCache[key] = value
+    }
+
+    override fun count(): Long {
+        return cache.count() + entitiesToCache.size - entitiesToRemove.size
     }
 
     override fun remove(key: EntityIterableHandle) {
@@ -114,7 +126,7 @@ internal class EntityIterableCacheAdapterMutable private constructor(
             }
 
             else -> {
-                cache.forEachEntry { handle, _ -> action(handle) }
+                cache.forEachKey(action)
             }
         }
     }
