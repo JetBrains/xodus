@@ -32,25 +32,68 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         fun cloneFrom(cacheAdapter: EntityIterableCacheAdapter): EntityIterableCacheAdapterMutable {
             val oldCache = cacheAdapter.cache
             val handleDistribution = HandleDistribution(oldCache.count().toInt())
-            val newCache = oldCache.createNextVersion { key ->
-                handleDistribution.addHandle(key)
-            }
+            val newCache = oldCache.createNextVersion()
+            newCache.forEachKey(handleDistribution::addHandle)
             val stickyObjects = HashMap(cacheAdapter.stickyObjects)
             return EntityIterableCacheAdapterMutable(cacheAdapter.config, newCache, stickyObjects, handleDistribution)
         }
     }
 
+    // Can use non-thread-safe HashMap because transaction and in turn cache adapter are bound to a single thread
+    private val entitiesToCache = HashMap<EntityIterableHandle, CachedInstanceIterable>()
+    private val entitiesToRemove = HashSet<EntityIterableHandle>()
+
+    override fun getObject(key: EntityIterableHandle): CachedInstanceIterable? {
+        if (key.isSticky) {
+            return getStickyObject(key) as CachedInstanceIterable
+        }
+        if (entitiesToRemove.contains(key)) {
+            return null
+        }
+        // First from sticky, then from local cache, then from global cache
+        return getStickyObjectUnsafe(key) as CachedInstanceIterable? ?: entitiesToCache[key] ?: cache.get(key)
+    }
+
+    override fun getUpdatable(key: EntityIterableHandle): Updatable? {
+        if (key.isSticky) {
+            return getStickyObject(key)
+        }
+        // First from sticky, then from local cache, then from global cache
+        return getStickyObjectUnsafe(key) ?: entitiesToCache[key] as Updatable? ?: cache.get(key) as Updatable?
+    }
+
+    override fun cacheObject(key: EntityIterableHandle, value: CachedInstanceIterable) {
+        if (value is Updatable && stickyObjects.containsKey(key)) {
+            stickyObjects[key] = value
+        } else {
+            entitiesToCache[key] = value
+            handleDistribution.addHandle(key)
+        }
+    }
+
+    fun cacheObjectNotAffectingHandleDistribution(key: EntityIterableHandle, value: CachedInstanceIterable) {
+        entitiesToCache[key] = value
+    }
+
+    override fun count(): Long {
+        return cache.count() + entitiesToCache.size - entitiesToRemove.size
+    }
+
+    override fun remove(key: EntityIterableHandle) {
+        entitiesToRemove.add(key)
+        handleDistribution.removeHandle(key)
+    }
+
+    override fun clear() {
+        entitiesToCache.clear()
+        entitiesToRemove.clear()
+        handleDistribution.clear()
+    }
+
     fun endWrite(): EntityIterableCacheAdapter {
+        entitiesToCache.forEach { (handle, value) -> cache.put(handle, value) }
+        entitiesToRemove.forEach { cache.remove(it) }
         return EntityIterableCacheAdapter(config, cache, stickyObjects)
-    }
-
-    override fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
-        super.cacheObject(key, it)
-        handleDistribution.addHandle(key)
-    }
-
-    fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
-        super.cacheObject(handle, it)
     }
 
     fun update(checker: HandleCheckerAdapter) {
@@ -83,7 +126,7 @@ internal class EntityIterableCacheAdapterMutable private constructor(
             }
 
             else -> {
-                cache.forEachEntry { handle, _ -> action(handle) }
+                cache.forEachKey(action)
             }
         }
     }
@@ -96,17 +139,6 @@ internal class EntityIterableCacheAdapterMutable private constructor(
 
     fun registerStickyObject(handle: EntityIterableHandle, updatable: Updatable) {
         stickyObjects[handle] = updatable
-    }
-
-    override fun remove(key: EntityIterableHandle) {
-        check(!key.isSticky) { "Cannot remove sticky object" }
-        super.remove(key)
-        handleDistribution.removeHandle(key)
-    }
-
-    override fun clear() {
-        super.clear()
-        handleDistribution.clear()
     }
 
     private class HandleDistribution(cacheCount: Int) {

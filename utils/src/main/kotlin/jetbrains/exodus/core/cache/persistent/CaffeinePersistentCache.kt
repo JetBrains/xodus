@@ -145,16 +145,20 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         }
     }
 
+    override fun forEachKey(consumer: Consumer<K>) {
+        keyVersionIndex.beginWrite().forEachKey { entry ->
+            consumer.accept(entry.key)
+            true
+        }
+    }
+
     // Persistent cache impl
-    override fun createNextVersion(keyConsumer: Consumer<K>?): PersistentCache<K, V> {
+    override fun createNextVersion(): PersistentCache<K, V> {
         val nextVersion = versionTracker.nextVersion()
         // Copy key index for the next cache
         // It effectively prohibits new version from seeing new values cached for previous versions
         // as they might be stale, e.g. due to values already changed by another transaction
         val keyVersionIndexCopy = keyVersionIndex.clone
-        if (keyConsumer != null) {
-            keyVersionIndexCopy.current.forEach { keyConsumer.accept(it.key) }
-        }
 
         return CaffeinePersistentCache(
             cache, config,
