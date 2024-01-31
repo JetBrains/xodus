@@ -47,7 +47,7 @@ public class PersistentHashSet<K> extends AbstractPersistentHashSet<K> {
         return new MutablePersistentHashSet<>(this);
     }
 
-    boolean endWrite(MutablePersistentHashSet<K> tree) {
+    public boolean endWrite(MutablePersistentHashSet<K> tree) {
         if (root != tree.getStartingRoot()) {
             return false;
         }

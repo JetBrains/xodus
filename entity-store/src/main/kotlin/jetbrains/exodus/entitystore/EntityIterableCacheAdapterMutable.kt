@@ -24,76 +24,31 @@ internal class EntityIterableCacheAdapterMutable private constructor(
     config: PersistentEntityStoreConfig,
     cache: PersistentCache<EntityIterableHandle, CachedInstanceIterable>,
     stickyObjects: HashMap<EntityIterableHandle, Updatable>,
-    private val handleDistribution: HandleDistribution
-) : EntityIterableCacheAdapter(config, cache, stickyObjects) {
+    cacheKeyIndex: EntityIterableCacheKeyIndex,
+) : EntityIterableCacheAdapter(config, cache, stickyObjects, cacheKeyIndex) {
+
 
     companion object {
 
         fun cloneFrom(cacheAdapter: EntityIterableCacheAdapter): EntityIterableCacheAdapterMutable {
             val oldCache = cacheAdapter.cache
-            val handleDistribution = HandleDistribution(oldCache.count().toInt())
             val newCache = oldCache.createNextVersion()
-            newCache.forEachKey(handleDistribution::addHandle)
             val stickyObjects = HashMap(cacheAdapter.stickyObjects)
-            return EntityIterableCacheAdapterMutable(cacheAdapter.config, newCache, stickyObjects, handleDistribution)
+            val keyIndex = newCache.keyIndex as EntityIterableCacheKeyIndex
+            return EntityIterableCacheAdapterMutable(cacheAdapter.config, newCache, stickyObjects, keyIndex)
         }
     }
 
-    // Can use non-thread-safe HashMap because transaction and in turn cache adapter are bound to a single thread
-    private val entitiesToCache = HashMap<EntityIterableHandle, CachedInstanceIterable>()
-    private val entitiesToRemove = HashSet<EntityIterableHandle>()
-
-    override fun getObject(key: EntityIterableHandle): CachedInstanceIterable? {
-        if (key.isSticky) {
-            return getStickyObject(key) as CachedInstanceIterable
-        }
-        if (entitiesToRemove.contains(key)) {
-            return null
-        }
-        // First from sticky, then from local cache, then from global cache
-        return getStickyObjectUnsafe(key) as CachedInstanceIterable? ?: entitiesToCache[key] ?: cache.get(key)
+    override fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
+        super.cacheObject(key, it)
     }
 
-    override fun getUpdatable(key: EntityIterableHandle): Updatable? {
-        if (key.isSticky) {
-            return getStickyObject(key)
-        }
-        // First from sticky, then from local cache, then from global cache
-        return getStickyObjectUnsafe(key) ?: entitiesToCache[key] as Updatable? ?: cache.get(key) as Updatable?
-    }
-
-    override fun cacheObject(key: EntityIterableHandle, value: CachedInstanceIterable) {
-        if (value is Updatable && stickyObjects.containsKey(key)) {
-            stickyObjects[key] = value
-        } else {
-            entitiesToCache[key] = value
-            handleDistribution.addHandle(key)
-        }
-    }
-
-    fun cacheObjectNotAffectingHandleDistribution(key: EntityIterableHandle, value: CachedInstanceIterable) {
-        entitiesToCache[key] = value
-    }
-
-    override fun count(): Long {
-        return cache.count() + entitiesToCache.size - entitiesToRemove.size
-    }
-
-    override fun remove(key: EntityIterableHandle) {
-        entitiesToRemove.add(key)
-        handleDistribution.removeHandle(key)
-    }
-
-    override fun clear() {
-        entitiesToCache.clear()
-        entitiesToRemove.clear()
-        handleDistribution.clear()
+    fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
+        super.cacheObject(handle, it)
     }
 
     fun endWrite(): EntityIterableCacheAdapter {
-        entitiesToCache.forEach { (handle, value) -> cache.put(handle, value) }
-        entitiesToRemove.forEach { cache.remove(it) }
-        return EntityIterableCacheAdapter(config, cache, stickyObjects)
+        return EntityIterableCacheAdapter(config, cache, stickyObjects, cacheKeyIndex)
     }
 
     fun update(checker: HandleCheckerAdapter) {
@@ -109,20 +64,20 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         }
         when {
             checker.linkId >= 0 -> {
-                handleDistribution.byLink.forEachHandle(checker.linkId, action)
+                cacheKeyIndex.byLink.forEachHandle(checker.linkId, action)
             }
 
             checker.propertyId >= 0 -> {
-                handleDistribution.byProp.forEachHandle(checker.propertyId, action)
+                cacheKeyIndex.byProp.forEachHandle(checker.propertyId, action)
             }
 
             checker.typeIdAffectingCreation >= 0 -> {
-                handleDistribution.byTypeIdAffectingCreation.forEachHandle(checker.typeIdAffectingCreation, action)
+                cacheKeyIndex.byTypeIdAffectingCreation.forEachHandle(checker.typeIdAffectingCreation, action)
             }
 
             checker.typeId >= 0 -> {
-                handleDistribution.byTypeId.forEachHandle(checker.typeId, action)
-                handleDistribution.byTypeId.forEachHandle(EntityIterableBase.NULL_TYPE_ID, action)
+                cacheKeyIndex.byTypeId.forEachHandle(checker.typeId, action)
+                cacheKeyIndex.byTypeId.forEachHandle(EntityIterableBase.NULL_TYPE_ID, action)
             }
 
             else -> {
@@ -141,81 +96,12 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         stickyObjects[handle] = updatable
     }
 
-    private class HandleDistribution(cacheCount: Int) {
-
-        val removed: MutableSet<EntityIterableHandle>
-
-        val byLink: FieldIdGroupedHandleMap
-        val byProp: FieldIdGroupedHandleMap
-        val byTypeId: FieldIdGroupedHandleMap
-        val byTypeIdAffectingCreation: FieldIdGroupedHandleMap
-
-        init {
-            // this set is intentionally created quite disperse in order to reduce number of calls
-            // to EntityIterableHandle.equals() during iteration of handle clusters
-            removed = HashSet(10, .33f)
-            byLink = FieldIdGroupedHandleMap(cacheCount / 16, removed)
-            byProp = FieldIdGroupedHandleMap(cacheCount / 16, removed)
-            byTypeId = FieldIdGroupedHandleMap(cacheCount / 16, removed)
-            byTypeIdAffectingCreation = FieldIdGroupedHandleMap(cacheCount / 16, removed)
-        }
-
-        fun removeHandle(handle: EntityIterableHandle) {
-            removed.add(handle)
-        }
-
-        fun addHandle(handle: EntityIterableHandle) {
-            if (removed.isNotEmpty()) {
-                removed.remove(handle)
-            }
-            byLink.add(handle, handle.linkIds)
-            byProp.add(handle, handle.propertyIds)
-            byTypeId.add(handle, handle.entityTypeId)
-            byTypeIdAffectingCreation.add(handle, handle.typeIdsAffectingCreation)
-        }
-
-        fun clear() {
-            removed.clear()
-            byLink.clear()
-            byProp.clear()
-            byTypeId.clear()
-            byTypeIdAffectingCreation.clear()
-        }
+    override fun remove(key: EntityIterableHandle) {
+        check(!key.isSticky) { "Cannot remove sticky object" }
+        super.remove(key)
     }
 
-    private class FieldIdGroupedHandleMap(
-        capacity: Int,
-        private val removed: Set<EntityIterableHandle>
-    ) : HashMap<Int, MutableList<EntityIterableHandle>>(capacity) {
-
-        // it is allowed to add EntityIterableBase.NULL_TYPE_ID
-        fun add(handle: EntityIterableHandle, fieldId: Int) {
-            val handles = get(fieldId) ?: ArrayList<EntityIterableHandle>(4).also { put(fieldId, it) }
-            handles.add(handle)
-        }
-
-        fun add(handle: EntityIterableHandle, fieldIds: IntArray) {
-            for (fieldId in fieldIds) {
-                if (fieldId >= 0) {
-                    add(handle, fieldId)
-                }
-            }
-        }
-
-        fun forEachHandle(fieldId: Int, action: (EntityIterableHandle) -> Unit) {
-            get(fieldId)?.let { handles ->
-                if (removed.isEmpty()) {
-                    for (handle in handles) {
-                        action(handle)
-                    }
-                } else {
-                    for (handle in handles) {
-                        if (!removed.contains(handle)) {
-                            action(handle)
-                        }
-                    }
-                }
-            }
-        }
+    override fun clear() {
+        super.clear()
     }
 }
