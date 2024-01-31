@@ -152,18 +152,21 @@ object Environments : KLogging() {
         val ec = env.environmentConfig
 
         if (env.environmentConfig.storesToRemoveBeforeCompaction != null) {
-            env.executeInTransaction { tx ->
-                val storesToRemove = env.environmentConfig.storesToRemoveBeforeCompaction.split(",")
+            EnvironmentImpl.loggerInfo(
+                "Store(s) are(is) ${env.environmentConfig.storesToRemoveBeforeCompaction} " +
+                        "going to be removed from the database."
+            )
+        }
 
-                for (storeToRemove in storesToRemove) {
-                    if (env.storeExists(storeToRemove, tx)) {
-                        env.removeStore(storeToRemove, tx)
-                    }
+        env.executeInTransaction { tx ->
+            val storesToRemove = env.environmentConfig.storesToRemoveBeforeCompaction.split(",")
+
+            for (storeToRemove in storesToRemove) {
+                if (env.storeExists(storeToRemove, tx)) {
+                    env.removeStore(storeToRemove, tx)
+                    EnvironmentImpl.loggerInfo("$storeToRemove is removed from database")
                 }
             }
-            EnvironmentImpl.loggerInfo(
-                "Store(s) ${env.environmentConfig.storesToRemoveBeforeCompaction} was(were) removed from the database."
-            )
         }
 
         val needsToBeMigrated = !env.log.formatWithHashCodeIsUsed
