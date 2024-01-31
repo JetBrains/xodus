@@ -156,15 +156,16 @@ object Environments : KLogging() {
                 "Store(s) are(is) ${env.environmentConfig.storesToRemoveBeforeCompaction} " +
                         "going to be removed from the database."
             )
-        }
 
-        env.executeInTransaction { tx ->
-            val storesToRemove = env.environmentConfig.storesToRemoveBeforeCompaction.split(",")
 
-            for (storeToRemove in storesToRemove) {
-                if (env.storeExists(storeToRemove, tx)) {
-                    env.removeStore(storeToRemove, tx)
-                    EnvironmentImpl.loggerInfo("$storeToRemove is removed from database")
+            env.executeInTransaction { tx ->
+                val storesToRemove = env.environmentConfig.storesToRemoveBeforeCompaction.split(",")
+
+                for (storeToRemove in storesToRemove) {
+                    if (env.storeExists(storeToRemove, tx)) {
+                        env.removeStore(storeToRemove, tx)
+                        EnvironmentImpl.loggerInfo("$storeToRemove is removed from database")
+                    }
                 }
             }
         }
