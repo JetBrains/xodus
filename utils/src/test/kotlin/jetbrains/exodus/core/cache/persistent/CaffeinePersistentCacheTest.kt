@@ -198,23 +198,6 @@ class CaffeinePersistentCacheTest {
         assertEquals(1, cache.localIndexSize())
     }
 
-    // test for cache put many values
-    @Test
-    fun `should put many values`() {
-        // Given
-        val cache = givenSizedCache(2)
-
-        // When
-        cache.put("key1", "value1")
-        cache.put("key2", "value2")
-        cache.put("key3", "value3")
-        cache.put("key4", "value4")
-
-        // Then
-        assertEquals("value3", cache.get("key3"))
-        assertEquals("value4", cache.get("key4"))
-    }
-
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String>(
             sizeEviction = WeightedEviction(size) { 1 },

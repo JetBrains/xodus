@@ -23,8 +23,7 @@ import java.time.Duration
 internal open class EntityIterableCacheAdapter(
     val config: PersistentEntityStoreConfig,
     val cache: PersistentCache<EntityIterableHandle, CachedInstanceIterable>,
-    val stickyObjects: HashMap<EntityIterableHandle, Updatable>,
-    val cacheKeyIndex: EntityIterableCacheKeyIndex,
+    val stickyObjects: HashMap<EntityIterableHandle, Updatable>
 ) {
 
     companion object : KLogging() {
@@ -44,11 +43,9 @@ internal open class EntityIterableCacheAdapter(
                 expireAfterAccess = Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong()),
                 useSoftValues = config.entityIterableCacheSoftValues,
             )
+            val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig)
 
-            val index = EntityIterableCacheKeyIndex()
-            val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig, index)
-
-            return EntityIterableCacheAdapter(config, cache, HashMap(), index)
+            return EntityIterableCacheAdapter(config, cache, HashMap())
         }
     }
 

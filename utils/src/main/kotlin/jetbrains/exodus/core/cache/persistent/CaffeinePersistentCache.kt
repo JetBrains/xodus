@@ -38,14 +38,13 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     // Local index as map of keys to corresponding versions available for the current version of cache
     // This map is eventually consistent with the cache and not intended to be in full sync with it due to performance reasons
     private val keyVersionIndex: PersistentHashMap<K, Version> = PersistentHashMap(),
-    override val keyIndex: PersistentKeyIndex<K>? = null,
 ) : PersistentCache<K, V> {
 
     companion object {
 
         private val cleaner = Cleaner.create()
 
-        fun <K : Any, V> create(config: CaffeineCacheConfig<V>, persistentKeyIndex: PersistentKeyIndex<K>? = null): CaffeinePersistentCache<K, V> {
+        fun <K : Any, V> create(config: CaffeineCacheConfig<V>): CaffeinePersistentCache<K, V> {
             val evictionSubject = CacheEvictionSubject<K>()
 
             val cache = Caffeine.newBuilder()
@@ -66,7 +65,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             val version = 0L
             val tracker = VersionTracker(version)
 
-            return CaffeinePersistentCache(cache, config, version, tracker, evictionSubject,  PersistentHashMap(), persistentKeyIndex)
+            return CaffeinePersistentCache(cache, config, version, tracker, evictionSubject)
         }
     }
 
@@ -74,7 +73,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
 
     // The implementation assumes that there is at least a single the most actual cache client is registered for eviction,
     // otherwise it might lead to memory leaks as key eviction is ignored and keys might retain in key index forever
-    private val evictionListener: EvictionListener<K> = { key: K? -> key?.let { keyVersionIndex.removeKey(key); keyIndex?.remove(key) } }
+    private val evictionListener: EvictionListener<K> = { key: K? -> key?.let { keyVersionIndex.removeKey(key) } }
 
     init {
         evictionSubject.addListener(evictionListener)
@@ -82,9 +81,8 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     // Generic cache impl
-    private val _size by lazy { cache.policy().eviction().orElseThrow().maximum }
     override fun size(): Long {
-        return _size
+        return cache.policy().eviction().orElseThrow().maximum
     }
 
     override fun count(): Long {
@@ -96,7 +94,6 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         val values = cache.getIfPresent(key)
         if (values == null) {
             keyVersionIndex.removeKey(key)
-            keyIndex?.remove(key)
             return null
         } else {
             values.removeStaleVersionsAndUpdateCache(key, valueVersion)
@@ -112,7 +109,6 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             values
         }
         keyVersionIndex.put(key, version)
-        keyIndex?.put(key)
     }
 
     private fun createNewValueMap(): WeightedValueMap<Version, V> {
@@ -128,7 +124,6 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             values.orNullIfEmpty()
         }
         keyVersionIndex.removeKey(key)
-        keyIndex?.remove(key)
     }
 
     override fun clear() {
@@ -164,15 +159,13 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         // It effectively prohibits new version from seeing new values cached for previous versions
         // as they might be stale, e.g. due to values already changed by another transaction
         val keyVersionIndexCopy = keyVersionIndex.clone
-        val indexCopy = keyIndex?.clone()
 
         return CaffeinePersistentCache(
             cache, config,
             nextVersion,
             versionTracker,
             evictionSubject,
-            keyVersionIndexCopy,
-            indexCopy
+            keyVersionIndexCopy
         )
     }
 
