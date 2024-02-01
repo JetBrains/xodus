@@ -107,6 +107,8 @@ private constructor(txn: PersistentStoreTransaction?,
 
     override fun countImpl(txn: PersistentStoreTransaction) = size()
 
+    override fun getRoughSize(): Long  = size()
+
     private val currentTree get() = mutableIndex ?: index.beginRead()
 
     private abstract inner class PropertiesCachedInstanceIteratorBase(private val it: Iterator<IndexEntry<Comparable<Any>>>)
