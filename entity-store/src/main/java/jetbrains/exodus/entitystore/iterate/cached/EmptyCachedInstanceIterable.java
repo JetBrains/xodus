@@ -47,6 +47,11 @@ public class EmptyCachedInstanceIterable extends CachedInstanceIterable {
     }
 
     @Override
+    public long getRoughSize() {
+        return 0;
+    }
+
+    @Override
     protected boolean containsImpl(@NotNull EntityId entityId) {
         return false;
     }

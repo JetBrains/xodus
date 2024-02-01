@@ -67,6 +67,11 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
     }
 
     @Override
+    public long getRoughSize() {
+        return localIds.count();
+    }
+
+    @Override
     protected boolean containsImpl(@NotNull EntityId entityId) {
         final EntityIdSet ids = idSet;
         if (ids != null) {

@@ -55,6 +55,11 @@ class EntityIdArrayWithSetIterableWrapper extends CachedInstanceIterable {
     }
 
     @Override
+    public long getRoughSize() {
+        return source.getRoughSize();
+    }
+
+    @Override
     protected boolean containsImpl(@NotNull EntityId entityId) {
         return source.containsImpl(entityId);
     }
