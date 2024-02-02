@@ -21,9 +21,15 @@ import java.util.concurrent.atomic.AtomicInteger
 typealias ValueWeigher<V> = (V) -> Int
 
 // Thread-safe container for versioned cache entry value that holds total weight of all values collectively
-internal class WeightedValueMap<K, V>(private val weigher: ValueWeigher<V>) {
+internal class ValueMap<K, V>(
+    /**
+     * Weigher function that calculates weight of a value. If null, then values are not weighted and the total weight is always 0.
+     */
+    private val weigher: ValueWeigher<V>? = null
+) {
 
     private val map = ConcurrentHashMap<K, V>()
+
     // Cache of weights of values in order now to calculate it only once
     private val weights = HashMap<K, Int>()
 
@@ -35,7 +41,15 @@ internal class WeightedValueMap<K, V>(private val weigher: ValueWeigher<V>) {
     val totalWeight get() = totalWeightRef.get()
 
     fun put(key: K, value: V) {
-        val weight = weigher(value)
+        if (weigher == null) {
+            map[key] = value
+        } else {
+            val weight = weigher.invoke(value)
+            putWeighted(key, value, weight)
+        }
+    }
+
+    fun putWeighted(key: K, value: V, weight: Int) {
         map.compute(key) { _, _ ->
             val prevWeight = weights.put(key, weight) ?: 0
             totalWeightRef.updateAndGet { it + weight - prevWeight }
@@ -44,6 +58,14 @@ internal class WeightedValueMap<K, V>(private val weigher: ValueWeigher<V>) {
     }
 
     fun remove(key: K) {
+        if (weigher == null) {
+            map.remove(key)
+        } else {
+            removeWeighted(key)
+        }
+    }
+
+    private fun removeWeighted(key: K) {
         map.computeIfPresent(key) { _, _ ->
             val weight = weights.remove(key) ?: 0
             totalWeightRef.updateAndGet { it - weight }
@@ -55,7 +77,7 @@ internal class WeightedValueMap<K, V>(private val weigher: ValueWeigher<V>) {
         return map[key]
     }
 
-    fun orNullIfEmpty(): WeightedValueMap<K, V>? {
+    fun orNullIfEmpty(): ValueMap<K, V>? {
         return if (map.isEmpty()) null else this
     }
 }

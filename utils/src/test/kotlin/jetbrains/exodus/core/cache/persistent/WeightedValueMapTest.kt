@@ -19,7 +19,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.util.concurrent.CyclicBarrier
 import kotlin.concurrent.thread
-import kotlin.random.Random
 
 
 class WeightedValueMapTest {
@@ -83,7 +82,7 @@ class WeightedValueMapTest {
     }
 
 
-    private fun givenWeightedValueMap(): WeightedValueMap<Long, String> {
-        return WeightedValueMap { value: String -> value.length }
+    private fun givenWeightedValueMap(): ValueMap<Long, String> {
+        return ValueMap { value: String -> value.length }
     }
 }
