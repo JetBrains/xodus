@@ -149,6 +149,21 @@ class CaffeinePersistentCacheTest {
 
 
     @Test
+    fun `should remove old version when no clients`() {
+        // Given
+        val cache1 = givenSizedCache(2)
+        val cache2 = cache1.createNextVersion()
+
+        // When register
+        cache1.put("key", "value1")
+        cache2.put("key", "value2") // also triggers eviction of old value
+
+        // Then
+        assertEquals("value2", cache2.get("key"))
+        assertEquals(null, cache1.get("key"))
+    }
+
+    @Test
     fun `should remove old version when client unregisters`() {
         // Given
         val cache1 = givenSizedCache(2)

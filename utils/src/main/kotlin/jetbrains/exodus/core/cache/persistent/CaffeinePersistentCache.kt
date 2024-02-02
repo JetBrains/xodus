@@ -30,7 +30,7 @@ typealias Version = Long
  * Put or remove values for the current version doesn't affect other existing versions.
  */
 class CaffeinePersistentCache<K : Any, V> private constructor(
-    private val cache: Cache<K, WeightedValueMap<Version, V>>,
+    private val cache: Cache<K, ValueMap<Version, V>>,
     private val config: CaffeineCacheConfig<V>,
     override val version: Long,
     private val versionTracker: VersionTracker,
@@ -57,11 +57,11 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
                     } else {
                         val eviction = config.sizeEviction as WeightedEviction
                         maximumWeight(eviction.maxWeight)
-                        weigher { _: K, values: WeightedValueMap<Version, V> -> values.totalWeight }
+                        weigher { _: K, values: ValueMap<Version, V> -> values.totalWeight }
                     }
                 }
                 .removalListener(evictionSubject)
-                .build<K, WeightedValueMap<Version, V>>()
+                .build<K, ValueMap<Version, V>>()
             val version = 0L
             val tracker = VersionTracker(version)
 
@@ -119,10 +119,10 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         keyVersionIndex.put(key, version)
     }
 
-    private fun createNewValueMap(): WeightedValueMap<Version, V> {
+    private fun createNewValueMap(): ValueMap<Version, V> {
         // Weigher is used only for weighted eviction
         val evictionConfig = config.sizeEviction as? WeightedEviction<V>
-        return WeightedValueMap(evictionConfig?.weigher ?: { 1 })
+        return ValueMap(evictionConfig?.weigher)
     }
 
     override fun remove(key: K) {
@@ -217,13 +217,13 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     // Cache extensions
-    private fun Cache<K, WeightedValueMap<Version, V>>.getVersioned(key: K, version: Version): V? {
+    private fun Cache<K, ValueMap<Version, V>>.getVersioned(key: K, version: Version): V? {
         return this.getIfPresent(key)?.get(version)
     }
 
     // WeightedValueMap extensions
     // Returns true if values were changed
-    private fun WeightedValueMap<Version, V>.removeStaleVersions(currentVersion: Version): Boolean {
+    private fun ValueMap<Version, V>.removeStaleVersions(currentVersion: Version): Boolean {
         if (this.size <= 1) {
             return false
         }
@@ -237,7 +237,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         return changed
     }
 
-    private fun WeightedValueMap<Version, V>.removeStaleVersionsAndUpdateCache(key: K, currentVersion: Version) {
+    private fun ValueMap<Version, V>.removeStaleVersionsAndUpdateCache(key: K, currentVersion: Version) {
         if (removeStaleVersions(currentVersion)) {
             cache.put(key, this)
         }
