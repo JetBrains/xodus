@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore
 
+import jetbrains.exodus.testutil.randomGaussian
 import mu.KLogger
 import mu.KLogging
 import java.util.*
@@ -39,6 +40,17 @@ class IssueTrackerTestCase(
     companion object : KLogging()
 
     // Queries
+    fun queryRandomIssue(): Entity {
+        val project = projects.randomGaussian(random)
+        val assignee = users.random(kRandom)
+        return store.computeInTransaction { tx ->
+            tx.findLinks("Issue", project, "project")
+                .intersect(tx.findLinks("Issue", assignee, "assignee"))
+                .toList()
+                .first()
+        }
+    }
+
     fun queryAssignedIssues() {
         val assignee = users.random(kRandom)
         store.executeInTransaction { tx ->
@@ -90,16 +102,16 @@ class IssueTrackerTestCase(
     }
 
     // Writes
-    fun changeIssueAssignee() {
-        val issue = issues.randomGaussian(random)
+    fun changeIssueAssignee(issue: Entity? = null) {
+        val issue = issue ?: issues.randomGaussian(random)
         val assignee = users.randomGaussian(random)
         store.executeInTransaction { tx ->
             issue.setLink("assignee", assignee)
         }
     }
 
-    fun changeIssueTitle() {
-        val issue = issues.random(kRandom)
+    fun changeIssueTitle(issue: Entity? = null) {
+        val issue = issue ?: issues.random(kRandom)
         val title = testData.chuckNorrisFact()
         store.executeInTransaction { tx ->
             issue.setProperty("title", title)
