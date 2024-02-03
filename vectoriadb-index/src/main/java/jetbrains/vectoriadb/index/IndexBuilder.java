@@ -113,7 +113,9 @@ public final class IndexBuilder {
                             return;
                         }
 
-                        var partitions = (int) Math.max(1, 3 * calculateGraphPartitionSizeInRAM(2L * vectorsCount, maxConnectionsPerVertex, vectorsDimension) / memoryConsumption);
+                        var partitions = (int) Math.max(1, 3 * (calculateGraphPartitionSizeInRAM(2L * vectorsCount, maxConnectionsPerVertex, vectorsDimension) / memoryConsumption));
+                        // there is no any sense to partition vectors into two partitions, we just will do double work and save no memory in this case.
+                        assert(partitions != 2);
 
                         final int expectedPartitionsSize;
                         if (partitions == 1) {
