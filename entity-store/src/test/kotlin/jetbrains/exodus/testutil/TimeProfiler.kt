@@ -26,9 +26,9 @@ class TimeProfiler(val name: String) {
     private val times = CopyOnWriteArrayList<Long>()
 
     fun profile(block: () -> Unit) {
-        val start = System.currentTimeMillis()
+        val start = System.nanoTime()
         block()
-        val duration = System.currentTimeMillis() - start
+        val duration = (System.nanoTime() - start) / 1000
         times.add(duration)
     }
 
@@ -38,7 +38,7 @@ class TimeProfiler(val name: String) {
     }
 
     fun percentile(percentile: Double): Long {
-        val sorted =  times.sorted()
+        val sorted = times.sorted()
         val index = (sorted.size * percentile).toInt()
         return sorted[index]
     }
