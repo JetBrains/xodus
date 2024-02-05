@@ -16,9 +16,8 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.ExodusException
-import jetbrains.exodus.core.cache.CaffeineCache
 import jetbrains.exodus.core.dataStructures.Priority
-import jetbrains.exodus.core.cache.BasicCache
+import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.core.execution.Job
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException
@@ -40,14 +39,14 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
     private val config = store.config
 
-    private var deferredIterablesCache: BasicCache<Any, Long> =
-        CaffeineCache.create(config.entityIterableDeferredCacheSize)
+    private var deferredIterablesCache =
+        ConcurrentObjectCache<Any, Long>(config.entityIterableDeferredCacheSize)
 
-    private var iterableCountsCache: BasicCache<Any, Pair<Long, Long>> =
-        CaffeineCache.create(config.entityIterableCacheCountsCacheSize)
+    private var iterableCountsCache =
+        ConcurrentObjectCache<Any, Pair<Long, Long>>(config.entityIterableCacheCountsCacheSize)
 
-    private var heavyIterablesCache: BasicCache<Any, Long> =
-        CaffeineCache.create(config.entityIterableCacheHeavyIterablesCacheSize)
+    private val heavyIterablesCache =
+        ConcurrentObjectCache<Any, Long>(config.entityIterableCacheHeavyIterablesCacheSize)
 
     private var cacheAdapter = EntityIterableCacheAdapter.create(config)
 
@@ -68,8 +67,8 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
     fun clear() {
         cacheAdapter.clear()
-        deferredIterablesCache.clear()
-        iterableCountsCache.clear()
+        deferredIterablesCache = ConcurrentObjectCache(config.entityIterableDeferredCacheSize)
+        iterableCountsCache = ConcurrentObjectCache(config.entityIterableCacheCountsCacheSize)
     }
 
     /**
@@ -102,9 +101,9 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         if (localCache.halfFull) {
             val currentMillis = System.currentTimeMillis()
             val handleIdentity = handle.identity
-            val whenCached = deferredIterablesCache.get(handleIdentity)
+            val whenCached = deferredIterablesCache.tryKey(handleIdentity)
             if (whenCached == null) {
-                deferredIterablesCache.put(handleIdentity, currentMillis)
+                deferredIterablesCache.cacheObject(handleIdentity, currentMillis)
                 return it
             }
             if (whenCached + config.entityIterableCacheDeferredDelay > currentMillis) {
@@ -123,7 +122,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
     fun getCachedCount(handle: EntityIterableHandle): Long? {
         val identity = handle.identity
-        iterableCountsCache.get(identity)?.let { (count, time) ->
+        iterableCountsCache.tryKey(identity)?.let { (count, time) ->
             // the greater is count, the longer it can live in the cache
             if (System.currentTimeMillis() - time <= max(config.entityIterableCacheCountsLifeTime, count)) {
                 stats.incTotalCountHits()
@@ -149,7 +148,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     }
 
     fun setCachedCount(handle: EntityIterableHandle, count: Long) {
-        iterableCountsCache.put(handle.identity, count to System.currentTimeMillis())
+        iterableCountsCache.cacheObject(handle.identity, count to System.currentTimeMillis())
     }
 
     fun compareAndSetCacheAdapter(old: Any, new: Any): Boolean {
@@ -204,7 +203,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
             val iterableIdentity = handle.identity
             // for consistent jobs, don't try to cache if we know that this iterable was "heavy" during its life span
             if (isConsistent) {
-                val lastCancelled = heavyIterablesCache.get(iterableIdentity)
+                val lastCancelled = heavyIterablesCache.tryKey(iterableIdentity)
                 if (lastCancelled != null) {
                     if (lastCancelled + config.entityIterableCacheHeavyIterablesLifeSpan > started) {
                         stats.incTotalJobsNotStarted()
@@ -241,7 +240,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 } catch (e: TooLongEntityIterableInstantiationException) {
                     stats.incTotalJobsInterrupted()
                     if (isConsistent) {
-                        heavyIterablesCache.put(iterableIdentity, System.currentTimeMillis())
+                        heavyIterablesCache.cacheObject(iterableIdentity, System.currentTimeMillis())
                     }
                     logger.info {
                         val action = if (isConsistent) "Caching" else "Caching (inconsistent)"

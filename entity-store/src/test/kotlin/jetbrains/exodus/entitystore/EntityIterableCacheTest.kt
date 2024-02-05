@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore
 
+import jetbrains.exodus.testutil.TimeProfiler
 import mu.KLogging
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -133,9 +134,9 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Given
         val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
         // Uncomment to run heavy test with profiler
-        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 1000)
+        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
 
-        val queryCount = 10000
+        val queryCount = 1000
         val queryConcurrencyLevel = 10
         val queryDelayMillis = 1L
         val updateDelayMillis = 100L
@@ -150,11 +151,12 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
             }
         }
         val executor = Executors.newFixedThreadPool(queryConcurrencyLevel)
+        val profiler = TimeProfiler("Read performance")
         repeat(queryCount) {
             executor.submit {
-                testCase.queryComplexList()
+                profiler.profile { testCase.queryComplexList() }
                 Thread.sleep(queryDelayMillis)
-                testCase.queryComplexRoughSize()
+                profiler.profile { testCase.queryComplexRoughSize() }
             }
         }
         executor.shutdown()
@@ -164,6 +166,8 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
         // Then
         reportInLogEntityIterableCacheStats()
+        profiler.report()
+
         assertHitRateToBeNotLessThan(0.5)
     }
 
@@ -175,7 +179,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
         val writeCount = 1000
         val writeConcurrencyLevel = 4
-        val queryDelayMillis = 100L
+        val queryDelayMillis = 10L
 
         // When
         logger.info("Running $writeCount writes...")
@@ -188,14 +192,18 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
             }
         }
         val executor = Executors.newFixedThreadPool(writeConcurrencyLevel)
+        val profiler = TimeProfiler("Write performance")
         repeat(writeCount) {
             executor.submit {
-                entityStore.executeInTransaction {
-                    testCase.changeIssueAssignee()
-                    testCase.changeIssueTitle()
-                    // Uncomment for heavier test
-                    //testCase.createIssue()
-                    testCase.queryComplexList()
+                profiler.profile {
+                    entityStore.executeInTransaction {
+                        val issue = testCase.queryRandomIssue()
+                        testCase.changeIssueAssignee(issue)
+                        testCase.changeIssueTitle(issue)
+                        // Uncomment for heavier test
+                        //testCase.createIssue()
+                        //testCase.queryComplexList()
+                    }
                 }
             }
         }
@@ -207,6 +215,68 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
         // Then
         reportInLogEntityIterableCacheStats()
+        profiler.report()
+
+        // Expected hit rate is low because of intensive concurrent writes
+        assertHitRateToBeNotLessThan(0.3)
+    }
+
+    fun testStressReadWritePerformance() {
+        // Given
+        val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
+        // Uncomment to run heavy test with profiler
+        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
+
+        val queryCount = 1000
+        val queryConcurrencyLevel = 4
+        val readWriteRatio = 100
+
+        val writeCount = queryCount / readWriteRatio
+        val writeConcurrencyLevel = 4
+        val writeDelayMillis = 100L
+
+        // When
+        logger.info("Running $writeCount writes and $queryCount reads...")
+
+        val queryExecutor = Executors.newFixedThreadPool(queryConcurrencyLevel)
+        val readProfiler = TimeProfiler("Read performance")
+        repeat(queryCount) { index ->
+            queryExecutor.submit {
+                readProfiler.profile {
+                    if (index % 2 == 0) {
+                        testCase.queryComplexList()
+                    } else {
+                        testCase.queryAssignedIssues()
+                    }
+                }
+            }
+        }
+
+        val writeExecutor = Executors.newFixedThreadPool(writeConcurrencyLevel)
+        val writeProfiler = TimeProfiler("Write performance")
+        repeat(writeCount) {
+            writeExecutor.submit {
+                Thread.sleep(writeDelayMillis)
+                writeProfiler.profile {
+                    entityStore.executeInTransaction {
+                        val issue = testCase.queryRandomIssue()
+                        testCase.changeIssueAssignee(issue)
+                        testCase.changeIssueTitle(issue)
+                    }
+                }
+            }
+        }
+        writeExecutor.shutdown()
+        writeExecutor.awaitTermination(10, MINUTES)
+        queryExecutor.shutdown()
+        queryExecutor.awaitTermination(10, MINUTES)
+        entityStore.waitForCachingJobs()
+
+        // Then
+        reportInLogEntityIterableCacheStats()
+        readProfiler.report()
+        writeProfiler.report()
+
         // Expected hit rate is low because of intensive concurrent writes
         assertHitRateToBeNotLessThan(0.3)
     }

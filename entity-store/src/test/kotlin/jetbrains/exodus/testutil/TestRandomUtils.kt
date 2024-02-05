@@ -13,7 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore
+package jetbrains.exodus.testutil
+
+import kotlin.collections.elementAt
+import kotlin.ranges.coerceAtLeast
+import kotlin.ranges.coerceAtMost
 
 fun <E> Collection<E>.randomGaussian(rnd: java.util.Random): E {
     // The random.nextGaussian() generates random numbers by following the standard Gaussian distribution,
