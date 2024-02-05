@@ -26,10 +26,10 @@ import jetbrains.exodus.tree.ExpiredLoggableCollection.EMPTY
 import java.util.*
 
 internal class PatriciaTreeMutable(
-    log: Log,
-    structureId: Int,
-    treeSize: Long,
-    immutableRoot: ImmutableNode
+        log: Log,
+        structureId: Int,
+        treeSize: Long,
+        immutableRoot: ImmutableNode
 ) : PatriciaTreeBase(log, structureId), ITreeMutable {
 
     private var root = MutableRoot(immutableRoot)
@@ -159,7 +159,7 @@ internal class PatriciaTreeMutable(
             val matchingLength = NodeBase.MatchResult.getMatchingLength(matchResult)
             if (matchingLength < 0) {
                 val prefix = node.getMutableCopy(this)
-                    .splitKey(-matchingLength - 1, NodeBase.MatchResult.getKeyByte(matchResult))
+                        .splitKey(-matchingLength - 1, NodeBase.MatchResult.getKeyByte(matchResult))
                 if (NodeBase.MatchResult.hasNext(matchResult)) {
                     prefix.hang(NodeBase.MatchResult.getNextByte(matchResult), it).setValue(value)
                 } else {
@@ -205,9 +205,9 @@ internal class PatriciaTreeMutable(
     override fun delete(key: ByteIterable) = deleteImpl(key)
 
     override fun delete(
-        key: ByteIterable,
-        value: ByteIterable?,
-        cursorToSkip: ITreeCursorMutable?
+            key: ByteIterable,
+            value: ByteIterable?,
+            cursorToSkip: ITreeCursorMutable?
     ): Boolean {
         if (value == null) {
             if (deleteImpl(key)) {
@@ -254,22 +254,23 @@ internal class PatriciaTreeMutable(
     override fun getExpiredLoggables() = expiredLoggables ?: EMPTY
 
     override fun openCursor() =
-        TreeCursorMutable(this, PatriciaTraverser(this, root), root.hasValue()).also { result ->
-            (openCursors ?: HashSet<ITreeCursorMutable>().also { openCursors = it }).add(result)
-        }
+            TreeCursorMutable(this, PatriciaTraverser(this, root), root.hasValue()).also { result ->
+                (openCursors ?: HashSet<ITreeCursorMutable>().also { openCursors = it }).add(result)
+            }
 
     override fun cursorClosed(cursor: ITreeCursorMutable) {
         openCursors.notNull.remove(cursor)
     }
 
     override fun reclaim(
-        loggable: RandomAccessLoggable,
-        loggables: Iterator<RandomAccessLoggable>
+            loggable: RandomAccessLoggable,
+            loggables: Iterator<RandomAccessLoggable>
     ): Boolean {
         var l = loggable
         var minAddress = l.address
         while (true) {
             val type = l.type
+
             if (type < NODE_WO_KEY_WO_VALUE_WO_CHILDREN || type > MAX_VALID_LOGGABLE_TYPE) {
                 if (type != NullLoggable.TYPE && type != HashCodeLoggable.TYPE) { // skip null loggable
                     throw ExodusException("Unexpected loggable type " + l.type)
@@ -285,9 +286,12 @@ internal class PatriciaTreeMutable(
             if (!loggables.hasNext()) {
                 return false
             }
+
             l = loggables.next()
         }
+
         val maxAddress = l.address
+
         val sourceTree = PatriciaTreeForReclaim(log, maxAddress, structureId)
         val sourceRoot = sourceTree.root
         val backRef = sourceTree.backRef
@@ -400,8 +404,8 @@ internal class PatriciaTreeMutable(
         }
 
         private fun reclaim(
-            source: PatriciaReclaimSourceTraverser,
-            actual: PatriciaReclaimActualTraverser
+                source: PatriciaReclaimSourceTraverser,
+                actual: PatriciaReclaimActualTraverser
         ) {
             if (source.matches(actual)) {
                 reclaimActualChildren(source, actual)
@@ -480,11 +484,11 @@ internal class PatriciaTreeMutable(
         }
 
         private fun PatriciaReclaimSourceTraverser.matches(actual: PatriciaReclaimActualTraverser) =
-            currentNode.address == actual.currentNode.address
+                currentNode.address == actual.currentNode.address
 
         private fun reclaimActualChildren(
-            source: PatriciaReclaimSourceTraverser,
-            actual: PatriciaReclaimActualTraverser
+                source: PatriciaReclaimSourceTraverser,
+                actual: PatriciaReclaimActualTraverser
         ) {
             actual.currentNode = actual.currentNode.getMutableCopy(actual.mainTree)
             actual.getItr()
@@ -514,8 +518,8 @@ internal class PatriciaTreeMutable(
         }
 
         private fun upAndRight(
-            source: PatriciaReclaimSourceTraverser,
-            actual: PatriciaReclaimActualTraverser
+                source: PatriciaReclaimSourceTraverser,
+                actual: PatriciaReclaimActualTraverser
         ) {
             actual.popAndMutate()
             source.moveUp()

@@ -63,8 +63,7 @@ nexusStaging {
 
 allprojects {
     repositories {
-        maven { url = uri("https://cache-redirector.jetbrains.com/repo1.maven.org/maven2") }
-        maven { url = uri("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven") }
+        mavenCentral()
     }
 }
 
