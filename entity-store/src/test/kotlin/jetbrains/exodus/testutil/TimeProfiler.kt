@@ -28,7 +28,7 @@ class TimeProfiler(val name: String) {
     fun profile(block: () -> Unit) {
         val start = System.nanoTime()
         block()
-        val duration = (System.nanoTime() - start) / 1000
+        val duration = (System.nanoTime() - start) / 1_000_000
         times.add(duration)
     }
 
