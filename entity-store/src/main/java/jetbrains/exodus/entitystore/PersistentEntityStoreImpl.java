@@ -2043,14 +2043,21 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         entityTypes.rename(getAndCheckCurrentTransaction(), oldEntityTypeName, newEntityTypeName);
     }
 
-    public void deleteEntityType(@NotNull final String entityTypeName) {
-        final PersistentStoreTransaction txn = getAndCheckCurrentTransaction();
-        final int entityTypeId = entityTypes.delete(txn, entityTypeName);
-
+    public void deleteEntityType(int entityTypeId) {
         if (entityTypeId < 0) {
             return;
         }
+        PersistentStoreTransaction txn = getAndCheckCurrentTransaction();
+        final String entityTypeName = entityTypes.getName(txn, entityTypeId);
+        if (entityTypeName == null) {
+            return;
+        }
 
+        entityTypes.delete(entityTypeName, entityTypeId);
+        deleteEntityType(entityTypeId, txn);
+    }
+
+    private void deleteEntityType(int entityTypeId, final PersistentStoreTransaction txn) {
         entitiesTables.remove(entityTypeId);
         propertiesTables.remove(entityTypeId);
         linksTables.remove(entityTypeId);
@@ -2084,6 +2091,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     }
                 }
         );
+    }
+    public void deleteEntityType(@NotNull final String entityTypeName) {
+        final PersistentStoreTransaction txn = getAndCheckCurrentTransaction();
+        final int entityTypeId = entityTypes.delete(txn, entityTypeName);
+
+        if (entityTypeId < 0) {
+            return;
+        }
+
+        deleteEntityType(entityTypeId, txn);
     }
 
     private void truncateStores(@NotNull final PersistentStoreTransaction txn, @NotNull Iterable<String> unsafe, @NotNull Iterable<String> safe) {
