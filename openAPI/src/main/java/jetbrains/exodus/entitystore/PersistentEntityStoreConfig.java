@@ -463,7 +463,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, -1),
                 new Pair(ENTITY_ITERABLE_DEFERRED_CACHE_SIZE, defaultEntityIterableDeferredCacheSize()),
-                new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 10),
+                new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 5),
                 new Pair(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT, 12), // 12 bytes per entity id store in cache
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
