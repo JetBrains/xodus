@@ -15,18 +15,17 @@
  */
 package jetbrains.exodus.core.cache.persistent
 
+import jetbrains.exodus.testutil.runInParallel
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import java.util.concurrent.CyclicBarrier
-import kotlin.concurrent.thread
 
 
-class WeightedValueMapTest {
+class ValueMapTest {
 
     @Test
     fun `should calculate total weight when put`() {
         // Given
-        val map = givenWeightedValueMap()
+        val map = givenValueMap()
 
         // When
         map.put(1, "value1")
@@ -42,7 +41,7 @@ class WeightedValueMapTest {
     @Test
     fun `should calculate total weight when remove`() {
         // Given
-        val map = givenWeightedValueMap()
+        val map = givenValueMap()
 
         // When
         map.put(1, "value1")
@@ -57,32 +56,26 @@ class WeightedValueMapTest {
     @Test
     fun `should be thread-safe`() {
         // Given
-        val map = givenWeightedValueMap()
+        val map = givenValueMap()
         val value = "value" // weight is 5
-        val putValue = { i: Long -> map.put(i, "value") }
-        val removeValue = { i: Long -> map.remove(i) }
-        val n = 100
+        val iterations = 100000
+        val concurrencyLevel = 10
 
         // When
-        val barrier = CyclicBarrier(n + 1)
-        val threads = (1..n).map { i ->
-            thread {
-                barrier.await()
-                putValue(i.toLong())
-                if (i % 2 == 0) {
-                    removeValue(i.toLong())
-                }
+        runInParallel(concurrencyLevel, iterations) { i ->
+            map.put(i.toLong(), "value")
+            if (i % 2 == 0) {
+                map.remove(i.toLong())
             }
         }
-        barrier.await()
-        threads.forEach { it.join() }
 
         // Then
-        assertEquals(n * value.length / 2, map.totalWeight)
+        assertEquals("Unexpected collection size", iterations / 2, map.size)
+        assertEquals("Unexpected total weight", iterations * value.length / 2, map.totalWeight)
     }
 
 
-    private fun givenWeightedValueMap(): ValueMap<Long, String> {
+    private fun givenValueMap(): ValueMap<Long, String> {
         return ValueMap { value: String -> value.length }
     }
 }

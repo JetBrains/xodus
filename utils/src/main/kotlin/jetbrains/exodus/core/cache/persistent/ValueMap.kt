@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 typealias ValueWeigher<V> = (V) -> Int
 
 // Thread-safe container for versioned cache entry value that holds total weight of all values collectively
-internal class ValueMap<K, V>(
+internal class ValueMap<K : Any, V>(
     /**
      * Weigher function that calculates weight of a value. If null, then values are not weighted and the total weight is always 0.
      */
@@ -29,12 +29,10 @@ internal class ValueMap<K, V>(
 ) {
 
     private val map = ConcurrentHashMap<K, V>()
-
     // Cache of weights of values in order now to calculate it only once
-    private val weights = HashMap<K, Int>()
-
+    private val weights = ConcurrentHashMap<K, Int>()
     // Total weight of all values collectively
-    private val totalWeightRef = AtomicInteger()
+    private var totalWeightRef = AtomicInteger()
 
     val size get() = map.size
     val keys get() = map.keys
@@ -49,7 +47,7 @@ internal class ValueMap<K, V>(
         }
     }
 
-    fun putWeighted(key: K, value: V, weight: Int) {
+    private fun putWeighted(key: K, value: V, weight: Int) {
         map.compute(key) { _, _ ->
             val prevWeight = weights.put(key, weight) ?: 0
             totalWeightRef.updateAndGet { it + weight - prevWeight }
