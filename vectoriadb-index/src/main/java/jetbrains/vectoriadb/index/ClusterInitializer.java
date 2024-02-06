@@ -15,16 +15,19 @@
  */
 package jetbrains.vectoriadb.index;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.foreign.MemorySegment;
 
-public interface VectorReader extends AutoCloseable {
-    int size();
-
-    int dimensions();
-
-    MemorySegment read(int index);
-
-    float read(int vectorIdx, int dimension);
-
-    MemorySegment id(int index);
+interface ClusterInitializer {
+    void initializeCentroids(
+            MemorySegment pqVectors,
+            long numVectors,
+            float[] distanceTable,
+            int quantizersCount,
+            int codeBaseSize,
+            byte[] pqCentroids,
+            int numClusters,
+            @NotNull ProgressTracker progressTracker
+    );
 }

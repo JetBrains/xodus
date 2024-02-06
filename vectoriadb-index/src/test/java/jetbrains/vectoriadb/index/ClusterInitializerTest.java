@@ -1,0 +1,78 @@
+/*
+ * Copyright ${inceptionYear} - ${year} ${owner}
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package jetbrains.vectoriadb.index;
+
+import org.apache.commons.rng.simple.RandomSource;
+import org.junit.Ignore;
+import org.junit.Test;
+
+public class ClusterInitializerTest {
+    @Test
+    @Ignore
+    public void clusterInitializersBenchmark() throws Exception {
+        var dataset = VectorDataset.Sift10K.INSTANCE.build();
+        var vectors = dataset.getVectors();
+        var clustersCount = 100;
+
+        var progressTracker = new ConsolePeriodicProgressTracker(1);
+        progressTracker.start("Index");
+        try (var pqQuantizer = new L2PQQuantizer()) {
+            System.out.println("Generating PQ codes...");
+            var codebookCount = CodebookInitializer.getCodebookCount(dataset.getDimensions(), 32);
+            pqQuantizer.generatePQCodes(new FloatArrayVectorReader(vectors), codebookCount, progressTracker);
+
+            var count = 0;
+            var meanPpRandomDiff = 0f;
+            var meanMaxDistanceRandomDiff = 0f;
+            var meanSilhCoeffRandom = 0f;
+            var meanSilhCoeffPP = 0f;
+            var meanSilhCoeffMaxDistance = 0f;
+            for (var i = 0; i < 1; i += 1) {
+                var silhCoeffRandom = doPQKMeansAndGetSilhouetteCoefficient(pqQuantizer, new RandomClusterInitializer(), clustersCount, vectors, progressTracker);
+                var silhCoeffPP = doPQKMeansAndGetSilhouetteCoefficient(pqQuantizer, new KMeansPlusPlusClusterInitializer(RandomSource.PCG_XSH_RS_32, 2), clustersCount, vectors, progressTracker);
+                var silhCoeffMaxDistance = doPQKMeansAndGetSilhouetteCoefficient(pqQuantizer, new MaxDistanceClusterInitializer(), clustersCount, vectors, progressTracker);
+
+                System.out.printf("silhouetteCoefficient random = %f%n", silhCoeffRandom);
+                System.out.printf("silhouetteCoefficient k-means++ = %f%n", silhCoeffPP);
+                System.out.printf("silhouetteCoefficient max distance = %f%n", silhCoeffMaxDistance);
+
+                meanPpRandomDiff += silhCoeffPP - silhCoeffRandom;
+                meanMaxDistanceRandomDiff += silhCoeffMaxDistance - silhCoeffRandom;
+                meanSilhCoeffRandom += silhCoeffRandom;
+                meanSilhCoeffPP += silhCoeffPP;
+                meanSilhCoeffMaxDistance += silhCoeffMaxDistance;
+                count++;
+            }
+            meanPpRandomDiff = meanPpRandomDiff / count;
+            meanMaxDistanceRandomDiff = meanMaxDistanceRandomDiff / count;
+            meanSilhCoeffRandom = meanSilhCoeffRandom / count;
+            meanSilhCoeffPP = meanSilhCoeffPP / count;
+            meanSilhCoeffMaxDistance = meanSilhCoeffMaxDistance / count;
+            System.out.printf("k-means++ - random: %f, max distance - random: %f, meanSilhCoeffRandom: %f, meanSilhCoeffPP: %f, meanSilhCoeffMaxDistance: %f", meanPpRandomDiff, meanMaxDistanceRandomDiff, meanSilhCoeffRandom, meanSilhCoeffPP, meanSilhCoeffMaxDistance);
+        }
+    }
+
+    private static Float doPQKMeansAndGetSilhouetteCoefficient(L2PQQuantizer pqQuantizer, ClusterInitializer clusterInitializer, int clustersCount, float[][] vectors, ProgressTracker progressTracker) {
+        System.out.print("PQ codes generated. Calculating centroids, initialization...\n");
+        // todo fix
+        //pqQuantizer.setClusterInitializer(clusterInitializer);
+        //var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE, progressTracker);
+
+        System.out.println("Centroids calculated. Calculating silhouette coefficient...");
+        //return l2SilhouetteCoefficientMedoid(centroids, vectors).calculate();
+        return 0f;
+    }
+}

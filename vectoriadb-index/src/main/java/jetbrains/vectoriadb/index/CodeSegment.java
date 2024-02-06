@@ -15,16 +15,13 @@
  */
 package jetbrains.vectoriadb.index;
 
-import java.lang.foreign.MemorySegment;
+interface CodeSegment {
 
-public interface VectorReader extends AutoCloseable {
-    int size();
+    int count();
 
-    int dimensions();
+    int get(int vectorIdx);
 
-    MemorySegment read(int index);
+    void set(int vectorIdx, int value);
 
-    float read(int vectorIdx, int dimension);
-
-    MemorySegment id(int index);
+    int maxNumberOfCodes();
 }

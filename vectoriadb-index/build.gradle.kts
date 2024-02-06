@@ -30,32 +30,9 @@ tasks {
         }
     }
 
-    register<JavaExec>("runL2DistanceBench") {
+    register<JavaExec>("downloadDataset") {
         group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.L2DistanceBench"
-        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
-        jvmArgs = listOf(
-            "-server",
-            "-Xmx16g",
-            "-XX:MaxDirectMemorySize=82g",
-            "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules",
-            "jdk.incubator.vector",
-            "-Djava.awt.headless=true",
-            "--enable-preview"
-        )
-        systemProperties = mapOf(
-            "bench.path" to (project.findProperty("bench.path"))
-        )
-
-        javaLauncher.set(rootProject.javaToolchains.launcherFor {
-            languageVersion.set(JavaLanguageVersion.of(20))
-        })
-    }
-
-    register<JavaExec>("runSift1MBench") {
-        group = "application"
-        mainClass = "jetbrains.vectoriadb.index.bench.SIFT1MBench"
+        mainClass = "jetbrains.vectoriadb.index.bench.DownloadDataset"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server",
@@ -68,23 +45,23 @@ tasks {
             "--enable-preview"
         )
         systemProperties = mapOf(
-            "bench.path" to (project.findProperty("bench.path"))
+            "benchPath" to (project.findProperty("benchPath")),
+            "dataset" to (project.findProperty("dataset"))
         )
 
-
         javaLauncher.set(rootProject.javaToolchains.launcherFor {
-            languageVersion.set(JavaLanguageVersion.of(20))
+            languageVersion.set(JavaLanguageVersion.of(21))
         })
     }
 
-    register<JavaExec>("runBigANNBench") {
+    register<JavaExec>("calculateGroundTruth") {
         group = "application"
-        mainClass = "jetbrains.vectoriadb.index.bench.RunBigANNBench"
+        mainClass = "jetbrains.vectoriadb.index.bench.CalculateGroundTruth"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server",
-            "-Xmx4096m",
-            "-XX:MaxDirectMemorySize=125g",
+            "-Xmx16g",
+            "-XX:MaxDirectMemorySize=110g",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "--add-modules",
             "jdk.incubator.vector",
@@ -92,14 +69,110 @@ tasks {
             "--enable-preview"
         )
         systemProperties = mapOf(
-            "bench.path" to (project.findProperty("bench.path")),
-            "m1-bench.path" to (project.findProperty("m1-bench.path"))
+            "benchPath" to (project.findProperty("benchPath")),
+            "dataset" to (project.findProperty("dataset")),
+            "distance" to (project.findProperty("distance")),
+            "neighbourCount" to (project.findProperty("neighbourCount"))
         )
+
+        javaLauncher.set(rootProject.javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        })
     }
 
-    register<JavaExec>("prepareRandomVectorBench") {
+    register<JavaExec>("buildIndex") {
         group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.PrepareRandomVectorBench"
+        mainClass = "jetbrains.vectoriadb.index.bench.BuildIndex"
+        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
+        jvmArgs = listOf(
+            "-server",
+            "-Xmx16g",
+            "-XX:MaxDirectMemorySize=110g",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "-Djava.awt.headless=true",
+            "--enable-preview"
+        )
+        systemProperties = mapOf(
+            "benchPath" to (project.findProperty("benchPath")),
+            "dataset" to (project.findProperty("dataset")),
+            "distance" to (project.findProperty("distance")),
+            "indexName" to (project.findProperty("indexName")),
+            "graphPartitionMemoryConsumptionGb" to (project.findProperty("graphPartitionMemoryConsumptionGb"))
+        )
+
+        javaLauncher.set(rootProject.javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        })
+    }
+
+    register<JavaExec>("runBench") {
+        group = "application"
+        mainClass = "jetbrains.vectoriadb.index.bench.RunBench"
+        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
+        jvmArgs = listOf(
+            "-server",
+            "-Xmx16g",
+            "-XX:MaxDirectMemorySize=110g",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "-Djava.awt.headless=true",
+            "--enable-preview"
+        )
+        systemProperties = mapOf(
+            "benchPath" to (project.findProperty("benchPath")),
+            "dataset" to (project.findProperty("dataset")),
+            "distance" to (project.findProperty("distance")),
+            "indexName" to (project.findProperty("indexName")),
+            "neighbourCount" to (project.findProperty("neighbourCount")),
+            "cacheSizeGb" to (project.findProperty("cacheSizeGb")),
+            "doWarmingUp" to (project.findProperty("doWarmingUp")),
+            "repeatTimes" to (project.findProperty("repeatTimes")),
+            "recallCount" to (project.findProperty("recallCount")),
+        )
+
+        javaLauncher.set(rootProject.javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        })
+    }
+
+    register<JavaExec>("prepareAndRunBench") {
+        group = "application"
+        mainClass = "jetbrains.vectoriadb.index.bench.PrepareAndRunBench"
+        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
+        jvmArgs = listOf(
+            "-server",
+            "-Xmx16g",
+            "-XX:MaxDirectMemorySize=110g",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "--add-modules",
+            "jdk.incubator.vector",
+            "-Djava.awt.headless=true",
+            "--enable-preview"
+        )
+        systemProperties = mapOf(
+            "benchPath" to (project.findProperty("benchPath")),
+            "dataset" to (project.findProperty("dataset")),
+            "distance" to (project.findProperty("distance")),
+            "indexName" to (project.findProperty("indexName")),
+            "graphPartitionMemoryConsumptionGb" to (project.findProperty("graphPartitionMemoryConsumptionGb")),
+            "neighbourCount" to (project.findProperty("neighbourCount")),
+            "cacheSizeGb" to (project.findProperty("cacheSizeGb")),
+            "doWarmingUp" to (project.findProperty("doWarmingUp")),
+            "repeatTimes" to (project.findProperty("repeatTimes")),
+            "recallCount" to (project.findProperty("recallCount")),
+        )
+
+        javaLauncher.set(rootProject.javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        })
+    }
+
+    register<JavaExec>("runDistanceComputationBenchmark") {
+        group = "application"
+        mainClass = "jetbrains.vectoriadb.index.bench.DistanceComputationBenchmark"
         classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
         jvmArgs = listOf(
             "-server",
@@ -111,77 +184,9 @@ tasks {
             "-Djava.awt.headless=true",
             "--enable-preview"
         )
-    }
 
-    register<JavaExec>("runRandomVectorBench") {
-        group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.RunRandomVectorBench"
-        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
-        jvmArgs = listOf(
-            "-server",
-            "-Xmx16g",
-            "-XX:MaxDirectMemorySize=82g",
-            "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules",
-            "jdk.incubator.vector",
-            "-Djava.awt.headless=true",
-            "--enable-preview"
-        )
-    }
-
-    register<JavaExec>("prepareBigANNBench") {
-        group = "application"
-        mainClass = "jetbrains.vectoriadb.index.bench.PrepareBigANNBench"
-        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
-        jvmArgs = listOf(
-            "-server",
-            "-Xmx16g",
-            "-XX:MaxDirectMemorySize=82g",
-            "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules",
-            "jdk.incubator.vector",
-            "-Djava.awt.headless=true",
-            "--enable-preview"
-        )
-        systemProperties = mapOf(
-            "bench.path" to (project.findProperty("bench.path"))
-        )
-    }
-
-    register<JavaExec>("generateGroundTruthBigANNBench") {
-        group = "application"
-        mainClass = "jetbrains.vectoriadb.index.bench.GenerateGroundTruthBigANNBench"
-        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
-        jvmArgs = listOf(
-            "-server",
-            "-Xmx92g",
-            "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules",
-            "jdk.incubator.vector",
-            "-Djava.awt.headless=true",
-            "--enable-preview"
-        )
-        systemProperties = mapOf(
-            "bench.path" to (project.findProperty("bench.path"))
-        )
-    }
-
-    register<JavaExec>("runGist1MBench") {
-        group = "application"
-        mainClass = "jetbrains.exodus.diskann.bench.GIST1MBench"
-        classpath = sourceSets["main"].runtimeClasspath + configurations["benchDependencies"]
-        jvmArgs = listOf(
-            "-server",
-            "-Xmx16g",
-            "-XX:MaxDirectMemorySize=82g",
-            "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules",
-            "jdk.incubator.vector",
-            "-Djava.awt.headless=true",
-            "--enable-preview"
-        )
-        systemProperties = mapOf(
-            "bench.path" to (project.findProperty("bench.path"))
-        )
+        javaLauncher.set(rootProject.javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        })
     }
 }

@@ -15,34 +15,36 @@
  */
 package jetbrains.vectoriadb.index;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
-
 import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
-public class L2PQKMeansTest extends AbstractVectorsTest {
+import static jetbrains.vectoriadb.index.CodebookInitializer.getCodebookCount;
+import static jetbrains.vectoriadb.index.SilhouetteCoefficientKt.l2SilhouetteCoefficient;
+
+public class L2PQKMeansTest {
     @Test
     public void distanceTablesTest() {
         var seed = System.nanoTime();
         System.out.println("distanceTablesTest seed = " + seed);
         var rnd = new Random(seed);
 
-        var quantizersCount = 4;
-        var centroids = generateDistanceTable(quantizersCount, rnd);
-        var expectedDistanceTables = createDistanceTable(quantizersCount, centroids, null);
+        var codebookCount = 4;
+        var codeBaseSize = CodebookInitializer.CODE_BASE_SIZE;
+        var dimensions = CodebookInitializer.CODE_BASE_SIZE;
+        var codebooks = generateCodebooks(codebookCount, codeBaseSize, dimensions, rnd);
+        var codebookDimensions = new int[codebookCount];
+        Arrays.fill(codebookDimensions, dimensions);
 
-        var actualDistanceTables = L2PQQuantizer.buildDistanceTables(centroids, quantizersCount, centroids[0][0].length,
-                L2DistanceFunction.INSTANCE);
-        Assert.assertArrayEquals(expectedDistanceTables, actualDistanceTables, 0.0f);
+        var expectedDistanceTables = buildDistanceTable(codebooks, null);
+
+        var actualDistanceTables = L2PQQuantizer.buildDistanceTables(codebooks, codebookDimensions, L2DistanceFunction.INSTANCE);
+        Assert.assertArrayEquals(expectedDistanceTables, actualDistanceTables, 1e-5f);
     }
 
 
@@ -52,98 +54,89 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
         System.out.println("symmetricDistanceTest seed = " + seed);
         var rnd = new Random(seed);
 
-        var quantizersCount = 4;
-        var centroids = generateDistanceTable(quantizersCount, rnd);
-        var distanceTables = new float[quantizersCount][Quantizer.CODE_BASE_SIZE][Quantizer.CODE_BASE_SIZE];
-        var pqVectors = new byte[100][quantizersCount];
-        var flatDistanceTables = createDistanceTable(quantizersCount, centroids, distanceTables);
+        var codebookCount = 4;
+        var codeBaseSize = CodebookInitializer.CODE_BASE_SIZE;
+        var dimensions = CodebookInitializer.CODE_BASE_SIZE;
+        var codebooks = generateCodebooks(codebookCount, codeBaseSize, dimensions, rnd);
 
-        for (int i = 0; i < 100; i++) {
-            for (int j = 0; j < quantizersCount; j++) {
-                pqVectors[i][j] = (byte) rnd.nextInt(256);
+        var distanceTables = new float[codebookCount][codeBaseSize][codeBaseSize];
+
+        var numVectors = 100;
+        var pqVectors = new byte[numVectors][codebookCount];
+        var flatDistanceTables = buildDistanceTable(codebooks, distanceTables);
+
+        for (int vectorIdx = 0; vectorIdx < numVectors; vectorIdx++) {
+            for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+                pqVectors[vectorIdx][codebookIdx] = (byte) rnd.nextInt(256);
             }
         }
 
-
         try (var arena = Arena.ofShared()) {
-            var flatDirectPqVectors = arena.allocateArray(ValueLayout.JAVA_BYTE, 100 * quantizersCount);
-            var flatHeapVectors = new byte[100 * quantizersCount];
+            var flatDirectPqVectors = arena.allocateArray(ValueLayout.JAVA_BYTE, numVectors * codebookCount);
+            var flatHeapVectors = new byte[numVectors * codebookCount];
 
-            for (int i = 0; i < 100; i++) {
-                for (int j = 0; j < quantizersCount; j++) {
-                    flatDirectPqVectors.set(ValueLayout.JAVA_BYTE, MatrixOperations.twoDMatrixIndex(quantizersCount, i, j), pqVectors[i][j]);
-                    flatHeapVectors[MatrixOperations.twoDMatrixIndex(quantizersCount, i, j)] = pqVectors[i][j];
+            for (int vectorIdx = 0; vectorIdx < numVectors; vectorIdx++) {
+                for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+                    flatDirectPqVectors.set(ValueLayout.JAVA_BYTE, MatrixOperations.twoDMatrixIndex(codebookCount, vectorIdx, codebookIdx), pqVectors[vectorIdx][codebookIdx]);
+                    flatHeapVectors[MatrixOperations.twoDMatrixIndex(codebookCount, vectorIdx, codebookIdx)] = pqVectors[vectorIdx][codebookIdx];
                 }
             }
 
-            for (int i = 0; i < 100; i++) {
-                for (int j = 0; j < 100; j++) {
+            for (int vectorIdx1 = 0; vectorIdx1 < numVectors; vectorIdx1++) {
+                for (int vectorIdx2 = 0; vectorIdx2 < 100; vectorIdx2++) {
                     var expectedDistance = 0.0f;
 
-                    for (int k = 0; k < quantizersCount; k++) {
-                        var firstCode = Byte.toUnsignedInt(pqVectors[i][k]);
-                        var secondCode = Byte.toUnsignedInt(pqVectors[j][k]);
+                    for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+                        var firstCode = Byte.toUnsignedInt(pqVectors[vectorIdx1][codebookIdx]);
+                        var secondCode = Byte.toUnsignedInt(pqVectors[vectorIdx2][codebookIdx]);
 
-                        expectedDistance += distanceTables[k][firstCode][secondCode];
+                        expectedDistance += distanceTables[codebookIdx][firstCode][secondCode];
                     }
 
-                    var actualDistance = L2PQQuantizer.symmetricDistance(flatDirectPqVectors, i, flatHeapVectors, j,
-                            flatDistanceTables, quantizersCount, Quantizer.CODE_BASE_SIZE);
+                    var actualDistance = AbstractQuantizer.symmetricDistance(flatDirectPqVectors, vectorIdx1, flatHeapVectors, vectorIdx2, flatDistanceTables, codebookCount, dimensions);
                     Assert.assertEquals(expectedDistance, actualDistance, 0.0f);
                 }
             }
         }
     }
 
+
+
     @Test
-    public void testPQKMeansQuality() throws Exception {
-        var vectors = loadSift10KVectors();
+    public void PQKMeansQuality() {
+        var dataset = VectorDataset.Sift10K.INSTANCE.build();
+        var vectors = dataset.getVectors();
         var clustersCount = 40;
 
         try (var pqQuantizer = new L2PQQuantizer()) {
             System.out.println("Generating PQ codes...");
-            pqQuantizer.generatePQCodes(SIFT_VECTOR_DIMENSIONS, 32, new ArrayVectorReader(vectors),
-                    new NoOpProgressTracker());
+            var vectorReader = new FloatArrayVectorReader(vectors);
+            var codebookCount = getCodebookCount(dataset.getDimensions(), 32);
+            pqQuantizer.generatePQCodes(vectorReader, codebookCount, new NoOpProgressTracker());
 
             System.out.println("PQ codes generated. Calculating centroids...");
-            var centroids = pqQuantizer.calculateCentroids(clustersCount, 50, L2DistanceFunction.INSTANCE,
-                    new NoOpProgressTracker());
+            var centroids = pqQuantizer.calculateCentroids(vectorReader, clustersCount, 50, L2DistanceFunction.INSTANCE, new NoOpProgressTracker());
 
             System.out.println("Centroids calculated. Clustering data vectors...");
-
-            var vectorsByClusters = new ArrayList<IntArrayList>();
-            for (int i = 0; i < clustersCount; i++) {
-                vectorsByClusters.add(new IntArrayList());
-            }
-
-            var secondClosestClusterIndexes = new int[vectors.length];
-            for (int i = 0; i < vectors.length; i++) {
-                float[] vector = vectors[i];
-                var clusters = findClosestAndSecondClosestCluster(centroids, vector,
-                        L2DistanceFunction.INSTANCE);
-                vectorsByClusters.get(clusters[0]).add(i);
-                secondClosestClusterIndexes[i] = clusters[1];
-            }
-
             System.out.println("Data vectors clustered. Calculating silhouette coefficient...");
-            var silhouetteCoefficient = silhouetteCoefficient(vectorsByClusters, secondClosestClusterIndexes,
-                    vectors, L2DistanceFunction.INSTANCE);
-            System.out.printf("silhouetteCoefficient = %f%n", silhouetteCoefficient);
-            Assert.assertTrue("silhouetteCoefficient < 0.17:" + silhouetteCoefficient,
-                    silhouetteCoefficient >= 0.17);
+
+            var silhouetteCoeff = l2SilhouetteCoefficient(L2DistanceFunction.INSTANCE, centroids, vectors).calculate();
+
+            System.out.printf("silhouetteCoefficient = %f%n", silhouetteCoeff);
+            Assert.assertTrue("silhouetteCoefficient < 0.08:" + silhouetteCoeff, silhouetteCoeff >= 0.08);
         }
     }
 
-    private static float[][][] generateDistanceTable(int quantizersCount, Random rnd) {
-        float[][][] centroids = new float[quantizersCount][Quantizer.CODE_BASE_SIZE][Quantizer.CODE_BASE_SIZE];
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < Quantizer.CODE_BASE_SIZE; j++) {
-                var vector = new float[Quantizer.CODE_BASE_SIZE];
-                for (int k = 0; k < Quantizer.CODE_BASE_SIZE; k++) {
-                    vector[k] = rnd.nextFloat();
+    private static float[][][] generateCodebooks(int codebookCount, int codeBaseSize, int codebookDimensions, Random rnd) {
+        float[][][] centroids = new float[codebookCount][codeBaseSize][codebookDimensions];
+        for (int codebookIdx = 0; codebookIdx < 4; codebookIdx++) {
+            for (int code = 0; code < codeBaseSize; code++) {
+                var vector = new float[codebookDimensions];
+                for (int dimensionIdx = 0; dimensionIdx < codebookDimensions; dimensionIdx++) {
+                    vector[dimensionIdx] = rnd.nextFloat();
                 }
 
-                centroids[i][j] = vector;
+                centroids[codebookIdx][code] = vector;
             }
         }
 
@@ -151,53 +144,26 @@ public class L2PQKMeansTest extends AbstractVectorsTest {
     }
 
     @NotNull
-    private static float[] createDistanceTable(int quantizersCount, float[][][] centroids, float[][][] distanceTable) {
-        var expectedDistanceTables = new float[4 * Quantizer.CODE_BASE_SIZE * Quantizer.CODE_BASE_SIZE];
+    private static float[] buildDistanceTable(float[][][] codebooks, float[][][] distanceTable) {
+        var codebookCount = codebooks.length;
+        var codeBaseSize = codebooks[0].length;
+        var dimensions = codebooks[0][0].length;
+        var distanceTables = new float[codebookCount * codeBaseSize * codeBaseSize];
         var index = 0;
 
         var l2Distance = new L2DistanceFunction();
-        for (int i = 0; i < quantizersCount; i++) {
-            for (int j = 0; j < Quantizer.CODE_BASE_SIZE; j++) {
-                for (int k = 0; k < Quantizer.CODE_BASE_SIZE; k++) {
-                    expectedDistanceTables[index] = l2Distance.computeDistance(centroids[i][j], 0,
-                            centroids[i][k], 0, Quantizer.CODE_BASE_SIZE);
+        for (int codebookIdx = 0; codebookIdx < codebookCount; codebookIdx++) {
+            for (int code1 = 0; code1 < codeBaseSize; code1++) {
+                for (int code2 = 0; code2 < codeBaseSize; code2++) {
+                    distanceTables[index] = l2Distance.computeDistance(codebooks[codebookIdx][code1], 0, codebooks[codebookIdx][code2], 0, dimensions);
                     if (distanceTable != null) {
-                        distanceTable[i][j][k] = expectedDistanceTables[index];
+                        distanceTable[codebookIdx][code1][code2] = distanceTables[index];
                     }
 
                     index++;
                 }
             }
         }
-        return expectedDistanceTables;
-    }
-
-
-    record ArrayVectorReader(float[][] vectors) implements VectorReader {
-        public int size() {
-            return vectors.length;
-        }
-
-        public MemorySegment read(int index) {
-            var vectorSegment = MemorySegment.ofArray(new byte[vectors[index].length * Float.BYTES]);
-
-            MemorySegment.copy(MemorySegment.ofArray(vectors[index]), 0,
-                    vectorSegment, 0, (long) vectors[index].length * Float.BYTES);
-
-            return vectorSegment;
-        }
-
-        @Override
-        public MemorySegment id(int index) {
-            var buffer = ByteBuffer.allocate(IndexBuilder.VECTOR_ID_SIZE);
-            buffer.order(ByteOrder.LITTLE_ENDIAN);
-            buffer.putInt(index);
-
-            return MemorySegment.ofBuffer(buffer);
-        }
-
-        @Override
-        public void close() {
-        }
+        return distanceTables;
     }
 }

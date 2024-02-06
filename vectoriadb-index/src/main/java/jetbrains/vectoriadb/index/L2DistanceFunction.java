@@ -23,7 +23,8 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 
 public final class L2DistanceFunction implements DistanceFunction {
-    public static final L2DistanceFunction INSTANCE = new L2DistanceFunction();
+    //public static final L2DistanceFunction INSTANCE = new L2DistanceFunction();
+    public static final L2DistanceFunctionNew INSTANCE = new L2DistanceFunctionNew();
 
 
     @Override
@@ -74,6 +75,12 @@ public final class L2DistanceFunction implements DistanceFunction {
     public float computeDistance(MemorySegment firstSegment, long firstSegmentOffset, MemorySegment secondSegment, long secondSegmentOffset, int size) {
         return computeL2Distance(firstSegment, firstSegmentOffset, secondSegment, secondSegmentOffset, size,
                 PREFERRED_SPECIES_LENGTH);
+    }
+
+    @Override
+    public float computeDistance(float scalar1, float scalar2) {
+        var tmp = (scalar1 - scalar2);
+        return tmp * tmp;
     }
 
     static float computeL2Distance(MemorySegment firstSegment, long firstSegmentOffset, float[] secondVector,

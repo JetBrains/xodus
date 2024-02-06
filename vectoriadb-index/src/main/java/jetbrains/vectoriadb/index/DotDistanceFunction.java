@@ -23,7 +23,8 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 
 public final class DotDistanceFunction implements DistanceFunction {
-    public static final DotDistanceFunction INSTANCE = new DotDistanceFunction();
+    //public static final DotDistanceFunction INSTANCE = new DotDistanceFunction();
+    public static final DotDistanceFunctionNew INSTANCE = new DotDistanceFunctionNew();
 
     @Override
     public void computeDistance(MemorySegment originSegment, long originSegmentOffset, MemorySegment firstSegment,
@@ -74,6 +75,11 @@ public final class DotDistanceFunction implements DistanceFunction {
                                  MemorySegment secondSegment, long secondSegmentOffset, int size) {
         return computeDotDistance(firstSegment, firstSegmentOffset, secondSegment, secondSegmentOffset, size,
                 PREFERRED_SPECIES_LENGTH);
+    }
+
+    @Override
+    public float computeDistance(float scalar1, float scalar2) {
+        return -(scalar1 * scalar2);
     }
 
     static void computeDotDistance(MemorySegment originSegment, long originSegmentOffset,

@@ -13,18 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.vectoriadb.index;
+package jetbrains.vectoriadb.index
 
-import java.lang.foreign.MemorySegment;
+import org.junit.Test
+import java.lang.foreign.Arena
 
-public interface VectorReader extends AutoCloseable {
-    int size();
+class ByteCodeSegmentTest {
 
-    int dimensions();
+    @Test
+    fun `simple set, get`() = Arena.ofConfined().use { arena ->
+        val count = 256
+        val segment = ByteCodeSegment.makeNativeSegment(arena, count)
 
-    MemorySegment read(int index);
+        assert(segment.maxNumberOfCodes() == count)
+        assert(segment.count() == count)
 
-    float read(int vectorIdx, int dimension);
+        repeat(count) { i ->
+            segment.set(i, i)
+        }
 
-    MemorySegment id(int index);
+        repeat(count) { i ->
+            assert(segment.get(i) == i)
+        }
+    }
 }

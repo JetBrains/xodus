@@ -15,16 +15,6 @@
  */
 package jetbrains.vectoriadb.index;
 
-import java.lang.foreign.MemorySegment;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 
-public interface VectorReader extends AutoCloseable {
-    int size();
-
-    int dimensions();
-
-    MemorySegment read(int index);
-
-    float read(int vectorIdx, int dimension);
-
-    MemorySegment id(int index);
-}
+public record VectorsByPartitions(float[][] partitionCentroids, IntArrayList[] vectorsByCentroidIdx) {}

@@ -45,7 +45,7 @@ public enum Distance {
 
         @Override
         public Quantizer quantizer() {
-            return new L2PQQuantizer();
+            return new NormExplicitQuantizer(1);
         }
     },
     COSINE {
