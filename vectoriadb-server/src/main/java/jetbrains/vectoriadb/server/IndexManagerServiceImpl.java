@@ -1367,11 +1367,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         public void progress(IndexBuildProgressInfo progressInfo) {
             if (context.isCancelled()) {
                 try {
+                    progressTracker.removeListener(this);
                     responseObserver.onCompleted();
                 } catch (Exception e) {
                     progressTracker.removeListener(this);
                     responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
                 }
+                return;
             }
 
             try {
