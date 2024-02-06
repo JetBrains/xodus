@@ -18,10 +18,7 @@ package jetbrains.vectoriadb.server;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import io.grpc.internal.testing.StreamRecorder;
-import jetbrains.vectoriadb.index.CosineDistanceFunction;
-import jetbrains.vectoriadb.index.DistanceFunction;
-import jetbrains.vectoriadb.index.DotDistanceFunction;
-import jetbrains.vectoriadb.index.L2DistanceFunction;
+import jetbrains.vectoriadb.index.*;
 import jetbrains.vectoriadb.index.util.collections.BoundedGreedyVertexPriorityQueue;
 import jetbrains.vectoriadb.service.base.IndexManagerOuterClass;
 import org.apache.commons.io.FileUtils;
@@ -156,7 +153,7 @@ public class IndexManagerTest {
 
             indexes = listIndexes(indexManagerService);
             Assert.assertEquals(1, indexes.size());
-            Assert.assertEquals(indexName + 1, indexes.get(0));
+            Assert.assertEquals(indexName + 1, indexes.getFirst());
 
             createIndex(indexName + 2, indexManagerService, IndexManagerOuterClass.Distance.L2);
             indexes = listIndexes(indexManagerService);
@@ -471,7 +468,7 @@ public class IndexManagerTest {
         indexManagerService.listIndexes(Empty.newBuilder().build(), listIndexesRecorder);
 
         checkCompleteness(listIndexesRecorder);
-        return listIndexesRecorder.getValues().get(0).getIndexNamesList();
+        return listIndexesRecorder.getValues().getFirst().getIndexNamesList();
     }
 
 
@@ -492,7 +489,7 @@ public class IndexManagerTest {
 
             checkCompleteness(indexStateRecorder);
 
-            var response = indexStateRecorder.getValues().get(0);
+            var response = indexStateRecorder.getValues().getFirst();
             var indexState = response.getState();
             if (indexState == IndexManagerOuterClass.IndexState.BUILDING ||
                     indexState == IndexManagerOuterClass.IndexState.IN_BUILD_QUEUE) {
@@ -546,7 +543,7 @@ public class IndexManagerTest {
 
         checkCompleteness(findNearestVectorsRecorder);
 
-        var response = findNearestVectorsRecorder.getValues().get(0);
+        var response = findNearestVectorsRecorder.getValues().getFirst();
         var nearestVectors = response.getIdsList();
         var result = new byte[nearestVectors.size()][];
 
@@ -674,9 +671,11 @@ public class IndexManagerTest {
     @NotNull
     private static IndexManagerOuterClass.Distance convertDistanceFunction(DistanceFunction distanceFunction) {
         return switch (distanceFunction) {
-            case L2DistanceFunction l2DistanceFunction -> IndexManagerOuterClass.Distance.L2;
-            case DotDistanceFunction dotDistanceFunction -> IndexManagerOuterClass.Distance.DOT;
-            case CosineDistanceFunction cosineDistanceFunction -> IndexManagerOuterClass.Distance.COSINE;
+            case L2DistanceFunction _ -> IndexManagerOuterClass.Distance.L2;
+            case DotDistanceFunction _ -> IndexManagerOuterClass.Distance.DOT;
+            case CosineDistanceFunction _ -> IndexManagerOuterClass.Distance.COSINE;
+            case L2DistanceFunctionNew _ -> IndexManagerOuterClass.Distance.L2;
+            case DotDistanceFunctionNew _ -> IndexManagerOuterClass.Distance.DOT;
             case null, default -> throw new IllegalArgumentException("Unknown distance function " + distanceFunction);
         };
     }
