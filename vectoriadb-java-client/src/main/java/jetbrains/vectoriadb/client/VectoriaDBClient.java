@@ -202,7 +202,10 @@ public final class VectoriaDBClient {
             progressIndicator.accept(-1, -1);
             requestObserver.onCompleted();
             progressIndicator.accept(Integer.MAX_VALUE, Integer.MAX_VALUE);
+        } else {
+            requestObserver.onCompleted();
         }
+
         try {
             finishedLatch.await();
         } catch (InterruptedException e) {

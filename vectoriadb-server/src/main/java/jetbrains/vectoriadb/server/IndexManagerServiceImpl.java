@@ -902,6 +902,8 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
                 @SuppressWarnings("resource") var indexReader = fetchIndexReader(indexName);
                 indexReader.deleteIndex();
 
+                var indexDir = indexMetadatas.get(indexName).dir;
+                FileUtils.deleteDirectory(indexDir.toFile());
                 //noinspection resource
                 indexReaders.remove(indexName);
                 indexStates.remove(indexName);
@@ -917,7 +919,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
 
         @NotNull
         private IndexReader fetchIndexReader(final String indexName) {
-            return indexReaders.computeIfAbsent(indexName, r -> {
+            return indexReaders.computeIfAbsent(indexName, _ -> {
                 var metadata = indexMetadatas.get(indexName);
                 return new IndexReader(indexName, dimensions, maxConnectionsPerVertex, maxCandidatesReturned,
                         compressionRatio, metadata.dir, metadata.distance, diskCache);
@@ -1029,7 +1031,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         public void buildIndex(IndexManagerOuterClass.IndexNameRequest request, StreamObserver<Empty> responseObserver) {
             try {
                 var indexName = request.getIndexName();
-                var indexState = indexStates.compute(indexName, (k, state) -> {
+                var indexState = indexStates.compute(indexName, (_, state) -> {
                     if (state == IndexState.UPLOADED || state == IndexState.CREATED) {
                         return IndexState.IN_BUILD_QUEUE;
                     } else {
@@ -1295,7 +1297,7 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
             try {
                 var indexName = request.getIndexName();
 
-                indexStates.compute(indexName, (k, state) -> {
+                indexStates.compute(indexName, (_, state) -> {
                     if (state == IndexState.CREATED || state == IndexState.BUILT || state == IndexState.UPLOADED) {
                         return IndexState.BROKEN;
                     } else {
@@ -1365,11 +1367,13 @@ public class IndexManagerServiceImpl extends IndexManagerGrpc.IndexManagerImplBa
         public void progress(IndexBuildProgressInfo progressInfo) {
             if (context.isCancelled()) {
                 try {
+                    progressTracker.removeListener(this);
                     responseObserver.onCompleted();
                 } catch (Exception e) {
                     progressTracker.removeListener(this);
                     responseObserver.onError(new StatusRuntimeException(Status.INTERNAL.withCause(e)));
                 }
+                return;
             }
 
             try {
