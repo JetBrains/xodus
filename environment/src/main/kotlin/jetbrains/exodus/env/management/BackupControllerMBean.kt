@@ -20,4 +20,6 @@ const val BACKUP_CONTROLLER_NAME_PREFIX = "jetbrains.exodus.env: type=BackupCont
 interface BackupControllerMBean {
     fun prepareBackup()
     fun finishBackup()
+
+    val backupInProgress: Boolean
 }
