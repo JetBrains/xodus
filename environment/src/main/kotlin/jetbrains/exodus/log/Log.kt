@@ -244,7 +244,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                 }
 
                                 copyFilesInRestoreTempDir(
-                                    blocks.tailMap(backupMetadata.lastFileAddress, true).values.iterator()
+                                    blocks.tailMap(
+                                        backupMetadata.lastFileAddress,
+                                        true
+                                    ).values.iterator()
                                 )
 
                                 val blocksToTruncateIterator = blocks.tailMap(
@@ -252,7 +255,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     false
                                 ).values.iterator()
 
-                                truncateFile(lastSegmentFile.toFile(), backupMetadata.lastFileOffset, null)
+                                truncateFile(
+                                    lastSegmentFile.toFile(),
+                                    backupMetadata.lastFileOffset,
+                                    null
+                                )
 
                                 if (blocksToTruncateIterator.hasNext()) {
                                     val blockToDelete = blocksToTruncateIterator.next()
@@ -274,7 +281,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                 startupMetadata = backupMetadata
                                 restoredFromBackup = true
                             } catch (ex: Exception) {
-                                logger.error("Failed to restore database $location from dynamic backup. ", ex)
+                                logger.error(
+                                    "Failed to restore database $location from dynamic backup. ",
+                                    ex
+                                )
                             }
                         }
                     }
@@ -425,7 +435,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         generationCount
                     )
                 else
-                    SeparateLogCache(memoryUsage, cachePageSize, nonBlockingCache, useSoftReferences, generationCount)
+                    SeparateLogCache(
+                        memoryUsage,
+                        cachePageSize,
+                        nonBlockingCache,
+                        useSoftReferences,
+                        generationCount
+                    )
             } else {
                 val memoryUsagePercentage = config.memoryUsagePercentage
                 if (config.isSharedCache)
@@ -504,7 +520,13 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             if (!rwIsReadonly && writtenInPage > 0) {
                 logger.warn(
                     "Page ${(highAddress and (cachePageSize - 1).toLong())} is not written completely, fixing it. " +
-                            "Environment : $location, file : ${LogUtil.getLogFilename(getFileAddress(highAddress))}."
+                            "Environment : $location, file : ${
+                                LogUtil.getLogFilename(
+                                    getFileAddress(
+                                        highAddress
+                                    )
+                                )
+                            }."
                 )
 
                 if (needToPerformMigration) {
@@ -543,16 +565,20 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
     }
 
     private fun copyFilesInRestoreTempDir(files: Iterator<FileDataReader.FileBlock>) {
-        val tempDir = createTempRestoreDirectoryWithDate()
-        logger.info("Database $location - copying files into the temp directory $tempDir before data restore.")
+        try {
+            val tempDir = createTempRestoreDirectoryWithDate()
+            logger.info("Database $location - copying files into the temp directory $tempDir before data restore.")
 
-        while (files.hasNext()) {
-            val file = files.next()
-            logger.info("Database $location - file $file is copied into the temp directory $tempDir")
-            Files.copy(file.toPath(), tempDir.resolve(file.toPath().fileName))
+            while (files.hasNext()) {
+                val file = files.next()
+                logger.info("Database $location - file $file is copied into the temp directory $tempDir")
+                Files.copy(file.toPath(), tempDir.resolve(file.toPath().fileName))
+            }
+
+            logger.info("Database $location - copying of files into the temp directory $tempDir is completed.")
+        } catch (e: Exception) {
+            logger.error("Error during backup of broken files", e)
         }
-
-        logger.info("Database $location - copying of files into the temp directory $tempDir is completed.")
     }
 
     private fun createTempRestoreDirectoryWithDate(): Path {
@@ -648,7 +674,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         return startupMetadata.rootAddress
     }
 
-    private fun checkLogConsistency(blockSetMutable: BlockSet.Mutable, loadedDbRootAddress: Long): Long {
+    private fun checkLogConsistency(
+        blockSetMutable: BlockSet.Mutable,
+        loadedDbRootAddress: Long
+    ): Long {
         var blockIterator = reader.blocks.iterator()
         if (!blockIterator.hasNext()) {
             return Long.MIN_VALUE
@@ -768,7 +797,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         try {
             do {
                 if (nextBlockCorruptionMessage != null) {
-                    DataCorruptionException.raise(nextBlockCorruptionMessage, this, corruptedFileAddress)
+                    DataCorruptionException.raise(
+                        nextBlockCorruptionMessage,
+                        this,
+                        corruptedFileAddress
+                    )
                 }
 
                 val block = fileBlockIterator.next()
@@ -886,7 +919,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                 blockSetMutable.add(startBlockAddress, block)
                 if (!hasNext && nextBlockCorruptionMessage != null) {
-                    DataCorruptionException.raise(nextBlockCorruptionMessage, this, corruptedFileAddress)
+                    DataCorruptionException.raise(
+                        nextBlockCorruptionMessage,
+                        this,
+                        corruptedFileAddress
+                    )
                 }
             } while (hasNext)
         } catch (exception: Exception) {
@@ -933,7 +970,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     logger.warn(
                         "Data corruption was detected. Reason : \"${exception.message}\". " +
                                 "Database '$location' will be truncated till address : $dbRootEndAddress. " +
-                                "Name of the file to be truncated : ${LogUtil.getLogFilename(endBlockAddress)}. " +
+                                "Name of the file to be truncated : ${
+                                    LogUtil.getLogFilename(
+                                        endBlockAddress
+                                    )
+                                }. " +
                                 "Initial file size ${endBlock.length()} bytes, final file size $endBlockLength bytes."
                     )
 
@@ -1398,7 +1439,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         return LoggableIterator(this, startAddress, highReadAddress)
     }
 
-    fun tryWrite(type: Byte, structureId: Int, data: ByteIterable, expiredLoggables: ExpiredLoggableCollection): Long {
+    fun tryWrite(
+        type: Byte,
+        structureId: Int,
+        data: ByteIterable,
+        expiredLoggables: ExpiredLoggableCollection
+    ): Long {
         // allow new file creation only if new file starts loggable
         val result = writeContinuously(type, structureId, data, expiredLoggables)
         if (result < 0) {
@@ -1419,7 +1465,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         return write(loggable.type, loggable.structureId, loggable.data, expiredLoggables)
     }
 
-    fun write(type: Byte, structureId: Int, data: ByteIterable, expiredLoggables: ExpiredLoggableCollection): Long {
+    fun write(
+        type: Byte,
+        structureId: Int,
+        data: ByteIterable,
+        expiredLoggables: ExpiredLoggableCollection
+    ): Long {
         // allow new file creation only if new file starts loggable
         var result = writeContinuously(type, structureId, data, expiredLoggables)
         if (result < 0) {
@@ -1686,7 +1737,8 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 val exceptionMessage = StringBuilder()
                 exceptionMessage.append(
                     "Can't acquire environment lock after "
-                ).append(lockTimeout).append(" ms.\n\n Lock owner info: \n").append(dataWriter.lockInfo())
+                ).append(lockTimeout).append(" ms.\n\n Lock owner info: \n")
+                    .append(dataWriter.lockInfo())
                 if (dataWriter is AsyncFileDataWriter) {
                     exceptionMessage.append("\n Lock file path: ").append(dataWriter.lockFilePath())
                 }
@@ -1719,20 +1771,23 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         if (isNull) {
             writer.write(type xor 0x80.toByte())
         } else {
-            val structureIdIterable = CompressedUnsignedLongByteIterable.getIterable(structureId.toLong())
+            val structureIdIterable =
+                CompressedUnsignedLongByteIterable.getIterable(structureId.toLong())
             val dataLength = data.length
-            val dataLengthIterable = CompressedUnsignedLongByteIterable.getIterable(dataLength.toLong())
+            val dataLengthIterable =
+                CompressedUnsignedLongByteIterable.getIterable(dataLength.toLong())
             recordLength += structureIdIterable.length
             recordLength += dataLengthIterable.length
             recordLength += dataLength
 
             val leftInPage =
                 cachePageSize - (result.toInt() and (cachePageSize - 1)) - BufferedDataWriter.HASH_CODE_SIZE
-            val delta = if (leftInPage in 1 until recordLength && recordLength < (cachePageSize shr 4)) {
-                leftInPage + BufferedDataWriter.HASH_CODE_SIZE
-            } else {
-                0
-            }
+            val delta =
+                if (leftInPage in 1 until recordLength && recordLength < (cachePageSize shr 4)) {
+                    leftInPage + BufferedDataWriter.HASH_CODE_SIZE
+                } else {
+                    0
+                }
 
             if (!writer.fitsIntoSingleFile(fileLengthBound, recordLength + delta)) {
                 return -1L
@@ -1802,7 +1857,11 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         return writer.mutableBlocksUnsafe()
     }
 
-    fun updateBlockSetHighAddressUnsafe(prevHighAddress: Long, highAddress: Long, blockSet: BlockSet.Immutable) {
+    fun updateBlockSetHighAddressUnsafe(
+        prevHighAddress: Long,
+        highAddress: Long,
+        blockSet: BlockSet.Immutable
+    ) {
         writer.updateBlockSetHighAddressUnsafe(prevHighAddress, highAddress, blockSet)
     }
 
