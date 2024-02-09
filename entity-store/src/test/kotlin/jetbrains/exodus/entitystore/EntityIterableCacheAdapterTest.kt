@@ -46,5 +46,8 @@ class EntityIterableCacheAdapterTest {
 
         // Then
         assertEquals(100, adapter.cache.size())
+
+        // Clean up
+        System.clearProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_SIZE)
     }
 }
