@@ -13,18 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.testutil
+package jetbrains.exodus.core.cache.persistent
 
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+interface PersistentIndex<K> {
 
-fun runInParallel(concurrencyLevel: Int, taskCount: Int = 1, action: (Int) -> Unit) {
-    val executor = Executors.newFixedThreadPool(concurrencyLevel)
-    repeat(taskCount) { i ->
-        executor.submit {
-            action(i)
-        }
-    }
-    executor.shutdown()
-    executor.awaitTermination(1, TimeUnit.MINUTES)
+    fun add(key: K)
+
+    fun remove(key: K)
+
+    fun clone(): PersistentIndex<K>
 }

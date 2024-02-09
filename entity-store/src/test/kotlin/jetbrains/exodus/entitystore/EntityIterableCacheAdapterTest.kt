@@ -22,7 +22,7 @@ import org.junit.Test
 class EntityIterableCacheAdapterTest {
 
     @Test
-    fun `should create weighted cache`() {
+    fun `should create weighted cache by default`() {
         // Given
         // Use default config values
         val config = PersistentEntityStoreConfig()
