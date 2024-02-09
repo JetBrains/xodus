@@ -43,7 +43,8 @@ internal open class EntityIterableCacheAdapter(
                 expireAfterAccess = Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong()),
                 useSoftValues = config.entityIterableCacheSoftValues,
             )
-            val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig)
+            val index = CacheReversedIndex()
+            val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig, index)
 
             return EntityIterableCacheAdapter(config, cache, HashMap())
         }

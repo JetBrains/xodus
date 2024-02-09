@@ -29,6 +29,8 @@ interface PersistentCache<K, V> : BasicCache<K, V> {
      */
     val version: Long
 
+    val externalIndex: PersistentIndex<K>?
+
     /**
      * Creates new version of the cache with the same configuration.
      */

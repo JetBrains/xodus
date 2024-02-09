@@ -18,24 +18,20 @@ package jetbrains.exodus.entitystore
 import jetbrains.exodus.core.cache.persistent.PersistentCache
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.HandleCheckerAdapter
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 
 internal class EntityIterableCacheAdapterMutable private constructor(
     config: PersistentEntityStoreConfig,
     cache: PersistentCache<EntityIterableHandle, CachedInstanceIterable>,
     stickyObjects: HashMap<EntityIterableHandle, Updatable>,
-    private val handleDistribution: HandleDistribution
 ) : EntityIterableCacheAdapter(config, cache, stickyObjects) {
 
     companion object {
 
         fun cloneFrom(cacheAdapter: EntityIterableCacheAdapter): EntityIterableCacheAdapterMutable {
             val oldCache = cacheAdapter.cache
-            val handleDistribution = HandleDistribution(oldCache.count().toInt())
             val newCache = oldCache.createNextVersion()
-            newCache.forEachKey(handleDistribution::addHandle)
             val stickyObjects = HashMap(cacheAdapter.stickyObjects)
-            return EntityIterableCacheAdapterMutable(cacheAdapter.config, newCache, stickyObjects, handleDistribution)
+            return EntityIterableCacheAdapterMutable(cacheAdapter.config, newCache, stickyObjects)
         }
     }
 
@@ -45,7 +41,6 @@ internal class EntityIterableCacheAdapterMutable private constructor(
 
     override fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
         super.cacheObject(key, it)
-        handleDistribution.addHandle(key)
     }
 
     fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
@@ -63,27 +58,13 @@ internal class EntityIterableCacheAdapterMutable private constructor(
                 remove(it)
             }
         }
+        val index = cache.externalIndex as CacheReversedIndex
         when {
-            checker.linkId >= 0 -> {
-                handleDistribution.byLink.forEachHandle(checker.linkId, action)
-            }
-
-            checker.propertyId >= 0 -> {
-                handleDistribution.byProp.forEachHandle(checker.propertyId, action)
-            }
-
-            checker.typeIdAffectingCreation >= 0 -> {
-                handleDistribution.byTypeIdAffectingCreation.forEachHandle(checker.typeIdAffectingCreation, action)
-            }
-
-            checker.typeId >= 0 -> {
-                handleDistribution.byTypeId.forEachHandle(checker.typeId, action)
-                handleDistribution.byTypeId.forEachHandle(EntityIterableBase.NULL_TYPE_ID, action)
-            }
-
-            else -> {
-                cache.forEachKey(action)
-            }
+            checker.linkId >= 0 -> index.getLinkIdHandles(checker.linkId)?.forEach(action)
+            checker.propertyId >= 0 -> index.getPropertyIdHandles(checker.propertyId)?.forEach(action)
+            checker.typeIdAffectingCreation >= 0 -> index.getTypeIdAffectingCreationHandles(checker.typeIdAffectingCreation)?.forEach(action)
+            checker.typeId >= 0 -> index.getEntityTypeIdHandles(checker.typeId)?.forEach(action)
+            else -> cache.forEachKey(action)
         }
     }
 
@@ -100,89 +81,9 @@ internal class EntityIterableCacheAdapterMutable private constructor(
     override fun remove(key: EntityIterableHandle) {
         check(!key.isSticky) { "Cannot remove sticky object" }
         super.remove(key)
-        handleDistribution.removeHandle(key)
     }
 
     override fun clear() {
         super.clear()
-        handleDistribution.clear()
-    }
-
-    private class HandleDistribution(cacheCount: Int) {
-
-        val removed: MutableSet<EntityIterableHandle>
-
-        val byLink: FieldIdGroupedHandleMap
-        val byProp: FieldIdGroupedHandleMap
-        val byTypeId: FieldIdGroupedHandleMap
-        val byTypeIdAffectingCreation: FieldIdGroupedHandleMap
-
-        init {
-            // this set is intentionally created quite disperse in order to reduce number of calls
-            // to EntityIterableHandle.equals() during iteration of handle clusters
-            removed = HashSet(10, .33f)
-            byLink = FieldIdGroupedHandleMap(cacheCount / 16, removed)
-            byProp = FieldIdGroupedHandleMap(cacheCount / 16, removed)
-            byTypeId = FieldIdGroupedHandleMap(cacheCount / 16, removed)
-            byTypeIdAffectingCreation = FieldIdGroupedHandleMap(cacheCount / 16, removed)
-        }
-
-        fun removeHandle(handle: EntityIterableHandle) {
-            removed.add(handle)
-        }
-
-        fun addHandle(handle: EntityIterableHandle) {
-            if (removed.isNotEmpty()) {
-                removed.remove(handle)
-            }
-            byLink.add(handle, handle.linkIds)
-            byProp.add(handle, handle.propertyIds)
-            byTypeId.add(handle, handle.entityTypeId)
-            byTypeIdAffectingCreation.add(handle, handle.typeIdsAffectingCreation)
-        }
-
-        fun clear() {
-            removed.clear()
-            byLink.clear()
-            byProp.clear()
-            byTypeId.clear()
-            byTypeIdAffectingCreation.clear()
-        }
-    }
-
-    private class FieldIdGroupedHandleMap(
-        capacity: Int,
-        private val removed: Set<EntityIterableHandle>
-    ) : HashMap<Int, MutableList<EntityIterableHandle>>(capacity) {
-
-        // it is allowed to add EntityIterableBase.NULL_TYPE_ID
-        fun add(handle: EntityIterableHandle, fieldId: Int) {
-            val handles = get(fieldId) ?: ArrayList<EntityIterableHandle>(4).also { put(fieldId, it) }
-            handles.add(handle)
-        }
-
-        fun add(handle: EntityIterableHandle, fieldIds: IntArray) {
-            for (fieldId in fieldIds) {
-                if (fieldId >= 0) {
-                    add(handle, fieldId)
-                }
-            }
-        }
-
-        fun forEachHandle(fieldId: Int, action: (EntityIterableHandle) -> Unit) {
-            get(fieldId)?.let { handles ->
-                if (removed.isEmpty()) {
-                    for (handle in handles) {
-                        action(handle)
-                    }
-                } else {
-                    for (handle in handles) {
-                        if (!removed.contains(handle)) {
-                            action(handle)
-                        }
-                    }
-                }
-            }
-        }
     }
 }
