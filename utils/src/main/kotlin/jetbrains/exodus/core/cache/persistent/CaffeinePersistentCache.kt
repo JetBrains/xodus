@@ -94,9 +94,11 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         }
     }
 
+    private var cleanable: Cleaner.Cleanable
+
     init {
         evictionSubject.addListener(evictionListener)
-        cleaner.register(this) { evictionSubject.removeListener(evictionListener) }
+        cleanable = cleaner.register(this) { evictionSubject.removeListener(evictionListener) }
     }
 
     // Generic cache impl
@@ -217,7 +219,8 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     override fun release() {
-        evictionSubject.removeListener(evictionListener)
+        // Unregisters the cleanable and invokes the cleaning action
+        cleanable.clean()
     }
 
     // For tests
@@ -259,7 +262,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         return this.getIfPresent(key)?.get(version)
     }
 
-    // WeightedValueMap extensions
+    // ValueMap extensions
     // Returns true if values were changed
     private fun ValueMap<Version, V>.removeStaleVersions(currentVersion: Version): Boolean {
         if (this.size <= 1) {
