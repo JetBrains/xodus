@@ -200,18 +200,57 @@ class CaffeinePersistentCacheTest {
     }
 
     @Test
-    fun `should keep local index in sync with cache`() {
+    fun `should update local index when put`() {
         // Given
         val cache = givenSizedCache(1)
 
-        // When-Then
+        // When
         cache.put("key1", "value1")
-        assertEquals(1, cache.localIndexSize())
 
+        // Then
+        assertEquals(1, cache.localIndexSize())
+    }
+
+    @Test
+    fun `should update local index when entry evicted`() {
+        // Given
+        val cache = givenSizedCache(1)
+
+        // When
+        cache.put("key1", "value1")
         cache.put("key2", "value2")
+
         // Key should be removed from index on eviction
         assertEquals(1, cache.localIndexSize())
     }
+
+    @Test
+    fun `should update local index when remove`() {
+        // Given
+        val cache = givenSizedCache(1)
+
+        // When
+        cache.put("key1", "value1")
+        cache.remove("key1")
+
+        // Then
+        assertEquals(0, cache.localIndexSize())
+    }
+
+    @Test
+    fun `should update local index when clear`() {
+        // Given
+        val cache = givenSizedCache(1)
+
+        // When
+        cache.put("key1", "value1")
+        cache.clear()
+
+        // Then
+        assertEquals(0, cache.localIndexSize())
+    }
+
+
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String>(
