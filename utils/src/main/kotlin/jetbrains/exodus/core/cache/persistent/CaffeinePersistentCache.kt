@@ -29,7 +29,7 @@ typealias Version = Long
 
 /**
  * This cache implementation is based on Caffeine cache. It versions each value stored.
- * Put or remove values for the current version doesn't affect other existing versions.
+ * Put or remove values for the current version (instance) doesn't affect other existing versions.
  */
 class CaffeinePersistentCache<K : Any, V> private constructor(
     private val cache: Cache<K, ValueMap<Version, V>>,
@@ -155,6 +155,7 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             values.removeStaleVersions(version)
             values.orNullIfEmpty()
         }
+        cache.stats().missRate()
     }
 
     override fun clear() {

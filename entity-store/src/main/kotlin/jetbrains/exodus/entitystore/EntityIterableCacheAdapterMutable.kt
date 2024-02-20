@@ -58,7 +58,7 @@ internal class EntityIterableCacheAdapterMutable private constructor(
                 remove(it)
             }
         }
-        val index = cache.externalIndex as CacheReversedIndex
+        val index = cache.externalIndex as EntityIterableCacheReverseIndex
         when {
             checker.linkId >= 0 -> index.getLinkIdHandles(checker.linkId)?.forEach(action)
             checker.propertyId >= 0 -> index.getPropertyIdHandles(checker.propertyId)?.forEach(action)
