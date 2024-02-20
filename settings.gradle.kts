@@ -50,6 +50,8 @@ dependencyResolutionManagement {
 
             version("caffeine", "3.1.8")
 
+            version("mockk", "1.13.9")
+
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
 
@@ -134,6 +136,8 @@ dependencyResolutionManagement {
             ).versionRef("grpc-boot-starter")
 
             library("caffeine-cache", "com.github.ben-manes.caffeine", "caffeine").versionRef("caffeine")
+
+            library("mockk", "io.mockk", "mockk").versionRef("mockk")
         }
     }
 }
