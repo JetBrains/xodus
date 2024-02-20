@@ -229,10 +229,10 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     /**
      * Defines the size of EntityIterableCache. EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED}
      * is {@code false}. Default value depends on the JVM memory settings.
+     * <p><b>It's generally recommended to use weighted cache instead. See {@linkplain #ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE}.</b>
      * <p>Mutable at runtime: no
      *
      * @see #CACHING_DISABLED
-     * @deprecated use weighted case in conjunction with {@linkplain #ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE} instead.
      */
     public static final String ENTITY_ITERABLE_CACHE_SIZE = "exodus.entityStore.entityIterableCache.size";
 
@@ -463,8 +463,8 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, -1),
                 new Pair(ENTITY_ITERABLE_DEFERRED_CACHE_SIZE, defaultEntityIterableDeferredCacheSize()),
-                new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 5),
-                new Pair(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT, 12), // 12 bytes per entity id store in cache
+                new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 5), // 5% of maxMemory
+                new Pair(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT, 12), // 12 bytes per entityId stored in cache
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
                 new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
