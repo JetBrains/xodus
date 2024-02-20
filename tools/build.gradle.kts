@@ -34,4 +34,8 @@ tasks {
         add("default", shadowJar)
         add("testArtifacts", jarTest)
     }
+
+    build {
+        dependsOn(shadowJar)
+    }
 }
