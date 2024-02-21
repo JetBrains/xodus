@@ -47,6 +47,7 @@ class EntityIterableCacheReverseIndex(
     }
 
     private fun addHandle(id: Int, handle: EntityIterableHandle, mutable: MutableHandleIndex) {
+        // Clone is required to persist previous state
         var set = mutable.get(id)?.clone ?: PersistentHashSet<EntityIterableHandle>()
         set.beginWrite().apply { add(handle); endWrite() }
         mutable.put(id, set)
@@ -69,6 +70,7 @@ class EntityIterableCacheReverseIndex(
     }
 
     private fun removeHandle(id: Int, handle: EntityIterableHandle, mutable: MutableHandleIndex) {
+        // Clone is required to persist previous state
         var set = mutable.get(id)?.clone ?: return
         set.beginWrite().apply { remove(handle); endWrite() }
         mutable.put(id, set)

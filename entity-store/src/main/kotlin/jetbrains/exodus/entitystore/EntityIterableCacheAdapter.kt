@@ -74,6 +74,7 @@ internal open class EntityIterableCacheAdapter(
     }
 
     open fun remove(key: EntityIterableHandle) {
+        check(!key.isSticky) { "Cannot remove sticky object" }
         cache.remove(key)
     }
 

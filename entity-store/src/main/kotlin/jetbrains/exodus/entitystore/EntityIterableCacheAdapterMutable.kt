@@ -39,10 +39,6 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         return EntityIterableCacheAdapter(config, cache, stickyObjects)
     }
 
-    override fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
-        super.cacheObject(key, it)
-    }
-
     fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
         super.cacheObject(handle, it)
     }
@@ -76,14 +72,5 @@ internal class EntityIterableCacheAdapterMutable private constructor(
 
     fun registerStickyObject(handle: EntityIterableHandle, updatable: Updatable) {
         stickyObjects[handle] = updatable
-    }
-
-    override fun remove(key: EntityIterableHandle) {
-        check(!key.isSticky) { "Cannot remove sticky object" }
-        super.remove(key)
-    }
-
-    override fun clear() {
-        super.clear()
     }
 }
