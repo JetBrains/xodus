@@ -738,15 +738,16 @@ public class EnvironmentImpl implements Environment {
                             highAddressAndRoot[1], log.getCachePageSize(), log.getFileLengthBound(),
                             true, fileAddress, fileOffset);
 
-            var backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME);
+            var startBackupMetadata = Paths.get(log.getLocation()).resolve(
+                BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
             try {
-                Files.deleteIfExists(backupMetadata);
+                Files.deleteIfExists(startBackupMetadata);
             } catch (IOException e) {
                 throw new ExodusException("Error deletion of previous backup metadata", e);
             }
 
             try (var channel = FileChannel.open(
-                    backupMetadata, StandardOpenOption.CREATE_NEW,
+                    startBackupMetadata, StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE)) {
                 while (metadata.remaining() > 0) {
                     //noinspection ResultOfMethodCallIgnored
@@ -766,9 +767,10 @@ public class EnvironmentImpl implements Environment {
         if (isOpen()) {
             gc.resume();
         }
-        var backupMetadata = Paths.get(log.getLocation()).resolve(BackupMetadata.BACKUP_METADATA_FILE_NAME);
+        var startBackupMetadata = Paths.get(log.getLocation()).resolve(
+            BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
         try {
-            Files.deleteIfExists(backupMetadata);
+            Files.deleteIfExists(startBackupMetadata);
         } catch (IOException e) {
             throw new ExodusException("Error deletion of previous backup metadata", e);
         }
