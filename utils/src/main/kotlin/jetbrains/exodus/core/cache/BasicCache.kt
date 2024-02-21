@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.core.cache
 
-import java.util.function.BiConsumer
 import java.util.function.Consumer
 
 interface BasicCache<K, V> {
@@ -56,11 +55,6 @@ interface BasicCache<K, V> {
      * Exactly which activities are performed (if any) is implementation-dependent.
      */
     fun forceEviction()
-
-    /**
-     * Apply consumer to each entry in the cache. It's assumed that neither key nor value will be modified.
-     */
-    fun forEachEntry(consumer: BiConsumer<K, V>)
 
     /**
      * Apply consumer to each entry in the cache. It's assumed that neither key nor value will be modified.

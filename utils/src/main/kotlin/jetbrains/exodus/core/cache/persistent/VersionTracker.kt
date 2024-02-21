@@ -34,8 +34,9 @@ internal class VersionTracker(initialVersion: Long = 0) {
     }
 
     fun decrementClients(version: Long): Long {
-        val clientsLeft = versionClientCount.computeIfPresent(version) { _, count ->
-            if ((count - 1) == 0L) null else count - 1
+        val clientsLeft = versionClientCount.compute(version) { _, count ->
+            checkNotNull(count) { "No clients for version $version, but expected to be at least one to decrement" }
+            if (count == 1L) null else count - 1
         }
         return clientsLeft ?: 0
     }

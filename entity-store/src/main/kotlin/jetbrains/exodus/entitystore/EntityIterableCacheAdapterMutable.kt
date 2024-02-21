@@ -39,14 +39,6 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         return EntityIterableCacheAdapter(config, cache, stickyObjects)
     }
 
-    override fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
-        super.cacheObject(key, it)
-    }
-
-    fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
-        super.cacheObject(handle, it)
-    }
-
     fun update(checker: HandleCheckerAdapter) {
         updateCacheWithChecker(checker)
         updateStickyObjectsWithChecker(checker)
@@ -58,7 +50,7 @@ internal class EntityIterableCacheAdapterMutable private constructor(
                 remove(it)
             }
         }
-        val index = cache.externalIndex as CacheReversedIndex
+        val index = cache.externalIndex as EntityIterableCacheReverseIndex
         when {
             checker.linkId >= 0 -> index.getLinkIdHandles(checker.linkId)?.forEach(action)
             checker.propertyId >= 0 -> index.getPropertyIdHandles(checker.propertyId)?.forEach(action)
@@ -76,14 +68,5 @@ internal class EntityIterableCacheAdapterMutable private constructor(
 
     fun registerStickyObject(handle: EntityIterableHandle, updatable: Updatable) {
         stickyObjects[handle] = updatable
-    }
-
-    override fun remove(key: EntityIterableHandle) {
-        check(!key.isSticky) { "Cannot remove sticky object" }
-        super.remove(key)
-    }
-
-    override fun clear() {
-        super.clear()
     }
 }

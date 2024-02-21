@@ -43,7 +43,7 @@ internal open class EntityIterableCacheAdapter(
                 expireAfterAccess = Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong()),
                 useSoftValues = config.entityIterableCacheSoftValues,
             )
-            val index = CacheReversedIndex()
+            val index = EntityIterableCacheReverseIndex()
             val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig, index)
 
             return EntityIterableCacheAdapter(config, cache, HashMap())
@@ -74,6 +74,7 @@ internal open class EntityIterableCacheAdapter(
     }
 
     open fun remove(key: EntityIterableHandle) {
+        check(!key.isSticky) { "Cannot remove sticky object" }
         cache.remove(key)
     }
 

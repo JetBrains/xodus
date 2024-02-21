@@ -156,7 +156,7 @@ public class IndexManagerTest {
 
             indexes = listIndexes(indexManagerService);
             Assert.assertEquals(1, indexes.size());
-            Assert.assertEquals(indexName + 1, indexes.get(0));
+            Assert.assertEquals(indexName + 1, indexes.getFirst());
 
             createIndex(indexName + 2, indexManagerService, IndexManagerOuterClass.Distance.L2);
             indexes = listIndexes(indexManagerService);
@@ -244,6 +244,26 @@ public class IndexManagerTest {
 
             Assert.assertTrue(indexes.contains(indexOne));
             Assert.assertTrue(indexes.contains(indexThree));
+        });
+    }
+
+    @Test
+    public void testDropIndexInSearchModeAndCreateItAgain() throws Exception {
+        var indexOne = "testDropSearchIndexOne";
+
+        executeInServiceContext(indexManagerService -> {
+            generateIndex(indexOne, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
+
+            switchToSearchMode(indexManagerService);
+
+            dropIndex(indexOne, indexManagerService);
+
+            var indexes = listIndexes(indexManagerService);
+            Assert.assertEquals(0, indexes.size());
+
+            switchToBuildMode(indexManagerService);
+
+            generateIndex(indexOne, L2DistanceFunction.INSTANCE, 64, 1, indexManagerService);
         });
     }
 
@@ -471,7 +491,7 @@ public class IndexManagerTest {
         indexManagerService.listIndexes(Empty.newBuilder().build(), listIndexesRecorder);
 
         checkCompleteness(listIndexesRecorder);
-        return listIndexesRecorder.getValues().get(0).getIndexNamesList();
+        return listIndexesRecorder.getValues().getFirst().getIndexNamesList();
     }
 
 
@@ -492,7 +512,7 @@ public class IndexManagerTest {
 
             checkCompleteness(indexStateRecorder);
 
-            var response = indexStateRecorder.getValues().get(0);
+            var response = indexStateRecorder.getValues().getFirst();
             var indexState = response.getState();
             if (indexState == IndexManagerOuterClass.IndexState.BUILDING ||
                     indexState == IndexManagerOuterClass.IndexState.IN_BUILD_QUEUE) {
@@ -531,6 +551,13 @@ public class IndexManagerTest {
         checkCompleteness(switchToSearchModeRecorder);
     }
 
+    private static void switchToBuildMode(IndexManagerServiceImpl indexManagerService) throws Exception {
+        var streamRecorder = StreamRecorder.<Empty>create();
+        indexManagerService.switchToBuildMode(Empty.newBuilder().build(), streamRecorder);
+
+        checkCompleteness(streamRecorder);
+    }
+
     private static byte[][] findNearestNeighbours(IndexManagerServiceImpl indexManagerService,
                                                   float[] queryVector, String indexName, int k) throws Exception {
         var findNearestVectorsRecorder = StreamRecorder.<IndexManagerOuterClass.FindNearestNeighboursResponse>create();
@@ -546,7 +573,7 @@ public class IndexManagerTest {
 
         checkCompleteness(findNearestVectorsRecorder);
 
-        var response = findNearestVectorsRecorder.getValues().get(0);
+        var response = findNearestVectorsRecorder.getValues().getFirst();
         var nearestVectors = response.getIdsList();
         var result = new byte[nearestVectors.size()][];
 
@@ -674,9 +701,9 @@ public class IndexManagerTest {
     @NotNull
     private static IndexManagerOuterClass.Distance convertDistanceFunction(DistanceFunction distanceFunction) {
         return switch (distanceFunction) {
-            case L2DistanceFunction l2DistanceFunction -> IndexManagerOuterClass.Distance.L2;
-            case DotDistanceFunction dotDistanceFunction -> IndexManagerOuterClass.Distance.DOT;
-            case CosineDistanceFunction cosineDistanceFunction -> IndexManagerOuterClass.Distance.COSINE;
+            case L2DistanceFunction _ -> IndexManagerOuterClass.Distance.L2;
+            case DotDistanceFunction _ -> IndexManagerOuterClass.Distance.DOT;
+            case CosineDistanceFunction _ -> IndexManagerOuterClass.Distance.COSINE;
             case null, default -> throw new IllegalArgumentException("Unknown distance function " + distanceFunction);
         };
     }

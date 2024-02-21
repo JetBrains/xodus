@@ -22,7 +22,8 @@ import jetbrains.exodus.core.dataStructures.persistent.PersistentHashSet
 typealias HandleIndex = PersistentHashMap<Int, PersistentHashSet<EntityIterableHandle>>
 typealias MutableHandleIndex = PersistentHashMap<Int, PersistentHashSet<EntityIterableHandle>>.MutablePersistentHashMap
 
-class CacheReversedIndex(
+class EntityIterableCacheReverseIndex(
+    // Maps representing the reversed index distribution of the entity iterable handles
     private val linkIds: HandleIndex = HandleIndex(),
     private val propertyIds: HandleIndex = HandleIndex(),
     private val typeIdsAffectingCreation: HandleIndex = HandleIndex(),
@@ -46,6 +47,7 @@ class CacheReversedIndex(
     }
 
     private fun addHandle(id: Int, handle: EntityIterableHandle, mutable: MutableHandleIndex) {
+        // Clone is required to persist previous state
         var set = mutable.get(id)?.clone ?: PersistentHashSet<EntityIterableHandle>()
         set.beginWrite().apply { add(handle); endWrite() }
         mutable.put(id, set)
@@ -68,6 +70,7 @@ class CacheReversedIndex(
     }
 
     private fun removeHandle(id: Int, handle: EntityIterableHandle, mutable: MutableHandleIndex) {
+        // Clone is required to persist previous state
         var set = mutable.get(id)?.clone ?: return
         set.beginWrite().apply { remove(handle); endWrite() }
         mutable.put(id, set)
@@ -89,8 +92,8 @@ class CacheReversedIndex(
         return this.entityTypeId.current.get(entityTypeId)
     }
 
-    override fun clone(): CacheReversedIndex {
-        return CacheReversedIndex(
+    override fun clone(): EntityIterableCacheReverseIndex {
+        return EntityIterableCacheReverseIndex(
             linkIds.clone,
             propertyIds.clone,
             typeIdsAffectingCreation.clone,
