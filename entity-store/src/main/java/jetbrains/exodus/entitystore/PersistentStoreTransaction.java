@@ -618,8 +618,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (cache == null) {
             throw new IllegalStateException("Transaction wasn't mutated");
         }
-        // cache new mutated iterable instance not affecting HandlesDistribution
-        cache.cacheObjectNotAffectingHandleDistribution(handle, iterable);
+        cache.cacheObject(handle, iterable);
     }
 
     public void registerStickyObject(@NotNull final EntityIterableHandle handle, Updatable object) {

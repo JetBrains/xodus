@@ -20,7 +20,6 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import jetbrains.exodus.core.dataStructures.persistent.PersistentHashMap
 import java.lang.ref.Cleaner
 import java.util.concurrent.locks.ReentrantLock
-import java.util.function.BiConsumer
 import java.util.function.Consumer
 import kotlin.concurrent.withLock
 
@@ -122,7 +121,6 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         val valueVersion = keyVersionIndex.current.get(key) ?: return null
         val values = cache.getIfPresent(key)
         if (values == null) {
-            removeFromIndex(key)
             return null
         } else {
             values.removeStaleVersionsAndUpdateCache(key, valueVersion)
@@ -155,7 +153,6 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
             values.removeStaleVersions(version)
             values.orNullIfEmpty()
         }
-        cache.stats().missRate()
     }
 
     override fun clear() {
@@ -164,17 +161,6 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
 
     override fun forceEviction() {
         cache.cleanUp()
-    }
-
-    override fun forEachEntry(consumer: BiConsumer<K, V>) {
-        keyVersionIndex.current.forEach { entry ->
-            val key = entry.key
-            val version = entry.value
-            val value = cache.getVersioned(key, version)
-            if (value != null) {
-                consumer.accept(key, value)
-            }
-        }
     }
 
     override fun forEachKey(consumer: Consumer<K>) {
@@ -256,11 +242,6 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
         val mutableMap = beginWrite()
         block(mutableMap)
         endWrite(mutableMap)
-    }
-
-    // Cache extensions
-    private fun Cache<K, ValueMap<Version, V>>.getVersioned(key: K, version: Version): V? {
-        return this.getIfPresent(key)?.get(version)
     }
 
     // ValueMap extensions

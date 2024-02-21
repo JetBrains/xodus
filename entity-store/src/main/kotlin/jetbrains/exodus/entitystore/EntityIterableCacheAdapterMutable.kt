@@ -39,10 +39,6 @@ internal class EntityIterableCacheAdapterMutable private constructor(
         return EntityIterableCacheAdapter(config, cache, stickyObjects)
     }
 
-    fun cacheObjectNotAffectingHandleDistribution(handle: EntityIterableHandle, it: CachedInstanceIterable) {
-        super.cacheObject(handle, it)
-    }
-
     fun update(checker: HandleCheckerAdapter) {
         updateCacheWithChecker(checker)
         updateStickyObjectsWithChecker(checker)
