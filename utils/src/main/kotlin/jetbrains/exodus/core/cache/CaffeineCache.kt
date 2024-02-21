@@ -17,7 +17,6 @@ package jetbrains.exodus.core.cache
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
-import java.util.function.BiConsumer
 import java.util.function.Consumer
 
 class CaffeineCache<K, V>(private val cache: Cache<K, V>) : BasicCache<K, V> {
@@ -58,10 +57,6 @@ class CaffeineCache<K, V>(private val cache: Cache<K, V>) : BasicCache<K, V> {
 
     override fun forceEviction() {
         cache.cleanUp()
-    }
-
-    override fun forEachEntry(consumer: BiConsumer<K, V>) {
-        cache.asMap().forEach(consumer)
     }
 
     override fun forEachKey(consumer: Consumer<K>) {
