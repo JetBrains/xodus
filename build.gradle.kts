@@ -217,7 +217,7 @@ subprojects {
     }
 
     afterEvaluate {
-        if (shouldDeploy(this) && !(isDailyBuild && name == "xodus-tools")) {
+        if (shouldDeploy(this)) {
             configure<PublishingExtension> {
                 repositories {
                     maven {
@@ -261,6 +261,9 @@ subprojects {
                                     organizationUrl.set("https://www.jetbrains.com")
                                 }
                             }
+                        }
+                        if (this.name == "xodus-tools") {
+                            artifact(tasks.getByName("shadowJar"))
                         }
                     }
                 }
