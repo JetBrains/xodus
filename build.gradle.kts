@@ -163,7 +163,7 @@ subprojects {
         options.quiet()
         (options as CoreJavadocOptions).addStringOption("Xdoclint:none", "-quiet")
         (options as CoreJavadocOptions).addBooleanOption("-enable-preview", true)
-        (options as CoreJavadocOptions).addStringOption("source", 21.toString())
+        (options as CoreJavadocOptions).addStringOption("source", 17.toString())
     }
 
 
@@ -191,7 +191,7 @@ subprojects {
         withSourcesJar()
 
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(21))
+            languageVersion.set(JavaLanguageVersion.of(17))
         }
     }
 
