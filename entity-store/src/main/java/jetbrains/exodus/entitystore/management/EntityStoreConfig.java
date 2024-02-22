@@ -232,16 +232,6 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
-    public int getEntityIterableCacheMaxSizeOfDirectValue() {
-        return config.getEntityIterableCacheMaxSizeOfDirectValue();
-    }
-
-    @Override
-    public void setEntityIterableCacheMaxSizeOfDirectValue(int maxSizeOfDirectValue) {
-        config.setEntityIterableCacheMaxSizeOfDirectValue(maxSizeOfDirectValue);
-    }
-
-    @Override
     public boolean getEntityIterableCacheUseHumanReadable() {
         return config.getEntityIterableCacheUseHumanReadable();
     }
