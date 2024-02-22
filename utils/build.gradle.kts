@@ -1,6 +1,7 @@
 dependencies {
     implementation(libs.jetbrains.annotations)
     implementation(libs.slf4j.api)
+    implementation(libs.caffeine.cache)
 }
 
 val testArtifacts by configurations.creating

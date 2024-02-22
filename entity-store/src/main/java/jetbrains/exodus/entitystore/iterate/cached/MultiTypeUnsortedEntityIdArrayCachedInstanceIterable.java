@@ -57,6 +57,11 @@ public class MultiTypeUnsortedEntityIdArrayCachedInstanceIterable extends Cached
     }
 
     @Override
+    public long getRoughSize() {
+        return localIds.length;
+    }
+
+    @Override
     protected boolean containsImpl(@NotNull EntityId entityId) {
         final EntityIdSet ids = idSet;
         if (ids != null) {
