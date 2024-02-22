@@ -29,6 +29,14 @@ internal open class EntityIterableCacheAdapter(
     companion object : KLogging() {
 
         fun create(config: PersistentEntityStoreConfig): EntityIterableCacheAdapter {
+            val cacheConfig = toCaffeineCacheConfig(config)
+            val index = EntityIterableCacheReverseIndex()
+            val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig, index)
+
+            return EntityIterableCacheAdapter(config, cache, HashMap())
+        }
+
+        private fun toCaffeineCacheConfig(config: PersistentEntityStoreConfig): CaffeineCacheConfig<CachedInstanceIterable> {
             val sizeEviction = if (config.entityIterableCacheSize > 0) {
                 val maxSize = config.entityIterableCacheSize.toLong()
                 logger.info("Using sized eviction for entity iterable cache, maxSize = $maxSize")
@@ -38,15 +46,18 @@ internal open class EntityIterableCacheAdapter(
                 logger.info("Using weighted eviction for entity iterable cache, maxWeight = $maxWeight")
                 WeightedEviction(config.entityIterableCacheWeight) { it.roughSize.toInt() }
             }
-            val cacheConfig = CaffeineCacheConfig(
+
+            val expireAfterAccess = if (config.entityIterableCacheExpireAfterAccess > 0) {
+                Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong())
+            } else {
+                null
+            }
+
+            return CaffeineCacheConfig(
                 sizeEviction = sizeEviction,
-                expireAfterAccess = Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong()),
+                expireAfterAccess = expireAfterAccess,
                 useSoftValues = config.entityIterableCacheSoftValues,
             )
-            val index = EntityIterableCacheReverseIndex()
-            val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig, index)
-
-            return EntityIterableCacheAdapter(config, cache, HashMap())
         }
     }
 
