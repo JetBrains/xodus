@@ -461,9 +461,9 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(DEBUG_SEARCH_FOR_INCOMING_LINKS_ON_DELETE, false),
                 new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
                 new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
-                new Pair(ENTITY_ITERABLE_CACHE_SIZE, -1),
+                new Pair(ENTITY_ITERABLE_CACHE_SIZE, -1), // weight-based cache used instead by default
                 new Pair(ENTITY_ITERABLE_DEFERRED_CACHE_SIZE, defaultEntityIterableDeferredCacheSize()),
-                new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 5), // 5% of maxMemory
+                new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 5), // 5% of max available memory
                 new Pair(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT, 12), // 12 bytes per entityId stored in cache
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
@@ -473,7 +473,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
                 new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
-                new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, 300),
+                new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, -1), // disabled by default
                 new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, true),
                 new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
