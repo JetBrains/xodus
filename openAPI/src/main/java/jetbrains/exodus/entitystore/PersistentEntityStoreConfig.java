@@ -318,22 +318,10 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_DEFERRED_DELAY = "exodus.entityStore.entityIterableCache.deferredDelay";
 
     /**
-     * Defines the maximum size of "direct" value in EntityIterableCache. EntityIterableCache caches results of
-     * different queries. Direct query results are strongly referenced, otherwise they are references through
-     * {@linkplain SoftReference}. Basically, the more direct values are the better caching performance is.
-     * Default value is {@code 512}.
-     * <p>Mutable at runtime: yes
-     *
-     * @deprecated this value is not used anymore in favor of global usage of soft references, see {@linkplain #ENTITY_ITERABLE_CACHE_SOFT_VALUES}.
-     */
-    @Deprecated
-    public static final String ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE = "exodus.entityStore.entityIterableCache.maxSizeOfDirectValue";
-
-    /**
      * Specifies that each entry should be automatically removed from the cache
      * once a fixed duration has elapsed after the entry's creation,
      * the most recent replacement of its value, or its last access.
-     * Default values is 5 minutes (300 seconds).
+     * <p>Disabled by default.
      * <p>Mutable at runtime: no
      */
     public static final String ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS = "exodus.entityStore.entityIterableCache.expireAfterAccessSeconds";
@@ -472,7 +460,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
                 new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
-                new Pair(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, 512),
                 new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, -1), // disabled by default
                 new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, true),
                 new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
@@ -775,20 +762,12 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return setSetting(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, deferredDelay);
     }
 
-    public int getEntityIterableCacheMaxSizeOfDirectValue() {
-        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE);
-    }
-
     public int getEntityIterableCacheExpireAfterAccess() {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS);
     }
 
     public boolean getEntityIterableCacheSoftValues() {
         return (Boolean) getSetting(ENTITY_ITERABLE_CACHE_SOFT_VALUES);
-    }
-
-    public PersistentEntityStoreConfig setEntityIterableCacheMaxSizeOfDirectValue(final int maxSizeOfDirectValue) {
-        return setSetting(ENTITY_ITERABLE_CACHE_MAX_SIZE_OF_DIRECT_VALUE, maxSizeOfDirectValue);
     }
 
     public boolean getEntityIterableCacheUseHumanReadable() {
