@@ -217,7 +217,7 @@ subprojects {
     }
 
     afterEvaluate {
-        if (shouldDeploy(this)) {
+        if (shouldDeploy(this) && !(isDailyBuild && name == "xodus-tools")) {
             configure<PublishingExtension> {
                 repositories {
                     maven {
