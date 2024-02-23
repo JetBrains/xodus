@@ -65,6 +65,8 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         return cacheAdapter.count().toInt()
     }
 
+    fun hitRate() = stats.hitRate
+
     fun clear() {
         cacheAdapter.clear()
         deferredIterablesCache = ConcurrentObjectCache(config.entityIterableDeferredCacheSize)
