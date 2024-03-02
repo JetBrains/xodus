@@ -51,22 +51,42 @@ dependencyResolutionManagement {
             library("slf4j-api", "org.slf4j", "slf4j-api").versionRef("slf4j")
             library("slf4j-simple", "org.slf4j", "slf4j-simple").versionRef("slf4j")
 
-            library("log4j2-slf4j", "org.apache.logging.log4j", "log4j-slf4j2-impl").versionRef("log4j")
+            library(
+                "log4j2-slf4j",
+                "org.apache.logging.log4j",
+                "log4j-slf4j2-impl"
+            ).versionRef("log4j")
             library("log4j-api", "org.apache.logging.log4j", "log4j-api").versionRef("log4j")
             library("log4j-core", "org.apache.logging.log4j", "log4j-core").versionRef("log4j")
 
-            library("jetbrains-annotations", "org.jetbrains", "annotations").versionRef("jetbrains-annotations")
+            library(
+                "jetbrains-annotations",
+                "org.jetbrains",
+                "annotations"
+            ).versionRef("jetbrains-annotations")
 
             library("jcTools-core", "org.jctools", "jctools-core").versionRef("jcTools")
 
             library("junit", "junit", "junit").versionRef("junit")
 
-            library("commons-compress", "org.apache.commons", "commons-compress").versionRef("commons-compress")
+            library(
+                "commons-compress",
+                "org.apache.commons",
+                "commons-compress"
+            ).versionRef("commons-compress")
             library("commons-net", "commons-net", "commons-net").versionRef("commons-net")
-            library("commons-lang", "org.apache.commons", "commons-lang3").versionRef("commons-lang")
+            library(
+                "commons-lang",
+                "org.apache.commons",
+                "commons-lang3"
+            ).versionRef("commons-lang")
 
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").versionRef("kotlin")
-            library("kotlin-logging", "io.github.microutils", "kotlin-logging").versionRef("kotlin-logging")
+            library(
+                "kotlin-logging",
+                "io.github.microutils",
+                "kotlin-logging"
+            ).versionRef("kotlin-logging")
 
             library("commons-io", "commons-io", "commons-io").versionRef("commons-io")
             library("lz4", "org.lz4", "lz4-java").versionRef("lz4")
@@ -74,10 +94,22 @@ dependencyResolutionManagement {
             library("bouncyCastle", "org.bouncycastle", "bcprov-jdk15on").versionRef("bouncyCastle")
 
             library("lucene-core", "org.apache.lucene", "lucene-core").versionRef("lucene")
-            library("lucene-analyzers-common", "org.apache.lucene", "lucene-analyzers-common").versionRef("lucene")
+            library(
+                "lucene-analyzers-common",
+                "org.apache.lucene",
+                "lucene-analyzers-common"
+            ).versionRef("lucene")
             library("lucene-queries", "org.apache.lucene", "lucene-queries").versionRef("lucene")
-            library("lucene-queryparser", "org.apache.lucene", "lucene-queryparser").versionRef("lucene")
-            library("lucene-test-framework", "org.apache.lucene", "lucene-test-framework").versionRef("lucene")
+            library(
+                "lucene-queryparser",
+                "org.apache.lucene",
+                "lucene-queryparser"
+            ).versionRef("lucene")
+            library(
+                "lucene-test-framework",
+                "org.apache.lucene",
+                "lucene-test-framework"
+            ).versionRef("lucene")
 
             library(
                 "commons-rng-simple", "org.apache.commons",
@@ -171,11 +203,3 @@ project(":environment-crash-tests").name = "xodus-environment-crash-tests"
 
 include("lucene-directory-v2")
 project(":lucene-directory-v2").name = "xodus-lucene-directory-v2"
-
-include("vectoriadb-index")
-project(":vectoriadb-index").name = "vectoriadb-index"
-
-include("vectoriadb-server")
-include("vectoriadb-interface")
-include("vectoriadb-java-client")
-include("vectoriadb-bench")

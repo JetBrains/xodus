@@ -3,6 +3,7 @@ dependencies {
     implementation(project(":xodus-utils"))
     implementation(project(":xodus-environment"))
     implementation(project(":xodus-compress"))
+    implementation("com.orientechnologies:orientdb-core:4.0.0-SNAPSHOT")
     implementation(libs.commons.io)
     testImplementation("io.github.classgraph:classgraph:4.8.90")
     testImplementation(project(":xodus-utils", "testArtifacts"))

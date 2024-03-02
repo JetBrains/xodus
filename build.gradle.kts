@@ -65,6 +65,7 @@ allprojects {
     repositories {
         maven { url = uri("https://cache-redirector.jetbrains.com/repo1.maven.org/maven2") }
         maven { url = uri("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven") }
+        maven { url = uri("https://packages.jetbrains.team/maven/p/xodus/orientdb-daily") }
     }
 }
 
@@ -121,8 +122,14 @@ subprojects {
 
     if (name !in listOf("benchmarks", "compress", "crypto", "openAPI", "samples", "utils")) {
         tasks.test {
-            systemProperty("exodus.cipherId", "jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider")
-            systemProperty("exodus.cipherKey", "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f")
+            systemProperty(
+                "exodus.cipherId",
+                "jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider"
+            )
+            systemProperty(
+                "exodus.cipherKey",
+                "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f"
+            )
             systemProperty("exodus.cipherBasicIV", "314159262718281828")
             systemProperty("exodus.useVersion1Format", "false")
             systemProperty("exodus.entityStore.useIntForLocalId", "true")
