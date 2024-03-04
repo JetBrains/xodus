@@ -175,7 +175,7 @@ public class StressTests extends EntityStoreTestBase {
 
         asyncProcessor.waitForJobs(5);
 
-        assertTrue(store.getEntityIterableCache().count() <= store.getConfig().getEntityIterableCacheSize());
+        assertTrue(store.getEntityIterableCache().count() <= store.getConfig().getEntityIterableCacheWeight());
     }
 
     private void warmUp(final PersistentEntityStoreImpl store, final Entity[] comments) {

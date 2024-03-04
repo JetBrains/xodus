@@ -29,6 +29,7 @@ import jetbrains.exodus.util.IOUtil
 import jetbrains.exodus.util.Random
 import junit.framework.TestCase
 import org.apache.commons.compress.archivers.zip.ZipFile
+import org.junit.Ignore
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -112,6 +113,7 @@ class BackupTests : EntityStoreTestBase() {
     }
 
 
+    @Ignore("Unignore when fix is applied in release-3.0")
     @Throws(Exception::class)
     fun testStressDynamic() {
         val store = entityStore

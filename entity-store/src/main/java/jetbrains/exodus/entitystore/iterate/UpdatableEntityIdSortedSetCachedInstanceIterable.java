@@ -134,6 +134,11 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     }
 
     @Override
+    public long getRoughSize() {
+        return size();
+    }
+
+    @Override
     protected boolean containsImpl(@NotNull EntityId entityId) {
         final EntityIdSet ids = idSet;
         if (ids != null) {

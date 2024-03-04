@@ -167,6 +167,11 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public long getEntityIterableCacheWeight() {
+        return config.getEntityIterableCacheWeight();
+    }
+
+    @Override
     public int getEntityIterableCacheCountsCacheSize() {
         return config.getEntityIterableCacheCountsCacheSize();
     }
@@ -224,16 +229,6 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     @Override
     public void setEntityIterableCacheDeferredDelay(int deferredDelay) {
         config.setEntityIterableCacheDeferredDelay(deferredDelay);
-    }
-
-    @Override
-    public int getEntityIterableCacheMaxSizeOfDirectValue() {
-        return config.getEntityIterableCacheMaxSizeOfDirectValue();
-    }
-
-    @Override
-    public void setEntityIterableCacheMaxSizeOfDirectValue(int maxSizeOfDirectValue) {
-        config.setEntityIterableCacheMaxSizeOfDirectValue(maxSizeOfDirectValue);
     }
 
     @Override

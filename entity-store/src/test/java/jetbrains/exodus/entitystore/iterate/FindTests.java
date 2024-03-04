@@ -247,6 +247,7 @@ public class FindTests extends EntityStoreTestBase {
             txn.flush();
             Assert.assertEquals("Iteration " + i, (long) (i + 1), txn.getAll("Issue").size());
         }
+        reportInLogEntityIterableCacheStats();
     }
 
     public void testCreateFindByPropValue() {
@@ -549,6 +550,7 @@ public class FindTests extends EntityStoreTestBase {
         getEntityStore().getConfig().setCachingDisabled(false);
         testFindWithPropSorted();
         final PersistentStoreTransaction txn = getStoreTransactionSafe();
+        getEntityStore().getEntityIterableCache().getProcessor().waitForJobs(5);
         Assert.assertTrue(((EntityIteratorBase) txn.findWithPropSortedByValue("Issue", "description").iterator()).getIterable().isCachedInstance());
     }
 

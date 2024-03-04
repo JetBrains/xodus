@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.entitystore
 
+import jetbrains.exodus.util.MathUtil
+
 class EntityIterableCacheStatistics {
 
     var totalJobsEnqueued = 0L
@@ -37,6 +39,15 @@ class EntityIterableCacheStatistics {
         private set
     var totalCountMisses = 0L
         private set
+
+    val hitRate: Float get() = rate(totalHits, totalMisses)
+
+    val countHitRate: Float get() = rate(totalCountHits, totalCountMisses)
+
+    private fun rate(hits: Long, misses: Long): Float {
+        val attempts = MathUtil.saturatedAdd(hits, misses)
+        return if (attempts == 0L) 1.0f else hits.toFloat() / attempts
+    }
 
     fun incTotalJobsEnqueued() = ++totalJobsEnqueued
 

@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 @SuppressWarnings({"unused", "FieldCanBeLocal"})
 public class BackupMetadata extends StartupMetadata {
     public static final String BACKUP_METADATA_FILE_NAME = "backup-metadata";
+    public static final String START_BACKUP_METADATA_FILE_NAME = "start_backup-metadata";
 
     static final int LAST_FILE_ADDRESS = StartupMetadata.FILE_SIZE;
     static final int LAST_FILE_OFFSET = LAST_FILE_ADDRESS + Long.BYTES;

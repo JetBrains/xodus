@@ -63,9 +63,7 @@ nexusStaging {
 
 allprojects {
     repositories {
-        maven { url = uri("https://cache-redirector.jetbrains.com/repo1.maven.org/maven2") }
-        maven { url = uri("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven") }
-        maven { url = uri("https://packages.jetbrains.team/maven/p/xodus/orientdb-daily") }
+        mavenCentral()
     }
 }
 
@@ -122,14 +120,8 @@ subprojects {
 
     if (name !in listOf("benchmarks", "compress", "crypto", "openAPI", "samples", "utils")) {
         tasks.test {
-            systemProperty(
-                "exodus.cipherId",
-                "jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider"
-            )
-            systemProperty(
-                "exodus.cipherKey",
-                "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f"
-            )
+            systemProperty("exodus.cipherId", "jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider")
+            systemProperty("exodus.cipherKey", "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f")
             systemProperty("exodus.cipherBasicIV", "314159262718281828")
             systemProperty("exodus.useVersion1Format", "false")
             systemProperty("exodus.entityStore.useIntForLocalId", "true")
@@ -171,7 +163,7 @@ subprojects {
         options.quiet()
         (options as CoreJavadocOptions).addStringOption("Xdoclint:none", "-quiet")
         (options as CoreJavadocOptions).addBooleanOption("-enable-preview", true)
-        (options as CoreJavadocOptions).addStringOption("source", 21.toString())
+        (options as CoreJavadocOptions).addStringOption("source", 17.toString())
     }
 
 
@@ -199,7 +191,7 @@ subprojects {
         withSourcesJar()
 
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(21))
+            languageVersion.set(JavaLanguageVersion.of(17))
         }
     }
 
@@ -269,6 +261,9 @@ subprojects {
                                     organizationUrl.set("https://www.jetbrains.com")
                                 }
                             }
+                        }
+                        if (this.name == "xodus-tools") {
+                            artifact(tasks.getByName("shadowJar"))
                         }
                     }
                 }

@@ -15,38 +15,64 @@
  */
 package jetbrains.exodus.entitystore
 
-import jetbrains.exodus.core.dataStructures.hash.HashMap
-import jetbrains.exodus.core.dataStructures.hash.ObjectProcedure
-import jetbrains.exodus.core.dataStructures.persistent.EvictListener
-import jetbrains.exodus.core.dataStructures.persistent.PersistentObjectCache
-import jetbrains.exodus.core.execution.SharedTimer.ExpirablePeriodicTask
+import jetbrains.exodus.core.cache.persistent.*
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable
-import java.lang.ref.SoftReference
+import mu.KLogging
+import java.time.Duration
 
-internal open class EntityIterableCacheAdapter
-@JvmOverloads constructor(internal val config: PersistentEntityStoreConfig,
-                          internal val cache: NonAdjustablePersistentObjectCache<EntityIterableHandle, CacheItem> = NonAdjustablePersistentObjectCache(config.entityIterableCacheSize),
-                          internal val stickyObjects: HashMap<EntityIterableHandle, Updatable> = HashMap()) {
+internal open class EntityIterableCacheAdapter(
+    val config: PersistentEntityStoreConfig,
+    val cache: PersistentCache<EntityIterableHandle, CachedInstanceIterable>,
+    val stickyObjects: HashMap<EntityIterableHandle, Updatable>
+) {
 
-    fun tryKey(key: EntityIterableHandle): CachedInstanceIterable? {
+    companion object : KLogging() {
+
+        fun create(config: PersistentEntityStoreConfig): EntityIterableCacheAdapter {
+            val cacheConfig = toCaffeineCacheConfig(config)
+            val index = EntityIterableCacheReverseIndex()
+            val cache = CaffeinePersistentCache.create<EntityIterableHandle, CachedInstanceIterable>(cacheConfig, index)
+
+            return EntityIterableCacheAdapter(config, cache, HashMap())
+        }
+
+        private fun toCaffeineCacheConfig(config: PersistentEntityStoreConfig): CaffeineCacheConfig<CachedInstanceIterable> {
+            val sizeEviction = if (config.entityIterableCacheSize > 0) {
+                val maxSize = config.entityIterableCacheSize.toLong()
+                logger.info("Using sized eviction for entity iterable cache, maxSize = $maxSize")
+                SizedEviction<CachedInstanceIterable>(config.entityIterableCacheSize.toLong())
+            } else {
+                val maxWeight = config.entityIterableCacheWeight
+                logger.info("Using weighted eviction for entity iterable cache, maxWeight = $maxWeight")
+                WeightedEviction(config.entityIterableCacheWeight) { it.roughSize.toInt() }
+            }
+
+            val expireAfterAccess = if (config.entityIterableCacheExpireAfterAccess > 0) {
+                Duration.ofSeconds(config.entityIterableCacheExpireAfterAccess.toLong())
+            } else {
+                null
+            }
+
+            return CaffeineCacheConfig(
+                sizeEviction = sizeEviction,
+                expireAfterAccess = expireAfterAccess,
+                useSoftValues = config.entityIterableCacheSoftValues,
+            )
+        }
+    }
+
+    open fun getObject(key: EntityIterableHandle): CachedInstanceIterable? {
         if (key.isSticky) {
             return getStickyObject(key) as CachedInstanceIterable
         }
-        return getStickyObjectUnsafe(key) as CachedInstanceIterable? ?: parseCachedObject(key, cache.tryKey(key))
+        return getStickyObjectUnsafe(key) as CachedInstanceIterable? ?: cache.get(key)
     }
 
-    fun getObject(key: EntityIterableHandle): CachedInstanceIterable? {
-        if (key.isSticky) {
-            return getStickyObject(key) as CachedInstanceIterable
-        }
-        return getStickyObjectUnsafe(key) as CachedInstanceIterable? ?: parseCachedObject(key, cache.getObject(key))
-    }
-
-    fun getUpdatable(key: EntityIterableHandle): Updatable? {
+    open fun getUpdatable(key: EntityIterableHandle): Updatable? {
         if (key.isSticky) {
             return getStickyObject(key)
         }
-        return getStickyObjectUnsafe(key) ?: parseCachedObject(key, cache.getObject(key)) as Updatable?
+        return getStickyObjectUnsafe(key) ?: cache.get(key) as Updatable?
     }
 
     open fun cacheObject(key: EntityIterableHandle, it: CachedInstanceIterable) {
@@ -54,17 +80,14 @@ internal open class EntityIterableCacheAdapter
         if (it is Updatable && stickyObjects.containsKey(key)) {
             stickyObjects[key] = it
         } else {
-            cache.cacheObject(key, CacheItem(it, config.entityIterableCacheMaxSizeOfDirectValue))
+            cache.put(key, it)
         }
     }
 
-    fun forEachKey(procedure: ObjectProcedure<EntityIterableHandle>) = cache.forEachKey(procedure)
-
     open fun remove(key: EntityIterableHandle) {
+        check(!key.isSticky) { "Cannot remove sticky object" }
         cache.remove(key)
     }
-
-    fun hitRate() = cache.hitRate()
 
     fun count() = cache.count()
 
@@ -72,82 +95,27 @@ internal open class EntityIterableCacheAdapter
 
     open fun clear() = cache.clear()
 
-    val isSparse: Boolean get() = cache.count() < cache.size() / 2
+    fun registerClient(): PersistentCacheClient {
+        return cache.registerClient()
+    }
 
-    val clone: EntityIterableCacheAdapterMutable get() = EntityIterableCacheAdapterMutable.create(this)
+    fun release() {
+        cache.release()
+    }
 
-    fun adjustHitRate() = cache.adjustHitRate()
+    val halfFull: Boolean get() = cache.count() > cache.size() / 2
 
-    fun getStickyObjectUnsafe(handle: EntityIterableHandle): Updatable? = stickyObjects[handle]
+    fun cloneToMutable(): EntityIterableCacheAdapterMutable {
+        return EntityIterableCacheAdapterMutable.cloneFrom(this)
+    }
+
+    fun getStickyObjectUnsafe(handle: EntityIterableHandle): Updatable? {
+        return stickyObjects[handle]
+    }
 
     fun getStickyObject(handle: EntityIterableHandle): Updatable {
         return getStickyObjectUnsafe(handle) ?: throw IllegalStateException(
             "Sticky object not found, handle=${EntityIterableCache.toString(config, handle)}"
         )
     }
-
-    private fun parseCachedObject(key: EntityIterableHandle, item: CacheItem?): CachedInstanceIterable? {
-        return item?.let {
-            var cached = it.cached
-            if (cached == null) {
-                cached = it.ref?.get()
-                if (cached == null) {
-                    cache.remove(key)
-                }
-            }
-            return cached
-        }
-    }
-
-    internal class CacheItem(it: CachedInstanceIterable, maxSizeOfDirectValue: Int) {
-
-        var cached: CachedInstanceIterable? = null
-        var ref: SoftReference<CachedInstanceIterable>? = null
-
-        init {
-            if (it.isUpdatable || it.size() <= maxSizeOfDirectValue) {
-                cached = it
-                ref = null
-            } else {
-                cached = null
-                ref = SoftReference(it)
-            }
-        }
-    }
-
-    /*
-    NonAdjustablePersistentObjectCache doesn't adjust itself in order to avoid as many cache adjusters
-    as many versions of the cache (as a persistent data structure) can be.
-     */
-    internal class NonAdjustablePersistentObjectCache<K, V> : PersistentObjectCache<K, V> {
-
-        constructor(size: Int) : super(size)
-        constructor(source: NonAdjustablePersistentObjectCache<K, V>, listener: EvictListener<K, V>?) : super(
-            source,
-            listener
-        )
-
-        override fun getClone(listener: EvictListener<K, V>?): NonAdjustablePersistentObjectCache<K, V> {
-            return NonAdjustablePersistentObjectCache(this, listener)
-        }
-
-        fun endWrite(): NonAdjustablePersistentObjectCache<K, V> {
-            return NonAdjustablePersistentObjectCache(this, null)
-        }
-
-        override fun getCacheAdjuster(): ExpirablePeriodicTask? = null
-    }
-
-    companion object {
-
-        fun getCachedValue(item: CacheItem): CachedInstanceIterable? {
-            var cached = item.cached
-            if (cached == null) {
-                cached = item.ref?.get()
-            }
-            return cached
-        }
-    }
-
 }
-

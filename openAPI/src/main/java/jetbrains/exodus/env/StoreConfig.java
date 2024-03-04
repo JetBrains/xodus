@@ -83,7 +83,7 @@ public enum StoreConfig {
 
     /**
      * Returns {@code StoreConfig} value corresponding to the specified {@linkplain Store} attributes.
-     * <
+     *
      * <table border=1>
      * <tr><td/><th>With duplicates</th><th>Without duplicates</th></tr>
      * <tr><th>With key prefixing</th><td>{@link #WITH_DUPLICATES_WITH_PREFIXING}</td><td>{@link #WITH_DUPLICATES_WITH_PREFIXING}</td></tr>

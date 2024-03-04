@@ -71,6 +71,8 @@ public interface EntityStoreConfigMBean {
 
     int getEntityIterableCacheSize();
 
+    long getEntityIterableCacheWeight();
+
     int getEntityIterableCacheCountsCacheSize();
 
     long getEntityIterableCacheCountsLifeTime();
@@ -94,10 +96,6 @@ public interface EntityStoreConfigMBean {
     int getEntityIterableCacheDeferredDelay();
 
     void setEntityIterableCacheDeferredDelay(int deferredDelay);
-
-    int getEntityIterableCacheMaxSizeOfDirectValue();
-
-    void setEntityIterableCacheMaxSizeOfDirectValue(int maxSizeOfDirectValue);
 
     boolean getEntityIterableCacheUseHumanReadable();
 

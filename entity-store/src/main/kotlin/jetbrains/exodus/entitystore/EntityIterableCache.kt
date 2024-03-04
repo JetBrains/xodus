@@ -16,48 +16,60 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.ExodusException
-import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.core.dataStructures.Priority
+import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.core.execution.Job
-import jetbrains.exodus.core.execution.SharedTimer.ExpirablePeriodicTask
-import jetbrains.exodus.core.execution.SharedTimer.registerPeriodicTask
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException
 import mu.KLogging
 import java.lang.Long.max
-import java.lang.ref.WeakReference
-
-typealias ConcurrentCache = ConcurrentObjectCache<Any, Long>
 
 class EntityIterableCache internal constructor(private val store: PersistentEntityStoreImpl) {
 
+    companion object : KLogging() {
+
+        fun toString(config: PersistentEntityStoreConfig, handle: EntityIterableHandle): String {
+            return if (config.entityIterableCacheUseHumanReadable) {
+                EntityIterableBase.getHumanReadablePresentation(handle)
+            } else {
+                handle.toString()
+            }
+        }
+    }
+
     private val config = store.config
-    private var cacheAdapter = EntityIterableCacheAdapter(config)
-    val stats = EntityIterableCacheStatistics()
-    private var deferredIterablesCache = ConcurrentCache(config.entityIterableCacheSize)
+
+    private var deferredIterablesCache =
+        ConcurrentObjectCache<Any, Long>(config.entityIterableDeferredCacheSize)
+
     private var iterableCountsCache =
         ConcurrentObjectCache<Any, Pair<Long, Long>>(config.entityIterableCacheCountsCacheSize)
-    private val heavyIterablesCache = ConcurrentCache(config.entityIterableCacheHeavyIterablesCacheSize)
+
+    private val heavyIterablesCache =
+        ConcurrentObjectCache<Any, Long>(config.entityIterableCacheHeavyIterablesCacheSize)
+
+    private var cacheAdapter = EntityIterableCacheAdapter.create(config)
+
+    val stats = EntityIterableCacheStatistics()
     val processor = EntityStoreSharedAsyncProcessor(config.entityIterableCacheThreadCount).apply { start() }
+    val isDispatcherThread: Boolean get() = processor.isDispatcherThread
 
     // the value is updated by PersistentEntityStoreSettingsListener
     var cachingDisabled = config.isCachingDisabled
 
-    init {
-        registerPeriodicTask(CacheHitRateAdjuster(this))
+    fun getCacheAdapter(): Any {
+        return cacheAdapter
     }
 
-    fun getCacheAdapter(): Any = cacheAdapter
+    fun count(): Int {
+        return cacheAdapter.count().toInt()
+    }
 
-    fun hitRate() = cacheAdapter.hitRate()
-
-    fun countsCacheHitRate() = iterableCountsCache.hitRate()
-
-    fun count() = cacheAdapter.count()
+    fun hitRate() = stats.hitRate
 
     fun clear() {
         cacheAdapter.clear()
-        deferredIterablesCache = ConcurrentCache(config.entityIterableCacheSize)
+        deferredIterablesCache = ConcurrentObjectCache(config.entityIterableDeferredCacheSize)
         iterableCountsCache = ConcurrentObjectCache(config.entityIterableCacheCountsCacheSize)
     }
 
@@ -73,7 +85,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         val txn = it.transaction
         val localCache = txn.localCache
         txn.localCacheAttempt()
-        val cached: EntityIterableBase? = localCache.tryKey(handle)
+        val cached: EntityIterableBase? = localCache.getObject(handle)
         if (cached != null) {
             if (!cached.handle.isExpired) {
                 txn.localCacheHit()
@@ -88,7 +100,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         }
 
         // if cache is enough full, then cache iterables after they live some time in deferred cache
-        if (!localCache.isSparse) {
+        if (localCache.halfFull) {
             val currentMillis = System.currentTimeMillis()
             val handleIdentity = handle.identity
             val whenCached = deferredIterablesCache.tryKey(handleIdentity)
@@ -116,7 +128,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
             // the greater is count, the longer it can live in the cache
             if (System.currentTimeMillis() - time <= max(config.entityIterableCacheCountsLifeTime, count)) {
                 stats.incTotalCountHits()
-                return count;
+                return count
             }
             // count is expired
             iterableCountsCache.remove(identity)
@@ -140,8 +152,6 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     fun setCachedCount(handle: EntityIterableHandle, count: Long) {
         iterableCountsCache.cacheObject(handle.identity, count to System.currentTimeMillis())
     }
-
-    val isDispatcherThread: Boolean get() = processor.isDispatcherThread
 
     fun compareAndSetCacheAdapter(old: Any, new: Any): Boolean {
         if (cacheAdapter === old) {
@@ -224,7 +234,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                             }
                         }
                     }
-                } catch (rte: ReadonlyTransactionException) {
+                } catch (_: ReadonlyTransactionException) {
                     // work around XD-626
                     val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
                     logger.error("$action failed with ReadonlyTransactionException. Re-queueing...")
@@ -248,18 +258,6 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
     private enum class TooLongEntityIterableInstantiationReason(val message: String) {
         CACHE_ADAPTER_OBSOLETE("cache adapter is obsolete"), JOB_OVERDUE("caching job is overdue");
-    }
-
-    private class CacheHitRateAdjuster(cache: EntityIterableCache) : ExpirablePeriodicTask {
-
-        private val cacheRef = WeakReference(cache)
-
-        override val isExpired: Boolean get() = cacheRef.get() == null
-
-        override fun run() {
-            val cache = cacheRef.get()
-            cache?.cacheAdapter?.adjustHitRate()
-        }
     }
 
     private inner class CachingCancellingPolicy(val isConsistent: Boolean) : QueryCancellingPolicy {
@@ -290,16 +288,6 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 TooLongEntityIterableInstantiationReason.JOB_OVERDUE
             }
             throw TooLongEntityIterableInstantiationException(reason)
-        }
-    }
-
-    companion object : KLogging() {
-
-        fun toString(config: PersistentEntityStoreConfig, handle: EntityIterableHandle): String {
-            return if (config.entityIterableCacheUseHumanReadable)
-                EntityIterableBase.getHumanReadablePresentation(handle)
-            else
-                handle.toString()
         }
     }
 }

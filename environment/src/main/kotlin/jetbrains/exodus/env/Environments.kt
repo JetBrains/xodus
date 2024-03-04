@@ -44,7 +44,8 @@ object Environments : KLogging() {
     fun newInstance(dir: String): Environment = newInstance(dir, EnvironmentConfig())
 
     @JvmStatic
-    fun newInstance(log: Log, ec: EnvironmentConfig): Environment = prepare { EnvironmentImpl(log, ec) }
+    fun newInstance(log: Log, ec: EnvironmentConfig): Environment =
+        prepare { EnvironmentImpl(log, ec) }
 
     @JvmStatic
     fun newInstance(dir: String, ec: EnvironmentConfig): Environment =
@@ -69,12 +70,17 @@ object Environments : KLogging() {
 
     @Suppress("unused")
     @JvmStatic
-    fun newContextualInstance(dir: String, subDir: String, ec: EnvironmentConfig): ContextualEnvironment =
+    fun newContextualInstance(
+        dir: String,
+        subDir: String,
+        ec: EnvironmentConfig
+    ): ContextualEnvironment =
         prepare { ContextualEnvironmentImpl(newLogInstance(File(dir, subDir), ec), ec) }
 
     @Suppress("unused")
     @JvmStatic
-    fun newContextualInstance(dir: String): ContextualEnvironment = newContextualInstance(dir, EnvironmentConfig())
+    fun newContextualInstance(dir: String): ContextualEnvironment =
+        newContextualInstance(dir, EnvironmentConfig())
 
     @JvmStatic
     fun newContextualInstance(dir: String, ec: EnvironmentConfig): ContextualEnvironment =
@@ -82,7 +88,8 @@ object Environments : KLogging() {
 
     @Suppress("unused")
     @JvmStatic
-    fun newContextualInstance(dir: File): ContextualEnvironment = newContextualInstance(dir, EnvironmentConfig())
+    fun newContextualInstance(dir: File): ContextualEnvironment =
+        newContextualInstance(dir, EnvironmentConfig())
 
     @JvmStatic
     fun newContextualInstance(dir: File, ec: EnvironmentConfig): ContextualEnvironment =
@@ -93,7 +100,8 @@ object Environments : KLogging() {
         prepare { ContextualEnvironmentImpl(newLogInstance(config, ec), ec) }
 
     @JvmStatic
-    fun newLogInstance(dir: File, ec: EnvironmentConfig): Log = newLogInstance(LogConfig().setLocation(dir.path), ec)
+    fun newLogInstance(dir: File, ec: EnvironmentConfig): Log =
+        newLogInstance(LogConfig().setLocation(dir.path), ec)
 
     @JvmStatic
     fun newLogInstance(config: LogConfig, ec: EnvironmentConfig): Log {
@@ -135,17 +143,38 @@ object Environments : KLogging() {
     @JvmStatic
     fun newLogInstance(config: LogConfig): Log = Log(
         config.also
-        { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) }, EnvironmentImpl.CURRENT_FORMAT_VERSION
+        { SharedOpenFilesCache.setSize(config.cacheOpenFilesCount) },
+        EnvironmentImpl.CURRENT_FORMAT_VERSION
     )
 
     private fun <T : EnvironmentImpl> prepare(envCreator: () -> T): T {
         var env = envCreator()
         val ec = env.environmentConfig
-        val needsToBeMigrated = !env.log.formatWithHashCodeIsUsed
 
+        if (env.environmentConfig.storesToRemoveBeforeCompaction != null) {
+            EnvironmentImpl.loggerInfo(
+                "Store(s) are(is) ${env.environmentConfig.storesToRemoveBeforeCompaction} " +
+                        "going to be removed from the database."
+            )
+
+
+            env.executeInTransaction { tx ->
+                val storesToRemove = env.environmentConfig.storesToRemoveBeforeCompaction.split(",")
+
+                for (storeToRemove in storesToRemove) {
+                    if (env.storeExists(storeToRemove, tx)) {
+                        env.removeStore(storeToRemove, tx)
+                        EnvironmentImpl.loggerInfo("$storeToRemove is removed from database")
+                    }
+                }
+            }
+        }
+
+        val needsToBeMigrated = !env.log.formatWithHashCodeIsUsed
         if (ec.logDataReaderWriterProvider == DataReaderWriterProvider.DEFAULT_READER_WRITER_PROVIDER &&
             (ec.envCompactOnOpen || ec.envCompactInSingleBatchOnOpen) && env.log.numberOfFiles > 1 || needsToBeMigrated
         ) {
+
             if (needsToBeMigrated) {
                 EnvironmentImpl.loggerInfo(
                     "Outdated binary format is used in environment ${env.log.location} " +
@@ -228,7 +257,9 @@ object Environments : KLogging() {
                     }
                 }
 
-                Files.deleteIfExists(Paths.get(tempDir.toURI()).resolve(LockingManager.LOCK_FILE_NAME))
+                Files.deleteIfExists(
+                    Paths.get(tempDir.toURI()).resolve(LockingManager.LOCK_FILE_NAME)
+                )
 
                 env = envCreator()
 

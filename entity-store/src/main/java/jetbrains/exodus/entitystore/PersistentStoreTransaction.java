@@ -21,6 +21,7 @@ import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.core.dataStructures.*;
+import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
@@ -103,7 +104,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         localCacheAttempts = localCacheHits = 0;
         switch (txnType) {
             case Regular:
-                txn = source.txn.getSnapshot(getRevertCachesBeginHook());
+                txn = source.txn.getSnapshot(getInitCachesBeginHook());
                 break;
             case Readonly:
                 txn = source.txn.getReadonlySnapshot();
@@ -121,7 +122,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCacheAttempts = localCacheHits = 0;
-        final Runnable beginHook = getRevertCachesBeginHook();
+        final Runnable beginHook = getInitCachesBeginHook();
         final Environment env = store.getEnvironment();
         switch (txnType) {
             case Regular:
@@ -182,7 +183,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (txn.commit()) {
             store.unregisterTransaction(this);
             flushNonTransactionalBlobs();
-            revertCaches();
+            flushCaches(true);
             return true;
         }
         revert();
@@ -216,7 +217,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     boolean doFlush() {
         if (txn.flush()) {
             flushNonTransactionalBlobs();
-            revertCaches(false); // do not clear props & links caches
+            flushCaches(false); // do not clear props & links caches
             return true;
         }
         revert();
@@ -228,9 +229,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         closeOpenedBlobStreams();
         txn.revert();
         revertCaches();
-
-        mutableCache = null;
-        mutatedInTxn = new ArrayList<>();
     }
 
     public PersistentStoreTransaction getSnapshot() {
@@ -620,8 +618,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         if (cache == null) {
             throw new IllegalStateException("Transaction wasn't mutated");
         }
-        // cache new mutated iterable instance not affecting HandlesDistribution
-        cache.cacheObjectNotAffectingHandleDistribution(handle, iterable);
+        cache.cacheObject(handle, iterable);
     }
 
     public void registerStickyObject(@NotNull final EntityIterableHandle handle, Updatable object) {
@@ -665,7 +662,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public CachedInstanceIterable getCachedInstance(@NotNull final EntityIterableBase sample) {
         final EntityIterableHandle handle = sample.getHandle();
         final EntityIterableCacheAdapter localCache = getLocalCache();
-        return localCache.tryKey(handle);
+        return localCache.getObject(handle);
     }
 
     @Nullable
@@ -929,27 +926,51 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         deferredBlobsToDelete.add(blobHandle);
     }
 
+    public void checkInvalidateBlobsFlag() {
+        checkInvalidateBlobsFlag = true;
+    }
+
     void closeCaches() {
         propsCache.close();
         linksCache.close();
         blobStringsCache.close();
     }
 
+    private PersistentCacheClient cacheClient = null;
+
+    private void initCaches() {
+        if (mutableCache != null) {
+            // Mutable cache might not be null in case of transaction being reverted
+            mutableCache.release();
+        }
+        resetCaches(false);
+        if (cacheClient == null) {
+            cacheClient = localCache.registerClient();
+        }
+    }
+
+    public void flushCaches(final boolean clearPropsAndLinksCache) {
+        resetCaches(clearPropsAndLinksCache);
+    }
+
     public void revertCaches() {
-        revertCaches(true);
+        if (mutableCache != null) {
+            mutableCache.release();
+        }
+        resetCaches(true);
     }
 
-    public void checkInvalidateBlobsFlag() {
-        checkInvalidateBlobsFlag = true;
-    }
-
-    private void revertCaches(final boolean clearPropsAndLinksCache) {
+    private void resetCaches(final boolean clearPropsAndLinksCache) {
         if (clearPropsAndLinksCache) {
             propsCache.clear();
             linksCache.clear();
             blobStringsCache.clear();
         }
 
+        if (cacheClient != null) {
+            cacheClient.unregister();
+            cacheClient = null;
+        }
         localCache = (EntityIterableCacheAdapter) store.getEntityIterableCache().getCacheAdapter();
         mutableCache = null;
         mutatedInTxn = null;
@@ -994,7 +1015,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         txn.setCommitHook(() -> {
             log.flushed();
-            final EntityIterableCacheAdapterMutable cache = PersistentStoreTransaction.this.mutableCache;
+            final EntityIterableCacheAdapterMutable cache = this.mutableCache;
             if (cache != null) { // mutableCache can be null if only blobs are modified
                 applyAtomicCaches(cache);
             }
@@ -1098,14 +1119,16 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private void applyAtomicCaches(@NotNull EntityIterableCacheAdapterMutable cache) {
+    private void applyAtomicCaches(@NotNull EntityIterableCacheAdapterMutable mutableCache) {
         final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
         for (final Updatable it : mutatedInTxn) {
             it.endUpdate(PersistentStoreTransaction.this);
         }
-        if (!entityIterableCache.compareAndSetCacheAdapter(localCache, cache.endWrite())) {
+        EntityIterableCacheAdapter oldCache = localCache;
+        if (!entityIterableCache.compareAndSetCacheAdapter(localCache, mutableCache.endWrite())) {
             throw new EntityStoreException("This exception should never be thrown");
         }
+        oldCache.release();
     }
 
     private void applyExclusiveTransactionCaches() {
@@ -1118,8 +1141,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    private Runnable getRevertCachesBeginHook() {
-        return this::revertCaches;
+    private Runnable getInitCachesBeginHook() {
+        return this::initCaches;
     }
 
     private void flushNonTransactionalBlobs() {
@@ -1147,7 +1170,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     private EntityIterableCacheAdapterMutable createMutableCache() {
-        final EntityIterableCacheAdapterMutable result = localCache.getClone();
+        final EntityIterableCacheAdapterMutable result = localCache.cloneToMutable();
         mutatedInTxn = new ArrayList<>();
         return result;
     }
