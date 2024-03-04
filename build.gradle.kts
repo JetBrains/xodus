@@ -64,6 +64,7 @@ nexusStaging {
 allprojects {
     repositories {
         mavenCentral()
+        maven { url = uri("https://packages.jetbrains.team/maven/p/xodus/orientdb-daily") }
     }
 }
 
