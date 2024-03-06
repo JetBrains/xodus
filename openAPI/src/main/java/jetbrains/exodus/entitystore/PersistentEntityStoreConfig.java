@@ -25,7 +25,6 @@ import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.system.JVMConstants;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.ref.SoftReference;
 import java.util.Map;
 
 /**
@@ -237,15 +236,11 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_SIZE = "exodus.entityStore.entityIterableCache.size";
 
     /**
-     * Defines the size of deferred cache of EntityIterableCache.
-     * <p>Mutable at runtime: no
-     */
-    public static final String ENTITY_ITERABLE_DEFERRED_CACHE_SIZE = "exodus.entityStore.entityIterableCache.deferred.size";
-
-    /**
      * Specifies the percentage (from 0 to 100) of heap memory used for entity iterable cache.
      * This value is used to calculate max cache weight.
      * The final formula for maxCacheWeight is: maxMemory * memoryPercentage / 100 / entityWeight.
+     *
+     * <p>Use in conjunction with {@linkplain #ENTITY_ITERABLE_CACHE_DEFERRED_SIZE}.
      * <p>Mutable at runtime: no
      *
      * @see #ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT
@@ -310,6 +305,14 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * <p>Mutable at runtime: yes
      */
     public static final String ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT = "exodus.entityStore.entityIterableCache.startCachingTimeout";
+
+    /**
+     * Defines the size of deferred cache of EntityIterableCache.
+     * Deferred cache is used to identify and cache only repeatable queries in oder to avoid unnecessary caching.
+     * Query is repeatable if it was executed not later than {@linkplain #ENTITY_ITERABLE_CACHE_DEFERRED_DELAY} milliseconds since the previous request.
+     * <p>Mutable at runtime: no
+     */
+    public static final String ENTITY_ITERABLE_CACHE_DEFERRED_SIZE = "exodus.entityStore.entityIterableCache.deferredSize";
 
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2000}.
@@ -418,7 +421,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      */
     public static final String USE_INT_FOR_LOCAL_ID = "exodus.entityStore.useIntForLocalId";
 
-    private static final int MAX_DEFAULT_ENTITY_ITERABLE_DEFERRED_CACHE_SIZE = 4096;
+    private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_DEFERRED_SIZE = 4096;
 
     public PersistentEntityStoreConfig() {
         this(ConfigurationStrategy.SYSTEM_PROPERTY);
@@ -450,7 +453,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
                 new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, -1), // weight-based cache used instead by default
-                new Pair(ENTITY_ITERABLE_DEFERRED_CACHE_SIZE, defaultEntityIterableDeferredCacheSize()),
                 new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 5), // 5% of max available memory
                 new Pair(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT, 12), // 12 bytes per entityId stored in cache
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
@@ -459,6 +461,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
                 new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
+                new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_SIZE, -1), // unset by default
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
                 new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, -1), // disabled by default
                 new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, true),
@@ -683,9 +686,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_SIZE);
     }
 
-    public int getEntityIterableDeferredCacheSize() {
-        return (Integer) getSetting(ENTITY_ITERABLE_DEFERRED_CACHE_SIZE);
-    }
 
     public int getEntityIterableCacheMemoryPercentage() {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE);
@@ -752,6 +752,19 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setEntityIterableCacheStartCachingTimeout(final long cachingTimeout) {
         return setSetting(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, cachingTimeout);
+    }
+
+    public int getEntityIterableCacheDeferredSize() {
+        int deferredCacheSize = (Integer) getSetting(ENTITY_ITERABLE_CACHE_DEFERRED_SIZE);
+        if (deferredCacheSize > 0) {
+            // If set explicitly, use the value
+            return deferredCacheSize;
+        } else if (getEntityIterableCacheSize() > 0) {
+            // If sized cache is used, deferred cache size is the same value
+            return getEntityIterableCacheSize();
+        } else {
+            return defaultEntityIterableDeferredCacheSize();
+        }
     }
 
     public int getEntityIterableCacheDeferredDelay() {
@@ -851,6 +864,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     private static int defaultEntityIterableDeferredCacheSize() {
-        return Math.max((int) (Runtime.getRuntime().maxMemory() >> 20), MAX_DEFAULT_ENTITY_ITERABLE_DEFERRED_CACHE_SIZE);
+        return Math.max((int) (Runtime.getRuntime().maxMemory() >> 20), MAX_DEFAULT_ENTITY_ITERABLE_CACHE_DEFERRED_SIZE);
     }
 }

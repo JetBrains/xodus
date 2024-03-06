@@ -47,5 +47,49 @@ class PersistentEntityStoreCacheConfigTest {
         // Then
         val maxMemory = Runtime.getRuntime().maxMemory()
         assertEquals(maxCacheWeight, (maxMemory * 50) / (100 * 8))
+
+        // Clean up
+        System.clearProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE)
+        System.clearProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT)
     }
+
+    @Test
+    fun `should set cache deferred size by default`() {
+        // Given
+        val config = PersistentEntityStoreConfig()
+
+        // Then
+        assertTrue(config.entityIterableCacheDeferredSize > 0)
+    }
+
+    @Test
+    fun `should return cache size params if set explicitly`() {
+        // Given
+        System.setProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_SIZE, "777")
+        val config = PersistentEntityStoreConfig()
+
+        // When
+        assertEquals(777, config.entityIterableCacheSize)
+        // Should be the same if not set explicitly
+        assertEquals(777, config.entityIterableCacheDeferredSize)
+
+        // Clean up
+        System.clearProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_SIZE)
+    }
+
+    @Test
+    fun `should set cache deferred explicitly`() {
+        // Given
+        System.setProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_SIZE, "777")
+        System.setProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_DEFERRED_SIZE, "888")
+        val config = PersistentEntityStoreConfig()
+
+        // Then
+        assertEquals(888, config.entityIterableCacheDeferredSize)
+
+        // Clean up
+        System.clearProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_SIZE)
+        System.clearProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_DEFERRED_SIZE)
+    }
+
 }

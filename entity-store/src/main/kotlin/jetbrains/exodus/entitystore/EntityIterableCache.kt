@@ -40,7 +40,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     private val config = store.config
 
     private var deferredIterablesCache =
-        ConcurrentObjectCache<Any, Long>(config.entityIterableDeferredCacheSize)
+        ConcurrentObjectCache<Any, Long>(config.entityIterableCacheDeferredSize)
 
     private var iterableCountsCache =
         ConcurrentObjectCache<Any, Pair<Long, Long>>(config.entityIterableCacheCountsCacheSize)
@@ -69,7 +69,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
     fun clear() {
         cacheAdapter.clear()
-        deferredIterablesCache = ConcurrentObjectCache(config.entityIterableDeferredCacheSize)
+        deferredIterablesCache = ConcurrentObjectCache(config.entityIterableCacheDeferredSize)
         iterableCountsCache = ConcurrentObjectCache(config.entityIterableCacheCountsCacheSize)
     }
 
