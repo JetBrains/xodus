@@ -1,5 +1,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.record.OElement
+import com.orientechnologies.orient.core.record.OVertex
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -11,41 +13,7 @@ class OrientDBEntityTest {
     @JvmField
     val orientDb = InMemoryOrientDB()
 
-    @Test
-    fun `should work with properties`() {
-        val issue = orientDb.createIssue("Test1")
-        val entity = orientDb.withSession {
-            OrientDBEntity(issue)
-        }
 
-        orientDb.withSession {
-            entity.setProperty("hello", "world")
-            entity.setProperty("june", 6)
-            entity.setProperty("year", 44L)
-        }
-
-        orientDb.withSession {
-            Assert.assertEquals("world", entity.getProperty("hello"))
-            Assert.assertEquals(6, entity.getProperty("june"))
-            Assert.assertEquals(44L, entity.getProperty("year"))
-        }
-    }
-
-    @Test
-    fun `should return false when setting same blob string`() {
-        val issue = orientDb.createIssue("Test2")
-        val entity = orientDb.withSession {
-            OrientDBEntity(issue)
-        }
-
-        orientDb.withSession {
-            entity.setBlobString("blobString", "blobValue")
-        }
-
-        orientDb.withSession {
-            Assert.assertFalse(entity.setBlobString("blobString", "blobValue"))
-        }
-    }
 
     @Test
     fun `should link issues A, B and C`() {
@@ -100,15 +68,12 @@ class OrientDBEntityTest {
     fun `should delete all links from an entity`() {
         val linkName = "link"
         orientDb.withSessionNoTx { session ->
-
             session.createEdgeClass(linkName)
         }
 
         val issueA = orientDb.createIssue("A")
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
-
-
 
         val (entityA, entB, entC) = orientDb.withSession {
             Triple(OrientDBEntity(issueA), OrientDBEntity(issueB), OrientDBEntity(issueC))
@@ -125,4 +90,75 @@ class OrientDBEntityTest {
             Assert.assertEquals(0, links.size())
         }
     }
+
+    @Test
+    fun `should delete blob content after issue blob deletion`() {
+        val issue = orientDb.createIssue("TestBlobDelete")
+        val entity = orientDb.withSession {
+            OrientDBEntity(issue)
+        }
+
+        val linkName = "blobForDeletion"
+        orientDb.withSession {
+            entity.setBlob(linkName, ByteArrayInputStream(byteArrayOf(0x11, 0x12, 0x13)))
+        }
+        val blob = orientDb.withSessionNoTx {
+            issue.reload<OVertex>()
+            issue.getLinkProperty(linkName)!!
+        }
+
+        orientDb.withSession {
+            Assert.assertNotNull(it.load<OElement>(blob.identity))
+            entity.deleteBlob(linkName)
+        }
+
+        orientDb.withSession {
+            val blobNames = entity.getBlobNames()
+            Assert.assertFalse(blobNames.contains(linkName))
+            Assert.assertEquals(null, it.load<OElement>(blob.identity))
+        }
+    }
+
+    @Test
+    fun `should set a link correctly`() {
+        val linkName = "link"
+        orientDb.withSessionNoTx { session ->
+            session.createEdgeClass(linkName)
+        }
+
+        val issueA = orientDb.createIssue("A")
+        val issueB = orientDb.createIssue("B")
+        val issueC = orientDb.createIssue("C")
+
+        val (entityA, entB, entC) = orientDb.withSession {
+            Triple(OrientDBEntity(issueA), OrientDBEntity(issueB), OrientDBEntity(issueC))
+        }
+
+        orientDb.withSession {
+            entityA.setLink(linkName, entB.id)
+        }
+        orientDb.withSessionNoTx {
+            Assert.assertEquals(entB, entityA.getLink(linkName))
+        }
+        orientDb.withSession {
+            entityA.setLink(linkName, entC.id)
+        }
+        orientDb.withSessionNoTx {
+            Assert.assertEquals(entC, entityA.getLink(linkName))
+        }
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
 }

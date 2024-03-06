@@ -19,6 +19,7 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
@@ -131,6 +132,7 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
         val record: OElement
         if (ref == null) {
             record = ODatabaseSession.getActiveSession().newElement(className)
+            vertex.setProperty(blobName, record)
         } else {
             record = ODatabaseSession.getActiveSession().getRecord(ref)
             if (record.hasProperty(DATA_PROPERTY_NAME)) {
@@ -146,6 +148,7 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
         val data = blob.use { blob.readAllBytes() }
         element.setProperty(DATA_PROPERTY_NAME, data)
         vertex.setProperty(blobSizeProperty(blobName), data.size)
+        element.save<OElement>()
         vertex.save<OVertex>()
     }
 
@@ -208,7 +211,8 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
             ?: throw IllegalArgumentException("Cannot link OrientDbEntity to ${target.javaClass.simpleName}")
         val targetVertex = target.vertex
         //optimization?
-        if (!hasLink(linkName, targetVertex)) {
+        val currentEdge = findLink(linkName, targetVertex)
+        if (currentEdge == null) {
             vertex.addEdge(targetVertex, linkName)
             vertex.save<OVertex>()
             return true
@@ -239,7 +243,8 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
             return false
         }
         if (currentValue != null) {
-            deleteLink(linkName, currentValue)
+            findLink(linkName, currentValue.vertex)?.delete()
+            currentValue.vertex.save<OVertex>()
         }
         if (target != null) {
             vertex.addEdge(target.vertex, linkName)
@@ -267,11 +272,13 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         reload()
         target as OrientDBEntity
-        val modified = hasLink(linkName, target.vertex)
-        vertex.deleteEdge(target.vertex, linkName)
-        target.vertex.save<OVertex>()
-        vertex.save<OVertex>()
-        return modified
+        val currentEdge = findLink(linkName, target.vertex)
+        return if (currentEdge != null) {
+            currentEdge.delete()
+            target.vertex.save<OVertex>()
+            vertex.save<OVertex>()
+            true
+        } else false
     }
 
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
@@ -295,8 +302,10 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
 
     override fun compareTo(other: Entity) = id.compareTo(other.id)
 
-    private fun hasLink(linkName: String, target: OVertex): Boolean {
-        return (vertex.getVertices(ODirection.OUT, linkName).find { it.identity == target.identity } != null)
+    private fun findLink(linkName: String, target: OVertex): OEdge? {
+        return vertex.getEdges(ODirection.OUT, linkName).find {
+            it.to.identity == target.identity
+        }
     }
 
     override fun equals(other: Any?): Boolean {
