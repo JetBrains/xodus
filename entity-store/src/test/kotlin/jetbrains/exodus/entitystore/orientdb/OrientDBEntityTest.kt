@@ -226,7 +226,29 @@ class OrientDBEntityTest {
             Assert.assertEquals(false, entity.setProperty("year", 44L))
         }
 
+        orientDb.withSessionNoTx {
+            Assert.assertEquals(listOf("hello", "name", "june", "year").sorted(), entity.propertyNames.sorted())
+        }
     }
+
+
+    @Test
+    fun `should get blob size`() {
+        val issue = orientDb.createIssue("BlobSizeTest")
+        val entity = orientDb.withSession {
+            OrientDBEntity(issue)
+        }
+        val blobName = "SampleBlob"
+        val blobData = byteArrayOf(0x01, 0x02, 0x03)
+        orientDb.withSession {
+            entity.setBlob(blobName, ByteArrayInputStream(blobData))
+        }
+        orientDb.withSession {
+            val size = entity.getBlobSize(blobName)
+            Assert.assertEquals(blobData.size.toLong(), size)
+        }
+    }
+
 
 
 }

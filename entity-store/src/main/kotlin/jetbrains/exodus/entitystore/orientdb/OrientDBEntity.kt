@@ -147,7 +147,7 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
         val element = createBlobElementWithNoContent(blobName, BINARY_BLOB_CLASS_NAME)
         val data = blob.use { blob.readAllBytes() }
         element.setProperty(DATA_PROPERTY_NAME, data)
-        vertex.setProperty(blobSizeProperty(blobName), data.size)
+        vertex.setProperty(blobSizeProperty(blobName), data.size.toLong())
         element.save<OElement>()
         vertex.save<OVertex>()
     }
@@ -175,7 +175,7 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
         if (update) {
             record = record ?: ODatabaseSession.getActiveSession().getRecord(ref) as OElement
             vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
-            vertex.setProperty(blobSizeProperty(blobName), blobString.length)
+            vertex.setProperty(blobSizeProperty(blobName), blobString.length.toLong())
             record.setProperty(DATA_PROPERTY_NAME, blobString)
             vertex.save<OVertex>()
         }
