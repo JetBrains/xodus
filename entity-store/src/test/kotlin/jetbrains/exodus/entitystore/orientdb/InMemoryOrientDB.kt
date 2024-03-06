@@ -17,6 +17,12 @@ class InMemoryOrientDB : ExternalResource() {
     override fun before() {
         db = OrientDB("memory", OrientDBConfig.defaultConfig())
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
+
+        withSessionNoTx { session ->
+            session.createVertexClass(IssueClass.NAME)
+            session.createClass(OrientDBEntity.STRING_BLOB_CLASS_NAME)
+            session.createClass(OrientDBEntity.BINARY_BLOB_CLASS_NAME)
+        }
     }
 
     override fun after() {
@@ -24,6 +30,18 @@ class InMemoryOrientDB : ExternalResource() {
     }
 
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
+        val session = db.open(dbName, username, password)
+        try {
+            session.begin()
+            val result = block(session)
+            session.commit()
+            return result
+        } finally {
+            session.close()
+        }
+    }
+
+    fun <R> withSessionNoTx(block: (ODatabaseSession) -> R): R {
         val session = db.open(dbName, username, password)
         try {
             return block(session)

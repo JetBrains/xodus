@@ -28,7 +28,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 
-class OrientDBEntity(private val vertex: OVertex) : Entity {
+class OrientDBEntity(private var vertex: OVertex) : Entity {
 
     companion object : KLogging() {
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
@@ -69,7 +69,7 @@ class OrientDBEntity(private val vertex: OVertex) : Entity {
 
         if (txid != tx.id) {
             txid = tx.id
-            vertex.reload<OVertex>()
+            vertex = session.load(vertex.identity)
         }
     }
 

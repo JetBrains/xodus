@@ -53,7 +53,7 @@ class OrientDBEntityTest {
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
         val linkName = "link"
-        orientDb.withSession { session->
+        orientDb.withSessionNoTx { session->
             session.createEdgeClass(linkName)
         }
 
@@ -98,13 +98,17 @@ class OrientDBEntityTest {
 
     @Test
     fun `should delete all links from an entity`() {
+        val linkName = "link"
+        orientDb.withSessionNoTx { session ->
+
+            session.createEdgeClass(linkName)
+        }
+
         val issueA = orientDb.createIssue("A")
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
-        val linkName = "link"
-        orientDb.withSession { session ->
-            session.createEdgeClass(linkName)
-        }
+
+
 
         val (entityA, entB, entC) = orientDb.withSession {
             Triple(OrientDBEntity(issueA), OrientDBEntity(issueB), OrientDBEntity(issueC))
