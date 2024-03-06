@@ -13,20 +13,18 @@ class OrientDBEntityTest {
     @JvmField
     val orientDb = InMemoryOrientDB()
 
-
-
     @Test
-    fun `should link issues A, B and C`() {
+    fun `multiple links should work`() {
         val issueA = orientDb.createIssue("A")
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
         val linkName = "link"
-        orientDb.withSessionNoTx { session->
+        orientDb.withSessionNoTx { session ->
             session.createEdgeClass(linkName)
         }
 
-        val (entityA,entityB,entityC) = orientDb.withSession {
-            Triple(OrientDBEntity(issueA),OrientDBEntity(issueB),OrientDBEntity(issueC))
+        val (entityA, entityB, entityC) = orientDb.withSession {
+            Triple(OrientDBEntity(issueA), OrientDBEntity(issueB), OrientDBEntity(issueC))
         }
 
         orientDb.withSession {
@@ -42,16 +40,16 @@ class OrientDBEntityTest {
     }
 
     @Test
-    fun `should add blobs to issue and get their names`() {
+    fun `add blob should be reflected in get blob names`() {
         val issue = orientDb.createIssue("TestBlobs")
         val entity = orientDb.withSession {
             OrientDBEntity(issue)
         }
 
         orientDb.withSession {
-            entity.setBlob("blob1",  ByteArrayInputStream(byteArrayOf(0x01, 0x02, 0x03)))
-            entity.setBlob("blob2",  ByteArrayInputStream(byteArrayOf(0x04, 0x05, 0x06)))
-            entity.setBlob("blob3",  ByteArrayInputStream(byteArrayOf(0x07, 0x08, 0x09)))
+            entity.setBlob("blob1", ByteArrayInputStream(byteArrayOf(0x01, 0x02, 0x03)))
+            entity.setBlob("blob2", ByteArrayInputStream(byteArrayOf(0x04, 0x05, 0x06)))
+            entity.setBlob("blob3", ByteArrayInputStream(byteArrayOf(0x07, 0x08, 0x09)))
             entity.setProperty("version", 99)
         }
 
@@ -65,7 +63,7 @@ class OrientDBEntityTest {
     }
 
     @Test
-    fun `should delete all links from an entity`() {
+    fun `should delete all links`() {
         val linkName = "link"
         orientDb.withSessionNoTx { session ->
             session.createEdgeClass(linkName)
@@ -92,7 +90,7 @@ class OrientDBEntityTest {
     }
 
     @Test
-    fun `should delete blob content after issue blob deletion`() {
+    fun `should delete element holding blob after blob deleted from entity`() {
         val issue = orientDb.createIssue("TestBlobDelete")
         val entity = orientDb.withSession {
             OrientDBEntity(issue)
@@ -120,7 +118,7 @@ class OrientDBEntityTest {
     }
 
     @Test
-    fun `should set a link correctly`() {
+    fun `should replace a link correctly`() {
         val linkName = "link"
         orientDb.withSessionNoTx { session ->
             session.createEdgeClass(linkName)
@@ -150,15 +148,85 @@ class OrientDBEntityTest {
     }
 
 
+    @Test
+    fun `should get property`() {
+        val issue = orientDb.createIssue("GetPropertyTest")
+        val entity = orientDb.withSession {
+            OrientDBEntity(issue)
+        }
+        val propertyName = "SampleProperty"
+        val propertyValue = "SampleValue"
+        orientDb.withSession {
+            entity.setProperty(propertyName, propertyValue)
+        }
+        orientDb.withSession {
+            val value = entity.getProperty(propertyName)
+            Assert.assertEquals(propertyValue, value)
+        }
+    }
+
+    @Test
+    fun `should delete property`() {
+        val issue = orientDb.createIssue("DeletePropertyTest")
+        val entity = orientDb.withSession {
+            OrientDBEntity(issue)
+        }
+        val propertyName = "SampleProperty"
+        val propertyValue = "SampleValue"
+        orientDb.withSession {
+            entity.setProperty(propertyName, propertyValue)
+        }
+        orientDb.withSession {
+            entity.deleteProperty(propertyName)
+            val value = entity.getProperty(propertyName)
+            Assert.assertNull(value)
+        }
+    }
 
 
+    @Test
+    fun `set the same string blob should return false`() {
+        val issue = orientDb.createIssue("GetPropertyTest")
+        val entity = orientDb.withSession {
+            OrientDBEntity(issue)
+        }
+        val propertyName = "SampleProperty"
+        val propertyValue = "SampleValue"
+        orientDb.withSession {
+            entity.setBlobString(propertyName, propertyValue)
+        }
+        orientDb.withSession {
+            Assert.assertEquals(false, entity.setBlobString(propertyName, propertyValue))
+        }
+    }
 
 
+    @Test
+    fun `should work with properties`() {
+        val issue = orientDb.createIssue("Test1")
+        val entity = orientDb.withSession {
+            OrientDBEntity(issue)
+        }
 
+        orientDb.withSession {
+            entity.setProperty("hello", "world")
+            entity.setProperty("june", 6)
+            entity.setProperty("year", 44L)
+        }
 
+        orientDb.withSessionNoTx {
+            Assert.assertEquals("world", entity.getProperty("hello"))
+            Assert.assertEquals(6, entity.getProperty("june"))
+            Assert.assertEquals(44L, entity.getProperty("year"))
+        }
 
+        orientDb.withSession {
+            Assert.assertEquals(false, entity.setProperty("hello", "world"))
+            Assert.assertEquals(false, entity.setProperty("june", 6))
+            Assert.assertEquals(false, entity.setProperty("year", 44L))
+        }
 
-
+    }
 
 
 }

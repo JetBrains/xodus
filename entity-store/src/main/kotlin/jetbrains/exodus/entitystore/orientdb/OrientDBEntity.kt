@@ -79,7 +79,7 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
         val oldProperty = vertex.getProperty<Comparable<*>>(propertyName)
         vertex.setProperty(propertyName, value)
         vertex.save<OVertex>()
-        return oldProperty?.equals(value) == true
+        return oldProperty?.equals(value) != true
     }
 
     override fun deleteProperty(propertyName: String): Boolean {
