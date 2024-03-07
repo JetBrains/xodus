@@ -64,4 +64,29 @@ class OQueryTest {
             assertThat(result.last().getProperty("name")).isEqualTo("issue3")
         }
     }
+
+    @Test
+    fun `should query with and`() {
+        // Given
+        orientDB.createIssue("issue1", "project1")
+        orientDB.createIssue("issue2", "project1")
+        orientDB.createIssue("issue3", "project2")
+
+        val model = mockk<ModelMetaData>(relaxed = true)
+        val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
+        every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
+        val engine = QueryEngine(model, store)
+
+        // When
+        orientDB.withSession {
+            val nameEqual = PropertyEqual("name", "issue2")
+            val projectEqual = PropertyEqual("project", "project1")
+            val result = engine.query("Issue", And(nameEqual, projectEqual)).instantiate()
+
+            // Then
+            assertThat(result.count()).isEqualTo(1)
+            assertThat(result.first().getProperty("name")).isEqualTo("issue2")
+            assertThat(result.first().getProperty("project")).isEqualTo("project1")
+        }
+    }
 }

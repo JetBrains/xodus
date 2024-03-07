@@ -2,36 +2,24 @@ package jetbrains.exodus.entitystore.orientdb
 
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityId
-import jetbrains.exodus.entitystore.EntityIterator
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase
+import jetbrains.exodus.entitystore.iterate.EntityIteratorBase
 
 
 class OEntityIterator(
-    private val iterator: Iterator<Entity>
-) : EntityIterator, Iterator<Entity> by iterator {
+    private val iterable: EntityIterableBase,
+    private val source: Iterator<Entity>
+) : EntityIteratorBase(iterable) {
 
-    override fun remove() {
-        throw UnsupportedOperationException()
+    override fun next(): Entity? {
+        return source.next()
     }
 
-    override fun skip(number: Int): Boolean {
-        for (i in 0 until number) {
-            if (!hasNext()) {
-                return false
-            }
-            next()
-        }
-        return true
+    override fun hasNextImpl(): Boolean {
+        return source.hasNext()
     }
 
-    override fun nextId(): EntityId? {
-        return next().id
-    }
-
-    override fun dispose(): Boolean {
-        return false
-    }
-
-    override fun shouldBeDisposed(): Boolean {
-        return false
+    override fun nextIdImpl(): EntityId? {
+        return next()?.id
     }
 }

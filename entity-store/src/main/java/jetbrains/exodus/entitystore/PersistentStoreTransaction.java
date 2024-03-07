@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore;
 
 import com.orientechnologies.orient.core.db.ODatabaseSession;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
-import com.orientechnologies.orient.core.record.OVertex;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
@@ -296,7 +295,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
         }
         if (id instanceof OEntityId) {
             var oid = ((OEntityId) id).asOIdentifiable();
-            return ODatabaseSessionsKt.getEntity(activeOSession(), oid);
+            return ODatabaseSessionsKt.getVertexEntity(activeOSession(), oid);
         }
         return new PersistentEntity(store, (PersistentEntityId) id);
     }
