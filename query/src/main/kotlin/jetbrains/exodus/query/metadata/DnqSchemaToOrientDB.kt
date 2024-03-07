@@ -35,7 +35,7 @@ class DnqSchemaToOrientDB(
         try {
             appendLine("applying the DNQ schema to OrientDB")
             val sortedEntities = dnqModel.entitiesMetaData.sortedTopologically()
-            appendLine("topologically sorted entities: ${sortedEntities.joinToString(", ") { it.type }}")
+
             appendLine("creating classes if absent:")
             withPadding {
                 // it is not necessary to process the entities in the topologically sorted order but why not to?
@@ -43,7 +43,8 @@ class DnqSchemaToOrientDB(
                     createVertexClassIfAbsent(dnqEntity)
                 }
             }
-            appendLine("creating properties and connections if absent:")
+
+            appendLine("creating simple properties if absent:")
             withPadding {
                 /*
                 * It is necessary to process entities in the topologically sorted order.
@@ -59,6 +60,36 @@ class DnqSchemaToOrientDB(
                     createPropertiesAndConnectionsIfAbsent(dnqEntity)
                 }
             }
+
+            // associations
+            /*appendLine("link properties:")
+            withPadding {
+                appendLine("aggregation child ends:")
+                withPadding {
+                    for (aggrChildEnd in dnqEntity.aggregationChildEnds) {
+                        appendLine(aggrChildEnd)
+                    }
+                }
+
+                appendLine("association ends:")
+                withPadding {
+                    for (associationEnd in dnqEntity.associationEndsMetaData) {
+                        appendLine(associationEnd.name)
+                        appendLine("incoming associations:")
+                        for ((k, v) in dnqEntity.getIncomingAssociations(associationEnd.oppositeEntityMetaData.modelMetaData)) {
+                            appendLine("$k: ${v.joinToString(", ")}")
+                        }
+                    }
+                }
+
+                for (propertyMetaData in dnqEntity.propertiesMetaData) {
+                    //appendLine(propertyMetaData.name)
+
+                    // use associations
+
+                    //oClass.applyLinkProperty(propertyMetaData)
+                }
+            }*/
 
             // initialize enums and singletons
 
@@ -83,8 +114,10 @@ class DnqSchemaToOrientDB(
 
     private fun createVertexClassIfAbsent(dnqEntity: EntityMetaData) {
         append(dnqEntity.type)
-        oSession.createVertexClassIfAbsent(dnqEntity.type)
+        val oClass = oSession.createVertexClassIfAbsent(dnqEntity.type)
+        oClass.applySuperClass(dnqEntity.superType)
         appendLine()
+
 
         /*
         * It is more efficient to create indices after the data migration.
@@ -122,28 +155,12 @@ class DnqSchemaToOrientDB(
         val oClass = oSession.getClass(dnqEntity.type)
 
         withPadding {
-            // superclass
-            oClass.applySuperClass(dnqEntity.superType)
-
-            // simple properties
-            appendLine("simple properties:")
-            withPadding {
-                for (propertyMetaData in dnqEntity.propertiesMetaData) {
-                    if (propertyMetaData is SimplePropertyMetaDataImpl) {
-                        val required = propertyMetaData.name in dnqEntity.requiredProperties
-                        // Xodus does not let a property be null/empty if it is in an index
-                        val requiredBecauseOfIndex = dnqEntity.ownIndexes.any { index -> index.fields.any { it.name == propertyMetaData.name } }
-                        oClass.applySimpleProperty(propertyMetaData, required || requiredBecauseOfIndex)
-                    }
-                }
-            }
-
-            // link properties
-            appendLine("link properties:")
-            withPadding {
-                for (propertyMetaData in dnqEntity.propertiesMetaData) {
-                    // use associations
-                    //oClass.applyLinkProperty(propertyMetaData)
+            for (propertyMetaData in dnqEntity.propertiesMetaData) {
+                if (propertyMetaData is SimplePropertyMetaDataImpl) {
+                    val required = propertyMetaData.name in dnqEntity.requiredProperties
+                    // Xodus does not let a property be null/empty if it is in an index
+                    val requiredBecauseOfIndex = dnqEntity.ownIndexes.any { index -> index.fields.any { it.name == propertyMetaData.name } }
+                    oClass.applySimpleProperty(propertyMetaData, required || requiredBecauseOfIndex)
                 }
             }
         }
@@ -151,9 +168,9 @@ class DnqSchemaToOrientDB(
 
     private fun OClass.applySuperClass(superClassName: String?) {
         if (superClassName == null) {
-            append("no super type")
+            append(", no super type")
         } else {
-            append("super type is $superClassName")
+            append(", super type is $superClassName")
             val superClass = oSession.getClass(superClassName)
             if (superClasses.contains(superClass)) {
                 append(", already set")
@@ -162,7 +179,6 @@ class DnqSchemaToOrientDB(
                 append(", set")
             }
         }
-        appendLine()
     }
 
     private fun OClass.applyLinkProperty(linkProperty: PropertyMetaDataImpl) {
@@ -213,7 +229,6 @@ class DnqSchemaToOrientDB(
             PropertyType.PRIMITIVE -> {
                 if (primitiveTypeName.lowercase() == "set") {
                     append(", is not supported yet")
-                    // todo
                     /*
                     * To support sets we have to:
                     * 1. On the Xodus repo level
@@ -222,14 +237,15 @@ class DnqSchemaToOrientDB(
                     *   1. DNQMetaDataUtil.kt, addEntityMetaData(), 119 line, fill that argumentType param
                     * 3. Support here
                     * */
-                    //val oProperty = createEmbeddedSetPropertyIfAbsent(propertyName, getOType(unwrappedToDeleteProp.clazz))
+                    //val typeParameter = simpleProp.typeParameterNames?.firstOrNull() ?: throw IllegalStateException("$propertyName is Set but does not contain information about the type parameter")
+                    //val oProperty = createEmbeddedSetPropertyIfAbsent(propertyName, getOType(typeParameter))
 
                     /*
                     * If the value is not defined, the property returns true.
                     * It is handled on the DNQ entities level.
+                    * But, we still apply the required state just in case.
                     * */
-                    //oProperty.setNotNullIfDifferent(false)
-                    //oProperty.setRequirement(XdPropertyRequirement.OPTIONAL)
+                    //oProperty.setRequirement(required)
 
                     /*
                     * When creating an index on an EMBEDDEDSET field, OrientDB does not create an index for the field itself.
