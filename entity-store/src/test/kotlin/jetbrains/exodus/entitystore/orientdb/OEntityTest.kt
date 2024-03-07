@@ -24,7 +24,7 @@ class OEntityTest {
         }
 
         val (entityA, entityB, entityC) = orientDb.withSession {
-            Triple(OEntity(issueA), OEntity(issueB), OEntity(issueC))
+            Triple(OVertexEntity(issueA), OVertexEntity(issueB), OVertexEntity(issueC))
         }
 
         orientDb.withSession {
@@ -43,7 +43,7 @@ class OEntityTest {
     fun `add blob should be reflected in get blob names`() {
         val issue = orientDb.createIssue("TestBlobs")
         val entity = orientDb.withSession {
-            OEntity(issue)
+            OVertexEntity(issue)
         }
 
         orientDb.withSession {
@@ -74,7 +74,7 @@ class OEntityTest {
         val issueC = orientDb.createIssue("C")
 
         val (entityA, entB, entC) = orientDb.withSession {
-            Triple(OEntity(issueA), OEntity(issueB), OEntity(issueC))
+            Triple(OVertexEntity(issueA), OVertexEntity(issueB), OVertexEntity(issueC))
         }
 
         orientDb.withSession {
@@ -93,7 +93,7 @@ class OEntityTest {
     fun `should delete element holding blob after blob deleted from entity`() {
         val issue = orientDb.createIssue("TestBlobDelete")
         val entity = orientDb.withSession {
-            OEntity(issue)
+            OVertexEntity(issue)
         }
 
         val linkName = "blobForDeletion"
@@ -129,7 +129,7 @@ class OEntityTest {
         val issueC = orientDb.createIssue("C")
 
         val (entityA, entB, entC) = orientDb.withSession {
-            Triple(OEntity(issueA), OEntity(issueB), OEntity(issueC))
+            Triple(OVertexEntity(issueA), OVertexEntity(issueB), OVertexEntity(issueC))
         }
 
         orientDb.withSession {
@@ -152,7 +152,7 @@ class OEntityTest {
     fun `should get property`() {
         val issue = orientDb.createIssue("GetPropertyTest")
         val entity = orientDb.withSession {
-            OEntity(issue)
+            OVertexEntity(issue)
         }
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
@@ -169,7 +169,7 @@ class OEntityTest {
     fun `should delete property`() {
         val issue = orientDb.createIssue("DeletePropertyTest")
         val entity = orientDb.withSession {
-            OEntity(issue)
+            OVertexEntity(issue)
         }
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
@@ -188,7 +188,7 @@ class OEntityTest {
     fun `set the same string blob should return false`() {
         val issue = orientDb.createIssue("GetPropertyTest")
         val entity = orientDb.withSession {
-            OEntity(issue)
+            OVertexEntity(issue)
         }
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
@@ -205,7 +205,7 @@ class OEntityTest {
     fun `should work with properties`() {
         val issue = orientDb.createIssue("Test1")
         val entity = orientDb.withSession {
-            OEntity(issue)
+            OVertexEntity(issue)
         }
 
         orientDb.withSession {
@@ -236,7 +236,7 @@ class OEntityTest {
     fun `should get blob size`() {
         val issue = orientDb.createIssue("BlobSizeTest")
         val entity = orientDb.withSession {
-            OEntity(issue)
+            OVertexEntity(issue)
         }
         val blobName = "SampleBlob"
         val blobData = byteArrayOf(0x01, 0x02, 0x03)

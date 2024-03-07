@@ -40,7 +40,7 @@ class OLinksEntityIterable(private val vertices: Iterable<OVertex>) : EntityIter
 
         override fun hasNext() = iterator.hasNext()
 
-        override fun next() = OEntity(iterator.next())
+        override fun next() = OVertexEntity(iterator.next())
 
         override fun remove() = throw UnsupportedOperationException()
     }

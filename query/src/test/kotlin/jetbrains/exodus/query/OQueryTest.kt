@@ -41,7 +41,7 @@ class OQueryTest {
     }
 
     @Test
-    fun `should query or`() {
+    fun `should query with or`() {
         // Given
         orientDB.createIssue("issue1")
         orientDB.createIssue("issue2")

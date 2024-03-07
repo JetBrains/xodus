@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import com.orientechnologies.orient.core.db.ODatabaseSession;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
+import com.orientechnologies.orient.core.record.OVertex;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
@@ -27,6 +28,8 @@ import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
+import jetbrains.exodus.entitystore.orientdb.OEntityId;
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
@@ -286,10 +289,14 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
 
     @Override
     @NotNull
-    public PersistentEntity getEntity(@NotNull final EntityId id) {
+    public Entity getEntity(@NotNull final EntityId id) {
         final int version = store.getLastVersion(this, id);
         if (version < 0) {
             throw new EntityRemovedInDatabaseException(store.getEntityType(this, id.getTypeId()), id);
+        }
+        if (id instanceof OEntityId) {
+            var oid = ((OEntityId) id).asOIdentifiable();
+            return ODatabaseSessionsKt.getEntity(activeOSession(), oid);
         }
         return new PersistentEntity(store, (PersistentEntityId) id);
     }

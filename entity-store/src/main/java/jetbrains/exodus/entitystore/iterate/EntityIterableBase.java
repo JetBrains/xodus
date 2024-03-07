@@ -477,7 +477,8 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     @NotNull
     public final Entity getEntity(@NotNull final EntityId id) {
-        return getStore().getEntity(id);
+        // return getStore().getEntity(id);
+        return getTransaction().getEntity(id);
     }
 
     public EntityIterable findLinks(@NotNull final Iterable<Entity> entities,
