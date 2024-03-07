@@ -82,7 +82,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private boolean checkInvalidateBlobsFlag;
 
-    PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
+    public PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, TransactionType.Regular);
     }
 
@@ -320,15 +320,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public EntityIterable find(@NotNull final String entityType,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
-        if (value instanceof Boolean) {
-            final EntityIterableBase withProp = findWithProp(entityType, propertyName);
-            if (((Boolean) value).booleanValue()) {
-                return withProp;
-            }
-            return getAll(entityType).minus(withProp);
-        }
-        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyValueIterable(this, entityTypeId.intValue(), propertyId.intValue(), value));
+        return new OPropertyValueIterable(this, entityType, propertyName, value);
     }
 
     @Override

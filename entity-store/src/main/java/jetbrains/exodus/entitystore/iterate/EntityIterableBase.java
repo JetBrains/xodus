@@ -133,7 +133,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return EntityIteratorBase.EMPTY;
         }
         final PersistentStoreTransaction txn = getTransaction();
-        return asProbablyCached().getIteratorImpl(txn);
+        return getIteratorImpl(txn);
     }
 
     @NotNull
