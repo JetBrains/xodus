@@ -50,6 +50,7 @@ public class SimplePropertyMetaDataImpl extends PropertyMetaDataImpl {
      * If you have a property of type Set[String], String is the type parameter.
      * So, getPrimitiveTypeName() returns "Set" and getTypeParameterNames() returns ["String"].
      * */
+    @Nullable
     public List<String> getTypeParameterNames() { return typeParameterNames; }
 
     public void setPrimitiveTypeName(String primitiveTypeName) {
