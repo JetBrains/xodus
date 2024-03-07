@@ -18,12 +18,12 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.common.util.OSizeable
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.EntityIterator
 import org.apache.commons.collections4.IterableUtils
 import org.apache.commons.collections4.IteratorUtils
 import org.apache.commons.collections4.functors.EqualPredicate
-import jetbrains.exodus.entitystore.EntityIterator
 
-class OrientDBLinksEntityIterable(private val vertices: Iterable<OVertex>) : EntityIterable {
+class OLinksEntityIterable(private val vertices: Iterable<OVertex>) : EntityIterable {
 
     override fun iterator() = object : EntityIterator {
 
@@ -40,7 +40,7 @@ class OrientDBLinksEntityIterable(private val vertices: Iterable<OVertex>) : Ent
 
         override fun hasNext() = iterator.hasNext()
 
-        override fun next() = OrientDBEntity(iterator.next())
+        override fun next() = OEntity(iterator.next())
 
         override fun remove() = throw UnsupportedOperationException()
     }

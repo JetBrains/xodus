@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.entitystore;
 
+import com.orientechnologies.orient.core.db.ODatabaseSession;
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
@@ -25,6 +27,7 @@ import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
 import org.jetbrains.annotations.NotNull;
@@ -40,7 +43,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
 @SuppressWarnings({"rawtypes"})
-public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
+public class PersistentStoreTransaction implements OStoreTransaction, StoreTransaction, TxnGetterStrategy, TxnProvider {
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
     enum TransactionType {
@@ -138,6 +141,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             default:
                 throw new EntityStoreException("Can't create " + txnType + " transaction");
         }
+    }
+
+    @NotNull
+    @Override
+    public ODatabaseDocument activeOSession() {
+        return ODatabaseSession.getActiveSession();
     }
 
     @Override

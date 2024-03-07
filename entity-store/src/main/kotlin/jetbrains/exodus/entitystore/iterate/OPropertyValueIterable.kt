@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore.iterate
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
 import jetbrains.exodus.entitystore.orientdb.toEntityIterator
@@ -28,7 +27,7 @@ class OPropertyValueIterable(
 ) : EntityIterableBase(txn) {
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
-        val session = ODatabaseSession.getActiveSession() ?: throw IllegalStateException("No active session")
+        val session = txn.activeOSession()
         val query = "SELECT FROM $entityType WHERE $propertyName = :$propertyName"
         val params = mapOf(propertyName to value)
         return session.query(query, params).toEntityIterator()

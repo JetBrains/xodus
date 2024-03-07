@@ -7,11 +7,11 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterator
 
 fun OResultSet.toIteratorOfEntity(): Iterator<Entity> {
-    return this.vertexStream().map { OrientDBEntity(it) }.iterator()
+    return this.vertexStream().map { OEntity(it) }.iterator()
 }
 
 fun OResultSet.toEntityIterator(): EntityIterator {
-    val iterator = this.vertexStream().map { OrientDBEntity(it) }.iterator()
+    val iterator = this.vertexStream().map { OEntity(it) }.iterator()
     return OEntityIterator(iterator)
 }
 

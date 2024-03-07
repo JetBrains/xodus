@@ -29,7 +29,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 
-class OrientDBEntity(private var vertex: OVertex) : Entity {
+class OEntity(private var vertex: OVertex) : Entity {
 
     companion object : KLogging() {
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
@@ -207,7 +207,7 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
 
     override fun addLink(linkName: String, target: Entity): Boolean {
         reload()
-        target as? OrientDBEntity
+        target as? OEntity
             ?: throw IllegalArgumentException("Cannot link OrientDbEntity to ${target.javaClass.simpleName}")
         val targetVertex = target.vertex
         //optimization?
@@ -224,21 +224,21 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
         val target =
             ODatabaseSession.getActiveSession().getRecord<OVertex>(ORecordId(targetId.typeId, targetId.localId))
-        return addLink(linkName, OrientDBEntity(target))
+        return addLink(linkName, OEntity(target))
     }
 
     override fun getLink(linkName: String): Entity? {
         reload()
         val target = vertex.getVertices(ODirection.OUT, linkName).firstOrNull()
         return target?.let {
-            OrientDBEntity(it)
+            OEntity(it)
         }
     }
 
     override fun setLink(linkName: String, target: Entity?): Boolean {
         reload()
-        val currentValue = getLink(linkName) as OrientDBEntity?
-        target as OrientDBEntity?
+        val currentValue = getLink(linkName) as OEntity?
+        target as OEntity?
         if (currentValue == target) {
             return false
         }
@@ -256,22 +256,22 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
         val target =
             ODatabaseSession.getActiveSession().getRecord<OVertex>(ORecordId(targetId.typeId, targetId.localId))
-        return setLink(linkName, OrientDBEntity(target))
+        return setLink(linkName, OEntity(target))
     }
 
     override fun getLinks(linkName: String): EntityIterable {
         reload()
-        return OrientDBLinksEntityIterable(vertex.getVertices(ODirection.OUT, linkName))
+        return OLinksEntityIterable(vertex.getVertices(ODirection.OUT, linkName))
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
         reload()
-        return OrientDBLinksEntityIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
+        return OLinksEntityIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
     }
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         reload()
-        target as OrientDBEntity
+        target as OEntity
         val currentEdge = findLink(linkName, target.vertex)
         return if (currentEdge != null) {
             currentEdge.delete()
@@ -284,7 +284,7 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
         val target =
             ODatabaseSession.getActiveSession().getRecord<OVertex>(ORecordId(targetId.typeId, targetId.localId))
-        return deleteLink(linkName, OrientDBEntity(target))
+        return deleteLink(linkName, OEntity(target))
     }
 
     override fun deleteLinks(linkName: String) {
@@ -312,7 +312,7 @@ class OrientDBEntity(private var vertex: OVertex) : Entity {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as OrientDBEntity
+        other as OEntity
 
         return vertex.identity == other.vertex.identity
     }

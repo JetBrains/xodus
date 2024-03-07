@@ -20,8 +20,8 @@ class InMemoryOrientDB : ExternalResource() {
 
         withSessionNoTx { session ->
             session.createVertexClass(IssueClass.NAME)
-            session.createClass(OrientDBEntity.STRING_BLOB_CLASS_NAME)
-            session.createClass(OrientDBEntity.BINARY_BLOB_CLASS_NAME)
+            session.createClass(OEntity.STRING_BLOB_CLASS_NAME)
+            session.createClass(OEntity.BINARY_BLOB_CLASS_NAME)
         }
     }
 
