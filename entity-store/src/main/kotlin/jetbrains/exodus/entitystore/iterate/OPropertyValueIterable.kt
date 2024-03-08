@@ -17,10 +17,8 @@ package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.orientdb.OClassSelect
-import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
 import jetbrains.exodus.entitystore.orientdb.OEqualCondition
-import jetbrains.exodus.entitystore.orientdb.query
-import jetbrains.exodus.entitystore.orientdb.toOEntityIterator
+import jetbrains.exodus.entitystore.orientdb.OQuery
 
 class OPropertyValueIterable(
     txn: PersistentStoreTransaction,
@@ -29,13 +27,7 @@ class OPropertyValueIterable(
     private val value: Comparable<*>
 ) : OEntityIterableBase(txn) {
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
-        val session = txn.activeOSession()
-        val query = OClassSelect(entityType, OEqualCondition(propertyName, value))
-        return session.query(query).toOEntityIterator(this)
-    }
-
-    override fun getHandleImpl(): EntityIterableHandle {
-        return OEntityIterableHandle("select from $entityType where $propertyName = :$propertyName")
+    override fun query(): OQuery {
+        return OClassSelect(entityType, OEqualCondition(propertyName, value))
     }
 }

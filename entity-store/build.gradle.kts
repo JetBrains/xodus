@@ -10,6 +10,7 @@ dependencies {
     testImplementation("io.github.classgraph:classgraph:4.8.90")
     testImplementation(project(":xodus-utils", "testArtifacts"))
     testImplementation(libs.mockk)
+    testImplementation(libs.truth)
 }
 
 val testArtifacts: Configuration by configurations.creating

@@ -11,7 +11,7 @@ import jetbrains.exodus.query.metadata.ModelMetaData
 import org.junit.Rule
 import org.junit.Test
 
-class OQueryTest {
+class OQueryEngineTest {
 
     @Rule
     @JvmField
