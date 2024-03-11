@@ -261,7 +261,8 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
     override fun getLinks(linkName: String): EntityIterable {
         reload()
-        return OEntityToLinksIterable(vertex.getVertices(ODirection.OUT, linkName))
+        val links = vertex.getVertices(ODirection.OUT, linkName)
+        return OEntityToLinksIterable(links)
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {

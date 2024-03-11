@@ -18,6 +18,7 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
+import jetbrains.exodus.entitystore.orientdb.OEntity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
@@ -26,29 +27,36 @@ public class LinkEqual extends NodeBase {
 
     private final String name;
     private final EntityId id;
+    private final Entity entity;
 
     public LinkEqual(String name, Entity to) {
-        this(name, to == null ? null : to.getId());
+        this(name, to == null ? null : to.getId(), to);
     }
 
-    private LinkEqual(String name, EntityId id) {
+    private LinkEqual(String name, EntityId id, Entity entity) {
         this.name = name;
         this.id = id;
+        this.entity = entity;
     }
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
+        if (entity instanceof OEntity) {
+            return entity.getLinks(name);
+        }
+
         if (id instanceof PersistentEntityId) {
             queryEngine.assertOperational();
             final PersistentEntityStoreImpl store = queryEngine.getPersistentStore();
             return store.getAndCheckCurrentTransaction().findLinks(entityType, new PersistentEntity(store, (PersistentEntityId) id), name);
         }
+
         return EntityIterableBase.EMPTY;
     }
 
     @Override
     public NodeBase getClone() {
-        return new LinkEqual(name, id);
+        return new LinkEqual(name, id, entity);
     }
 
     public String getName() {

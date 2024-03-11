@@ -15,12 +15,18 @@ object ProjectClass {
     const val NAME_PROPERTY = "name"
 }
 
+// Many issues to One project
+object ProjectIssues {
+    const val ISSUE_T0_PROJECT = "issue_project"
+    const val PROJECT_TO_ISSUES = "project_issues"
+}
+
 fun InMemoryOrientDB.createIssue(
     name: String,
     priority: String? = null
 ): OVertexEntity {
-    return withTxSession { session ->
-        val issueClass = session.getOrCreateClass(IssueClass.NAME)
+    return withSession { session ->
+        val issueClass = session.getOrCreateVertexClass(IssueClass.NAME)
         val issue = session.newVertex(issueClass)
         issue.setProperty(IssueClass.NAME_PROPERTY, name)
         priority?.let { issue.setProperty(IssueClass.PRIORITY_PROPERTY, it) }
@@ -33,8 +39,8 @@ fun InMemoryOrientDB.createIssue(
 fun InMemoryOrientDB.createProject(
     name: String
 ): OVertexEntity {
-    return withTxSession { session ->
-        val projectClass = session.getOrCreateClass(ProjectClass.NAME)
+    return withSession { session ->
+        val projectClass = session.getOrCreateVertexClass(ProjectClass.NAME)
         val project = session.newVertex(projectClass)
         project.setProperty(ProjectClass.NAME_PROPERTY, name)
         project.save<OVertex>()
@@ -43,17 +49,23 @@ fun InMemoryOrientDB.createProject(
 }
 
 
-fun InMemoryOrientDB.createIssueLink(
-    from: OVertex,
-    to: OVertex
+fun InMemoryOrientDB.linkIssueToProject(
+    issue: OEntity,
+    project: OEntity
 ) {
-    withTxSession { session ->
-        val link = session.newEdge(from, to, "Link")
-        link.save<OVertex>()
+    withSession { session ->
+        session.getOrCreateEdgeClass(ProjectIssues.ISSUE_T0_PROJECT)
+        session.getOrCreateEdgeClass(ProjectIssues.PROJECT_TO_ISSUES)
+        issue.addLink(ProjectIssues.ISSUE_T0_PROJECT, project)
+        project.addLink(ProjectIssues.PROJECT_TO_ISSUES, issue)
     }
 }
 
-private fun ODatabaseSession.getOrCreateClass(className: String): OClass {
+private fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {
     return this.getClass(className) ?: this.createVertexClass(className)
+}
+
+private fun ODatabaseSession.getOrCreateEdgeClass(className: String): OClass {
+    return this.getClass(className) ?: this.createEdgeClass(className)
 }
 
