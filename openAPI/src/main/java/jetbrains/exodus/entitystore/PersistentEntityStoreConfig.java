@@ -119,6 +119,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      */
     public static final String REFACTORING_CLEAR_BROKEN_BLOBS = "exodus.entityStore.refactoring.clearBrokenBlobs";
+    public static final String REFACTORING_CLEAR_NOT_REGISTERED_BLOBS = "exodus.entityStore.refactoring.clearNotRegisteredBlobs";
 
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 30}.
@@ -406,6 +407,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(REFACTORING_HEAVY_PROPS, false),
                 new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
                 new Pair(REFACTORING_CLEAR_BROKEN_BLOBS, false),
+                new Pair(REFACTORING_CLEAR_NOT_REGISTERED_BLOBS, false),
                 new Pair(REFACTORING_DEDUPLICATE_BLOBS_EVERY, 30),
                 new Pair(REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE, 10),
                 new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
@@ -521,6 +523,13 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return getRefactoringForceAll() || (Boolean) (getSetting(REFACTORING_CLEAR_BROKEN_BLOBS));
     }
 
+    public PersistentEntityStoreConfig setRefactoringClearNotRegisteredBlobs(final boolean clearBrokenBlobs) {
+        return setSetting(REFACTORING_CLEAR_NOT_REGISTERED_BLOBS, clearBrokenBlobs);
+    }
+
+    public boolean getRefactoringClearNotRegisteredBlobs() {
+        return getRefactoringForceAll() || (Boolean) (getSetting(REFACTORING_CLEAR_NOT_REGISTERED_BLOBS));
+    }
 
     public int getRefactoringDeduplicateBlobsEvery() {
         return getRefactoringForceAll() ? 0 : (Integer) getSetting(REFACTORING_DEDUPLICATE_BLOBS_EVERY);

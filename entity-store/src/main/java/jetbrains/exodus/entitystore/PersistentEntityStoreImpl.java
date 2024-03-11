@@ -292,6 +292,38 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
+    private void clearNotRegisteredBlobs(PersistentStoreTransaction txn) {
+        logger.warn("Database: " + getLocation() +
+                " . Clearing blobs not registered inside database.");
+
+        var envTx = txn.getEnvironmentTransaction();
+        var blobsToRemove = new ArrayList<Long>();
+
+        if (blobVault instanceof FileSystemBlobVaultOld) {
+            var blobHandleIterator = ((FileSystemBlobVaultOld) blobVault).storedBlobHandles();
+            while (blobHandleIterator.hasNext()) {
+                var blobHandle = blobHandleIterator.next();
+                var blobLen = getBlobFileLength(blobHandle, envTx);
+                if (blobLen == null) {
+                    blobsToRemove.add(blobHandle);
+                }
+            }
+
+            if (!blobsToRemove.isEmpty()) {
+                logger.warn("Database: " + getLocation() + ". " + blobsToRemove.size() +
+                        " not registered BLOBs were found. Removing them.");
+
+                blobsToRemove.forEach(blob -> {
+                    var blobLocation = blobVault.getBlobLocation(blob);
+                    blobVault.delete(blob);
+                    logger.warn("BLOB at " + blobLocation + " was removed.");
+                });
+            }
+        }
+
+        logger.warn("Database: " + getLocation() + ". Blobs not registered inside database were cleared.");
+    }
+
     private void initBasicStores(Transaction envTxn) {
         sequences = environment.openStore(SEQUENCES_STORE, StoreConfig.WITHOUT_DUPLICATES, envTxn);
         blobFileLengths = environment.openStore(namingRulez.getBlobFileLengthsTable(),
@@ -326,31 +358,40 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
             if (config.getRefactoringClearBrokenBlobs()) {
                 executeInTransaction(txn -> clearBrokenBlobs((PersistentStoreTransaction) txn));
             }
-            if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorBlobsForVersion2Format() applied") == null)) {
+            if (config.getRefactoringClearNotRegisteredBlobs()) {
+                executeInTransaction(txn -> clearNotRegisteredBlobs((PersistentStoreTransaction) txn));
+            }
+            if (!useVersion1Format() &&
+                    (fromScratch ||
+                            Settings.get(internalSettings, "refactorBlobsForVersion2Format() applied") == null)) {
                 if (!fromScratch) {
                     refactorings.refactorBlobsToVersion2Format(internalSettings);
                 }
                 Settings.set(internalSettings, "refactorBlobsForVersion2Format() applied", "y");
             }
-            if (!useVersion1Format() && (fromScratch || Settings.get(internalSettings, "refactorEntitiesTablesToBitmap() applied") == null)) {
+            if (!useVersion1Format() && (fromScratch ||
+                    Settings.get(internalSettings, "refactorEntitiesTablesToBitmap() applied") == null)) {
                 if (!fromScratch) {
                     refactorings.refactorEntitiesTablesToBitmap(internalSettings);
                 }
                 Settings.set(internalSettings, "refactorEntitiesTablesToBitmap() applied", "y");
             }
-            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllPropsIndexToBitmap() applied") == null)) {
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch ||
+                    Settings.get(internalSettings, "refactorAllPropsIndexToBitmap() applied") == null)) {
                 if (!fromScratch) {
                     refactorings.refactorAllPropsIndexToBitmap();
                 }
                 Settings.set(internalSettings, "refactorAllPropsIndexToBitmap() applied", "y");
             }
-            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllLinksIndexToBitmap() applied") == null)) {
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch ||
+                    Settings.get(internalSettings, "refactorAllLinksIndexToBitmap() applied") == null)) {
                 if (!fromScratch) {
                     refactorings.refactorAllLinksIndexToBitmap();
                 }
                 Settings.set(internalSettings, "refactorAllLinksIndexToBitmap() applied", "y");
             }
-            if (!useVersion1Format() && useIntForLocalId() && (fromScratch || Settings.get(internalSettings, "refactorAllBlobsIndexToBitmap() applied") == null)) {
+            if (!useVersion1Format() && useIntForLocalId() && (fromScratch ||
+                    Settings.get(internalSettings, "refactorAllBlobsIndexToBitmap() applied") == null)) {
                 if (!fromScratch) {
                     refactorings.refactorAllBlobsIndexToBitmap();
                 }
@@ -2092,6 +2133,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                 }
         );
     }
+
     public void deleteEntityType(@NotNull final String entityTypeName) {
         final PersistentStoreTransaction txn = getAndCheckCurrentTransaction();
         final int entityTypeId = entityTypes.delete(txn, entityTypeName);
