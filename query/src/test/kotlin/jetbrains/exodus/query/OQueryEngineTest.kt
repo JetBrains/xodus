@@ -6,6 +6,7 @@ import io.mockk.mockk
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.IssueClass
 import jetbrains.exodus.entitystore.orientdb.createIssue
 import jetbrains.exodus.query.metadata.ModelMetaData
 import org.junit.Rule
@@ -23,13 +24,10 @@ class OQueryEngineTest {
         orientDB.createIssue("issue1")
         orientDB.createIssue("issue2")
 
-        val model = mockk<ModelMetaData>(relaxed = true)
-        val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
-        every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
-        val engine = QueryEngine(model, store)
+        val engine = givenOQueryEngine()
 
         // When
-        orientDB.withSession {
+        orientDB.withTxSession {
             val node = PropertyEqual("name", "issue2")
             val result = engine.query("Issue", node).toList()
 
@@ -37,7 +35,6 @@ class OQueryEngineTest {
             assertThat(result.count()).isEqualTo(1)
             assertThat(result.first().getProperty("name")).isEqualTo("issue2")
         }
-
     }
 
     @Test
@@ -47,16 +44,13 @@ class OQueryEngineTest {
         orientDB.createIssue("issue2")
         orientDB.createIssue("issue3")
 
-        val model = mockk<ModelMetaData>(relaxed = true)
-        val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
-        every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
-        val engine = QueryEngine(model, store)
+        val engine = givenOQueryEngine()
 
         // When
-        orientDB.withSession {
+        orientDB.withTxSession {
             val equal1 = PropertyEqual("name", "issue1")
             val equal3 = PropertyEqual("name", "issue3")
-            val result = engine.query("Issue", Or(equal1, equal3)).instantiate()
+            val result = engine.query("Issue", Or(equal1, equal3))
 
             // Then
             assertThat(result.count()).isEqualTo(2)
@@ -68,25 +62,43 @@ class OQueryEngineTest {
     @Test
     fun `should query with and`() {
         // Given
-        orientDB.createIssue("issue1", "project1")
-        orientDB.createIssue("issue2", "project1")
-        orientDB.createIssue("issue3", "project2")
+        orientDB.createIssue("issue1", "normal")
+        orientDB.createIssue("issue2", "normal")
+        orientDB.createIssue("issue3", "high")
 
-        val model = mockk<ModelMetaData>(relaxed = true)
-        val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
-        every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
-        val engine = QueryEngine(model, store)
+        val engine = givenOQueryEngine()
 
         // When
-        orientDB.withSession {
+        orientDB.withTxSession {
             val nameEqual = PropertyEqual("name", "issue2")
-            val projectEqual = PropertyEqual("project", "project1")
-            val result = engine.query("Issue", And(nameEqual, projectEqual)).instantiate()
+            val projectEqual = PropertyEqual(IssueClass.PRIORITY_PROPERTY, "normal")
+            val result = engine.query("Issue", And(nameEqual, projectEqual))
 
             // Then
             assertThat(result.count()).isEqualTo(1)
             assertThat(result.first().getProperty("name")).isEqualTo("issue2")
-            assertThat(result.first().getProperty("project")).isEqualTo("project1")
+            assertThat(result.first().getProperty("priority")).isEqualTo("normal")
         }
+    }
+
+    @Test
+    fun `should query links`() {
+        // Given
+        orientDB.createIssue("issue1", "project1")
+        orientDB.createIssue("issue2", "project1")
+        orientDB.createIssue("issue3", "project2")
+
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withTxSession {
+        }
+    }
+
+    private fun givenOQueryEngine(): QueryEngine {
+        val model = mockk<ModelMetaData>(relaxed = true)
+        val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
+        every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
+        return QueryEngine(model, store)
     }
 }

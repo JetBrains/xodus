@@ -14,10 +14,11 @@ class OEntityIterator(
     private val source: Iterator<Entity>
 ) : EntityIteratorBase(iterable) {
 
-    companion object: KLogging() {
+    companion object : KLogging() {
         fun create(iterable: OEntityIterableBase, document: ODatabaseDocument, query: OQuery): OEntityIterator {
-            val result =  document.query(query.sql(), query.params())
-            logger.info { "Query: ${query.sql()} with params: ${query.params()}, execution plan:\n   ${result.executionPlan.get().prettyPrint(10,8)}" }
+            val result = document.query(query.sql(), query.params())
+            val executionResult = result.executionPlan.get().prettyPrint(10, 8)
+            logger.info { "Query: ${query.sql()} with params: ${query.params()}, execution plan:\n  $executionResult" }
             return result.toOEntityIterator(iterable)
         }
     }

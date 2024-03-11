@@ -1,14 +1,12 @@
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.orientechnologies.orient.core.tx.OTransaction
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.Sequence
 import java.util.Comparator
 
-class OrientDBStoreTransaction(private val session: ODatabaseDocument) : OStoreTransaction {
-    override fun activeOSession(): ODatabaseDocument {
+class OStoreTransactionImpl(private val session: ODatabaseDocument) : OStoreTransaction {
+    override fun activeSession(): ODatabaseDocument {
         return session
     }
 

@@ -17,7 +17,7 @@ class OrientDBQueryTest {
         orientDb.createIssue("Test2")
 
         // When
-        orientDb.withSession {
+        orientDb.withTxSession {
 
             // Then
             val iterable = it.queryEntity("select from Issue")

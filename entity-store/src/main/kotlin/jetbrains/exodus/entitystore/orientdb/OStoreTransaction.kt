@@ -5,5 +5,5 @@ import jetbrains.exodus.entitystore.StoreTransaction
 
 interface OStoreTransaction : StoreTransaction {
 
-    fun activeOSession(): ODatabaseDocument
+    fun activeSession(): ODatabaseDocument
 }

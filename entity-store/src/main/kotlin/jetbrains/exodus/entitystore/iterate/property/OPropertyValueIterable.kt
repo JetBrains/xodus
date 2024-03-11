@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.iterate
+package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.OEqualCondition
 import jetbrains.exodus.entitystore.orientdb.OQuery

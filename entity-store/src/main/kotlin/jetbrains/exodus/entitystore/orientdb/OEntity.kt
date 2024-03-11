@@ -5,5 +5,5 @@ import jetbrains.exodus.entitystore.Entity
 
 interface OEntity : Entity {
 
-    fun getORID(): ORID
+    fun getOId(): ORID
 }

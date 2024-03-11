@@ -1,5 +1,6 @@
 package jetbrains.exodus.entitystore.orientdb
 
+import jetbrains.exodus.entitystore.util.unsupported
 import java.util.UUID
 
 // Basic
@@ -79,5 +80,3 @@ fun OCondition?.or(other: OCondition?): OCondition? {
 fun equal(field: String, value: Any) = OEqualCondition(field, value)
 fun or(left: OCondition, right: OCondition) = OOrCondition(left, right)
 fun and(left: OCondition, right: OCondition) = OAndCondition(left, right)
-
-fun unsupported(message: String): Nothing = throw UnsupportedOperationException(message)

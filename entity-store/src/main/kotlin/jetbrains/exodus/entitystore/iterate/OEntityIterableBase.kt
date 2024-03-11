@@ -16,8 +16,8 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
     override fun canBeCached() = false
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
-        val unionQuery = query()
-        return OEntityIterator.create(this, txn.activeOSession(), unionQuery)
+        val query = query()
+        return OEntityIterator.create(this, txn.activeSession(), query)
     }
 
     override fun getHandleImpl(): EntityIterableHandle {

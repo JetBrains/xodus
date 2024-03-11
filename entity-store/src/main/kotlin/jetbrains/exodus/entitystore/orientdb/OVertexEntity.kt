@@ -25,6 +25,7 @@ import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.iterate.link.OEntityToLinksIterable
 import mu.KLogging
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -43,13 +44,15 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         const val STRING_BLOB_CLASS_NAME: String = "StringBlob"
     }
 
-    private var txid: Int = ODatabaseSession.getActiveSession().transaction.id
+    private val activeSession get() = ODatabaseSession.getActiveSession()
+
+    private var txid: Int = activeSession.transaction.id
 
     override fun getStore(): EntityStore = throw UnsupportedOperationException()
 
     override fun getId(): EntityId = ORIDEntityId(vertex.identity)
 
-    override fun getORID(): ORID = vertex.identity
+    override fun getOId(): ORID = vertex.identity
 
     override fun toIdString(): String = vertex.identity.toString()
 
@@ -68,7 +71,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     }
 
     private fun reload() {
-        val session = ODatabaseSession.getActiveSession()
+        val session = activeSession
         val tx = session.transaction
 
         if (txid != tx.id) {
@@ -106,7 +109,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         reload()
         val element = vertex.getLinkProperty(blobName)
         return element?.let {
-            val record = ODatabaseSession.getActiveSession().getRecord<OElement>(element)
+            val record = activeSession.getRecord<OElement>(element)
             return ByteArrayInputStream(record.getProperty(DATA_PROPERTY_NAME))
         }
     }
@@ -124,7 +127,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         reload()
         val ref = vertex.getLinkProperty(blobName)
         return ref?.let {
-            val record = ODatabaseSession.getActiveSession().getRecord<OElement>(ref)
+            val record = activeSession.getRecord<OElement>(ref)
             record.getProperty(DATA_PROPERTY_NAME)
         }
     }
@@ -134,10 +137,10 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         val ref = vertex.getLinkProperty(blobName)
         val record: OElement
         if (ref == null) {
-            record = ODatabaseSession.getActiveSession().newElement(className)
+            record = activeSession.newElement(className)
             vertex.setProperty(blobName, record)
         } else {
-            record = ODatabaseSession.getActiveSession().getRecord(ref)
+            record = activeSession.getRecord(ref)
             if (record.hasProperty(DATA_PROPERTY_NAME)) {
                 record.removeProperty<Any>(DATA_PROPERTY_NAME)
             }
@@ -166,22 +169,22 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         var record: OElement? = null
 
         if (ref == null) {
-            record = ODatabaseSession.getActiveSession().newElement(STRING_BLOB_CLASS_NAME)
+            record = activeSession.newElement(STRING_BLOB_CLASS_NAME)
             vertex.setProperty(blobName, record)
             update = true
         } else {
-            update =
-                blobString.hashCode() != vertex.getProperty(blobHashProperty(blobName))
-                        || blobString.length != vertex.getProperty(blobSizeProperty(blobName))
+            update = blobString.hashCode() != vertex.getProperty(blobHashProperty(blobName))
+                    || blobString.length != vertex.getProperty(blobSizeProperty(blobName))
         }
 
         if (update) {
-            record = record ?: ODatabaseSession.getActiveSession().getRecord(ref) as OElement
+            record = record ?: activeSession.getRecord(ref) as OElement
             vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
             vertex.setProperty(blobSizeProperty(blobName), blobString.length.toLong())
             record.setProperty(DATA_PROPERTY_NAME, blobString)
             vertex.save<OVertex>()
         }
+
         return update
     }
 
@@ -193,7 +196,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
             vertex.removeProperty<OIdentifiable>(blobName)
             vertex.removeProperty<Long>(blobSizeProperty(blobName))
             vertex.save<OVertex>()
-            ODatabaseSession.getActiveSession().delete(ref.identity)
+            activeSession.delete(ref.identity)
             true
         } else false
     }
@@ -202,19 +205,15 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         reload()
         return vertex.propertyNames
             .filter { it.endsWith(BLOB_SIZE_PROPERTY_NAME_SUFFIX) }
-            .map {
-                it.substring(1).substringBefore(BLOB_SIZE_PROPERTY_NAME_SUFFIX)
-            }
+            .map { it.substring(1).substringBefore(BLOB_SIZE_PROPERTY_NAME_SUFFIX) }
     }
-
 
     override fun addLink(linkName: String, target: Entity): Boolean {
         reload()
-        target as? OVertexEntity
-            ?: throw IllegalArgumentException("Cannot link OrientDbEntity to ${target.javaClass.simpleName}")
+        require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
         val targetVertex = target.vertex
         //optimization?
-        val currentEdge = findLink(linkName, targetVertex)
+        val currentEdge = findEdge(linkName, targetVertex)
         if (currentEdge == null) {
             vertex.addEdge(targetVertex, linkName)
             vertex.save<OVertex>()
@@ -225,29 +224,27 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     }
 
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
-        val target =
-            ODatabaseSession.getActiveSession().getRecord<OVertex>(ORecordId(targetId.typeId, targetId.localId))
+        val target = activeSession.getRecord<OVertex>(ORecordId(targetId.typeId, targetId.localId))
         return addLink(linkName, OVertexEntity(target))
     }
 
     override fun getLink(linkName: String): Entity? {
         reload()
         val target = vertex.getVertices(ODirection.OUT, linkName).firstOrNull()
-        return target?.let {
-            OVertexEntity(it)
-        }
+        return target.toOEntityOrNull()
     }
 
     override fun setLink(linkName: String, target: Entity?): Boolean {
+        require(target is OVertexEntity?) { "Only OVertexEntity is supported, but was ${target?.javaClass?.simpleName}" }
+
         reload()
-        val currentValue = getLink(linkName) as OVertexEntity?
-        target as OVertexEntity?
-        if (currentValue == target) {
+        val currentLink = getLink(linkName) as OVertexEntity?
+        if (currentLink == target) {
             return false
         }
-        if (currentValue != null) {
-            findLink(linkName, currentValue.vertex)?.delete()
-            currentValue.vertex.save<OVertex>()
+        if (currentLink != null) {
+            findEdge(linkName, currentLink.vertex)?.delete()
+            currentLink.vertex.save<OVertex>()
         }
         if (target != null) {
             vertex.addEdge(target.vertex, linkName)
@@ -257,25 +254,25 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     }
 
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
-        val target =
-            ODatabaseSession.getActiveSession().getRecord<OVertex>(ORecordId(targetId.typeId, targetId.localId))
+        val recordId = targetId.toRecordId()
+        val target = activeSession.getRecord<OVertex>(recordId)
         return setLink(linkName, OVertexEntity(target))
     }
 
     override fun getLinks(linkName: String): EntityIterable {
         reload()
-        return OLinksEntityIterable(vertex.getVertices(ODirection.OUT, linkName))
+        return OEntityToLinksIterable(vertex.getVertices(ODirection.OUT, linkName))
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
         reload()
-        return OLinksEntityIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
+        return OEntityToLinksIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
     }
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         reload()
         target as OVertexEntity
-        val currentEdge = findLink(linkName, target.vertex)
+        val currentEdge = findEdge(linkName, target.vertex)
         return if (currentEdge != null) {
             currentEdge.delete()
             target.vertex.save<OVertex>()
@@ -285,8 +282,8 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     }
 
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
-        val target =
-            ODatabaseSession.getActiveSession().getRecord<OVertex>(ORecordId(targetId.typeId, targetId.localId))
+        val recordId = ORecordId(targetId.typeId, targetId.localId)
+        val target = activeSession.getRecord<OVertex>(recordId)
         return deleteLink(linkName, OVertexEntity(target))
     }
 
@@ -305,7 +302,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
     override fun compareTo(other: Entity) = id.compareTo(other.id)
 
-    private fun findLink(linkName: String, target: OVertex): OEdge? {
+    private fun findEdge(linkName: String, target: OVertex): OEdge? {
         return vertex.getEdges(ODirection.OUT, linkName).find {
             it.to.identity == target.identity
         }
@@ -324,4 +321,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         return vertex.identity.hashCode()
     }
 
+    internal val asVertex = vertex
+
+    private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this) }
 }

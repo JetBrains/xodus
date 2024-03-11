@@ -27,6 +27,7 @@ import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyValueIterable;
 import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
 import jetbrains.exodus.entitystore.orientdb.OEntityId;
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction;
@@ -147,7 +148,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
 
     @NotNull
     @Override
-    public ODatabaseDocument activeOSession() {
+    public ODatabaseDocument activeSession() {
         return ODatabaseSession.getActiveSession();
     }
 
@@ -295,7 +296,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
         }
         if (id instanceof OEntityId) {
             var oid = ((OEntityId) id).asOIdentifiable();
-            return ODatabaseSessionsKt.getVertexEntity(activeOSession(), oid);
+            return ODatabaseSessionsKt.getVertexEntity(activeSession(), oid);
         }
         return new PersistentEntity(store, (PersistentEntityId) id);
     }

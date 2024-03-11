@@ -13,7 +13,7 @@ import jetbrains.exodus.management.Statistics
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
-class OrientDbPersistentStore(
+class OPersistentStore(
     private val db: OrientDB,
     private val userName: String,
     private val password: String,
@@ -26,9 +26,7 @@ class OrientDbPersistentStore(
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
 
 
-    override fun close() {
-
-    }
+    override fun close() {}
 
     override fun getName() = databaseName
 
@@ -38,7 +36,7 @@ class OrientDbPersistentStore(
 
     override fun beginTransaction(): StoreTransaction {
         val session = db.open(databaseName, userName, password)
-        return OrientDBStoreTransaction(session)
+        return OStoreTransactionImpl(session)
     }
 
     override fun beginExclusiveTransaction(): StoreTransaction {
@@ -50,7 +48,7 @@ class OrientDbPersistentStore(
     }
 
     override fun getCurrentTransaction(): StoreTransaction {
-        return OrientDBStoreTransaction(ODatabaseSession.getActiveSession())
+        return OStoreTransactionImpl(ODatabaseSession.getActiveSession())
     }
 
     override fun getBackupStrategy(): BackupStrategy {
@@ -67,12 +65,12 @@ class OrientDbPersistentStore(
 
     override fun executeInTransaction(executable: StoreTransactionalExecutable) {
         //i'm not sure about implementation
-        val txn = beginTransaction() as OrientDBStoreTransaction
+        val txn = beginTransaction() as OStoreTransactionImpl
         try {
             executable.execute(txn)
         } finally {
             // if txn has not already been aborted in execute()
-            txn.activeOSession().commit()
+            txn.activeSession().commit()
         }
     }
 
@@ -84,12 +82,12 @@ class OrientDbPersistentStore(
 
     override fun <T : Any?> computeInTransaction(computable: StoreTransactionalComputable<T>): T {
         //i'm not sure about implementation
-        val txn = beginTransaction() as OrientDBStoreTransaction
+        val txn = beginTransaction() as OStoreTransactionImpl
         try {
             return computable.compute(txn)
         } finally {
             // if txn has not already been aborted in execute()
-            txn.activeOSession().commit()
+            txn.activeSession().commit()
         }
     }
 
