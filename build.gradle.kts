@@ -248,9 +248,7 @@ subprojects {
                                 }
                             }
                         }
-                        if (this.name == "xodus-tools") {
-                            artifact(tasks.getByName("shadowJar"))
-                        }
+
                     }
                 }
             }
