@@ -50,7 +50,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
     override fun getStore(): EntityStore = throw UnsupportedOperationException()
 
-    override fun getId(): EntityId = ORIDEntityId(vertex.identity)
+    override fun getId(): OEntityId = ORIDEntityId(vertex.identity)
 
     override fun getOId(): ORID = vertex.identity
 
@@ -211,11 +211,10 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     override fun addLink(linkName: String, target: Entity): Boolean {
         reload()
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
-        val targetVertex = target.vertex
-        //optimization?
-        val currentEdge = findEdge(linkName, targetVertex)
+        // Optimization?
+        val currentEdge = findEdge(linkName, target.id)
         if (currentEdge == null) {
-            vertex.addEdge(targetVertex, linkName)
+            vertex.addEdge(target.asVertex, linkName)
             vertex.save<OVertex>()
             return true
         } else {
@@ -224,7 +223,8 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     }
 
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
-        val target = activeSession.getRecord<OVertex>(ORecordId(targetId.typeId, targetId.localId))
+        require(targetId is OEntity) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
+        val target = activeSession.getRecord<OVertex>(targetId.getOId())
         return addLink(linkName, OVertexEntity(target))
     }
 
@@ -243,7 +243,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
             return false
         }
         if (currentLink != null) {
-            findEdge(linkName, currentLink.vertex)?.delete()
+            findEdge(linkName, currentLink.id)?.delete()
             currentLink.vertex.save<OVertex>()
         }
         if (target != null) {
@@ -254,8 +254,8 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     }
 
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
-        val recordId = targetId.toRecordId()
-        val target = activeSession.getRecord<OVertex>(recordId)
+        require(targetId is OEntityId) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
+        val target = activeSession.getRecord<OVertex>(targetId.asOId())
         return setLink(linkName, OVertexEntity(target))
     }
 
@@ -273,7 +273,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         reload()
         target as OVertexEntity
-        val currentEdge = findEdge(linkName, target.vertex)
+        val currentEdge = findEdge(linkName, target.id)
         return if (currentEdge != null) {
             currentEdge.delete()
             target.vertex.save<OVertex>()
@@ -303,10 +303,10 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
     override fun compareTo(other: Entity) = id.compareTo(other.id)
 
-    private fun findEdge(linkName: String, target: OVertex): OEdge? {
-        return vertex.getEdges(ODirection.OUT, linkName).find {
-            it.to.identity == target.identity
-        }
+    private fun findEdge(linkName: String, targetId: OEntityId): OEdge? {
+        return vertex
+            .getEdges(ODirection.OUT, linkName)
+            .find { it.to.identity == targetId.asOId() }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -314,7 +314,6 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         if (javaClass != other?.javaClass) return false
 
         other as OVertexEntity
-
         return vertex.identity == other.vertex.identity
     }
 

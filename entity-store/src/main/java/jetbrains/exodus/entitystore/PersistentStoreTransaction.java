@@ -295,7 +295,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
             throw new EntityRemovedInDatabaseException(store.getEntityType(this, id.getTypeId()), id);
         }
         if (id instanceof OEntityId) {
-            var oid = ((OEntityId) id).asOIdentifiable();
+            var oid = ((OEntityId) id).asOId();
             return ODatabaseSessionsKt.getVertexEntity(activeSession(), oid);
         }
         return new PersistentEntity(store, (PersistentEntityId) id);

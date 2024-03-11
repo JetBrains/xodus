@@ -170,10 +170,10 @@ class OEntityTest {
 
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
-        orientDb.withTxSession {
+        orientDb.withSession {
             issue.setBlobString(propertyName, propertyValue)
         }
-        orientDb.withTxSession {
+        orientDb.withSession {
             Assert.assertEquals(false, issue.setBlobString(propertyName, propertyValue))
         }
     }
