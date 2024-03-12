@@ -9,6 +9,8 @@ import org.junit.rules.ExternalResource
 class InMemoryOrientDB : ExternalResource() {
 
     private lateinit var db: OrientDB
+    lateinit var store:OPersistentStore
+        private set
 
     val username = "admin"
     val password = "admin"
@@ -23,6 +25,7 @@ class InMemoryOrientDB : ExternalResource() {
             session.createClass(OVertexEntity.STRING_BLOB_CLASS_NAME)
             session.createClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)
         }
+        store = OPersistentStore(db, username, password, dbName)
     }
 
     override fun after() {
