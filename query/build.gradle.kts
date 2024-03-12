@@ -7,4 +7,5 @@ dependencies {
 
     testImplementation(project(":xodus-utils", "testArtifacts"))
     testImplementation(project(":xodus-entity-store", "testArtifacts"))
+    testImplementation(kotlin("test"))
 }
