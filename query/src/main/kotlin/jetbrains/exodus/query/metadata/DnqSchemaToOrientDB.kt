@@ -290,15 +290,15 @@ class DnqSchemaToOrientDB(
                     *   1. DNQMetaDataUtil.kt, addEntityMetaData(), 119 line, fill that argumentType param
                     * 3. Support here
                     * */
-                    //val typeParameter = simpleProp.typeParameterNames?.firstOrNull() ?: throw IllegalStateException("$propertyName is Set but does not contain information about the type parameter")
-                    //val oProperty = createEmbeddedSetPropertyIfAbsent(propertyName, getOType(typeParameter))
+                    val typeParameter = simpleProp.typeParameterNames?.firstOrNull() ?: throw IllegalStateException("$propertyName is Set but does not contain information about the type parameter")
+                    val oProperty = createEmbeddedSetPropertyIfAbsent(propertyName, getOType(typeParameter))
 
                     /*
                     * If the value is not defined, the property returns true.
                     * It is handled on the DNQ entities level.
                     * But, we still apply the required state just in case.
                     * */
-                    //oProperty.setRequirement(required)
+                    oProperty.setRequirement(required)
 
                     /*
                     * When creating an index on an EMBEDDEDSET field, OrientDB does not create an index for the field itself.
@@ -307,8 +307,8 @@ class DnqSchemaToOrientDB(
                     *
                     * The same behaviour as the original behaviour of set properties in DNQ.
                     * */
-                    //val index = makeDeferredIndexForEmbeddedSet(propertyName)
-                    //indicesCreator.add(index)
+                    val index = makeDeferredIndexForEmbeddedSet(propertyName)
+                    indicesCreator.add(index)
                 } else { // primitive types
                     val oProperty = createPropertyIfAbsent(propertyName, getOType(primitiveTypeName))
                     oProperty.setRequirement(required)
