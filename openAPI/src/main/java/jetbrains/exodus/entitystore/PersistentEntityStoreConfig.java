@@ -280,13 +280,23 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     /**
      * Defines the number of thread which EntityIterableCache uses for its background caching activity.
      * EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED} is {@code false}.
-     * Default value is {@code 2}, if CPU count is greater than {@code 3}, otherwise it is {@code 1}.
+     * If {@linkplain #ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT} is not set, thread count will be split between entity and counts caching.
      * <p>Mutable at runtime: no
      *
      * @see #CACHING_DISABLED
      * @see PersistentEntityStore#getAsyncProcessor()
      */
     public static final String ENTITY_ITERABLE_CACHE_THREAD_COUNT = "exodus.entityStore.entityIterableCache.threadCount";
+
+    /**
+     * Defines the number of thread which EntityIterableCache uses for its background counts caching activity.
+     * EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED} is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #CACHING_DISABLED
+     * @see PersistentEntityStore#getCountsAsyncProcessor()
+     */
+    public static final String ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT = "exodus.entityStore.entityIterableCache.countsThreadCount";
 
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 10000L}.
@@ -455,10 +465,11 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, -1), // weight-based cache used instead by default
                 new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 5), // 5% of max available memory
                 new Pair(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT, 12), // 12 bytes per entityId stored in cache
+                new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, defaultEntityIterableCacheThreadCount()),
+                new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
+                new Pair(ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT, -1), // not set by default
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
-                new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
-                new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
                 new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_SIZE, -1), // unset by default
@@ -723,7 +734,25 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public int getEntityIterableCacheThreadCount() {
-        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_THREAD_COUNT);
+        int threads = (Integer) getSetting(ENTITY_ITERABLE_CACHE_THREAD_COUNT);
+        int countsThreads = (Integer) getSetting(ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT);
+        if (countsThreads < 0) {
+            // When counts threads count is not set, fallback for backward compatibility
+            return threads / 2 + threads % 2;
+        } else {
+            return threads;
+        }
+    }
+
+    public int getEntityIterableCacheCountsThreadCount() {
+        int threads = (Integer) getSetting(ENTITY_ITERABLE_CACHE_THREAD_COUNT);
+        int countsThreads = (Integer) getSetting(ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT);
+        if (countsThreads < 0) {
+            // When counts threads count is not set, fallback for backward compatibility
+            return threads / 2;
+        } else {
+            return countsThreads;
+        }
     }
 
     public PersistentEntityStoreConfig setEntityIterableCacheThreadCount(final int threadCount) {
@@ -865,5 +894,9 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     private static int defaultEntityIterableDeferredCacheSize() {
         return Math.max((int) (Runtime.getRuntime().maxMemory() >> 20), MAX_DEFAULT_ENTITY_ITERABLE_CACHE_DEFERRED_SIZE);
+    }
+
+    private static int defaultEntityIterableCacheThreadCount() {
+        return Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2;
     }
 }

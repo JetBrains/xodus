@@ -19,6 +19,7 @@ import jetbrains.exodus.ExodusException
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.execution.Job
+import jetbrains.exodus.core.execution.JobProcessor
 import jetbrains.exodus.entitystore.EntityIterableCache.TooLongEntityIterableInstantiationReason.CACHE_ADAPTER_OBSOLETE
 import jetbrains.exodus.entitystore.EntityIterableCache.TooLongEntityIterableInstantiationReason.JOB_OVERDUE
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
@@ -53,8 +54,22 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     private var cacheAdapter = EntityIterableCacheAdapter.create(config)
 
     val stats = EntityIterableCacheStatistics()
-    val processor = EntityStoreSharedAsyncProcessor(config.entityIterableCacheThreadCount).apply { start() }
-    val isDispatcherThread: Boolean get() = processor.isDispatcherThread
+
+    val processor = EntityStoreSharedAsyncProcessor(
+        "EntityIterableCacheProcessor",
+        config.entityIterableCacheThreadCount
+    )
+    val countsProcessor = EntityStoreSharedAsyncProcessor(
+        "EntityIterableCacheCountsProcessor",
+        config.entityIterableCacheCountsThreadCount
+    )
+
+    init {
+        processor.start()
+        countsProcessor.start()
+    }
+
+    val isDispatcherThread: Boolean get() = processor.isDispatcherThread || countsProcessor.isDispatcherThread
 
     // the value is updated by PersistentEntityStoreSettingsListener
     var cachingDisabled = config.isCachingDisabled
@@ -116,12 +131,12 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
             }
         }
 
-        // if we are already within an EntityStoreSharedAsyncProcessor's dispatcher,
+        // if we are already within caching dispatcher,
         // then instantiate iterable without queueing a job.
         if (isDispatcherThread) {
             return it.getOrCreateCachedInstance(txn)
         }
-        EntityIterableAsyncInstantiation(handle, it, true)
+        EntityIterableAsyncInstantiation(handle, it, true, processor)
         return it
     }
 
@@ -147,7 +162,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
             return it.getOrCreateCachedInstance(it.transaction).size()
         }
         if (it.isThreadSafe) {
-            EntityIterableAsyncInstantiation(handle, it, false)
+            EntityIterableAsyncInstantiation(handle, it, false, countsProcessor)
         }
         return result ?: -1
     }
@@ -167,13 +182,14 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     private inner class EntityIterableAsyncInstantiation(
         private val handle: EntityIterableHandle,
         private val it: EntityIterableBase,
-        private val isConsistent: Boolean
+        private val isConsistent: Boolean,
+        processor: JobProcessor
     ) : Job() {
 
         private val cancellingPolicy = CachingCancellingPolicy(isConsistent && handle.isConsistent)
 
         init {
-            processor = this@EntityIterableCache.processor
+            this.processor = processor
             if (queue(Priority.normal)) {
                 stats.incTotalJobsEnqueued()
                 if (!isConsistent) {
@@ -191,10 +207,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         override fun isEqualTo(job: Job) = handle == (job as EntityIterableAsyncInstantiation).handle
 
         override fun hashCode(): Int {
-            // hashcode is computed in accordance with MultiThreadDelegatingJobProcessor.push()
-            // "consistent" jobs should be queued to an even processor, "inconsistent" jobs - to an odd one
-            val hc = handle.hashCode() and -0x10002
-            return if (isConsistent) hc else hc or 1
+            return handle.hashCode()
         }
 
         override fun execute() {

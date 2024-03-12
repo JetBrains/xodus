@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.management.Statistics;
 import jetbrains.exodus.management.StatisticsItem;
 import org.jetbrains.annotations.NotNull;
@@ -24,7 +25,8 @@ public class PersistentEntityStoreStatistics extends Statistics<PersistentEntity
 
     public enum Type {
         BLOBS_DISK_USAGE("Blobs disk usage"),
-        CACHING_JOBS("Caching jobs");
+        CACHING_JOBS("Caching jobs"),
+        CACHING_COUNTS_JOBS("Caching counts jobs");
 
         public final String id;
 
@@ -69,7 +71,9 @@ public class PersistentEntityStoreStatistics extends Statistics<PersistentEntity
             case BLOBS_DISK_USAGE:
                 return new BlobsDiskUsageStatisticsItem(this);
             case CACHING_JOBS:
-                return new CachingJobsStatisticsItem(this);
+                return new CachingJobsStatisticsItem(this, store.getAsyncProcessor());
+            case CACHING_COUNTS_JOBS:
+                return new CachingJobsStatisticsItem(this, store.getCountsAsyncProcessor());
             default:
                 return super.createNewBuiltInItem(key);
         }
@@ -91,15 +95,18 @@ public class PersistentEntityStoreStatistics extends Statistics<PersistentEntity
 
     private static class CachingJobsStatisticsItem extends StatisticsItem {
 
-        public CachingJobsStatisticsItem(@NotNull final PersistentEntityStoreStatistics statistics) {
+        private final JobProcessor processor;
+
+        public CachingJobsStatisticsItem(@NotNull final PersistentEntityStoreStatistics statistics, JobProcessor processor) {
             super(statistics);
+            this.processor = processor;
         }
 
         @Nullable
         @Override
         protected Long getAutoUpdatedTotal() {
             final PersistentEntityStoreStatistics statistics = (PersistentEntityStoreStatistics) getStatistics();
-            return statistics == null ? null : (long) (statistics.store.getAsyncProcessor().pendingJobs());
+            return statistics == null ? null : (long) (processor.pendingJobs());
         }
     }
 }
