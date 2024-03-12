@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.entitystore;
 
+import com.orientechnologies.orient.core.db.ODatabaseSession;
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
@@ -25,6 +27,10 @@ import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyValueIterable;
+import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
+import jetbrains.exodus.entitystore.orientdb.OEntityId;
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
 import org.jetbrains.annotations.NotNull;
@@ -40,7 +46,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
 @SuppressWarnings({"rawtypes"})
-public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
+public class PersistentStoreTransaction implements OStoreTransaction, StoreTransaction, TxnGetterStrategy, TxnProvider {
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
     enum TransactionType {
@@ -82,7 +88,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private boolean checkInvalidateBlobsFlag;
 
-    PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
+    public PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, TransactionType.Regular);
     }
 
@@ -138,6 +144,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             default:
                 throw new EntityStoreException("Can't create " + txnType + " transaction");
         }
+    }
+
+    @NotNull
+    @Override
+    public ODatabaseDocument activeSession() {
+        return ODatabaseSession.getActiveSession();
     }
 
     @Override
@@ -277,10 +289,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     @NotNull
-    public PersistentEntity getEntity(@NotNull final EntityId id) {
+    public Entity getEntity(@NotNull final EntityId id) {
         final int version = store.getLastVersion(this, id);
         if (version < 0) {
             throw new EntityRemovedInDatabaseException(store.getEntityType(this, id.getTypeId()), id);
+        }
+        if (id instanceof OEntityId) {
+            var oid = ((OEntityId) id).asOId();
+            return ODatabaseSessionsKt.getVertexEntity(activeSession(), oid);
         }
         return new PersistentEntity(store, (PersistentEntityId) id);
     }
@@ -320,15 +336,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public EntityIterable find(@NotNull final String entityType,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
-        if (value instanceof Boolean) {
-            final EntityIterableBase withProp = findWithProp(entityType, propertyName);
-            if (((Boolean) value).booleanValue()) {
-                return withProp;
-            }
-            return getAll(entityType).minus(withProp);
-        }
-        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyValueIterable(this, entityTypeId.intValue(), propertyId.intValue(), value));
+        return new OPropertyValueIterable(this, entityType, propertyName, value);
     }
 
     @Override

@@ -255,8 +255,7 @@ public abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
     }
 
     private static boolean shouldBinaryOperationBeCached(@NotNull EntityIterableBase iterable1, @NotNull EntityIterableBase iterable2) {
-        return (iterable1.getHandle().getType().isPropertyIndex() || iterable1.canBeCached()) &&
-            (iterable2.getHandle().getType().isPropertyIndex() || iterable2.canBeCached());
+        return false;
     }
 
     private static boolean isOrderOk(@NotNull final EntityIterableHandle handle1,

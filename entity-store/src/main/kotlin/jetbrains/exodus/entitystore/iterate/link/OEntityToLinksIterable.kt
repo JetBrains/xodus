@@ -13,17 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.orientdb
+package jetbrains.exodus.entitystore.iterate.link
 
 import com.orientechnologies.common.util.OSizeable
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.EntityIterator
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.util.unsupported
 import org.apache.commons.collections4.IterableUtils
 import org.apache.commons.collections4.IteratorUtils
 import org.apache.commons.collections4.functors.EqualPredicate
-import jetbrains.exodus.entitystore.EntityIterator
 
-class OrientDBLinksEntityIterable(private val vertices: Iterable<OVertex>) : EntityIterable {
+class OEntityToLinksIterable(private val vertices: Iterable<OVertex>) : EntityIterable {
 
     override fun iterator() = object : EntityIterator {
 
@@ -40,12 +42,12 @@ class OrientDBLinksEntityIterable(private val vertices: Iterable<OVertex>) : Ent
 
         override fun hasNext() = iterator.hasNext()
 
-        override fun next() = OrientDBEntity(iterator.next())
+        override fun next() = OVertexEntity(iterator.next())
 
-        override fun remove() = throw UnsupportedOperationException()
+        override fun remove() = unsupported()
     }
 
-    override fun getTransaction() = throw UnsupportedOperationException()
+    override fun getTransaction() = unsupported()
 
     override fun isEmpty() = !vertices.iterator().hasNext()
 
@@ -69,31 +71,31 @@ class OrientDBLinksEntityIterable(private val vertices: Iterable<OVertex>) : Ent
 
     override fun contains(entity: Entity) = IteratorUtils.contains(iterator(), entity)
 
-    override fun intersect(right: EntityIterable) = throw UnsupportedOperationException()
+    override fun intersect(right: EntityIterable) = unsupported()
 
-    override fun intersectSavingOrder(right: EntityIterable) = throw UnsupportedOperationException()
+    override fun intersectSavingOrder(right: EntityIterable) = unsupported()
 
-    override fun union(right: EntityIterable) = throw UnsupportedOperationException()
+    override fun union(right: EntityIterable) = unsupported()
 
-    override fun minus(right: EntityIterable) = throw UnsupportedOperationException()
+    override fun minus(right: EntityIterable) = unsupported()
 
-    override fun concat(right: EntityIterable) = throw UnsupportedOperationException()
+    override fun concat(right: EntityIterable) = unsupported()
 
-    override fun skip(number: Int) = throw UnsupportedOperationException()
+    override fun skip(number: Int) = unsupported()
 
-    override fun take(number: Int) = throw UnsupportedOperationException()
+    override fun take(number: Int) = unsupported()
 
-    override fun distinct() = throw UnsupportedOperationException()
+    override fun distinct() = unsupported()
 
-    override fun selectDistinct(linkName: String) = throw UnsupportedOperationException()
+    override fun selectDistinct(linkName: String) = unsupported()
 
-    override fun selectManyDistinct(linkName: String) = throw UnsupportedOperationException()
+    override fun selectManyDistinct(linkName: String) = unsupported()
 
     override fun getFirst() = iterator().run { if (hasNext()) next() else null }
 
     override fun getLast() = iterator().run { if (hasNext()) skip(count().toInt() - 1).run { next() } else null }
 
-    override fun reverse() = throw UnsupportedOperationException()
+    override fun reverse() = unsupported()
 
     override fun isSortResult() = false
 

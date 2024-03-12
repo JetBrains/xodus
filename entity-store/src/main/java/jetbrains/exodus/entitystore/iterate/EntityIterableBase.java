@@ -133,7 +133,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return EntityIteratorBase.EMPTY;
         }
         final PersistentStoreTransaction txn = getTransaction();
-        return asProbablyCached().getIteratorImpl(txn);
+        return getIteratorImpl(txn);
     }
 
     @NotNull
@@ -477,7 +477,8 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     @NotNull
     public final Entity getEntity(@NotNull final EntityId id) {
-        return getStore().getEntity(id);
+        // return getStore().getEntity(id);
+        return getTransaction().getEntity(id);
     }
 
     public EntityIterable findLinks(@NotNull final Iterable<Entity> entities,

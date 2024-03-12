@@ -9,6 +9,8 @@ import org.junit.rules.ExternalResource
 class InMemoryOrientDB : ExternalResource() {
 
     private lateinit var db: OrientDB
+    lateinit var store:OPersistentStore
+        private set
 
     val username = "admin"
     val password = "admin"
@@ -17,10 +19,29 @@ class InMemoryOrientDB : ExternalResource() {
     override fun before() {
         db = OrientDB("memory", OrientDBConfig.defaultConfig())
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
+
+        withSession { session ->
+            session.createVertexClass(IssueClass.NAME)
+            session.createClass(OVertexEntity.STRING_BLOB_CLASS_NAME)
+            session.createClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)
+        }
+        store = OPersistentStore(db, username, password, dbName)
     }
 
     override fun after() {
         db.close()
+    }
+
+    fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
+        val session = db.open(dbName, username, password)
+        try {
+            session.begin()
+            val result = block(session)
+            session.commit()
+            return result
+        } finally {
+            session.close()
+        }
     }
 
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
@@ -33,7 +54,7 @@ class InMemoryOrientDB : ExternalResource() {
     }
 
     fun withQuery(query: String, block: (OResultSet) -> Unit) {
-        return withSession { session ->
+        return withTxSession { session ->
             val result = session.query(query)
             block(result)
         }

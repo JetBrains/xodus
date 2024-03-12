@@ -41,8 +41,11 @@ public class And extends CommutativeOperator {
                                         final InstantiateContext context) {
         final NodeBase left = getLeft();
         final NodeBase right = getRight();
-        final Instantiatable directClosure = () -> queryEngine.intersectAdjusted(
-            left.instantiate(entityType, queryEngine, metaData, context), right.instantiate(entityType, queryEngine, metaData, context));
+        final Instantiatable directClosure = () -> {
+            var leftInstance = left.instantiate(entityType, queryEngine, metaData, context);
+            var rightInstance = right.instantiate(entityType, queryEngine, metaData, context);
+            return queryEngine.intersectAdjusted(leftInstance, rightInstance);
+        };
         if (left instanceof LinksEqualDecorator) {
             return instantiateCustom(entityType, queryEngine, metaData, context, right, (LinksEqualDecorator) left, directClosure);
         }
