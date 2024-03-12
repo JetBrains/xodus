@@ -65,22 +65,12 @@ class DnqSchemaToOrientDB(
             }
 
             appendLine("creating associations if absent:")
-            /*
-            * When an association declared in a superclass, we do not want to duplicate
-            * it in subclasses. So, we track already processed associations to avoid it.
-            * */
-            val processedAssociations = HashSet<AssociationMetaData>()
             withPadding {
                 for (dnqEntity in sortedEntities) {
                     appendLine(dnqEntity.type)
                     withPadding {
                         for (associationEnd in dnqEntity.associationEndsMetaData) {
-                            if (associationEnd.associationMetaData in processedAssociations) {
-                                continue
-                            }
-                            processedAssociations.add(associationEnd.associationMetaData)
-
-                            applyAssociation(makeLinkMetadata(dnqEntity, associationEnd))
+                            applyAssociation(dnqEntity.type, associationEnd)
                         }
                     }
                 }
@@ -175,54 +165,23 @@ class DnqSchemaToOrientDB(
 
     // Associations
 
-    private fun makeLinkMetadata(entity: EntityMetaData, associationEnd: AssociationEndMetaData): LinkMetadata {
-        val oppositeEntity = associationEnd.oppositeEntityMetaData
-        val oppositeAssociationEnd =
-            if (associationEnd.associationMetaData.type == AssociationType.Directed) {
-                null
-            } else {
-                associationEnd.associationMetaData.getOppositeEnd(associationEnd)
-            }
+    private fun applyAssociation(className: String, association: AssociationEndMetaData) {
+        append(association.name)
 
-        return LinkMetadata(
-            type1 = entity.type,
-            prop1 = associationEnd.name,
-            cardinality1 = associationEnd.cardinality,
-            type2 = oppositeEntity.type,
-            prop2 = oppositeAssociationEnd?.name,
-            cardinality2 = oppositeAssociationEnd?.cardinality
-        )
-    }
+        val class1 = oSession.getClass(className) ?: throw IllegalStateException("${association.oppositeEntityMetaData.type} class is not found")
+        val class2 = oSession.getClass(association.oppositeEntityMetaData.type) ?: throw IllegalStateException("${association.oppositeEntityMetaData.type} class is not found")
 
-    private fun applyAssociation(link: LinkMetadata) {
-        append(link.toString())
-
-        val class1 = oSession.getClass(link.type1) ?: throw IllegalStateException("${link.type1} class is not found")
-        val class2 = oSession.getClass(link.type2) ?: throw IllegalStateException("${link.type2} class is not found")
-
-        oSession.createEdgeClassIfAbsent(link.name)
+        oSession.createEdgeClassIfAbsent(association.name)
         appendLine()
 
         withPadding {
-            // class1.prop1 -> edgeClass -> class2.prop2
+            // class1.prop1 -> edgeClass -> class2
             applyLink(
-                edgeClassName = link.name,
+                edgeClassName = association.name,
                 outClass = class1,
-                outCardinality = link.cardinality1,
+                outCardinality = association.cardinality,
                 inClass = class2,
-                inCardinality = link.cardinality2
             )
-
-            if (link.twoDirectional) {
-                // class2.prop2 -> edgeClass -> class1.prop1
-                applyLink(
-                    edgeClassName = link.name,
-                    outClass = class2,
-                    outCardinality = link.cardinality2!!,
-                    inClass = class1,
-                    inCardinality = link.cardinality1
-                )
-            }
         }
     }
 
@@ -231,7 +190,6 @@ class DnqSchemaToOrientDB(
         outClass: OClass,
         outCardinality: AssociationEndCardinality,
         inClass: OClass,
-        inCardinality: AssociationEndCardinality?
     ) {
         val propOutName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClassName)
         append("${outClass.name}.$propOutName")
@@ -241,8 +199,7 @@ class DnqSchemaToOrientDB(
 
         val propInName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClassName)
         append("${inClass.name}.$propInName")
-        val propIn = inClass.createPropertyIfAbsent(propInName, OType.LINKBAG)
-        propIn.applyCardinality(inCardinality ?: AssociationEndCardinality._0_n)
+        inClass.createPropertyIfAbsent(propInName, OType.LINKBAG)
 
         appendLine()
     }
