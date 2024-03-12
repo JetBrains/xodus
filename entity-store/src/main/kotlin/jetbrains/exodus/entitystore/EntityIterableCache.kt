@@ -16,9 +16,11 @@
 package jetbrains.exodus.entitystore
 
 import jetbrains.exodus.ExodusException
-import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
+import jetbrains.exodus.core.dataStructures.Priority
 import jetbrains.exodus.core.execution.Job
+import jetbrains.exodus.entitystore.EntityIterableCache.TooLongEntityIterableInstantiationReason.CACHE_ADAPTER_OBSOLETE
+import jetbrains.exodus.entitystore.EntityIterableCache.TooLongEntityIterableInstantiationReason.JOB_OVERDUE
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException
 import mu.KLogging
@@ -65,6 +67,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         return cacheAdapter.count().toInt()
     }
 
+    // Exposed for backward compatibility with clients of v3.0
     fun hitRate() = stats.hitRate
 
     fun clear() {
@@ -209,7 +212,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 if (lastCancelled != null) {
                     if (lastCancelled + config.entityIterableCacheHeavyIterablesLifeSpan > started) {
                         stats.incTotalJobsNotStarted()
-                        logger.info { "Heavy iterable not started, handle=${toString(config, handle)}" }
+                        logger.debug { "Heavy iterable not started, handle=${toString(config, handle)}" }
                         return
                     }
                     heavyIterablesCache.remove(iterableIdentity)
@@ -240,13 +243,24 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     logger.error("$action failed with ReadonlyTransactionException. Re-queueing...")
                     queue(Priority.below_normal)
                 } catch (e: TooLongEntityIterableInstantiationException) {
-                    stats.incTotalJobsInterrupted()
+                    val cachingTime = System.currentTimeMillis() - started
+
                     if (isConsistent) {
                         heavyIterablesCache.cacheObject(iterableIdentity, System.currentTimeMillis())
                     }
+
+                    // Update stats and requeue
+                    stats.incTotalJobsInterrupted()
+                    when (e.reason) {
+                        CACHE_ADAPTER_OBSOLETE -> stats.incTotalJobsObsolete()
+                        JOB_OVERDUE -> stats.incTotalJobsOverdue()
+                    }
+
+                    // Log
                     logger.info {
                         val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
-                        "$action forcibly stopped, ${e.reason.message}: ${toString(config, handle)}"
+                        val handle = toString(config, handle)
+                        "$action forcibly stopped, ${e.reason.message}: ${handle}, caching time: ${cachingTime}ms"
                     }
                 }
             }
@@ -283,9 +297,9 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
         override fun doCancel() {
             val reason = if (isConsistent && cacheAdapter !== localCache) {
-                TooLongEntityIterableInstantiationReason.CACHE_ADAPTER_OBSOLETE
+                CACHE_ADAPTER_OBSOLETE
             } else {
-                TooLongEntityIterableInstantiationReason.JOB_OVERDUE
+                JOB_OVERDUE
             }
             throw TooLongEntityIterableInstantiationException(reason)
         }
