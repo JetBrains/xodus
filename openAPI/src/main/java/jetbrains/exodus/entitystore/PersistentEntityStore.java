@@ -204,7 +204,7 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
 
     /**
      * {@linkplain MultiThreadDelegatingJobProcessor Job processor} used by the {@code PersistentEntityStore} for
-     * background counts caching activities. Allows to indirectly estimate load of the {@code PersistentEntityStore}. E.g.,
+     * background counts (inconsistent) caching activities. Allows to indirectly estimate load of the {@code PersistentEntityStore}. E.g.,
      * if it has numerous {@linkplain JobProcessor#pendingJobs() pending caching jobs} (say, thousands) then most
      * likely caching doesn't work well and the {@code PersistentEntityStore} looks overloaded.
      *
