@@ -105,13 +105,42 @@ class OrientDbSchemaInitializerTest {
         assertEquals(OVertexEntity.STRING_BLOB_CLASS_NAME, strBlobProp.linkedClass!!.name)
     }
 
+    @Test
+    fun `embedded set properties with supported types`(): Unit = orientDb.withSession { oSession ->
+        val model = model {
+            entity("type1") {
+                for (type in supportedSimplePropertyTypes) {
+                    setProperty("setProp$type", type)
+                }
+            }
+        }
+
+        oSession.applySchema(model)
+
+        val oClass = oSession.getClass("type1")!!
+        for (type in supportedSimplePropertyTypes) {
+            val prop = oClass.getProperty("setProp$type")!!
+            assertEquals(OType.EMBEDDEDSET, prop.type)
+            assertEquals(getOType(type), prop.linkedType)
+        }
+    }
+
+    @Test
+    fun `embedded set properties with not-supported types cause exception`(): Unit = orientDb.withSession { oSession ->
+        val model = model {
+            entity("type1") {
+                setProperty("setProp$type", "cavaBanga")
+            }
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            oSession.applySchema(model)
+        }
+    }
+
 
     private fun ODatabaseSession.assertVertexClassExists(name: String) {
         assertHasSuperClass(name, "V")
-    }
-
-    private fun ODatabaseSession.assertClassExists(name: String) {
-        assertNotNull(getClass(name))
     }
 
     private fun ODatabaseSession.assertHasSuperClass(className: String, superClassName: String) {
@@ -142,6 +171,10 @@ class OrientDbSchemaInitializerTest {
 
     private fun EntityMetaDataImpl.stringBlobProperty(name: String) {
         this.propertiesMetaData = listOf(PropertyMetaDataImpl(name, PropertyType.TEXT))
+    }
+
+    private fun EntityMetaDataImpl.setProperty(name: String, dataType: String) {
+        this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, "Set", listOf(dataType)))
     }
 
     private val supportedSimplePropertyTypes: List<String> = listOf(
