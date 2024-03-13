@@ -11,25 +11,33 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
-fun ODatabaseSession.applySchema(model: ModelMetaDataImpl): DeferredIndicesCreator {
+fun ODatabaseSession.applySchema(model: ModelMetaDataImpl): Map<String, Set<DeferredIndex>> {
     val initializer = OrientDbSchemaInitializer(model, this)
     initializer.apply()
-    return initializer.indicesCreator
+    return initializer.getIndices()
 }
 
-class OrientDbSchemaInitializer(
+internal class OrientDbSchemaInitializer(
     private val dnqModel: ModelMetaDataImpl,
     private val oSession: ODatabaseSession,
 ) {
     private val paddedLogger = PaddedLogger(log)
-
-    val indicesCreator = DeferredIndicesCreator()
 
     private fun withPadding(code: () -> Unit) = paddedLogger.withPadding(4, code)
 
     private fun append(s: String) = paddedLogger.append(s)
 
     private fun appendLine(s: String = "") = paddedLogger.appendLine(s)
+
+
+    private val indices = HashMap<String, MutableSet<DeferredIndex>>()
+
+    private fun addIndex(index: DeferredIndex) {
+        indices.getOrPut(index.ownerVertexName) { HashSet() }.add(index)
+    }
+
+    fun getIndices(): Map<String, Set<DeferredIndex>> = indices
+
 
     fun apply() {
         try {
@@ -80,7 +88,7 @@ class OrientDbSchemaInitializer(
 
             appendLine("indices found:")
             withPadding {
-                for ((indexOwner, indices) in indicesCreator.getIndices()) {
+                for ((indexOwner, indices) in indices) {
                     appendLine("$indexOwner:")
                     withPadding {
                         for (index in indices) {
@@ -109,7 +117,7 @@ class OrientDbSchemaInitializer(
         * */
         for (index in dnqEntity.ownIndexes.map { DeferredIndex(it, unique = true)}) {
             index.requireAllFieldsAreSimpleProperty()
-            indicesCreator.add(index)
+            addIndex(index)
         }
 
         /*
@@ -306,7 +314,7 @@ class OrientDbSchemaInitializer(
                     * The same behaviour as the original behaviour of set properties in DNQ.
                     * */
                     val index = makeDeferredIndexForEmbeddedSet(propertyName)
-                    indicesCreator.add(index)
+                    addIndex(index)
                 } else { // primitive types
                     val oProperty = createPropertyIfAbsent(propertyName, getOType(primitiveTypeName))
                     oProperty.setRequirement(required)

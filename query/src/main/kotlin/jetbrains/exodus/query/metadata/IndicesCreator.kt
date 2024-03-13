@@ -6,16 +6,14 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
-class DeferredIndicesCreator {
-    private val indicesByOwnerVertexName = HashMap<String, MutableSet<DeferredIndex>>()
+fun ODatabaseSession.applyIndices(indices: Map<String, Set<DeferredIndex>>) {
+    IndicesCreator(indices).createIndices(this)
+}
 
+internal class IndicesCreator(
+    private val indicesByOwnerVertexName: Map<String, Set<DeferredIndex>>
+) {
     private val logger = PaddedLogger(log)
-
-    fun getIndices(): Map<String, Set<DeferredIndex>> = indicesByOwnerVertexName
-
-    fun add(index: DeferredIndex) {
-        indicesByOwnerVertexName.getOrPut(index.ownerVertexName) { HashSet() }.add(index)
-    }
 
     fun createIndices(oSession: ODatabaseSession) {
         try {

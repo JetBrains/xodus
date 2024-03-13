@@ -117,7 +117,7 @@ class OrientDbSchemaInitializerTest {
 
     @Test
     fun `embedded set properties with supported types`() {
-        val indexCreator = orientDb.withSession { oSession ->
+        val indices = orientDb.withSession { oSession ->
             val model = model {
                 entity("type1") {
                     for (type in supportedSimplePropertyTypes) {
@@ -126,7 +126,7 @@ class OrientDbSchemaInitializerTest {
                 }
             }
 
-            val indexCreator = oSession.applySchema(model)
+            val indices = oSession.applySchema(model)
 
             val oClass = oSession.getClass("type1")!!
             for (type in supportedSimplePropertyTypes) {
@@ -134,13 +134,13 @@ class OrientDbSchemaInitializerTest {
                 assertEquals(OType.EMBEDDEDSET, prop.type)
                 assertEquals(getOType(type), prop.linkedType)
 
-                indexCreator.checkIndex("type1", unique = false, "setProp$type")
+                indices.checkIndex("type1", unique = false, "setProp$type")
             }
-            indexCreator
+            indices
         }
 
         orientDb.withSession { oSession ->
-            indexCreator.createIndices(oSession)
+            oSession.applyIndices(indices)
 
             for (type in supportedSimplePropertyTypes) {
                 oSession.getClass("type1").checkIndex(unique = false, "setProp$type")
@@ -215,7 +215,7 @@ class OrientDbSchemaInitializerTest {
 
     @Test
     fun `own indices`() {
-        val indexCreator = orientDb.withSession { oSession ->
+        val indices = orientDb.withSession { oSession ->
             val model = model {
                 entity("type1") {
                     property("prop1", "int")
@@ -228,10 +228,10 @@ class OrientDbSchemaInitializerTest {
                 }
             }
 
-            val indexCreator = oSession.applySchema(model)
+            val indices = oSession.applySchema(model)
 
-            indexCreator.checkIndex("type1", unique = true, "prop1", "prop2")
-            indexCreator.checkIndex("type1", unique = true, "prop3")
+            indices.checkIndex("type1", unique = true, "prop1", "prop2")
+            indices.checkIndex("type1", unique = true, "prop3")
 
             val entity = oSession.getClass("type1")!!
             // indices are not created right away, they are created after data migration
@@ -243,11 +243,53 @@ class OrientDbSchemaInitializerTest {
             entity.getProperty("prop3").check(required = true, notNull = true)
             entity.getProperty("prop4").check(required = false, notNull = false)
 
-            indexCreator
+            indices
         }
 
         orientDb.withSession { oSession ->
-            indexCreator.createIndices(oSession)
+            oSession.applyIndices(indices)
+
+            val entity = oSession.getClass("type1")!!
+            entity.checkIndex(true, "prop1", "prop2")
+            entity.checkIndex(true, "prop3")
+        }
+    }
+
+    @Test
+    fun `index for every simple property`() {
+        val indices = orientDb.withSession { oSession ->
+            val model = model {
+                entity("type1") {
+                    property("prop1", "int")
+                    property("prop2", "long")
+                    property("prop3", "string")
+                    property("prop4", "string")
+
+                    index("prop1", "prop2")
+                    index("prop3")
+                }
+            }
+
+            val indices = oSession.applySchema(model)
+
+            indices.checkIndex("type1", unique = true, "prop1", "prop2")
+            indices.checkIndex("type1", unique = true, "prop3")
+
+            val entity = oSession.getClass("type1")!!
+            // indices are not created right away, they are created after data migration
+            assertTrue(entity.indexes.isEmpty())
+
+            // indexed properties in Xodus are required and not-nullable
+            entity.getProperty("prop1").check(required = true, notNull = true)
+            entity.getProperty("prop2").check(required = true, notNull = true)
+            entity.getProperty("prop3").check(required = true, notNull = true)
+            entity.getProperty("prop4").check(required = false, notNull = false)
+
+            indices
+        }
+
+        orientDb.withSession { oSession ->
+            oSession.applyIndices(indices)
 
             val entity = oSession.getClass("type1")!!
             entity.checkIndex(true, "prop1", "prop2")
@@ -271,9 +313,9 @@ class OrientDbSchemaInitializerTest {
         assertEquals(notNull, isNotNull)
     }
 
-    private fun DeferredIndicesCreator.checkIndex(entityName: String, unique: Boolean, vararg fieldNames: String) {
+    private fun Map<String, Set<DeferredIndex>>.checkIndex(entityName: String, unique: Boolean, vararg fieldNames: String) {
         val indexName = "${entityName}_${fieldNames.joinToString("_")}"
-        val indices = getIndices().getValue(entityName)
+        val indices = getValue(entityName)
         val index = indices.first { it.indexName == indexName }
 
         assertEquals(unique, index.unique)
