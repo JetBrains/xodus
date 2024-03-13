@@ -3,6 +3,7 @@ package jetbrains.exodus.query.metadata
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OType
 import jetbrains.exodus.entitystore.orientdb.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -85,23 +86,23 @@ class OrientDbSchemaInitializerTest {
 
         oSession.applySchema(model)
 
-        val blobClass = oSession.getClass(OrientDbSchemaInitializer.BINARY_BLOB_CLASS_NAME)!!
-        val blobDataProp = blobClass.getProperty(OrientDbSchemaInitializer.DATA_PROPERTY_NAME)!!
+        val blobClass = oSession.getClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)!!
+        val blobDataProp = blobClass.getProperty(OVertexEntity.DATA_PROPERTY_NAME)!!
         assertEquals(OType.BINARY, blobDataProp.type)
 
-        val strBlobClass = oSession.getClass(OrientDbSchemaInitializer.STRING_BLOB_CLASS_NAME)!!
-        val strBlobDataProp = strBlobClass.getProperty(OrientDbSchemaInitializer.DATA_PROPERTY_NAME)!!
+        val strBlobClass = oSession.getClass(OVertexEntity.STRING_BLOB_CLASS_NAME)!!
+        val strBlobDataProp = strBlobClass.getProperty(OVertexEntity.DATA_PROPERTY_NAME)!!
         assertEquals(OType.BINARY, strBlobDataProp.type)
 
         val entity = oSession.getClass("type1")
 
         val blobProp = entity.getProperty("blob1")!!
         assertEquals(OType.LINK, blobProp.type)
-        assertEquals(OrientDbSchemaInitializer.BINARY_BLOB_CLASS_NAME, blobProp.linkedClass!!.name)
+        assertEquals(OVertexEntity.BINARY_BLOB_CLASS_NAME, blobProp.linkedClass!!.name)
 
         val strBlobProp = entity.getProperty("strBlob1")!!
         assertEquals(OType.LINK, strBlobProp.type)
-        assertEquals(OrientDbSchemaInitializer.STRING_BLOB_CLASS_NAME, strBlobProp.linkedClass!!.name)
+        assertEquals(OVertexEntity.STRING_BLOB_CLASS_NAME, strBlobProp.linkedClass!!.name)
     }
 
 

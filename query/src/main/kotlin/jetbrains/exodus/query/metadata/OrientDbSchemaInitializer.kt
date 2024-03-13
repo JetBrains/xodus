@@ -6,6 +6,7 @@ import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -20,13 +21,6 @@ class OrientDbSchemaInitializer(
     private val dnqModel: ModelMetaDataImpl,
     private val oSession: ODatabaseSession,
 ) {
-    companion object {
-        val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
-        val DATA_PROPERTY_NAME = "data"
-
-        val STRING_BLOB_CLASS_NAME: String = "StringBlob"
-    }
-
     private val paddedLogger = PaddedLogger(log)
 
     val indicesCreator = DeferredIndicesCreator()
@@ -364,9 +358,9 @@ class OrientDbSchemaInitializer(
         appendLine()
     }
 
-    private fun OClass.createBinaryBlobPropertyIfAbsent(propertyName: String): OProperty = createBlobPropertyIfAbsent(propertyName, BINARY_BLOB_CLASS_NAME)
+    private fun OClass.createBinaryBlobPropertyIfAbsent(propertyName: String): OProperty = createBlobPropertyIfAbsent(propertyName, OVertexEntity.BINARY_BLOB_CLASS_NAME)
 
-    private fun OClass.createStringBlobPropertyIfAbsent(propertyName: String): OProperty = createBlobPropertyIfAbsent(propertyName, STRING_BLOB_CLASS_NAME)
+    private fun OClass.createStringBlobPropertyIfAbsent(propertyName: String): OProperty = createBlobPropertyIfAbsent(propertyName, OVertexEntity.STRING_BLOB_CLASS_NAME)
 
     private fun OClass.createBlobPropertyIfAbsent(propertyName: String, blobClassName: String): OProperty {
         val blobClass = oSession.createBlobClassIfAbsent(blobClassName)
@@ -384,11 +378,11 @@ class OrientDbSchemaInitializer(
         if (oClass == null) {
             oClass = oSession.createVertexClass(className)!!
             append(", $className class created")
-            oClass.createProperty(DATA_PROPERTY_NAME, OType.BINARY)
-            append(", $DATA_PROPERTY_NAME property created")
+            oClass.createProperty(OVertexEntity.DATA_PROPERTY_NAME, OType.BINARY)
+            append(", ${OVertexEntity.DATA_PROPERTY_NAME} property created")
         } else {
             append(", $className class already created")
-            require(oClass.existsProperty(DATA_PROPERTY_NAME)) { "$DATA_PROPERTY_NAME is missing in $className, something went dramatically wrong. Happy debugging!" }
+            require(oClass.existsProperty(OVertexEntity.DATA_PROPERTY_NAME)) { "${OVertexEntity.DATA_PROPERTY_NAME} is missing in $className, something went dramatically wrong. Happy debugging!" }
         }
         return oClass
     }
