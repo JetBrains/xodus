@@ -2,6 +2,7 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
@@ -51,6 +52,7 @@ class OrientDbSchemaInitializerTest {
             entity("type1") {
                 for (type in supportedSimplePropertyTypes) {
                     property("prop$type", type)
+                    property("requiredProp$type", type, required = true)
                 }
             }
         }
@@ -59,8 +61,14 @@ class OrientDbSchemaInitializerTest {
 
         val oClass = oSession.getClass("type1")!!
         for (type in supportedSimplePropertyTypes) {
+            val requiredProp = oClass.getProperty("requiredProp$type")!!
             val prop = oClass.getProperty("prop$type")!!
+
+            assertEquals(getOType(type), requiredProp.type)
             assertEquals(getOType(type), prop.type)
+
+            requiredProp.check(required = true, notNull = true)
+            prop.check(required = false, notNull = false)
         }
     }
 
@@ -192,6 +200,79 @@ class OrientDbSchemaInitializerTest {
         }
     }
 
+    @Test
+    fun `own indices`() {
+        val indexCreator = orientDb.withSession { oSession ->
+            val model = model {
+                entity("type1") {
+                    property("prop1", "int")
+                    property("prop2", "long")
+                    property("prop3", "string")
+                    property("prop4", "string")
+
+                    index("prop1", "prop2")
+                    index("prop3")
+                }
+            }
+
+            val indexCreator = oSession.applySchema(model)
+
+            indexCreator.checkIndex("type1", unique = true, "prop1", "prop2")
+            indexCreator.checkIndex("type1", unique = true, "prop3")
+
+            val entity = oSession.getClass("type1")!!
+            // indices are not created right away, they are created after data migration
+            assertTrue(entity.indexes.isEmpty())
+
+            // indexed properties in Xodus are required and not-nullable
+            entity.getProperty("prop1").check(required = true, notNull = true)
+            entity.getProperty("prop2").check(required = true, notNull = true)
+            entity.getProperty("prop3").check(required = true, notNull = true)
+            entity.getProperty("prop4").check(required = false, notNull = false)
+
+            indexCreator
+        }
+
+        orientDb.withSession { oSession ->
+            indexCreator.createIndices(oSession)
+
+            val entity = oSession.getClass("type1")!!
+            entity.checkIndex(true, "prop1", "prop2")
+            entity.checkIndex(true, "prop3")
+        }
+    }
+
+    private fun OClass.checkIndex(unique: Boolean, vararg fieldNames: String) {
+        val indexName = "${name}_${fieldNames.joinToString("_")}"
+        val index = indexes.first { it.name == indexName }
+        assertEquals(unique, index.isUnique)
+
+        assertEquals(fieldNames.size, index.definition.fields.size)
+        for (fieldName in fieldNames) {
+            assertTrue(index.definition.fields.contains(fieldName))
+        }
+    }
+
+    private fun OProperty.check(required: Boolean, notNull: Boolean) {
+        assertEquals(required, isMandatory)
+        assertEquals(notNull, isNotNull)
+    }
+
+    private fun DeferredIndicesCreator.checkIndex(entityName: String, unique: Boolean, vararg fieldNames: String) {
+        val indexName = "${entityName}_${fieldNames.joinToString("_")}"
+        val indices = getIndices().getValue(entityName)
+        val index = indices.first { it.indexName == indexName }
+
+        assertEquals(unique, index.unique)
+        assertEquals(entityName, index.ownerVertexName)
+        assertEquals(fieldNames.size, index.properties.size)
+        assertTrue(index.allFieldsAreSimpleProperty)
+
+        for (fieldName in fieldNames) {
+            assertTrue(index.properties.any { it.name == fieldName })
+        }
+    }
+
     private fun ODatabaseSession.checkAssociation(edgeName: String, outClass: OClass, inClass: OClass, cardinality: AssociationEndCardinality) {
         val edge = requireEdgeClass(edgeName)
 
@@ -228,19 +309,6 @@ class OrientDbSchemaInitializerTest {
         assertEquals(edge, inProp.linkedClass)
     }
 
-    /*
-    * when (cardinality) {
-
-            AssociationEndCardinality._1_n -> {
-                setRequirement(true)
-                setMinIfDifferent("1")
-                setMaxIfDifferent(null)
-            }
-        }
-    *
-    * */
-
-
     private fun ODatabaseSession.assertVertexClassExists(name: String) {
         assertHasSuperClass(name, "V")
     }
@@ -269,8 +337,23 @@ class OrientDbSchemaInitializerTest {
         entity.init()
     }
 
-    private fun EntityMetaDataImpl.property(name: String, typeName: String) {
+    private fun EntityMetaDataImpl.index(vararg fieldNames: String) {
+        val index = IndexImpl()
+        index.fields = fieldNames.map { fieldName ->
+            val field = IndexFieldImpl()
+            field.isProperty = true
+            field.name = fieldName
+            field
+        }
+        index.ownerEntityType = this.type
+        this.ownIndexes = this.ownIndexes + setOf(index)
+    }
+
+    private fun EntityMetaDataImpl.property(name: String, typeName: String, required: Boolean = false) {
         this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, typeName))
+        if (required) {
+            requiredProperties = requiredProperties + setOf(name)
+        }
     }
 
     private fun EntityMetaDataImpl.blobProperty(name: String) {

@@ -46,7 +46,6 @@ class DeferredIndicesCreator {
             }
         } catch (e: Throwable) {
             logger.flush()
-            log.error(e) { e.message }
         } finally {
             logger.flush()
         }
