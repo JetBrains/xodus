@@ -36,7 +36,8 @@ class OPersistentStore(
 
     override fun beginTransaction(): StoreTransaction {
         val session = db.open(databaseName, userName, password)
-        return OStoreTransactionImpl(session, session.transaction, this)
+        val txn = session.begin().transaction
+        return OStoreTransactionImpl(session, txn, this)
     }
 
     override fun beginExclusiveTransaction(): StoreTransaction {
