@@ -116,22 +116,35 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `embedded set properties with supported types`(): Unit = orientDb.withSession { oSession ->
-        val model = model {
-            entity("type1") {
-                for (type in supportedSimplePropertyTypes) {
-                    setProperty("setProp$type", type)
+    fun `embedded set properties with supported types`() {
+        val indexCreator = orientDb.withSession { oSession ->
+            val model = model {
+                entity("type1") {
+                    for (type in supportedSimplePropertyTypes) {
+                        setProperty("setProp$type", type)
+                    }
                 }
             }
+
+            val indexCreator = oSession.applySchema(model)
+
+            val oClass = oSession.getClass("type1")!!
+            for (type in supportedSimplePropertyTypes) {
+                val prop = oClass.getProperty("setProp$type")!!
+                assertEquals(OType.EMBEDDEDSET, prop.type)
+                assertEquals(getOType(type), prop.linkedType)
+
+                indexCreator.checkIndex("type1", unique = false, "setProp$type")
+            }
+            indexCreator
         }
 
-        oSession.applySchema(model)
+        orientDb.withSession { oSession ->
+            indexCreator.createIndices(oSession)
 
-        val oClass = oSession.getClass("type1")!!
-        for (type in supportedSimplePropertyTypes) {
-            val prop = oClass.getProperty("setProp$type")!!
-            assertEquals(OType.EMBEDDEDSET, prop.type)
-            assertEquals(getOType(type), prop.linkedType)
+            for (type in supportedSimplePropertyTypes) {
+                oSession.getClass("type1").checkIndex(unique = false, "setProp$type")
+            }
         }
     }
 
