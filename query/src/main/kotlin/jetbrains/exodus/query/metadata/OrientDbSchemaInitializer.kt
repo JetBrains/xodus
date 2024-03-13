@@ -10,6 +10,12 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
+fun ODatabaseSession.applySchema(model: ModelMetaDataImpl): DeferredIndicesCreator {
+    val initializer = OrientDbSchemaInitializer(model, this)
+    initializer.apply()
+    return initializer.indicesCreator
+}
+
 class OrientDbSchemaInitializer(
     private val dnqModel: ModelMetaDataImpl,
     private val oSession: ODatabaseSession,
@@ -89,9 +95,6 @@ class OrientDbSchemaInitializer(
                     }
                 }
             }
-        } catch (e: Throwable) {
-            paddedLogger.flush()
-            log.error(e) { e.message }
         } finally {
             paddedLogger.flush()
         }
@@ -259,7 +262,7 @@ class OrientDbSchemaInitializer(
 
         withPadding {
             for (propertyMetaData in dnqEntity.propertiesMetaData) {
-                if (propertyMetaData is SimplePropertyMetaDataImpl) {
+                if (propertyMetaData is PropertyMetaDataImpl) {
                     val required = propertyMetaData.name in dnqEntity.requiredProperties
                     // Xodus does not let a property be null/empty if it is in an index
                     val requiredBecauseOfIndex = dnqEntity.ownIndexes.any { index -> index.fields.any { it.name == propertyMetaData.name } }
@@ -270,16 +273,17 @@ class OrientDbSchemaInitializer(
     }
 
     private fun OClass.applySimpleProperty(
-        simpleProp: SimplePropertyMetaDataImpl,
+        simpleProp: PropertyMetaDataImpl,
         required: Boolean
     ) {
         val propertyName = simpleProp.name
         append(propertyName)
 
-        val primitiveTypeName = simpleProp.primitiveTypeName ?: throw IllegalArgumentException("primitiveTypeName is null")
-
         when (simpleProp.type) {
             PropertyType.PRIMITIVE -> {
+                require(simpleProp is SimplePropertyMetaDataImpl) { "$propertyName is a primitive property but it is not an instance of SimplePropertyMetaDataImpl. Happy fixing!" }
+                val primitiveTypeName = simpleProp.primitiveTypeName ?: throw IllegalArgumentException("primitiveTypeName is null")
+
                 if (primitiveTypeName.lowercase() == "set") {
                     append(", is not supported yet")
                     /*

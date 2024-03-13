@@ -6,7 +6,9 @@ import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import org.junit.rules.ExternalResource
 
-class InMemoryOrientDB : ExternalResource() {
+class InMemoryOrientDB(
+    private val createClasses: Boolean = true
+) : ExternalResource() {
 
     private lateinit var db: OrientDB
     lateinit var store:OPersistentStore
@@ -20,10 +22,12 @@ class InMemoryOrientDB : ExternalResource() {
         db = OrientDB("memory", OrientDBConfig.defaultConfig())
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
 
-        withSession { session ->
-            session.createVertexClass(IssueClass.NAME)
-            session.createClass(OVertexEntity.STRING_BLOB_CLASS_NAME)
-            session.createClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)
+        if (createClasses) {
+            withSession { session ->
+                session.createVertexClass(IssueClass.NAME)
+                session.createClass(OVertexEntity.STRING_BLOB_CLASS_NAME)
+                session.createClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)
+            }
         }
         store = OPersistentStore(db, username, password, dbName)
     }
