@@ -10,7 +10,7 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
-class DnqSchemaToOrientDB(
+class OrientDbSchemaInitializer(
     private val dnqModel: ModelMetaDataImpl,
     private val oSession: ODatabaseSession,
 ) {
