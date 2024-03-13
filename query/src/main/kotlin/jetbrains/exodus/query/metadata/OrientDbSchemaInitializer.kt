@@ -168,13 +168,13 @@ class OrientDbSchemaInitializer(
         val class1 = oSession.getClass(className) ?: throw IllegalStateException("${association.oppositeEntityMetaData.type} class is not found")
         val class2 = oSession.getClass(association.oppositeEntityMetaData.type) ?: throw IllegalStateException("${association.oppositeEntityMetaData.type} class is not found")
 
-        oSession.createEdgeClassIfAbsent(association.name)
+        val edgeClass = oSession.createEdgeClassIfAbsent(association.name)
         appendLine()
 
         withPadding {
             // class1.prop1 -> edgeClass -> class2
             applyLink(
-                edgeClassName = association.name,
+                edgeClass,
                 outClass = class1,
                 outCardinality = association.cardinality,
                 inClass = class2,
@@ -183,20 +183,20 @@ class OrientDbSchemaInitializer(
     }
 
     private fun applyLink(
-        edgeClassName: String,
+        edgeClass: OClass,
         outClass: OClass,
         outCardinality: AssociationEndCardinality,
         inClass: OClass,
     ) {
-        val propOutName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClassName)
+        val propOutName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
         append("${outClass.name}.$propOutName")
-        val propOut = outClass.createPropertyIfAbsent(propOutName, OType.LINKBAG)
+        val propOut = outClass.createEdgePropertyIfAbsent(propOutName, edgeClass)
         propOut.applyCardinality(outCardinality)
         appendLine()
 
-        val propInName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClassName)
+        val propInName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClass.name)
         append("${inClass.name}.$propInName")
-        inClass.createPropertyIfAbsent(propInName, OType.LINKBAG)
+        inClass.createEdgePropertyIfAbsent(propInName, edgeClass)
 
         appendLine()
     }
@@ -429,6 +429,20 @@ class OrientDbSchemaInitializer(
         return oProperty
     }
 
+    private fun OClass.createEdgePropertyIfAbsent(propertyName: String, edgeClass: OClass): OProperty {
+        append(", edge-class is ${edgeClass.name}")
+        val oProperty = if (existsProperty(propertyName)) {
+            append(", already created")
+            getProperty(propertyName)
+        } else {
+            append(", created")
+            createProperty(propertyName, OType.LINKBAG, edgeClass)
+        }
+        require(oProperty.type == OType.LINKBAG) { "$propertyName type is ${oProperty.type} but ${OType.LINKBAG} was expected instead. Types migration is not supported."  }
+        require(oProperty.linkedClass == edgeClass) { "$propertyName type of the set is ${oProperty.linkedClass.name} but ${edgeClass.name} was expected instead. Types migration is not supported." }
+        return oProperty
+    }
+
     private fun OClass.createEmbeddedSetPropertyIfAbsent(propertyName: String, oType: OType): OProperty {
         append(", type of the set is $oType")
         val oProperty = if (existsProperty(propertyName)) {
@@ -439,7 +453,7 @@ class OrientDbSchemaInitializer(
             createProperty(propertyName, OType.EMBEDDEDSET, oType)
         }
         require(oProperty.type == OType.EMBEDDEDSET) { "$propertyName type is ${oProperty.type} but ${OType.EMBEDDEDSET} was expected instead. Types migration is not supported."  }
-        require(oProperty.linkedType == oType) { "$propertyName type of the set is ${oProperty.type} but $oType was expected instead. Types migration is not supported." }
+        require(oProperty.linkedType == oType) { "$propertyName type of the set is ${oProperty.linkedType} but $oType was expected instead. Types migration is not supported." }
         return oProperty
     }
 

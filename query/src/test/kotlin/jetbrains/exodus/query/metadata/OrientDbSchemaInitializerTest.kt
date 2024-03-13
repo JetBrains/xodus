@@ -1,7 +1,10 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import org.junit.Assert.assertEquals
@@ -9,7 +12,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
 
 class OrientDbSchemaInitializerTest {
     @Rule
@@ -138,9 +140,115 @@ class OrientDbSchemaInitializerTest {
         }
     }
 
+    @Test
+    fun `one-directional associations`(): Unit = orientDb.withSession { oSession ->
+        val model = model {
+            entity("type1")
+            entity("type2") {
+                for (cardinality in AssociationEndCardinality.entries) {
+                    association("prop1$cardinality", "type1", cardinality)
+                }
+            }
+        }
+
+        oSession.applySchema(model)
+
+        val inClass = oSession.getClass("type1")!!
+        val outClass = oSession.getClass("type2")!!
+        for (cardinality in AssociationEndCardinality.entries) {
+            oSession.checkAssociation("prop1$cardinality", outClass, inClass, cardinality)
+        }
+    }
+
+    @Test
+    fun `two-directional associations`(): Unit = orientDb.withSession { oSession ->
+        val model = model {
+            entity("type1")
+            entity("type2")
+
+            for (cardinality1 in AssociationEndCardinality.entries) {
+                for (cardinality2 in AssociationEndCardinality.entries) {
+                    twoDirectionalAssociation(
+                        sourceEntity = "type1",
+                        sourceName = "prop1${cardinality1}_${cardinality2}",
+                        sourceCardinality = cardinality1,
+                        targetEntity = "type2",
+                        targetName = "prop2${cardinality2}_${cardinality1}",
+                        targetCardinality = cardinality2
+                    )
+                }
+            }
+        }
+
+        oSession.applySchema(model)
+
+        val class1 = oSession.getClass("type1")!!
+        val class2 = oSession.getClass("type2")!!
+        for (cardinality1 in AssociationEndCardinality.entries) {
+            for (cardinality2 in AssociationEndCardinality.entries) {
+                oSession.checkAssociation("prop1${cardinality1}_${cardinality2}", class1, class2, cardinality1)
+                oSession.checkAssociation("prop2${cardinality2}_${cardinality1}", class2, class1, cardinality2)
+            }
+        }
+    }
+
+    private fun ODatabaseSession.checkAssociation(edgeName: String, outClass: OClass, inClass: OClass, cardinality: AssociationEndCardinality) {
+        val edge = requireEdgeClass(edgeName)
+
+        val outPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
+        val outProp = outClass.getProperty(outPropName)!!
+        assertEquals(OType.LINKBAG, outProp.type)
+        assertEquals(edge, outProp.linkedClass)
+        when (cardinality) {
+            AssociationEndCardinality._0_1 -> {
+                assertTrue(!outProp.isMandatory)
+                assertTrue(outProp.min == "0")
+                assertTrue(outProp.max == "1")
+            }
+            AssociationEndCardinality._1 -> {
+                assertTrue(outProp.isMandatory)
+                assertTrue(outProp.min == "1")
+                assertTrue(outProp.max == "1")
+            }
+            AssociationEndCardinality._0_n -> {
+                assertTrue(!outProp.isMandatory)
+                assertTrue(outProp.min == "0")
+                assertTrue(outProp.max == null)
+            }
+            AssociationEndCardinality._1_n -> {
+                assertTrue(outProp.isMandatory)
+                assertTrue(outProp.min == "1")
+                assertTrue(outProp.max == null)
+            }
+        }
+
+        val inPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeName)
+        val inProp = inClass.getProperty(inPropName)!!
+        assertEquals(OType.LINKBAG, inProp.type)
+        assertEquals(edge, inProp.linkedClass)
+    }
+
+    /*
+    * when (cardinality) {
+
+            AssociationEndCardinality._1_n -> {
+                setRequirement(true)
+                setMinIfDifferent("1")
+                setMaxIfDifferent(null)
+            }
+        }
+    *
+    * */
+
 
     private fun ODatabaseSession.assertVertexClassExists(name: String) {
         assertHasSuperClass(name, "V")
+    }
+
+    private fun ODatabaseSession.requireEdgeClass(name: String): OClass {
+        val edge = getClass(name)!!
+        assertTrue(edge.superClassesNames.contains("E"))
+        return edge
     }
 
     private fun ODatabaseSession.assertHasSuperClass(className: String, superClassName: String) {
@@ -157,8 +265,8 @@ class OrientDbSchemaInitializerTest {
         val entity = EntityMetaDataImpl()
         entity.type = type
         entity.superType = superType
-        entity.init()
         addEntityMetaData(entity)
+        entity.init()
     }
 
     private fun EntityMetaDataImpl.property(name: String, typeName: String) {
@@ -175,6 +283,39 @@ class OrientDbSchemaInitializerTest {
 
     private fun EntityMetaDataImpl.setProperty(name: String, dataType: String) {
         this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, "Set", listOf(dataType)))
+    }
+
+    private fun EntityMetaDataImpl.association(associationName: String, targetEntity: String, cardinality: AssociationEndCardinality) {
+        modelMetaData.addAssociation(
+            this.type,
+            targetEntity,
+            AssociationType.Directed, // ingored
+            associationName,
+            cardinality,
+            false, false, false ,false, // ignored
+            null, null, false, false, false, false
+        )
+    }
+
+    private fun ModelMetaData.twoDirectionalAssociation(
+        sourceEntity: String,
+        sourceName: String,
+        sourceCardinality: AssociationEndCardinality,
+        targetEntity: String,
+        targetName: String,
+        targetCardinality: AssociationEndCardinality,
+    ) {
+        addAssociation(
+            sourceEntity,
+            targetEntity,
+            AssociationType.Undirected, // two-directional
+            sourceName,
+            sourceCardinality,
+            false, false, false ,false, // ignored
+            targetName,
+            targetCardinality,
+            false, false, false, false // ignored
+        )
     }
 
     private val supportedSimplePropertyTypes: List<String> = listOf(
