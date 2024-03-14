@@ -17,24 +17,41 @@ package jetbrains.exodus.query.metadata;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  */
 public class SimplePropertyMetaDataImpl extends PropertyMetaDataImpl {
 
     private String primitiveTypeName;
 
+    private List<String> typeParameterNames;
+
     public SimplePropertyMetaDataImpl() {
     }
 
     public SimplePropertyMetaDataImpl(final String name, final String primitiveTypeName) {
+        this(name, primitiveTypeName, Collections.emptyList());
+    }
+
+    public SimplePropertyMetaDataImpl(final String name, final String primitiveTypeName, final List<String> typeParameterNames) {
         super(name, PropertyType.PRIMITIVE);
         this.primitiveTypeName = primitiveTypeName;
+        this.typeParameterNames = typeParameterNames;
     }
 
     @Nullable
     public String getPrimitiveTypeName() {
         return primitiveTypeName;
     }
+
+    /**
+     * If you have a property of type Set[String], String is the type parameter.
+     * So, getPrimitiveTypeName() returns "Set" and getTypeParameterNames() returns ["String"].
+     * */
+    @Nullable
+    public List<String> getTypeParameterNames() { return typeParameterNames; }
 
     public void setPrimitiveTypeName(String primitiveTypeName) {
         this.primitiveTypeName = primitiveTypeName;
