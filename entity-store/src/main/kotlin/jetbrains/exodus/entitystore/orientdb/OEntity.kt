@@ -8,4 +8,6 @@ interface OEntity : Entity {
     override fun getId(): OEntityId
 
     fun getOId(): ORID
+
+    fun save()
 }

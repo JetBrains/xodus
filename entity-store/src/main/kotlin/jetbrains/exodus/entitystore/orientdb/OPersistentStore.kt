@@ -36,7 +36,8 @@ class OPersistentStore(
 
     override fun beginTransaction(): StoreTransaction {
         val session = db.open(databaseName, userName, password)
-        return OStoreTransactionImpl(session)
+        val txn = session.begin().transaction
+        return OStoreTransactionImpl(session, txn, this)
     }
 
     override fun beginExclusiveTransaction(): StoreTransaction {
@@ -48,7 +49,7 @@ class OPersistentStore(
     }
 
     override fun getCurrentTransaction(): StoreTransaction {
-        return OStoreTransactionImpl(ODatabaseSession.getActiveSession())
+        return OStoreTransactionImpl(ODatabaseSession.getActiveSession(),ODatabaseSession.getActiveSession().transaction, this)
     }
 
     override fun getBackupStrategy(): BackupStrategy {
@@ -130,7 +131,11 @@ class OPersistentStore(
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
-        TODO("Not yet implemented")
+        executeInTransaction {
+            val txn = it as OStoreTransaction
+            val oldClass = txn.activeSession().metadata.schema.classes.firstOrNull { it.name == oldEntityTypeName } ?: throw IllegalStateException("")
+            oldClass.setName(newEntityTypeName)
+        }
     }
 
     override fun getUsableSpace(): Long {
