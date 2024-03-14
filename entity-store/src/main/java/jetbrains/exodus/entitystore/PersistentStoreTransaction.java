@@ -419,7 +419,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable findLinks(@NotNull final String entityType,
                                     @NotNull final Entity entity,
                                     @NotNull final String linkName) {
-        return new OLinkToEntityIterable(this, linkName, entityType, ((OEntity) entity).getId());
+        return new OLinkToEntityIterable(this, entityType, linkName, ((OEntity) entity).getId());
     }
 
     @Override

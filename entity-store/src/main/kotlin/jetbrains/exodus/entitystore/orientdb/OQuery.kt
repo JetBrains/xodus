@@ -35,7 +35,7 @@ class OSimpleSelect(
     override val condition: OCondition? = null
 ) : OClassSelect {
 
-    override fun sql() = "SELECT from $className ${condition.toWhereSqlOrEmpty()}"
+    override fun sql() = "SELECT from $className ${condition.whereOrEmpty()}"
     override fun params() = condition?.params() ?: emptyMap()
 
     override fun union(other: OQuery): OQuery {
@@ -64,8 +64,8 @@ class OLinkInSelect(
     override val condition: OCondition? = null
 ) : OClassSelect {
 
-    override fun sql() = "SELECT expand(in('${linkName}')) from $targetId ${condition.toWhereSqlOrEmpty()}"
-    override fun params() = mapOf("rid" to targetId)
+    override fun sql() = "SELECT expand(in('${linkName}')) from $targetId ${condition.whereOrEmpty()}"
+    override fun params() = emptyMap<String, Any>()
 
     override fun copyWithCondition(condition: OCondition?) = OLinkInSelect(className, linkName, targetId, condition)
 
@@ -98,6 +98,7 @@ class OEqualCondition(
     val value: Any,
 ) : OCondition {
 
+    // ToDo: make paramId deterministic to leverage query parsing cache
     val paramId = "${field}_${UUID.randomUUID().toString().take(4).replace("-", "")}"
 
     override fun sql() = "$field = :$paramId"
@@ -115,7 +116,7 @@ class OAndCondition(left: OCondition, right: OCondition) : OBiCondition("AND", l
 class OOrCondition(left: OCondition, right: OCondition) : OBiCondition("OR", left, right)
 
 // Condition extensions
-fun OCondition?.toWhereSqlOrEmpty() = this?.let { "WHERE ${it.sql()}" } ?: ""
+fun OCondition?.whereOrEmpty() = this?.let { "WHERE ${it.sql()}" } ?: ""
 
 fun OCondition?.and(other: OCondition?): OCondition? {
     if (this == null) return other
