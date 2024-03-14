@@ -6,6 +6,7 @@ import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.env.Transaction
 
 class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
@@ -205,5 +206,9 @@ class OStoreTransactionImpl(
 
     override fun getQueryCancellingPolicy(): QueryCancellingPolicy? {
         TODO("Not yet implemented")
+    }
+
+    override fun getEnvironmentTransaction(): Transaction {
+        return OEnvironmentTransaction(oStore.environment, this)
     }
 }
