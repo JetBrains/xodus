@@ -256,45 +256,41 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `index for every simple property`() {
-        val indices = orientDb.withSession { oSession ->
-            val model = model {
-                entity("type1") {
-                    property("prop1", "int")
-                    property("prop2", "long")
-                    property("prop3", "string")
-                    property("prop4", "string")
-
-                    index("prop1", "prop2")
-                    index("prop3")
-                }
+    fun `index for every simple property if required`() = orientDb.withSession { oSession ->
+        val model = model {
+            entity("type1") {
+                property("prop1", "int")
+                property("prop2", "long")
+                property("prop3", "string")
+                property("prop4", "string")
             }
-
-            val indices = oSession.applySchema(model)
-
-            indices.checkIndex("type1", unique = true, "prop1", "prop2")
-            indices.checkIndex("type1", unique = true, "prop3")
-
-            val entity = oSession.getClass("type1")!!
-            // indices are not created right away, they are created after data migration
-            assertTrue(entity.indexes.isEmpty())
-
-            // indexed properties in Xodus are required and not-nullable
-            entity.getProperty("prop1").check(required = true, notNull = true)
-            entity.getProperty("prop2").check(required = true, notNull = true)
-            entity.getProperty("prop3").check(required = true, notNull = true)
-            entity.getProperty("prop4").check(required = false, notNull = false)
-
-            indices
         }
 
-        orientDb.withSession { oSession ->
-            oSession.applyIndices(indices)
+        val indices = oSession.applySchema(model, indexForEverySimpleProperty = true)
 
-            val entity = oSession.getClass("type1")!!
-            entity.checkIndex(true, "prop1", "prop2")
-            entity.checkIndex(true, "prop3")
+        indices.checkIndex("type1", unique = false, "prop1")
+        indices.checkIndex("type1", unique = false, "prop2")
+        indices.checkIndex("type1", unique = false, "prop3")
+        indices.checkIndex("type1", unique = false, "prop4")
+
+        val entity = oSession.getClass("type1")!!
+        // indices are not created right away, they are created after data migration
+        assertTrue(entity.indexes.isEmpty())
+    }
+
+    @Test
+    fun `no indices for simple properties by default`() = orientDb.withSession { oSession ->
+        val model = model {
+            entity("type1") {
+                property("prop1", "int")
+                property("prop2", "long")
+                property("prop3", "string")
+                property("prop4", "string")
+            }
         }
+
+        val indices = oSession.applySchema(model)
+        assertTrue(indices.isEmpty())
     }
 
     private fun OClass.checkIndex(unique: Boolean, vararg fieldNames: String) {

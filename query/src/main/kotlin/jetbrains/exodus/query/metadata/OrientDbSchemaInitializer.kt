@@ -11,8 +11,8 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
-fun ODatabaseSession.applySchema(model: ModelMetaDataImpl): Map<String, Set<DeferredIndex>> {
-    val initializer = OrientDbSchemaInitializer(model, this)
+fun ODatabaseSession.applySchema(model: ModelMetaDataImpl, indexForEverySimpleProperty: Boolean = false): Map<String, Set<DeferredIndex>> {
+    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty)
     initializer.apply()
     return initializer.getIndices()
 }
@@ -20,6 +20,7 @@ fun ODatabaseSession.applySchema(model: ModelMetaDataImpl): Map<String, Set<Defe
 internal class OrientDbSchemaInitializer(
     private val dnqModel: ModelMetaDataImpl,
     private val oSession: ODatabaseSession,
+    private val indexForEverySimpleProperty: Boolean
 ) {
     private val paddedLogger = PaddedLogger(log)
 
@@ -34,6 +35,13 @@ internal class OrientDbSchemaInitializer(
 
     private fun addIndex(index: DeferredIndex) {
         indices.getOrPut(index.ownerVertexName) { HashSet() }.add(index)
+    }
+
+    private fun simplePropertyIndex(entityName: String, propertyName: String): DeferredIndex {
+        val indexField = IndexFieldImpl()
+        indexField.isProperty = true
+        indexField.name = propertyName
+        return DeferredIndex(entityName, listOf(indexField), unique = false)
     }
 
     fun getIndices(): Map<String, Set<DeferredIndex>> = indices
@@ -318,6 +326,9 @@ internal class OrientDbSchemaInitializer(
                 } else { // primitive types
                     val oProperty = createPropertyIfAbsent(propertyName, getOType(primitiveTypeName))
                     oProperty.setRequirement(required)
+                    if (indexForEverySimpleProperty) {
+                        addIndex(simplePropertyIndex(name, propertyName))
+                    }
                 }
 
                 /*
