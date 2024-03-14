@@ -19,7 +19,7 @@ class InMemoryOrientDB : ExternalResource() {
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
 
         withSession { session ->
-            session.createVertexClass(IssueClass.NAME)
+            session.createVertexClass(Issues.CLASS)
             session.createClass(OVertexEntity.STRING_BLOB_CLASS_NAME)
             session.createClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)
         }

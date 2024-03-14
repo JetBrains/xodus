@@ -27,8 +27,10 @@ import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
 import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
 import jetbrains.exodus.entitystore.iterate.property.OPropertyValueIterable;
 import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
+import jetbrains.exodus.entitystore.orientdb.OEntity;
 import jetbrains.exodus.entitystore.orientdb.OEntityId;
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction;
 import jetbrains.exodus.env.*;
@@ -417,22 +419,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable findLinks(@NotNull final String entityType,
                                     @NotNull final Entity entity,
                                     @NotNull final String linkName) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int linkId = store.getLinkId(this, linkName, false);
-        if (linkId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        if (entity instanceof PersistentEntity) {
-            return new EntityToLinksIterable(this, ((PersistentEntity) entity).getId(), entityTypeId, linkId);
-        }
-        EntityId id = entity.getId();
-        if (id instanceof PersistentEntityId) {
-            return new EntityToLinksIterable(this, id, entityTypeId, linkId);
-        }
-        return EntityIterableBase.EMPTY;
+        return new OLinkToEntityIterable(this, linkName, entityType, ((OEntity) entity).getId());
     }
 
     @Override

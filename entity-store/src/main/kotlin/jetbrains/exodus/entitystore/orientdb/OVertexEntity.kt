@@ -25,7 +25,7 @@ import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.iterate.link.OEntityToLinksIterable
+import jetbrains.exodus.entitystore.iterate.link.OVertexEntityIterable
 import mu.KLogging
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -262,12 +262,12 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     override fun getLinks(linkName: String): EntityIterable {
         reload()
         val links = vertex.getVertices(ODirection.OUT, linkName)
-        return OEntityToLinksIterable(links)
+        return OVertexEntityIterable(links)
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
         reload()
-        return OEntityToLinksIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
+        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
     }
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
