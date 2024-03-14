@@ -13,7 +13,7 @@ class InMemoryOrientDB : ExternalResource() {
         private set
 
     val username = "admin"
-    val password = "admin"
+    val password = "password"
     val dbName = "testDB"
 
     override fun before() {
