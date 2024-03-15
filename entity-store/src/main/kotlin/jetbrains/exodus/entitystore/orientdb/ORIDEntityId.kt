@@ -21,11 +21,9 @@ class ORIDEntityId(private val id: ORID, private val schemaClass: OClass) : OEnt
     }
 
     override fun getTypeId(): Int {
-        var id = 0
-        for (c in schemaClass.name) {
-            id = 31 * id + c.code
-        }
-        return id
+        // Default cluster id is always the same for the same class
+        // Can not use class.name as it might be changed from the outside
+        return schemaClass.defaultClusterId
     }
 
     fun getTypeName(): String {
