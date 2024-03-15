@@ -6,8 +6,7 @@ import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
+import jetbrains.exodus.env.Transaction
 
 class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
@@ -23,8 +22,8 @@ class OStoreTransactionImpl(
     }
 
     override fun isIdempotent(): Boolean {
-        val operations = txn.recordOperations
-        return operations.any { it.type != ORecordOperation.LOADED }
+        val operations = txn.recordOperations ?: listOf()
+        return operations.firstOrNull() == null || operations.all { it.type == ORecordOperation.LOADED }
     }
 
     override fun isReadonly(): Boolean {
@@ -45,7 +44,9 @@ class OStoreTransactionImpl(
     }
 
     override fun flush(): Boolean {
-        return commit()
+        commit()
+        txn.begin()
+        return true
     }
 
     override fun revert() {
@@ -205,5 +206,9 @@ class OStoreTransactionImpl(
 
     override fun getQueryCancellingPolicy(): QueryCancellingPolicy? {
         TODO("Not yet implemented")
+    }
+
+    override fun getEnvironmentTransaction(): Transaction {
+        return OEnvironmentTransaction(oStore.environment, this)
     }
 }

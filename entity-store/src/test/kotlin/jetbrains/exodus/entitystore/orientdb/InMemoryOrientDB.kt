@@ -15,7 +15,7 @@ class InMemoryOrientDB(
         private set
 
     val username = "admin"
-    val password = "admin"
+    val password = "password"
     val dbName = "testDB"
 
     override fun before() {
@@ -24,7 +24,7 @@ class InMemoryOrientDB(
 
         if (createClasses) {
             withSession { session ->
-                session.createVertexClass(IssueClass.NAME)
+                session.createVertexClass(Issues.CLASS)
                 session.createClass(OVertexEntity.STRING_BLOB_CLASS_NAME)
                 session.createClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)
             }

@@ -4,21 +4,23 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
 
-object IssueClass {
-    const val NAME = "Issue"
+object Issues {
+    const val CLASS = "Issue"
     const val NAME_PROPERTY = "name"
     const val PRIORITY_PROPERTY = "priority"
+
+    object Links {
+        const val IN_PROJECT = "InProject"
+    }
 }
 
-object ProjectClass {
-    const val NAME = "Project"
+object Projects {
+    const val CLASS = "Project"
     const val NAME_PROPERTY = "name"
-}
 
-// Many issues to One project
-object ProjectIssues {
-    const val ISSUE_T0_PROJECT = "issue_project"
-    const val PROJECT_TO_ISSUES = "project_issues"
+    object Links {
+        const val HAS_ISSUE = "HasIssue"
+    }
 }
 
 fun InMemoryOrientDB.createIssue(
@@ -26,10 +28,10 @@ fun InMemoryOrientDB.createIssue(
     priority: String? = null
 ): OVertexEntity {
     return withSession { session ->
-        val issueClass = session.getOrCreateVertexClass(IssueClass.NAME)
+        val issueClass = session.getOrCreateVertexClass(Issues.CLASS)
         val issue = session.newVertex(issueClass)
-        issue.setProperty(IssueClass.NAME_PROPERTY, name)
-        priority?.let { issue.setProperty(IssueClass.PRIORITY_PROPERTY, it) }
+        issue.setProperty(Issues.NAME_PROPERTY, name)
+        priority?.let { issue.setProperty(Issues.PRIORITY_PROPERTY, it) }
         issue.save<OVertex>()
         OVertexEntity(issue)
     }
@@ -40,9 +42,9 @@ fun InMemoryOrientDB.createProject(
     name: String
 ): OVertexEntity {
     return withSession { session ->
-        val projectClass = session.getOrCreateVertexClass(ProjectClass.NAME)
+        val projectClass = session.getOrCreateVertexClass(Projects.CLASS)
         val project = session.newVertex(projectClass)
-        project.setProperty(ProjectClass.NAME_PROPERTY, name)
+        project.setProperty(Projects.NAME_PROPERTY, name)
         project.save<OVertex>()
         OVertexEntity(project)
     }
@@ -54,10 +56,10 @@ fun InMemoryOrientDB.linkIssueToProject(
     project: OEntity
 ) {
     withSession { session ->
-        session.getOrCreateEdgeClass(ProjectIssues.ISSUE_T0_PROJECT)
-        session.getOrCreateEdgeClass(ProjectIssues.PROJECT_TO_ISSUES)
-        issue.addLink(ProjectIssues.ISSUE_T0_PROJECT, project)
-        project.addLink(ProjectIssues.PROJECT_TO_ISSUES, issue)
+        session.getOrCreateEdgeClass(Issues.Links.IN_PROJECT)
+        session.getOrCreateEdgeClass(Projects.Links.HAS_ISSUE)
+        issue.addLink(Issues.Links.IN_PROJECT, project)
+        project.addLink(Projects.Links.HAS_ISSUE, issue)
     }
 }
 

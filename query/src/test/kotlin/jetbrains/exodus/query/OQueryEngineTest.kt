@@ -6,8 +6,7 @@ import io.mockk.mockk
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.InMemoryOrientDB
-import jetbrains.exodus.entitystore.orientdb.IssueClass
-import jetbrains.exodus.entitystore.orientdb.ProjectIssues
+import jetbrains.exodus.entitystore.orientdb.Issues
 import jetbrains.exodus.entitystore.orientdb.createIssue
 import jetbrains.exodus.entitystore.orientdb.createProject
 import jetbrains.exodus.entitystore.orientdb.linkIssueToProject
@@ -74,7 +73,7 @@ class OQueryEngineTest {
         // When
         orientDB.withSession {
             val nameEqual = PropertyEqual("name", "issue2")
-            val projectEqual = PropertyEqual(IssueClass.PRIORITY_PROPERTY, "normal")
+            val projectEqual = PropertyEqual(Issues.PRIORITY_PROPERTY, "normal")
             val result = engine.query("Issue", And(nameEqual, projectEqual))
 
             // Then
@@ -103,8 +102,8 @@ class OQueryEngineTest {
 
         // When
         orientDB.withSession {
-            val link = LinkEqual(ProjectIssues.PROJECT_TO_ISSUES, project1)
-            val issues = engine.query(IssueClass.NAME, link)
+            val issuesInProject = LinkEqual(Issues.Links.IN_PROJECT, project1)
+            val issues = engine.query(Issues.CLASS, issuesInProject)
 
             // Then
             assertThat(issues.count()).isEqualTo(2)

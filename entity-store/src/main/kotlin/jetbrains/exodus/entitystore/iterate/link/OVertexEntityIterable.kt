@@ -25,7 +25,7 @@ import org.apache.commons.collections4.IterableUtils
 import org.apache.commons.collections4.IteratorUtils
 import org.apache.commons.collections4.functors.EqualPredicate
 
-class OEntityToLinksIterable(private val vertices: Iterable<OVertex>) : EntityIterable {
+class OVertexEntityIterable(private val vertices: Iterable<OVertex>) : EntityIterable {
 
     override fun iterator() = object : EntityIterator {
 

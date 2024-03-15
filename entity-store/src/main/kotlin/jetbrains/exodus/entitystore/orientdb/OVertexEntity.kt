@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OIdentifiable
-import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OEdge
@@ -25,7 +24,8 @@ import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.iterate.link.OEntityToLinksIterable
+import jetbrains.exodus.entitystore.iterate.link.OVertexEntityIterable
+import jetbrains.exodus.entitystore.util.unsupported
 import mu.KLogging
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -48,15 +48,15 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
     private var txid: Int = activeSession.transaction.id
 
-    override fun getStore(): EntityStore = throw UnsupportedOperationException()
+    private var oEntityId = ORIDEntityId.fromVertex(vertex)
 
-    override fun getId(): OEntityId = ORIDEntityId(vertex.identity)
+    override fun getStore(): EntityStore = unsupported()
 
-    override fun getOId(): ORID = vertex.identity
+    override fun getId(): OEntityId = oEntityId
 
-    override fun toIdString(): String = vertex.identity.toString()
+    override fun toIdString(): String = oEntityId.toString()
 
-    override fun getType(): String = vertex.schemaClass!!.name
+    override fun getType(): String = oEntityId.getTypeName()
 
     override fun delete(): Boolean {
         vertex.delete()
@@ -76,7 +76,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
         if (txid != tx.id) {
             txid = tx.id
-            vertex = session.load(vertex.identity)
+            vertex = session.load(oEntityId.asOId())
         }
     }
 
@@ -223,8 +223,8 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     }
 
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
-        require(targetId is OEntity) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
-        val target = activeSession.getRecord<OVertex>(targetId.getOId())
+        require(targetId is OEntityId) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
+        val target = activeSession.getRecord<OVertex>(targetId.asOId())
         return addLink(linkName, OVertexEntity(target))
     }
 
@@ -262,12 +262,12 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     override fun getLinks(linkName: String): EntityIterable {
         reload()
         val links = vertex.getVertices(ODirection.OUT, linkName)
-        return OEntityToLinksIterable(links)
+        return OVertexEntityIterable(links)
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
         reload()
-        return OEntityToLinksIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
+        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
     }
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
@@ -279,7 +279,9 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
             target.vertex.save<OVertex>()
             vertex.save<OVertex>()
             true
-        } else false
+        } else {
+            false
+        }
     }
 
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
@@ -311,14 +313,14 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+        if (other !is OEntity) return false
+        if (javaClass != other.javaClass) return false
 
-        other as OVertexEntity
-        return vertex.identity == other.vertex.identity
+        return this.id == other.id
     }
 
     override fun hashCode(): Int {
-        return vertex.identity.hashCode()
+        return id.hashCode()
     }
 
     internal val asVertex = vertex

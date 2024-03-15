@@ -8,9 +8,9 @@ import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.env.Environment
 import jetbrains.exodus.management.Statistics
 import java.io.File
+import java.io.UnsupportedEncodingException
 import java.util.concurrent.ConcurrentHashMap
 
 class OPersistentStore(
@@ -24,6 +24,7 @@ class OPersistentStore(
     private val config = PersistentEntityStoreConfig()
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
+    private val env = OEnvironment(db, databaseName, this)
 
 
     override fun close() {}
@@ -36,7 +37,8 @@ class OPersistentStore(
 
     override fun beginTransaction(): StoreTransaction {
         val session = db.open(databaseName, userName, password)
-        return OStoreTransactionImpl(session, session.transaction, this)
+        val txn = session.begin().transaction
+        return OStoreTransactionImpl(session, txn, this)
     }
 
     override fun beginExclusiveTransaction(): StoreTransaction {
@@ -48,15 +50,19 @@ class OPersistentStore(
     }
 
     override fun getCurrentTransaction(): StoreTransaction {
-        return OStoreTransactionImpl(ODatabaseSession.getActiveSession(),ODatabaseSession.getActiveSession().transaction, this)
+        return OStoreTransactionImpl(
+            ODatabaseSession.getActiveSession(),
+            ODatabaseSession.getActiveSession().transaction,
+            this
+        )
     }
 
     override fun getBackupStrategy(): BackupStrategy {
         return object : BackupStrategy() {}
     }
 
-    override fun getEnvironment(): Environment {
-        TODO("Not yet implemented")
+    override fun getEnvironment(): OEnvironment {
+        return env
     }
 
     override fun clear() {
@@ -104,7 +110,7 @@ class OPersistentStore(
         clazz: Class<out Comparable<Any?>>,
         binding: ComparableBinding
     ) {
-
+        throw UnsupportedEncodingException()
     }
 
     override fun getEntity(id: EntityId): Entity {
@@ -132,7 +138,8 @@ class OPersistentStore(
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
         executeInTransaction {
             val txn = it as OStoreTransaction
-            val oldClass = txn.activeSession().metadata.schema.classes.firstOrNull { it.name == oldEntityTypeName } ?: throw IllegalStateException("")
+            val oldClass = txn.activeSession().metadata.schema.classes.firstOrNull { it.name == oldEntityTypeName }
+                ?: throw IllegalStateException("")
             oldClass.setName(newEntityTypeName)
         }
     }

@@ -6,7 +6,7 @@ class OQueryTest {
 
     @Test
     fun `should select by property`() {
-        val query = OClassSelect("Person", OEqualCondition("name", "John"))
+        val query = OSimpleSelect("Person", OEqualCondition("name", "John"))
 
         println(query.sql())
         println(query.params())
@@ -15,7 +15,7 @@ class OQueryTest {
     @Test
     fun `should select by property OR property`() {
         val condition = OEqualCondition("name", "John").or(OEqualCondition("project", "Sample"))
-        val query = OClassSelect("Person", condition)
+        val query = OSimpleSelect("Person", condition)
 
         println(query.sql())
         println(query.params())
@@ -24,7 +24,7 @@ class OQueryTest {
     @Test
     fun `should select by property AND property`() {
         val condition = OEqualCondition("name", "John").and(OEqualCondition("project", "Sample"))
-        val query = OClassSelect("Person", condition)
+        val query = OSimpleSelect("Person", condition)
 
         println(query.sql())
         println(query.params())
@@ -39,7 +39,7 @@ class OQueryTest {
             ),
             equal("project", "Sample3")
         )
-        val query = OClassSelect("Person", condition)
+        val query = OSimpleSelect("Person", condition)
 
         println(query.sql())
         println(query.params())

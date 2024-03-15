@@ -22,7 +22,7 @@ class OrientDBQueryTest {
             // Then
             val iterable = it.queryEntity("select from Issue")
             assertEquals(2, iterable.count())
-            assertEquals(listOf("Test1", "Test2"), iterable.map { it.getProperty(IssueClass.NAME_PROPERTY) })
+            assertEquals(listOf("Test1", "Test2"), iterable.map { it.getProperty(Issues.NAME_PROPERTY) })
         }
     }
 }

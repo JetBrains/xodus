@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore;
 
+import jetbrains.exodus.env.Transaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -637,4 +638,8 @@ public interface StoreTransaction {
      */
     @Nullable
     QueryCancellingPolicy getQueryCancellingPolicy();
+
+    @NotNull
+    Transaction getEnvironmentTransaction();
+
 }
