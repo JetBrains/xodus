@@ -1,18 +1,54 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.id.ORID
-import jetbrains.exodus.entitystore.util.unsupported
 import java.util.UUID
 
 // Basic
-interface OQuery {
+sealed interface OQuery {
     fun sql(): String
     fun params(): Map<String, Any>
-
-    fun union(other: OQuery): OQuery = unsupported("Union is not supported by default")
-    fun intersect(other: OQuery): OQuery = unsupported("Intersection is not supported by default")
 }
 
+object OQueries {
+
+    fun intersect(left: OQuery, right: OQuery): OQuery {
+        require(left is OClassSelect) { "Unsupported query type for $left" }
+        require(right is OClassSelect) { "Unsupported query type for $right" }
+        ensureSameClassName(left, right)
+
+        return when {
+            left is OAllSelect && right is OAllSelect -> {
+                val newCondition = left.condition.and(right.condition)
+                OAllSelect(left.className, newCondition)
+            }
+
+            else -> {
+                OIntersectSelect(left.className, left, right)
+            }
+        }
+    }
+
+    fun union(left: OQuery, right: OQuery): OQuery {
+        require(left is OClassSelect) { "Unsupported query type for $left" }
+        require(right is OClassSelect) { "Unsupported query type for $right" }
+        ensureSameClassName(left, right)
+
+        return when {
+            left is OAllSelect && right is OAllSelect -> {
+                val newCondition = left.condition.or(right.condition)
+                OAllSelect(left.className, newCondition)
+            }
+
+            else -> {
+                OUnionSelect(left.className, left, right)
+            }
+        }
+    }
+
+    private fun ensureSameClassName(left: OClassSelect, right: OClassSelect) {
+        require(left.className == right.className) { "Cannot intersect different DB classes: ${left.className} and ${right.className}" }
+    }
+}
 
 // Select
 sealed interface OClassSelect : OQuery {
@@ -20,42 +56,14 @@ sealed interface OClassSelect : OQuery {
     val condition: OCondition?
 }
 
-// Select extensions
-private fun OClassSelect.ensureSelectAndSameClassName(other: OQuery): OClassSelect {
-    require(other is OClassSelect) { "Unsupported query type" }
-    require(other.className == className) { "Cannot intersect different DB classes, expected: ${className}, but was ${other.className}" }
-    return other
-}
-
 // Select implementations
-class OSimpleSelect(
+class OAllSelect(
     override val className: String,
     override val condition: OCondition? = null
 ) : OClassSelect {
 
     override fun sql() = "SELECT from $className ${condition.whereOrEmpty()}".trimEnd()
     override fun params() = condition?.params() ?: emptyMap()
-
-    override fun union(other: OQuery): OQuery {
-        val otherSelect = ensureSelectAndSameClassName(other)
-        val newCondition = condition.or(otherSelect.condition)
-        // No need for checking other select as the current one is always the broadest
-        return OSimpleSelect(className, newCondition)
-    }
-
-    override fun intersect(other: OQuery): OQuery {
-        val otherSelect = ensureSelectAndSameClassName(other)
-        val newCondition = condition.and(otherSelect.condition)
-        return when (otherSelect) {
-            is OLinkInSelect -> otherSelect.copy(newCondition)
-            is OSimpleSelect -> this.copy(newCondition)
-            is OIntersectSelect -> { unsupported() }
-            is OUnionSelect -> { unsupported() }
-        }
-
-    }
-
-    fun copy(condition: OCondition?) = OSimpleSelect(className, condition)
 }
 
 class OLinkInSelect(
@@ -69,43 +77,6 @@ class OLinkInSelect(
     override fun params() = emptyMap<String, Any>()
 
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
-
-    fun copy(condition: OCondition?) = OLinkInSelect(className, linkName, targetIds, condition)
-    fun copy(targetIds: List<ORID>) = OLinkInSelect(className, linkName, targetIds, condition)
-
-    override fun union(other: OQuery): OQuery {
-        val otherSelect = ensureSelectAndSameClassName(other)
-        val orCondition = condition.or(otherSelect.condition)
-        return when (otherSelect) {
-            is OSimpleSelect -> otherSelect.copy(orCondition)
-            is OLinkInSelect -> {
-                if (otherSelect.linkName == linkName) {
-                    this.copy(targetIds + otherSelect.targetIds).copy(orCondition)
-                } else {
-                    OUnionSelect(className, this, otherSelect)
-                }
-            }
-            is OIntersectSelect -> { unsupported() }
-            is OUnionSelect -> { unsupported() }
-        }
-    }
-
-    override fun intersect(other: OQuery): OQuery {
-        val otherSelect = ensureSelectAndSameClassName(other)
-        return when (otherSelect) {
-            is OSimpleSelect -> {
-                val newCondition = condition.and(otherSelect.condition)
-                this.copy(newCondition)
-            }
-
-            is OLinkInSelect -> {
-                OIntersectSelect(className, this, otherSelect)
-            }
-
-            is OIntersectSelect -> { unsupported() }
-            is OUnionSelect -> { unsupported() }
-        }
-    }
 }
 
 class OIntersectSelect(
@@ -133,8 +104,6 @@ class OUnionSelect(
     override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()})))"
     override fun params() = left.params() + right.params()
 }
-
-
 
 // Where
 sealed interface OCondition : OQuery

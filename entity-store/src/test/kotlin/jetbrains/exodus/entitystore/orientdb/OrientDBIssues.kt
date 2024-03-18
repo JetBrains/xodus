@@ -6,8 +6,10 @@ import com.orientechnologies.orient.core.record.OVertex
 
 object Issues {
     const val CLASS = "Issue"
-    const val NAME_PROPERTY = "name"
-    const val PRIORITY_PROPERTY = "priority"
+
+    object Props {
+        const val PRIORITY = "priority"
+    }
 
     object Links {
         const val IN_PROJECT = "InProject"
@@ -17,7 +19,6 @@ object Issues {
 
 object Projects {
     const val CLASS = "Project"
-    const val NAME_PROPERTY = "name"
 
     object Links {
         const val HAS_ISSUE = "HasIssue"
@@ -26,7 +27,6 @@ object Projects {
 
 object Boards {
     const val CLASS = "Board"
-    const val NAME_PROPERTY = "name"
 
     object Links {
         const val HAS_ISSUE = "HasIssue"
@@ -36,7 +36,7 @@ object Boards {
 fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVertexEntity {
     return withSession { session ->
         val issue = session.createNamedEntity(Issues.CLASS, name)
-        priority?.let { issue.setProperty(Issues.PRIORITY_PROPERTY, it) }
+        priority?.let { issue.setProperty(Issues.Props.PRIORITY, it) }
         issue.save()
         issue
     }
@@ -76,7 +76,7 @@ fun InMemoryOrientDB.addIssueToBoard(
         issue.addLink(Issues.Links.ON_BOARD, board)
 
         session.getOrCreateEdgeClass(Projects.Links.HAS_ISSUE)
-        board.addLink(Projects.Links.HAS_ISSUE, issue)
+        board.addLink(Boards.Links.HAS_ISSUE, issue)
     }
 }
 
@@ -87,7 +87,7 @@ private fun ODatabaseSession.createNamedEntity(
 ): OVertexEntity {
     val projectClass = this.getOrCreateVertexClass(className)
     val project = this.newVertex(projectClass)
-    project.setProperty(Projects.NAME_PROPERTY, name)
+    project.setProperty("name", name)
     project.save<OVertex>()
     return OVertexEntity(project)
 }
@@ -100,3 +100,6 @@ private fun ODatabaseSession.getOrCreateEdgeClass(className: String): OClass {
     return this.getClass(className) ?: this.createEdgeClass(className)
 }
 
+fun OEntity.name(): Comparable<*>? {
+    return getProperty("name")
+}

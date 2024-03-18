@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OSimpleSelect
+import jetbrains.exodus.entitystore.orientdb.OAllSelect
 import jetbrains.exodus.entitystore.orientdb.OEqualCondition
 import jetbrains.exodus.entitystore.orientdb.OQuery
 
@@ -29,6 +29,6 @@ class OPropertyValueIterable(
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OQuery {
-        return OSimpleSelect(entityType, OEqualCondition(propertyName, value))
+        return OAllSelect(entityType, OEqualCondition(propertyName, value))
     }
 }

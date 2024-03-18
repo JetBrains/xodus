@@ -19,6 +19,7 @@ import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OQueries
 import jetbrains.exodus.entitystore.orientdb.OQuery
 
 class OUnionIterable(
@@ -31,6 +32,6 @@ class OUnionIterable(
         if (iterable1 !is OEntityIterable || iterable2 !is OEntityIterable) {
             throw UnsupportedOperationException("UnionIterable is only supported for OEntityIterable")
         }
-        return iterable1.query().union(iterable2.query())
+        return OQueries.union(iterable1.query(), iterable2.query())
     }
 }

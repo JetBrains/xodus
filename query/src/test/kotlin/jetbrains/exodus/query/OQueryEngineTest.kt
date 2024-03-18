@@ -13,6 +13,7 @@ import jetbrains.exodus.entitystore.orientdb.addIssueToProject
 import jetbrains.exodus.entitystore.orientdb.createBoard
 import jetbrains.exodus.entitystore.orientdb.createIssue
 import jetbrains.exodus.entitystore.orientdb.createProject
+import jetbrains.exodus.entitystore.orientdb.name
 import jetbrains.exodus.query.metadata.ModelMetaData
 import org.junit.Rule
 import org.junit.Test
@@ -43,13 +44,13 @@ class OQueryEngineTest {
     @Test
     fun `should query with or`() {
         // Given
-        givenTestCase()
+        val test = givenTestCase()
         val engine = givenOQueryEngine()
 
         // When
         orientDB.withSession {
-            val equal1 = PropertyEqual("name", "issue1")
-            val equal3 = PropertyEqual("name", "issue3")
+            val equal1 = PropertyEqual("name", test.issue1.name())
+            val equal3 = PropertyEqual("name", test.issue2.name())
             val issues = engine.query(Issues.CLASS, Or(equal1, equal3))
 
             // Then
@@ -60,13 +61,15 @@ class OQueryEngineTest {
     @Test
     fun `should query with and`() {
         // Given
-        givenTestCase()
+        val test = givenTestCase()
         val engine = givenOQueryEngine()
 
         // When
         orientDB.withSession {
+            test.issue2.setProperty(Issues.Props.PRIORITY, "normal")
+
             val nameEqual = PropertyEqual("name", "issue2")
-            val projectEqual = PropertyEqual(Issues.PRIORITY_PROPERTY, "normal")
+            val projectEqual = PropertyEqual(Issues.Props.PRIORITY, "normal")
             val issues = engine.query("Issue", And(nameEqual, projectEqual))
 
             // Then
