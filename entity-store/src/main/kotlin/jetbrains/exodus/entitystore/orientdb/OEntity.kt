@@ -6,5 +6,5 @@ interface OEntity : Entity {
 
     override fun getId(): OEntityId
 
-    fun save()
+    fun save(): OEntity
 }

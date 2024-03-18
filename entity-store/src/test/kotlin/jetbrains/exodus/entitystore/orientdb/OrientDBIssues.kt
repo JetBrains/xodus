@@ -11,6 +11,7 @@ object Issues {
 
     object Links {
         const val IN_PROJECT = "InProject"
+        const val ON_BOARD = "OnBoard"
     }
 }
 
@@ -23,44 +24,72 @@ object Projects {
     }
 }
 
-fun InMemoryOrientDB.createIssue(
-    name: String,
-    priority: String? = null
-): OVertexEntity {
+object Boards {
+    const val CLASS = "Board"
+    const val NAME_PROPERTY = "name"
+
+    object Links {
+        const val HAS_ISSUE = "HasIssue"
+    }
+}
+
+fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVertexEntity {
     return withSession { session ->
-        val issueClass = session.getOrCreateVertexClass(Issues.CLASS)
-        val issue = session.newVertex(issueClass)
-        issue.setProperty(Issues.NAME_PROPERTY, name)
+        val issue = session.createNamedEntity(Issues.CLASS, name)
         priority?.let { issue.setProperty(Issues.PRIORITY_PROPERTY, it) }
-        issue.save<OVertex>()
-        OVertexEntity(issue)
+        issue.save()
+        issue
     }
 }
 
-
-fun InMemoryOrientDB.createProject(
-    name: String
-): OVertexEntity {
+fun InMemoryOrientDB.createProject(name: String): OVertexEntity {
     return withSession { session ->
-        val projectClass = session.getOrCreateVertexClass(Projects.CLASS)
-        val project = session.newVertex(projectClass)
-        project.setProperty(Projects.NAME_PROPERTY, name)
-        project.save<OVertex>()
-        OVertexEntity(project)
+        session.createNamedEntity(Projects.CLASS, name)
     }
 }
 
+fun InMemoryOrientDB.createBoard(name: String): OVertexEntity {
+    return withSession { session ->
+        session.createNamedEntity(Boards.CLASS, name)
+    }
+}
 
-fun InMemoryOrientDB.linkIssueToProject(
+fun InMemoryOrientDB.addIssueToProject(
     issue: OEntity,
     project: OEntity
 ) {
     withSession { session ->
         session.getOrCreateEdgeClass(Issues.Links.IN_PROJECT)
-        session.getOrCreateEdgeClass(Projects.Links.HAS_ISSUE)
         issue.addLink(Issues.Links.IN_PROJECT, project)
+
+        session.getOrCreateEdgeClass(Projects.Links.HAS_ISSUE)
         project.addLink(Projects.Links.HAS_ISSUE, issue)
     }
+}
+
+fun InMemoryOrientDB.addIssueToBoard(
+    issue: OEntity,
+    board: OEntity
+) {
+    withSession { session ->
+        session.getOrCreateEdgeClass(Issues.Links.ON_BOARD)
+        issue.addLink(Issues.Links.ON_BOARD, board)
+
+        session.getOrCreateEdgeClass(Projects.Links.HAS_ISSUE)
+        board.addLink(Projects.Links.HAS_ISSUE, issue)
+    }
+}
+
+
+private fun ODatabaseSession.createNamedEntity(
+    className: String,
+    name: String
+): OVertexEntity {
+    val projectClass = this.getOrCreateVertexClass(className)
+    val project = this.newVertex(projectClass)
+    project.setProperty(Projects.NAME_PROPERTY, name)
+    project.save<OVertex>()
+    return OVertexEntity(project)
 }
 
 private fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {

@@ -18,12 +18,10 @@ interface OQuery {
 sealed interface OClassSelect : OQuery {
     val className: String
     val condition: OCondition?
-
-    fun copyWithCondition(condition: OCondition?): OClassSelect
 }
 
 // Select extensions
-private fun OClassSelect.ensureSelectAndSameDbClass(other: OQuery): OClassSelect {
+private fun OClassSelect.ensureSelectAndSameClassName(other: OQuery): OClassSelect {
     require(other is OClassSelect) { "Unsupported query type" }
     require(other.className == className) { "Cannot intersect different DB classes, expected: ${className}, but was ${other.className}" }
     return other
@@ -35,58 +33,107 @@ class OSimpleSelect(
     override val condition: OCondition? = null
 ) : OClassSelect {
 
-    override fun sql() = "SELECT from $className ${condition.whereOrEmpty()}"
+    override fun sql() = "SELECT from $className ${condition.whereOrEmpty()}".trimEnd()
     override fun params() = condition?.params() ?: emptyMap()
 
     override fun union(other: OQuery): OQuery {
-        val otherSelect = ensureSelectAndSameDbClass(other)
+        val otherSelect = ensureSelectAndSameClassName(other)
         val newCondition = condition.or(otherSelect.condition)
         // No need for checking other select as the current one is always the broadest
         return OSimpleSelect(className, newCondition)
     }
 
     override fun intersect(other: OQuery): OQuery {
-        val otherSelect = ensureSelectAndSameDbClass(other)
+        val otherSelect = ensureSelectAndSameClassName(other)
         val newCondition = condition.and(otherSelect.condition)
         return when (otherSelect) {
-            is OLinkInSelect -> otherSelect.copyWithCondition(newCondition)
-            is OSimpleSelect -> this.copyWithCondition(newCondition)
+            is OLinkInSelect -> otherSelect.copy(newCondition)
+            is OSimpleSelect -> this.copy(newCondition)
+            is OIntersectSelect -> { unsupported() }
+            is OUnionSelect -> { unsupported() }
         }
+
     }
 
-    override fun copyWithCondition(condition: OCondition?) = OSimpleSelect(className, condition)
+    fun copy(condition: OCondition?) = OSimpleSelect(className, condition)
 }
 
 class OLinkInSelect(
     override val className: String,
     val linkName: String,
-    val targetId: ORID,
+    val targetIds: List<ORID>,
     override val condition: OCondition? = null
 ) : OClassSelect {
 
-    override fun sql() = "SELECT expand(in('${linkName}')) from $targetId ${condition.whereOrEmpty()}"
+    override fun sql() = "SELECT expand(in('$linkName')) from $targetIdsSql ${condition.whereOrEmpty()}".trimEnd()
     override fun params() = emptyMap<String, Any>()
 
-    override fun copyWithCondition(condition: OCondition?) = OLinkInSelect(className, linkName, targetId, condition)
+    private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
+
+    fun copy(condition: OCondition?) = OLinkInSelect(className, linkName, targetIds, condition)
+    fun copy(targetIds: List<ORID>) = OLinkInSelect(className, linkName, targetIds, condition)
 
     override fun union(other: OQuery): OQuery {
-        val otherSelect = ensureSelectAndSameDbClass(other)
-        val newCondition = condition.or(otherSelect.condition)
+        val otherSelect = ensureSelectAndSameClassName(other)
+        val orCondition = condition.or(otherSelect.condition)
         return when (otherSelect) {
-            is OSimpleSelect -> otherSelect.copyWithCondition(newCondition)
-            is OLinkInSelect -> TODO("Union of two in-link selects is not supported yet")
+            is OSimpleSelect -> otherSelect.copy(orCondition)
+            is OLinkInSelect -> {
+                if (otherSelect.linkName == linkName) {
+                    this.copy(targetIds + otherSelect.targetIds).copy(orCondition)
+                } else {
+                    OUnionSelect(className, this, otherSelect)
+                }
+            }
+            is OIntersectSelect -> { unsupported() }
+            is OUnionSelect -> { unsupported() }
         }
     }
 
     override fun intersect(other: OQuery): OQuery {
-        val otherSelect = ensureSelectAndSameDbClass(other)
-        val newCondition = condition.and(otherSelect.condition)
+        val otherSelect = ensureSelectAndSameClassName(other)
         return when (otherSelect) {
-            is OSimpleSelect -> this.copyWithCondition(newCondition)
-            is OLinkInSelect -> TODO("Intersection of two in-link selects is not supported yet")
+            is OSimpleSelect -> {
+                val newCondition = condition.and(otherSelect.condition)
+                this.copy(newCondition)
+            }
+
+            is OLinkInSelect -> {
+                OIntersectSelect(className, this, otherSelect)
+            }
+
+            is OIntersectSelect -> { unsupported() }
+            is OUnionSelect -> { unsupported() }
         }
     }
 }
+
+class OIntersectSelect(
+    override val className: String,
+    val left: OClassSelect,
+    val right: OClassSelect,
+    override val condition: OCondition? = null
+) : OClassSelect {
+
+    // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
+    // intersect returns projection thus need to expand it into collection
+    override fun sql() = "SELECT expand(intersect((${left.sql()}), (${right.sql()})))"
+    override fun params() = left.params() + right.params()
+}
+
+class OUnionSelect(
+    override val className: String,
+    val left: OClassSelect,
+    val right: OClassSelect,
+    override val condition: OCondition? = null
+) : OClassSelect {
+
+    // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
+    // intersect returns projection thus need to expand it into collection
+    override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()})))"
+    override fun params() = left.params() + right.params()
+}
+
 
 
 // Where

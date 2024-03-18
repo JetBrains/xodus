@@ -9,17 +9,21 @@ import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import mu.KLogging
 
 
-class OEntityIterator(
+class OQueryEntityIterator(
     private val iterable: EntityIterableBase,
     private val source: Iterator<Entity>
 ) : EntityIteratorBase(iterable) {
 
     companion object : KLogging() {
-        fun create(iterable: OEntityIterableBase, document: ODatabaseDocument, query: OQuery): OEntityIterator {
-            val result = document.query(query.sql(), query.params())
-            val executionResult = result.executionPlan.get().prettyPrint(10, 8)
-            logger.info { "Query: ${query.sql()} with params: ${query.params()}, execution plan:\n  $executionResult" }
-            return result.toOEntityIterator(iterable)
+
+        fun create(iterable: OEntityIterableBase, document: ODatabaseDocument, query: OQuery): OQueryEntityIterator {
+            val resultSet = document.query(query.sql(), query.params())
+            // Log execution plan
+            val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
+            logger.info { "Query: ${query.sql()} with params: ${query.params()}, execution plan:\n  $executionPlan" }
+
+            val iterator = resultSet.toEntityIterator()
+            return OQueryEntityIterator(iterable, iterator)
         }
     }
 

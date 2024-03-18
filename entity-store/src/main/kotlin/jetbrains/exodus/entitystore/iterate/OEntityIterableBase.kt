@@ -8,7 +8,7 @@ import jetbrains.exodus.entitystore.iterate.binop.OIntersectionIterable
 import jetbrains.exodus.entitystore.iterate.binop.OUnionIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
-import jetbrains.exodus.entitystore.orientdb.OEntityIterator
+import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterator
 
 abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
 
@@ -17,7 +17,7 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
         val query = query()
-        return OEntityIterator.create(this, txn.activeSession(), query)
+        return OQueryEntityIterator.create(this, txn.activeSession(), query)
     }
 
     override fun getHandleImpl(): EntityIterableHandle {

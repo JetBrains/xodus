@@ -325,8 +325,9 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
     internal val asVertex = vertex
 
-    override fun save() {
+    override fun save(): OVertexEntity {
         vertex.save<OVertex>()
+        return this
     }
 
     private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this) }

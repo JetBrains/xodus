@@ -14,6 +14,6 @@ class OLinkToEntityIterable(
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OQuery {
-        return OLinkInSelect(className, linkName, targetId.asOId())
+        return OLinkInSelect(className, linkName, listOf(targetId.asOId()))
     }
 }
