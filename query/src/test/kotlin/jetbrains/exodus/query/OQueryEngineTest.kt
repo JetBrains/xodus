@@ -36,8 +36,43 @@ class OQueryEngineTest {
             val result = engine.query("Issue", node).toList()
 
             // Then
-            assertThat(result.count()).isEqualTo(1)
-            assertThat(result.first().getProperty("name")).isEqualTo("issue2")
+            assertNamesExactly(result, "issue2")
+        }
+    }
+
+    @Test
+    fun `should query property contains`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        orientDB.withSession { test.issue2.setProperty("case", "Find me if YOU can") }
+
+        // When
+        orientDB.withSession {
+            val issues = engine.query("Issue", PropertyContains("case", "YOU", true))
+            val empty = engine.query("Issue", PropertyContains("case", "not", true))
+
+            // Then
+            assertNamesExactly(issues, "issue2")
+            assertThat(empty).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query property starts with`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        orientDB.withSession { test.issue2.setProperty("case", "Find me if YOU can") }
+
+        // When
+        orientDB.withSession {
+            val issues = engine.query("Issue", PropertyStartsWith("case", "Find"))
+            val empty = engine.query("Issue", PropertyStartsWith("case", "you"))
+
+            // Then
+            assertNamesExactly(issues, "issue2")
+            assertThat(empty).isEmpty()
         }
     }
 

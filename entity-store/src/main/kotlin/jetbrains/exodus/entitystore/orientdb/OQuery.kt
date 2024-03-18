@@ -121,6 +121,29 @@ class OEqualCondition(
     override fun params() = mapOf(paramId to value)
 }
 
+class OContainsCondition(
+    val field: String,
+    val value: String,
+) : OCondition {
+
+    // ToDo: make paramId deterministic to leverage query parsing cache
+    val paramId = "${field}_${UUID.randomUUID().toString().take(4).replace("-", "")}"
+
+    override fun sql() = "$field like :$paramId"
+    override fun params() = mapOf(paramId to "%${value}%")
+}
+
+class OStartsWithCondition(
+    val field: String,
+    val value: String,
+) : OCondition {
+
+    val paramId = "${field}_${UUID.randomUUID().toString().take(4).replace("-", "")}"
+
+    override fun sql() = "$field like :$paramId"
+    override fun params() = mapOf(paramId to "${value}%")
+}
+
 // Binary
 sealed class OBiCondition(val operation: String, val left: OCondition, val right: OCondition) : OCondition {
 

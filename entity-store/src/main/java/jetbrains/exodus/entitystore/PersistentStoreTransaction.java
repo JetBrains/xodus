@@ -28,7 +28,9 @@ import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
-import jetbrains.exodus.entitystore.iterate.property.OPropertyValueIterable;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyContainsIterable;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyEqualIterable;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyStartsWithIterable;
 import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
 import jetbrains.exodus.entitystore.orientdb.OEntity;
 import jetbrains.exodus.entitystore.orientdb.OEntityId;
@@ -338,7 +340,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable find(@NotNull final String entityType,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
-        return new OPropertyValueIterable(this, entityType, propertyName, value);
+        return new OPropertyEqualIterable(this, entityType, propertyName, value);
     }
 
     @Override
@@ -363,14 +365,15 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
                 new PropertyRangeIterable(this, entityTypeId.intValue(), propertyId.intValue(), minValue, maxValue));
     }
 
+    // ignoreCase param is not supported and defined on the property level
+    // https://orientdb.com/docs/3.2.x/sql/SQL-Alter-Property.html?highlight=Collation#supported-attributes
     @Override
     public @NotNull EntityIterable findContaining(@NotNull final String entityType, @NotNull final String propertyName,
                                                   @NotNull final String value, final boolean ignoreCase) {
         if (value.isEmpty()) {
             return findWithPropSortedByValue(entityType, propertyName);
         }
-        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyContainsValueEntityIterable(this, entityTypeId.intValue(), propertyId.intValue(), value, ignoreCase));
+        return new OPropertyContainsIterable(this, entityType, propertyName, value);
     }
 
     @Override
@@ -404,7 +407,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
         if (len == 0) {
             return getAll(entityType);
         }
-        return find(entityType, propertyName, value, value + Character.MAX_VALUE);
+        return new OPropertyStartsWithIterable(this, entityType, propertyName, value);
     }
 
     @NotNull

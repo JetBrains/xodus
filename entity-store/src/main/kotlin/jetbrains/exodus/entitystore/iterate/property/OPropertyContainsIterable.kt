@@ -18,17 +18,18 @@ package jetbrains.exodus.entitystore.iterate.property
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.OEqualCondition
+import jetbrains.exodus.entitystore.orientdb.OContainsCondition
 import jetbrains.exodus.entitystore.orientdb.OQuery
 
-class OPropertyValueIterable(
+class OPropertyContainsIterable(
     txn: PersistentStoreTransaction,
     private val entityType: String,
     private val propertyName: String,
-    private val value: Comparable<*>
+    private val value: String,
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OQuery {
-        return OAllSelect(entityType, OEqualCondition(propertyName, value))
+        val condition = OContainsCondition(propertyName, value)
+        return OAllSelect(entityType, condition)
     }
 }
