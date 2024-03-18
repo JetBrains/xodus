@@ -25,6 +25,21 @@ class OQueryEngineTest {
     val orientDB = InMemoryOrientDB()
 
     @Test
+    fun `should query all`() {
+        // Given
+        givenTestCase()
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.queryGetAll("Issue")
+
+            // Then
+            assertNamesExactly(issues, "issue1", "issue2", "issue3")
+        }
+    }
+
+    @Test
     fun `should query property equal`() {
         // Given
         givenTestCase()

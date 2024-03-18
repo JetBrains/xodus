@@ -311,22 +311,10 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
         return store.getEntityTypes(this);
     }
 
-    // TODO: remove ASAP
-    private static final int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1).intValue();
-
     @Override
     @NotNull
     public EntityIterable getAll(@NotNull final String entityType) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        if (entityTypeId == traceGetAllForEntityType) {
-            if (logger.isErrorEnabled()) {
-                logger.error("txn.getAll() for entityTypeId = " + entityTypeId, new Throwable());
-            }
-        }
-        return new EntitiesOfTypeIterable(this, entityTypeId);
+        return new OEntityOfTypeIterable(this, entityType);
     }
 
     @Override
