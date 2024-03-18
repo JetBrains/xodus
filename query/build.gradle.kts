@@ -1,6 +1,7 @@
 dependencies {
     implementation(project(":xodus-entity-store"))
     implementation(project(":xodus-utils"))
+    implementation("com.orientechnologies:orientdb-core:4.0.0-SNAPSHOT")
     api(project(":xodus-openAPI"))
     implementation("com.github.penemue:keap:0.3.0")
 
@@ -8,4 +9,5 @@ dependencies {
     testImplementation(project(":xodus-entity-store", "testArtifacts"))
     testImplementation(libs.mockk)
     testImplementation(libs.truth)
+    testImplementation(kotlin("test"))
 }

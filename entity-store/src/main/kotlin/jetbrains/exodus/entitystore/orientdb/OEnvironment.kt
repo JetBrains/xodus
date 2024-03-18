@@ -11,6 +11,8 @@ open class OEnvironment(
     private val store: OPersistentStore
 ) : Environment {
     private val created = System.currentTimeMillis()
+    private val config = EnvironmentConfig()
+    private val statistics = object : Statistics<Enum<*>>(arrayOf()) {}
     override fun close() {
         db.close()
     }
@@ -91,74 +93,82 @@ open class OEnvironment(
     }
 
     override fun beginTransaction(): Transaction {
-        TODO("Not yet implemented")
+        val txn = store.beginTransaction() as OStoreTransaction
+        return OEnvironmentTransaction(this, txn)
     }
 
     override fun beginTransaction(beginHook: Runnable?): Transaction {
-        TODO("Not yet implemented")
+        return beginTransaction()
     }
 
     override fun beginExclusiveTransaction(): Transaction {
-        TODO("Not yet implemented")
+        return beginTransaction()
     }
 
     override fun beginExclusiveTransaction(beginHook: Runnable?): Transaction {
-        TODO("Not yet implemented")
+        return beginTransaction()
     }
 
     override fun beginReadonlyTransaction(): Transaction {
-        TODO("Not yet implemented")
+        return beginTransaction()
     }
 
     override fun beginReadonlyTransaction(beginHook: Runnable?): Transaction {
-        TODO("Not yet implemented")
+        return beginTransaction()
     }
 
     override fun executeInTransaction(executable: TransactionalExecutable) {
-        TODO("Not yet implemented")
+        val txn = beginTransaction()
+        executable.execute(txn)
+        txn.commit()
     }
 
     override fun executeInExclusiveTransaction(executable: TransactionalExecutable) {
-        TODO("Not yet implemented")
+        executeInTransaction(executable)
     }
 
     override fun executeInReadonlyTransaction(executable: TransactionalExecutable) {
-        TODO("Not yet implemented")
+        executeInTransaction(executable)
     }
 
     override fun <T : Any?> computeInTransaction(computable: TransactionalComputable<T>): T {
-        TODO("Not yet implemented")
+        val txn = beginTransaction()
+        return try {
+            computable.compute(txn)
+        } finally {
+            txn.commit()
+        }
     }
 
     override fun <T : Any?> computeInExclusiveTransaction(computable: TransactionalComputable<T>): T {
-        TODO("Not yet implemented")
+        return computeInTransaction(computable)
     }
 
     override fun <T : Any?> computeInReadonlyTransaction(computable: TransactionalComputable<T>): T {
-        TODO("Not yet implemented")
+        return computeInTransaction(computable)
     }
 
     override fun getEnvironmentConfig(): EnvironmentConfig {
-        TODO("Not yet implemented")
+        return config
     }
 
     override fun getStatistics(): Statistics<out Enum<*>> {
-        TODO("Not yet implemented")
+        return statistics
     }
 
     override fun getCipherProvider(): StreamCipherProvider? {
-        TODO("Not yet implemented")
+        return null
     }
 
-    override fun getCipherKey(): ByteArray {
-        TODO("Not yet implemented")
+    override fun getCipherKey(): ByteArray? {
+        return null
     }
 
     override fun getCipherBasicIV(): Long {
-        TODO("Not yet implemented")
+        return -1
     }
 
     override fun executeBeforeGc(action: Runnable?) {
-        TODO("Not yet implemented")
+
     }
 }
