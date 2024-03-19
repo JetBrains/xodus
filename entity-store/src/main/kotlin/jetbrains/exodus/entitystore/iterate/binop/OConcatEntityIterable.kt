@@ -6,7 +6,9 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.util.unsupported
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OQueries
+import jetbrains.exodus.entitystore.orientdb.OQuery
 
 class OConcatEntityIterable(
     txn: PersistentStoreTransaction?,
@@ -14,7 +16,12 @@ class OConcatEntityIterable(
     private val iterable2: EntityIterableBase
 ) : OEntityIterableBase(txn) {
 
-    override fun query() = unsupported("Contact uses it's own Iterator implementation")
+    override fun query(): OQuery {
+        if (iterable1 !is OEntityIterable || iterable2 !is OEntityIterable) {
+            throw UnsupportedOperationException("ConcatIterable is only supported for OEntityIterable")
+        }
+        return OQueries.union(iterable1.query(), iterable2.query())
+    }
 
     override fun size(): Long {
         return iterable1.size() + iterable2.size()
