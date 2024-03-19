@@ -44,4 +44,19 @@ class ORIDEntityId(private val id: ORID, private val schemaClass: OClass) : OEnt
     override fun toString(): String {
         return "${schemaClass}:${id}"
     }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ORIDEntityId
+
+        return id == other.id
+    }
+
+
 }

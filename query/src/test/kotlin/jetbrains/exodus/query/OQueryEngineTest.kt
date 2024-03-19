@@ -6,17 +6,11 @@ import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.InMemoryOrientDB
-import jetbrains.exodus.entitystore.orientdb.Issues
-import jetbrains.exodus.entitystore.orientdb.addIssueToBoard
-import jetbrains.exodus.entitystore.orientdb.addIssueToProject
-import jetbrains.exodus.entitystore.orientdb.createBoard
-import jetbrains.exodus.entitystore.orientdb.createIssue
-import jetbrains.exodus.entitystore.orientdb.createProject
-import jetbrains.exodus.entitystore.orientdb.name
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.query.metadata.ModelMetaData
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertEquals
 
 class OQueryEngineTest {
 
@@ -252,6 +246,22 @@ class OQueryEngineTest {
             // Then
             assertNamesExactly(issues, "issue1", "issue2")
         }
+    }
+
+    @Test
+    fun `concat 2 queries should sum size`(){
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        val engine = givenOQueryEngine()
+
+        orientDB.withSession {
+            val issuesOnBoard1 = engine.query(Issues.CLASS, LinkEqual(Issues.Links.ON_BOARD, test.board1))
+            val issuesOnBoard2 = engine.query(Issues.CLASS,  LinkEqual(Issues.Links.ON_BOARD, test.board2))
+            val concat = engine.concat(issuesOnBoard1, issuesOnBoard2)
+            assertEquals(3, concat.count())
+            assertEquals(2, concat.toSet().size)}
     }
 
     private fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
