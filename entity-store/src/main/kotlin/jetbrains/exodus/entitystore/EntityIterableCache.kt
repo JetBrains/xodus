@@ -286,7 +286,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     logger.info {
                         val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
 
-                        "$action forcibly stopped for handle $handle ${e.reason.message}, caching time: $cachingTime ms"
+                        "$action forcibly stopped for handle $handle: ${e.reason.message}, caching time: $cachingTime ms"
                     }
                 }
             }
