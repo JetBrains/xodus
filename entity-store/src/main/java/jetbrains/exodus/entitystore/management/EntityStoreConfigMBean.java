@@ -25,6 +25,10 @@ public interface EntityStoreConfigMBean {
 
     boolean getRefactoringBlobNullIndices();
 
+    int getEntityIterableCacheObsoleteMaxRetries();
+
+    void setEntityIterableCacheObsoleteMaxRetries(int maxRetries);
+
     boolean getEntityIterableCacheHeavyEnabled();
 
     void setEntityIterableCacheHeavyEnabled(boolean heavyEnabled);

@@ -188,6 +188,8 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
         private val cancellingPolicy = CachingCancellingPolicy(isConsistent && handle.isConsistent)
 
+        private var currentAttempt: Int = 1
+
         init {
             this.processor = processor
             if (queue(Priority.normal)) {
@@ -258,11 +260,22 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 } catch (e: TooLongEntityIterableInstantiationException) {
                     val cachingTime = System.currentTimeMillis() - started
 
+                    if(e.reason == CACHE_ADAPTER_OBSOLETE) {
+                        val maxAttempts = config.entityIterableCacheObsoleteMaxRetries
+                        if (maxAttempts > 0 && currentAttempt < maxAttempts) {
+                            val handle = toString(config, handle)
+                            logger.info { "Re-queuing obsolete cache job for handle ${handle}, attempts left: ${maxAttempts - currentAttempt}" }
+                            currentAttempt++
+                            queue(Priority.normal)
+                            return@executeInReadonlyTransaction
+                        }
+                    }
+
                     if (isConsistent && config.entityIterableCacheHeavyEnabled) {
                         heavyIterablesCache.cacheObject(iterableIdentity, System.currentTimeMillis())
                     }
 
-                    // Update stats and requeue
+                    // Update stats and requeue if can
                     stats.incTotalJobsInterrupted()
                     when (e.reason) {
                         CACHE_ADAPTER_OBSOLETE -> stats.incTotalJobsObsolete()
@@ -272,8 +285,8 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     // Log
                     logger.info {
                         val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
-                        val handle = toString(config, handle)
-                        "$action forcibly stopped, ${e.reason.message}: ${handle}, caching time: ${cachingTime}ms"
+
+                        "$action forcibly stopped for handle $handle ${e.reason.message}, caching time: $cachingTime ms"
                     }
                 }
             }

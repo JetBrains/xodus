@@ -359,8 +359,14 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE = "exodus.entityStore.entityIterableCache.useHumanReadable";
 
     /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code -1} (disabled).
+     * <p>Mutable at runtime: true
+     */
+    public static final String ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES = "exodus.entityStore.entityIterableCache.obsoleteMaxRetries";
+
+    /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2048}.
-     * <p>Mutable at runtime: no
+     * <p>Mutable at runtime: true
      */
     public static final String ENTITY_ITERABLE_CACHE_HEAVY_ENABLED = "exodus.entityStore.entityIterableCache.heavyEnabled";
 
@@ -491,6 +497,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, -1), // disabled by default
                 new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, true),
                 new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
+                new Pair(ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES, -1), // disabled by default
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED, true),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, 60000L),
@@ -841,6 +848,14 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setEntityIterableCacheUseHumanReadable(final boolean useHumanReadable) {
         return setSetting(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, useHumanReadable);
+    }
+
+    public int getEntityIterableCacheObsoleteMaxRetries() {
+        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES);
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheObsoleteMaxRetries(int maxRetries) {
+        return setSetting(ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES, maxRetries);
     }
 
     private Boolean heavyEnabled = null;

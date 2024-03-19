@@ -252,6 +252,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public int getEntityIterableCacheObsoleteMaxRetries() {
+        return config.getEntityIterableCacheObsoleteMaxRetries();
+    }
+
+    @Override
+    public void setEntityIterableCacheObsoleteMaxRetries(int maxRetries) {
+        config.setEntityIterableCacheObsoleteMaxRetries(maxRetries);
+    }
+
+    @Override
     public boolean getEntityIterableCacheHeavyEnabled() {
         return config.getEntityIterableCacheHeavyEnabled();
     }
