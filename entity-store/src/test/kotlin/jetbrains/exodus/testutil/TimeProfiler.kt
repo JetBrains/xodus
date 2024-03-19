@@ -20,6 +20,7 @@ import kotlin.collections.maxOrNull
 import kotlin.collections.minOrNull
 import kotlin.collections.sorted
 import kotlin.collections.sum
+import kotlin.text.format
 
 class TimeProfiler(val name: String) {
 
@@ -49,7 +50,7 @@ class TimeProfiler(val name: String) {
                     "  Total runs: ${times.size} \n" +
                     "  Min: ${times.minOrNull()} ms \n" +
                     "  Max: ${times.maxOrNull()} ms \n" +
-                    "  Average: ${average()} ms \n" +
+                    "  Average: ${String.format("%.4f", average())} ms \n" +
                     "  90th percentile: ${percentile(0.9)} ms \n" +
                     "  95th percentile: ${percentile(0.95)} ms \n" +
                     "  99th percentile: ${percentile(0.99)} ms"
