@@ -25,6 +25,10 @@ public interface EntityStoreConfigMBean {
 
     boolean getRefactoringBlobNullIndices();
 
+    boolean getEntityIterableCacheHeavyEnabled();
+
+    void setEntityIterableCacheHeavyEnabled(boolean heavyEnabled);
+
     boolean getRefactoringHeavyLinks();
 
     boolean getRefactoringHeavyProps();
