@@ -858,17 +858,12 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return setSetting(ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES, maxRetries);
     }
 
-    private Boolean heavyEnabled = null;
 
     public boolean getEntityIterableCacheHeavyEnabled() {
-        if (heavyEnabled == null) {
-            heavyEnabled = (Boolean) getSetting(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED);
-        }
-        return heavyEnabled;
+        return (Boolean) getSetting(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED);
     }
 
     public PersistentEntityStoreConfig setEntityIterableCacheHeavyEnabled(final boolean heavyEnabled) {
-        this.heavyEnabled = heavyEnabled;
         return setSetting(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED, heavyEnabled);
     }
 
