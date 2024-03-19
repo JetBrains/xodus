@@ -1,12 +1,11 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.id.ORID
-import java.util.UUID
 
 // Basic
 sealed interface OQuery {
     fun sql(): String
-    fun params(): Map<String, Any>
+    fun params(): List<Any> = emptyList<Any>()
 }
 
 object OQueries {
@@ -63,7 +62,7 @@ class OAllSelect(
 ) : OClassSelect {
 
     override fun sql() = "SELECT from $className ${condition.whereOrEmpty()}".trimEnd()
-    override fun params() = condition?.params() ?: emptyMap()
+    override fun params() = condition?.params() ?: emptyList()
 }
 
 class OLinkInSelect(
@@ -74,7 +73,6 @@ class OLinkInSelect(
 ) : OClassSelect {
 
     override fun sql() = "SELECT expand(in('$linkName')) from $targetIdsSql ${condition.whereOrEmpty()}".trimEnd()
-    override fun params() = emptyMap<String, Any>()
 
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 }
@@ -114,11 +112,8 @@ class OEqualCondition(
     val value: Any,
 ) : OCondition {
 
-    // ToDo: make paramId deterministic to leverage query parsing cache
-    val paramId = "${field}_${UUID.randomUUID().toString().take(4).replace("-", "")}"
-
-    override fun sql() = "$field = :$paramId"
-    override fun params() = mapOf(paramId to value)
+    override fun sql() = "$field = ?"
+    override fun params() = listOf(value)
 }
 
 class OContainsCondition(
@@ -126,11 +121,8 @@ class OContainsCondition(
     val value: String,
 ) : OCondition {
 
-    // ToDo: make paramId deterministic to leverage query parsing cache
-    val paramId = "${field}_${UUID.randomUUID().toString().take(4).replace("-", "")}"
-
-    override fun sql() = "$field like :$paramId"
-    override fun params() = mapOf(paramId to "%${value}%")
+    override fun sql() = "$field like ?"
+    override fun params() = listOf("%${value}%")
 }
 
 class OStartsWithCondition(
@@ -138,10 +130,8 @@ class OStartsWithCondition(
     val value: String,
 ) : OCondition {
 
-    val paramId = "${field}_${UUID.randomUUID().toString().take(4).replace("-", "")}"
-
-    override fun sql() = "$field like :$paramId"
-    override fun params() = mapOf(paramId to "${value}%")
+    override fun sql() = "$field like ?"
+    override fun params() = listOf("${value}%")
 }
 
 // Binary

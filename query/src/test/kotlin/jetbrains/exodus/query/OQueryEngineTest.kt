@@ -100,8 +100,8 @@ class OQueryEngineTest {
         // When
         orientDB.withSession {
             val equal1 = PropertyEqual("name", test.issue1.name())
-            val equal3 = PropertyEqual("name", test.issue2.name())
-            val issues = engine.query(Issues.CLASS, Or(equal1, equal3))
+            val equal2 = PropertyEqual("name", test.issue2.name())
+            val issues = engine.query(Issues.CLASS, Or(equal1, equal2))
 
             // Then
             assertNamesExactly(issues, "issue1", "issue2")

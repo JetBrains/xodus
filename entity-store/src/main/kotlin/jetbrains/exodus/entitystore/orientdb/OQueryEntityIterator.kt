@@ -17,7 +17,7 @@ class OQueryEntityIterator(
     companion object : KLogging() {
 
         fun create(iterable: OEntityIterableBase, document: ODatabaseDocument, query: OQuery): OQueryEntityIterator {
-            val resultSet = document.query(query.sql(), query.params())
+            val resultSet = document.query(query.sql(), *query.params().toTypedArray())
             // Log execution plan
             val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
             logger.info { "Query: ${query.sql()} with params: ${query.params()}, execution plan:\n  $executionPlan" }

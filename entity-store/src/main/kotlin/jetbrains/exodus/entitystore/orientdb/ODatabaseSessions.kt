@@ -12,5 +12,5 @@ fun ODatabaseDocument.getVertexEntity(oid: OIdentifiable): Entity {
 }
 
 fun ODatabaseDocument.query(query: OQuery): OResultSet {
-    return query(query.sql(), query.params())
+    return query(query.sql(), *query.params().toTypedArray())
 }
