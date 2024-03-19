@@ -23,6 +23,7 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.system.JVMConstants;
+import kotlin.jvm.Volatile;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -361,6 +362,12 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2048}.
      * <p>Mutable at runtime: no
      */
+    public static final String ENTITY_ITERABLE_CACHE_HEAVY_ENABLED = "exodus.entityStore.entityIterableCache.heavyEnabled";
+
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2048}.
+     * <p>Mutable at runtime: no
+     */
     public static final String ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE = "exodus.entityStore.entityIterableCache.heavyQueriesCacheSize";
 
     /**
@@ -484,6 +491,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, -1), // disabled by default
                 new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, true),
                 new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
+                new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED, true),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, 60000L),
                 new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
@@ -833,6 +841,20 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setEntityIterableCacheUseHumanReadable(final boolean useHumanReadable) {
         return setSetting(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, useHumanReadable);
+    }
+
+    private Boolean heavyEnabled = null;
+
+    public boolean getEntityIterableCacheHeavyEnabled() {
+        if (heavyEnabled == null) {
+            heavyEnabled = (Boolean) getSetting(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED);
+        }
+        return heavyEnabled;
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheHeavyEnabled(final boolean heavyEnabled) {
+        this.heavyEnabled = heavyEnabled;
+        return setSetting(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED, heavyEnabled);
     }
 
     public int getEntityIterableCacheHeavyIterablesCacheSize() {

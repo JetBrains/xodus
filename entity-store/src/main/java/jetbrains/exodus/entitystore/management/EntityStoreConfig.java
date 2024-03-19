@@ -252,6 +252,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public boolean getEntityIterableCacheHeavyEnabled() {
+        return config.getEntityIterableCacheHeavyEnabled();
+    }
+
+    @Override
+    public void setEntityIterableCacheHeavyEnabled(boolean heavyEnabled) {
+        config.setEntityIterableCacheHeavyEnabled(heavyEnabled);
+    }
+
+    @Override
     public int getEntityIterableCacheHeavyIterablesCacheSize() {
         return config.getEntityIterableCacheHeavyIterablesCacheSize();
     }

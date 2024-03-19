@@ -44,6 +44,10 @@ public abstract class MBeanBase {
         return name;
     }
 
+    public abstract boolean getEntityIterableCacheHeavyEnabled();
+
+    public abstract void setEntityIterableCacheHeavyEnabled(boolean heavyEnabled);
+
     public void close() {
         final Runnable runOnClose = this.runOnClose;
         if (runOnClose != null) {

@@ -220,7 +220,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
             val isConsistent = cancellingPolicy.isConsistent
             val iterableIdentity = handle.identity
             // for consistent jobs, don't try to cache if we know that this iterable was "heavy" during its life span
-            if (isConsistent) {
+            if (isConsistent && config.entityIterableCacheHeavyEnabled) {
                 val lastCancelled = heavyIterablesCache.tryKey(iterableIdentity)
                 if (lastCancelled != null) {
                     if (lastCancelled + config.entityIterableCacheHeavyIterablesLifeSpan > started) {
@@ -258,7 +258,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 } catch (e: TooLongEntityIterableInstantiationException) {
                     val cachingTime = System.currentTimeMillis() - started
 
-                    if (isConsistent) {
+                    if (isConsistent && config.entityIterableCacheHeavyEnabled) {
                         heavyIterablesCache.cacheObject(iterableIdentity, System.currentTimeMillis())
                     }
 
