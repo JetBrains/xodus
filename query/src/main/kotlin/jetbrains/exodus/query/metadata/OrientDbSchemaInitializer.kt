@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
+import com.orientechnologies.orient.core.collate.OCaseInsensitiveCollate
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
@@ -459,6 +460,14 @@ internal class OrientDbSchemaInitializer(
             append(", created")
             createProperty(propertyName, oType)
         }
+        if (oType == OType.STRING) {
+            if (oProperty.collate.name == OCaseInsensitiveCollate.NAME) {
+                append(", case-insensitive collate already set")
+            } else {
+                oProperty.setCollate(OCaseInsensitiveCollate.NAME)
+                append(", set case-insensitive collate")
+            }
+        }
         require(oProperty.type == oType) { "$propertyName type is ${oProperty.type} but $oType was expected instead. Types migration is not supported."  }
         return oProperty
     }
@@ -485,6 +494,14 @@ internal class OrientDbSchemaInitializer(
         } else {
             append(", created")
             createProperty(propertyName, OType.EMBEDDEDSET, oType)
+        }
+        if (oType == OType.STRING) {
+            if (oProperty.collate.name == OCaseInsensitiveCollate.NAME) {
+                append(", case-insensitive collate already set")
+            } else {
+                oProperty.setCollate(OCaseInsensitiveCollate.NAME)
+                append(", set case-insensitive collate")
+            }
         }
         require(oProperty.type == OType.EMBEDDEDSET) { "$propertyName type is ${oProperty.type} but ${OType.EMBEDDEDSET} was expected instead. Types migration is not supported."  }
         require(oProperty.linkedType == oType) { "$propertyName type of the set is ${oProperty.linkedType} but $oType was expected instead. Types migration is not supported." }
