@@ -28,10 +28,7 @@ import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
-import jetbrains.exodus.entitystore.iterate.property.OPropertyContainsIterable;
-import jetbrains.exodus.entitystore.iterate.property.OPropertyEqualIterable;
-import jetbrains.exodus.entitystore.iterate.property.OPropertyRangeIterable;
-import jetbrains.exodus.entitystore.iterate.property.OPropertyStartsWithIterable;
+import jetbrains.exodus.entitystore.iterate.property.*;
 import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
 import jetbrains.exodus.entitystore.orientdb.OEntity;
 import jetbrains.exodus.entitystore.orientdb.OEntityId;
@@ -377,8 +374,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     @NotNull
     @Override
     public EntityIterableBase findWithProp(@NotNull final String entityType, @NotNull final String propertyName) {
-        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new EntitiesWithPropertyIterable(this, entityTypeId.intValue(), propertyId.intValue()));
+        return new OPropertyExistsIterable(this, entityType, propertyName);
     }
 
     public EntityIterableBase findWithPropSortedByValue(@NotNull final String entityType, @NotNull final String propertyName) {

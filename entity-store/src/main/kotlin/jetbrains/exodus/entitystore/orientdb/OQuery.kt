@@ -121,8 +121,8 @@ class OContainsCondition(
     val value: String,
 ) : OCondition {
 
-    override fun sql() = "$field like ?"
-    override fun params() = listOf("%${value}%")
+    override fun sql() = "$field containsText ?"
+    override fun params() = listOf(value)
 }
 
 class OStartsWithCondition(
@@ -157,6 +157,13 @@ class ORangeCondition(
     // https://orientdb.com/docs/3.2.x/sql/SQL-Where.html#between
     override fun sql() = "($field between ? and ?)"
     override fun params() = listOf(minInclusive, maxInclusive)
+}
+
+class OExistsCondition(
+    val field: String
+) : OCondition {
+
+    override fun sql() = "not($field is null)"
 }
 
 // Condition extensions

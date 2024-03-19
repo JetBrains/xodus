@@ -113,6 +113,24 @@ class OQueryEngineTest {
         }
     }
 
+    @Test
+    fun `should query property exists`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        orientDB.withSession { test.issue2.setProperty("prop", "test") }
+
+        // When
+        orientDB.withSession {
+            val issues = engine.query("Issue", PropertyNotNull("prop"))
+            val empty = engine.query("Issue", PropertyNotNull("no_prop"))
+
+            // Then
+            assertNamesExactly(issues, "issue2")
+            assertThat(empty).isEmpty()
+        }
+    }
+
 
     @Test
     fun `should query with or`() {

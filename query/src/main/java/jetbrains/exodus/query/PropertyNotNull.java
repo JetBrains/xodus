@@ -38,8 +38,11 @@ public class PropertyNotNull extends NodeBase {
         final PropertyMetaData pmd = emd == null ? null : emd.getPropertyMetaData(name);
         queryEngine.assertOperational();
         final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
-        return pmd == null || pmd.getType() == PropertyType.PRIMITIVE ?
-            txn.findWithProp(entityType, name) : txn.findWithBlob(entityType, name);
+        if (pmd != null && pmd.getType() == PropertyType.BLOB) {
+            return txn.findWithBlob(entityType, name);
+        } else {
+            return txn.findWithProp(entityType, name);
+        }
     }
 
     @Override
