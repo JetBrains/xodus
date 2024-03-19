@@ -6,21 +6,15 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OEntityIterable
-import jetbrains.exodus.entitystore.orientdb.OQueries
-import jetbrains.exodus.entitystore.orientdb.OQuery
+import jetbrains.exodus.entitystore.util.unsupported
 
-class OConcatIterable(
+class OConcatEntityIterable(
     txn: PersistentStoreTransaction?,
     private val iterable1: EntityIterableBase,
     private val iterable2: EntityIterableBase
 ) : OEntityIterableBase(txn) {
-    override fun query(): OQuery {
-        if (iterable1 !is OEntityIterable || iterable2 !is OEntityIterable) {
-            throw UnsupportedOperationException("ConcatIterable is only supported for OEntityIterable")
-        }
-        return OQueries.union(iterable1.query(), iterable2.query())
-    }
+
+    override fun query() = unsupported("Contact uses it's own Iterator implementation")
 
     override fun size(): Long {
         return iterable1.size() + iterable2.size()
@@ -34,7 +28,6 @@ class OConcatIterable(
         return iterable1.size() + iterable2.size()
     }
 
-
     override fun getIteratorImpl(txn: PersistentStoreTransaction) = OConcatenationIterator()
 
     inner class OConcatenationIterator() : NonDisposableEntityIterator(source) {
@@ -43,14 +36,14 @@ class OConcatIterable(
 
         override fun hasNextImpl(): Boolean {
             if (iterator1 === this) {
-                iterator1 = this@OConcatIterable.iterable1.iterator() as EntityIteratorBase
+                iterator1 = this@OConcatEntityIterable.iterable1.iterator() as EntityIteratorBase
             }
             if (iterator1 != null) {
                 if (iterator1!!.hasNext()) {
                     return true
                 }
                 iterator1 = null
-                iterator2 = this@OConcatIterable.iterable2.iterator() as EntityIteratorBase
+                iterator2 = this@OConcatEntityIterable.iterable2.iterator() as EntityIteratorBase
             }
             if (iterator2 != null) {
                 if (iterator2!!.hasNext()) {

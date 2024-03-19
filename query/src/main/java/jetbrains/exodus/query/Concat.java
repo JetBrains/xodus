@@ -17,8 +17,6 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
-import jetbrains.exodus.entitystore.iterate.binop.OConcatIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.NotNull;
 
@@ -40,11 +38,8 @@ public class Concat extends BinaryOperator {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        var store = queryEngine.getPersistentStore();
-        var transaction = store.getAndCheckCurrentTransaction();
-        var left = (EntityIterableBase) leftSorts.apply(entityType, getLeft().instantiate(entityType, queryEngine, metaData, context), queryEngine);
-        var right = (EntityIterableBase) rightSorts.apply(entityType, getRight().instantiate(entityType, queryEngine, metaData, context), queryEngine);
-        return new OConcatIterable(transaction, left, right);
+        return queryEngine.concatAdjusted(leftSorts.apply(entityType, getLeft().instantiate(entityType, queryEngine, metaData, context), queryEngine),
+                rightSorts.apply(entityType, getRight().instantiate(entityType, queryEngine, metaData, context), queryEngine));
     }
 
     @Override

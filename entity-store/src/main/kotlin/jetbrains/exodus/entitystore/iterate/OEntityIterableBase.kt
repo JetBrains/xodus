@@ -4,7 +4,7 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterableHandle
 import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
-import jetbrains.exodus.entitystore.iterate.binop.OConcatIterable
+import jetbrains.exodus.entitystore.iterate.binop.OConcatEntityIterable
 import jetbrains.exodus.entitystore.iterate.binop.OIntersectionIterable
 import jetbrains.exodus.entitystore.iterate.binop.OUnionIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
@@ -41,12 +41,8 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
 
     override fun concat(right: EntityIterable): EntityIterable {
         if (right is OEntityIterableBase) {
-            return OConcatIterable(transaction, this, right)
+            return OConcatEntityIterable(transaction, this, right)
         }
         return super.intersect(right)
-    }
-
-    override fun countImpl(txn: PersistentStoreTransaction): Long {
-        return super.countImpl(txn)
     }
 }

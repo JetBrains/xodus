@@ -249,19 +249,24 @@ class OQueryEngineTest {
     }
 
     @Test
-    fun `concat 2 queries should sum size`(){
+    fun `should concat 2 queries and sum size`() {
+        // Given
         val test = givenTestCase()
         orientDB.addIssueToBoard(test.issue1, test.board1)
         orientDB.addIssueToBoard(test.issue2, test.board1)
         orientDB.addIssueToBoard(test.issue1, test.board2)
         val engine = givenOQueryEngine()
 
+        // When
         orientDB.withSession {
             val issuesOnBoard1 = engine.query(Issues.CLASS, LinkEqual(Issues.Links.ON_BOARD, test.board1))
-            val issuesOnBoard2 = engine.query(Issues.CLASS,  LinkEqual(Issues.Links.ON_BOARD, test.board2))
+            val issuesOnBoard2 = engine.query(Issues.CLASS, LinkEqual(Issues.Links.ON_BOARD, test.board2))
             val concat = engine.concat(issuesOnBoard1, issuesOnBoard2)
+
+            // Then
             assertEquals(3, concat.count())
-            assertEquals(2, concat.toSet().size)}
+            assertEquals(2, concat.toSet().size)
+        }
     }
 
     private fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
