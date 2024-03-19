@@ -118,7 +118,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         }
 
         // if cache is enough full, then cache iterables after they live some time in deferred cache
-        if (localCache.halfFull) {
+        if (config.entityIterableCacheDeferredEnabled && localCache.halfFull) {
             val currentMillis = System.currentTimeMillis()
             val handleIdentity = handle.identity
             val whenCached = deferredIterablesCache.tryKey(handleIdentity)

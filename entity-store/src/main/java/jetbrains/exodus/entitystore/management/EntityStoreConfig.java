@@ -222,6 +222,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public boolean getEntityIterableCacheDeferredEnabled() {
+        return config.getEntityIterableCacheDeferredEnabled();
+    }
+
+    @Override
+    public void setEntityIterableCacheDeferredEnabled(boolean deferredEnabled) {
+        config.setEntityIterableCacheDeferredEnabled(deferredEnabled);
+    }
+
+    @Override
     public int getEntityIterableCacheDeferredDelay() {
         return config.getEntityIterableCacheDeferredDelay();
     }

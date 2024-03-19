@@ -317,6 +317,12 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT = "exodus.entityStore.entityIterableCache.startCachingTimeout";
 
     /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code true}.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String ENTITY_ITERABLE_CACHE_DEFERRED_ENABLED = "exodus.entityStore.entityIterableCache.deferredEnabled";
+
+    /**
      * Defines the size of deferred cache of EntityIterableCache.
      * Deferred cache is used to identify and cache only repeatable queries in oder to avoid unnecessary caching.
      * Query is repeatable if it was executed not later than {@linkplain #ENTITY_ITERABLE_CACHE_DEFERRED_DELAY} milliseconds since the previous request.
@@ -472,6 +478,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
                 new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
+                new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_ENABLED, true),
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_SIZE, -1), // unset by default
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
                 new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, -1), // disabled by default
@@ -794,6 +801,14 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         } else {
             return defaultEntityIterableDeferredCacheSize();
         }
+    }
+
+    public boolean getEntityIterableCacheDeferredEnabled() {
+        return (Boolean) getSetting(ENTITY_ITERABLE_CACHE_DEFERRED_ENABLED);
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheDeferredEnabled(final boolean deferredEnabled) {
+        return setSetting(ENTITY_ITERABLE_CACHE_DEFERRED_ENABLED, deferredEnabled);
     }
 
     public int getEntityIterableCacheDeferredDelay() {
