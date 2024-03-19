@@ -30,6 +30,7 @@ import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
 import jetbrains.exodus.entitystore.iterate.property.OPropertyContainsIterable;
 import jetbrains.exodus.entitystore.iterate.property.OPropertyEqualIterable;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyRangeIterable;
 import jetbrains.exodus.entitystore.iterate.property.OPropertyStartsWithIterable;
 import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
 import jetbrains.exodus.entitystore.orientdb.OEntity;
@@ -349,8 +350,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
             }
             return EntityIterableBase.EMPTY;
         }
-        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyRangeIterable(this, entityTypeId.intValue(), propertyId.intValue(), minValue, maxValue));
+        return new OPropertyRangeIterable(this, entityType, propertyName, minValue, maxValue);
     }
 
     // ignoreCase param is not supported and defined on the property level

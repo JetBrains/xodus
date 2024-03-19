@@ -92,6 +92,29 @@ class OQueryEngineTest {
     }
 
     @Test
+    fun `should query property in range`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        orientDB.withSession { test.issue2.setProperty("value", 3) }
+
+        // When
+        orientDB.withSession {
+            val exclusive = engine.query("Issue", PropertyRange("value", 1, 5))
+            val inclusiveMin = engine.query("Issue", PropertyRange("value", 3, 5))
+            val inclusiveMax = engine.query("Issue", PropertyRange("value", 1, 3))
+            val empty = engine.query("Issue", PropertyRange("value", 6, 12))
+
+            // Then
+            assertNamesExactly(exclusive, "issue2")
+            assertNamesExactly(inclusiveMin, "issue2")
+            assertNamesExactly(inclusiveMax, "issue2")
+            assertThat(empty).isEmpty()
+        }
+    }
+
+
+    @Test
     fun `should query with or`() {
         // Given
         val test = givenTestCase()

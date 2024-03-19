@@ -135,7 +135,11 @@ class OStartsWithCondition(
 }
 
 // Binary
-sealed class OBiCondition(val operation: String, val left: OCondition, val right: OCondition) : OCondition {
+sealed class OBiCondition(
+    val operation: String,
+    val left: OCondition,
+    val right: OCondition
+) : OCondition {
 
     override fun sql() = "(${left.sql()} $operation ${right.sql()})"
     override fun params() = left.params() + right.params()
@@ -143,6 +147,17 @@ sealed class OBiCondition(val operation: String, val left: OCondition, val right
 
 class OAndCondition(left: OCondition, right: OCondition) : OBiCondition("AND", left, right)
 class OOrCondition(left: OCondition, right: OCondition) : OBiCondition("OR", left, right)
+
+class ORangeCondition(
+    val field: String,
+    val minInclusive: Any,
+    val maxInclusive: Any
+) : OCondition {
+
+    // https://orientdb.com/docs/3.2.x/sql/SQL-Where.html#between
+    override fun sql() = "($field between ? and ?)"
+    override fun params() = listOf(minInclusive, maxInclusive)
+}
 
 // Condition extensions
 fun OCondition?.whereOrEmpty() = this?.let { "WHERE ${it.sql()}" } ?: ""
