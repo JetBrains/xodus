@@ -1,13 +1,18 @@
 package jetbrains.exodus.query
 
 import com.google.common.truth.Truth.assertThat
+import com.orientechnologies.orient.core.record.OElement
+import com.orientechnologies.orient.core.record.OVertex
 import io.mockk.every
 import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
+import jetbrains.exodus.query.metadata.PropertyMetaData
+import jetbrains.exodus.query.metadata.PropertyType
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -249,6 +254,40 @@ class OQueryEngineTest {
     }
 
     @Test
+    fun `hasBlob should search for entity with blob`(){
+        val test = givenTestCase()
+        val engine = givenOQueryEngine {
+            val issueMetaData = mockk<EntityMetaData>(relaxed = true)
+            val metaData = this
+            every { metaData.getEntityMetaData(Issues.CLASS) }.returns(issueMetaData)
+            val blobMetaData = mockk<PropertyMetaData>( relaxed = true)
+            every { issueMetaData.getPropertyMetaData("myBlob") }.returns(blobMetaData)
+            every { blobMetaData.type }.returns(PropertyType.BLOB)
+        }
+
+        orientDB.withSession {
+            //correct blob (can be found)
+            test.issue1.setBlob("myBlob", "Hello".toByteArray().inputStream())
+            //blob with content of size 0 (can be found)
+            test.issue2.setBlob("myBlob", ByteArray(0).inputStream())
+            //blob with removed content (cannot be found)
+            test.issue3.setBlob("myBlob", "World".toByteArray().inputStream())
+            val id = test.issue3.id.asOId()
+            val vertex = it.load<OVertex>(id)
+            val blobContainer = vertex.getProperty<OElement>("myBlob")
+            blobContainer.removeProperty<ByteArray>(OVertexEntity.DATA_PROPERTY_NAME)
+            blobContainer.save<OElement>()
+        }
+
+        orientDB.withSession {
+            val issues = engine.query(Issues.CLASS, PropertyNotNull("myBlob")).toList()
+            assertEquals(2, issues.size)
+            assertEquals(test.issue1, issues.firstOrNull())
+            assertEquals(test.issue2, issues.lastOrNull())
+        }
+    }
+
+    @Test
     fun `should concat 2 queries and sum size`() {
         // Given
         val test = givenTestCase()
@@ -273,9 +312,10 @@ class OQueryEngineTest {
         assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
     }
 
-    private fun givenOQueryEngine(): QueryEngine {
+    private fun givenOQueryEngine(tweakMetaData: ModelMetaData.() -> Unit = {}): QueryEngine {
         val model = mockk<ModelMetaData>(relaxed = true)
         val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
+        model.tweakMetaData()
         every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
         return QueryEngine(model, store)
     }

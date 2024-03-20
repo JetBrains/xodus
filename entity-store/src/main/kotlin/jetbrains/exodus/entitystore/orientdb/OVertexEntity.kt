@@ -23,7 +23,10 @@ import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.EntityIterable
+import jetbrains.exodus.entitystore.EntityStore
 import jetbrains.exodus.entitystore.iterate.link.OVertexEntityIterable
 import jetbrains.exodus.entitystore.util.unsupported
 import mu.KLogging
@@ -133,28 +136,25 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     }
 
 
-    private fun createBlobElementWithNoContent(blobName: String, className: String): OElement {
-        val ref = vertex.getLinkProperty(blobName)
-        val record: OElement
-        if (ref == null) {
-            record = activeSession.newElement(className)
-            vertex.setProperty(blobName, record)
-        } else {
-            record = activeSession.getRecord(ref)
-            if (record.hasProperty(DATA_PROPERTY_NAME)) {
-                record.removeProperty<Any>(DATA_PROPERTY_NAME)
-            }
-        }
-        return record
-    }
-
     override fun setBlob(blobName: String, blob: InputStream) {
         reload()
-        val element = createBlobElementWithNoContent(blobName, BINARY_BLOB_CLASS_NAME)
+        val ref = vertex.getLinkProperty(blobName)
+        val blobContainer: OElement
+
+        if (ref == null) {
+            blobContainer = activeSession.newElement(BINARY_BLOB_CLASS_NAME)
+            vertex.setProperty(blobName, blobContainer)
+        } else {
+            blobContainer = activeSession.getRecord(ref)
+            if (blobContainer.hasProperty(DATA_PROPERTY_NAME)) {
+                blobContainer.removeProperty<Any>(DATA_PROPERTY_NAME)
+            }
+        }
+
         val data = blob.use { blob.readAllBytes() }
-        element.setProperty(DATA_PROPERTY_NAME, data)
+        blobContainer.setProperty(DATA_PROPERTY_NAME, data)
         vertex.setProperty(blobSizeProperty(blobName), data.size.toLong())
-        element.save<OElement>()
+        blobContainer.save<OElement>()
         vertex.save<OVertex>()
     }
 

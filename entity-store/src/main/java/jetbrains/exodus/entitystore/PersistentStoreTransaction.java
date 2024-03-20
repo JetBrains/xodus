@@ -22,12 +22,15 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.dataStructures.*;
 import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
-import jetbrains.exodus.core.dataStructures.hash.*;
+import jetbrains.exodus.core.dataStructures.*;
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
+import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
+import jetbrains.exodus.entitystore.iterate.link.OWithBlobEntityIterable;
 import jetbrains.exodus.entitystore.iterate.property.*;
 import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
 import jetbrains.exodus.entitystore.orientdb.OEntity;
@@ -40,7 +43,9 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -397,8 +402,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     @NotNull
     @Override
     public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String blobName) {
-        return getPropertyIterable(entityType, blobName, (entityTypeId, blobId) ->
-                new EntitiesWithBlobIterable(this, entityTypeId.intValue(), blobId.intValue()));
+        return new OWithBlobEntityIterable(this, entityType, blobName);
     }
 
     @Override

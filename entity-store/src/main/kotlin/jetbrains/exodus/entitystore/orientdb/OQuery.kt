@@ -145,6 +145,12 @@ sealed class OBiCondition(
     override fun params() = left.params() + right.params()
 }
 
+class OHasBlobCondition(
+    val blobName:String
+):OCondition {
+    override fun sql() = "not(${blobName}.data is null)"
+}
+
 class OAndCondition(left: OCondition, right: OCondition) : OBiCondition("AND", left, right)
 class OOrCondition(left: OCondition, right: OCondition) : OBiCondition("OR", left, right)
 
