@@ -101,16 +101,23 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     // Generic cache impl
-    private val maxSize by lazy {
-        if (config.sizeEviction is SizedEviction) {
-            config.sizeEviction.maxSize
-        } else {
-            (config.sizeEviction as WeightedEviction).maxWeight
-        }
+    private var maxSize = if (config.sizeEviction is SizedEviction) {
+        config.sizeEviction.maxSize
+    } else {
+        (config.sizeEviction as WeightedEviction).maxWeight
     }
 
     override fun size(): Long {
         return maxSize
+    }
+
+    override fun setSize(size: Long) {
+        cache.policy().eviction().orElseThrow().maximum = size
+        maxSize = size
+    }
+
+    override fun isWeighted(): Boolean {
+        return config.sizeEviction is WeightedEviction
     }
 
     override fun count(): Long {

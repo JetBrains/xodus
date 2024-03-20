@@ -213,6 +213,9 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         }
 
         override fun execute() {
+            // Update cache size lazily
+            updateCacheSizeIfNecessary()
+
             val started = System.currentTimeMillis()
             // don't try to cache if it is too late
             if (!cancellingPolicy.canStartAt(started)) {
@@ -260,7 +263,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 } catch (e: TooLongEntityIterableInstantiationException) {
                     val cachingTime = System.currentTimeMillis() - started
 
-                    if(e.reason == CACHE_ADAPTER_OBSOLETE) {
+                    if (e.reason == CACHE_ADAPTER_OBSOLETE) {
                         val maxRetries = config.entityIterableCacheObsoleteMaxRetries
                         if (maxRetries > 0 && currentAttempt <= maxRetries) {
                             val handle = toString(config, handle)
@@ -289,6 +292,23 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                         "$action forcibly stopped for handle $handle: ${e.reason.message}, caching time: $cachingTime ms"
                     }
                 }
+            }
+        }
+
+        private fun updateCacheSizeIfNecessary() {
+            try {
+                val cacheSize = config.entityIterableCacheSize.toLong()
+                if (!cacheAdapter.isWeightedCache
+                    && cacheSize > 0
+                    && cacheSize != cacheAdapter.size()
+                ) {
+                    // When cache is not weighted and config property changed
+                    val prevSize = cacheAdapter.size()
+                    cacheAdapter.setSize(cacheSize)
+                    logger.info("Cache size updated from $prevSize to $cacheSize")
+                }
+            } catch (e: Exception) {
+                logger.error(e) { "Error while updating cache size" }
             }
         }
     }

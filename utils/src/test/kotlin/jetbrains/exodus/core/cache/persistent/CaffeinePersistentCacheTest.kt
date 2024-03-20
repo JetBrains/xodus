@@ -250,6 +250,21 @@ class CaffeinePersistentCacheTest {
         assertEquals(0, cache.localIndexSize())
     }
 
+    @Test
+    fun `should change size in runtime`() {
+        // Given
+        val cache = givenSizedCache(1)
+
+        // When
+        cache.put("key1", "value1")
+        cache.put("key2", "value2")
+        assertEquals(1, cache.count())
+        cache.setSize(2)
+        cache.put("key3", "value3")
+
+        // Then
+        assertEquals(2, cache.size())
+    }
 
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {

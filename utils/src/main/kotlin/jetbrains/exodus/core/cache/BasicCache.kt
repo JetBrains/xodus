@@ -26,6 +26,18 @@ interface BasicCache<K, V> {
     fun size(): Long
 
     /**
+     * Sets the maximum number of elements in the cache or max weight of the cache.
+     *
+     * Exactly what this means is implementation-dependent.
+     */
+    fun setSize(size: Long)
+
+    /**
+     * Returns true if the cache is weighted.
+     */
+    fun isWeighted(): Boolean = false
+
+    /**
      * Returns the current number of elements in the cache.
      */
     fun count(): Long
@@ -52,6 +64,7 @@ interface BasicCache<K, V> {
 
     /**
      * Forces cache to evict stale entries.
+     *
      * Exactly which activities are performed (if any) is implementation-dependent.
      */
     fun forceEviction()

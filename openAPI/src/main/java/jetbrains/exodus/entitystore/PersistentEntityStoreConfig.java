@@ -23,7 +23,6 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.system.JVMConstants;
-import kotlin.jvm.Volatile;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -230,7 +229,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * Defines the size of EntityIterableCache. EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED}
      * is {@code false}. Default value depends on the JVM memory settings.
      * <p><b>It's generally recommended to use weighted cache instead. See {@linkplain #ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE}.</b>
-     * <p>Mutable at runtime: no
+     * <p>Mutable at runtime: yes
      *
      * @see #CACHING_DISABLED
      */
@@ -719,6 +718,9 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_SIZE);
     }
 
+    public PersistentEntityStoreConfig setEntityIterableCacheSize(final int size) {
+        return setSetting(ENTITY_ITERABLE_CACHE_SIZE, size);
+    }
 
     public int getEntityIterableCacheMemoryPercentage() {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE);
@@ -733,10 +735,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         long percentage = getEntityIterableCacheMemoryPercentage();
         long entityWeight = getEntityIterableCacheEntityWeight();
         return (maxMemory * percentage) / (100 * entityWeight);
-    }
-
-    public PersistentEntityStoreConfig setEntityIterableCacheSize(final int size) {
-        return setSetting(ENTITY_ITERABLE_CACHE_SIZE, size);
     }
 
     public int getEntityIterableCacheCountsCacheSize() {
