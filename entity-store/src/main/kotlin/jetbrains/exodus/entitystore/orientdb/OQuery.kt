@@ -159,7 +159,14 @@ class ORangeCondition(
     override fun params() = listOf(minInclusive, maxInclusive)
 }
 
-class OExistsCondition(
+class OEdgeExistsCondition(
+    val edge: String
+) : OCondition {
+
+    override fun sql() = "outE('$edge').size() > 0"
+}
+
+class OFieldExistsCondition(
     val field: String
 ) : OCondition {
 

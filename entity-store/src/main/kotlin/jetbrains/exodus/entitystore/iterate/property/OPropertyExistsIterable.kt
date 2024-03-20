@@ -3,7 +3,7 @@ package jetbrains.exodus.entitystore.iterate.property
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.OExistsCondition
+import jetbrains.exodus.entitystore.orientdb.OFieldExistsCondition
 import jetbrains.exodus.entitystore.orientdb.OQuery
 
 class OPropertyExistsIterable(
@@ -13,6 +13,6 @@ class OPropertyExistsIterable(
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OQuery {
-        return OAllSelect(entityType, OExistsCondition(propertyName))
+        return OAllSelect(entityType, OFieldExistsCondition(propertyName))
     }
 }
