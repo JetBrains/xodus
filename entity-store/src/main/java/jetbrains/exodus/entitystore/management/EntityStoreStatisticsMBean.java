@@ -23,6 +23,8 @@ public interface EntityStoreStatisticsMBean {
 
     long getNumberOfCachingJobs();
 
+    long getNumberOfCachingCountsJobs();
+
     long getTotalCachingJobsEnqueued();
 
     long getTotalCachingJobsNotQueued();
@@ -30,6 +32,10 @@ public interface EntityStoreStatisticsMBean {
     long getTotalCachingJobsStarted();
 
     long getTotalCachingJobsInterrupted();
+
+    long getTotalCachingJobsOverdue();
+
+    long getTotalCachingJobsObsolete();
 
     long getTotalCachingJobsNotStarted();
 

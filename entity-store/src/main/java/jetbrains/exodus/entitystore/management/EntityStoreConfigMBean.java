@@ -25,6 +25,14 @@ public interface EntityStoreConfigMBean {
 
     boolean getRefactoringBlobNullIndices();
 
+    int getEntityIterableCacheObsoleteMaxRetries();
+
+    void setEntityIterableCacheObsoleteMaxRetries(int maxRetries);
+
+    boolean getEntityIterableCacheHeavyEnabled();
+
+    void setEntityIterableCacheHeavyEnabled(boolean heavyEnabled);
+
     boolean getRefactoringHeavyLinks();
 
     boolean getRefactoringHeavyProps();
@@ -92,6 +100,10 @@ public interface EntityStoreConfigMBean {
     long getEntityIterableCacheStartCachingTimeout();
 
     void setEntityIterableCacheStartCachingTimeout(long startCachingTimeout);
+
+    boolean getEntityIterableCacheDeferredEnabled();
+
+    void setEntityIterableCacheDeferredEnabled(boolean deferredEnabled);
 
     int getEntityIterableCacheDeferredDelay();
 

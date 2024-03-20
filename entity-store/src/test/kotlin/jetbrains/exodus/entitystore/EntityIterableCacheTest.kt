@@ -31,6 +31,8 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
             // Use for local experiments to change cache params
             //System.setProperty(ENTITY_ITERABLE_CACHE_SIZE, "4096")
             //System.setProperty(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, "50")
+            //System.setProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_THREAD_COUNT, "20")
+            //System.setProperty(PersistentEntityStoreConfig.ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT, "1")
         }
     }
 
@@ -293,5 +295,6 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
 
     private fun PersistentEntityStoreImpl.waitForCachingJobs() {
         entityIterableCache.processor.waitForJobs(5)
+        entityIterableCache.countsProcessor.waitForJobs(5)
     }
 }

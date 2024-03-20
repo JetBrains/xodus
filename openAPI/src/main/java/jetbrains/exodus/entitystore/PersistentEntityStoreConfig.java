@@ -23,9 +23,9 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.system.JVMConstants;
+import kotlin.jvm.Volatile;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.ref.SoftReference;
 import java.util.Map;
 
 /**
@@ -237,15 +237,11 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     public static final String ENTITY_ITERABLE_CACHE_SIZE = "exodus.entityStore.entityIterableCache.size";
 
     /**
-     * Defines the size of deferred cache of EntityIterableCache.
-     * <p>Mutable at runtime: no
-     */
-    public static final String ENTITY_ITERABLE_DEFERRED_CACHE_SIZE = "exodus.entityStore.entityIterableCache.deferred.size";
-
-    /**
      * Specifies the percentage (from 0 to 100) of heap memory used for entity iterable cache.
      * This value is used to calculate max cache weight.
      * The final formula for maxCacheWeight is: maxMemory * memoryPercentage / 100 / entityWeight.
+     *
+     * <p>Use in conjunction with {@linkplain #ENTITY_ITERABLE_CACHE_DEFERRED_SIZE}.
      * <p>Mutable at runtime: no
      *
      * @see #ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT
@@ -285,13 +281,23 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     /**
      * Defines the number of thread which EntityIterableCache uses for its background caching activity.
      * EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED} is {@code false}.
-     * Default value is {@code 2}, if CPU count is greater than {@code 3}, otherwise it is {@code 1}.
+     * If {@linkplain #ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT} is not set, thread count will be split between entity and counts caching.
      * <p>Mutable at runtime: no
      *
      * @see #CACHING_DISABLED
      * @see PersistentEntityStore#getAsyncProcessor()
      */
     public static final String ENTITY_ITERABLE_CACHE_THREAD_COUNT = "exodus.entityStore.entityIterableCache.threadCount";
+
+    /**
+     * Defines the number of thread which EntityIterableCache uses for its background counts caching activity.
+     * EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED} is {@code false}.
+     * <p>Mutable at runtime: no
+     *
+     * @see #CACHING_DISABLED
+     * @see PersistentEntityStore#getCountsAsyncProcessor()
+     */
+    public static final String ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT = "exodus.entityStore.entityIterableCache.countsThreadCount";
 
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 10000L}.
@@ -310,6 +316,20 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * <p>Mutable at runtime: yes
      */
     public static final String ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT = "exodus.entityStore.entityIterableCache.startCachingTimeout";
+
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code true}.
+     * <p>Mutable at runtime: yes
+     */
+    public static final String ENTITY_ITERABLE_CACHE_DEFERRED_ENABLED = "exodus.entityStore.entityIterableCache.deferredEnabled";
+
+    /**
+     * Defines the size of deferred cache of EntityIterableCache.
+     * Deferred cache is used to identify and cache only repeatable queries in oder to avoid unnecessary caching.
+     * Query is repeatable if it was executed not later than {@linkplain #ENTITY_ITERABLE_CACHE_DEFERRED_DELAY} milliseconds since the previous request.
+     * <p>Mutable at runtime: no
+     */
+    public static final String ENTITY_ITERABLE_CACHE_DEFERRED_SIZE = "exodus.entityStore.entityIterableCache.deferredSize";
 
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2000}.
@@ -337,6 +357,18 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * <p>Mutable at runtime: yes
      */
     public static final String ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE = "exodus.entityStore.entityIterableCache.useHumanReadable";
+
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code -1} (disabled).
+     * <p>Mutable at runtime: true
+     */
+    public static final String ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES = "exodus.entityStore.entityIterableCache.obsoleteMaxRetries";
+
+    /**
+     * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2048}.
+     * <p>Mutable at runtime: true
+     */
+    public static final String ENTITY_ITERABLE_CACHE_HEAVY_ENABLED = "exodus.entityStore.entityIterableCache.heavyEnabled";
 
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 2048}.
@@ -418,7 +450,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      */
     public static final String USE_INT_FOR_LOCAL_ID = "exodus.entityStore.useIntForLocalId";
 
-    private static final int MAX_DEFAULT_ENTITY_ITERABLE_DEFERRED_CACHE_SIZE = 4096;
+    private static final int MAX_DEFAULT_ENTITY_ITERABLE_CACHE_DEFERRED_SIZE = 4096;
 
     public PersistentEntityStoreConfig() {
         this(ConfigurationStrategy.SYSTEM_PROPERTY);
@@ -450,19 +482,23 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(DEBUG_TEST_LINKED_ENTITIES, true),
                 new Pair(DEBUG_ALLOW_IN_MEMORY_SORT, true),
                 new Pair(ENTITY_ITERABLE_CACHE_SIZE, -1), // weight-based cache used instead by default
-                new Pair(ENTITY_ITERABLE_DEFERRED_CACHE_SIZE, defaultEntityIterableDeferredCacheSize()),
                 new Pair(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE, 5), // 5% of max available memory
                 new Pair(ENTITY_ITERABLE_CACHE_ENTITY_WEIGHT, 12), // 12 bytes per entityId stored in cache
+                new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, defaultEntityIterableCacheThreadCount()),
+                new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
+                new Pair(ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT, -1), // not set by default
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHE_SIZE, 65536),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_LIFETIME, 30000L),
-                new Pair(ENTITY_ITERABLE_CACHE_THREAD_COUNT, Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2),
-                new Pair(ENTITY_ITERABLE_CACHE_CACHING_TIMEOUT, 10000L),
                 new Pair(ENTITY_ITERABLE_CACHE_COUNTS_CACHING_TIMEOUT, 100000L),
                 new Pair(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, 7000L),
+                new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_ENABLED, true),
+                new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_SIZE, -1), // unset by default
                 new Pair(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY, 2000),
                 new Pair(ENTITY_ITERABLE_CACHE_EXPIRE_AFTER_ACCESS_SECONDS, -1), // disabled by default
                 new Pair(ENTITY_ITERABLE_CACHE_SOFT_VALUES, true),
                 new Pair(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, false),
+                new Pair(ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES, -1), // disabled by default
+                new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED, true),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_QUERIES_CACHE_SIZE, 2048),
                 new Pair(ENTITY_ITERABLE_CACHE_HEAVY_ITERABLES_LIFE_SPAN, 60000L),
                 new Pair(TRANSACTION_PROPS_CACHE_SIZE, 1024),
@@ -683,9 +719,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_SIZE);
     }
 
-    public int getEntityIterableDeferredCacheSize() {
-        return (Integer) getSetting(ENTITY_ITERABLE_DEFERRED_CACHE_SIZE);
-    }
 
     public int getEntityIterableCacheMemoryPercentage() {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE);
@@ -723,7 +756,25 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     public int getEntityIterableCacheThreadCount() {
-        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_THREAD_COUNT);
+        int threads = (Integer) getSetting(ENTITY_ITERABLE_CACHE_THREAD_COUNT);
+        int countsThreads = (Integer) getSetting(ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT);
+        if (countsThreads < 0) {
+            // When counts threads count is not set, fallback for backward compatibility
+            return threads / 2 + threads % 2;
+        } else {
+            return threads;
+        }
+    }
+
+    public int getEntityIterableCacheCountsThreadCount() {
+        int threads = (Integer) getSetting(ENTITY_ITERABLE_CACHE_THREAD_COUNT);
+        int countsThreads = (Integer) getSetting(ENTITY_ITERABLE_CACHE_COUNTS_THREAD_COUNT);
+        if (countsThreads < 0) {
+            // When counts threads count is not set, fallback for backward compatibility
+            return threads / 2;
+        } else {
+            return countsThreads;
+        }
     }
 
     public PersistentEntityStoreConfig setEntityIterableCacheThreadCount(final int threadCount) {
@@ -754,6 +805,27 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return setSetting(ENTITY_ITERABLE_CACHE_START_CACHING_TIMEOUT, cachingTimeout);
     }
 
+    public int getEntityIterableCacheDeferredSize() {
+        int deferredCacheSize = (Integer) getSetting(ENTITY_ITERABLE_CACHE_DEFERRED_SIZE);
+        if (deferredCacheSize > 0) {
+            // If set explicitly, use the value
+            return deferredCacheSize;
+        } else if (getEntityIterableCacheSize() > 0) {
+            // If sized cache is used, deferred cache size is the same value
+            return getEntityIterableCacheSize();
+        } else {
+            return defaultEntityIterableDeferredCacheSize();
+        }
+    }
+
+    public boolean getEntityIterableCacheDeferredEnabled() {
+        return (Boolean) getSetting(ENTITY_ITERABLE_CACHE_DEFERRED_ENABLED);
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheDeferredEnabled(final boolean deferredEnabled) {
+        return setSetting(ENTITY_ITERABLE_CACHE_DEFERRED_ENABLED, deferredEnabled);
+    }
+
     public int getEntityIterableCacheDeferredDelay() {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_DEFERRED_DELAY);
     }
@@ -776,6 +848,23 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
 
     public PersistentEntityStoreConfig setEntityIterableCacheUseHumanReadable(final boolean useHumanReadable) {
         return setSetting(ENTITY_ITERABLE_CACHE_USE_HUMAN_READABLE, useHumanReadable);
+    }
+
+    public int getEntityIterableCacheObsoleteMaxRetries() {
+        return (Integer) getSetting(ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES);
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheObsoleteMaxRetries(int maxRetries) {
+        return setSetting(ENTITY_ITERABLE_CACHE_OBSOLETE_MAX_RETRIES, maxRetries);
+    }
+
+
+    public boolean getEntityIterableCacheHeavyEnabled() {
+        return (Boolean) getSetting(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED);
+    }
+
+    public PersistentEntityStoreConfig setEntityIterableCacheHeavyEnabled(final boolean heavyEnabled) {
+        return setSetting(ENTITY_ITERABLE_CACHE_HEAVY_ENABLED, heavyEnabled);
     }
 
     public int getEntityIterableCacheHeavyIterablesCacheSize() {
@@ -851,6 +940,10 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
     }
 
     private static int defaultEntityIterableDeferredCacheSize() {
-        return Math.max((int) (Runtime.getRuntime().maxMemory() >> 20), MAX_DEFAULT_ENTITY_ITERABLE_DEFERRED_CACHE_SIZE);
+        return Math.max((int) (Runtime.getRuntime().maxMemory() >> 20), MAX_DEFAULT_ENTITY_ITERABLE_CACHE_DEFERRED_SIZE);
+    }
+
+    private static int defaultEntityIterableCacheThreadCount() {
+        return Runtime.getRuntime().availableProcessors() > 8 ? 4 : 2;
     }
 }

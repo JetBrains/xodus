@@ -97,9 +97,16 @@ public abstract class EntityStoreTestBase extends TestBase {
     public void reportInLogEntityIterableCacheStats() {
         EntityIterableCacheStatistics cacheStats = getEntityStore().getEntityIterableCache().getStats();
         long size = ((EntityIterableCacheAdapter) getEntityStore().getEntityIterableCache().getCacheAdapter()).size();
+        long jobsEnqueued = cacheStats.getTotalJobsEnqueued();
+        long jobsObsolete = cacheStats.getTotalJobsObsolete();
+        long jobsOverdue = cacheStats.getTotalJobsOverdue();
         logger.info(
                 "[EntityIterableCache] size = {}, hits={}, misses={}, hitRate={}, count={}",
                 size, cacheStats.getTotalHits(), cacheStats.getTotalMisses(), cacheStats.getHitRate(), getEntityStore().getEntityIterableCache().count()
+        );
+        logger.info(
+                "[EntityIterableCache Jobs] enqueued={}, obsolete={}, overdue={}",
+                jobsEnqueued, jobsObsolete, jobsOverdue
         );
         logger.info(
                 "[EntityIterableCache Count] hits={}, misses={}, hitRate={}",

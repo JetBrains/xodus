@@ -764,6 +764,7 @@ class EntityIterableTests : EntityStoreTestBase() {
         Assert.assertFalse((users as EntityIterableBase).canBeCached())
         Assert.assertEquals(-1L, users.getRoughCount())
         entityStore.asyncProcessor.waitForJobs(100)
+        entityStore.countsAsyncProcessor.waitForJobs(100)
         Assert.assertEquals(1L, users.getRoughCount())
     }
 

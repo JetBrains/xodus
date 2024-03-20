@@ -19,8 +19,7 @@ import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.management.MBeanBase;
 import org.jetbrains.annotations.NotNull;
 
-import static jetbrains.exodus.entitystore.PersistentEntityStoreStatistics.Type.BLOBS_DISK_USAGE;
-import static jetbrains.exodus.entitystore.PersistentEntityStoreStatistics.Type.CACHING_JOBS;
+import static jetbrains.exodus.entitystore.PersistentEntityStoreStatistics.Type.*;
 
 public class EntityStoreStatistics extends MBeanBase implements EntityStoreStatisticsMBean {
 
@@ -45,6 +44,11 @@ public class EntityStoreStatistics extends MBeanBase implements EntityStoreStati
     }
 
     @Override
+    public long getNumberOfCachingCountsJobs() {
+        return store.getStatistics().getStatisticsItem(CACHING_COUNTS_JOBS).getTotal();
+    }
+
+    @Override
     public long getTotalCachingJobsEnqueued() {
         return store.getEntityIterableCache().getStats().getTotalJobsEnqueued();
     }
@@ -62,6 +66,16 @@ public class EntityStoreStatistics extends MBeanBase implements EntityStoreStati
     @Override
     public long getTotalCachingJobsInterrupted() {
         return store.getEntityIterableCache().getStats().getTotalJobsInterrupted();
+    }
+
+    @Override
+    public long getTotalCachingJobsOverdue() {
+        return store.getEntityIterableCache().getStats().getTotalJobsOverdue();
+    }
+
+    @Override
+    public long getTotalCachingJobsObsolete() {
+        return store.getEntityIterableCache().getStats().getTotalJobsObsolete();
     }
 
     @Override

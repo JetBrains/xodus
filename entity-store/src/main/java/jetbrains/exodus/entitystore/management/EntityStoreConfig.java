@@ -222,6 +222,16 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public boolean getEntityIterableCacheDeferredEnabled() {
+        return config.getEntityIterableCacheDeferredEnabled();
+    }
+
+    @Override
+    public void setEntityIterableCacheDeferredEnabled(boolean deferredEnabled) {
+        config.setEntityIterableCacheDeferredEnabled(deferredEnabled);
+    }
+
+    @Override
     public int getEntityIterableCacheDeferredDelay() {
         return config.getEntityIterableCacheDeferredDelay();
     }
@@ -239,6 +249,26 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     @Override
     public void setEntityIterableCacheUseHumanReadable(boolean useHumanReadable) {
         config.setEntityIterableCacheUseHumanReadable(useHumanReadable);
+    }
+
+    @Override
+    public int getEntityIterableCacheObsoleteMaxRetries() {
+        return config.getEntityIterableCacheObsoleteMaxRetries();
+    }
+
+    @Override
+    public void setEntityIterableCacheObsoleteMaxRetries(int maxRetries) {
+        config.setEntityIterableCacheObsoleteMaxRetries(maxRetries);
+    }
+
+    @Override
+    public boolean getEntityIterableCacheHeavyEnabled() {
+        return config.getEntityIterableCacheHeavyEnabled();
+    }
+
+    @Override
+    public void setEntityIterableCacheHeavyEnabled(boolean heavyEnabled) {
+        config.setEntityIterableCacheHeavyEnabled(heavyEnabled);
     }
 
     @Override

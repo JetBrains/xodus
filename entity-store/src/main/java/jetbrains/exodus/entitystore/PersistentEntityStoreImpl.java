@@ -2327,6 +2327,12 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return iterableCache.getProcessor();
     }
 
+    @Override
+    @NotNull
+    public EntityStoreSharedAsyncProcessor getCountsAsyncProcessor() {
+        return iterableCache.getCountsProcessor();
+    }
+
     @NotNull
     @Override
     public Statistics getStatistics() {
@@ -2350,6 +2356,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
         try {
             getAsyncProcessor().finish();
+            getCountsAsyncProcessor().finish();
             synchronized (this) {
                 blobVault.close();
                 // by default, do not close underlying environment since it can be used also by another EntityStore or in a different way
