@@ -261,10 +261,10 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     val cachingTime = System.currentTimeMillis() - started
 
                     if(e.reason == CACHE_ADAPTER_OBSOLETE) {
-                        val maxAttempts = config.entityIterableCacheObsoleteMaxRetries
-                        if (maxAttempts > 0 && currentAttempt < maxAttempts) {
+                        val maxRetries = config.entityIterableCacheObsoleteMaxRetries
+                        if (maxRetries > 0 && currentAttempt <= maxRetries) {
                             val handle = toString(config, handle)
-                            logger.info { "Re-queuing obsolete cache job for handle ${handle}, attempts left: ${maxAttempts - currentAttempt}" }
+                            logger.info { "Re-queuing obsolete cache job for handle ${handle}, retries left: ${maxRetries - currentAttempt}" }
                             currentAttempt++
                             queue(Priority.normal)
                             return@executeInReadonlyTransaction
@@ -285,7 +285,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     // Log
                     logger.info {
                         val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
-
+                        val handle = toString(config, handle)
                         "$action forcibly stopped for handle $handle: ${e.reason.message}, caching time: $cachingTime ms"
                     }
                 }
