@@ -29,6 +29,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
+import jetbrains.exodus.entitystore.iterate.link.OLinkExistsEntityIterable;
 import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
 import jetbrains.exodus.entitystore.iterate.property.*;
 import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
@@ -439,15 +440,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     @Override
     @NotNull
     public EntityIterable findWithLinks(@NotNull final String entityType, @NotNull final String linkName) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int linkId = store.getLinkId(this, linkName, false);
-        if (linkId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        return new EntitiesWithLinkIterable(this, entityTypeId, linkId);
+        return new OLinkExistsEntityIterable(this, entityType, linkName);
     }
 
     @Override
@@ -456,23 +449,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
                                         @NotNull final String linkName,
                                         @NotNull final String oppositeEntityType,
                                         @NotNull final String oppositeLinkName) {
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int linkId = store.getLinkId(this, linkName, false);
-        if (linkId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int oppositeEntityId = store.getEntityTypeId(this, oppositeEntityType, false);
-        if (oppositeEntityId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int oppositeLinkId = store.getLinkId(this, oppositeLinkName, false);
-        if (oppositeLinkId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        return new EntitiesWithLinkSortedIterable(this, entityTypeId, linkId, oppositeEntityId, oppositeLinkId);
+        return new OLinkExistsEntityIterable(this, entityType, linkName);
     }
 
     @Override

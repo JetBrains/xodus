@@ -170,7 +170,7 @@ class OQueryEngineTest {
     }
 
     @Test
-    fun `should query links`() {
+    fun `should query by links`() {
         // Given
         val testCase = givenTestCase()
         orientDB.addIssueToProject(testCase.issue1, testCase.project1)
@@ -186,6 +186,25 @@ class OQueryEngineTest {
 
             // Then
             assertNamesExactly(issues, "issue1", "issue2")
+        }
+    }
+
+    @Test
+    fun `should query with links not null`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue2, test.board2)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issuesOnBoard = engine.query(Issues.CLASS, LinkNotNull(Issues.Links.ON_BOARD))
+            val issuesInProject = engine.query(Issues.CLASS, LinkNotNull(Issues.Links.IN_PROJECT))
+
+            // Then
+            assertNamesExactly(issuesOnBoard, "issue1", "issue2")
+            assertThat(issuesInProject).isEmpty()
         }
     }
 
