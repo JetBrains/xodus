@@ -2,10 +2,10 @@ package jetbrains.exodus.entitystore.iterate.link
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.OFieldExistsCondition
-import jetbrains.exodus.entitystore.orientdb.OQuery
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.DATA_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
+import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition
+import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OWithBlobEntityIterable(
     txn: PersistentStoreTransaction,
@@ -13,7 +13,7 @@ class OWithBlobEntityIterable(
     private val blobName: String,
 ) : OEntityIterableBase(txn) {
     override fun query(): OQuery {
-        return OAllSelect(className, OFieldExistsCondition ("$blobName.${OVertexEntity.DATA_PROPERTY_NAME}"))
+        return OAllSelect(className, OFieldExistsCondition("$blobName.${DATA_PROPERTY_NAME}"))
     }
 }
 

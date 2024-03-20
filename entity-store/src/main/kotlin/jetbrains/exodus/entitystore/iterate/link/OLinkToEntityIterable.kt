@@ -3,8 +3,8 @@ package jetbrains.exodus.entitystore.iterate.link
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityId
-import jetbrains.exodus.entitystore.orientdb.OLinkInSelect
-import jetbrains.exodus.entitystore.orientdb.OQuery
+import jetbrains.exodus.entitystore.orientdb.query.OLinkInSelect
+import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OLinkToEntityIterable(
     txn: PersistentStoreTransaction,

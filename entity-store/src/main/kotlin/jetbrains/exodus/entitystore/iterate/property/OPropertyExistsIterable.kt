@@ -2,9 +2,9 @@ package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.OFieldExistsCondition
-import jetbrains.exodus.entitystore.orientdb.OQuery
+import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
+import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition
+import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OPropertyExistsIterable(
     txn: PersistentStoreTransaction,

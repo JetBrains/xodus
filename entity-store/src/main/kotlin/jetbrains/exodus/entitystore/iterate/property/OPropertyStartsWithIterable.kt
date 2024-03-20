@@ -17,9 +17,9 @@ package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.OQuery
-import jetbrains.exodus.entitystore.orientdb.OStartsWithCondition
+import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
+import jetbrains.exodus.entitystore.orientdb.query.OQuery
+import jetbrains.exodus.entitystore.orientdb.query.OStartsWithCondition
 
 class OPropertyStartsWithIterable(
     txn: PersistentStoreTransaction,
