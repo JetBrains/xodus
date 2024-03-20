@@ -30,7 +30,6 @@ import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
-import jetbrains.exodus.entitystore.iterate.link.OWithBlobEntityIterable;
 import jetbrains.exodus.entitystore.iterate.property.*;
 import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
 import jetbrains.exodus.entitystore.orientdb.OEntity;
@@ -402,7 +401,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     @NotNull
     @Override
     public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String blobName) {
-        return new OWithBlobEntityIterable(this, entityType, blobName);
+        return new OPropertyBlobExistsEntityIterable(this, entityType, blobName);
     }
 
     @Override

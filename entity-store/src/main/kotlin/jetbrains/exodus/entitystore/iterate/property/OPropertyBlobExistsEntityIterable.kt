@@ -1,4 +1,4 @@
-package jetbrains.exodus.entitystore.iterate.link
+package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
@@ -7,7 +7,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
 import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
-class OWithBlobEntityIterable(
+class OPropertyBlobExistsEntityIterable(
     txn: PersistentStoreTransaction,
     private val className: String,
     private val blobName: String,
