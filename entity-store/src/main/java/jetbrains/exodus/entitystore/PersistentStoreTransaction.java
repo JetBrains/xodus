@@ -334,8 +334,8 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable find(@NotNull final String entityType, @NotNull final String propertyName,
                                @NotNull final Comparable minValue, @NotNull final Comparable maxValue) {
         if (minValue instanceof Boolean) {
-            final boolean min = ((Boolean) minValue).booleanValue();
-            final boolean max = ((Boolean) maxValue).booleanValue();
+            final boolean min = (Boolean) minValue;
+            final boolean max = (Boolean) maxValue;
             if (min == max) {
                 if (min) {
                     return findWithProp(entityType, propertyName);
