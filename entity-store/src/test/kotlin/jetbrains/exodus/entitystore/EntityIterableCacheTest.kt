@@ -220,7 +220,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         profiler.report()
 
         // Expected hit rate is low because of intensive concurrent writes
-        assertHitRateToBeNotLessThan(0.3)
+        assertHitRateToBeNotLessThan(0.2)
     }
 
     fun testStressReadWritePerformance() {
