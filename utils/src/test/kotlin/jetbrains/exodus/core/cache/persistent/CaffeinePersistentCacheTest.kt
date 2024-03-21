@@ -266,6 +266,18 @@ class CaffeinePersistentCacheTest {
         assertEquals(2, cache.size())
     }
 
+    @Test
+    fun `should change size in runtime consistently for all versions`() {
+        // Given
+        val cache1 = givenSizedCache(1)
+        val cache2 = cache1.createNextVersion()
+
+        // When
+        cache1.setSize(2)
+
+        // Then
+        assertEquals(2, cache2.size())
+    }
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String>(
