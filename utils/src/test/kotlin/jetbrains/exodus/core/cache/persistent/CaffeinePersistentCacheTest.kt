@@ -15,10 +15,12 @@
  */
 package jetbrains.exodus.core.cache.persistent
 
+import jetbrains.exodus.testutil.runInParallel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 
 class CaffeinePersistentCacheTest {
 
@@ -277,6 +279,28 @@ class CaffeinePersistentCacheTest {
 
         // Then
         assertEquals(2, cache2.size())
+    }
+
+    @Test
+    fun `should change size only once concurrently`() {
+        // Given
+        val initialSize = 1L
+        val targetSize = 100L
+        val cache = givenSizedCache(initialSize)
+        val results = ConcurrentHashMap<Int, Boolean>()
+
+        // When
+        runInParallel(concurrencyLevel = 100, taskCount = 10) {
+            if (cache.size() != targetSize) {
+                Thread.sleep(100)
+                val wasSet = cache.trySetSize(targetSize)
+                results[it] = wasSet
+            }
+        }
+
+        // Then
+        // Should be set only once
+        assertEquals(1, results.filter { it.value }.size)
     }
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {

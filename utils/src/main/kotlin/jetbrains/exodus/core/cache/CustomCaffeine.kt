@@ -9,11 +9,16 @@ class CustomCaffeine<K, V>(private val cache: Cache<K, V>) : Cache<K, V> by cach
     // as it is implemented in Caffeine as of time being.
     private var sizeRef = AtomicLong(cache.policy().eviction().orElseThrow().maximum)
 
-    fun trySetSize(size: Long): Boolean {
-        val old = this.sizeRef.toLong()
-        if (this.sizeRef.compareAndSet(old, size)) {
-            cache.policy().eviction().orElseThrow().maximum = size
-            return true
+    fun trySetSize(targetSize: Long): Boolean {
+        val currentSize = sizeRef.get()
+        if (this.sizeRef.compareAndSet(currentSize, targetSize)) {
+            if (currentSize == targetSize) {
+                // Size is not actually changed
+                return false
+            } else {
+                cache.policy().eviction().orElseThrow().maximum = targetSize
+                return true
+            }
         }
         return false
     }
