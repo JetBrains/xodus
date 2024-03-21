@@ -5,6 +5,7 @@ import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 fun ODatabaseDocument.getVertexEntity(oid: OIdentifiable): Entity {
     val record = this.getRecord<OVertex>(oid)

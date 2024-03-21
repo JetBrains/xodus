@@ -15,27 +15,16 @@
  */
 package jetbrains.exodus.entitystore;
 
-import com.orientechnologies.orient.core.db.ODatabaseSession;
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
 import jetbrains.exodus.core.dataStructures.*;
-import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
-import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
-import jetbrains.exodus.core.dataStructures.hash.LongSet;
+import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
+import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
-import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
-import jetbrains.exodus.entitystore.iterate.link.OWithBlobEntityIterable;
-import jetbrains.exodus.entitystore.iterate.property.*;
-import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
-import jetbrains.exodus.entitystore.orientdb.OEntity;
-import jetbrains.exodus.entitystore.orientdb.OEntityId;
-import jetbrains.exodus.entitystore.orientdb.OStoreTransaction;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
 import org.jetbrains.annotations.NotNull;
@@ -43,9 +32,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FilterInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -53,7 +40,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
 @SuppressWarnings({"rawtypes"})
-public class PersistentStoreTransaction implements OStoreTransaction, StoreTransaction, TxnGetterStrategy, TxnProvider {
+public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
     enum TransactionType {
@@ -95,7 +82,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
 
     private boolean checkInvalidateBlobsFlag;
 
-    public PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
+    PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, TransactionType.Regular);
     }
 
@@ -151,12 +138,6 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
             default:
                 throw new EntityStoreException("Can't create " + txnType + " transaction");
         }
-    }
-
-    @NotNull
-    @Override
-    public ODatabaseDocument activeSession() {
-        return ODatabaseSession.getActiveSession();
     }
 
     @Override
@@ -296,14 +277,10 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
 
     @Override
     @NotNull
-    public Entity getEntity(@NotNull final EntityId id) {
+    public PersistentEntity getEntity(@NotNull final EntityId id) {
         final int version = store.getLastVersion(this, id);
         if (version < 0) {
             throw new EntityRemovedInDatabaseException(store.getEntityType(this, id.getTypeId()), id);
-        }
-        if (id instanceof OEntityId) {
-            var oid = ((OEntityId) id).asOId();
-            return ODatabaseSessionsKt.getVertexEntity(activeSession(), oid);
         }
         return new PersistentEntity(store, (PersistentEntityId) id);
     }
@@ -314,10 +291,22 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
         return store.getEntityTypes(this);
     }
 
+    // TODO: remove ASAP
+    private static final int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1).intValue();
+
     @Override
     @NotNull
     public EntityIterable getAll(@NotNull final String entityType) {
-        return new OEntityOfTypeIterable(this, entityType);
+        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
+        if (entityTypeId < 0) {
+            return EntityIterableBase.EMPTY;
+        }
+        if (entityTypeId == traceGetAllForEntityType) {
+            if (logger.isErrorEnabled()) {
+                logger.error("txn.getAll() for entityTypeId = " + entityTypeId, new Throwable());
+            }
+        }
+        return new EntitiesOfTypeIterable(this, entityTypeId);
     }
 
     @Override
@@ -331,7 +320,15 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable find(@NotNull final String entityType,
                                @NotNull final String propertyName,
                                @NotNull final Comparable value) {
-        return new OPropertyEqualIterable(this, entityType, propertyName, value);
+        if (value instanceof Boolean) {
+            final EntityIterableBase withProp = findWithProp(entityType, propertyName);
+            if (((Boolean) value).booleanValue()) {
+                return withProp;
+            }
+            return getAll(entityType).minus(withProp);
+        }
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+                new PropertyValueIterable(this, entityTypeId.intValue(), propertyId.intValue(), value));
     }
 
     @Override
@@ -339,8 +336,8 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable find(@NotNull final String entityType, @NotNull final String propertyName,
                                @NotNull final Comparable minValue, @NotNull final Comparable maxValue) {
         if (minValue instanceof Boolean) {
-            final boolean min = (Boolean) minValue;
-            final boolean max = (Boolean) maxValue;
+            final boolean min = ((Boolean) minValue).booleanValue();
+            final boolean max = ((Boolean) maxValue).booleanValue();
             if (min == max) {
                 if (min) {
                     return findWithProp(entityType, propertyName);
@@ -352,18 +349,18 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
             }
             return EntityIterableBase.EMPTY;
         }
-        return new OPropertyRangeIterable(this, entityType, propertyName, minValue, maxValue);
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+                new PropertyRangeIterable(this, entityTypeId.intValue(), propertyId.intValue(), minValue, maxValue));
     }
 
-    // ignoreCase param is not supported and defined on the property level
-    // https://orientdb.com/docs/3.2.x/sql/SQL-Alter-Property.html?highlight=Collation#supported-attributes
     @Override
     public @NotNull EntityIterable findContaining(@NotNull final String entityType, @NotNull final String propertyName,
                                                   @NotNull final String value, final boolean ignoreCase) {
         if (value.isEmpty()) {
             return findWithPropSortedByValue(entityType, propertyName);
         }
-        return new OPropertyContainsIterable(this, entityType, propertyName, value);
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+                new PropertyContainsValueEntityIterable(this, entityTypeId.intValue(), propertyId.intValue(), value, ignoreCase));
     }
 
     @Override
@@ -379,7 +376,8 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     @NotNull
     @Override
     public EntityIterableBase findWithProp(@NotNull final String entityType, @NotNull final String propertyName) {
-        return new OPropertyExistsIterable(this, entityType, propertyName);
+        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
+                new EntitiesWithPropertyIterable(this, entityTypeId.intValue(), propertyId.intValue()));
     }
 
     public EntityIterableBase findWithPropSortedByValue(@NotNull final String entityType, @NotNull final String propertyName) {
@@ -396,13 +394,14 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
         if (len == 0) {
             return getAll(entityType);
         }
-        return new OPropertyStartsWithIterable(this, entityType, propertyName, value);
+        return find(entityType, propertyName, value, value + Character.MAX_VALUE);
     }
 
     @NotNull
     @Override
     public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String blobName) {
-        return new OWithBlobEntityIterable(this, entityType, blobName);
+        return getPropertyIterable(entityType, blobName, (entityTypeId, blobId) ->
+                new EntitiesWithBlobIterable(this, entityTypeId.intValue(), blobId.intValue()));
     }
 
     @Override
@@ -410,7 +409,22 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable findLinks(@NotNull final String entityType,
                                     @NotNull final Entity entity,
                                     @NotNull final String linkName) {
-        return new OLinkToEntityIterable(this, entityType, linkName, ((OEntity) entity).getId());
+        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
+        if (entityTypeId < 0) {
+            return EntityIterableBase.EMPTY;
+        }
+        final int linkId = store.getLinkId(this, linkName, false);
+        if (linkId < 0) {
+            return EntityIterableBase.EMPTY;
+        }
+        if (entity instanceof PersistentEntity) {
+            return new EntityToLinksIterable(this, ((PersistentEntity) entity).getId(), entityTypeId, linkId);
+        }
+        EntityId id = entity.getId();
+        if (id instanceof PersistentEntityId) {
+            return new EntityToLinksIterable(this, id, entityTypeId, linkId);
+        }
+        return EntityIterableBase.EMPTY;
     }
 
     @Override

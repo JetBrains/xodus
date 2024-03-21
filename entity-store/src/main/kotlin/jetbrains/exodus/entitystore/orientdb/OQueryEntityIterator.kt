@@ -6,6 +6,7 @@ import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.query.OQuery
 import mu.KLogging
 
 

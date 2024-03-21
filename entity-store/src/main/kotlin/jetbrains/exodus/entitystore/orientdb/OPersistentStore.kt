@@ -153,4 +153,6 @@ class OPersistentStore(
     override fun getAsyncProcessor() = dummyJobProcessor
 
     override fun getStatistics() = dummyStatistics
+
+    override fun getCountsAsyncProcessor() = dummyJobProcessor
 }

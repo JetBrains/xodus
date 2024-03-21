@@ -1,8 +1,8 @@
 package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.OQuery
+import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
+import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OEntityOfTypeIterable(
     txn: PersistentStoreTransaction,
