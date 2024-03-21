@@ -227,7 +227,7 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         // Given
         val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
         // Uncomment to run heavy test with profiler
-        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
+        // val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
 
         val queryCount = 1000
         val queryConcurrencyLevel = 4
