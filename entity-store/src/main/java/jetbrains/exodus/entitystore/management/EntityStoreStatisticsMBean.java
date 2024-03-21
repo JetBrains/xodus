@@ -39,6 +39,10 @@ public interface EntityStoreStatisticsMBean {
 
     long getTotalCachingJobsNotStarted();
 
+    long getTotalCachingJobsRetried();
+
+    long getTotalCachingCountJobsRetried();
+
     long getTotalCachingCountJobsEnqueued();
 
     long getTotalEntityIterableCacheHits();

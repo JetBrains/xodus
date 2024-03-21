@@ -84,6 +84,16 @@ public class EntityStoreStatistics extends MBeanBase implements EntityStoreStati
     }
 
     @Override
+    public long getTotalCachingJobsRetried() {
+        return store.getEntityIterableCache().getStats().getTotalJobsRetried();
+    }
+
+    @Override
+    public long getTotalCachingCountJobsRetried() {
+        return store.getEntityIterableCache().getStats().getTotalCountJobsRetried();
+    }
+
+    @Override
     public long getTotalCachingCountJobsEnqueued() {
         return store.getEntityIterableCache().getStats().getTotalCountJobsEnqueued();
     }

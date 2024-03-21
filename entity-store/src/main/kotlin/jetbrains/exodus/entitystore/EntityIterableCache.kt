@@ -270,6 +270,11 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                             logger.info { "Re-queuing obsolete cache job for handle ${handle}, retries left: ${maxRetries - currentAttempt}" }
                             currentAttempt++
                             queue(Priority.normal)
+                            if (isConsistent) {
+                                stats.incTotalJobsRetried()
+                            } else {
+                                stats.incTotalCountJobsRetried()
+                            }
                             return@executeInReadonlyTransaction
                         }
                     }
