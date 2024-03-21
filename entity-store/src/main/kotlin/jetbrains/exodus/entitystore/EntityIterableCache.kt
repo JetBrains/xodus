@@ -308,9 +308,12 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     && targetSize > 0
                     && targetSize != currentSize
                 ) {
-                    // When cache is not weighted and config property changed
-                    cacheAdapter.setSize(targetSize)
-                    logger.info("Cache size updated from $currentSize to $targetSize")
+                    // When cache is not weighted and config property changed.
+                    // This method tries to set the maximum size of the cache if there is no concurrent modification,
+                    // assuming that it converges to the desired value eventually.
+                    if (cacheAdapter.trySetSize(targetSize)) {
+                        logger.info("Cache size updated from $currentSize to $targetSize")
+                    }
                 }
             } catch (e: Exception) {
                 logger.error(e) { "Error while updating cache size" }

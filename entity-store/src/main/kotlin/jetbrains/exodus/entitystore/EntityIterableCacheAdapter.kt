@@ -93,7 +93,7 @@ internal open class EntityIterableCacheAdapter(
 
     fun size() = cache.size()
 
-    fun setSize(size: Long) = cache.setSize(size)
+    fun trySetSize(size: Long) = cache.trySetSize(size)
 
     val isWeightedCache: Boolean get() = cache.isWeighted()
 

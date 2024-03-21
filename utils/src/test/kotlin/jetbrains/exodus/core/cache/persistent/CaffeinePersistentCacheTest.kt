@@ -259,7 +259,7 @@ class CaffeinePersistentCacheTest {
         cache.put("key1", "value1")
         cache.put("key2", "value2")
         assertEquals(1, cache.count())
-        cache.setSize(2)
+        cache.trySetSize(2)
         cache.put("key3", "value3")
 
         // Then
@@ -273,7 +273,7 @@ class CaffeinePersistentCacheTest {
         val cache2 = cache1.createNextVersion()
 
         // When
-        cache1.setSize(2)
+        cache1.trySetSize(2)
 
         // Then
         assertEquals(2, cache2.size())

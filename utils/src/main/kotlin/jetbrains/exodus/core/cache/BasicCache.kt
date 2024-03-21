@@ -26,11 +26,13 @@ interface BasicCache<K, V> {
     fun size(): Long
 
     /**
-     * Sets the maximum number of elements in the cache or max weight of the cache.
+     * Try to set the maximum number of elements in the cache or max weight of the cache.
      *
      * Exactly what this means is implementation-dependent.
+     *
+     * Might return false if operation is not supported or there is a concurrent modification.
      */
-    fun setSize(size: Long)
+    fun trySetSize(size: Long): Boolean
 
     /**
      * Returns true if the cache is weighted.

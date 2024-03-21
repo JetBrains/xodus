@@ -31,12 +31,15 @@ class CaffeineCache<K, V>(private val cache: Cache<K, V>) : BasicCache<K, V> {
         }
     }
 
+    private val maxSize = cache.policy().eviction().orElseThrow().maximum
+
     override fun size(): Long {
-        return cache.policy().eviction().orElseThrow().maximum
+        return maxSize
     }
 
-    override fun setSize(size: Long) {
-        cache.policy().eviction().orElseThrow().maximum = size
+    override fun trySetSize(size: Long): Boolean {
+        // Not supported
+        return false
     }
 
     override fun count(): Long {
