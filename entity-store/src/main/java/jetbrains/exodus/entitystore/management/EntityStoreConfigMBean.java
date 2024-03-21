@@ -107,6 +107,8 @@ public interface EntityStoreConfigMBean {
 
     void setEntityIterableCacheDeferredEnabled(boolean deferredEnabled);
 
+    int getEntityIterableCacheDeferredSize();
+
     int getEntityIterableCacheDeferredDelay();
 
     void setEntityIterableCacheDeferredDelay(int deferredDelay);
