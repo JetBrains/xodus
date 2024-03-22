@@ -1,6 +1,5 @@
 package jetbrains.exodus.entitystore.iterate
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterableHandle
 import jetbrains.exodus.entitystore.EntityIterator
@@ -19,7 +18,7 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
         val query = query()
-        return OQueryEntityIterator.create(this, ODatabaseSession.getActiveSession(), query)
+        return OQueryEntityIterator.create(this, txn.activeSession(), query)
     }
 
     override fun getHandleImpl(): EntityIterableHandle {
