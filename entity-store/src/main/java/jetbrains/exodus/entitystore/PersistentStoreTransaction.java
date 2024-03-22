@@ -383,8 +383,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     }
 
     public EntityIterableBase findWithPropSortedByValue(@NotNull final String entityType, @NotNull final String propertyName) {
-        return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertiesIterable(this, entityTypeId.intValue(), propertyId.intValue()));
+        return new OPropertyExistsSortedIterable(this, entityType, propertyName);
     }
 
     @Override
@@ -457,7 +456,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable sort(@NotNull final String entityType,
                                @NotNull final String propertyName,
                                final boolean ascending) {
-        return sort(entityType, propertyName, getAll(entityType), ascending);
+        return new OPropertySortedIterable(this, entityType, propertyName, ascending);
     }
 
     @Override

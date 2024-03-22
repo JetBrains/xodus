@@ -5,14 +5,19 @@ import com.orientechnologies.orient.core.id.ORID
 sealed interface OClassSelect : OQuery {
     val className: String
     val condition: OCondition?
+    val order: OOrder?
 }
 
 class OAllSelect(
     override val className: String,
-    override val condition: OCondition? = null
+    override val condition: OCondition? = null,
+    override val order: OOrder? = null
 ) : OClassSelect {
 
-    override fun sql() = "SELECT from $className ${condition.whereOrEmpty()}".trimEnd()
+    override fun sql() = ("SELECT from $className" +
+            " ${condition.whereOrEmpty()}" +
+            " ${order.orderByOrEmpty()}").trimEnd()
+
     override fun params() = condition?.params() ?: emptyList()
 }
 
@@ -20,10 +25,13 @@ class OLinkInSelect(
     override val className: String,
     val linkName: String,
     val targetIds: List<ORID>,
-    override val condition: OCondition? = null
+    override val condition: OCondition? = null,
+    override val order: OOrder? = null
 ) : OClassSelect {
 
-    override fun sql() = "SELECT expand(in('$linkName')) from $targetIdsSql ${condition.whereOrEmpty()}".trimEnd()
+    override fun sql() = ("SELECT expand(in('$linkName')) from $targetIdsSql" +
+            " ${condition.whereOrEmpty()} " +
+            " ${order.orderByOrEmpty()}").trimEnd()
 
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 }
@@ -32,8 +40,10 @@ class OIntersectSelect(
     override val className: String,
     val left: OClassSelect,
     val right: OClassSelect,
-    override val condition: OCondition? = null
 ) : OClassSelect {
+
+    override val condition: OCondition? = null
+    override val order: OOrder? = null
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
     // intersect returns projection thus need to expand it into collection
@@ -45,8 +55,10 @@ class OUnionSelect(
     override val className: String,
     val left: OClassSelect,
     val right: OClassSelect,
-    override val condition: OCondition? = null
 ) : OClassSelect {
+
+    override val condition: OCondition? = null
+    override val order: OOrder? = null
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
     // intersect returns projection thus need to expand it into collection
@@ -55,3 +67,4 @@ class OUnionSelect(
 }
 
 fun OCondition?.whereOrEmpty() = this?.let { "WHERE ${it.sql()}" } ?: ""
+fun OOrder?.orderByOrEmpty() = this?.let { "ORDER BY ${it.sql()}" } ?: ""

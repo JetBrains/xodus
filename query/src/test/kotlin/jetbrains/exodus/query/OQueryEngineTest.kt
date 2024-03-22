@@ -113,7 +113,7 @@ class OQueryEngineTest {
     }
 
     @Test
-    fun `should query property exists`() {
+    fun `should query when property exists`() {
         // Given
         val test = givenTestCase()
         val engine = givenOQueryEngine()
@@ -127,6 +127,29 @@ class OQueryEngineTest {
             // Then
             assertNamesExactly(issues, "issue2")
             assertThat(empty).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query when property exists sorted by value`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+
+        orientDB.withSession {
+            test.issue1.setProperty("order", "1")
+            test.issue2.setProperty("order", "2")
+            test.issue3.setProperty("order", "3")
+        }
+
+        // When
+        orientDB.withSession {
+            val issuesAscending = engine.query(Issues.CLASS, SortByProperty(PropertyNotNull("order"), "order", false))
+            val issuesDescending = engine.query(Issues.CLASS, SortByProperty(PropertyNotNull("order"), "order", true))
+
+            // Then
+            assertNamesExactly(issuesAscending, "issue1", "issue2", "issue3")
+            assertNamesExactly(issuesDescending, "issue3", "issue2", "issue1")
         }
     }
 
@@ -273,13 +296,13 @@ class OQueryEngineTest {
     }
 
     @Test
-    fun `hasBlob should search for entity with blob`(){
+    fun `hasBlob should search for entity with blob`() {
         val test = givenTestCase()
         val engine = givenOQueryEngine {
             val issueMetaData = mockk<EntityMetaData>(relaxed = true)
             val metaData = this
             every { metaData.getEntityMetaData(Issues.CLASS) }.returns(issueMetaData)
-            val blobMetaData = mockk<PropertyMetaData>( relaxed = true)
+            val blobMetaData = mockk<PropertyMetaData>(relaxed = true)
             every { issueMetaData.getPropertyMetaData("myBlob") }.returns(blobMetaData)
             every { blobMetaData.type }.returns(PropertyType.BLOB)
         }
