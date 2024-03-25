@@ -110,7 +110,7 @@ class OPersistentStore(
         clazz: Class<out Comparable<Any?>>,
         binding: ComparableBinding
     ) {
-        throw UnsupportedEncodingException()
+        throw NotImplementedError()
     }
 
     override fun getEntity(id: EntityId): Entity {
@@ -120,7 +120,9 @@ class OPersistentStore(
 
     override fun getEntityTypeId(entityType: String): Int {
         return typesMap.computeIfAbsent(entityType) {
-            ODatabaseSession.getActiveSession().getClass(name).defaultClusterId
+            val oClass =
+                ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
+            oClass?.defaultClusterId?: -1
         }
     }
 
@@ -136,14 +138,14 @@ class OPersistentStore(
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
-        executeInTransaction {
+        val oldClass = computeInTransaction {
             val txn = it as OStoreTransaction
-            val oldClass = txn.activeSession().metadata.schema.classes.firstOrNull { it.name == oldEntityTypeName }
-                ?: throw IllegalStateException("")
-            oldClass.setName(newEntityTypeName)
-            typesMap.remove(oldEntityTypeName)
-            typesMap.remove(newEntityTypeName)
+            txn.activeSession().metadata.schema.getClass(oldEntityTypeName)
+                ?: throw IllegalStateException("Class found by name $oldEntityTypeName")
         }
+        oldClass.setName(newEntityTypeName)
+        typesMap.remove(oldEntityTypeName)
+        typesMap.remove(newEntityTypeName)
     }
 
     override fun getUsableSpace(): Long {

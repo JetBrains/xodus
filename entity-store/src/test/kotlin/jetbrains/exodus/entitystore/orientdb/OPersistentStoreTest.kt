@@ -20,7 +20,7 @@ class OPersistentStoreTest {
 
         val newClassName = "Other${Issues.CLASS}"
         store.renameEntityType(Issues.CLASS, newClassName)
-        val issueByNewName =  store.computeInExclusiveTransaction{
+        val issueByNewName = store.computeInExclusiveTransaction {
             it as OStoreTransaction
             (it.activeSession() as ODatabaseSession).queryEntities("select from $newClassName").firstOrNull()
         }
@@ -30,7 +30,7 @@ class OPersistentStoreTest {
     }
 
     @Test
-    fun transactionPropertiesTest(){
+    fun transactionPropertiesTest() {
         val issue = orientDb.createIssue("Hello, nothing works")
         val store = orientDb.store
         store.computeInTransaction {
