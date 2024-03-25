@@ -141,6 +141,8 @@ class OPersistentStore(
             val oldClass = txn.activeSession().metadata.schema.classes.firstOrNull { it.name == oldEntityTypeName }
                 ?: throw IllegalStateException("")
             oldClass.setName(newEntityTypeName)
+            typesMap.remove(oldEntityTypeName)
+            typesMap.remove(newEntityTypeName)
         }
     }
 

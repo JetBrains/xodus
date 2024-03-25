@@ -30,11 +30,11 @@ open class OEnvironment(
     }
 
     override fun openBitmap(name: String, config: StoreConfig, transaction: Transaction): Bitmap {
-        TODO("Not yet implemented")
+        throw NotImplementedError()
     }
 
     override fun openStore(name: String, config: StoreConfig, transaction: Transaction): Store {
-        TODO("Not yet implemented")
+        throw NotImplementedError()
     }
 
     override fun openStore(
@@ -43,7 +43,7 @@ open class OEnvironment(
         transaction: Transaction,
         creationRequired: Boolean
     ): Store? {
-        TODO("Not yet implemented")
+        throw NotImplementedError()
     }
 
     override fun executeTransactionSafeTask(task: Runnable) {
@@ -65,31 +65,31 @@ open class OEnvironment(
     }
 
     override fun getAllStoreNames(txn: Transaction): MutableList<String> {
-        return arrayListOf()
+        throw NotImplementedError()
     }
 
     override fun storeExists(storeName: String, txn: Transaction): Boolean {
-        return false
+        throw NotImplementedError()
     }
 
     override fun truncateStore(storeName: String, txn: Transaction) {
-
+        throw NotImplementedError()
     }
 
     override fun removeStore(storeName: String, txn: Transaction) {
-
+        throw NotImplementedError()
     }
 
     override fun gc() {
-
+        throw NotImplementedError()
     }
 
     override fun suspendGC() {
-
+        throw NotImplementedError()
     }
 
     override fun resumeGC() {
-
+        throw NotImplementedError()
     }
 
     override fun beginTransaction(): Transaction {
@@ -157,18 +157,18 @@ open class OEnvironment(
     }
 
     override fun getCipherProvider(): StreamCipherProvider? {
-        return null
+        throw NotImplementedError()
     }
 
     override fun getCipherKey(): ByteArray? {
-        return null
+        throw NotImplementedError()
     }
 
     override fun getCipherBasicIV(): Long {
-        return -1
+        throw NotImplementedError()
     }
 
     override fun executeBeforeGc(action: Runnable?) {
-
+        throw NotImplementedError()
     }
 }
