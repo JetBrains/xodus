@@ -37,7 +37,7 @@ class InMemoryOrientDB(
     }
 
     fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
-        val session = db.open(dbName, username, password)
+        val session = db.cachedPool(dbName, username, password).acquire()
         try {
             session.begin()
             val result = block(session)
@@ -49,7 +49,7 @@ class InMemoryOrientDB(
     }
 
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
-        val session = db.open(dbName, username, password)
+        val session = db.cachedPool(dbName, username, password).acquire()
         try {
             return block(session)
         } finally {
@@ -65,6 +65,6 @@ class InMemoryOrientDB(
     }
 
     fun openSession(): ODatabaseSession {
-        return db.open(dbName, username, password)
+        return db.cachedPool(dbName, username, password).acquire()
     }
 }

@@ -219,4 +219,17 @@ class OEntityTest {
             Assert.assertEquals(blobData.size.toLong(), size)
         }
     }
+
+    @Test
+    fun `dummy unique entityID_localId test`() {
+        val localIdSet = hashSetOf<Long>()
+        val typeIdSet = hashSetOf<Int>()
+        (0..1000).map {
+            val issue = orientDb.createIssue("Issue$it")
+            typeIdSet.add(issue.id.typeId)
+            localIdSet.add(issue.id.localId)
+        }
+        Assert.assertEquals(1001, localIdSet.size)
+        Assert.assertEquals(1, typeIdSet.size)
+    }
 }

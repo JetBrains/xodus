@@ -173,8 +173,8 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
             vertex.setProperty(blobName, record)
             update = true
         } else {
-            update = blobString.hashCode() != vertex.getProperty(blobHashProperty(blobName))
-                    || blobString.length != vertex.getProperty(blobSizeProperty(blobName))
+            update = blobString.hashCode() != vertex.getProperty<Int>(blobHashProperty(blobName))
+                    || blobString.length.toLong() != vertex.getProperty<Long>(blobSizeProperty(blobName))
         }
 
         if (update) {

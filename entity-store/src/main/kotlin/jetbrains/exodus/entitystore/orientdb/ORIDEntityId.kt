@@ -31,7 +31,13 @@ class ORIDEntityId(private val id: ORID, private val schemaClass: OClass) : OEnt
     }
 
     override fun getLocalId(): Long {
-        return id.clusterPosition
+        /*
+        The idea is that (localId % clusterSize) is equal for all records from the same cluster.
+        For records from different clusters it's not equal. Cluster ids assumed to be increasing with delta = 1.
+         */
+        val clustersCount = schemaClass.clusterIds.size
+        val div = id.clusterId - schemaClass.defaultClusterId
+        return div + clustersCount * id.clusterPosition
     }
 
     override fun compareTo(other: EntityId?): Int {
