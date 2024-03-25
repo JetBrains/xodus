@@ -36,7 +36,7 @@ class OPersistentStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
-        val session = db.open(databaseName, userName, password)
+        val session = db.cachedPool(databaseName, userName, password).acquire()
         val txn = session.begin().transaction
         return OStoreTransactionImpl(session, txn, this)
     }
