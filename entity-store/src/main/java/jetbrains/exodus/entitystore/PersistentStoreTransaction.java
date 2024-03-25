@@ -36,6 +36,8 @@ import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
 import jetbrains.exodus.entitystore.orientdb.OEntity;
 import jetbrains.exodus.entitystore.orientdb.OEntityId;
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction;
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase;
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable;
 import jetbrains.exodus.env.*;
 import jetbrains.exodus.util.StringBuilderSpinAllocator;
 import org.jetbrains.annotations.NotNull;

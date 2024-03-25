@@ -11,8 +11,9 @@ import jetbrains.exodus.env.Transaction
 class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
     private val txn: OTransaction,
-    private val oStore: OPersistentStore
+    private val oStore: PersistentEntityStore
 ) : OStoreTransaction {
+
     override fun activeSession(): ODatabaseDocument {
         return session
     }

@@ -1,13 +1,14 @@
-package jetbrains.exodus.entitystore.orientdb
+package jetbrains.exodus.entitystore.orientdb.iterate
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase
-import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
+import jetbrains.exodus.entitystore.orientdb.toEntityIterator
 import mu.KLogging
+import kotlin.collections.toTypedArray
 
 
 class OQueryEntityIterator(

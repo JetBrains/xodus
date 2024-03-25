@@ -1,4 +1,4 @@
-package jetbrains.exodus.entitystore.iterate
+package jetbrains.exodus.entitystore.orientdb.iterate
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.query.OAllSelect

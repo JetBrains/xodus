@@ -3,11 +3,15 @@ package jetbrains.exodus.entitystore.orientdb
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Transaction
 
-class OEnvironmentTransaction(val environment: OEnvironment, val txn: OStoreTransaction) : Transaction {
+class OEnvironmentTransaction(
+    private val environment: Environment,
+    private val txn: OStoreTransaction
+) : Transaction {
 
     private val userObjects = HashMap<Any, Any>()
     private val start = System.currentTimeMillis()
-    private var commitHook:Runnable? = null
+    private var commitHook: Runnable? = null
+
     override fun isIdempotent(): Boolean {
         return txn.isIdempotent
     }

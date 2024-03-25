@@ -17,12 +17,12 @@ package jetbrains.exodus.entitystore.iterate.binop
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OQueries
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
-class OUnionIterable(
+class OIntersectionIterable(
     txn: PersistentStoreTransaction?,
     private val iterable1: EntityIterableBase,
     private val iterable2: EntityIterableBase
@@ -32,6 +32,6 @@ class OUnionIterable(
         if (iterable1 !is OEntityIterable || iterable2 !is OEntityIterable) {
             throw UnsupportedOperationException("UnionIterable is only supported for OEntityIterable")
         }
-        return OQueries.union(iterable1.query(), iterable2.query())
+        return OQueries.intersect(iterable1.query(), iterable2.query())
     }
 }
