@@ -456,7 +456,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable sort(@NotNull final String entityType,
                                @NotNull final String propertyName,
                                final boolean ascending) {
-        return new OPropertySortedIterable(this, entityType, propertyName, ascending);
+        return new OPropertySortedIterable(this, entityType, propertyName, ascending, null);
     }
 
     @Override
@@ -465,6 +465,10 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
                                @NotNull final String propertyName,
                                @NotNull final EntityIterable rightOrder,
                                final boolean ascending) {
+        if (rightOrder instanceof OEntityIterableBase) {
+            return new OPropertySortedIterable(this, entityType, propertyName, ascending, (OEntityIterableBase) rightOrder);
+        }
+
         final int entityTypeId = store.getEntityTypeId(this, entityType, false);
         if (entityTypeId < 0) {
             return EntityIterableBase.EMPTY;

@@ -359,7 +359,9 @@ class OQueryEngineTest {
         val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
         model.tweakMetaData()
         every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
-        return QueryEngine(model, store)
+        val engine =  QueryEngine(model, store)
+        engine.sortEngine = SortEngine()
+        return engine
     }
 
     private fun givenTestCase() = TestCase(orientDB)

@@ -36,6 +36,11 @@ object OQueries {
         }
     }
 
+    fun orderBy(query: OQuery, field: String, ascending: Boolean): OQuery {
+        require(query is OClassSelect) { "Unsupported query type for $query" }
+        return query.withOrder(field, ascending)
+    }
+
     private fun ensureSameClassName(left: OClassSelect, right: OClassSelect) {
         require(left.className == right.className) { "Cannot intersect different DB classes: ${left.className} and ${right.className}" }
     }

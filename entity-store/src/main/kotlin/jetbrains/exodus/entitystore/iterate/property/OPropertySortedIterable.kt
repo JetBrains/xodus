@@ -19,17 +19,23 @@ import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
 import jetbrains.exodus.entitystore.orientdb.query.OOrderByField
+import jetbrains.exodus.entitystore.orientdb.query.OQueries
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OPropertySortedIterable(
     txn: PersistentStoreTransaction,
     private val entityType: String,
     private val propertyName: String,
-    private val ascending: Boolean
+    private val ascending: Boolean,
+    private val source: OEntityIterableBase? = null
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OQuery {
-        val order = OOrderByField(propertyName, ascending)
-        return OAllSelect(entityType, condition = null, order)
+        if (source != null) {
+            return OQueries.orderBy(source.query(), propertyName, ascending)
+        } else {
+            val order = OOrderByField(propertyName, ascending)
+            return OAllSelect(entityType, condition = null, order)
+        }
     }
 }
