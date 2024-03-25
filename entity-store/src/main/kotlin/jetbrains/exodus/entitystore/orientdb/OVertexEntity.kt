@@ -269,15 +269,10 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         reload()
         target as OVertexEntity
-        val currentEdge = findEdge(linkName, target.id)
-        return if (currentEdge != null) {
-            currentEdge.delete()
-            target.vertex.save<OVertex>()
-            vertex.save<OVertex>()
-            true
-        } else {
-            false
-        }
+        vertex.deleteEdge(target.vertex, linkName)
+        val result = vertex.isDirty
+        vertex.save<OVertex>()
+        return result
     }
 
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
