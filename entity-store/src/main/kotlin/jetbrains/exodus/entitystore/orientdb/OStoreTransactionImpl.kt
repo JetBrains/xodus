@@ -11,7 +11,7 @@ import jetbrains.exodus.env.Transaction
 class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
     private val txn: OTransaction,
-    private val oStore: PersistentEntityStore
+    private val store: PersistentEntityStore
 ) : OStoreTransaction {
 
     override fun activeSession(): ODatabaseDocument {
@@ -19,7 +19,7 @@ class OStoreTransactionImpl(
     }
 
     override fun getStore(): EntityStore {
-        return oStore
+        return store
     }
 
     override fun isIdempotent(): Boolean {
@@ -59,7 +59,7 @@ class OStoreTransactionImpl(
     }
 
     override fun newEntity(entityType: String): Entity {
-        return OVertexEntity(session.newVertex(entityType))
+        return OVertexEntity(session.newVertex(entityType), store)
     }
 
     override fun saveEntity(entity: Entity) {
@@ -72,7 +72,7 @@ class OStoreTransactionImpl(
     override fun getEntity(id: EntityId): Entity {
         require(id is OEntityId) { "Only OEntity is supported, but was ${id.javaClass.simpleName}" }
         val vertex: OVertex = session.load(id.asOId())
-        return OVertexEntity(vertex)
+        return OVertexEntity(vertex, store)
     }
 
     override fun getEntityTypes(): MutableList<String> {
@@ -210,6 +210,6 @@ class OStoreTransactionImpl(
     }
 
     override fun getEnvironmentTransaction(): Transaction {
-        return OEnvironmentTransaction(oStore.environment, this)
+        return OEnvironmentTransaction(store.environment, this)
     }
 }

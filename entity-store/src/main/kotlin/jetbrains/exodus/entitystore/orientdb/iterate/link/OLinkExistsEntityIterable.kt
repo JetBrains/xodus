@@ -1,4 +1,4 @@
-package jetbrains.exodus.entitystore.iterate.link
+package jetbrains.exodus.entitystore.orientdb.iterate.link
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase

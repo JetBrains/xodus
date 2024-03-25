@@ -4,6 +4,7 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
 import com.orientechnologies.orient.core.id.ORecordId
+import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
@@ -114,8 +115,10 @@ class OPersistentStore(
     }
 
     override fun getEntity(id: EntityId): Entity {
+        val orId = id as? OEntityId ?: throw IllegalStateException()
         val txn = (currentTransaction as ODatabaseSession).transaction
-        return txn.database.getVertexEntity(ORecordId(id.typeId, id.localId))
+        val vertex = txn.database.load<OVertex>(orId.asOId())
+        return OVertexEntity(vertex, this)
     }
 
     override fun getEntityTypeId(entityType: String): Int {

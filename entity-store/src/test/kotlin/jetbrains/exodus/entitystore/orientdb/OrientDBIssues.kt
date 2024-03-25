@@ -3,6 +3,7 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.PersistentEntityStore
 
 object Issues {
     const val CLASS = "Issue"
@@ -35,7 +36,7 @@ object Boards {
 
 fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVertexEntity {
     return withSession { session ->
-        val issue = session.createNamedEntity(Issues.CLASS, name)
+        val issue = session.createNamedEntity(Issues.CLASS, name, store)
         priority?.let { issue.setProperty(Issues.Props.PRIORITY, it) }
         issue.save()
         issue
@@ -44,13 +45,13 @@ fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVerte
 
 fun InMemoryOrientDB.createProject(name: String): OVertexEntity {
     return withSession { session ->
-        session.createNamedEntity(Projects.CLASS, name)
+        session.createNamedEntity(Projects.CLASS, name, store)
     }
 }
 
 fun InMemoryOrientDB.createBoard(name: String): OVertexEntity {
     return withSession { session ->
-        session.createNamedEntity(Boards.CLASS, name)
+        session.createNamedEntity(Boards.CLASS, name, store)
     }
 }
 
@@ -83,13 +84,14 @@ fun InMemoryOrientDB.addIssueToBoard(
 
 private fun ODatabaseSession.createNamedEntity(
     className: String,
-    name: String
+    name: String,
+    store: PersistentEntityStore
 ): OVertexEntity {
-    val projectClass = this.getOrCreateVertexClass(className)
-    val project = this.newVertex(projectClass)
-    project.setProperty("name", name)
-    project.save<OVertex>()
-    return OVertexEntity(project)
+    val oClass = this.getOrCreateVertexClass(className)
+    val entity = this.newVertex(oClass)
+    entity.setProperty("name", name)
+    entity.save<OVertex>()
+    return OVertexEntity(entity, store)
 }
 
 private fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {

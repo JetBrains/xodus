@@ -1,4 +1,4 @@
-package jetbrains.exodus.entitystore.iterate.binop
+package jetbrains.exodus.entitystore.orientdb.iterate.binop
 
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.PersistentStoreTransaction

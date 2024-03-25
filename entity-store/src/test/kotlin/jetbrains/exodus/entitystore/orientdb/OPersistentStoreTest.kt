@@ -22,7 +22,7 @@ class OPersistentStoreTest {
         store.renameEntityType(Issues.CLASS, newClassName)
         val issueByNewName = store.computeInExclusiveTransaction {
             it as OStoreTransaction
-            (it.activeSession() as ODatabaseSession).queryEntities("select from $newClassName").firstOrNull()
+            (it.activeSession() as ODatabaseSession).queryEntities("select from $newClassName", store).firstOrNull()
         }
         Assert.assertNotNull(issueByNewName)
         issueByNewName!!

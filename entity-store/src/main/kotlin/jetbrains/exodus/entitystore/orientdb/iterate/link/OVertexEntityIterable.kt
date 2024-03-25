@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.iterate.link
+package jetbrains.exodus.entitystore.orientdb.iterate.link
 
 import com.orientechnologies.common.util.OSizeable
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.util.unsupported
 import org.apache.commons.collections4.IterableUtils
 import org.apache.commons.collections4.IteratorUtils
 import org.apache.commons.collections4.functors.EqualPredicate
 
-class OVertexEntityIterable(private val vertices: Iterable<OVertex>) : EntityIterable {
+class OVertexEntityIterable(private val vertices: Iterable<OVertex>, private val store: PersistentEntityStore) : EntityIterable {
 
     override fun iterator() = object : EntityIterator {
 
@@ -42,7 +41,7 @@ class OVertexEntityIterable(private val vertices: Iterable<OVertex>) : EntityIte
 
         override fun hasNext() = iterator.hasNext()
 
-        override fun next() = OVertexEntity(iterator.next())
+        override fun next() = OVertexEntity(iterator.next(), store)
 
         override fun remove() = unsupported()
     }

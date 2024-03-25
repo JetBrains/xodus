@@ -23,18 +23,14 @@ import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.EntityId
-import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.EntityStore
-import jetbrains.exodus.entitystore.iterate.link.OVertexEntityIterable
-import jetbrains.exodus.entitystore.util.unsupported
+import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
 import mu.KLogging
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 
-class OVertexEntity(private var vertex: OVertex) : OEntity {
+class OVertexEntity(private var vertex: OVertex, private val store: PersistentEntityStore) : OEntity {
 
     companion object : KLogging() {
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
@@ -53,7 +49,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
 
     private var oEntityId = ORIDEntityId.fromVertex(vertex)
 
-    override fun getStore(): EntityStore = unsupported()
+    override fun getStore() = store
 
     override fun getId(): OEntityId = oEntityId
 
@@ -225,7 +221,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
         require(targetId is OEntityId) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
         val target = activeSession.getRecord<OVertex>(targetId.asOId())
-        return addLink(linkName, OVertexEntity(target))
+        return addLink(linkName, OVertexEntity(target, store))
     }
 
     override fun getLink(linkName: String): Entity? {
@@ -256,18 +252,18 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
         require(targetId is OEntityId) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
         val target = activeSession.getRecord<OVertex>(targetId.asOId())
-        return setLink(linkName, OVertexEntity(target))
+        return setLink(linkName, OVertexEntity(target, store))
     }
 
     override fun getLinks(linkName: String): EntityIterable {
         reload()
         val links = vertex.getVertices(ODirection.OUT, linkName)
-        return OVertexEntityIterable(links)
+        return OVertexEntityIterable(links, store)
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
         reload()
-        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()))
+        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()), store)
     }
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
@@ -287,7 +283,7 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
         val recordId = ORecordId(targetId.typeId, targetId.localId)
         val target = activeSession.getRecord<OVertex>(recordId)
-        return deleteLink(linkName, OVertexEntity(target))
+        return deleteLink(linkName, OVertexEntity(target, store))
     }
 
     override fun deleteLinks(linkName: String) {
@@ -330,5 +326,5 @@ class OVertexEntity(private var vertex: OVertex) : OEntity {
         return this
     }
 
-    private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this) }
+    private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this, store) }
 }

@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore;
 
 import com.orientechnologies.orient.core.db.ODatabaseSession;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
+import com.orientechnologies.orient.core.record.OVertex;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
@@ -29,13 +30,10 @@ import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
 import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
-import jetbrains.exodus.entitystore.iterate.link.OLinkExistsEntityIterable;
-import jetbrains.exodus.entitystore.iterate.link.OLinkToEntityIterable;
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable;
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable;
 import jetbrains.exodus.entitystore.iterate.property.*;
-import jetbrains.exodus.entitystore.orientdb.ODatabaseSessionsKt;
-import jetbrains.exodus.entitystore.orientdb.OEntity;
-import jetbrains.exodus.entitystore.orientdb.OEntityId;
-import jetbrains.exodus.entitystore.orientdb.OStoreTransaction;
+import jetbrains.exodus.entitystore.orientdb.*;
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase;
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable;
 import jetbrains.exodus.env.*;
@@ -305,7 +303,8 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
         }
         if (id instanceof OEntityId) {
             var oid = ((OEntityId) id).asOId();
-            return ODatabaseSessionsKt.getVertexEntity(activeSession(), oid);
+            OVertex vertex = activeSession().load(oid);
+            return new OVertexEntity(vertex, store);
         }
         return new PersistentEntity(store, (PersistentEntityId) id);
     }
