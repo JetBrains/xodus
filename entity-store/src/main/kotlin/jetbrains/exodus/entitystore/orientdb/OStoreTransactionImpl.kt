@@ -6,6 +6,7 @@ import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.env.Transaction
 
 class OStoreTransactionImpl(
@@ -194,11 +195,11 @@ class OStoreTransactionImpl(
     }
 
     override fun getSequence(sequenceName: String): Sequence {
-        TODO("Not yet implemented")
+        return OSequenceImpl(sequenceName)
     }
 
     override fun getSequence(sequenceName: String, initialValue: Long): Sequence {
-        TODO("Not yet implemented")
+        return OSequenceImpl(sequenceName, initialValue)
     }
 
     override fun setQueryCancellingPolicy(policy: QueryCancellingPolicy?) {

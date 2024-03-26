@@ -40,4 +40,45 @@ class OPersistentStoreTest {
             Assert.assertFalse(it.isIdempotent)
         }
     }
+
+    @Test
+    fun `create and increment sequence`() {
+        val store = orientDb.store
+        val sequence = store.computeInTransaction {
+            it.getSequence("first")
+        }
+        store.executeInTransaction {
+            Assert.assertEquals(1, sequence.increment())
+        }
+        store.executeInTransaction {
+            Assert.assertEquals(1,it.getSequence("first").get())
+        }
+    }
+
+    @Test
+    fun `create sequence with starting from`() {
+        val store = orientDb.store
+        val sequence = store.computeInTransaction {
+            it.getSequence("first", 99)
+        }
+        store.executeInTransaction {
+            Assert.assertEquals(100, sequence.increment())
+        }
+    }
+
+    @Test
+    fun `can set actual value to sequence`(){
+        val store = orientDb.store
+        val sequence = store.computeInTransaction {
+            it.getSequence("first", 99)
+        }
+        store.executeInTransaction {
+            sequence.set(400)
+        }
+        store.executeInTransaction {
+            Assert.assertEquals(401, sequence.increment())
+        }
+    }
+
+
 }
