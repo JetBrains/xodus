@@ -26,6 +26,7 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException
 import mu.KLogging
 import java.lang.Long.max
+import java.util.concurrent.ConcurrentHashMap
 
 class EntityIterableCache internal constructor(private val store: PersistentEntityStoreImpl) {
 
@@ -179,6 +180,8 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         return false
     }
 
+    private val pendingJobs = ConcurrentHashMap.newKeySet<EntityIterableHandle>()
+
     private inner class EntityIterableAsyncInstantiation(
         private val handle: EntityIterableHandle,
         private val it: EntityIterableBase,
@@ -192,9 +195,13 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
 
         init {
             this.processor = processor
-            if (queue(Priority.normal)) {
-                stats.incTotalJobsEnqueued()
-                if (!isConsistent) {
+            // Check order is important: first check if it's already in the queue, only then try to queue it.
+            // It will ensure that job is not put into tail of the queue when re-queued.
+            if (!pendingJobs.contains(handle) && queue(Priority.normal)) {
+                pendingJobs.add(handle)
+                if (isConsistent) {
+                    stats.incTotalJobsEnqueued()
+                } else {
                     stats.incTotalCountJobsEnqueued()
                 }
             } else {
@@ -213,6 +220,20 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         }
 
         override fun execute() {
+            var requeued = false
+            try {
+                requeued = doExecute()
+            } catch (e: Throwable) {
+                logger.error(e) { "Error while executing caching job for handle ${toString(config, handle)}" }
+            } finally {
+                if (!requeued) {
+                    pendingJobs.remove(handle)
+                }
+            }
+        }
+
+        // Returns true if the job was re-queued
+        private fun doExecute(): Boolean {
             // Update cache size lazily
             updateCacheSizeIfNecessary()
 
@@ -220,7 +241,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
             // don't try to cache if it is too late
             if (!cancellingPolicy.canStartAt(started)) {
                 stats.incTotalJobsNotStarted()
-                return
+                return false
             }
             val isConsistent = cancellingPolicy.isConsistent
             val iterableIdentity = handle.identity
@@ -231,13 +252,14 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     if (lastCancelled + config.entityIterableCacheHeavyIterablesLifeSpan > started) {
                         stats.incTotalJobsNotStarted()
                         logger.debug { "Heavy iterable not started, handle=${toString(config, handle)}" }
-                        return
+                        return false
                     }
                     heavyIterablesCache.remove(iterableIdentity)
                 }
             }
+
             stats.incTotalJobsStarted()
-            store.executeInReadonlyTransaction { txn ->
+            return store.computeInReadonlyTransaction<Boolean> { txn ->
                 if (!handle.isConsistent) {
                     handle.resetBirthTime()
                 }
@@ -255,11 +277,17 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                             }
                         }
                     }
+
+                    // Return
+                    false
                 } catch (_: ReadonlyTransactionException) {
                     // work around XD-626
                     val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
                     logger.error("$action failed with ReadonlyTransactionException. Re-queueing...")
                     queue(Priority.below_normal)
+
+                    // Return
+                    true
                 } catch (e: TooLongEntityIterableInstantiationException) {
                     val cachingTime = System.currentTimeMillis() - started
 
@@ -275,7 +303,9 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                             } else {
                                 stats.incTotalCountJobsRetried()
                             }
-                            return@executeInReadonlyTransaction
+
+                            // Return
+                            return@computeInReadonlyTransaction true
                         }
                     }
 
@@ -296,6 +326,9 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                         val handle = toString(config, handle)
                         "$action forcibly stopped for handle $handle: ${e.reason.message}, caching time: $cachingTime ms"
                     }
+
+                    // Return
+                    false
                 }
             }
         }

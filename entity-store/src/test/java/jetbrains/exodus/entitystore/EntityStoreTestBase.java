@@ -101,14 +101,15 @@ public abstract class EntityStoreTestBase extends TestBase {
         long jobsObsolete = cacheStats.getTotalJobsObsolete();
         long jobsOverdue = cacheStats.getTotalJobsOverdue();
         long jobsRetried = cacheStats.getTotalJobsRetried();
+        long jobsNotQueued = cacheStats.getTotalJobsNotQueued();
 
         logger.info(
                 "[EntityIterableCache] size = {}, hits={}, misses={}, hitRate={}, count={}",
                 size, cacheStats.getTotalHits(), cacheStats.getTotalMisses(), cacheStats.getHitRate(), getEntityStore().getEntityIterableCache().count()
         );
         logger.info(
-                "[EntityIterableCache Jobs] enqueued={}, obsolete={}, overdue={}, retried={}",
-                jobsEnqueued, jobsObsolete, jobsOverdue, jobsRetried
+                "[EntityIterableCache Jobs] enqueued={}, obsolete={}, overdue={}, retried={}, not_queued={}",
+                jobsEnqueued, jobsObsolete, jobsOverdue, jobsRetried, jobsNotQueued
         );
         logger.info(
                 "[EntityIterableCache Count] hits={}, misses={}, hitRate={}",
