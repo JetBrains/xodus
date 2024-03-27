@@ -27,7 +27,27 @@ class OAllSelect(
     }
 }
 
-class OLinkInSelect(
+
+class OLinkInFromSubQuerySelect(
+    override val className: String,
+    val linkName: String,
+    val subQuery: OQuery,
+    override val condition: OCondition? = null,
+    override val order: OOrder? = null
+) : OClassSelect {
+
+    override fun sql() = ("SELECT expand(in('$linkName')) from (${subQuery.sql()})" +
+            " ${condition.whereOrEmpty()}" +
+            " ${order.orderByOrEmpty()}").trimEnd()
+
+    override fun params() = subQuery.params() + condition?.params().orEmpty()
+
+    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
+        return OLinkInFromSubQuerySelect(className, linkName, subQuery, condition, OOrderByField(field, ascending))
+    }
+}
+
+class OLinkInFromIdsSelect(
     override val className: String,
     val linkName: String,
     val targetIds: List<ORID>,
@@ -42,7 +62,7 @@ class OLinkInSelect(
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 
     override fun withOrder(field: String, ascending: Boolean): OClassSelect {
-        return OLinkInSelect(className, linkName, targetIds, condition, OOrderByField(field, ascending))
+        return OLinkInFromIdsSelect(className, linkName, targetIds, condition, OOrderByField(field, ascending))
     }
 }
 

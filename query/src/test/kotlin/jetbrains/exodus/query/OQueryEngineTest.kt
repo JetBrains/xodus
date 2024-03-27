@@ -296,6 +296,33 @@ class OQueryEngineTest {
     }
 
     @Test
+    fun `should query by links sorted`() {
+        // Given
+        val test = givenTestCase()
+        // Issues assigned to project in reverse order
+        orientDB.addIssueToProject(test.issue1, test.project3)
+        orientDB.addIssueToProject(test.issue2, test.project2)
+        orientDB.addIssueToProject(test.issue3, test.project1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            // Find all issues that are either in project1 or board2
+            val sortByLinkProperty = SortByLinkProperty(
+                null, // child node
+                Projects.CLASS, // link entity class
+                "name", // link property name
+                Issues.Links.IN_PROJECT, // link name
+                true // ascending
+            )
+            val issuesSortedDesc = engine.query(Issues.CLASS, sortByLinkProperty)
+
+            // Then
+            assertNamesExactly(issuesSortedDesc, "issue3", "issue2", "issue1")
+        }
+    }
+
+    @Test
     fun `hasBlob should search for entity with blob`() {
         val test = givenTestCase()
         val engine = givenOQueryEngine {
@@ -359,7 +386,7 @@ class OQueryEngineTest {
         val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
         model.tweakMetaData()
         every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
-        val engine =  QueryEngine(model, store)
+        val engine = QueryEngine(model, store)
         engine.sortEngine = SortEngine()
         return engine
     }

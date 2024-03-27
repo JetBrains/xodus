@@ -48,7 +48,7 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
     }
 
     override fun size(): Long {
-        return super.size()
+        return -1
     }
 
     override fun count(): Long {
@@ -56,6 +56,6 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
     }
 
     override fun getRoughCount(): Long {
-        return super.getRoughCount()
+        return size()
     }
 }
