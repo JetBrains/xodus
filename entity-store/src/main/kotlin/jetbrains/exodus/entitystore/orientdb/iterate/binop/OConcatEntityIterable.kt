@@ -1,9 +1,9 @@
 package jetbrains.exodus.entitystore.orientdb.iterate.binop
 
 import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.iterate.EntityIteratorBase
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
@@ -38,19 +38,19 @@ class OConcatEntityIterable(
     override fun getIteratorImpl(txn: PersistentStoreTransaction) = OConcatenationIterator()
 
     inner class OConcatenationIterator() : NonDisposableEntityIterator(source) {
-        private var iterator1: EntityIteratorBase? = this
-        private var iterator2: EntityIteratorBase? = this
+        private var iterator1: EntityIterator? = this
+        private var iterator2: EntityIterator? = this
 
         override fun hasNextImpl(): Boolean {
             if (iterator1 === this) {
-                iterator1 = this@OConcatEntityIterable.iterable1.iterator() as EntityIteratorBase
+                iterator1 = this@OConcatEntityIterable.iterable1.iterator()
             }
             if (iterator1 != null) {
                 if (iterator1!!.hasNext()) {
                     return true
                 }
                 iterator1 = null
-                iterator2 = this@OConcatEntityIterable.iterable2.iterator() as EntityIteratorBase
+                iterator2 = this@OConcatEntityIterable.iterable2.iterator()
             }
             if (iterator2 != null) {
                 if (iterator2!!.hasNext()) {
