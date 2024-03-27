@@ -11,11 +11,16 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterator.Compan
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionIterable
+import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
+import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
 
 abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
 
     override fun isSortedById() = false
     override fun canBeCached() = false
+
+
+    private val query by lazy { query() }
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
         val query = query()
@@ -48,7 +53,13 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
     }
 
     override fun size(): Long {
-        return -1
+        val sourceQuery = query
+        // ToDo: maybe increase boundary for query return type to OClassSelect
+        check(sourceQuery is OClassSelect) { "OEntityIterableBase should be created with OClassSelect" }
+        val countQuery = OCountSelect(sourceQuery)
+
+        // ToDo: use session from transaction instead?
+        return countQuery.count()
     }
 
     override fun count(): Long {
@@ -56,6 +67,15 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
     }
 
     override fun getRoughCount(): Long {
-        return size()
+        return count()
+    }
+
+    override fun getRoughSize(): Long {
+        val count = this.count()
+        return if (count > -1) count else size()
+    }
+
+    override fun asProbablyCached(): EntityIterableBase? {
+        return this
     }
 }

@@ -104,5 +104,21 @@ class OUnionSelect(
     }
 }
 
+class OCountSelect(
+    val subSelect: OClassSelect,
+    override val className: String = subSelect.className
+) : OClassSelect {
+
+    override val order: OOrder? = null
+    override val condition: OCondition? = null
+
+    override fun sql() = "SELECT count(*) as count FROM (${subSelect.sql()})"
+    override fun params() = subSelect.params()
+
+    override fun withOrder(field: String, ascending: Boolean) = this
+
+    fun count(): Long = execute().next().getProperty<Long>("count")
+}
+
 fun OCondition?.whereOrEmpty() = this?.let { "WHERE ${it.sql()}" } ?: ""
 fun OOrder?.orderByOrEmpty() = this?.let { "ORDER BY ${it.sql()}" } ?: ""

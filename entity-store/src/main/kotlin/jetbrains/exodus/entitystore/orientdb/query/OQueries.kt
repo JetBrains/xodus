@@ -45,4 +45,3 @@ object OQueries {
         require(left.className == right.className) { "Cannot intersect different DB classes: ${left.className} and ${right.className}" }
     }
 }
-
