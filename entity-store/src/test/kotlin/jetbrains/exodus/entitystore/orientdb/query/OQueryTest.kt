@@ -1,10 +1,5 @@
-package jetbrains.exodus.entitystore.orientdb
+package jetbrains.exodus.entitystore.orientdb.query
 
-import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.query.OEqualCondition
-import jetbrains.exodus.entitystore.orientdb.query.and
-import jetbrains.exodus.entitystore.orientdb.query.equal
-import jetbrains.exodus.entitystore.orientdb.query.or
 import org.junit.Test
 
 class OQueryTest {

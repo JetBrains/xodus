@@ -58,7 +58,7 @@ class InMemoryOrientDB(
     }
 
     fun withQuery(query: String, block: (OResultSet) -> Unit) {
-        return withTxSession { session ->
+        return withSession { session ->
             val result = session.query(query)
             block(result)
         }

@@ -55,10 +55,7 @@ fun InMemoryOrientDB.createBoard(name: String): OVertexEntity {
     }
 }
 
-fun InMemoryOrientDB.addIssueToProject(
-    issue: OEntity,
-    project: OEntity
-) {
+fun InMemoryOrientDB.addIssueToProject(issue: OEntity, project: OEntity) {
     withSession { session ->
         session.getOrCreateEdgeClass(Issues.Links.IN_PROJECT)
         issue.addLink(Issues.Links.IN_PROJECT, project)
@@ -68,10 +65,7 @@ fun InMemoryOrientDB.addIssueToProject(
     }
 }
 
-fun InMemoryOrientDB.addIssueToBoard(
-    issue: OEntity,
-    board: OEntity
-) {
+fun InMemoryOrientDB.addIssueToBoard(issue: OEntity, board: OEntity) {
     withSession { session ->
         session.getOrCreateEdgeClass(Issues.Links.ON_BOARD)
         issue.addLink(Issues.Links.ON_BOARD, board)
@@ -80,7 +74,6 @@ fun InMemoryOrientDB.addIssueToBoard(
         board.addLink(Boards.Links.HAS_ISSUE, issue)
     }
 }
-
 
 private fun ODatabaseSession.createNamedEntity(
     className: String,
