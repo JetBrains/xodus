@@ -7,8 +7,8 @@ import jetbrains.exodus.env.*
 import jetbrains.exodus.management.Statistics
 
 open class OEnvironment(
-    private val db: OrientDB, private val name: String,
-    private val store: OPersistentStore
+    private val db: OrientDB,
+    private val store: OPersistentEntityStore
 ) : Environment {
     private val created = System.currentTimeMillis()
     private val config = EnvironmentConfig()

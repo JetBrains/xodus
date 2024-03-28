@@ -11,7 +11,7 @@ class InMemoryOrientDB(
 ) : ExternalResource() {
 
     private lateinit var db: OrientDB
-    lateinit var store:OPersistentStore
+    lateinit var store: OPersistentEntityStore
         private set
 
     val username = "admin"
@@ -29,7 +29,7 @@ class InMemoryOrientDB(
                 session.createClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)
             }
         }
-        store = OPersistentStore(db, username, password, dbName)
+        store = OPersistentEntityStore(db, username, password, dbName)
     }
 
     override fun after() {
@@ -62,9 +62,5 @@ class InMemoryOrientDB(
             val result = session.query(query)
             block(result)
         }
-    }
-
-    fun openSession(): ODatabaseSession {
-        return db.cachedPool(dbName, username, password).acquire()
     }
 }

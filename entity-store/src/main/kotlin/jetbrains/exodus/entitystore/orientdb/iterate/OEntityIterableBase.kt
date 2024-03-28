@@ -11,16 +11,9 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterator.Compan
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionIterable
-import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
-import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
+import jetbrains.exodus.entitystore.util.unsupported
 
 abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
-
-    override fun isSortedById() = false
-    override fun canBeCached() = false
-
-
-    private val query by lazy { query() }
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
         val query = query()
@@ -34,45 +27,57 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
     override fun union(right: EntityIterable): EntityIterable {
         if (right is OEntityIterableBase) {
             return OUnionIterable(transaction, this, right)
+        } else {
+            unsupported { "Union with non-OrientDB entity iterable" }
         }
-        return super.union(right)
+    }
+
+    override fun intersectSavingOrder(right: EntityIterable): EntityIterable {
+        return intersect(right)
     }
 
     override fun intersect(right: EntityIterable): EntityIterable {
         if (right is OEntityIterableBase) {
             return OIntersectionIterable(transaction, this, right)
+        } else {
+            unsupported { "Intersecting with non-OrientDB entity iterable" }
         }
-        return super.intersect(right)
     }
 
     override fun concat(right: EntityIterable): EntityIterable {
         if (right is OEntityIterableBase) {
             return OConcatEntityIterable(transaction, this, right)
+        } else {
+            unsupported { "Concat with non-OrientDB entity iterable" }
         }
-        return super.intersect(right)
+    }
+
+    override fun asSortResult(): EntityIterable {
+        return this
     }
 
     override fun size(): Long {
-        val sourceQuery = query
-        // ToDo: maybe increase boundary for query return type to OClassSelect
-        check(sourceQuery is OClassSelect) { "OEntityIterableBase should be created with OClassSelect" }
-        val countQuery = OCountSelect(sourceQuery)
-
-        // ToDo: use session from transaction instead?
-        return countQuery.count()
+        unsupported()
     }
 
     override fun count(): Long {
-        return size()
+        return -1
     }
 
     override fun getRoughCount(): Long {
-        return count()
+        return -1
     }
 
     override fun getRoughSize(): Long {
-        val count = this.count()
-        return if (count > -1) count else size()
+        unsupported()
+    }
+
+    override fun isSortedById(): Boolean {
+        return false
+    }
+
+    override fun canBeCached(): Boolean {
+        return false
     }
 
     override fun asProbablyCached(): EntityIterableBase? {

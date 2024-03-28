@@ -94,7 +94,8 @@ open class SortEngine {
                         return queryEngine.wrap(EntityIterableBase.EMPTY.asSortResult())
                     }
                     if (sourceCount < 0 || sourceCount >= MIN_ENTRIES_TO_SORT_LINKS) {
-                        val it = s.getOrCreateCachedInstance(txn)
+                        // ToDo: do we need to get cached value here?
+                        val it = if (s.canBeCached()) s.getOrCreateCachedInstance(txn) else s
                         val allLinks = (queryEngine.queryGetAll(enumType).instantiate() as EntityIterableBase).source
                         val distinctLinks: EntityIterable
                         var enumCount = (allLinks as? EntitiesOfTypeIterable)?.size() ?: allLinks.roughCount

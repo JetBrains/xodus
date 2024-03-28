@@ -31,6 +31,7 @@ import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable;
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable;
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable;
 import jetbrains.exodus.entitystore.iterate.property.*;
 import jetbrains.exodus.entitystore.orientdb.*;
@@ -470,16 +471,18 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
             return new OPropertySortedIterable(this, entityType, propertyName, ascending, (OEntityIterableBase) rightOrder);
         }
 
-        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
-        if (entityTypeId < 0) {
-            return EntityIterableBase.EMPTY;
-        }
-        final int propertyId = store.getPropertyId(this, propertyName, false);
-        if (propertyId < 0 || rightOrder == EntityIterableBase.EMPTY) {
-            return rightOrder;
-        }
-        return new SortIterable(this, findWithPropSortedByValue(
-                entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, propertyId, ascending);
+        throw new UnsupportedOperationException();
+
+//        final int entityTypeId = store.getEntityTypeId(this, entityType, false);
+//        if (entityTypeId < 0) {
+//            return EntityIterableBase.EMPTY;
+//        }
+//        final int propertyId = store.getPropertyId(this, propertyName, false);
+//        if (propertyId < 0 || rightOrder == EntityIterableBase.EMPTY) {
+//            return rightOrder;
+//        }
+//        return new SortIterable(this, findWithPropSortedByValue(
+//                entityType, propertyName), (EntityIterableBase) rightOrder, entityTypeId, propertyId, ascending);
     }
 
     @Override
@@ -489,9 +492,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
                                     final boolean isMultiple,
                                     @NotNull final String linkName,
                                     @NotNull final EntityIterable rightOrder) {
-        final EntityIterable result = new SortIndirectIterable(this, store, entityType,
-                ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder,
-                null, null);
+        final EntityIterable result = new OLinkSortEntityIterable(this, entityType, (OEntityIterableBase) sortedLinks, linkName, (OEntityIterableBase) rightOrder);
         return isMultiple ? result.distinct() : result;
     }
 
@@ -504,8 +505,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
                                     @NotNull final EntityIterable rightOrder,
                                     @NotNull final String oppositeEntityType,
                                     @NotNull final String oppositeLinkName) {
-        final EntityIterable result = new SortIndirectIterable(this, store, entityType,
-                ((EntityIterableBase) sortedLinks).getSource(), linkName, (EntityIterableBase) rightOrder, oppositeEntityType, oppositeLinkName);
+        final EntityIterable result = new OLinkSortEntityIterable(this, entityType, (OEntityIterableBase) sortedLinks, linkName, (OEntityIterableBase) rightOrder);
         return isMultiple ? result.distinct() : result;
     }
 

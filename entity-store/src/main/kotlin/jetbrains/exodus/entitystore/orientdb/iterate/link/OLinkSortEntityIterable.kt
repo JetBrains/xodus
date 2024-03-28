@@ -9,14 +9,14 @@ import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OLinkSortEntityIterable(
     txn: PersistentStoreTransaction,
-    private val entityName: String,
+    private val entityType: String,
     private val linkOrder: OEntityIterable,
-    private val sourceOrder: OEntityIterable,
     private val linkName: String,
+    private val sourceOrder: OEntityIterable,
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OQuery {
-        val linkQuery = OLinkInFromSubQuerySelect(entityName, linkName, linkOrder.query())
+        val linkQuery = OLinkInFromSubQuerySelect(entityType, linkName, linkOrder.query())
         return OQueries.intersect(linkQuery, sourceOrder.query())
     }
 }

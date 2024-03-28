@@ -3,7 +3,6 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
-import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
@@ -11,10 +10,9 @@ import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.management.Statistics
 import java.io.File
-import java.io.UnsupportedEncodingException
 import java.util.concurrent.ConcurrentHashMap
 
-class OPersistentStore(
+class OPersistentEntityStore(
     private val db: OrientDB,
     private val userName: String,
     private val password: String,
@@ -25,7 +23,7 @@ class OPersistentStore(
     private val config = PersistentEntityStoreConfig()
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
-    private val env = OEnvironment(db, databaseName, this)
+    private val env = OEnvironment(db, this)
 
 
     override fun close() {}
