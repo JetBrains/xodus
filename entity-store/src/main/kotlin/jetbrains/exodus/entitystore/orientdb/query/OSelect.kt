@@ -16,9 +16,9 @@ class OAllSelect(
     override val order: OOrder? = null
 ) : OClassSelect {
 
-    override fun sql() = ("SELECT from $className" +
-            " ${condition.whereOrEmpty()}" +
-            " ${order.orderByOrEmpty()}").trimEnd()
+    override fun sql() = "SELECT FROM $className" +
+            condition.whereOrEmpty() +
+            order.orderByOrEmpty()
 
     override fun params() = condition?.params() ?: emptyList()
 
@@ -36,9 +36,9 @@ class OLinkInFromSubQuerySelect(
     override val order: OOrder? = null
 ) : OClassSelect {
 
-    override fun sql() = ("SELECT expand(in('$linkName')) from (${subQuery.sql()})" +
-            " ${condition.whereOrEmpty()}" +
-            " ${order.orderByOrEmpty()}").trimEnd()
+    override fun sql() = "SELECT expand(in('$linkName')) FROM (${subQuery.sql()})" +
+            condition.whereOrEmpty() +
+            order.orderByOrEmpty()
 
     override fun params() = subQuery.params() + condition?.params().orEmpty()
 
@@ -55,9 +55,9 @@ class OLinkInFromIdsSelect(
     override val order: OOrder? = null
 ) : OClassSelect {
 
-    override fun sql() = ("SELECT expand(in('$linkName')) from $targetIdsSql" +
-            " ${condition.whereOrEmpty()} " +
-            " ${order.orderByOrEmpty()}").trimEnd()
+    override fun sql() = "SELECT expand(in('$linkName')) FROM $targetIdsSql" +
+            condition.whereOrEmpty() +
+            order.orderByOrEmpty()
 
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 
@@ -77,7 +77,7 @@ class OIntersectSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
     // intersect returns projection thus need to expand it into collection
-    override fun sql() = "SELECT expand(intersect((${left.sql()}), (${right.sql()}))) ${order.orderByOrEmpty()}".trim()
+    override fun sql() = "SELECT expand(intersect((${left.sql()}), (${right.sql()})))${order.orderByOrEmpty()}"
     override fun params() = left.params() + right.params()
 
     override fun withOrder(field: String, ascending: Boolean): OClassSelect {
@@ -96,7 +96,7 @@ class OUnionSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
     // intersect returns projection thus need to expand it into collection
-    override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()}))) ${order.orderByOrEmpty()}".trim()
+    override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()})))${order.orderByOrEmpty()}"
     override fun params() = left.params() + right.params()
 
     override fun withOrder(field: String, ascending: Boolean): OClassSelect {
@@ -120,5 +120,5 @@ class OCountSelect(
     fun count(): Long = execute().next().getProperty<Long>("count")
 }
 
-fun OCondition?.whereOrEmpty() = this?.let { "WHERE ${it.sql()}" } ?: ""
-fun OOrder?.orderByOrEmpty() = this?.let { "ORDER BY ${it.sql()}" } ?: ""
+fun OCondition?.whereOrEmpty() = this?.let { " WHERE ${it.sql()}" } ?: ""
+fun OOrder?.orderByOrEmpty() = this?.let { " ORDER BY ${it.sql()}" } ?: ""
