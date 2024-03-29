@@ -65,4 +65,13 @@ public interface JobProcessor {
 
     @NotNull
     Iterable<Job> getPendingJobs();
+
+    /**
+     * If true, the processor will NOT requeue an element with the same value if it is pushed again.
+     * <p>
+     * Implementations should do nothing by default.
+     */
+    default void shouldSkipIfPresent(boolean skipIfPresent) {
+        // Do nothing by default
+    }
 }
