@@ -26,7 +26,7 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
         registerType(getType(), (txn, store, parameters) -> new DistinctIterable(txn, (EntityIterableBase) parameters[0]));
     }
 
-    public DistinctIterable(@NotNull final PersistentStoreTransaction txn,
+    public DistinctIterable(@NotNull final StoreTransaction txn,
                             @NotNull final EntityIterableBase source) {
         super(txn, source);
     }
@@ -49,7 +49,7 @@ public final class DistinctIterable extends EntityIterableDecoratorBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new EntityIteratorFixingDecorator(this, isSortedById() ?
                 new DistinctSortedIterator(this, source) :
                 new DistinctUnsortedIterator(this, source));

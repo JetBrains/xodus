@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.iterate.cached;
 
 import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIdSet;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
@@ -38,7 +38,7 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
     @Nullable
     private EntityIdSet idSet;
 
-    public SingleTypeSortedEntityIdArrayCachedInstanceIterable(@NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source,
+    public SingleTypeSortedEntityIdArrayCachedInstanceIterable(@NotNull StoreTransaction txn, @NotNull EntityIterableBase source,
                                                                int typeId, long[] localIds, @Nullable EntityIdSet idSet) {
         super(txn, source);
         this.typeId = typeId;
@@ -62,7 +62,7 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         return localIds.count();
     }
 
@@ -93,7 +93,7 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
 
     @NotNull
     @Override
-    public EntityIteratorBase getIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull StoreTransaction txn) {
         if (typeId == NULL_TYPE_ID) {
             return new EntityIdArrayIteratorNullTypeId(this, localIds.count());
         }
@@ -102,7 +102,7 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
 
     @NotNull
     @Override
-    public EntityIteratorBase getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public EntityIteratorBase getReverseIteratorImpl(@NotNull StoreTransaction txn) {
         if (typeId == NULL_TYPE_ID) {
             return new ReverseEntityIdArrayIteratorNullTypeId(this, localIds.count());
         }
@@ -111,7 +111,7 @@ public class SingleTypeSortedEntityIdArrayCachedInstanceIterable extends CachedI
 
     @NotNull
     @Override
-    public EntityIdSet toSet(@NotNull PersistentStoreTransaction txn) {
+    public EntityIdSet toSet(@NotNull StoreTransaction txn) {
         EntityIdSet result = idSet;
         if (result != null) {
             return result;

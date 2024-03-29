@@ -23,7 +23,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OQueries
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OPropertySortedIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     private val entityType: String,
     private val propertyName: String,
     private val ascending: Boolean,

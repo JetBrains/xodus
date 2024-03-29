@@ -325,23 +325,26 @@ open class SortEngine {
 
     private inner class SingleLinkComparableGetter(private val linkName: String,
                                                    private val propName: String,
-                                                   private val txn: PersistentStoreTransaction) : ComparableGetter {
-        private val store = queryEngine.persistentStore
-        private val linkId = store.getLinkId(txn, linkName, false)
-        private val readOnlyTxn = txn.isReadonly
-
-        override fun select(entity: Entity): Comparable<*>? {
-            if (linkId < 0) return null
-            val isPersistentEntity = entity is PersistentEntity
-            val target: Entity?
-            target = if (readOnlyTxn || isPersistentEntity) {
-                val sourceId = entity.id
-                val targetId = store.getRawLinkAsEntityId(txn, PersistentEntityId(sourceId), linkId)
-                if (targetId == null) null else store.getEntity(targetId)
-            } else {
-                entity.getLink(linkName)
-            }
-            return if (target == null) null else getProperty(target, propName, readOnlyTxn)
+                                                   private val txn: StoreTransaction) : ComparableGetter {
+        //        private val store = queryEngine.persistentStore
+//        private val linkId = store.getLinkId(txn, linkName, false)
+//        private val readOnlyTxn = txn.isReadonly
+//
+//        override fun select(entity: Entity): Comparable<*>? {
+//            if (linkId < 0) return null
+//            val isPersistentEntity = entity is PersistentEntity
+//            val target: Entity?
+//            target = if (readOnlyTxn || isPersistentEntity) {
+//                val sourceId = entity.id
+//                val targetId = store.getRawLinkAsEntityId(txn, PersistentEntityId(sourceId), linkId)
+//                if (targetId == null) null else store.getEntity(targetId)
+//            } else {
+//                entity.getLink(linkName)
+//            }
+//            return if (target == null) null else getProperty(target, propName, readOnlyTxn)
+//        }
+        override fun select(key: Entity?): Comparable<*>? {
+            TODO("Not yet implemented")
         }
     }
 

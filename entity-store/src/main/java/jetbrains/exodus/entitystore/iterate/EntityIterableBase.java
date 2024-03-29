@@ -40,7 +40,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         EMPTY = new EntityIterableBase(null) {
             @Override
             @NotNull
-            public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+            public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
                 return EntityIteratorBase.EMPTY;
             }
 
@@ -62,7 +62,7 @@ public abstract class EntityIterableBase implements EntityIterable {
 
             @Override
             @NotNull
-            public EntityIdSet toSet(@NotNull PersistentStoreTransaction txn) {
+            public EntityIdSet toSet(@NotNull StoreTransaction txn) {
                 return EntityIdSetFactory.newSet();
             }
 
@@ -72,7 +72,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             }
 
             @Override
-            protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+            protected long countImpl(@NotNull final StoreTransaction txn) {
                 return 0;
             }
 
@@ -97,29 +97,37 @@ public abstract class EntityIterableBase implements EntityIterable {
     static final int[] children = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1, 1, 2, 0, 1, 1, 1, 1, 1, 0, 0, 2, 1, 1, 2, 0, 0, 0};
 
     @Nullable
-    private final PersistentEntityStoreImpl store;
+    private final PersistentEntityStore store;
     private EntityIterableHandle cachedHandle;
     private Object origin;
     @NotNull
     protected TxnGetterStrategy txnGetter = TxnGetterStrategy.DEFAULT;
 
-    protected EntityIterableBase(@Nullable final PersistentStoreTransaction txn) {
+    protected EntityIterableBase(@Nullable final StoreTransaction txn) {
         if (txn == null) {
             store = null;
         } else {
-            store = txn.getStore();
+            store = (PersistentEntityStore) txn.getStore();
             if (!txn.isCurrent()) {
-                txnGetter = txn;
+                txnGetter = (PersistentStoreTransaction) txn;
             }
         }
     }
 
     @NotNull
-    public PersistentEntityStoreImpl getStore() {
+    public PersistentEntityStore getStore() {
         if (store == null) {
             throw new RuntimeException("EntityIterableBase: entity store is not set.");
         }
         return store;
+    }
+
+    @NotNull
+    public PersistentEntityStoreImpl getStoreImpl() {
+        if (store == null) {
+            throw new RuntimeException("EntityIterableBase: entity store is not set.");
+        }
+        return (PersistentEntityStoreImpl) store;
     }
 
     public int getEntityTypeId() {
@@ -132,26 +140,30 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EntityIteratorBase.EMPTY;
         }
-        final PersistentStoreTransaction txn = getTransaction();
+        final StoreTransaction txn = getTransaction();
         return getIteratorImpl(txn);
     }
 
     @NotNull
-    public abstract EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn);
+    public abstract EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn);
 
     public EntityIterator getIteratorImpl() {
         return getIteratorImpl(getTransaction());
     }
 
     @NotNull
-    public EntityIterator getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getReverseIteratorImpl(@NotNull final StoreTransaction txn) {
         throw new UnsupportedOperationException("getReverseIterator not implemented");
     }
 
     @NotNull
     @Override
-    public PersistentStoreTransaction getTransaction() {
+    public StoreTransaction getTransaction() {
         return txnGetter.getTxn(this);
+    }
+
+    public PersistentStoreTransaction getPersistentTransaction() {
+        return (PersistentStoreTransaction) getTransaction();
     }
 
     @Override
@@ -160,7 +172,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return true;
         }
-        final PersistentStoreTransaction txn = getTransaction();
+        final StoreTransaction txn = getTransaction();
         final EntityIterableBase it = asProbablyCached();
         return it.isEmptyImpl(txn);
     }
@@ -174,7 +186,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return 0;
         }
-        final PersistentStoreTransaction txn = getTransaction();
+        final StoreTransaction txn = getTransaction();
         final EntityIterableBase it = asProbablyCached();
         final EntityIterableBase cached = it.nonCachedHasFastCountAndIsEmpty() ? it : getOrCreateCachedInstance(txn);
         return cached.countImpl(txn);
@@ -194,7 +206,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return 0;
         }
-        return store.getEntityIterableCache().getCachedCount(this);
+        return getStoreImpl().getEntityIterableCache().getCachedCount(this);
     }
 
     @Override
@@ -202,7 +214,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return 0;
         }
-        final EntityIterableCache cache = store.getEntityIterableCache();
+        final EntityIterableCache cache = getStoreImpl().getEntityIterableCache();
         long result = cache.getCachedCount(this);
         if (result < 0) {
             result = size();
@@ -249,7 +261,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public boolean setOrigin(Object origin) {
-        if (getStore().getExplainer().isExplainOn() && this.origin == null) {
+        if (getStoreImpl().getExplainer().isExplainOn() && this.origin == null) {
             this.origin = origin;
             return true;
         }
@@ -307,12 +319,12 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (right == EMPTY) {
             return this;
         }
-        final PersistentStoreTransaction txn = getTransaction();
+        final StoreTransaction txn = getTransaction();
         // try to build right-oriented trees
         if (this instanceof ConcatenationIterable) {
             final ConcatenationIterable thisConcat = (ConcatenationIterable) this;
             return new ConcatenationIterable(txn, thisConcat.getLeft(),
-                new ConcatenationIterable(txn, thisConcat.getRight(), (EntityIterableBase) right));
+                    new ConcatenationIterable(txn, thisConcat.getRight(), (EntityIterableBase) right));
         }
         return new ConcatenationIterable(txn, this, (EntityIterableBase) right);
     }
@@ -354,8 +366,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        final PersistentStoreTransaction txn = getTransaction();
-        return new SelectDistinctIterable(txn, this, store.getLinkId(txn, linkName, false));
+        final PersistentStoreTransaction txn = getPersistentTransaction();
+        return new SelectDistinctIterable(txn, this, getStoreImpl().getLinkId(txn, linkName, false));
     }
 
     @NotNull
@@ -368,8 +380,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        final PersistentStoreTransaction txn = getTransaction();
-        return new SelectManyIterable(txn, this, store.getLinkId(txn, linkName, false), true);
+        final PersistentStoreTransaction txn = getPersistentTransaction();
+        return new SelectManyIterable(txn, this,  getStoreImpl().getLinkId(txn, linkName, false), true);
     }
 
     @NotNull
@@ -381,8 +393,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EMPTY;
         }
-        final PersistentStoreTransaction txn = getTransaction();
-        return new SelectManyIterable(txn, this, store.getLinkId(txn, linkName, false), false);
+        final PersistentStoreTransaction txn = getPersistentTransaction();
+        return new SelectManyIterable(txn, this, getStoreImpl().getLinkId(txn, linkName, false), false);
     }
 
     @Nullable
@@ -472,7 +484,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public boolean isCached() {
-        return canBeCached() && getTransaction().getCachedInstanceFast(this) != null;
+        return canBeCached() && getPersistentTransaction().getCachedInstanceFast(this) != null;
     }
 
     @NotNull
@@ -501,8 +513,8 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null || ((EntityIterableBase) entities).store == null) {
             return EMPTY;
         }
-        final PersistentStoreTransaction txn = getTransaction();
-        final int linkId = store.getLinkId(txn, linkName, false);
+        final PersistentStoreTransaction txn = getPersistentTransaction();
+        final int linkId = getStoreImpl().getLinkId(txn, linkName, false);
         if (linkId < 0) {
             return EMPTY;
         }
@@ -510,20 +522,21 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     @NotNull
-    public final CachedInstanceIterable getOrCreateCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+    public final CachedInstanceIterable getOrCreateCachedInstance(@NotNull final StoreTransaction txn) {
         return getOrCreateCachedInstance(txn, false);
     }
 
     @NotNull
-    public final CachedInstanceIterable getOrCreateCachedInstance(@NotNull PersistentStoreTransaction txn, boolean forceCount) {
+    public final CachedInstanceIterable getOrCreateCachedInstance(@NotNull StoreTransaction txn, boolean forceCount) {
         if (store == null) {
             throw new NullPointerException("Can't create cached instance for EMPTY iterable");
         }
-        final EntityIterableCache cache = store.getEntityIterableCache();
+        PersistentStoreTransaction persistentTxn = (PersistentStoreTransaction) txn;
+        final EntityIterableCache cache = getStoreImpl().getEntityIterableCache();
         final boolean canBeCached = !cache.getCachingDisabled() && canBeCached();
         CachedInstanceIterable cached = null;
         if (canBeCached) {
-            cached = txn.getCachedInstance(this);
+            cached = persistentTxn.getCachedInstance(this);
         }
         if (cached == null || cached.getHandle().isExpired()) {
             cached = createCachedInstance(txn);
@@ -534,9 +547,9 @@ public abstract class EntityIterableBase implements EntityIterable {
                 // if this iterable may be inconsistent and the transaction is read-only
                 // then revert it in order to hold the latest cache adapter instance
                 if (!getHandle().isConsistent() && txn.isReadonly()) {
-                    txn.revertCaches();
+                    persistentTxn.revertCaches();
                 }
-                txn.addCachedInstance(cached);
+                persistentTxn.addCachedInstance(cached);
             } else {
                 cache.setCachedCount(getHandle(), cached.size());
             }
@@ -547,11 +560,11 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     @NotNull
-    public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIdSet toSet(@NotNull final StoreTransaction txn) {
         return getOrCreateCachedInstance(txn).toSet(txn);
     }
 
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         final EntityIterator it = getIteratorImpl(txn);
         long result = 0;
         while (it.hasNext()) {
@@ -561,7 +574,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         return result;
     }
 
-    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+    public boolean isEmptyImpl(@NotNull final StoreTransaction txn) {
         final EntityIteratorBase it = (EntityIteratorBase) getIteratorImpl();
         try {
             return !it.hasNext();
@@ -574,11 +587,11 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             return EntityIterableBase.EMPTY;
         }
-        return store.getEntityIterableCache().putIfNotCached(this);
+        return getStoreImpl().getEntityIterableCache().putIfNotCached(this);
     }
 
-    protected boolean isEmptyFast(@NotNull final PersistentStoreTransaction txn) {
-        final CachedInstanceIterable cached = txn.getCachedInstanceFast(this);
+    protected boolean isEmptyFast(@NotNull final StoreTransaction txn) {
+        final CachedInstanceIterable cached = getPersistentTransaction().getCachedInstanceFast(this);
         return cached != null && cached.isEmpty();
     }
 
@@ -600,7 +613,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         return indexOfImpl(entityId) >= 0;
     }
 
-    protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+    protected CachedInstanceIterable createCachedInstance(@NotNull final StoreTransaction txn) {
         return EntityIdArrayCachedInstanceIterableFactory.createInstance(txn, this);
     }
 
@@ -653,8 +666,8 @@ public abstract class EntityIterableBase implements EntityIterable {
             getHumanReadablePresentation(tmp, types, pos, indent + INDENT);
         }
         if (type == EntityIterableType.SELECT_DISTINCT.getType() ||
-            type == EntityIterableType.SELECTMANY_DISTINCT.getType() ||
-            type == EntityIterableType.SORTING.getType()) {
+                type == EntityIterableType.SELECTMANY_DISTINCT.getType() ||
+                type == EntityIterableType.SORTING.getType()) {
             presentation.append(' ').append(types[pos[0]]);
             pos[0]++;
         }
@@ -686,8 +699,8 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     private static boolean isDecoratorForSelectDistinct(@NotNull final EntityIterable source) {
         return source instanceof SortIterable || source instanceof SortIndirectIterable ||
-            source instanceof EntityReverseIterable || source instanceof DistinctIterable ||
-            source instanceof SortResultIterable;
+                source instanceof EntityReverseIterable || source instanceof DistinctIterable ||
+                source instanceof SortResultIterable;
     }
 
     public static EntityIterableBase instantiate(final PersistentStoreTransaction txn, PersistentEntityStoreImpl store, String presentation) {
@@ -762,7 +775,7 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     public void explain(EntityIterableType type) {
         if (getOrigin() != null) {
-            Explainer explainer = getStore().getExplainer();
+            Explainer explainer = getStoreImpl().getExplainer();
             explainer.explain(getOrigin(), Explainer.CURSOR_ADVANCES);
             explainer.explain(getOrigin(), Explainer._CURSOR_ADVANCES_BY_TYPE + ' ' + type.name());
             explainer.explain(getOrigin(), Explainer._CURSOR_ADVANCES_BY_HANDLE + ' ' + getHandle().toString());

@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.EntityIterableHandle;
-import jetbrains.exodus.entitystore.EntityIterableType;
-import jetbrains.exodus.entitystore.EntityIterator;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 
 public final class EntityReverseIterable extends EntityIterableDecoratorBase {
@@ -27,7 +24,7 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
         registerType(getType(), (txn, store, parameters) -> new EntityReverseIterable(txn, (EntityIterableBase) parameters[0]));
     }
 
-    public EntityReverseIterable(@NotNull final PersistentStoreTransaction txn,
+    public EntityReverseIterable(@NotNull final StoreTransaction txn,
                                  @NotNull final EntityIterableBase source) {
         super(txn, source);
     }
@@ -63,7 +60,7 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
 
     @Override
     @NotNull
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         try {
             return source.asProbablyCached().getReverseIteratorImpl(txn);
         } catch (UnsupportedOperationException ignore) {
@@ -72,7 +69,7 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
-    public @NotNull EntityIterator getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public @NotNull EntityIterator getReverseIteratorImpl(@NotNull StoreTransaction txn) {
         return source.getIteratorImpl(txn);
     }
 
@@ -94,7 +91,7 @@ public final class EntityReverseIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         return source.size();
     }
 }

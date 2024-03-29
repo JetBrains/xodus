@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.EntityIterableHandle;
-import jetbrains.exodus.entitystore.EntityIterableType;
-import jetbrains.exodus.entitystore.EntityIterator;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 
 public class EntitiesWithBlobIterable extends EntityIterableBase {
@@ -31,7 +28,7 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
             Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1])));
     }
 
-    public EntitiesWithBlobIterable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId, final int blobId) {
+    public EntitiesWithBlobIterable(@NotNull final StoreTransaction txn, final int entityTypeId, final int blobId) {
         super(txn);
         this.entityTypeId = entityTypeId;
         this.blobId = blobId;
@@ -52,9 +49,9 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
 
     @NotNull
     @Override
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new FieldIndexIterator(this, entityTypeId, blobId,
-            getStore().getEntityWithBlobIterable(txn, entityTypeId, blobId));
+            getStoreImpl().getEntityWithBlobIterable((PersistentStoreTransaction) txn, entityTypeId, blobId));
     }
 
     @NotNull

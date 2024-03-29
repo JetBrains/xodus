@@ -2,7 +2,7 @@ package jetbrains.exodus.entitystore.orientdb.iterate.binop
 
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterator
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
@@ -11,7 +11,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OQueries
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OConcatEntityIterable(
-    txn: PersistentStoreTransaction?,
+    txn: StoreTransaction?,
     private val iterable1: EntityIterableBase,
     private val iterable2: EntityIterableBase
 ) : OEntityIterableBase(txn) {
@@ -31,11 +31,11 @@ class OConcatEntityIterable(
         return false
     }
 
-    override fun countImpl(txn: PersistentStoreTransaction): Long {
+    override fun countImpl(txn: StoreTransaction): Long {
         return iterable1.size() + iterable2.size()
     }
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction) = OConcatenationIterator()
+    override fun getIteratorImpl(txn: StoreTransaction) = OConcatenationIterator()
 
     inner class OConcatenationIterator() : NonDisposableEntityIterator(source) {
         private var iterator1: EntityIterator? = this

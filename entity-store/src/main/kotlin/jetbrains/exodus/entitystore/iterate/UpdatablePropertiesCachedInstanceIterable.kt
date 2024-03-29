@@ -19,13 +19,13 @@ import jetbrains.exodus.core.dataStructures.persistent.Persistent23Tree
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityStoreException
 import jetbrains.exodus.entitystore.PersistentEntityId
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.tables.PropertyTypes.toLowerCase
 import jetbrains.exodus.kotlin.notNull
 import org.slf4j.LoggerFactory
 
 class UpdatablePropertiesCachedInstanceIterable
-private constructor(txn: PersistentStoreTransaction?,
+private constructor(txn: StoreTransaction?,
                     source: EntityIterableBase,
                     private var typeId: Int,
                     private var valueClass: Class<Comparable<Any>>?,
@@ -95,17 +95,17 @@ private constructor(txn: PersistentStoreTransaction?,
         return PropertyRangeCachedInstanceIterator(min, max)
     }
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIteratorBase {
         return if (currentTree.isEmpty) EntityIteratorBase.EMPTY else PropertiesCachedInstanceIterator()
     }
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
+    override fun getReverseIteratorImpl(txn: StoreTransaction): EntityIteratorBase {
         return if (currentTree.isEmpty) EntityIteratorBase.EMPTY else ReversePropertiesCachedInstanceIterator()
     }
 
     override fun size() = currentTree.size().toLong()
 
-    override fun countImpl(txn: PersistentStoreTransaction) = size()
+    override fun countImpl(txn: StoreTransaction) = size()
 
     override fun getRoughSize(): Long  = size()
 
@@ -172,7 +172,7 @@ private constructor(txn: PersistentStoreTransaction?,
         private val PropertyValueIterator.currentValue: Comparable<Any> get() = this.currentValue().notNull
 
         @JvmStatic
-        fun newInstance(txn: PersistentStoreTransaction?,
+        fun newInstance(txn: StoreTransaction?,
                         it: PropertyValueIterator?,
                         source: EntityIterableBase): UpdatablePropertiesCachedInstanceIterable {
             try {

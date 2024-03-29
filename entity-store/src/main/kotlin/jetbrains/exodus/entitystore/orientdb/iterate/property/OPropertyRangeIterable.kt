@@ -22,7 +22,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OQuery
 import jetbrains.exodus.entitystore.orientdb.query.ORangeCondition
 
 class OPropertyRangeIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     private val entityType: String,
     private val propertyName: String,
     private val min: Comparable<*>,

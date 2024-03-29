@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.EntityIterableHandle;
 import jetbrains.exodus.entitystore.EntityIterator;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,7 +25,7 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
     @NotNull
     private final EntityIterableHandle sourceHandle;
 
-    protected CachedInstanceIterable(@Nullable final PersistentStoreTransaction txn,
+    protected CachedInstanceIterable(@Nullable final StoreTransaction txn,
                                      @NotNull final EntityIterableBase source) {
         super(txn);
         sourceHandle = source.getHandle();
@@ -73,7 +73,7 @@ public abstract class CachedInstanceIterable extends EntityIterableBase {
     }
 
     @Override
-    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+    public boolean isEmptyImpl(@NotNull final StoreTransaction txn) {
         return countImpl(txn) == 0;
     }
 

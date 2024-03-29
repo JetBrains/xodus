@@ -39,7 +39,7 @@ class IterableDecorator(iterable: Iterable<Entity>) : NodeBase() {
         if (it is EntityIterableBase) {
             return queryEngine.wrap(it.source.intersect(queryEngine.instantiateGetAll(txn, entityType)))
         }
-        val typeId = entityStore.getEntityTypeId(txn, entityType, false)
+        val typeId = entityStore.getEntityTypeId(entityType)
         if (it is List<*>) {
             return it.filter { entity -> entity.id.typeId == typeId }
         }

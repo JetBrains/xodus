@@ -32,12 +32,12 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
 
     static {
         registerType(getType(), (txn, store, parameters) -> new EntityFromLinksIterable(txn,
-            new PersistentEntityId(Integer.parseInt((String) parameters[0]),
-                Integer.parseInt((String) parameters[1])), Integer.parseInt((String) parameters[2])
+                new PersistentEntityId(Integer.parseInt((String) parameters[0]),
+                        Integer.parseInt((String) parameters[1])), Integer.parseInt((String) parameters[2])
         ));
     }
 
-    public EntityFromLinksIterable(@NotNull final PersistentStoreTransaction txn,
+    public EntityFromLinksIterable(@NotNull final StoreTransaction txn,
                                    @NotNull final EntityId entityId,
                                    final int linkId) {
         super(txn, entityId);
@@ -50,7 +50,7 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new LinksIterator(openCursor(txn));
     }
 
@@ -104,7 +104,7 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
     @Override
     @Nullable
     public Entity getLast() {
-        final PersistentStoreTransaction txn = getStore().getAndCheckCurrentTransaction();
+        final StoreTransaction txn = getStore().getAndCheckCurrentTransaction();
         try (Cursor cursor = openCursor(txn)) {
             if (cursor.getSearchKeyRange(getKey(linkId + 1)) == null) {
                 if (!cursor.getLast()) {
@@ -125,17 +125,17 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         return new SingleKeyCursorCounter(openCursor(txn), getFirstKey()).getCount();
     }
 
     @Override
-    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+    public boolean isEmptyImpl(@NotNull final StoreTransaction txn) {
         return new SingleKeyCursorIsEmptyChecker(openCursor(txn), getFirstKey()).isEmpty();
     }
 
-    private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
-        return getStore().getLinksFirstIndexCursor(txn, entityId.getTypeId());
+    private Cursor openCursor(@NotNull final StoreTransaction txn) {
+        return ((PersistentEntityStoreImpl) getStore()).getLinksFirstIndexCursor((PersistentStoreTransaction) txn, entityId.getTypeId());
     }
 
     private ByteIterable getFirstKey() {

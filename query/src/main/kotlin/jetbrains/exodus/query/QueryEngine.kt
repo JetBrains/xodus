@@ -17,7 +17,7 @@ package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
+import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
@@ -31,7 +31,7 @@ import jetbrains.exodus.query.metadata.ModelMetaData
 import jetbrains.exodus.util.doIfTrue
 import mu.KLogging
 
-open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStoreImpl) : KLogging() {
+open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStore) : KLogging() {
 
     private var _sortEngine: SortEngine? = null
 
@@ -41,7 +41,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             _sortEngine = value.notNull.apply { queryEngine = this@QueryEngine }
         }
 
-    val uniqueKeyIndicesEngine = MetaDataAwareUniqueKeyIndicesEngine(persistentStore, modelMetaData)
+    //val uniqueKeyIndicesEngine = MetaDataAwareUniqueKeyIndicesEngine(persistentStore, modelMetaData)
 
     open fun queryGetAll(entityType: String): TreeKeepingEntityIterable = query(null, entityType, NodeFactory.all())
 

@@ -23,7 +23,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OOrderByField
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OPropertyExistsSortedIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     private val entityType: String,
     private val propertyName: String,
 ) : OEntityIterableBase(txn) {

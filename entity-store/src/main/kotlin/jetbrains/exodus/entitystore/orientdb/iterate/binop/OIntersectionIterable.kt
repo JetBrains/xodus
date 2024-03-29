@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.binop
 
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
@@ -23,7 +23,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OQueries
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OIntersectionIterable(
-    txn: PersistentStoreTransaction?,
+    txn: StoreTransaction?,
     private val iterable1: EntityIterableBase,
     private val iterable2: EntityIterableBase
 ) : OEntityIterableBase(txn) {

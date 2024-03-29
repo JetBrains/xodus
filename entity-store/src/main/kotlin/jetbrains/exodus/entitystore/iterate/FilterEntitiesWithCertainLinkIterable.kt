@@ -21,7 +21,7 @@ import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 // this iterable depth is rather great in order to prevent non-effective commutative binary operators mutation
 private const val DEPTH = 1000
 
-internal class FilterEntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
+internal class FilterEntitiesWithCertainLinkIterable(txn: StoreTransaction,
                                                      private val entitiesWithLink: EntitiesWithCertainLinkIterable,
                                                      filter: EntityIterableBase) : EntityIterableBase(txn) {
 
@@ -48,15 +48,15 @@ internal class FilterEntitiesWithCertainLinkIterable(txn: PersistentStoreTransac
 
     override fun depth() = DEPTH
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIterator {
         return getIteratorImpl(txn, reverse = false)
     }
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getReverseIteratorImpl(txn: StoreTransaction): EntityIterator {
         return getIteratorImpl(txn, reverse = true)
     }
 
-    private fun getIteratorImpl(txn: PersistentStoreTransaction, reverse: Boolean): EntityIteratorBase {
+    private fun getIteratorImpl(txn: StoreTransaction, reverse: Boolean): EntityIteratorBase {
         val idSet = filter.toSet(txn)
         val it = if (reverse) entitiesWithLink.getReverseIteratorImpl(txn) else entitiesWithLink.getIteratorImpl(txn)
         return object : EntityIteratorBase(this) {

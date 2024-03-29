@@ -18,6 +18,7 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.query.metadata.EntityMetaData;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import jetbrains.exodus.query.metadata.PropertyMetaData;
@@ -37,7 +38,7 @@ public class PropertyNotNull extends NodeBase {
         final EntityMetaData emd = metaData == null ? null : metaData.getEntityMetaData(entityType);
         final PropertyMetaData pmd = emd == null ? null : emd.getPropertyMetaData(name);
         queryEngine.assertOperational();
-        final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        final StoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
         if (pmd != null && pmd.getType() == PropertyType.BLOB) {
             return txn.findWithBlob(entityType, name);
         } else {

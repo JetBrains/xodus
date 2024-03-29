@@ -6,6 +6,10 @@ import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.iterate.property.OPropertyContainsIterable
+import jetbrains.exodus.entitystore.iterate.property.OPropertyEqualIterable
+import jetbrains.exodus.entitystore.iterate.property.OPropertyRangeIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.env.Transaction
 
@@ -38,6 +42,10 @@ class OStoreTransactionImpl(
 
     override fun commit(): Boolean {
         txn.commit()
+        return true
+    }
+
+    override fun isCurrent(): Boolean {
         return true
     }
 
@@ -81,7 +89,7 @@ class OStoreTransactionImpl(
     }
 
     override fun getAll(entityType: String): EntityIterable {
-        TODO("Not Implemented")
+        return OEntityOfTypeIterable(this, entityType)
     }
 
     override fun getSingletonIterable(entity: Entity): EntityIterable {
@@ -89,7 +97,7 @@ class OStoreTransactionImpl(
     }
 
     override fun find(entityType: String, propertyName: String, value: Comparable<Nothing>): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyEqualIterable(this, entityType, propertyName, value)
     }
 
     override fun find(
@@ -98,7 +106,7 @@ class OStoreTransactionImpl(
         minValue: Comparable<Nothing>,
         maxValue: Comparable<Nothing>
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyRangeIterable(this, entityType, propertyName, minValue, maxValue)
     }
 
     override fun findContaining(
@@ -107,7 +115,7 @@ class OStoreTransactionImpl(
         value: String,
         ignoreCase: Boolean
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyContainsIterable(this, entityType, propertyName, value)
     }
 
     override fun findStartingWith(entityType: String, propertyName: String, value: String): EntityIterable {
@@ -187,6 +195,14 @@ class OStoreTransactionImpl(
     }
 
     override fun mergeSorted(sorted: MutableList<EntityIterable>, comparator: Comparator<Entity>): EntityIterable {
+        TODO("Not yet implemented")
+    }
+
+    override fun mergeSorted(
+        sorted: List<EntityIterable?>,
+        valueGetter: ComparableGetter,
+        comparator: java.util.Comparator<Comparable<Any>?>
+    ): EntityIterable {
         TODO("Not yet implemented")
     }
 

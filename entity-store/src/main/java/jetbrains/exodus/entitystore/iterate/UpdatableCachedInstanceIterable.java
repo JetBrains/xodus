@@ -16,13 +16,14 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.Updatable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class UpdatableCachedInstanceIterable extends CachedInstanceIterable implements Updatable {
 
-    protected UpdatableCachedInstanceIterable(@Nullable final PersistentStoreTransaction txn,
+    protected UpdatableCachedInstanceIterable(@Nullable final StoreTransaction txn,
                                               @NotNull final EntityIterableBase source) {
         super(txn, source);
     }

@@ -22,7 +22,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OEqualCondition
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OPropertyEqualIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     private val entityType: String,
     private val propertyName: String,
     private val value: Comparable<*>

@@ -25,14 +25,14 @@ import jetbrains.exodus.env.Cursor
  * Iterates all entities of specified type which are linked to specified entity with specified link.
  */
 class EntityToLinksIterable(
-    txn: PersistentStoreTransaction, entityId: EntityId, private val typeId: Int, private val linkId: Int
+    txn: StoreTransaction, entityId: EntityId, private val typeId: Int, private val linkId: Int
 ) : EntityLinksIterableBase(txn, entityId) {
 
     override fun getEntityTypeId() = typeId
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = LinksIterator(openCursor(txn))
+    override fun getIteratorImpl(txn:StoreTransaction): EntityIteratorBase = LinksIterator(openCursor(txn))
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase =
+    override fun getReverseIteratorImpl(txn: StoreTransaction): EntityIteratorBase =
         LinksReverseIterator(openCursor(txn))
 
     override fun nonCachedHasFastCountAndIsEmpty() = true
@@ -82,13 +82,13 @@ class EntityToLinksIterable(
         return null
     }
 
-    override fun countImpl(txn: PersistentStoreTransaction) = SingleKeyCursorCounter(openCursor(txn), firstKey).count
+    override fun countImpl(txn: StoreTransaction) = SingleKeyCursorCounter(openCursor(txn), firstKey).count
 
-    override fun isEmptyImpl(txn: PersistentStoreTransaction) =
+    override fun isEmptyImpl(txn: StoreTransaction) =
         SingleKeyCursorIsEmptyChecker(openCursor(txn), firstKey).isEmpty
 
-    private fun openCursor(txn: PersistentStoreTransaction): Cursor {
-        return store.getLinksSecondIndexCursor(txn, typeId)
+    private fun openCursor(txn: StoreTransaction): Cursor {
+        return storeImpl.getLinksSecondIndexCursor(txn.asPersistent(), typeId)
     }
 
     private val firstKey: ByteIterable get() = getKey(entityId)

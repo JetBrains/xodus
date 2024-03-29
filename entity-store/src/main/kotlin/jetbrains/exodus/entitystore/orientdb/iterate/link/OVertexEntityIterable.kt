@@ -24,7 +24,10 @@ import org.apache.commons.collections4.IterableUtils
 import org.apache.commons.collections4.IteratorUtils
 import org.apache.commons.collections4.functors.EqualPredicate
 
-class OVertexEntityIterable(private val vertices: Iterable<OVertex>, private val store: PersistentEntityStore) : EntityIterable {
+class OVertexEntityIterable(
+    private val vertices: Iterable<OVertex>,
+    private val store: PersistentEntityStore
+) : EntityIterable {
 
     override fun iterator() = object : EntityIterator {
 

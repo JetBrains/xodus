@@ -17,12 +17,12 @@ package jetbrains.exodus.entitystore.iterate.binop
 
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterableType
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIteratorFixingDecorator
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
 
-class UnionIterable(txn: PersistentStoreTransaction?,
+class UnionIterable(txn: StoreTransaction?,
                     iterable1: EntityIterableBase,
                     iterable2: EntityIterableBase) : BinaryOperatorEntityIterable(txn, iterable1, iterable2, true) {
 
@@ -33,7 +33,7 @@ class UnionIterable(txn: PersistentStoreTransaction?,
 
     override fun getIterableType() = EntityIterableType.UNION
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction) = EntityIteratorFixingDecorator(this, SortedIterator(this, iterable1, iterable2))
+    override fun getIteratorImpl(txn: StoreTransaction) = EntityIteratorFixingDecorator(this, SortedIterator(this, iterable1, iterable2))
 
     private class SortedIterator(iterable: EntityIterableBase,
                                  iterable1: EntityIterableBase,

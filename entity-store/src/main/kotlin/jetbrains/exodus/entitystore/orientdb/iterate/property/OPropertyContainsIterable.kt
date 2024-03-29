@@ -22,7 +22,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OContainsCondition
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
 class OPropertyContainsIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     private val entityType: String,
     private val propertyName: String,
     private val value: String,
