@@ -450,6 +450,30 @@ class OQueryEngineTest {
         }
     }
 
+
+    @Test
+    fun `should query with minus`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.query(
+                Issues.CLASS,
+                Minus(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
+            )
+
+            // Then
+            assertNamesExactly(issues, "issue2", "issue3")
+        }
+    }
+
+
     private fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
         assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
     }

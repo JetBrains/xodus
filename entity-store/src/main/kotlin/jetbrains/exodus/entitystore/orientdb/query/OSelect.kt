@@ -17,8 +17,8 @@ class OAllSelect(
 ) : OClassSelect {
 
     override fun sql() = "SELECT FROM $className" +
-            condition.whereOrEmpty() +
-            order.orderByOrEmpty()
+            condition.where() +
+            order.orderBy()
 
     override fun params() = condition?.params() ?: emptyList()
 
@@ -37,8 +37,8 @@ class OLinkInFromSubQuerySelect(
 ) : OClassSelect {
 
     override fun sql() = "SELECT expand(in('$linkName')) FROM (${subQuery.sql()})" +
-            condition.whereOrEmpty() +
-            order.orderByOrEmpty()
+            condition.where() +
+            order.orderBy()
 
     override fun params() = subQuery.params() + condition?.params().orEmpty()
 
@@ -56,8 +56,8 @@ class OLinkInFromIdsSelect(
 ) : OClassSelect {
 
     override fun sql() = "SELECT expand(in('$linkName')) FROM $targetIdsSql" +
-            condition.whereOrEmpty() +
-            order.orderByOrEmpty()
+            condition.where() +
+            order.orderBy()
 
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 
@@ -77,7 +77,7 @@ class OIntersectSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
     // intersect returns projection thus need to expand it into collection
-    override fun sql() = "SELECT expand(intersect((${left.sql()}), (${right.sql()})))${order.orderByOrEmpty()}"
+    override fun sql() = "SELECT expand(intersect((${left.sql()}), (${right.sql()})))" + order.orderBy()
     override fun params() = left.params() + right.params()
 
     override fun withOrder(field: String, ascending: Boolean): OClassSelect {
@@ -96,7 +96,7 @@ class OUnionSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
     // intersect returns projection thus need to expand it into collection
-    override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()})))${order.orderByOrEmpty()}"
+    override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()})))" + order.orderBy()
     override fun params() = left.params() + right.params()
 
     override fun withOrder(field: String, ascending: Boolean): OClassSelect {
@@ -127,7 +127,7 @@ class ODistinctSelect(
     override val condition: OCondition? = null
 ) : OClassSelect {
 
-    override fun sql() = "SELECT DISTINCT FROM (${source.sql()})"
+    override fun sql() = "SELECT DISTINCT FROM (${source.sql()})" + order.orderBy()
     override fun params() = source.params()
 
     override fun withOrder(field: String, ascending: Boolean): OClassSelect {
@@ -135,5 +135,21 @@ class ODistinctSelect(
     }
 }
 
-fun OCondition?.whereOrEmpty() = this?.let { " WHERE ${it.sql()}" } ?: ""
-fun OOrder?.orderByOrEmpty() = this?.let { " ORDER BY ${it.sql()}" } ?: ""
+class ODifferenceSelect(
+    val left: OClassSelect,
+    val right: OClassSelect,
+    override val className: String = left.className,
+    override val order: OOrder? = null,
+    override val condition: OCondition? = null
+) : OClassSelect {
+
+    override fun sql() = "SELECT expand(difference((${left.sql()}), (${right.sql()})))" + order.orderBy()
+    override fun params() = left.params() + right.params()
+
+    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
+        return ODifferenceSelect(left, right, className, OOrderByField(field, ascending), condition)
+    }
+}
+
+fun OCondition?.where() = this?.let { " WHERE ${it.sql()}" } ?: ""
+fun OOrder?.orderBy() = this?.let { " ORDER BY ${it.sql()}" } ?: ""

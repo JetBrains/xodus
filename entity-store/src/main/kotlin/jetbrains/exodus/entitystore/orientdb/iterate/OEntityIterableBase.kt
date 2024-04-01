@@ -9,8 +9,9 @@ import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterator.Companion.create
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.binop.OMinusEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
 import jetbrains.exodus.entitystore.util.unsupported
 
 abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
@@ -26,7 +27,7 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
 
     override fun union(right: EntityIterable): EntityIterable {
         if (right is OEntityIterableBase) {
-            return OUnionIterable(transaction, this, right)
+            return OUnionEntityIterable(transaction, this, right)
         } else {
             unsupported { "Union with non-OrientDB entity iterable" }
         }
@@ -38,7 +39,7 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
 
     override fun intersect(right: EntityIterable): EntityIterable {
         if (right is OEntityIterableBase) {
-            return OIntersectionIterable(transaction, this, right)
+            return OIntersectionEntityIterable(transaction, this, right)
         } else {
             unsupported { "Intersecting with non-OrientDB entity iterable" }
         }
@@ -54,6 +55,14 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
 
     override fun distinct(): EntityIterable {
         return ODistinctEntityIterable(transaction, this)
+    }
+
+    override fun minus(right: EntityIterable): EntityIterable {
+        if (right is OEntityIterableBase) {
+            return OMinusEntityIterable(transaction, this, right)
+        } else {
+            unsupported { "Minus with non-OrientDB entity iterable" }
+        }
     }
 
     override fun asSortResult(): EntityIterable {

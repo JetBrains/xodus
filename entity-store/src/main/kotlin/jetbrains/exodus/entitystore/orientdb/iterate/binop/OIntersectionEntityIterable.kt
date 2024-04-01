@@ -22,16 +22,16 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OQueries
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 
-class OIntersectionIterable(
+class OIntersectionEntityIterable(
     txn: PersistentStoreTransaction?,
-    private val iterable1: EntityIterableBase,
-    private val iterable2: EntityIterableBase
+    private val left: EntityIterableBase,
+    private val right: EntityIterableBase
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OQuery {
-        if (iterable1 !is OEntityIterable || iterable2 !is OEntityIterable) {
+        if (left !is OEntityIterable || right !is OEntityIterable) {
             throw UnsupportedOperationException("UnionIterable is only supported for OEntityIterable")
         }
-        return OQueries.intersect(iterable1.query(), iterable2.query())
+        return OQueries.intersect(left.query(), right.query())
     }
 }
