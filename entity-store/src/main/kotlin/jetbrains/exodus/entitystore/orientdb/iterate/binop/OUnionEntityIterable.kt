@@ -19,8 +19,8 @@ import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.query.OQueries
-import jetbrains.exodus.entitystore.orientdb.query.OQuery
+import jetbrains.exodus.entitystore.orientdb.query.OQueryFunctions
+import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OUnionEntityIterable(
     txn: PersistentStoreTransaction?,
@@ -28,10 +28,10 @@ class OUnionEntityIterable(
     private val right: EntityIterableBase
 ) : OEntityIterableBase(txn) {
 
-    override fun query(): OQuery {
+    override fun query(): OSelect {
         if (left !is OEntityIterable || right !is OEntityIterable) {
             throw UnsupportedOperationException("UnionIterable is only supported for OEntityIterable")
         }
-        return OQueries.union(left.query(), right.query())
+        return OQueryFunctions.union(left.query(), right.query())
     }
 }

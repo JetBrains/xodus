@@ -7,8 +7,8 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.query.OQueries
-import jetbrains.exodus.entitystore.orientdb.query.OQuery
+import jetbrains.exodus.entitystore.orientdb.query.OQueryFunctions
+import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OConcatEntityIterable(
     txn: PersistentStoreTransaction?,
@@ -16,11 +16,11 @@ class OConcatEntityIterable(
     private val iterable2: EntityIterableBase
 ) : OEntityIterableBase(txn) {
 
-    override fun query(): OQuery {
+    override fun query(): OSelect {
         if (iterable1 !is OEntityIterable || iterable2 !is OEntityIterable) {
             throw UnsupportedOperationException("ConcatIterable is only supported for OEntityIterable")
         }
-        return OQueries.union(iterable1.query(), iterable2.query())
+        return OQueryFunctions.union(iterable1.query(), iterable2.query())
     }
 
     override fun size(): Long {

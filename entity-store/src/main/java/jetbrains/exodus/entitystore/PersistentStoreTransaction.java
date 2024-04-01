@@ -411,7 +411,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
     public EntityIterable findLinks(@NotNull final String entityType,
                                     @NotNull final Entity entity,
                                     @NotNull final String linkName) {
-        return new OLinkToEntityIterable(this, entityType, linkName, ((OEntity) entity).getId());
+        return new OLinkToEntityIterable(this, linkName, ((OEntity) entity).getId());
     }
 
     @Override
@@ -492,7 +492,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
                                     final boolean isMultiple,
                                     @NotNull final String linkName,
                                     @NotNull final EntityIterable rightOrder) {
-        final EntityIterable result = new OLinkSortEntityIterable(this, entityType, (OEntityIterableBase) sortedLinks, linkName, (OEntityIterableBase) rightOrder);
+        final EntityIterable result = new OLinkSortEntityIterable(this,(OEntityIterableBase) sortedLinks, linkName, (OEntityIterableBase) rightOrder);
         return isMultiple ? result.distinct() : result;
     }
 
@@ -505,7 +505,7 @@ public class PersistentStoreTransaction implements OStoreTransaction, StoreTrans
                                     @NotNull final EntityIterable rightOrder,
                                     @NotNull final String oppositeEntityType,
                                     @NotNull final String oppositeLinkName) {
-        final EntityIterable result = new OLinkSortEntityIterable(this, entityType, (OEntityIterableBase) sortedLinks, linkName, (OEntityIterableBase) rightOrder);
+        final EntityIterable result = new OLinkSortEntityIterable(this, (OEntityIterableBase) sortedLinks, linkName, (OEntityIterableBase) rightOrder);
         return isMultiple ? result.distinct() : result;
     }
 

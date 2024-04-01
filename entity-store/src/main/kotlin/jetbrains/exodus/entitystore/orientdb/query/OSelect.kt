@@ -2,19 +2,18 @@ package jetbrains.exodus.entitystore.orientdb.query
 
 import com.orientechnologies.orient.core.id.ORID
 
-sealed interface OClassSelect : OQuery {
-    val className: String
+sealed interface OSelect : OQuery {
     val condition: OCondition?
     val order: OOrder?
 
-    fun withOrder(field: String, ascending: Boolean): OClassSelect
+    fun withOrder(field: String, ascending: Boolean): OSelect
 }
 
-class OAllSelect(
-    override val className: String,
+class OClassSelect(
+    val className: String,
     override val condition: OCondition? = null,
     override val order: OOrder? = null
-) : OClassSelect {
+) : OSelect {
 
     override fun sql() = "SELECT FROM $className" +
             condition.where() +
@@ -22,19 +21,18 @@ class OAllSelect(
 
     override fun params() = condition?.params() ?: emptyList()
 
-    override fun withOrder(field: String, ascending: Boolean): OAllSelect {
-        return OAllSelect(className, condition, OOrderByField(field, ascending))
+    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
+        return OClassSelect(className, condition, OOrderByField(field, ascending))
     }
 }
 
 
 class OLinkInFromSubQuerySelect(
-    override val className: String,
     val linkName: String,
     val subQuery: OQuery,
     override val condition: OCondition? = null,
     override val order: OOrder? = null
-) : OClassSelect {
+) : OSelect {
 
     override fun sql() = "SELECT expand(in('$linkName')) FROM (${subQuery.sql()})" +
             condition.where() +
@@ -42,18 +40,17 @@ class OLinkInFromSubQuerySelect(
 
     override fun params() = subQuery.params() + condition?.params().orEmpty()
 
-    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
-        return OLinkInFromSubQuerySelect(className, linkName, subQuery, condition, OOrderByField(field, ascending))
+    override fun withOrder(field: String, ascending: Boolean): OSelect {
+        return OLinkInFromSubQuerySelect(linkName, subQuery, condition, OOrderByField(field, ascending))
     }
 }
 
 class OLinkInFromIdsSelect(
-    override val className: String,
     val linkName: String,
     val targetIds: List<ORID>,
     override val condition: OCondition? = null,
     override val order: OOrder? = null
-) : OClassSelect {
+) : OSelect {
 
     override fun sql() = "SELECT expand(in('$linkName')) FROM $targetIdsSql" +
             condition.where() +
@@ -61,17 +58,16 @@ class OLinkInFromIdsSelect(
 
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 
-    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
-        return OLinkInFromIdsSelect(className, linkName, targetIds, condition, OOrderByField(field, ascending))
+    override fun withOrder(field: String, ascending: Boolean): OSelect {
+        return OLinkInFromIdsSelect(linkName, targetIds, condition, OOrderByField(field, ascending))
     }
 }
 
 class OIntersectSelect(
-    override val className: String,
-    val left: OClassSelect,
-    val right: OClassSelect,
+    val left: OSelect,
+    val right: OSelect,
     override val order: OOrder? = null
-) : OClassSelect {
+) : OSelect {
 
     override val condition: OCondition? = null
 
@@ -80,17 +76,16 @@ class OIntersectSelect(
     override fun sql() = "SELECT expand(intersect((${left.sql()}), (${right.sql()})))" + order.orderBy()
     override fun params() = left.params() + right.params()
 
-    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
-        return OIntersectSelect(className, left, right, OOrderByField(field, ascending))
+    override fun withOrder(field: String, ascending: Boolean): OSelect {
+        return OIntersectSelect(left, right, OOrderByField(field, ascending))
     }
 }
 
 class OUnionSelect(
-    override val className: String,
-    val left: OClassSelect,
-    val right: OClassSelect,
+    val left: OSelect,
+    val right: OSelect,
     override val order: OOrder? = null
-) : OClassSelect {
+) : OSelect {
 
     override val condition: OCondition? = null
 
@@ -99,15 +94,14 @@ class OUnionSelect(
     override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()})))" + order.orderBy()
     override fun params() = left.params() + right.params()
 
-    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
-        return OUnionSelect(className, left, right, OOrderByField(field, ascending))
+    override fun withOrder(field: String, ascending: Boolean): OSelect {
+        return OUnionSelect(left, right, OOrderByField(field, ascending))
     }
 }
 
 class OCountSelect(
-    val source: OClassSelect,
-    override val className: String = source.className
-) : OClassSelect {
+    val source: OSelect,
+) : OSelect {
 
     override val order: OOrder? = null
     override val condition: OCondition? = null
@@ -121,33 +115,31 @@ class OCountSelect(
 }
 
 class ODistinctSelect(
-    val source: OClassSelect,
-    override val className: String = source.className,
+    val source: OSelect,
     override val order: OOrder? = null,
     override val condition: OCondition? = null
-) : OClassSelect {
+) : OSelect {
 
     override fun sql() = "SELECT DISTINCT FROM (${source.sql()})" + order.orderBy()
     override fun params() = source.params()
 
-    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
-        return ODistinctSelect(source, className, OOrderByField(field, ascending), condition)
+    override fun withOrder(field: String, ascending: Boolean): OSelect {
+        return ODistinctSelect(source, OOrderByField(field, ascending), condition)
     }
 }
 
 class ODifferenceSelect(
-    val left: OClassSelect,
-    val right: OClassSelect,
-    override val className: String = left.className,
+    val left: OSelect,
+    val right: OSelect,
     override val order: OOrder? = null,
     override val condition: OCondition? = null
-) : OClassSelect {
+) : OSelect {
 
     override fun sql() = "SELECT expand(difference((${left.sql()}), (${right.sql()})))" + order.orderBy()
     override fun params() = left.params() + right.params()
 
-    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
-        return ODifferenceSelect(left, right, className, OOrderByField(field, ascending), condition)
+    override fun withOrder(field: String, ascending: Boolean): OSelect {
+        return ODifferenceSelect(left, right, OOrderByField(field, ascending), condition)
     }
 }
 

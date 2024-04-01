@@ -17,8 +17,8 @@ package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.query.OQuery
+import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
+import jetbrains.exodus.entitystore.orientdb.query.OSelect
 import jetbrains.exodus.entitystore.orientdb.query.OStartsWithCondition
 
 class OPropertyStartsWithIterable(
@@ -28,8 +28,8 @@ class OPropertyStartsWithIterable(
     private val value: String,
 ) : OEntityIterableBase(txn) {
 
-    override fun query(): OQuery {
+    override fun query(): OSelect {
         val condition = OStartsWithCondition(propertyName, value)
-        return OAllSelect(entityType, condition)
+        return OClassSelect(entityType, condition)
     }
 }
