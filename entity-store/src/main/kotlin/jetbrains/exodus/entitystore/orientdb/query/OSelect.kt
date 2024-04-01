@@ -2,18 +2,22 @@ package jetbrains.exodus.entitystore.orientdb.query
 
 import com.orientechnologies.orient.core.id.ORID
 
-sealed interface OSelect : OQuery {
+interface OConditional {
     val condition: OCondition?
-    val order: OOrder?
+}
 
+interface OSortable {
+    val order: OOrder?
     fun withOrder(field: String, ascending: Boolean): OSelect
 }
+
+sealed interface OSelect : OQuery, OSortable
 
 class OClassSelect(
     val className: String,
     override val condition: OCondition? = null,
     override val order: OOrder? = null
-) : OSelect {
+) : OSelect, OConditional {
 
     override fun sql() = "SELECT FROM $className" +
             condition.where() +
@@ -26,40 +30,48 @@ class OClassSelect(
     }
 }
 
-
 class OLinkInFromSubQuerySelect(
     val linkName: String,
-    val subQuery: OQuery,
-    override val condition: OCondition? = null,
+    val subQuery: OSelect,
     override val order: OOrder? = null
 ) : OSelect {
 
-    override fun sql() = "SELECT expand(in('$linkName')) FROM (${subQuery.sql()})" +
-            condition.where() +
-            order.orderBy()
+    override fun sql() = "SELECT expand(in('$linkName')) FROM (${subQuery.sql()})" + order.orderBy()
 
-    override fun params() = subQuery.params() + condition?.params().orEmpty()
+    override fun params() = subQuery.params()
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {
-        return OLinkInFromSubQuerySelect(linkName, subQuery, condition, OOrderByField(field, ascending))
+        return OLinkInFromSubQuerySelect(linkName, subQuery, OOrderByField(field, ascending))
     }
 }
 
 class OLinkInFromIdsSelect(
     val linkName: String,
     val targetIds: List<ORID>,
-    override val condition: OCondition? = null,
     override val order: OOrder? = null
 ) : OSelect {
 
-    override fun sql() = "SELECT expand(in('$linkName')) FROM $targetIdsSql" +
-            condition.where() +
-            order.orderBy()
+    override fun sql() = "SELECT expand(in('$linkName')) FROM $targetIdsSql" + order.orderBy()
 
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {
-        return OLinkInFromIdsSelect(linkName, targetIds, condition, OOrderByField(field, ascending))
+        return OLinkInFromIdsSelect(linkName, targetIds, OOrderByField(field, ascending))
+    }
+}
+
+class OLinkOutFromSubQuerySelect(
+    val linkName: String,
+    val subQuery: OSelect,
+    override val order: OOrder? = null
+) : OSelect {
+
+    override fun sql() = "SELECT expand(out('$linkName')) FROM (${subQuery.sql()})" + order.orderBy()
+
+    override fun params() = subQuery.params()
+
+    override fun withOrder(field: String, ascending: Boolean): OSelect {
+        return OLinkInFromSubQuerySelect(linkName, subQuery, OOrderByField(field, ascending))
     }
 }
 
@@ -68,8 +80,6 @@ class OIntersectSelect(
     val right: OSelect,
     override val order: OOrder? = null
 ) : OSelect {
-
-    override val condition: OCondition? = null
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
     // intersect returns projection thus need to expand it into collection
@@ -87,8 +97,6 @@ class OUnionSelect(
     override val order: OOrder? = null
 ) : OSelect {
 
-    override val condition: OCondition? = null
-
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
     // intersect returns projection thus need to expand it into collection
     override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()})))" + order.orderBy()
@@ -104,7 +112,6 @@ class OCountSelect(
 ) : OSelect {
 
     override val order: OOrder? = null
-    override val condition: OCondition? = null
 
     override fun sql() = "SELECT count(*) as count FROM (${source.sql()})"
     override fun params() = source.params()
@@ -115,16 +122,15 @@ class OCountSelect(
 }
 
 class ODistinctSelect(
-    val source: OSelect,
+    val subQuery: OSelect,
     override val order: OOrder? = null,
-    override val condition: OCondition? = null
 ) : OSelect {
 
-    override fun sql() = "SELECT DISTINCT FROM (${source.sql()})" + order.orderBy()
-    override fun params() = source.params()
+    override fun sql() = "SELECT distinct(${subQuery.sql()})" + order.orderBy()
+    override fun params() = subQuery.params()
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {
-        return ODistinctSelect(source, OOrderByField(field, ascending), condition)
+        return ODistinctSelect(subQuery, OOrderByField(field, ascending))
     }
 }
 
@@ -132,14 +138,13 @@ class ODifferenceSelect(
     val left: OSelect,
     val right: OSelect,
     override val order: OOrder? = null,
-    override val condition: OCondition? = null
 ) : OSelect {
 
     override fun sql() = "SELECT expand(difference((${left.sql()}), (${right.sql()})))" + order.orderBy()
     override fun params() = left.params() + right.params()
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {
-        return ODifferenceSelect(left, right, OOrderByField(field, ascending), condition)
+        return ODifferenceSelect(left, right, OOrderByField(field, ascending))
     }
 }
 

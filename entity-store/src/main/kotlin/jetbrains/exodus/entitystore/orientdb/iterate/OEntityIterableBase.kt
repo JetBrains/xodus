@@ -12,6 +12,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OMinusEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
 import jetbrains.exodus.entitystore.util.unsupported
 
 abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
@@ -63,6 +64,19 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
         } else {
             unsupported { "Minus with non-OrientDB entity iterable" }
         }
+    }
+
+
+    override fun selectMany(linkName: String): EntityIterable {
+        return OLinkSelectEntityIterable(transaction, this, linkName)
+    }
+
+    override fun selectManyDistinct(linkName: String): EntityIterable {
+        return selectMany(linkName).distinct()
+    }
+
+    override fun selectDistinct(linkName: String): EntityIterable {
+        return selectManyDistinct(linkName)
     }
 
     override fun asSortResult(): EntityIterable {

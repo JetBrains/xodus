@@ -8,6 +8,7 @@ import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -440,12 +441,12 @@ class OQueryEngineTest {
             val issues = engine.query(
                 Issues.CLASS,
                 Or(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
-            )
+            ).instantiate() as EntityIterableBase
 
             val issuesDistinct = issues.distinct()
 
             // Then
-            assertEquals(4, issues.count())
+            assertEquals(4, issues.toList().count())
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
@@ -470,6 +471,28 @@ class OQueryEngineTest {
 
             // Then
             assertNamesExactly(issues, "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should query links with select many and many distinct`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
+            val boards = issues.selectMany(Issues.Links.ON_BOARD)
+            val boardsDistinct = engine.selectDistinct(issues, Issues.Links.ON_BOARD)
+
+            // Then
+            assertEquals(4, boards.toList().size)
+            assertNamesExactly(boardsDistinct, "board1", "board2")
         }
     }
 
