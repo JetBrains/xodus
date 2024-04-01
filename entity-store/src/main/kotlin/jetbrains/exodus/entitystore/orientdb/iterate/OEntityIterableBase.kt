@@ -52,6 +52,10 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
         }
     }
 
+    override fun distinct(): EntityIterable {
+        return ODistinctEntityIterable(transaction, this)
+    }
+
     override fun asSortResult(): EntityIterable {
         return this
     }

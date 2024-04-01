@@ -105,19 +105,34 @@ class OUnionSelect(
 }
 
 class OCountSelect(
-    val subSelect: OClassSelect,
-    override val className: String = subSelect.className
+    val source: OClassSelect,
+    override val className: String = source.className
 ) : OClassSelect {
 
     override val order: OOrder? = null
     override val condition: OCondition? = null
 
-    override fun sql() = "SELECT count(*) as count FROM (${subSelect.sql()})"
-    override fun params() = subSelect.params()
+    override fun sql() = "SELECT count(*) as count FROM (${source.sql()})"
+    override fun params() = source.params()
 
     override fun withOrder(field: String, ascending: Boolean) = this
 
     fun count(): Long = execute().next().getProperty<Long>("count")
+}
+
+class ODistinctSelect(
+    val source: OClassSelect,
+    override val className: String = source.className,
+    override val order: OOrder? = null,
+    override val condition: OCondition? = null
+) : OClassSelect {
+
+    override fun sql() = "SELECT DISTINCT FROM (${source.sql()})"
+    override fun params() = source.params()
+
+    override fun withOrder(field: String, ascending: Boolean): OClassSelect {
+        return ODistinctSelect(source, className, OOrderByField(field, ascending), condition)
+    }
 }
 
 fun OCondition?.whereOrEmpty() = this?.let { " WHERE ${it.sql()}" } ?: ""
