@@ -19,6 +19,8 @@ import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 public class EntitiesWithPropertyIterable extends EntityIterableBase {
 
     private final int entityTypeId;
@@ -49,7 +51,7 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
     @Override
     public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new FieldIndexIterator(this, entityTypeId, propertyId,
-            getStoreImpl().getEntityWithPropIterable((PersistentStoreTransaction) txn, entityTypeId, propertyId));
+            getStoreImpl().getEntityWithPropIterable(asPersistent(txn), entityTypeId, propertyId));
     }
 
     @NotNull

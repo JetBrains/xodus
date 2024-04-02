@@ -28,6 +28,8 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Arrays;
 import java.util.List;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
 
     private final IntHashMap<String> linkNames;
@@ -150,7 +152,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     }
 
     private Cursor openCursor(@NotNull final StoreTransaction txn) {
-        return getStoreImpl().getLinksFirstIndexCursor((PersistentStoreTransaction) txn, entityId.getTypeId());
+        return getStoreImpl().getLinksFirstIndexCursor(asPersistent(txn), entityId.getTypeId());
     }
 
     private ByteIterable getFirstKey() {

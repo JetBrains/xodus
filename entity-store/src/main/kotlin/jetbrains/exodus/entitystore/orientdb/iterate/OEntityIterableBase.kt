@@ -66,7 +66,6 @@ abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(t
         }
     }
 
-
     override fun selectMany(linkName: String): EntityIterable {
         return OLinkSelectEntityIterable(transaction, this, linkName)
     }

@@ -28,6 +28,8 @@ import jetbrains.exodus.env.Store;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class PropertiesIterable extends EntityIterableBase {
 
@@ -96,7 +98,7 @@ public class PropertiesIterable extends EntityIterableBase {
 
     @Override
     protected long countImpl(@NotNull final StoreTransaction txn) {
-        final Store valueIndex = getStoreImpl().getPropertiesTable((PersistentStoreTransaction) txn, entityTypeId).getValueIndex((PersistentStoreTransaction) txn, propertyId, false);
+        final Store valueIndex = getStoreImpl().getPropertiesTable(asPersistent(txn), entityTypeId).getValueIndex(asPersistent(txn), propertyId, false);
         return valueIndex == null ? 0 : valueIndex.count(txn.getEnvironmentTransaction());
     }
 
@@ -106,11 +108,11 @@ public class PropertiesIterable extends EntityIterableBase {
     }
 
     private Cursor openCursor(@NotNull final StoreTransaction txn) {
-        return getStoreImpl().getPropertyValuesIndexCursor((PersistentStoreTransaction) txn, entityTypeId, propertyId);
+        return getStoreImpl().getPropertyValuesIndexCursor(asPersistent(txn), entityTypeId, propertyId);
     }
 
     private PropertiesIterator getIterator(@NotNull final StoreTransaction txn, final boolean ascending) {
-        try (Cursor primaryIndex = getStoreImpl().getPrimaryPropertyIndexCursor((PersistentStoreTransaction) txn, entityTypeId)) {
+        try (Cursor primaryIndex = getStoreImpl().getPrimaryPropertyIndexCursor(asPersistent(txn), entityTypeId)) {
             final Cursor valueIdx = openCursor((StoreTransaction) txn);
             if (valueIdx == null) {
                 return null;

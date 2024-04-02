@@ -29,6 +29,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 @SuppressWarnings({"InstanceofThis", "HardcodedLineSeparator"})
 public abstract class EntityIterableBase implements EntityIterable {
 
@@ -109,7 +111,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         } else {
             store = (PersistentEntityStore) txn.getStore();
             if (!txn.isCurrent()) {
-                txnGetter = (PersistentStoreTransaction) txn;
+                txnGetter = asPersistent(txn);
             }
         }
     }
@@ -127,7 +129,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             throw new RuntimeException("EntityIterableBase: entity store is not set.");
         }
-        return (PersistentEntityStoreImpl) store;
+        return asPersistent(store);
     }
 
     public int getEntityTypeId() {
@@ -163,7 +165,7 @@ public abstract class EntityIterableBase implements EntityIterable {
     }
 
     public PersistentStoreTransaction getPersistentTransaction() {
-        return (PersistentStoreTransaction) getTransaction();
+        return asPersistent(getTransaction());
     }
 
     @Override
@@ -531,7 +533,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         if (store == null) {
             throw new NullPointerException("Can't create cached instance for EMPTY iterable");
         }
-        PersistentStoreTransaction persistentTxn = (PersistentStoreTransaction) txn;
+        PersistentStoreTransaction persistentTxn = asPersistent(txn);
         final EntityIterableCache cache = getStoreImpl().getEntityIterableCache();
         final boolean canBeCached = !cache.getCachingDisabled() && canBeCached();
         CachedInstanceIterable cached = null;

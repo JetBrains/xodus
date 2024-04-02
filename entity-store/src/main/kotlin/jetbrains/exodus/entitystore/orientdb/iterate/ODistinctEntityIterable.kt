@@ -1,11 +1,11 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.query.OQueryFunctions
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class ODistinctEntityIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction?,
     private val source: OEntityIterableBase,
 ) : OEntityIterableBase(txn) {
 

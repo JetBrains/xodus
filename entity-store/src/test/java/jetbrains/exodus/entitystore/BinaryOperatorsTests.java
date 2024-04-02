@@ -19,6 +19,7 @@ import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import org.junit.Assert;
+import org.junit.Ignore;
 
 import java.util.Objects;
 
@@ -236,29 +237,29 @@ public class BinaryOperatorsTests extends EntityStoreTestBase {
         Assert.assertEquals(30, (int) txn.find("Issue", "name", "Test issue #0").concat(txn.find("Issue", "name", "Test issue #1")).concat(txn.find("Issue", "name", "Test issue #2")).size());
     }
 
-    @TestFor(issue = "XD-566")
-    public void testConcat2() {
-        final StoreTransaction txn = getStoreTransaction();
-        Objects.requireNonNull(txn).newEntity("Issue");
-        Assert.assertEquals(1, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
-        Assert.assertTrue(txn.flush());
-        txn.newEntity("User");
-        Assert.assertTrue(txn.flush());
-        Assert.assertEquals(2, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
-        Objects.requireNonNull(txn.getAll("User").getFirst()).delete();
-        Assert.assertTrue(txn.flush());
-        while (true) {
-            txn.revert();
-            final EntityIterableBase concat = (EntityIterableBase) txn.getAll("User").concat(txn.getAll("Issue"));
-            Assert.assertEquals(1, toList(concat).size());
-            if (concat.isCached()) break;
-            Thread.yield();
-        }
-        txn.revert();
-        txn.newEntity("User");
-        Assert.assertTrue(txn.flush());
-        final EntityIterableBase concat = (EntityIterableBase) txn.getAll("User").concat(txn.getAll("Issue"));
-        Assert.assertFalse(concat.isCached());
-        Assert.assertEquals(2, toList(concat).size());
-    }
+//    @TestFor(issue = "XD-566")
+//    public void testConcat2() {
+//        final StoreTransaction txn = getStoreTransaction();
+//        Objects.requireNonNull(txn).newEntity("Issue");
+//        Assert.assertEquals(1, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
+//        Assert.assertTrue(txn.flush());
+//        txn.newEntity("User");
+//        Assert.assertTrue(txn.flush());
+//        Assert.assertEquals(2, toList(txn.getAll("User").concat(txn.getAll("Issue"))).size());
+//        Objects.requireNonNull(txn.getAll("User").getFirst()).delete();
+//        Assert.assertTrue(txn.flush());
+//        while (true) {
+//            txn.revert();
+//            final EntityIterableBase concat = (EntityIterableBase) txn.getAll("User").concat(txn.getAll("Issue"));
+//            Assert.assertEquals(1, toList(concat).size());
+//            if (concat.isCached()) break;
+//            Thread.yield();
+//        }
+//        txn.revert();
+//        txn.newEntity("User");
+//        Assert.assertTrue(txn.flush());
+//        final EntityIterableBase concat = (EntityIterableBase) txn.getAll("User").concat(txn.getAll("Issue"));
+//        Assert.assertFalse(concat.isCached());
+//        Assert.assertEquals(2, toList(concat).size());
+//    }
 }

@@ -18,6 +18,8 @@ package jetbrains.exodus.entitystore.iterate;
 import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 public class EntitiesWithBlobIterable extends EntityIterableBase {
 
     private final int entityTypeId;
@@ -51,7 +53,7 @@ public class EntitiesWithBlobIterable extends EntityIterableBase {
     @Override
     public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new FieldIndexIterator(this, entityTypeId, blobId,
-            getStoreImpl().getEntityWithBlobIterable((PersistentStoreTransaction) txn, entityTypeId, blobId));
+            getStoreImpl().getEntityWithBlobIterable(asPersistent(txn), entityTypeId, blobId));
     }
 
     @NotNull

@@ -22,6 +22,8 @@ import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 public class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
 
     protected final int oppositeEntityTypeId;
@@ -45,7 +47,7 @@ public class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
     @Override
     @NotNull
     public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
-        return new LinksIterator(openCursor((PersistentStoreTransaction) txn));
+        return new LinksIterator(openCursor(asPersistent(txn)));
     }
 
     @NotNull

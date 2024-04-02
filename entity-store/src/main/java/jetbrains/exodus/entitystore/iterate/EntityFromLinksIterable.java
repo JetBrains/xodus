@@ -23,6 +23,8 @@ import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 /**
  * Iterates all entities which specified entity is linked with specified link id.
  */
@@ -135,7 +137,7 @@ public class EntityFromLinksIterable extends EntityLinksIterableBase {
     }
 
     private Cursor openCursor(@NotNull final StoreTransaction txn) {
-        return ((PersistentEntityStoreImpl) getStore()).getLinksFirstIndexCursor((PersistentStoreTransaction) txn, entityId.getTypeId());
+        return getStoreImpl().getLinksFirstIndexCursor(asPersistent(txn), entityId.getTypeId());
     }
 
     private ByteIterable getFirstKey() {
