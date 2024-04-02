@@ -475,7 +475,7 @@ class OQueryEngineTest {
     }
 
     @Test
-    fun `should query links with select many and many distinct`() {
+    fun `should query links with select many`() {
         // Given
         val test = givenTestCase()
         orientDB.addIssueToBoard(test.issue1, test.board1)
@@ -488,14 +488,31 @@ class OQueryEngineTest {
         orientDB.withSession {
             val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
-            val boardsDistinct = engine.selectDistinct(issues, Issues.Links.ON_BOARD)
 
             // Then
-            assertEquals(4, boards.toList().size)
-            assertNamesExactly(boardsDistinct, "board1", "board2")
+            assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
         }
     }
 
+    @Test
+    fun `should query links with select many distinct`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
+            val boardsDistinct = engine.selectDistinct(issues, Issues.Links.ON_BOARD)
+
+            // Then
+            assertNamesExactly(boardsDistinct, "board1", "board2")
+        }
+    }
 
     private fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
         assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
