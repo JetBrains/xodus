@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.EntityIterableHandle;
-import jetbrains.exodus.entitystore.EntityIterableType;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 
 public class EntitiesWithLinkIterable extends EntityIterableBase {
@@ -31,7 +28,7 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
             Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1])));
     }
 
-    public EntitiesWithLinkIterable(@NotNull final PersistentStoreTransaction txn,
+    public EntitiesWithLinkIterable(@NotNull final StoreTransaction txn,
                                     final int entityTypeId,
                                     final int linkId) {
         super(txn);
@@ -54,9 +51,9 @@ public class EntitiesWithLinkIterable extends EntityIterableBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new FieldIndexIterator(this, entityTypeId, linkId,
-            getStore().getEntityWithLinkIterable(txn, entityTypeId, linkId));
+            getStoreImpl().getEntityWithLinkIterable((PersistentStoreTransaction) txn, entityTypeId, linkId));
     }
 
     @Override

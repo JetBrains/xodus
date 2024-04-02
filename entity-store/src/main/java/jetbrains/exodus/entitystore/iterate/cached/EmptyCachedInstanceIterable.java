@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.iterate.cached;
 
 import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.iterate.CachedInstanceIterable;
 import jetbrains.exodus.entitystore.iterate.EntityIdSet;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
@@ -27,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class EmptyCachedInstanceIterable extends CachedInstanceIterable {
 
-    public EmptyCachedInstanceIterable(@Nullable PersistentStoreTransaction txn, @NotNull EntityIterableBase source) {
+    public EmptyCachedInstanceIterable(@Nullable StoreTransaction txn, @NotNull EntityIterableBase source) {
         super(txn, source);
     }
 
@@ -42,7 +42,7 @@ public class EmptyCachedInstanceIterable extends CachedInstanceIterable {
     }
 
     @Override
-    protected long countImpl(@NotNull PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull StoreTransaction txn) {
         return 0;
     }
 
@@ -63,19 +63,19 @@ public class EmptyCachedInstanceIterable extends CachedInstanceIterable {
 
     @NotNull
     @Override
-    public EntityIteratorBase getIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull StoreTransaction txn) {
         return EntityIteratorBase.EMPTY;
     }
 
     @NotNull
     @Override
-    public EntityIteratorBase getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public EntityIteratorBase getReverseIteratorImpl(@NotNull StoreTransaction txn) {
         return EntityIteratorBase.EMPTY;
     }
 
     @NotNull
     @Override
-    public EntityIdSet toSet(@NotNull PersistentStoreTransaction txn) {
+    public EntityIdSet toSet(@NotNull StoreTransaction txn) {
         return EntityIdSetFactory.newSet();
     }
 }

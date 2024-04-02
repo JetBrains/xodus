@@ -23,7 +23,7 @@ import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.util.LightOutputStream
 
-class FilterLinksIterable(txn: PersistentStoreTransaction,
+class FilterLinksIterable(txn: StoreTransaction,
                           private val linkId: Int,
                           source: EntityIterableBase,
                           filter: EntityIterable) : EntityIterableDecoratorBase(txn, source) {
@@ -48,9 +48,9 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
         return super.union(right)
     }
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction) = getIterator(txn, reverse = false)
+    override fun getIteratorImpl(txn: StoreTransaction) = getIterator(txn, reverse = false)
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction) = getIterator(txn, reverse = true)
+    override fun getReverseIteratorImpl(txn: StoreTransaction) = getIterator(txn, reverse = true)
 
     override fun getHandleImpl(): EntityIterableHandle {
         return object : EntityIterableHandleDecorator(store, EntityIterableType.FILTER_LINKS, source.handle) {
@@ -93,7 +93,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
         return source.isSortedById
     }
 
-    private fun getIterator(txn: PersistentStoreTransaction, reverse: Boolean): EntityIterator {
+    private fun getIterator(txn: StoreTransaction, reverse: Boolean): EntityIterator {
         return EntityIteratorFixingDecorator(this, object : EntityIteratorBase(this) {
 
             private val sourceIt =
@@ -115,7 +115,7 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
                         val typeId = id.typeId
                         var cursor = usedCursors.get(typeId)
                         if (cursor == null) {
-                            cursor = store.getLinksFirstIndexCursor(txn, typeId)
+                            cursor = storeImpl.getLinksFirstIndexCursor(txn.asPersistent(), typeId)
                             usedCursors[typeId] = cursor
                         }
                         val value = cursor.getSearchKey(
@@ -168,12 +168,12 @@ class FilterLinksIterable(txn: PersistentStoreTransaction,
 }
 
 
-class EntityIdSetIterable(txn: PersistentStoreTransaction) : EntityIterableBase(txn) {
+class EntityIdSetIterable(txn: StoreTransaction) : EntityIterableBase(txn) {
 
     val h = EntityIterableHandleBase.EntityIterableHandleHash(store)
     var ids: EntityIdSet = EntityIdSetFactory.newSet()
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIterator {
         return object : EntityIteratorBase(this) {
 
             val it = ids.iterator()
@@ -202,7 +202,7 @@ class EntityIdSetIterable(txn: PersistentStoreTransaction) : EntityIterableBase(
 
     override fun isSortedById() = false
 
-    override fun toSet(txn: PersistentStoreTransaction) = ids
+    override fun toSet(txn: StoreTransaction) = ids
 
     fun addTarget(id: EntityId) {
         ids = ids.add(id)

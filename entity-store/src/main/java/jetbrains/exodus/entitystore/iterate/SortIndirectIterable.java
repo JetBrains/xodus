@@ -110,7 +110,7 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         int count = 0;
         final EntityIterator sorted = source.iterator();
         while (sorted.hasNext()) {
@@ -129,7 +129,7 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new EntityIteratorFixingDecorator(this, new SortIndirectIterator(txn));
     }
 
@@ -240,9 +240,9 @@ public class SortIndirectIterable extends EntityIterableDecoratorBase {
         private EntityIterator foundLinksIterator;
         private EntityId nextId;
         private boolean nullIterated;
-        private final PersistentStoreTransaction txn;
+        private final StoreTransaction txn;
 
-        SortIndirectIterator(final PersistentStoreTransaction txn) {
+        SortIndirectIterator(final StoreTransaction txn) {
             super(SortIndirectIterable.this);
             linksIterator = null;
             foundLinksIterator = null;

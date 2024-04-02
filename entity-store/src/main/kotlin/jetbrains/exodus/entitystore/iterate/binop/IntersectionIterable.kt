@@ -20,7 +20,7 @@ import jetbrains.exodus.entitystore.iterate.*
 import jetbrains.exodus.kotlin.notNull
 
 class IntersectionIterable @JvmOverloads constructor(
-    txn: PersistentStoreTransaction?,
+    txn: StoreTransaction?,
     iterable1: EntityIterableBase,
     iterable2: EntityIterableBase,
     preserveRightOrder: Boolean = false
@@ -40,7 +40,7 @@ class IntersectionIterable @JvmOverloads constructor(
 
     override fun getIterableType() = EntityIterableType.INTERSECT
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIteratorBase {
         val iterator = if (isSortedById) {
             if (iterable1.isSortedById) {
                 if (iterable2.isSortedById)
@@ -62,7 +62,7 @@ class IntersectionIterable @JvmOverloads constructor(
         return EntityIteratorFixingDecorator(this, iterator)
     }
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getReverseIteratorImpl(txn: StoreTransaction): EntityIterator {
         return if (iterable1.isSortedById && iterable2.isSortedById) {
             EntityIteratorFixingDecorator(this, SortedReverseIterator(txn, this, iterable1, iterable2))
         } else {
@@ -70,11 +70,11 @@ class IntersectionIterable @JvmOverloads constructor(
         }
     }
 
-    override fun countImpl(txn: PersistentStoreTransaction) = if (isEmptyFast(txn)) 0 else super.countImpl(txn)
+    override fun countImpl(txn: StoreTransaction) = if (isEmptyFast(txn)) 0 else super.countImpl(txn)
 
-    override fun isEmptyImpl(txn: PersistentStoreTransaction) = isEmptyFast(txn) || super.isEmptyImpl(txn)
+    override fun isEmptyImpl(txn: StoreTransaction) = isEmptyFast(txn) || super.isEmptyImpl(txn)
 
-    override fun isEmptyFast(txn: PersistentStoreTransaction): Boolean {
+    override fun isEmptyFast(txn: StoreTransaction): Boolean {
         return super.isEmptyFast(txn) ||
             ((iterable1.isCached || iterable1.nonCachedHasFastCountAndIsEmpty()) && iterable1.isEmptyImpl(txn)) ||
             ((iterable2.isCached || iterable2.nonCachedHasFastCountAndIsEmpty()) && iterable2.isEmptyImpl(txn))
@@ -154,7 +154,7 @@ class IntersectionIterable @JvmOverloads constructor(
     }
 
     private class SortedReverseIterator(
-        txn: PersistentStoreTransaction,
+        txn: StoreTransaction,
         iterable: EntityIterableBase,
         iterable1: EntityIterableBase,
         iterable2: EntityIterableBase
@@ -170,7 +170,7 @@ class IntersectionIterable @JvmOverloads constructor(
 
     private class UnsortedIterator(
         iterable: EntityIterableBase,
-        private val txn: PersistentStoreTransaction,
+        private val txn: StoreTransaction,
         private val iterable1: EntityIterableBase,
         iterable2: EntityIterableBase
     ) : NonDisposableEntityIterator(iterable) {

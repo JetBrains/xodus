@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,7 +26,7 @@ public abstract class EntityLinksIterableBase extends EntityIterableBase {
     @NotNull
     protected final EntityId entityId;
 
-    protected EntityLinksIterableBase(@Nullable final PersistentStoreTransaction txn,
+    protected EntityLinksIterableBase(@Nullable final StoreTransaction txn,
                                       @NotNull final EntityId entityId) {
         super(txn);
         this.entityId = entityId;

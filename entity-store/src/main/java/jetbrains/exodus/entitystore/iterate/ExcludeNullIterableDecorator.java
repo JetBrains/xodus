@@ -26,7 +26,7 @@ public class ExcludeNullIterableDecorator extends EntityIterableDecoratorBase {
         registerType(getType(), (txn, store, parameters) -> new ExcludeNullIterableDecorator(txn, (EntityIterableBase) parameters[0]));
     }
 
-    public ExcludeNullIterableDecorator(@NotNull final PersistentStoreTransaction txn,
+    public ExcludeNullIterableDecorator(@NotNull final StoreTransaction txn,
                                         @NotNull final EntityIterableBase source) {
         super(txn, source);
     }
@@ -42,7 +42,7 @@ public class ExcludeNullIterableDecorator extends EntityIterableDecoratorBase {
 
     @NotNull
     @Override
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new EntityIteratorBase(ExcludeNullIterableDecorator.this) {
             private final EntityIterator iterator = getDecorated().iterator();
             private EntityId next = null;

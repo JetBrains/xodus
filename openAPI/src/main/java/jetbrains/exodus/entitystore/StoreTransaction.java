@@ -109,6 +109,8 @@ public interface StoreTransaction {
      */
     boolean commit();
 
+    boolean isCurrent();
+
     /**
      * Ignores all changes and finishes the {@code StoreTransaction}.
      * <p> Typical pattern for committing changes ({@code abort()} is called in {@code catch} block) can look like this:
@@ -590,6 +592,10 @@ public interface StoreTransaction {
     @NotNull
     EntityIterable mergeSorted(@NotNull final List<EntityIterable> sorted,
                                @NotNull final Comparator<Entity> comparator);
+
+    @NotNull EntityIterable mergeSorted(@NotNull List<EntityIterable> sorted,
+                                        @NotNull ComparableGetter valueGetter,
+                                        @NotNull Comparator<Comparable<Object>> comparator);
 
     /**
      * Parses string representation of an entity id and returns corresponding {@linkplain EntityId} instance.

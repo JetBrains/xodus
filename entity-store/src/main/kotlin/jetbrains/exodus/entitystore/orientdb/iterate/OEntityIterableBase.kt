@@ -3,7 +3,7 @@ package jetbrains.exodus.entitystore.orientdb.iterate
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterableHandle
 import jetbrains.exodus.entitystore.EntityIterator
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
@@ -15,9 +15,9 @@ import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
 import jetbrains.exodus.entitystore.util.unsupported
 
-abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
+abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIterator {
         val query = query()
         return create(query, txn)
     }

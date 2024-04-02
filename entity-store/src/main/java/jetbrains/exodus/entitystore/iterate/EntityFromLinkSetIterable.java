@@ -53,7 +53,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     }
 
     @SuppressWarnings({"AssignmentToCollectionOrArrayFieldFromParameter"})
-    public EntityFromLinkSetIterable(@NotNull final PersistentStoreTransaction txn,
+    public EntityFromLinkSetIterable(@NotNull final StoreTransaction txn,
                                      @NotNull final EntityId entityId,
                                      @NotNull final IntHashMap<String> linkNames) {
         super(txn, entityId);
@@ -71,7 +71,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new LinksIterator(openCursor(txn), getFirstKey());
     }
 
@@ -136,7 +136,7 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
     }
 
     @Override
-    protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+    protected CachedInstanceIterable createCachedInstance(@NotNull final StoreTransaction txn) {
         final IntArrayList propIds = new IntArrayList();
         final CachedInstanceIterable cached = EntityIdArrayCachedInstanceIterableFactory.createInstance(txn, this, new LinksIterator(openCursor(txn), getFirstKey()) {
             @Override
@@ -149,8 +149,8 @@ public class EntityFromLinkSetIterable extends EntityLinksIterableBase {
         return new EntityIdArrayWithSetIterableWrapper(txn, cached, propIds, linkNames);
     }
 
-    private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
-        return getStore().getLinksFirstIndexCursor(txn, entityId.getTypeId());
+    private Cursor openCursor(@NotNull final StoreTransaction txn) {
+        return getStoreImpl().getLinksFirstIndexCursor((PersistentStoreTransaction) txn, entityId.getTypeId());
     }
 
     private ByteIterable getFirstKey() {

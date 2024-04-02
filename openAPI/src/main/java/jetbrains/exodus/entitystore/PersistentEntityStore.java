@@ -17,11 +17,13 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.bindings.ComparableBinding;
+import jetbrains.exodus.bindings.ComparableValueType;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * {@code PersistentEntityStore} is an {@linkplain EntityStore} operating above {@linkplain Environment} instance.
@@ -219,4 +221,7 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
      */
     @NotNull
     Statistics getStatistics();
+
+    @NotNull
+    StoreTransaction getAndCheckCurrentTransaction();
 }

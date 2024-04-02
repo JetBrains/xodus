@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore.iterate.binop;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterableType;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorFixingDecorator;
@@ -32,7 +33,7 @@ public final class ConcatenationIterable extends BinaryOperatorEntityIterable {
             (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]));
     }
 
-    public ConcatenationIterable(@Nullable final PersistentStoreTransaction txn,
+    public ConcatenationIterable(@Nullable final StoreTransaction txn,
                                  @NotNull final EntityIterableBase iterable1,
                                  @NotNull final EntityIterableBase iterable2) {
         super(txn, iterable1, iterable2, false);
@@ -49,7 +50,7 @@ public final class ConcatenationIterable extends BinaryOperatorEntityIterable {
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         return iterable1.size() + iterable2.size();
     }
 
@@ -60,7 +61,7 @@ public final class ConcatenationIterable extends BinaryOperatorEntityIterable {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new EntityIteratorFixingDecorator(this, new ConcatenationIterator(iterable1, iterable2));
     }
 

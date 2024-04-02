@@ -100,7 +100,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
             return it
         }
         val handle = it.handle
-        val txn = it.transaction
+        val txn = it.transaction.asPersistent()
         val localCache = txn.localCache
         txn.localCacheAttempt()
         val cached: EntityIterableBase? = localCache.getObject(handle)

@@ -169,7 +169,7 @@ public abstract class EntityIteratorBase implements EntityIterator {
         return result;
     }
 
-    protected PersistentEntityStoreImpl getStore() {
+    protected PersistentEntityStore getStore() {
         return iterable.getStore();
     }
 

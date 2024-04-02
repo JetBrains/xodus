@@ -109,7 +109,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         int count = 0;
         final EntityIterator sorted = new EntityTypeFilteredIterator(source, sourceTypeId);
         while (sorted.hasNext()) {
@@ -121,11 +121,11 @@ public final class SortIterable extends EntityIterableDecoratorBase {
 
     @Override
     @NotNull
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         if (propIndex == EntityIterableBase.EMPTY) {
             return new EntityTypeFilteredIterator(source, sourceTypeId);
         }
-        final PersistentEntityStoreImpl store = getStore();
+        final PersistentEntityStoreImpl store = getStoreImpl();
         final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
         final EntityIterableBase cachedPropertyIndex = entityIterableCache.putIfNotCached(propIndex);
 
@@ -329,7 +329,7 @@ public final class SortIterable extends EntityIterableDecoratorBase {
         private boolean hasNull;
         private boolean rightOrderEmpty;
 
-        private NonStableSortIterator(@NotNull final PersistentStoreTransaction txn,
+        private NonStableSortIterator(@NotNull final StoreTransaction txn,
                                       @NotNull final EntityIterator propIterator) {
             super(propIndex);
             this.propIterator = propIterator;
@@ -389,8 +389,8 @@ public final class SortIterable extends EntityIterableDecoratorBase {
             hasNull = false;
             cursor = 0;
 
-            final PersistentEntityStoreImpl store = getStore();
-            final PersistentStoreTransaction txn = getTransaction();
+            final PersistentEntityStoreImpl store = getStoreImpl();
+            final PersistentStoreTransaction txn = getPersistentTransaction();
             final String propertyName = store.getPropertyName(txn, propertyId);
             if (propertyName == null) {
                 throw new NullPointerException("Property name is null");

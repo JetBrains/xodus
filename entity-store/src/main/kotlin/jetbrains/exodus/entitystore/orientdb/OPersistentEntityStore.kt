@@ -25,7 +25,6 @@ class OPersistentEntityStore(
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
     private val env = OEnvironment(db, this)
 
-
     override fun close() {}
 
     override fun getName() = databaseName
@@ -123,7 +122,7 @@ class OPersistentEntityStore(
         return typesMap.computeIfAbsent(entityType) {
             val oClass =
                 ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
-            oClass?.defaultClusterId?: -1
+            oClass?.defaultClusterId ?: -1
         }
     }
 
@@ -158,6 +157,8 @@ class OPersistentEntityStore(
     override fun getAsyncProcessor() = dummyJobProcessor
 
     override fun getStatistics() = dummyStatistics
+
+    override fun getAndCheckCurrentTransaction() = currentTransaction
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 }

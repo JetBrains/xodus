@@ -28,7 +28,7 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
 
     private final int entityTypeId;
 
-    protected FilterEntityTypeIterable(@NotNull final PersistentStoreTransaction txn,
+    protected FilterEntityTypeIterable(@NotNull final StoreTransaction txn,
                                        final int entityTypeId,
                                        @NotNull final EntityIterableBase source) {
         super(txn, source);
@@ -45,7 +45,7 @@ class FilterEntityTypeIterable extends EntityIterableDecoratorBase {
 
     @NotNull
     @Override
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new EntityIteratorFixingDecorator(this, new NonDisposableEntityIterator(this) {
 
             @NotNull
