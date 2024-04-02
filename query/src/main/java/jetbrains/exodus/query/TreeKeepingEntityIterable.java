@@ -37,12 +37,21 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
     private final NodeBase sourceTree;
     private NodeBase optimizedTree;
     private Sorts sorts;
+    private final Object origin;
+    private String strippedStacktrace;
     String annotatedTree;
+    private final boolean isExplainOn;
 
     public TreeKeepingEntityIterable(@Nullable final Iterable<Entity> entityIterable, @NotNull String entityType,
                                      @NotNull final NodeBase queryTree, @Nullable String leftChildPresentation,
                                      @Nullable String rightChildPresentation, @NotNull QueryEngine queryEngine) {
         super(queryEngine);
+        final Explainer explainer = queryEngine.getPersistentStore().getExplainer();
+        isExplainOn = explainer.isExplainOn();
+        origin = explainer.genOrigin();
+        if (isExplainOn) {
+            strippedStacktrace = Explainer.stripStackTrace(new Throwable());
+        }
         // get entityType from iterable
         if (entityIterable instanceof StaticTypedEntityIterable) {
             final String entityIterableType = ((StaticTypedEntityIterable) entityIterable).getEntityType();
@@ -52,15 +61,36 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
             }
         }
         //
+        if (isExplainOn) {
+            if (queryTree instanceof BinaryOperator && (leftChildPresentation != null || rightChildPresentation != null)) {
+                BinaryOperator binaryOperator = (BinaryOperator) queryTree;
+                if (leftChildPresentation == null) {
+                    leftChildPresentation = binaryOperator.getLeft().toString();
+                }
+                if (rightChildPresentation == null) {
+                    rightChildPresentation = binaryOperator.getRight().toString();
+                }
+                annotatedTree = "at " + strippedStacktrace + '\n' + binaryOperator.getClass().getSimpleName() + ('\n' + leftChildPresentation + '\n' + rightChildPresentation).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
+            } else {
+                annotatedTree = "at " + strippedStacktrace + '\n' + queryTree;
+            }
+        }
         if (entityIterable instanceof TreeKeepingEntityIterable) {
             final TreeKeepingEntityIterable instanceTreeIt = (TreeKeepingEntityIterable) entityIterable;
             final NodeBase instanceTree = instanceTreeIt.sourceTree;
             if (queryTree instanceof Sort && ((UnaryNode) queryTree).getChild().equals(NodeFactory.all())) {
                 sourceTree = queryTree.getClone();
                 sourceTree.replaceChild(((UnaryNode) sourceTree).getChild(), instanceTree.getClone());
-
+                if (isExplainOn) {
+                    annotatedTree = "at " + strippedStacktrace + '\n' + sourceTree.getClass().getSimpleName() +
+                            ("\n" + (instanceTreeIt.annotatedTree != null ? instanceTreeIt.annotatedTree : instanceTree)).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
+                }
             } else {
                 sourceTree = instanceTree instanceof GetAll ? queryTree : And.and(instanceTree.getClone(), queryTree);
+                if (isExplainOn && !(instanceTree instanceof GetAll)) {
+                    annotatedTree = "at " + strippedStacktrace + "\nAnd" +
+                            ("\n" + (instanceTreeIt.annotatedTree != null ? instanceTreeIt.annotatedTree : instanceTree) + '\n' + annotatedTree).replace("\n", '\n' + NodeBase.TREE_LEVEL_INDENT);
+                }
             }
             instance = instanceTreeIt.instance;
         } else {
@@ -96,6 +126,32 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
         }
         if (result == null) {
             result = instantiateForWholeHierarchy();
+        }
+        if (isExplainOn) {
+            Iterable<Entity> explained = result;
+            while (explained instanceof SortEngine.InMemorySortIterable) {
+                explained = ((SortEngine.InMemorySortIterable) explained).getSrc();
+            }
+            if (explained instanceof EntityIterableBase) {
+                final EntityIterableBase entityIterable = ((EntityIterableBase) explained).getSource();
+                if (entityIterable != EntityIterableBase.EMPTY) {
+                    final PersistentEntityStoreImpl store = queryEngine.getPersistentStore();
+                    final Explainer explainer = store.getExplainer();
+                    final boolean explainForcedForThread = Explainer.isExplainForcedForThread();
+                    if (!explainForcedForThread) {
+                        explainer.start(origin);
+                    }
+                    entityIterable.setOrigin(origin);
+                    explainer.explain(origin, Explainer.INITIAL_TREE, annotatedTree);
+                    explainer.explain(origin, Explainer.OPTIMIZED_TREE, optimizedTree);
+                    if (!explainForcedForThread) {
+                        for (Entity entity : result) {
+                            explainer.explain(origin, Explainer.ITERABLE_ADVANCES);
+                        }
+                        explainer.log(origin);
+                    }
+                }
+            }
         }
         return result;
     }

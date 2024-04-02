@@ -16,7 +16,7 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIdSetIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -92,7 +92,7 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
     }
 
     private fun isUnionOfLinks(
-        txn: StoreTransaction,
+        txn: PersistentStoreTransaction,
         linkNames: MutableMap<String, EntityIdSetIterable>,
         context: InstantiateContext
     ): Boolean {
