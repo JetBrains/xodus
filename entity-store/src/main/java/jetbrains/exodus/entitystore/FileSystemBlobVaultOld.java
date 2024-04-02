@@ -423,6 +423,85 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         };
     }
 
+    public Iterator<Long> storedBlobHandles() {
+        return new Iterator<>() {
+          private final Deque<File> stack =
+              new ArrayDeque<>(Collections.singletonList(location.toFile()));
+          private final File[] EMPTY = new File[0];
+          private File[] files = EMPTY;
+          private int i = 0;
+
+          @Override
+          public boolean hasNext() {
+            while (true) {
+              if (i < files.length) {
+                final File file = files[i++];
+                if (file.isDirectory()) {
+                  stack.push(file);
+                  files = EMPTY;
+                  i = 0;
+                } else {
+                  final String name = file.getName();
+                  if (name.endsWith(blobExtension)) {
+                    return true;
+                  }
+                }
+              } else {
+                if (stack.isEmpty()) {
+                  return false;
+                }
+                final File dir = stack.pop();
+                files = dir.listFiles();
+                if (files == null) {
+                  files = EMPTY;
+                }
+                i = 0;
+              }
+            }
+          }
+
+          @Override
+          public Long next() {
+            if (!hasNext()) {
+              throw new NoSuchElementException();
+            }
+            final File file = files[i - 1];
+            return getBlobHandleByFile(file);
+          }
+
+          @Override
+          public void remove() {
+            throw new UnsupportedOperationException();
+          }
+        };
+    }
+    public long getBlobHandleByFile(@NotNull final File file) {
+        final String name = file.getName();
+        final String blobExtension = getBlobExtension();
+        final int blobExtensionStart = name.indexOf(blobExtension);
+        if (name.endsWith(blobExtension) && (blobExtensionStart == 2 || blobExtensionStart == 1)) {
+            try {
+                long result = Integer.parseInt(name.substring(0, blobExtensionStart), 16);
+                File f = file;
+                int shift = 0;
+                while (true) {
+                    f = f.getParentFile();
+                    if (f == null) {
+                        break;
+                    }
+                    if (f.equals(getVaultLocation())) {
+                        return result;
+                    }
+                    shift += Byte.SIZE;
+                    result = result + (((long) Integer.parseInt(f.getName(), 16)) << shift);
+                }
+            } catch (NumberFormatException nfe) {
+                throw new EntityStoreException("Not a file of filesystem blob vault: " + file, nfe);
+            }
+        }
+        throw new EntityStoreException("Not a file of filesystem blob vault: " + file);
+    }
+
     @NotNull
     public File getBlobLocation(long blobHandle) {
         return getBlobLocation(blobHandle, true);
