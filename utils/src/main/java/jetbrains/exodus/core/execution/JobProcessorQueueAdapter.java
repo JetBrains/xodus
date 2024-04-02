@@ -143,6 +143,11 @@ public abstract class JobProcessorQueueAdapter extends JobProcessorAdapter {
         return queue;
     }
 
+    @Override
+    public void shouldSkipIfPresent(boolean skipIfPresent) {
+        queue.shouldSkipIfPresent(skipIfPresent);
+    }
+
     protected void doJobs() {
         final boolean jobsQueued;
         try {

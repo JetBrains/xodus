@@ -208,6 +208,13 @@ public abstract class MultiThreadDelegatingJobProcessor extends JobProcessorAdap
         return job.queue(jobProcessors.get(processorNumber), priority);
     }
 
+    @Override
+    public void shouldSkipIfPresent(boolean skipIfPresent) {
+        for (int i = 0; i < jobProcessors.length(); i++) {
+            jobProcessors.get(i).shouldSkipIfPresent(skipIfPresent);
+        }
+    }
+
     private final class WatchDog implements SharedTimer.ExpirablePeriodicTask {
         private final long jobTimeout;
 

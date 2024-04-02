@@ -58,11 +58,14 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     val processor = EntityStoreSharedAsyncProcessor(
         "EntityIterableCacheProcessor",
         config.entityIterableCacheThreadCount
-    )
+    ).apply {
+        // It will ensure that job is not put into tail of the queue when re-queued.
+        this.shouldSkipIfPresent(true)
+    }
     val countsProcessor = EntityStoreSharedAsyncProcessor(
         "EntityIterableCacheCountsProcessor",
         config.entityIterableCacheCountsThreadCount
-    )
+    ).apply { this.shouldSkipIfPresent(true) }
 
     init {
         processor.start()
@@ -193,8 +196,9 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         init {
             this.processor = processor
             if (queue(Priority.normal)) {
-                stats.incTotalJobsEnqueued()
-                if (!isConsistent) {
+                if (isConsistent) {
+                    stats.incTotalJobsEnqueued()
+                } else {
                     stats.incTotalCountJobsEnqueued()
                 }
             } else {
@@ -213,6 +217,9 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         }
 
         override fun execute() {
+            // Update cache size lazily
+            updateCacheSizeIfNecessary()
+
             val started = System.currentTimeMillis()
             // don't try to cache if it is too late
             if (!cancellingPolicy.canStartAt(started)) {
@@ -233,6 +240,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     heavyIterablesCache.remove(iterableIdentity)
                 }
             }
+
             stats.incTotalJobsStarted()
             store.executeInReadonlyTransaction { txn ->
                 if (!handle.isConsistent) {
@@ -260,13 +268,19 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                 } catch (e: TooLongEntityIterableInstantiationException) {
                     val cachingTime = System.currentTimeMillis() - started
 
-                    if(e.reason == CACHE_ADAPTER_OBSOLETE) {
-                        val maxAttempts = config.entityIterableCacheObsoleteMaxRetries
-                        if (maxAttempts > 0 && currentAttempt < maxAttempts) {
+                    if (e.reason == CACHE_ADAPTER_OBSOLETE) {
+                        val maxRetries = config.entityIterableCacheObsoleteMaxRetries
+                        if (maxRetries > 0 && currentAttempt <= maxRetries) {
                             val handle = toString(config, handle)
-                            logger.info { "Re-queuing obsolete cache job for handle ${handle}, attempts left: ${maxAttempts - currentAttempt}" }
+                            logger.info { "Re-queuing obsolete cache job for handle ${handle}, retries left: ${maxRetries - currentAttempt}" }
                             currentAttempt++
                             queue(Priority.normal)
+                            if (isConsistent) {
+                                stats.incTotalJobsRetried()
+                            } else {
+                                stats.incTotalCountJobsRetried()
+                            }
+
                             return@executeInReadonlyTransaction
                         }
                     }
@@ -285,10 +299,30 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
                     // Log
                     logger.info {
                         val action = if (isConsistent) "Caching" else "Caching (inconsistent)"
-
+                        val handle = toString(config, handle)
                         "$action forcibly stopped for handle $handle: ${e.reason.message}, caching time: $cachingTime ms"
                     }
                 }
+            }
+        }
+
+        private fun updateCacheSizeIfNecessary() {
+            try {
+                val targetSize = config.entityIterableCacheSize.toLong()
+                val currentSize = cacheAdapter.size()
+                if (!cacheAdapter.isWeightedCache
+                    && targetSize > 0
+                    && targetSize != currentSize
+                ) {
+                    // When cache is not weighted and config property changed.
+                    // This method tries to set the maximum size of the cache if there is no concurrent modification,
+                    // assuming that it converges to the desired value eventually.
+                    if (cacheAdapter.trySetSize(targetSize)) {
+                        logger.info("Cache size updated from $currentSize to $targetSize")
+                    }
+                }
+            } catch (e: Exception) {
+                logger.error(e) { "Error while updating cache size" }
             }
         }
     }

@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.core.cache.persistent
 
-import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import jetbrains.exodus.core.cache.CustomCaffeine
 import jetbrains.exodus.core.dataStructures.persistent.PersistentHashMap
 import java.lang.ref.Cleaner
 import java.util.concurrent.locks.ReentrantLock
@@ -31,7 +31,7 @@ typealias Version = Long
  * Put or remove values for the current version (instance) doesn't affect other existing versions.
  */
 class CaffeinePersistentCache<K : Any, V> private constructor(
-    private val cache: Cache<K, ValueMap<Version, V>>,
+    private val cache: CustomCaffeine<K, ValueMap<Version, V>>,
     private val config: CaffeineCacheConfig<V>,
     override val version: Long,
     private val versionTracker: VersionTracker,
@@ -69,9 +69,10 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
                 .build<K, ValueMap<Version, V>>()
             val version = 0L
             val tracker = VersionTracker(version)
+            val caffeine = CustomCaffeine(cache)
 
             return CaffeinePersistentCache(
-                cache,
+                caffeine,
                 config,
                 version,
                 tracker,
@@ -101,16 +102,16 @@ class CaffeinePersistentCache<K : Any, V> private constructor(
     }
 
     // Generic cache impl
-    private val maxSize by lazy {
-        if (config.sizeEviction is SizedEviction) {
-            config.sizeEviction.maxSize
-        } else {
-            (config.sizeEviction as WeightedEviction).maxWeight
-        }
+    override fun size(): Long {
+        return cache.getSize()
     }
 
-    override fun size(): Long {
-        return maxSize
+    override fun trySetSize(size: Long): Boolean {
+        return cache.trySetSize(size)
+    }
+
+    override fun isWeighted(): Boolean {
+        return config.sizeEviction is WeightedEviction
     }
 
     override fun count(): Long {
