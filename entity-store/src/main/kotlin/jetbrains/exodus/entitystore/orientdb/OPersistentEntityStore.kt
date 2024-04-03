@@ -112,16 +112,15 @@ class OPersistentEntityStore(
     }
 
     override fun getEntity(id: EntityId): Entity {
-        val orId = id as? OEntityId ?: throw IllegalStateException()
-        val txn = (currentTransaction as ODatabaseSession).transaction
-        val vertex = txn.database.load<OVertex>(orId.asOId())
+        require(id is OEntityId) { "Only OEntityId is supported, but was ${id.javaClass.simpleName}" }
+        val txn = currentOTransaction.oTransaction
+        val vertex = txn.database.load<OVertex>(id.asOId())
         return OVertexEntity(vertex, this)
     }
 
     override fun getEntityTypeId(entityType: String): Int {
         return typesMap.computeIfAbsent(entityType) {
-            val oClass =
-                ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
+            val oClass = ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
             oClass?.defaultClusterId ?: -1
         }
     }
@@ -161,4 +160,7 @@ class OPersistentEntityStore(
     override fun getAndCheckCurrentTransaction() = currentTransaction
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
+
+
+    private val currentOTransaction get() = currentTransaction as OStoreTransaction
 }

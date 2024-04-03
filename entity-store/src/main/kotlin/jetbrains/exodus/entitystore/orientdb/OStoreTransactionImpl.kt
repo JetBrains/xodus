@@ -17,6 +17,8 @@ import jetbrains.exodus.entitystore.iterate.property.OPropertySortedIterable
 import jetbrains.exodus.entitystore.iterate.property.OPropertyStartsWithIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.env.Transaction
@@ -26,6 +28,8 @@ class OStoreTransactionImpl(
     private val txn: OTransaction,
     private val store: PersistentEntityStore
 ) : OStoreTransaction {
+
+    override val oTransaction = txn
 
     override fun activeSession(): ODatabaseDocument {
         return session
@@ -81,9 +85,7 @@ class OStoreTransactionImpl(
 
     override fun saveEntity(entity: Entity) {
         require(entity is OVertexEntity) { "Only OVertexEntity is supported, but was ${entity.javaClass.simpleName}" }
-        (entity as? OVertexEntity) ?: throw IllegalArgumentException("Only OVertexEntity supported")
         entity.save()
-
     }
 
     override fun getEntity(id: EntityId): Entity {
@@ -173,7 +175,7 @@ class OStoreTransactionImpl(
     }
 
     override fun findWithLinks(entityType: String, linkName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OLinkExistsEntityIterable(this, entityType, linkName)
     }
 
     override fun findWithLinks(
@@ -182,7 +184,7 @@ class OStoreTransactionImpl(
         oppositeEntityType: String,
         oppositeLinkName: String
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OLinkExistsEntityIterable(this, entityType, linkName)
     }
 
     override fun sort(entityType: String, propertyName: String, ascending: Boolean): EntityIterable {
@@ -195,8 +197,7 @@ class OStoreTransactionImpl(
         rightOrder: EntityIterable,
         ascending: Boolean
     ): EntityIterable {
-        require(rightOrder is OEntityIterableBase) { "Only OEntityIterableBase is supported, but was ${rightOrder.javaClass.simpleName}" }
-        return OPropertySortedIterable(this, entityType, propertyName, rightOrder, ascending)
+        return OPropertySortedIterable(this, entityType, propertyName, rightOrder.asOIterable(), ascending)
     }
 
     override fun sortLinks(
@@ -206,7 +207,7 @@ class OStoreTransactionImpl(
         linkName: String,
         rightOrder: EntityIterable
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OLinkSortEntityIterable(this, sortedLinks.asOIterable(), linkName, rightOrder.asOIterable())
     }
 
     override fun sortLinks(
@@ -255,5 +256,10 @@ class OStoreTransactionImpl(
 
     override fun getEnvironmentTransaction(): Transaction {
         return OEnvironmentTransaction(store.environment, this)
+    }
+
+    private fun EntityIterable.asOIterable(): OEntityIterableBase {
+        require(this is OEntityIterableBase) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
+        return this
     }
 }

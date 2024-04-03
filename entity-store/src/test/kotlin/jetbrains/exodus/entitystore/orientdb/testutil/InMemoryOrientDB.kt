@@ -40,6 +40,8 @@ class InMemoryOrientDB(
         db.close()
     }
 
+    val database get() = db
+
     fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
         val session = openSession()
         try {

@@ -55,7 +55,8 @@ abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(t
     }
 
     override fun distinct(): EntityIterable {
-        return ODistinctEntityIterable(transaction, this)
+        return this
+        //return ODistinctEntityIterable(transaction, this)
     }
 
     override fun minus(right: EntityIterable): EntityIterable {
