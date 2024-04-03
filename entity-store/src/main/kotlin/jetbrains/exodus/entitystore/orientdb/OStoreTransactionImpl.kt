@@ -6,10 +6,18 @@ import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase
+import jetbrains.exodus.entitystore.iterate.property.OPropertyBlobExistsEntityIterable
 import jetbrains.exodus.entitystore.iterate.property.OPropertyContainsIterable
 import jetbrains.exodus.entitystore.iterate.property.OPropertyEqualIterable
+import jetbrains.exodus.entitystore.iterate.property.OPropertyExistsIterable
+import jetbrains.exodus.entitystore.iterate.property.OPropertyExistsSortedIterable
 import jetbrains.exodus.entitystore.iterate.property.OPropertyRangeIterable
+import jetbrains.exodus.entitystore.iterate.property.OPropertySortedIterable
+import jetbrains.exodus.entitystore.iterate.property.OPropertyStartsWithIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.env.Transaction
 
@@ -119,7 +127,7 @@ class OStoreTransactionImpl(
     }
 
     override fun findStartingWith(entityType: String, propertyName: String, value: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyStartsWithIterable(this, entityType, propertyName, value)
     }
 
     override fun findIds(entityType: String, minValue: Long, maxValue: Long): EntityIterable {
@@ -127,23 +135,41 @@ class OStoreTransactionImpl(
     }
 
     override fun findWithProp(entityType: String, propertyName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyExistsIterable(this, entityType, propertyName)
     }
 
     override fun findWithPropSortedByValue(entityType: String, propertyName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyExistsSortedIterable(this, entityType, propertyName)
     }
 
     override fun findWithBlob(entityType: String, blobName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyBlobExistsEntityIterable(this, entityType, blobName)
     }
 
     override fun findLinks(entityType: String, entity: Entity, linkName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OLinkToEntityIterable(this, linkName, entity.id as OEntityId)
     }
 
     override fun findLinks(entityType: String, entities: EntityIterable, linkName: String): EntityIterable {
-        TODO("Not yet implemented")
+        var links: MutableList<EntityIterable>? = null
+        for (entity in entities) {
+            if (links == null) {
+                links = ArrayList()
+            }
+            links.add(findLinks(entityType, entity, linkName))
+        }
+        if (links == null) {
+            // ToDo: return OEntityIterableBase.EMPTY
+            return EntityIterableBase.EMPTY
+        }
+        if (links.size > 1) {
+            var i = 0
+            while (i < links.size - 1) {
+                links.add(links[i].union(links[i + 1]))
+                i += 2
+            }
+        }
+        return links[links.size - 1]
     }
 
     override fun findWithLinks(entityType: String, linkName: String): EntityIterable {
@@ -160,7 +186,7 @@ class OStoreTransactionImpl(
     }
 
     override fun sort(entityType: String, propertyName: String, ascending: Boolean): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertySortedIterable(this, entityType, propertyName, null, ascending)
     }
 
     override fun sort(
@@ -169,7 +195,8 @@ class OStoreTransactionImpl(
         rightOrder: EntityIterable,
         ascending: Boolean
     ): EntityIterable {
-        TODO("Not yet implemented")
+        require(rightOrder is OEntityIterableBase) { "Only OEntityIterableBase is supported, but was ${rightOrder.javaClass.simpleName}" }
+        return OPropertySortedIterable(this, entityType, propertyName, rightOrder, ascending)
     }
 
     override fun sortLinks(

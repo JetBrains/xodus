@@ -2,6 +2,9 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
+import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -18,8 +21,8 @@ class OPersistentStoreTest {
         orientDb.createIssue(summary)
         val store = orientDb.store
 
-        val newClassName = "Other${Issues.CLASS}"
-        store.renameEntityType(Issues.CLASS, newClassName)
+        val newClassName = "Other${CLASS}"
+        store.renameEntityType(CLASS, newClassName)
         val issueByNewName = store.computeInExclusiveTransaction {
             it as OStoreTransaction
             (it.activeSession() as ODatabaseSession).queryEntities("select from $newClassName", store).firstOrNull()

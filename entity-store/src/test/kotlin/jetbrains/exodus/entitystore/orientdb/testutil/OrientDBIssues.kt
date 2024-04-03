@@ -1,9 +1,17 @@
-package jetbrains.exodus.entitystore.orientdb
+package jetbrains.exodus.entitystore.orientdb.testutil
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityStore
+import jetbrains.exodus.entitystore.orientdb.OEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Props.PRIORITY
+import jetbrains.exodus.entitystore.orientdb.testutil.Projects.Links.HAS_ISSUE
+import kotlin.let
 
 object Issues {
     const val CLASS = "Issue"
@@ -36,8 +44,8 @@ object Boards {
 
 fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVertexEntity {
     return withSession { session ->
-        val issue = session.createNamedEntity(Issues.CLASS, name, store)
-        priority?.let { issue.setProperty(Issues.Props.PRIORITY, it) }
+        val issue = session.createNamedEntity(CLASS, name, store)
+        priority?.let { issue.setProperty(PRIORITY, it) }
         issue.save()
         issue
     }
@@ -57,20 +65,20 @@ fun InMemoryOrientDB.createBoard(name: String): OVertexEntity {
 
 fun InMemoryOrientDB.addIssueToProject(issue: OEntity, project: OEntity) {
     withSession { session ->
-        session.getOrCreateEdgeClass(Issues.Links.IN_PROJECT)
-        issue.addLink(Issues.Links.IN_PROJECT, project)
+        session.getOrCreateEdgeClass(IN_PROJECT)
+        issue.addLink(IN_PROJECT, project)
 
-        session.getOrCreateEdgeClass(Projects.Links.HAS_ISSUE)
-        project.addLink(Projects.Links.HAS_ISSUE, issue)
+        session.getOrCreateEdgeClass(HAS_ISSUE)
+        project.addLink(HAS_ISSUE, issue)
     }
 }
 
 fun InMemoryOrientDB.addIssueToBoard(issue: OEntity, board: OEntity) {
     withSession { session ->
-        session.getOrCreateEdgeClass(Issues.Links.ON_BOARD)
-        issue.addLink(Issues.Links.ON_BOARD, board)
+        session.getOrCreateEdgeClass(ON_BOARD)
+        issue.addLink(ON_BOARD, board)
 
-        session.getOrCreateEdgeClass(Projects.Links.HAS_ISSUE)
+        session.getOrCreateEdgeClass(HAS_ISSUE)
         board.addLink(Boards.Links.HAS_ISSUE, issue)
     }
 }
@@ -95,6 +103,6 @@ private fun ODatabaseSession.getOrCreateEdgeClass(className: String): OClass {
     return this.getClass(className) ?: this.createEdgeClass(className)
 }
 
-fun OEntity.name(): Comparable<*>? {
-    return getProperty("name")
+fun OEntity.name(): Comparable<*> {
+    return getProperty("name") ?: throw IllegalStateException("Entity has no name property")
 }

@@ -25,8 +25,8 @@ class OPropertySortedIterable(
     txn: StoreTransaction,
     private val entityType: String,
     private val propertyName: String,
+    private val source: OEntityIterableBase? = null,
     private val ascending: Boolean,
-    private val source: OEntityIterableBase? = null
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
