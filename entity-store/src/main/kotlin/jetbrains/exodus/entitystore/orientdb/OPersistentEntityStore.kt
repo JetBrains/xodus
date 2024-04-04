@@ -12,7 +12,6 @@ import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.management.Statistics
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 class OPersistentEntityStore(
     private val db: OrientDB,
@@ -21,7 +20,6 @@ class OPersistentEntityStore(
     private val databaseName: String
 ) : PersistentEntityStore {
 
-    private val typesMap = ConcurrentHashMap<String, Int>()
     private val config = PersistentEntityStoreConfig()
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
@@ -122,21 +120,14 @@ class OPersistentEntityStore(
     }
 
     override fun getEntityTypeId(entityType: String): Int {
-        return typesMap.computeIfAbsent(entityType) {
-            val oClass = ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
-            oClass?.defaultClusterId ?: -1
-        }
+        val oClass = ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
+        return oClass?.defaultClusterId ?: -1
     }
 
     override fun getEntityType(entityTypeId: Int): String {
-        //This implementation is wierd
-        val type = (typesMap.entries.firstOrNull { it.value == entityTypeId })?.key
-        if (type == null) {
-            val oClass =
-                ODatabaseSession.getActiveSession().metadata.schema.classes.firstOrNull { it.defaultClusterId == entityTypeId }!!
-            typesMap[oClass.name] = entityTypeId
-            return oClass.name
-        } else return type
+        val oClass =
+            ODatabaseSession.getActiveSession().metadata.schema.getClassByClusterId(entityTypeId)
+        return oClass.name
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
@@ -146,8 +137,6 @@ class OPersistentEntityStore(
                 ?: throw IllegalStateException("Class found by name $oldEntityTypeName")
         }
         oldClass.setName(newEntityTypeName)
-        typesMap.remove(oldEntityTypeName)
-        typesMap.remove(newEntityTypeName)
     }
 
     override fun getUsableSpace(): Long {
