@@ -7,14 +7,7 @@ import com.orientechnologies.orient.core.tx.OTransaction
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.iterate.property.OPropertyBlobExistsEntityIterable
-import jetbrains.exodus.entitystore.iterate.property.OPropertyContainsIterable
-import jetbrains.exodus.entitystore.iterate.property.OPropertyEqualIterable
-import jetbrains.exodus.entitystore.iterate.property.OPropertyExistsIterable
-import jetbrains.exodus.entitystore.iterate.property.OPropertyExistsSortedIterable
-import jetbrains.exodus.entitystore.iterate.property.OPropertyRangeIterable
-import jetbrains.exodus.entitystore.iterate.property.OPropertySortedIterable
-import jetbrains.exodus.entitystore.iterate.property.OPropertyStartsWithIterable
+import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
@@ -28,6 +21,8 @@ class OStoreTransactionImpl(
     private val txn: OTransaction,
     private val store: PersistentEntityStore
 ) : OStoreTransaction {
+
+    private var queryCancellingPolicy:QueryCancellingPolicy? = null
 
     override val oTransaction = txn
 
@@ -246,17 +241,16 @@ class OStoreTransactionImpl(
         return OSequenceImpl(sequenceName, initialValue)
     }
 
-    override fun setQueryCancellingPolicy(policy: QueryCancellingPolicy?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun getQueryCancellingPolicy(): QueryCancellingPolicy? {
-        TODO("Not yet implemented")
-    }
-
     override fun getEnvironmentTransaction(): Transaction {
         return OEnvironmentTransaction(store.environment, this)
     }
+
+    override fun setQueryCancellingPolicy(policy: QueryCancellingPolicy?) {
+        this.queryCancellingPolicy = policy
+    }
+
+    override fun getQueryCancellingPolicy() = this.queryCancellingPolicy
+
 
     private fun EntityIterable.asOIterable(): OEntityIterableBase {
         require(this is OEntityIterableBase) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
