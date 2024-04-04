@@ -77,7 +77,7 @@ class OPersistentEntityStore(
             executable.execute(txn)
         } finally {
             // if txn has not already been aborted in execute()
-            txn.activeSession().commit()
+            txn.activeSession.commit()
         }
     }
 
@@ -94,7 +94,7 @@ class OPersistentEntityStore(
             return computable.compute(txn)
         } finally {
             // if txn has not already been aborted in execute()
-            txn.activeSession().commit()
+            txn.activeSession.commit()
         }
     }
 
@@ -142,7 +142,7 @@ class OPersistentEntityStore(
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
         val oldClass = computeInTransaction {
             val txn = it as OStoreTransaction
-            txn.activeSession().metadata.schema.getClass(oldEntityTypeName)
+            txn.activeSession.metadata.schema.getClass(oldEntityTypeName)
                 ?: throw IllegalStateException("Class found by name $oldEntityTypeName")
         }
         oldClass.setName(newEntityTypeName)

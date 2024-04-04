@@ -6,6 +6,6 @@ import jetbrains.exodus.entitystore.StoreTransaction
 
 interface OStoreTransaction : StoreTransaction {
 
-    fun activeSession(): ODatabaseDocument
+    val activeSession: ODatabaseDocument
     val oTransaction: OTransaction
 }

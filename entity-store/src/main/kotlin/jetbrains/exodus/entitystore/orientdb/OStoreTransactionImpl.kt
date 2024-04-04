@@ -22,13 +22,11 @@ class OStoreTransactionImpl(
     private val store: PersistentEntityStore
 ) : OStoreTransaction {
 
-    private var queryCancellingPolicy:QueryCancellingPolicy? = null
+    private var queryCancellingPolicy: QueryCancellingPolicy? = null
+
+    override val activeSession = session
 
     override val oTransaction = txn
-
-    override fun activeSession(): ODatabaseDocument {
-        return session
-    }
 
     override fun getStore(): EntityStore {
         return store

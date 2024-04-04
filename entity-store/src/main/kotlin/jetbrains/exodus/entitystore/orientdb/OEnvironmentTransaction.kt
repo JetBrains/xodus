@@ -59,7 +59,7 @@ class OEnvironmentTransaction(
     }
 
     override fun getSnapshotId(): Long {
-        return txn.activeSession().transaction.id.toLong()
+        return txn.activeSession.transaction.id.toLong()
     }
 
     override fun isReadonly(): Boolean {

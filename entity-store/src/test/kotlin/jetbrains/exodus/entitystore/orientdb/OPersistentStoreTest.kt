@@ -14,7 +14,6 @@ class OPersistentStoreTest {
     @JvmField
     val orientDb = InMemoryOrientDB()
 
-
     @Test
     fun renameClassTest() {
         val summary = "Hello, your product does not work"
@@ -25,7 +24,7 @@ class OPersistentStoreTest {
         store.renameEntityType(CLASS, newClassName)
         val issueByNewName = store.computeInExclusiveTransaction {
             it as OStoreTransaction
-            (it.activeSession() as ODatabaseSession).queryEntities("select from $newClassName", store).firstOrNull()
+            (it.activeSession as ODatabaseSession).queryEntities("select from $newClassName", store).firstOrNull()
         }
         Assert.assertNotNull(issueByNewName)
         issueByNewName!!
