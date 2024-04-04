@@ -3,7 +3,6 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.EntityStore
 import jetbrains.exodus.entitystore.PersistentEntityStore
 
 

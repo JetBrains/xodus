@@ -83,7 +83,7 @@ class OIntersectSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
     // intersect returns projection thus need to expand it into collection
-    override fun sql() = "SELECT expand(intersect((${left.sql()}), (${right.sql()})))" + order.orderBy()
+    override fun sql() = "SELECT expand(intersect(\$a, \$b)) LET \$a=(${left.sql()}), \$b=(${right.sql()})" + order.orderBy()
     override fun params() = left.params() + right.params()
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {
@@ -99,7 +99,9 @@ class OUnionSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
     // intersect returns projection thus need to expand it into collection
-    override fun sql() = "SELECT expand(unionall((${left.sql()}), (${right.sql()})))" + order.orderBy()
+    override fun sql() = "SELECT expand(unionall(\$a, \$b)) LET \$a=(${left.sql()}), \$b=(${right.sql()})" +
+            order.orderBy()
+
     override fun params() = left.params() + right.params()
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {
@@ -126,7 +128,7 @@ class ODistinctSelect(
     override val order: OOrder? = null,
 ) : OSelect {
 
-    override fun sql() = "SELECT distinct(${subQuery.sql()})" + order.orderBy()
+    override fun sql() = "SELECT DISTINCT * FROM (${subQuery.sql()})" + order.orderBy()
     override fun params() = subQuery.params()
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {
@@ -140,7 +142,7 @@ class ODifferenceSelect(
     override val order: OOrder? = null,
 ) : OSelect {
 
-    override fun sql() = "SELECT expand(difference((${left.sql()}), (${right.sql()})))" + order.orderBy()
+    override fun sql() = "SELECT expand(difference(\$a, \$b)) LET \$a=(${left.sql()}), \$b=(${right.sql()})" + order.orderBy()
     override fun params() = left.params() + right.params()
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {

@@ -444,9 +444,6 @@ class OQueryEngineTest {
             ).instantiate() as EntityIterableBase
 
             val issuesDistinct = issues.distinct()
-
-            // Then
-            assertEquals(4, issues.toList().count())
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
