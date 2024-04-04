@@ -1,5 +1,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
+import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
@@ -14,8 +16,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 class OPersistentEntityStore(
     private val db: OrientDB,
-    private val userName: String,
-    private val password: String,
+    userName: String,
+    password: String,
     private val databaseName: String
 ) : PersistentEntityStore {
 
@@ -24,6 +26,7 @@ class OPersistentEntityStore(
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
     private val env = OEnvironment(db, this)
+    private val session = db.cachedPool(databaseName, userName, password).acquire()
 
     override fun close() {}
 
@@ -34,7 +37,7 @@ class OPersistentEntityStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
-        val session = db.cachedPool(databaseName, userName, password).acquire()
+        ODatabaseRecordThreadLocal.instance().set(session as ODatabaseDocumentInternal)
         val txn = session.begin().transaction
         return OStoreTransactionImpl(session, txn, this)
     }
