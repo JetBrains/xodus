@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate.binop;
 
-import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.EntityIterableHandle;
-import jetbrains.exodus.entitystore.EntityIterableType;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIterableHandleBase;
 import org.jetbrains.annotations.NotNull;
@@ -39,7 +36,7 @@ public abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
     protected final EntityIterableBase iterable2;
     protected int depth;
 
-    protected BinaryOperatorEntityIterable(@Nullable final PersistentStoreTransaction txn,
+    protected BinaryOperatorEntityIterable(@Nullable final StoreTransaction txn,
                                            @NotNull final EntityIterableBase iterable1,
                                            @NotNull final EntityIterableBase iterable2,
                                            final boolean isCommutative) {
@@ -255,7 +252,8 @@ public abstract class BinaryOperatorEntityIterable extends EntityIterableBase {
     }
 
     private static boolean shouldBinaryOperationBeCached(@NotNull EntityIterableBase iterable1, @NotNull EntityIterableBase iterable2) {
-        return false;
+        return (iterable1.getHandle().getType().isPropertyIndex() || iterable1.canBeCached()) &&
+            (iterable2.getHandle().getType().isPropertyIndex() || iterable2.canBeCached());
     }
 
     private static boolean isOrderOk(@NotNull final EntityIterableHandle handle1,

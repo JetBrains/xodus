@@ -1,5 +1,6 @@
 package jetbrains.exodus.entitystore.orientdb.query
 
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 
 interface OConditional {
@@ -120,7 +121,7 @@ class OCountSelect(
 
     override fun withOrder(field: String, ascending: Boolean) = this
 
-    fun count(): Long = execute().next().getProperty<Long>("count")
+    fun count(session: ODatabaseDocument? = null): Long = execute(session).next().getProperty<Long>("count")
 }
 
 class ODistinctSelect(

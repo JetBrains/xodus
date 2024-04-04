@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings({"ProtectedField"})
@@ -25,7 +26,7 @@ public abstract class EntityIterableDecoratorBase extends EntityIterableBase {
     protected final EntityIterableBase source;
 
 
-    protected EntityIterableDecoratorBase(@NotNull final PersistentStoreTransaction txn,
+    protected EntityIterableDecoratorBase(@NotNull final StoreTransaction txn,
                                           @NotNull final EntityIterableBase source) {
         super(txn);
         this.source = source.getSource();

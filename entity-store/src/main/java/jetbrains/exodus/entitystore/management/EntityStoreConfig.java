@@ -167,6 +167,11 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     }
 
     @Override
+    public void setEntityIterableCacheSize(int size) {
+        config.setEntityIterableCacheSize(size);
+    }
+
+    @Override
     public long getEntityIterableCacheWeight() {
         return config.getEntityIterableCacheWeight();
     }
@@ -229,6 +234,11 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
     @Override
     public void setEntityIterableCacheDeferredEnabled(boolean deferredEnabled) {
         config.setEntityIterableCacheDeferredEnabled(deferredEnabled);
+    }
+
+    @Override
+    public int getEntityIterableCacheDeferredSize() {
+        return config.getEntityIterableCacheDeferredSize();
     }
 
     @Override
@@ -323,7 +333,7 @@ public class EntityStoreConfig extends MBeanBase implements EntityStoreConfigMBe
 
     @Override
     public void startBlobsDeduplication() {
-        ((EnvironmentImpl)store.getEnvironment()).getGC().getCleanerJobProcessor().queue(new Job() {
+        ((EnvironmentImpl) store.getEnvironment()).getGC().getCleanerJobProcessor().queue(new Job() {
             @Override
             protected void execute() {
                 new PersistentEntityStoreRefactorings(store).refactorDeduplicateInPlaceBlobs();

@@ -3,23 +3,29 @@ package jetbrains.exodus.entitystore.orientdb.iterate
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterableHandle
 import jetbrains.exodus.entitystore.EntityIterator
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.asOStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterator.Companion.create
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OMinusEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
+import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
 import jetbrains.exodus.entitystore.util.unsupported
+import java.util.concurrent.Executors
 
-abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
+abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    private val oStoreTransaction: OStoreTransaction? = tx?.asOStoreTransaction()
+
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIterator {
         val query = query()
-        return create(query, txn)
+        return create(query, txn.asOStoreTransaction())
     }
 
     override fun getHandleImpl(): EntityIterableHandle {
@@ -55,7 +61,8 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
     }
 
     override fun distinct(): EntityIterable {
-        return ODistinctEntityIterable(transaction, this)
+        return this
+        //return ODistinctEntityIterable(transaction, this)
     }
 
     override fun minus(right: EntityIterable): EntityIterable {
@@ -65,7 +72,6 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
             unsupported { "Minus with non-OrientDB entity iterable" }
         }
     }
-
 
     override fun selectMany(linkName: String): EntityIterable {
         return OLinkSelectEntityIterable(transaction, this, linkName)
@@ -83,20 +89,35 @@ abstract class OEntityIterableBase(tx: PersistentStoreTransaction?) : EntityIter
         return this
     }
 
+    @Volatile
+    private var cachedCount: Long = -1
+
+    // ToDo: get executor from persistent store
+    val executor = Executors.newSingleThreadExecutor()
+
     override fun size(): Long {
-        unsupported()
+        val sourceQuery = query()
+        val countQuery = OCountSelect(sourceQuery)
+        return countQuery.count(oStoreTransaction?.activeSession)
     }
 
     override fun count(): Long {
-        return -1
+        val count = cachedCount
+        if (count == -1L) {
+            executor.submit {
+                cachedCount = size()
+            }
+        }
+        return count
     }
 
     override fun getRoughCount(): Long {
-        return -1
+        return cachedCount
     }
 
     override fun getRoughSize(): Long {
-        unsupported()
+        val count = cachedCount
+        return if (count > -1) count else size()
     }
 
     override fun isSortedById(): Boolean {

@@ -20,6 +20,7 @@ import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,7 +32,7 @@ class EntityIdArrayWithSetIterableWrapper extends CachedInstanceIterable {
     @NotNull
     private final IntHashMap<String> linkNames;
 
-    EntityIdArrayWithSetIterableWrapper(@Nullable PersistentStoreTransaction txn, @NotNull CachedInstanceIterable source,
+    EntityIdArrayWithSetIterableWrapper(@Nullable StoreTransaction txn, @NotNull CachedInstanceIterable source,
                                         @NotNull IntArrayList propIds, @NotNull IntHashMap<String> linkNames) {
         super(txn, source);
         this.source = source;
@@ -50,7 +51,7 @@ class EntityIdArrayWithSetIterableWrapper extends CachedInstanceIterable {
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         return source.countImpl(txn);
     }
 
@@ -71,19 +72,19 @@ class EntityIdArrayWithSetIterableWrapper extends CachedInstanceIterable {
 
     @NotNull
     @Override
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new EntityIdArrayWithSetIteratorWrapper(this, (EntityIteratorBase) source.getIteratorImpl(txn), propIds, linkNames);
     }
 
     @NotNull
     @Override
-    public EntityIterator getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public EntityIterator getReverseIteratorImpl(@NotNull StoreTransaction txn) {
         return source.getReverseIteratorImpl(txn);
     }
 
     @NotNull
     @Override
-    public EntityIdSet toSet(@NotNull PersistentStoreTransaction txn) {
+    public EntityIdSet toSet(@NotNull StoreTransaction txn) {
         return source.toSet(txn);
     }
 }

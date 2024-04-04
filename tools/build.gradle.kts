@@ -16,13 +16,16 @@ val testArtifacts: Configuration by configurations.creating
 
 tasks {
     shadowJar {
+        mustRunAfter(jar)
+        archiveFileName.set(jar.get().archiveFileName)
         manifest {
             attributes["Main-Class"] = "jetbrains.exodus.MainKt"
         }
     }
 
+
     jar {
-        enabled = false
+        finalizedBy(shadowJar)
     }
 
     val jarTest by creating(Jar::class) {
@@ -33,9 +36,5 @@ tasks {
     artifacts {
         add("default", shadowJar)
         add("testArtifacts", jarTest)
-    }
-
-    build {
-        dependsOn(shadowJar)
     }
 }

@@ -30,6 +30,7 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     private final Map<E, Pair<E, P>> priorities;
     private final AtomicInteger size;
     private final CriticalSection criticalSection;
+    private boolean skipIfPresent = false;
 
     public StablePriorityQueue() {
         theQueue = new TreeMap<>();
@@ -51,7 +52,11 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     @Override
     public E push(@NotNull final P priority, @NotNull final E value) {
         LinkedHashSet<E> values;
-        final Pair<E, P> oldPair = priorities.remove(value);
+        Pair<E, P> oldPair = priorities.get(value);
+        if (oldPair != null && skipIfPresent) {
+            return oldPair.first;
+        }
+        oldPair = priorities.remove(value);
         priorities.put(value, new Pair<>(value, priority));
         invalidateSize();
         final P oldPriority = oldPair == null ? null : oldPair.getSecond();
@@ -128,6 +133,11 @@ public class StablePriorityQueue<P extends Comparable<? super P>, E> extends Pri
     @Override
     public void unlock() {
         criticalSection.unlock();
+    }
+
+    @Override
+    public void shouldSkipIfPresent(boolean skipIfPresent) {
+        this.skipIfPresent = skipIfPresent;
     }
 
     @Override

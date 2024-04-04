@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.iterate.cached;
 
 import jetbrains.exodus.entitystore.EntityId;
 import jetbrains.exodus.entitystore.EntityIterator;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.OrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseOrderedEntityIdCollectionIterator;
@@ -29,7 +29,7 @@ public class SingleTypeSortedSetEntityIdCachedInstanceIterable extends CachedIns
     @NotNull
     private final SortedEntityIdSet localIds;
 
-    public SingleTypeSortedSetEntityIdCachedInstanceIterable(@Nullable PersistentStoreTransaction txn, @NotNull EntityIterableBase source,
+    public SingleTypeSortedSetEntityIdCachedInstanceIterable(@Nullable StoreTransaction txn, @NotNull EntityIterableBase source,
                                                              int typeId, @NotNull SortedEntityIdSet localIds) {
         super(txn, source);
         this.typeId = typeId;
@@ -52,7 +52,7 @@ public class SingleTypeSortedSetEntityIdCachedInstanceIterable extends CachedIns
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         return localIds.count();
     }
 
@@ -73,19 +73,19 @@ public class SingleTypeSortedSetEntityIdCachedInstanceIterable extends CachedIns
 
     @NotNull
     @Override
-    public EntityIteratorBase getIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull StoreTransaction txn) {
         return new OrderedEntityIdCollectionIterator(this, localIds);
     }
 
     @NotNull
     @Override
-    public EntityIterator getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public EntityIterator getReverseIteratorImpl(@NotNull StoreTransaction txn) {
         return new ReverseOrderedEntityIdCollectionIterator(this, localIds);
     }
 
     @NotNull
     @Override
-    public EntityIdSet toSet(@NotNull PersistentStoreTransaction txn) {
+    public EntityIdSet toSet(@NotNull StoreTransaction txn) {
         return localIds;
     }
 }

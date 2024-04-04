@@ -15,10 +15,12 @@
  */
 package jetbrains.exodus.core.cache.persistent
 
+import jetbrains.exodus.testutil.runInParallel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 
 class CaffeinePersistentCacheTest {
 
@@ -250,7 +252,56 @@ class CaffeinePersistentCacheTest {
         assertEquals(0, cache.localIndexSize())
     }
 
+    @Test
+    fun `should change size in runtime`() {
+        // Given
+        val cache = givenSizedCache(1)
 
+        // When
+        cache.put("key1", "value1")
+        cache.put("key2", "value2")
+        assertEquals(1, cache.count())
+        cache.trySetSize(2)
+        cache.put("key3", "value3")
+
+        // Then
+        assertEquals(2, cache.size())
+    }
+
+    @Test
+    fun `should change size in runtime consistently for all versions`() {
+        // Given
+        val cache1 = givenSizedCache(1)
+        val cache2 = cache1.createNextVersion()
+
+        // When
+        cache1.trySetSize(2)
+
+        // Then
+        assertEquals(2, cache2.size())
+    }
+
+    @Test
+    fun `should change size only once concurrently`() {
+        // Given
+        val initialSize = 1L
+        val targetSize = 100L
+        val cache = givenSizedCache(initialSize)
+        val results = ConcurrentHashMap<Int, Boolean>()
+
+        // When
+        runInParallel(concurrencyLevel = 100, taskCount = 10) {
+            if (cache.size() != targetSize) {
+                Thread.sleep(100)
+                val wasSet = cache.trySetSize(targetSize)
+                results[it] = wasSet
+            }
+        }
+
+        // Then
+        // Should be set only once
+        assertEquals(1, results.filter { it.value }.size)
+    }
 
     private fun givenSizedCache(size: Long): CaffeinePersistentCache<String, String> {
         val config = CaffeineCacheConfig<String>(

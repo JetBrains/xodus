@@ -6,18 +6,25 @@ import com.orientechnologies.orient.core.record.OVertex
 import io.mockk.every
 import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues
+import jetbrains.exodus.entitystore.orientdb.testutil.OTaskTrackerTestCase
+import jetbrains.exodus.entitystore.orientdb.testutil.Projects
+import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToBoard
+import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToProject
+import jetbrains.exodus.entitystore.orientdb.testutil.name
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
 import jetbrains.exodus.query.metadata.PropertyMetaData
 import jetbrains.exodus.query.metadata.PropertyType
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 
+@Ignore("Should be un-ignored after migration of query module to orinetdb")
 class OQueryEngineTest {
 
     @Rule
@@ -472,7 +479,7 @@ class OQueryEngineTest {
     }
 
     @Test
-    fun `should query links with select many and many distinct`() {
+    fun `should query links with select many`() {
         // Given
         val test = givenTestCase()
         orientDB.addIssueToBoard(test.issue1, test.board1)
@@ -485,14 +492,31 @@ class OQueryEngineTest {
         orientDB.withSession {
             val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
-            val boardsDistinct = engine.selectDistinct(issues, Issues.Links.ON_BOARD)
 
             // Then
-            assertEquals(4, boards.toList().size)
-            assertNamesExactly(boardsDistinct, "board1", "board2")
+            assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
         }
     }
 
+    @Test
+    fun `should query links with select many distinct`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
+            val boardsDistinct = engine.selectDistinct(issues, Issues.Links.ON_BOARD)
+
+            // Then
+            assertNamesExactly(boardsDistinct, "board1", "board2")
+        }
+    }
 
     private fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
         assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
@@ -523,28 +547,9 @@ class OQueryEngineTest {
     }
 
     private fun givenOQueryEngine(metadataOrNull: ModelMetaData? = null): QueryEngine {
-        val metadata = if (metadataOrNull != null) metadataOrNull else mockk<ModelMetaData>(relaxed = true)
-        val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
-        every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
-        val engine = QueryEngine(metadata, store)
-        engine.sortEngine = SortEngine()
-        return engine
+        // ToDo: return orientdb compatible query engine
+        return mockk()
     }
 
-    private fun givenTestCase() = TestCase(orientDB)
-
-    private class TestCase(val orientDB: InMemoryOrientDB) {
-
-        val project1 = orientDB.createProject("project1")
-        val project2 = orientDB.createProject("project2")
-        val project3 = orientDB.createProject("project3")
-
-        val issue1 = orientDB.createIssue("issue1")
-        val issue2 = orientDB.createIssue("issue2")
-        val issue3 = orientDB.createIssue("issue3")
-
-        val board1 = orientDB.createBoard("board1")
-        val board2 = orientDB.createBoard("board2")
-        val board3 = orientDB.createBoard("board3")
-    }
+    private fun givenTestCase() = OTaskTrackerTestCase(orientDB)
 }

@@ -2,6 +2,8 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test

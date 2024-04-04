@@ -16,21 +16,20 @@
 package jetbrains.exodus.entitystore.iterate;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.EntityIterableHandle;
-import jetbrains.exodus.entitystore.PersistentEntityId;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.tables.LinkValue;
 import jetbrains.exodus.env.Cursor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
 
 public class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
 
     protected final int oppositeEntityTypeId;
     protected final int oppositeLinkId;
 
-    public EntitiesWithLinkSortedIterable(@NotNull final PersistentStoreTransaction txn,
+    public EntitiesWithLinkSortedIterable(@NotNull final StoreTransaction txn,
                                           final int entityTypeId,
                                           final int linkId,
                                           final int oppositeEntityTypeId,
@@ -47,8 +46,8 @@ public class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
-        return new LinksIterator(openCursor(txn));
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
+        return new LinksIterator(openCursor(asPersistent(txn)));
     }
 
     @NotNull
@@ -73,7 +72,7 @@ public class EntitiesWithLinkSortedIterable extends EntitiesWithLinkIterable {
 
     @SuppressWarnings({"MethodOverridesPrivateMethodOfSuperclass"})
     private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
-        return getStore().getLinksSecondIndexCursor(txn, oppositeEntityTypeId);
+        return getStoreImpl().getLinksSecondIndexCursor(txn, oppositeEntityTypeId);
     }
 
     private final class LinksIterator extends EntityIteratorBase {

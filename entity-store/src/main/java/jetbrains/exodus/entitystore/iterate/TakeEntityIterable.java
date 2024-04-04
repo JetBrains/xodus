@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.iterate;
 
-import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.EntityIterableHandle;
-import jetbrains.exodus.entitystore.EntityIterableType;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 
 public class TakeEntityIterable extends EntityIterableDecoratorBase {
@@ -30,7 +27,7 @@ public class TakeEntityIterable extends EntityIterableDecoratorBase {
             (EntityIterableBase) parameters[1], Integer.parseInt((String) parameters[0])));
     }
 
-    protected TakeEntityIterable(@NotNull final PersistentStoreTransaction txn,
+    protected TakeEntityIterable(@NotNull final StoreTransaction txn,
                                  @NotNull final EntityIterableBase source,
                                  final int itemsToTake) {
         super(txn, source);
@@ -53,7 +50,7 @@ public class TakeEntityIterable extends EntityIterableDecoratorBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new NonDisposableEntityIterator(this) {
 
             @NotNull

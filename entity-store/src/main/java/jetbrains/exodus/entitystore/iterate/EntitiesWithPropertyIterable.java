@@ -19,6 +19,8 @@ import jetbrains.exodus.entitystore.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 public class EntitiesWithPropertyIterable extends EntityIterableBase {
 
     private final int entityTypeId;
@@ -29,7 +31,7 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
             Integer.parseInt((String) parameters[0]), Integer.parseInt((String) parameters[1])));
     }
 
-    public EntitiesWithPropertyIterable(@NotNull final PersistentStoreTransaction txn,
+    public EntitiesWithPropertyIterable(@NotNull final StoreTransaction txn,
                                         final int entityTypeId,
                                         final int propertyId) {
         super(txn);
@@ -47,9 +49,9 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
 
     @NotNull
     @Override
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new FieldIndexIterator(this, entityTypeId, propertyId,
-            getStore().getEntityWithPropIterable(txn, entityTypeId, propertyId));
+            getStoreImpl().getEntityWithPropIterable(asPersistent(txn), entityTypeId, propertyId));
     }
 
     @NotNull
@@ -59,7 +61,7 @@ public class EntitiesWithPropertyIterable extends EntityIterableBase {
     }
 
     @Override
-    protected CachedInstanceIterable createCachedInstance(@NotNull PersistentStoreTransaction txn) {
+    protected CachedInstanceIterable createCachedInstance(@NotNull StoreTransaction txn) {
         return new UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this);
     }
 

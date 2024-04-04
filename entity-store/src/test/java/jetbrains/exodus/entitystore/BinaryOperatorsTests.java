@@ -19,6 +19,7 @@ import jetbrains.exodus.TestFor;
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.entitystore.iterate.EntityIteratorBase;
 import org.junit.Assert;
+import org.junit.Ignore;
 
 import java.util.Objects;
 

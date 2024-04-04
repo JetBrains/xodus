@@ -28,23 +28,23 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
 
     override fun getEntityTypeId() = entityTypeId
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction) =
-        if (store.useVersion1Format())
-            EntitiesOfTypeIterator(this, store.getEntitiesIndexCursor(txn, entityTypeId), reverse = false)
+    override fun getIteratorImpl(txn: StoreTransaction) =
+        if (storeImpl.useVersion1Format())
+            EntitiesOfTypeIterator(this, storeImpl.getEntitiesIndexCursor(txn.asPersistent(), entityTypeId), reverse = false)
         else
-            EntitiesOfTypeBitmapIterator(this, store.getEntitiesBitmapIterator(txn, entityTypeId))
+            EntitiesOfTypeBitmapIterator(this, storeImpl.getEntitiesBitmapIterator(txn.asPersistent(), entityTypeId))
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction) =
-        if (store.useVersion1Format())
-            EntitiesOfTypeIterator(this, store.getEntitiesIndexCursor(txn, entityTypeId), reverse = true)
+    override fun getReverseIteratorImpl(txn: StoreTransaction) =
+        if (storeImpl.useVersion1Format())
+            EntitiesOfTypeIterator(this, storeImpl.getEntitiesIndexCursor(txn.asPersistent(), entityTypeId), reverse = true)
         else
-            EntitiesOfTypeBitmapIterator(this, store.getEntitiesBitmapReverseIterator(txn, entityTypeId))
+            EntitiesOfTypeBitmapIterator(this, storeImpl.getEntitiesBitmapReverseIterator(txn.asPersistent(), entityTypeId))
 
     override fun nonCachedHasFastCountAndIsEmpty() = true
 
     override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable {
         val txn = transaction
-        val linkId = store.getLinkId(txn, linkName, false)
+        val linkId = storeImpl.getLinkId(txn.asPersistent(), linkName, false)
         if (linkId < 0) {
             return EMPTY
         }
@@ -53,14 +53,14 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
         )
     }
 
-    override fun isEmptyImpl(txn: PersistentStoreTransaction) = countImpl(txn) == 0L
+    override fun isEmptyImpl(txn: StoreTransaction) = countImpl(txn) == 0L
 
     override fun getHandleImpl() = EntitiesOfTypeIterableHandle(this)
 
     override fun getLast(): Entity? {
         val txn = store.andCheckCurrentTransaction
-        val localId: Long? = if (store.useVersion1Format()) {
-            store.getEntitiesIndexCursor(txn, entityTypeId).use { cursor ->
+        val localId: Long? = if (storeImpl.useVersion1Format()) {
+            storeImpl.getEntitiesIndexCursor(txn.asPersistent(), entityTypeId).use { cursor ->
                 if (cursor.last) {
                     LongBinding.compressedEntryToLong(cursor.key)
                 } else {
@@ -68,17 +68,17 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
                 }
             }
         } else {
-            store.getEntitiesBitmapTable(txn, entityTypeId).getLast(txn.environmentTransaction).let {
+            storeImpl.getEntitiesBitmapTable(txn.asPersistent(), entityTypeId).getLast(txn.environmentTransaction).let {
                 if (it < 0) null else it
             }
         }
         return localId?.let { txn.getEntity(PersistentEntityId(entityTypeId, it)) }
     }
 
-    override fun createCachedInstance(txn: PersistentStoreTransaction): CachedInstanceIterable =
-        UpdatableEntityIdSortedSetCachedInstanceIterable(txn, this)
+    override fun createCachedInstance(txn: StoreTransaction): CachedInstanceIterable =
+        UpdatableEntityIdSortedSetCachedInstanceIterable(txn.asPersistent(), this)
 
-    override fun countImpl(txn: PersistentStoreTransaction) = store.getEntitiesCount(txn, entityTypeId)
+    override fun countImpl(txn: StoreTransaction) = storeImpl.getEntitiesCount(txn.asPersistent(), entityTypeId)
 
     private class EntitiesOfTypeIterator(
         iterable: EntitiesOfTypeIterable,

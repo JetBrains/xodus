@@ -23,7 +23,6 @@ import jetbrains.exodus.core.dataStructures.Pair;
 import jetbrains.exodus.entitystore.replication.PersistentEntityStoreReplicator;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.system.JVMConstants;
-import kotlin.jvm.Volatile;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -119,6 +118,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * <p>Mutable at runtime: no
      */
     public static final String REFACTORING_CLEAR_BROKEN_BLOBS = "exodus.entityStore.refactoring.clearBrokenBlobs";
+    public static final String REFACTORING_CLEAR_NOT_REGISTERED_BLOBS = "exodus.entityStore.refactoring.clearNotRegisteredBlobs";
 
     /**
      * Not for public use, for debugging and troubleshooting purposes. Default value is {@code 30}.
@@ -230,7 +230,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
      * Defines the size of EntityIterableCache. EntityIterableCache is operable only if {@linkplain #CACHING_DISABLED}
      * is {@code false}. Default value depends on the JVM memory settings.
      * <p><b>It's generally recommended to use weighted cache instead. See {@linkplain #ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE}.</b>
-     * <p>Mutable at runtime: no
+     * <p>Mutable at runtime: yes
      *
      * @see #CACHING_DISABLED
      */
@@ -469,6 +469,7 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
                 new Pair(REFACTORING_HEAVY_PROPS, false),
                 new Pair(REFACTORING_DELETE_REDUNDANT_BLOBS, false),
                 new Pair(REFACTORING_CLEAR_BROKEN_BLOBS, false),
+                new Pair(REFACTORING_CLEAR_NOT_REGISTERED_BLOBS, false),
                 new Pair(REFACTORING_DEDUPLICATE_BLOBS_EVERY, 30),
                 new Pair(REFACTORING_DEDUPLICATE_BLOBS_MIN_SIZE, 10),
                 new Pair(MAX_IN_PLACE_BLOB_SIZE, 10000),
@@ -592,6 +593,13 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return getRefactoringForceAll() || (Boolean) (getSetting(REFACTORING_CLEAR_BROKEN_BLOBS));
     }
 
+    public PersistentEntityStoreConfig setRefactoringClearNotRegisteredBlobs(final boolean clearBrokenBlobs) {
+        return setSetting(REFACTORING_CLEAR_NOT_REGISTERED_BLOBS, clearBrokenBlobs);
+    }
+
+    public boolean getRefactoringClearNotRegisteredBlobs() {
+        return getRefactoringForceAll() || (Boolean) (getSetting(REFACTORING_CLEAR_NOT_REGISTERED_BLOBS));
+    }
 
     public int getRefactoringDeduplicateBlobsEvery() {
         return getRefactoringForceAll() ? 0 : (Integer) getSetting(REFACTORING_DEDUPLICATE_BLOBS_EVERY);
@@ -719,6 +727,9 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_SIZE);
     }
 
+    public PersistentEntityStoreConfig setEntityIterableCacheSize(final int size) {
+        return setSetting(ENTITY_ITERABLE_CACHE_SIZE, size);
+    }
 
     public int getEntityIterableCacheMemoryPercentage() {
         return (Integer) getSetting(ENTITY_ITERABLE_CACHE_MEMORY_PERCENTAGE);
@@ -733,10 +744,6 @@ public class PersistentEntityStoreConfig extends AbstractConfig {
         long percentage = getEntityIterableCacheMemoryPercentage();
         long entityWeight = getEntityIterableCacheEntityWeight();
         return (maxMemory * percentage) / (100 * entityWeight);
-    }
-
-    public PersistentEntityStoreConfig setEntityIterableCacheSize(final int size) {
-        return setSetting(ENTITY_ITERABLE_CACHE_SIZE, size);
     }
 
     public int getEntityIterableCacheCountsCacheSize() {

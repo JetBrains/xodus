@@ -206,7 +206,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
         }
 
         @Override
-        protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+        protected long countImpl(@NotNull final StoreTransaction txn) {
             return data.length;
         }
 
@@ -227,7 +227,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
 
         @NotNull
         @Override
-        public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+        public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
             return new NonDisposableEntityIterator(this) {
 
                 int i = 0;
@@ -254,7 +254,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
 
         @NotNull
         @Override
-        public EntityIteratorBase getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+        public EntityIteratorBase getReverseIteratorImpl(@NotNull final StoreTransaction txn) {
             return new NonDisposableEntityIterator(this) {
 
                 int i = data.length;
@@ -331,7 +331,7 @@ public class EntityIdArrayCachedInstanceIterableTests extends EntityStoreTestBas
         }
 
         @Override
-        protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+        protected CachedInstanceIterable createCachedInstance(@NotNull final StoreTransaction txn) {
             return EntityIdArrayCachedInstanceIterableFactory.createInstance(txn, this);
         }
 

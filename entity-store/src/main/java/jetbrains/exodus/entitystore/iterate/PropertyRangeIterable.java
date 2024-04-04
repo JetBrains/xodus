@@ -73,7 +73,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         final EntityIterableBase it = getPropertyValueIndex();
         if (it.isCachedInstance()) {
             final Class<? extends Comparable> minClass = min.getClass();
@@ -93,7 +93,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
     }
 
     @Override
-    public @NotNull EntityIterator getReverseIteratorImpl(@NotNull PersistentStoreTransaction txn) {
+    public @NotNull EntityIterator getReverseIteratorImpl(@NotNull StoreTransaction txn) {
         final EntityIterableBase it = getPropertyValueIndex();
         if (it.isCachedInstance()) {
             final Class<? extends Comparable> minClass = min.getClass();
@@ -188,13 +188,13 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         final Cursor cursor = openCursor(txn);
         try (cursor) {
             if (cursor == null) {
                 return 0;
             }
-            final PropertyValue propertyValue = getStore().getPropertyTypes().dataToPropertyValue(min);
+            final PropertyValue propertyValue = getStoreImpl().getPropertyTypes().dataToPropertyValue(min);
             final ComparableBinding binding = propertyValue.getBinding();
             long result = 0;
             boolean success = cursor.getSearchKeyRange(propertyValue.dataToEntry()) != null;
@@ -217,7 +217,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
         private PropertyRangeIterator(@NotNull final Cursor cursor) {
             super(PropertyRangeIterable.this);
             setCursor(cursor);
-            binding = getStore().getPropertyTypes().dataToPropertyValue(min).getBinding();
+            binding = getStoreImpl().getPropertyTypes().dataToPropertyValue(min).getBinding();
             ByteIterable key = binding.objectToEntry(min);
             checkHasNext(getCursor().getSearchKeyRange(key) != null);
         }
@@ -255,7 +255,7 @@ public final class PropertyRangeIterable extends PropertyRangeOrValueIterableBas
             super(PropertyRangeIterable.this);
             setCursor(cursor);
 
-            binding = getStore().getPropertyTypes().dataToPropertyValue(max).getBinding();
+            binding = getStoreImpl().getPropertyTypes().dataToPropertyValue(max).getBinding();
             ByteIterable maxKey = binding.objectToEntry(max);
 
             //move the cursor to the key equals to maximum value and value closest to maximum

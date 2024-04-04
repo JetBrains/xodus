@@ -30,7 +30,7 @@ public class AddNullDecoratorIterable extends BinaryOperatorEntityIterable {
             (EntityIterableBase) parameters[0], (EntityIterableBase) parameters[1]));
     }
 
-    public AddNullDecoratorIterable(@NotNull final PersistentStoreTransaction txn,
+    public AddNullDecoratorIterable(@NotNull final StoreTransaction txn,
                                     @NotNull final EntityIterableBase decorated,
                                     @NotNull final EntityIterableBase nullContainer) {
         super(txn, decorated, nullContainer, false);
@@ -41,7 +41,7 @@ public class AddNullDecoratorIterable extends BinaryOperatorEntityIterable {
 
     @NotNull
     @Override
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new EntityIteratorBase(AddNullDecoratorIterable.this) {
             private EntityIterator iterator = null;
             private Boolean hasNull = null;

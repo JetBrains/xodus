@@ -1,5 +1,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
+import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
@@ -10,21 +12,19 @@ import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.management.Statistics
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 class OPersistentEntityStore(
     private val db: OrientDB,
-    private val userName: String,
-    private val password: String,
+    userName: String,
+    password: String,
     private val databaseName: String
 ) : PersistentEntityStore {
 
-    private val typesMap = ConcurrentHashMap<String, Int>()
     private val config = PersistentEntityStoreConfig()
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
     private val env = OEnvironment(db, this)
-
+    private val session = db.cachedPool(databaseName, userName, password).acquire()
 
     override fun close() {}
 
@@ -35,7 +35,7 @@ class OPersistentEntityStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
-        val session = db.cachedPool(databaseName, userName, password).acquire()
+        ODatabaseRecordThreadLocal.instance().set(session as ODatabaseDocumentInternal)
         val txn = session.begin().transaction
         return OStoreTransactionImpl(session, txn, this)
     }
@@ -75,7 +75,7 @@ class OPersistentEntityStore(
             executable.execute(txn)
         } finally {
             // if txn has not already been aborted in execute()
-            txn.activeSession().commit()
+            txn.activeSession.commit()
         }
     }
 
@@ -92,7 +92,7 @@ class OPersistentEntityStore(
             return computable.compute(txn)
         } finally {
             // if txn has not already been aborted in execute()
-            txn.activeSession().commit()
+            txn.activeSession.commit()
         }
     }
 
@@ -113,40 +113,30 @@ class OPersistentEntityStore(
     }
 
     override fun getEntity(id: EntityId): Entity {
-        val orId = id as? OEntityId ?: throw IllegalStateException()
-        val txn = (currentTransaction as ODatabaseSession).transaction
-        val vertex = txn.database.load<OVertex>(orId.asOId())
+        require(id is OEntityId) { "Only OEntityId is supported, but was ${id.javaClass.simpleName}" }
+        val txn = currentOTransaction.oTransaction
+        val vertex = txn.database.load<OVertex>(id.asOId())
         return OVertexEntity(vertex, this)
     }
 
     override fun getEntityTypeId(entityType: String): Int {
-        return typesMap.computeIfAbsent(entityType) {
-            val oClass =
-                ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
-            oClass?.defaultClusterId?: -1
-        }
+        val oClass = ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
+        return oClass?.defaultClusterId ?: -1
     }
 
     override fun getEntityType(entityTypeId: Int): String {
-        //This implementation is wierd
-        val type = (typesMap.entries.firstOrNull { it.value == entityTypeId })?.key
-        if (type == null) {
-            val oClass =
-                ODatabaseSession.getActiveSession().metadata.schema.classes.firstOrNull { it.defaultClusterId == entityTypeId }!!
-            typesMap[oClass.name] = entityTypeId
-            return oClass.name
-        } else return type
+        val oClass =
+            ODatabaseSession.getActiveSession().metadata.schema.getClassByClusterId(entityTypeId)
+        return oClass.name
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
         val oldClass = computeInTransaction {
             val txn = it as OStoreTransaction
-            txn.activeSession().metadata.schema.getClass(oldEntityTypeName)
+            txn.activeSession.metadata.schema.getClass(oldEntityTypeName)
                 ?: throw IllegalStateException("Class found by name $oldEntityTypeName")
         }
         oldClass.setName(newEntityTypeName)
-        typesMap.remove(oldEntityTypeName)
-        typesMap.remove(newEntityTypeName)
     }
 
     override fun getUsableSpace(): Long {
@@ -159,5 +149,10 @@ class OPersistentEntityStore(
 
     override fun getStatistics() = dummyStatistics
 
+    override fun getAndCheckCurrentTransaction() = currentTransaction
+
     override fun getCountsAsyncProcessor() = dummyJobProcessor
+
+
+    private val currentOTransaction get() = currentTransaction as OStoreTransaction
 }

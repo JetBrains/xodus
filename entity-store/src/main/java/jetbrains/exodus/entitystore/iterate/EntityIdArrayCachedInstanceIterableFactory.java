@@ -18,7 +18,7 @@ package jetbrains.exodus.entitystore.iterate;
 import jetbrains.exodus.core.dataStructures.IntArrayList;
 import jetbrains.exodus.core.dataStructures.LongArrayList;
 import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.entitystore.iterate.cached.*;
 import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdBitSet;
 import jetbrains.exodus.entitystore.util.ImmutableSingleTypeEntityIdCollection;
@@ -31,12 +31,12 @@ import static jetbrains.exodus.entitystore.iterate.EntityIterableBase.NULL_TYPE_
 public class EntityIdArrayCachedInstanceIterableFactory {
     public static final int MAX_COMPRESSED_SET_LOAD_FACTOR = 64;
 
-    public static CachedInstanceIterable createInstance(@NotNull final PersistentStoreTransaction txn,
+    public static CachedInstanceIterable createInstance(@NotNull final StoreTransaction txn,
                                                         @NotNull final EntityIterableBase source) {
         return createInstance(txn, source, (EntityIteratorBase) source.getIteratorImpl(txn));
     }
 
-    public static CachedInstanceIterable createInstance(@NotNull final PersistentStoreTransaction txn,
+    public static CachedInstanceIterable createInstance(@NotNull final StoreTransaction txn,
                                                         @NotNull final EntityIterableBase source,
                                                         @NotNull final EntityIteratorBase it) {
         try {
@@ -181,7 +181,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
 
     @NotNull
     private static CachedInstanceIterable makeSingleTypeSortedIterable(
-        @NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
+        @NotNull StoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
         IntArrayList typeIds, LongArrayList localIds, long min, long max
     ) {
         final int typeId = typeIds.get(0);
@@ -208,7 +208,7 @@ public class EntityIdArrayCachedInstanceIterableFactory {
 
     @NotNull
     private static CachedInstanceIterable makeSingleTypeUnsortedIterable(
-        @NotNull PersistentStoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
+        @NotNull StoreTransaction txn, @NotNull EntityIterableBase source, @NotNull EntityIteratorBase it,
         IntArrayList typeIds, LongArrayList localIds, long min, long max
     ) {
         return new SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(
