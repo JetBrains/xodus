@@ -1,10 +1,6 @@
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
-import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
@@ -14,28 +10,31 @@ import jetbrains.exodus.management.Statistics
 import java.io.File
 
 class OPersistentEntityStore(
-    private val db: OrientDB,
-    userName: String,
-    password: String,
-    private val databaseName: String
+    private val databaseProvider: ODatabaseProvider,
+    private val name: String
 ) : PersistentEntityStore {
 
     private val config = PersistentEntityStoreConfig()
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
-    private val env = OEnvironment(db, this)
-    private val session = db.cachedPool(databaseName, userName, password).acquire()
+    private val env = OEnvironment(databaseProvider.database, this)
 
-    override fun close() {}
 
-    override fun getName() = databaseName
+    override fun close() {
+        //or it should be closed independently
+        databaseProvider.close()
+    }
+
+    override fun getName() = name
 
     override fun getLocation(): String {
-        return db.accessInternal.basePath
+        return databaseProvider.databaseLocation
     }
 
     override fun beginTransaction(): StoreTransaction {
-        ODatabaseRecordThreadLocal.instance().set(session as ODatabaseDocumentInternal)
+        val session = databaseProvider.databaseSession
+        session.isPooled
+        session.activateOnCurrentThread()
         val txn = session.begin().transaction
         return OStoreTransactionImpl(session, txn, this)
     }
