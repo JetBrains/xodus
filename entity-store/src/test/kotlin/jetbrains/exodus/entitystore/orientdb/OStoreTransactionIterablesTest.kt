@@ -210,7 +210,25 @@ class OStoreTransactionIterablesTest {
     }
 
     @Test
-    fun `should iterable union`() {
+    fun `should iterable union different issues`() {
+        // Given
+        val test = givenTestCase()
+        val tx = givenOTransaction()
+
+        // When
+        orientDB.withSession {
+            val equal1 = tx.find(Issues.CLASS, "name", test.issue1.name())
+            val equal2 = tx.find(Issues.CLASS, "name", test.issue2.name())
+
+            val issues = equal1.union(equal2)
+
+            // Then
+            assertNamesExactly(issues, "issue1", "issue2")
+        }
+    }
+
+    @Test
+    fun `should iterable union same issue`() {
         // Given
         val test = givenTestCase()
         val tx = givenOTransaction()
@@ -223,7 +241,8 @@ class OStoreTransactionIterablesTest {
             val issues = equal1.union(equal2)
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2")
+            // Union operation can distinct result set if query is optimized to OR conditions
+            assertNamesExactly(issues, "issue1")
         }
     }
 
@@ -564,12 +583,7 @@ class OStoreTransactionIterablesTest {
     }
 
     private fun givenOTransaction(): OStoreTransactionImpl {
-        val store = OPersistentEntityStore(
-            orientDB.database,
-            orientDB.username,
-            orientDB.password,
-            orientDB.dbName
-        )
+        val store = orientDB.store
         val session = orientDB.openSession()
         val tx = session.begin().transaction
         return OStoreTransactionImpl(session, tx, store)

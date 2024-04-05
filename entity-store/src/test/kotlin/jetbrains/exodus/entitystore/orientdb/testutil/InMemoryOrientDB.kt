@@ -4,6 +4,7 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.sql.executor.OResultSet
+import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
@@ -33,7 +34,9 @@ class InMemoryOrientDB(
                 session.createClass(BINARY_BLOB_CLASS_NAME)
             }
         }
-        store = OPersistentEntityStore(db, username, password, dbName)
+
+        val provider = ODatabaseProviderImpl(database, dbName, username, password)
+        store = OPersistentEntityStore(provider, dbName)
     }
 
     override fun after() {
