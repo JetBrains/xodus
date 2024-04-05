@@ -13,6 +13,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.merge.OMergeSortedEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.env.Transaction
 
@@ -219,16 +220,37 @@ class OStoreTransactionImpl(
         TODO("Not yet implemented")
     }
 
+    @Deprecated("Deprecated in Java")
     override fun mergeSorted(sorted: MutableList<EntityIterable>, comparator: Comparator<Entity>): EntityIterable {
-        TODO("Not yet implemented")
+        val selfGetter = ComparableGetter { it }
+        val comparatorWrapper = java.util.Comparator<Comparable<Any>?> { o1, o2 ->
+            comparator.compare(o1 as Entity, o2 as Entity)
+        }
+        return mergeSorted(sorted, selfGetter, comparatorWrapper)
     }
 
     override fun mergeSorted(
-        sorted: List<EntityIterable?>,
+        sorted: List<EntityIterable>,
         valueGetter: ComparableGetter,
         comparator: java.util.Comparator<Comparable<Any>?>
     ): EntityIterable {
-        TODO("Not yet implemented")
+        var filtered: MutableList<EntityIterable>? = null
+        for (it in sorted) {
+            if (it !== EntityIterableBase.EMPTY) {
+                if (filtered == null) {
+                    filtered = arrayListOf()
+                }
+                filtered.add(it)
+            }
+        }
+        return if (filtered == null) EntityIterableBase.EMPTY else OMergeSortedEntityIterable(
+            this,
+            sorted,
+            {
+                valueGetter.select(it)
+            },
+            comparator
+        )
     }
 
     override fun toEntityId(representation: String): EntityId {
