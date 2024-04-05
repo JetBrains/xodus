@@ -112,6 +112,7 @@ class OStoreTransactionIterablesTest {
         }
     }
 
+
     @Test
     fun `should find property exists`() {
         // Given
@@ -217,7 +218,8 @@ class OStoreTransactionIterablesTest {
         // When
         orientDB.withSession {
             val equal1 = tx.find(Issues.CLASS, "name", test.issue1.name())
-            val equal2 = tx.find(Issues.CLASS, "name", test.issue2.name())
+            val equal2 = tx.find(Issues.CLASS, "name", test.issue1.name())
+
             val issues = equal1.union(equal2)
 
             // Then
@@ -247,7 +249,28 @@ class OStoreTransactionIterablesTest {
     }
 
     @Test
-    fun `should iterable concat`() {
+    fun `should iterable concat with properties`() {
+        // Given
+        val test = givenTestCase()
+        val tx = givenOTransaction()
+
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+
+        // When
+        orientDB.withSession {
+            val issue1 = tx.find(Issues.CLASS, "name", "issue1")
+            val issue2 = tx.find(Issues.CLASS, "name", "issue2")
+            val concat = issue1.concat(issue2).concat(issue1)
+
+            // Then
+            assertNamesExactly(concat, "issue1", "issue2", "issue1")
+        }
+    }
+
+    @Test
+    fun `should iterable concat with links`() {
         // Given
         val test = givenTestCase()
         val tx = givenOTransaction()
@@ -264,7 +287,6 @@ class OStoreTransactionIterablesTest {
 
             // Then
             assertNamesExactly(concat, "issue1", "issue2", "issue1")
-            assertThat(concat).hasSize(3)
         }
     }
 
