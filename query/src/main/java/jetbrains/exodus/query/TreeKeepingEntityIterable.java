@@ -16,6 +16,7 @@
 package jetbrains.exodus.query;
 
 
+import jetbrains.exodus.entitystore.DualCompatibilityKt;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.Explainer;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;

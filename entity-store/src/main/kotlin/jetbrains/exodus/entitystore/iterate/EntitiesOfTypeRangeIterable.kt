@@ -26,17 +26,17 @@ import jetbrains.exodus.kotlin.notNull
  * Iterates all entities of specified entity type in range of local ids.
  */
 class EntitiesOfTypeRangeIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     private val entityTypeId: Int, private val min: Long, private val max: Long
 ) : EntityIterableBase(txn) {
 
     override fun getEntityTypeId() = entityTypeId
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
-        return if (store.useVersion1Format()) {
-            EntitiesOfTypeIterator(this, openCursor(txn))
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIteratorBase {
+        return if (storeImpl.useVersion1Format()) {
+            EntitiesOfTypeIterator(this, openCursor(txn.asPersistent()))
         } else {
-            EntitiesOfTypeBitmapIterator(this, openBitmapIterator(txn))
+            EntitiesOfTypeBitmapIterator(this, openBitmapIterator(txn.asPersistent()))
         }
     }
 
@@ -76,9 +76,9 @@ class EntitiesOfTypeRangeIterable(
         }
     }
 
-    override fun countImpl(txn: PersistentStoreTransaction): Long {
-        return if (store.useVersion1Format()) {
-            openCursor(txn).use { cursor ->
+    override fun countImpl(txn: StoreTransaction): Long {
+        return if (storeImpl.useVersion1Format()) {
+            openCursor(txn.asPersistent()).use { cursor ->
                 val key: ByteIterable = LongBinding.longToCompressedEntry(min)
                 var result: Long = 0
                 var success: Boolean = cursor.getSearchKeyRange(key) != null
@@ -92,13 +92,13 @@ class EntitiesOfTypeRangeIterable(
                 result
             }
         } else {
-            store.getEntitiesBitmapTable(txn, entityTypeId).count(txn.environmentTransaction, min, max)
+            storeImpl.getEntitiesBitmapTable(txn.asPersistent(), entityTypeId).count(txn.environmentTransaction, min, max)
         }
     }
 
-    private fun openCursor(txn: PersistentStoreTransaction) = store.getEntitiesIndexCursor(txn, entityTypeId)
+    private fun openCursor(txn: StoreTransaction) = storeImpl.getEntitiesIndexCursor(txn.asPersistent(), entityTypeId)
 
-    private fun openBitmapIterator(txn: PersistentStoreTransaction) = store.getEntitiesBitmapIterator(txn, entityTypeId)
+    private fun openBitmapIterator(txn: StoreTransaction) = storeImpl.getEntitiesBitmapIterator(txn.asPersistent(), entityTypeId)
 
     private inner class EntitiesOfTypeIterator(iterable: EntitiesOfTypeRangeIterable, index: Cursor) :
         EntityIteratorBase(iterable) {

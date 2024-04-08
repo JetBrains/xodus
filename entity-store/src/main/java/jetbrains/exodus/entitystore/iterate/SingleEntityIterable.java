@@ -31,7 +31,7 @@ public class SingleEntityIterable extends EntityIterableBase {
         ));
     }
 
-    public SingleEntityIterable(@Nullable final PersistentStoreTransaction txn, @Nullable final EntityId id) {
+    public SingleEntityIterable(@Nullable final StoreTransaction txn, @Nullable final EntityId id) {
         super(txn);
         this.id = id;
     }
@@ -73,7 +73,7 @@ public class SingleEntityIterable extends EntityIterableBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new SingleEntityIterator(this);
     }
 

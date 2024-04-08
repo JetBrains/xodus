@@ -1,17 +1,12 @@
-package jetbrains.exodus.entitystore.orientdb
+package jetbrains.exodus.entitystore.orientdb.query
 
-import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.query.OEqualCondition
-import jetbrains.exodus.entitystore.orientdb.query.and
-import jetbrains.exodus.entitystore.orientdb.query.equal
-import jetbrains.exodus.entitystore.orientdb.query.or
 import org.junit.Test
 
 class OQueryTest {
 
     @Test
     fun `should select by property`() {
-        val query = OAllSelect("Person", OEqualCondition("name", "John"))
+        val query = OClassSelect("Person", OEqualCondition("name", "John"))
 
         println(query.sql())
         println(query.params())
@@ -20,7 +15,7 @@ class OQueryTest {
     @Test
     fun `should select by property OR property`() {
         val condition = OEqualCondition("name", "John").or(OEqualCondition("project", "Sample"))
-        val query = OAllSelect("Person", condition)
+        val query = OClassSelect("Person", condition)
 
         println(query.sql())
         println(query.params())
@@ -29,7 +24,7 @@ class OQueryTest {
     @Test
     fun `should select by property AND property`() {
         val condition = OEqualCondition("name", "John").and(OEqualCondition("project", "Sample"))
-        val query = OAllSelect("Person", condition)
+        val query = OClassSelect("Person", condition)
 
         println(query.sql())
         println(query.params())
@@ -44,7 +39,7 @@ class OQueryTest {
             ),
             equal("project", "Sample3")
         )
-        val query = OAllSelect("Person", condition)
+        val query = OClassSelect("Person", condition)
 
         println(query.sql())
         println(query.params())

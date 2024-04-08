@@ -1,9 +1,14 @@
-package jetbrains.exodus.entitystore.orientdb
+package jetbrains.exodus.entitystore.orientdb.testutil
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.sql.executor.OResultSet
+import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
+import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import org.junit.rules.ExternalResource
 
 class InMemoryOrientDB(
@@ -11,7 +16,7 @@ class InMemoryOrientDB(
 ) : ExternalResource() {
 
     private lateinit var db: OrientDB
-    lateinit var store:OPersistentStore
+    lateinit var store: OPersistentEntityStore
         private set
 
     val username = "admin"
@@ -24,20 +29,24 @@ class InMemoryOrientDB(
 
         if (createClasses) {
             withSession { session ->
-                session.createVertexClass(Issues.CLASS)
-                session.createClass(OVertexEntity.STRING_BLOB_CLASS_NAME)
-                session.createClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)
+                session.createVertexClass(CLASS)
+                session.createClass(STRING_BLOB_CLASS_NAME)
+                session.createClass(BINARY_BLOB_CLASS_NAME)
             }
         }
-        store = OPersistentStore(db, username, password, dbName)
+
+        val provider = ODatabaseProviderImpl(database, dbName, username, password)
+        store = OPersistentEntityStore(provider, dbName)
     }
 
     override fun after() {
         db.close()
     }
 
+    val database get() = db
+
     fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
-        val session = db.open(dbName, username, password)
+        val session = openSession()
         try {
             session.begin()
             val result = block(session)
@@ -49,7 +58,7 @@ class InMemoryOrientDB(
     }
 
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
-        val session = db.open(dbName, username, password)
+        val session = openSession()
         try {
             return block(session)
         } finally {
@@ -58,13 +67,13 @@ class InMemoryOrientDB(
     }
 
     fun withQuery(query: String, block: (OResultSet) -> Unit) {
-        return withTxSession { session ->
+        return withSession { session ->
             val result = session.query(query)
             block(result)
         }
     }
 
     fun openSession(): ODatabaseSession {
-        return db.open(dbName, username, password)
+        return db.cachedPool(dbName, username, password).acquire()
     }
 }

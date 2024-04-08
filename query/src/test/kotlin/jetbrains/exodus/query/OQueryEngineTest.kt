@@ -6,17 +6,25 @@ import com.orientechnologies.orient.core.record.OVertex
 import io.mockk.every
 import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues
+import jetbrains.exodus.entitystore.orientdb.testutil.OTaskTrackerTestCase
+import jetbrains.exodus.entitystore.orientdb.testutil.Projects
+import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToBoard
+import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToProject
+import jetbrains.exodus.entitystore.orientdb.testutil.name
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
 import jetbrains.exodus.query.metadata.PropertyMetaData
 import jetbrains.exodus.query.metadata.PropertyType
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 
+@Ignore("Should be un-ignored after migration of query module to orinetdb")
 class OQueryEngineTest {
 
     @Rule
@@ -113,7 +121,7 @@ class OQueryEngineTest {
     }
 
     @Test
-    fun `should query property exists`() {
+    fun `should query when property exists`() {
         // Given
         val test = givenTestCase()
         val engine = givenOQueryEngine()
@@ -127,6 +135,29 @@ class OQueryEngineTest {
             // Then
             assertNamesExactly(issues, "issue2")
             assertThat(empty).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query when property exists sorted by value`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+
+        orientDB.withSession {
+            test.issue1.setProperty("order", "1")
+            test.issue2.setProperty("order", "2")
+            test.issue3.setProperty("order", "3")
+        }
+
+        // When
+        orientDB.withSession {
+            val issuesAscending = engine.query(Issues.CLASS, SortByProperty(PropertyNotNull("order"), "order", false))
+            val issuesDescending = engine.query(Issues.CLASS, SortByProperty(PropertyNotNull("order"), "order", true))
+
+            // Then
+            assertNamesExactly(issuesAscending, "issue1", "issue2", "issue3")
+            assertNamesExactly(issuesDescending, "issue3", "issue2", "issue1")
         }
     }
 
@@ -273,16 +304,90 @@ class OQueryEngineTest {
     }
 
     @Test
-    fun `hasBlob should search for entity with blob`(){
+    fun `should query by links sorted`() {
+        // Given
         val test = givenTestCase()
-        val engine = givenOQueryEngine {
+        // Issues assigned to project in reverse order
+        orientDB.addIssueToProject(test.issue1, test.project3)
+        orientDB.addIssueToProject(test.issue2, test.project2)
+        orientDB.addIssueToProject(test.issue3, test.project1)
+
+        val metadata = givenModelMetadata().withEntityMetaData(Issues.CLASS)
+        val engine = givenOQueryEngine(metadata)
+
+        // When
+        orientDB.withSession {
+            val sortByLinkPropertyAsc = SortByLinkProperty(
+                null, // child node
+                Projects.CLASS, // link entity class
+                "name", // link property name
+                Issues.Links.IN_PROJECT, // link name
+                true // ascending
+            )
+            val issueAsc = engine.query(Issues.CLASS, sortByLinkPropertyAsc)
+
+            val sortByLinkPropertyDesc = SortByLinkProperty(
+                null, // child node
+                Projects.CLASS, // link entity class
+                "name", // link property name
+                Issues.Links.IN_PROJECT, // link name
+                false // ascending
+            )
+            val issuesDesc = engine.query(Issues.CLASS, sortByLinkPropertyDesc)
+
+            // Then
+            // As sorted by project name
+            assertNamesExactly(issueAsc, "issue3", "issue2", "issue1")
+            assertNamesExactly(issuesDesc, "issue1", "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should query by links sorted distinct`() {
+        // Given
+        val test = givenTestCase()
+        // Issues assigned to projects in reverse order
+        orientDB.addIssueToProject(test.issue1, test.project3)
+        orientDB.addIssueToProject(test.issue1, test.project2)
+
+        orientDB.addIssueToProject(test.issue2, test.project2)
+        orientDB.addIssueToProject(test.issue2, test.project1)
+
+        orientDB.addIssueToProject(test.issue3, test.project1)
+        orientDB.addIssueToProject(test.issue3, test.project2)
+
+        val metadata = givenModelMetadata().withEntityMetaData(Issues.CLASS)
+        val engine = givenOQueryEngine(metadata)
+
+        // When
+        orientDB.withSession {
+            // Find all issues that are either in project1 or board2
+            val sortByLinkProperty = SortByLinkProperty(
+                null, // child node
+                Projects.CLASS, // link entity class
+                "name", // link property name
+                Issues.Links.IN_PROJECT, // link name
+                true // ascending
+            )
+            val issuesAsc = engine.query(Issues.CLASS, sortByLinkProperty)
+
+            // Then
+            assertNamesExactly(issuesAsc, "issue3", "issue2", "issue1")
+        }
+    }
+
+    @Test
+    fun `hasBlob should search for entity with blob`() {
+        val test = givenTestCase()
+        val metadata = givenModelMetadata {
             val issueMetaData = mockk<EntityMetaData>(relaxed = true)
-            val metaData = this
-            every { metaData.getEntityMetaData(Issues.CLASS) }.returns(issueMetaData)
-            val blobMetaData = mockk<PropertyMetaData>( relaxed = true)
+            every { getEntityMetaData(Issues.CLASS) }.returns(issueMetaData)
+
+            val blobMetaData = mockk<PropertyMetaData>(relaxed = true)
             every { issueMetaData.getPropertyMetaData("myBlob") }.returns(blobMetaData)
             every { blobMetaData.type }.returns(PropertyType.BLOB)
         }
+        val engine = givenOQueryEngine(metadata)
 
         orientDB.withSession {
             //correct blob (can be found)
@@ -327,32 +432,124 @@ class OQueryEngineTest {
         }
     }
 
+
+    @Test
+    fun `should query distinct`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.query(
+                Issues.CLASS,
+                Or(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
+            ).instantiate() as EntityIterableBase
+
+            val issuesDistinct = issues.distinct()
+            assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
+        }
+    }
+
+
+    @Test
+    fun `should query with minus`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.query(
+                Issues.CLASS,
+                Minus(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
+            )
+
+            // Then
+            assertNamesExactly(issues, "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should query links with select many`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
+            val boards = issues.selectMany(Issues.Links.ON_BOARD)
+
+            // Then
+            assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
+        }
+    }
+
+    @Test
+    fun `should query links with select many distinct`() {
+        // Given
+        val test = givenTestCase()
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board1)
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withSession {
+            val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
+            val boardsDistinct = engine.selectDistinct(issues, Issues.Links.ON_BOARD)
+
+            // Then
+            assertNamesExactly(boardsDistinct, "board1", "board2")
+        }
+    }
+
     private fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
         assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
     }
 
-    private fun givenOQueryEngine(tweakMetaData: ModelMetaData.() -> Unit = {}): QueryEngine {
-        val model = mockk<ModelMetaData>(relaxed = true)
-        val store = mockk<PersistentEntityStoreImpl>(relaxed = true)
-        model.tweakMetaData()
-        every { store.getAndCheckCurrentTransaction() } returns PersistentStoreTransaction(store)
-        return QueryEngine(model, store)
+    private fun givenModelMetadata(mockingBlock: ((ModelMetaData).() -> Unit)? = null): ModelMetaData {
+        return mockk<ModelMetaData>(relaxed = true) {
+            mockingBlock?.invoke(this)
+        }
     }
 
-    private fun givenTestCase() = TestCase(orientDB)
-
-    private class TestCase(val orientDB: InMemoryOrientDB) {
-
-        val project1 = orientDB.createProject("project1")
-        val project2 = orientDB.createProject("project2")
-        val project3 = orientDB.createProject("project3")
-
-        val issue1 = orientDB.createIssue("issue1")
-        val issue2 = orientDB.createIssue("issue2")
-        val issue3 = orientDB.createIssue("issue3")
-
-        val board1 = orientDB.createBoard("board1")
-        val board2 = orientDB.createBoard("board2")
-        val board3 = orientDB.createBoard("board3")
+    private fun ModelMetaData.withEntityMetaData(
+        entityType: String,
+        mockingBlock: ((EntityMetaData).() -> Unit)? = null
+    ): ModelMetaData {
+        val entityMetaData = givenEntityMetaData {
+            every { type }.returns(entityType)
+            mockingBlock?.invoke(this)
+        }
+        every { getEntityMetaData(entityType) }.returns(entityMetaData)
+        return this
     }
+
+    private fun givenEntityMetaData(mockingBlock: ((EntityMetaData).() -> Unit)? = null): EntityMetaData {
+        return mockk<EntityMetaData>(relaxed = true) {
+            mockingBlock?.invoke(this)
+        }
+    }
+
+    private fun givenOQueryEngine(metadataOrNull: ModelMetaData? = null): QueryEngine {
+        // ToDo: return orientdb compatible query engine
+        return mockk()
+    }
+
+    private fun givenTestCase() = OTaskTrackerTestCase(orientDB)
 }

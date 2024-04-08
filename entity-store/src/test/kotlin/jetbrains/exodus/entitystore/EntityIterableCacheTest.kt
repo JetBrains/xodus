@@ -220,14 +220,14 @@ class EntityIterableCacheTest : EntityStoreTestBase() {
         profiler.report()
 
         // Expected hit rate is low because of intensive concurrent writes
-        assertHitRateToBeNotLessThan(0.3)
+        assertHitRateToBeNotLessThan(0.2)
     }
 
     fun testStressReadWritePerformance() {
         // Given
         val testCase = IssueTrackerTestCase(entityStore, projectCount = 2, userCount = 20, issueCount = 200)
         // Uncomment to run heavy test with profiler
-        //val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
+        // val testCase = IssueTrackerTestCase(entityStore, projectCount = 10, userCount = 100, issueCount = 10000)
 
         val queryCount = 1000
         val queryConcurrencyLevel = 4

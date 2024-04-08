@@ -23,7 +23,7 @@ import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
 import jetbrains.exodus.kotlin.notNull
 
 class MinusIterable(
-    txn: PersistentStoreTransaction?,
+    txn: StoreTransaction?,
     minuend: EntityIterableBase,
     subtrahend: EntityIterableBase
 ) : BinaryOperatorEntityIterable(txn, minuend, subtrahend, false) {
@@ -39,7 +39,7 @@ class MinusIterable(
         return EntityIterableType.MINUS
     }
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIteratorBase {
         val iterable1 = iterable1
         val iterable2 = iterable2
         return EntityIteratorFixingDecorator(
@@ -52,7 +52,7 @@ class MinusIterable(
         )
     }
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getReverseIteratorImpl(txn: StoreTransaction): EntityIterator {
         return if (isSortedById && iterable2.isSortedById) {
             EntityIteratorFixingDecorator(
                 this,
@@ -124,7 +124,7 @@ class MinusIterable(
 
     private class SortedReverseIterator(
         iterable: EntityIterableBase,
-        txn: PersistentStoreTransaction,
+        txn: StoreTransaction,
         minuend: EntityIterableBase,
         subtrahend: EntityIterableBase
     ) : SortedIteratorBase(iterable) {
@@ -179,7 +179,7 @@ class MinusIterable(
 
     private class UnsortedIterator constructor(
         iterable: EntityIterableBase,
-        private val txn: PersistentStoreTransaction,
+        private val txn: StoreTransaction,
         minuend: EntityIterableBase,
         subtrahend: EntityIterableBase
     ) : NonDisposableEntityIterator(iterable) {

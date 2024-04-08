@@ -15,12 +15,13 @@
  */
 package jetbrains.exodus.entitystore.iterate
 
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.asPersistent
 import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.kotlin.notNull
 
 abstract class PropertyRangeOrValueIterableBase(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     private val entityTypeId: Int,
     val propertyId: Int
 ) : EntityIterableBase(txn) {
@@ -34,8 +35,8 @@ abstract class PropertyRangeOrValueIterableBase(
 
     override fun canBeCached() = !propertiesIterable.notNull.isCached
 
-    protected fun openCursor(txn: PersistentStoreTransaction): Cursor? {
-        return store.getPropertyValuesIndexCursor(txn, entityTypeId, propertyId)
+    protected fun openCursor(txn: StoreTransaction): Cursor? {
+        return storeImpl.getPropertyValuesIndexCursor(txn.asPersistent(), entityTypeId, propertyId)
     }
 
     protected val propertyValueIndex: EntityIterableBase get() = propertiesIterable.notNull.asProbablyCached()

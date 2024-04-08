@@ -18,10 +18,7 @@ package jetbrains.exodus.entitystore.iterate;
 import jetbrains.exodus.core.dataStructures.hash.LongIterator;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentBitTreeLongSet;
 import jetbrains.exodus.core.dataStructures.persistent.PersistentLongSet;
-import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.EntityIterator;
-import jetbrains.exodus.entitystore.PersistentEntityId;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.*;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.OrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.iterate.cached.iterator.ReverseOrderedEntityIdCollectionIterator;
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory;
@@ -42,7 +39,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     @Nullable
     private OrderedEntityIdCollection idCollection;
 
-    public UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final PersistentStoreTransaction txn,
+    public UpdatableEntityIdSortedSetCachedInstanceIterable(@NotNull final StoreTransaction txn,
                                                             @NotNull final EntityIterableBase source) {
         super(txn, source);
         entityTypeId = source.getEntityTypeId();
@@ -86,13 +83,13 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
 
     @NotNull
     @Override
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return getIterator(false);
     }
 
     @NotNull
     @Override
-    public EntityIterator getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getReverseIteratorImpl(@NotNull final StoreTransaction txn) {
         return getIterator(true);
     }
 
@@ -103,7 +100,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
 
     @NotNull
     @Override
-    public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIdSet toSet(@NotNull final StoreTransaction txn) {
         if (idSet == null) {
             final boolean isImmutable = mutableLocalIds == null;
             if (isImmutable) {
@@ -129,7 +126,7 @@ public class UpdatableEntityIdSortedSetCachedInstanceIterable extends UpdatableC
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         return size();
     }
 

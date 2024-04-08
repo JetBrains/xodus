@@ -19,7 +19,8 @@ import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterableHandle
 import jetbrains.exodus.entitystore.EntityIterableType
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.asPersistent
 import jetbrains.exodus.entitystore.tables.LinkValue
 import jetbrains.exodus.entitystore.tables.PropertyKey
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory
@@ -28,14 +29,14 @@ import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.util.LightOutputStream
 import java.util.*
 
-class SelectManyIterable(txn: PersistentStoreTransaction,
+class SelectManyIterable(txn: StoreTransaction,
                          source: EntityIterableBase,
                          private val linkId: Int,
                          private val distinct: Boolean = true) : EntityIterableDecoratorBase(txn, source) {
 
     override fun canBeCached() = super.canBeCached() && distinct
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = SelectManyDistinctIterator(txn)
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIteratorBase = SelectManyDistinctIterator(txn)
 
     override fun getHandleImpl(): EntityIterableHandle {
         return object : EntityIterableHandleDecorator(store, type, source.handle) {
@@ -71,7 +72,7 @@ class SelectManyIterable(txn: PersistentStoreTransaction,
         }
     }
 
-    private inner class SelectManyDistinctIterator constructor(private val txn: PersistentStoreTransaction) : EntityIteratorBase(this@SelectManyIterable), SourceMappingIterator {
+    private inner class SelectManyDistinctIterator constructor(private val txn: StoreTransaction) : EntityIteratorBase(this@SelectManyIterable), SourceMappingIterator {
 
         private val sourceIt = source.iterator() as EntityIteratorBase
         private val usedCursors = IntHashMap<Cursor>(6, 2f)
@@ -114,7 +115,7 @@ class SelectManyIterable(txn: PersistentStoreTransaction,
                     val sourceId = sourceIt.nextId() ?: continue
                     val typeId = sourceId.typeId
                     val cursor = usedCursors.get(typeId)
-                            ?: store.getLinksFirstIndexCursor(txn, typeId).also { usedCursors[typeId] = it }
+                            ?: storeImpl.getLinksFirstIndexCursor(txn.asPersistent(), typeId).also { usedCursors[typeId] = it }
                     val sourceLocalId = sourceId.localId
                     var value = cursor.getSearchKey(
                             PropertyKey.propertyKeyToEntry(auxStream, auxArray, sourceLocalId, linkId))

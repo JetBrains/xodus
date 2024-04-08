@@ -93,6 +93,10 @@ internal open class EntityIterableCacheAdapter(
 
     fun size() = cache.size()
 
+    fun trySetSize(size: Long) = cache.trySetSize(size)
+
+    val isWeightedCache: Boolean get() = cache.isWeighted()
+
     open fun clear() = cache.clear()
 
     fun registerClient(): PersistentCacheClient {

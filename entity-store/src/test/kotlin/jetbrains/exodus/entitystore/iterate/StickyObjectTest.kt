@@ -115,7 +115,7 @@ class StickyObjectTest : EntityStoreTestBase() {
 
     fun makeIterable(txn: PersistentStoreTransaction): EntitiesOfTypeIterable {
         return object : EntitiesOfTypeIterable(txn, txn.store.getEntityTypeId(txn, "Issue", true)) {
-            override fun createCachedInstance(txn: PersistentStoreTransaction) =
+            override fun createCachedInstance(txn: StoreTransaction) =
                     throw IllegalStateException("Must be created as sticky object")
 
             override fun getHandleImpl() = object : EntitiesOfTypeIterableHandle(this) {

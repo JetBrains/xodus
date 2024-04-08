@@ -48,6 +48,13 @@ public abstract class PriorityQueue<P extends Comparable<? super P>, E> implemen
 
     public abstract void unlock();
 
+    /**
+     * If true, the queue will NOT requeue an element with the same value if it is pushed again.
+     */
+    public void shouldSkipIfPresent(boolean requeueIfPresent) {
+        // do nothing by default
+    }
+
     // Returns size of the destination (and obviously of the source) queue
     public static <P extends Comparable<? super P>, E> int moveQueue(@NotNull final PriorityQueue<P, E> source,
                                                                      @NotNull final PriorityQueue<P, E> dest) {

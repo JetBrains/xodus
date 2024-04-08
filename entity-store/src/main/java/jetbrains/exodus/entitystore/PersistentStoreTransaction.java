@@ -560,6 +560,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         return filtered == null ? EntityIterableBase.EMPTY : new MergeSortedIterable(this, filtered, comparator);
     }
 
+    @Override
     @NotNull
     public EntityIterable mergeSorted(@NotNull final List<EntityIterable> sorted,
                                       @NotNull ComparableGetter valueGetter,

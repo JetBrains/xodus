@@ -19,14 +19,14 @@ import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.kotlin.notNull
 
 class PropertyContainsValueEntityIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     entityTypeId: Int,
     propertyId: Int,
     private val value: String,
     private val ignoreCase: Boolean
 ) : PropertyRangeOrValueIterableBase(txn, entityTypeId, propertyId) {
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIterator {
         val iterator = propertyValueIndex.iterator()
 
         return if (iterator.hasNext()) {

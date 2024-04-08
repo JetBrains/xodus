@@ -19,20 +19,21 @@ import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterableHandle
 import jetbrains.exodus.entitystore.EntityIterableType
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.asPersistent
 import jetbrains.exodus.entitystore.tables.LinkValue
 import jetbrains.exodus.entitystore.tables.PropertyKey
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.env.Cursor
 import jetbrains.exodus.util.LightOutputStream
 
-class SelectDistinctIterable(txn: PersistentStoreTransaction,
+class SelectDistinctIterable(txn: StoreTransaction,
                              source: EntityIterableBase,
                              private val linkId: Int) : EntityIterableDecoratorBase(txn, source) {
 
     override fun isEmpty() = source.isEmpty
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase = SelectDistinctIterator(txn)
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIteratorBase = SelectDistinctIterator(txn)
 
     override fun getHandleImpl(): EntityIterableHandle {
         return object : EntityIterableHandleDecorator(store, type, source.handle) {
@@ -64,7 +65,7 @@ class SelectDistinctIterable(txn: PersistentStoreTransaction,
         }
     }
 
-    private inner class SelectDistinctIterator constructor(private val txn: PersistentStoreTransaction) : EntityIteratorBase(this@SelectDistinctIterable), SourceMappingIterator {
+    private inner class SelectDistinctIterator constructor(private val txn: StoreTransaction) : EntityIteratorBase(this@SelectDistinctIterable), SourceMappingIterator {
 
         private val sourceIt = source.iterator() as EntityIteratorBase
         private val usedCursors = IntHashMap<Cursor>(6, 2f)
@@ -100,7 +101,7 @@ class SelectDistinctIterable(txn: PersistentStoreTransaction,
                 srcId = nextSourceId
                 val typeId = nextSourceId.typeId
                 val cursor = usedCursors.get(typeId)
-                        ?: store.getLinksFirstIndexCursor(txn, typeId).also { usedCursors[typeId] = it }
+                        ?: storeImpl.getLinksFirstIndexCursor(txn.asPersistent(), typeId).also { usedCursors[typeId] = it }
                 val keyEntry = PropertyKey.propertyKeyToEntry(auxStream, auxArray, nextSourceId.localId, linkId)
                 val value = cursor.getSearchKey(keyEntry)
                 if (value == null) {

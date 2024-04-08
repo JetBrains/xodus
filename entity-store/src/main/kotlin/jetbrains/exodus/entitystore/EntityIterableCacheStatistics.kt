@@ -35,6 +35,10 @@ class EntityIterableCacheStatistics {
         private set
     var totalCountJobsEnqueued = 0L
         private set
+    var totalJobsRetried = 0L
+        private set
+    var totalCountJobsRetried = 0L
+        private set
     var totalHits = 0L
         private set
     var totalMisses = 0L
@@ -66,6 +70,10 @@ class EntityIterableCacheStatistics {
     fun incTotalJobsObsolete() = ++totalJobsObsolete
 
     fun incTotalJobsNotStarted() = ++totalJobsNotStarted
+
+    fun incTotalJobsRetried() = ++totalJobsRetried
+
+    fun incTotalCountJobsRetried() = ++totalCountJobsRetried
 
     fun incTotalCountJobsEnqueued() = ++totalCountJobsEnqueued
 

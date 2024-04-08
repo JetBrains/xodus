@@ -28,6 +28,8 @@ import jetbrains.exodus.env.Store;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static jetbrains.exodus.entitystore.DualCompatibilityKt.asPersistent;
+
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class PropertiesIterable extends EntityIterableBase {
 
@@ -46,7 +48,7 @@ public class PropertiesIterable extends EntityIterableBase {
         return entityTypeId;
     }
 
-    public PropertiesIterable(@NotNull final PersistentStoreTransaction txn, final int entityTypeId, final int propertyId) {
+    public PropertiesIterable(@NotNull final StoreTransaction txn, final int entityTypeId, final int propertyId) {
         super(txn);
         this.entityTypeId = entityTypeId;
         this.propertyId = propertyId;
@@ -59,7 +61,7 @@ public class PropertiesIterable extends EntityIterableBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         final PropertiesIterator result = getIterator(txn, true);
         if (result == null) {
             return EntityIteratorBase.EMPTY;
@@ -74,7 +76,7 @@ public class PropertiesIterable extends EntityIterableBase {
 
     @NotNull
     @Override
-    public EntityIterator getReverseIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getReverseIteratorImpl(@NotNull final StoreTransaction txn) {
         final PropertiesIterator result = getIterator(txn, false);
         if (result == null) {
             return EntityIteratorBase.EMPTY;
@@ -90,28 +92,28 @@ public class PropertiesIterable extends EntityIterableBase {
     }
 
     @Override
-    protected CachedInstanceIterable createCachedInstance(@NotNull final PersistentStoreTransaction txn) {
+    protected CachedInstanceIterable createCachedInstance(@NotNull final StoreTransaction txn) {
         return UpdatablePropertiesCachedInstanceIterable.newInstance(txn, getIterator(txn, true), this);
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
-        final Store valueIndex = getStore().getPropertiesTable(txn, entityTypeId).getValueIndex(txn, propertyId, false);
+    protected long countImpl(@NotNull final StoreTransaction txn) {
+        final Store valueIndex = getStoreImpl().getPropertiesTable(asPersistent(txn), entityTypeId).getValueIndex(asPersistent(txn), propertyId, false);
         return valueIndex == null ? 0 : valueIndex.count(txn.getEnvironmentTransaction());
     }
 
     @Override
-    public boolean isEmptyImpl(@NotNull final PersistentStoreTransaction txn) {
+    public boolean isEmptyImpl(@NotNull final StoreTransaction txn) {
         return countImpl(txn) == 0;
     }
 
-    private Cursor openCursor(@NotNull final PersistentStoreTransaction txn) {
-        return getStore().getPropertyValuesIndexCursor(txn, entityTypeId, propertyId);
+    private Cursor openCursor(@NotNull final StoreTransaction txn) {
+        return getStoreImpl().getPropertyValuesIndexCursor(asPersistent(txn), entityTypeId, propertyId);
     }
 
-    private PropertiesIterator getIterator(@NotNull final PersistentStoreTransaction txn, final boolean ascending) {
-        try (Cursor primaryIndex = getStore().getPrimaryPropertyIndexCursor(txn, entityTypeId)) {
-            final Cursor valueIdx = openCursor(txn);
+    private PropertiesIterator getIterator(@NotNull final StoreTransaction txn, final boolean ascending) {
+        try (Cursor primaryIndex = getStoreImpl().getPrimaryPropertyIndexCursor(asPersistent(txn), entityTypeId)) {
+            final Cursor valueIdx = openCursor((StoreTransaction) txn);
             if (valueIdx == null) {
                 return null;
             }
@@ -120,7 +122,7 @@ public class PropertiesIterable extends EntityIterableBase {
     }
 
     /**
-     * Public access is needed in order to access directly from PersistentStoreTransaction.
+     * Public access is needed in order to access directly from StoreTransaction.
      */
 
     private final class PropertiesIterableHandle extends ConstantEntityIterableHandle {
@@ -221,7 +223,7 @@ public class PropertiesIterable extends EntityIterableBase {
                 final ByteIterable value = primaryIndex.getSearchKey(
                     PropertyKey.propertyKeyToEntry(new PropertyKey(entityLocalId, propertyId)));
                 if ((hasNext = value != null)) {
-                    final PropertyValue propertyValue = getStore().getPropertyTypes().entryToPropertyValue(value);
+                    final PropertyValue propertyValue = getStoreImpl().getPropertyTypes().entryToPropertyValue(value);
                     if (propertyValue.getType().getTypeId() != ComparableValueType.COMPARABLE_SET_VALUE_TYPE) {
                         binding = propertyValue.getBinding();
                     } else {
@@ -230,7 +232,7 @@ public class PropertiesIterable extends EntityIterableBase {
                             throw new NullPointerException("Can't be: null item class for a non-empty ComparableSet");
                         }
                         //noinspection unchecked
-                        binding = getStore().getPropertyTypes().getPropertyType(itemClass).getBinding();
+                        binding = getStoreImpl().getPropertyTypes().getPropertyType(itemClass).getBinding();
                     }
                 } else {
                     binding = null;

@@ -16,19 +16,25 @@
 package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.query.OAllSelect
-import jetbrains.exodus.entitystore.orientdb.query.OEqualCondition
-import jetbrains.exodus.entitystore.orientdb.query.OQuery
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
+import jetbrains.exodus.entitystore.orientdb.query.OOrderByField
+import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
-class OPropertyEqualIterable(
-    txn: PersistentStoreTransaction,
+class OPropertySortedIterable(
+    txn: StoreTransaction,
     private val entityType: String,
     private val propertyName: String,
-    private val value: Comparable<*>
+    private val source: OEntityIterableBase? = null,
+    private val ascending: Boolean,
 ) : OEntityIterableBase(txn) {
 
-    override fun query(): OQuery {
-        return OAllSelect(entityType, OEqualCondition(propertyName, value))
+    override fun query(): OSelect {
+        if (source != null) {
+            return source.query().withOrder(propertyName, ascending)
+        } else {
+            val order = OOrderByField(propertyName, ascending)
+            return OClassSelect(entityType, condition = null, order)
+        }
     }
 }

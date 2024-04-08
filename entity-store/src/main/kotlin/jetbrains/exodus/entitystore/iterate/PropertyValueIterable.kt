@@ -23,7 +23,7 @@ import jetbrains.exodus.entitystore.tables.PropertyTypes
 import jetbrains.exodus.env.Cursor
 
 class PropertyValueIterable(
-    txn: PersistentStoreTransaction,
+    txn: StoreTransaction,
     entityTypeId: Int,
     propertyId: Int,
     value: Comparable<*>
@@ -57,7 +57,7 @@ class PropertyValueIterable(
 
     override fun canBeCached() = forceCached || value is Boolean || super.canBeCached()
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIteratorBase {
+    override fun getIteratorImpl(txn: StoreTransaction): EntityIteratorBase {
         val it = propertyValueIndex
         if (it.isCachedInstance) {
             val cached = it as UpdatablePropertiesCachedInstanceIterable
@@ -71,7 +71,7 @@ class PropertyValueIterable(
         return PropertyValueIterator(valueIdx, reverse = false)
     }
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
+    override fun getReverseIteratorImpl(txn: StoreTransaction): EntityIterator {
         val it = propertyValueIndex
         if (it.isCachedInstance) {
             val cached = it as UpdatablePropertiesCachedInstanceIterable
@@ -136,14 +136,14 @@ class PropertyValueIterable(
         }
     }
 
-    override fun countImpl(txn: PersistentStoreTransaction): Long {
-        val key = store.propertyTypes.dataToPropertyValue(value).dataToEntry()
+    override fun countImpl(txn: StoreTransaction): Long {
+        val key = storeImpl.propertyTypes.dataToPropertyValue(value).dataToEntry()
         val valueIdx = openCursor(txn)
         return if (valueIdx == null) 0 else SingleKeyCursorCounter(valueIdx, key).count
     }
 
-    override fun isEmptyImpl(txn: PersistentStoreTransaction): Boolean {
-        val key = store.propertyTypes.dataToPropertyValue(value).dataToEntry()
+    override fun isEmptyImpl(txn: StoreTransaction): Boolean {
+        val key = storeImpl.propertyTypes.dataToPropertyValue(value).dataToEntry()
         val valueIdx = openCursor(txn)
         return valueIdx == null || SingleKeyCursorIsEmptyChecker(valueIdx, key).isEmpty
     }
@@ -158,7 +158,7 @@ class PropertyValueIterable(
 
         init {
             setCursor(cursor)
-            val binding = store.propertyTypes.dataToPropertyValue(value).binding
+            val binding = storeImpl.propertyTypes.dataToPropertyValue(value).binding
             valueBytes = binding.objectToEntry(value)
             val entry = cursor.getSearchKey(valueBytes)
             if (entry != null) {

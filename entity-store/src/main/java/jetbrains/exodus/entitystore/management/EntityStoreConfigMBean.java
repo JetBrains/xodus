@@ -79,6 +79,8 @@ public interface EntityStoreConfigMBean {
 
     int getEntityIterableCacheSize();
 
+    void setEntityIterableCacheSize(int size);
+
     long getEntityIterableCacheWeight();
 
     int getEntityIterableCacheCountsCacheSize();
@@ -104,6 +106,8 @@ public interface EntityStoreConfigMBean {
     boolean getEntityIterableCacheDeferredEnabled();
 
     void setEntityIterableCacheDeferredEnabled(boolean deferredEnabled);
+
+    int getEntityIterableCacheDeferredSize();
 
     int getEntityIterableCacheDeferredDelay();
 

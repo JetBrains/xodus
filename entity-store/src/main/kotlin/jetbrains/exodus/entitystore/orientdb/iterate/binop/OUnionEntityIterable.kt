@@ -13,25 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.iterate.binop
+package jetbrains.exodus.entitystore.orientdb.iterate.binop
 
-import jetbrains.exodus.entitystore.PersistentStoreTransaction
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
-import jetbrains.exodus.entitystore.orientdb.query.OQueries
-import jetbrains.exodus.entitystore.orientdb.query.OQuery
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.query.OQueryFunctions
+import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
-class OUnionIterable(
-    txn: PersistentStoreTransaction?,
-    private val iterable1: EntityIterableBase,
-    private val iterable2: EntityIterableBase
+class OUnionEntityIterable(
+    txn: StoreTransaction?,
+    private val left: EntityIterableBase,
+    private val right: EntityIterableBase
 ) : OEntityIterableBase(txn) {
 
-    override fun query(): OQuery {
-        if (iterable1 !is OEntityIterable || iterable2 !is OEntityIterable) {
+    override fun query(): OSelect {
+        if (left !is OEntityIterable || right !is OEntityIterable) {
             throw UnsupportedOperationException("UnionIterable is only supported for OEntityIterable")
         }
-        return OQueries.union(iterable1.query(), iterable2.query())
+        return OQueryFunctions.union(left.query(), right.query())
     }
 }

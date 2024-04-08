@@ -47,7 +47,7 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
         });
     }
 
-    public MergeSortedIterableWithValueGetter(@Nullable final PersistentStoreTransaction txn,
+    public MergeSortedIterableWithValueGetter(@Nullable final StoreTransaction txn,
                                               @NotNull final List<EntityIterable> sorted,
                                               @NotNull final ComparableGetter valueGetter,
                                               @NotNull final Comparator<Comparable<Object>> comparator) {
@@ -72,7 +72,7 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         long result = 0;
         for (final EntityIterable it : sorted) {
             result += ((EntityIterableBase) it).getSource().countImpl(txn);
@@ -82,7 +82,7 @@ public class MergeSortedIterableWithValueGetter extends EntityIterableBase {
 
     @Override
     @NotNull
-    public EntityIteratorBase getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIteratorBase getIteratorImpl(@NotNull final StoreTransaction txn) {
         return new MergeSortedIterator();
     }
 

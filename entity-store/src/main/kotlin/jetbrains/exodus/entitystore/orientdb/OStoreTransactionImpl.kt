@@ -6,19 +6,31 @@ import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.iterate.EntityIterableBase
+import jetbrains.exodus.entitystore.iterate.property.*
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.merge.OMergeSortedEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.env.Transaction
 
 class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
     private val txn: OTransaction,
-    private val oStore: OPersistentStore
+    private val store: PersistentEntityStore
 ) : OStoreTransaction {
-    override fun activeSession(): ODatabaseDocument {
-        return session
-    }
+
+    private var queryCancellingPolicy: QueryCancellingPolicy? = null
+
+    override val activeSession = session
+
+    override val oTransaction = txn
 
     override fun getStore(): EntityStore {
-        return oStore
+        return store
     }
 
     override fun isIdempotent(): Boolean {
@@ -36,6 +48,13 @@ class OStoreTransactionImpl(
 
     override fun commit(): Boolean {
         txn.commit()
+        if (!txn.isActive) {
+            session.release()
+        }
+        return true
+    }
+
+    override fun isCurrent(): Boolean {
         return true
     }
 
@@ -51,6 +70,7 @@ class OStoreTransactionImpl(
 
     override fun revert() {
         txn.rollback()
+        txn.begin()
     }
 
     override fun getSnapshot(): StoreTransaction {
@@ -58,20 +78,18 @@ class OStoreTransactionImpl(
     }
 
     override fun newEntity(entityType: String): Entity {
-        return OVertexEntity(session.newVertex(entityType))
+        return OVertexEntity(session.newVertex(entityType), store)
     }
 
     override fun saveEntity(entity: Entity) {
         require(entity is OVertexEntity) { "Only OVertexEntity is supported, but was ${entity.javaClass.simpleName}" }
-        (entity as? OVertexEntity) ?: throw IllegalArgumentException("Only OVertexEntity supported")
         entity.save()
-
     }
 
     override fun getEntity(id: EntityId): Entity {
         require(id is OEntityId) { "Only OEntity is supported, but was ${id.javaClass.simpleName}" }
         val vertex: OVertex = session.load(id.asOId())
-        return OVertexEntity(vertex)
+        return OVertexEntity(vertex, store)
     }
 
     override fun getEntityTypes(): MutableList<String> {
@@ -79,7 +97,7 @@ class OStoreTransactionImpl(
     }
 
     override fun getAll(entityType: String): EntityIterable {
-        TODO("Not Implemented")
+        return OEntityOfTypeIterable(this, entityType)
     }
 
     override fun getSingletonIterable(entity: Entity): EntityIterable {
@@ -87,7 +105,7 @@ class OStoreTransactionImpl(
     }
 
     override fun find(entityType: String, propertyName: String, value: Comparable<Nothing>): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyEqualIterable(this, entityType, propertyName, value)
     }
 
     override fun find(
@@ -96,7 +114,7 @@ class OStoreTransactionImpl(
         minValue: Comparable<Nothing>,
         maxValue: Comparable<Nothing>
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyRangeIterable(this, entityType, propertyName, minValue, maxValue)
     }
 
     override fun findContaining(
@@ -105,11 +123,11 @@ class OStoreTransactionImpl(
         value: String,
         ignoreCase: Boolean
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyContainsIterable(this, entityType, propertyName, value)
     }
 
     override fun findStartingWith(entityType: String, propertyName: String, value: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyStartsWithIterable(this, entityType, propertyName, value)
     }
 
     override fun findIds(entityType: String, minValue: Long, maxValue: Long): EntityIterable {
@@ -117,27 +135,45 @@ class OStoreTransactionImpl(
     }
 
     override fun findWithProp(entityType: String, propertyName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyExistsIterable(this, entityType, propertyName)
     }
 
     override fun findWithPropSortedByValue(entityType: String, propertyName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyExistsSortedIterable(this, entityType, propertyName)
     }
 
     override fun findWithBlob(entityType: String, blobName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyBlobExistsEntityIterable(this, entityType, blobName)
     }
 
     override fun findLinks(entityType: String, entity: Entity, linkName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OLinkToEntityIterable(this, linkName, entity.id as OEntityId)
     }
 
     override fun findLinks(entityType: String, entities: EntityIterable, linkName: String): EntityIterable {
-        TODO("Not yet implemented")
+        var links: MutableList<EntityIterable>? = null
+        for (entity in entities) {
+            if (links == null) {
+                links = ArrayList()
+            }
+            links.add(findLinks(entityType, entity, linkName))
+        }
+        if (links == null) {
+            // ToDo: return OEntityIterableBase.EMPTY
+            return EntityIterableBase.EMPTY
+        }
+        if (links.size > 1) {
+            var i = 0
+            while (i < links.size - 1) {
+                links.add(links[i].union(links[i + 1]))
+                i += 2
+            }
+        }
+        return links[links.size - 1]
     }
 
     override fun findWithLinks(entityType: String, linkName: String): EntityIterable {
-        TODO("Not yet implemented")
+        return OLinkExistsEntityIterable(this, entityType, linkName)
     }
 
     override fun findWithLinks(
@@ -146,11 +182,11 @@ class OStoreTransactionImpl(
         oppositeEntityType: String,
         oppositeLinkName: String
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OLinkExistsEntityIterable(this, entityType, linkName)
     }
 
     override fun sort(entityType: String, propertyName: String, ascending: Boolean): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertySortedIterable(this, entityType, propertyName, null, ascending)
     }
 
     override fun sort(
@@ -159,7 +195,7 @@ class OStoreTransactionImpl(
         rightOrder: EntityIterable,
         ascending: Boolean
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertySortedIterable(this, entityType, propertyName, rightOrder.asOIterable(), ascending)
     }
 
     override fun sortLinks(
@@ -169,7 +205,7 @@ class OStoreTransactionImpl(
         linkName: String,
         rightOrder: EntityIterable
     ): EntityIterable {
-        TODO("Not yet implemented")
+        return OLinkSortEntityIterable(this, sortedLinks.asOIterable(), linkName, rightOrder.asOIterable())
     }
 
     override fun sortLinks(
@@ -184,8 +220,37 @@ class OStoreTransactionImpl(
         TODO("Not yet implemented")
     }
 
+    @Deprecated("Deprecated in Java")
     override fun mergeSorted(sorted: MutableList<EntityIterable>, comparator: Comparator<Entity>): EntityIterable {
-        TODO("Not yet implemented")
+        val selfGetter = ComparableGetter { it }
+        val comparatorWrapper = java.util.Comparator<Comparable<Any>?> { o1, o2 ->
+            comparator.compare(o1 as Entity, o2 as Entity)
+        }
+        return mergeSorted(sorted, selfGetter, comparatorWrapper)
+    }
+
+    override fun mergeSorted(
+        sorted: List<EntityIterable>,
+        valueGetter: ComparableGetter,
+        comparator: java.util.Comparator<Comparable<Any>?>
+    ): EntityIterable {
+        var filtered: MutableList<EntityIterable>? = null
+        for (it in sorted) {
+            if (it !== EntityIterableBase.EMPTY) {
+                if (filtered == null) {
+                    filtered = arrayListOf()
+                }
+                filtered.add(it)
+            }
+        }
+        return if (filtered == null) EntityIterableBase.EMPTY else OMergeSortedEntityIterable(
+            this,
+            sorted,
+            {
+                valueGetter.select(it)
+            },
+            comparator
+        )
     }
 
     override fun toEntityId(representation: String): EntityId {
@@ -193,22 +258,26 @@ class OStoreTransactionImpl(
     }
 
     override fun getSequence(sequenceName: String): Sequence {
-        TODO("Not yet implemented")
+        return OSequenceImpl(sequenceName)
     }
 
     override fun getSequence(sequenceName: String, initialValue: Long): Sequence {
-        TODO("Not yet implemented")
-    }
-
-    override fun setQueryCancellingPolicy(policy: QueryCancellingPolicy?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun getQueryCancellingPolicy(): QueryCancellingPolicy? {
-        TODO("Not yet implemented")
+        return OSequenceImpl(sequenceName, initialValue)
     }
 
     override fun getEnvironmentTransaction(): Transaction {
-        return OEnvironmentTransaction(oStore.environment, this)
+        return OEnvironmentTransaction(store.environment, this)
+    }
+
+    override fun setQueryCancellingPolicy(policy: QueryCancellingPolicy?) {
+        this.queryCancellingPolicy = policy
+    }
+
+    override fun getQueryCancellingPolicy() = this.queryCancellingPolicy
+
+
+    private fun EntityIterable.asOIterable(): OEntityIterableBase {
+        require(this is OEntityIterableBase) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
+        return this
     }
 }

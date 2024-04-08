@@ -25,15 +25,15 @@ import jetbrains.exodus.kotlin.notNull
 /**
  * Iterates over entities of specified entity type having specified link to a targetId.
  */
-internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
+internal class EntitiesWithCertainLinkIterable(txn: StoreTransaction,
                                                private val entityTypeId: Int,
                                                internal val linkId: Int) : EntityIterableBase(txn) {
 
     override fun getEntityTypeId() = entityTypeId
 
-    override fun getIteratorImpl(txn: PersistentStoreTransaction): LinksIteratorWithTarget = LinksIterator(txn)
+    override fun getIteratorImpl(txn: StoreTransaction): LinksIteratorWithTarget = LinksIterator(txn)
 
-    override fun getReverseIteratorImpl(txn: PersistentStoreTransaction): LinksIteratorWithTarget = LinksIterator(txn, reverse = true)
+    override fun getReverseIteratorImpl(txn: StoreTransaction): LinksIteratorWithTarget = LinksIterator(txn, reverse = true)
 
     override fun getHandleImpl(): EntityIterableHandle {
         return object : ConstantEntityIterableHandle(store, type) {
@@ -67,7 +67,7 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
 
     override fun isSortedById() = false
 
-    override fun createCachedInstance(txn: PersistentStoreTransaction): CachedInstanceIterable {
+    override fun createCachedInstance(txn: StoreTransaction): CachedInstanceIterable {
         val localIds = LongArrayList()
         val targets = ArrayList<EntityId>()
         val it = getIteratorImpl(txn)
@@ -87,9 +87,9 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
         return CachedLinksIterable(txn, localIds.toArray(), targets.toTypedArray(), min, max)
     }
 
-    private fun openCursor(txn: PersistentStoreTransaction) = store.getLinksSecondIndexCursor(txn, entityTypeId)
+    private fun openCursor(txn: StoreTransaction) = storeImpl.getLinksSecondIndexCursor(txn.asPersistent(), entityTypeId)
 
-    private inner class LinksIterator constructor(txn: PersistentStoreTransaction, private val reverse: Boolean = false)
+    private inner class LinksIterator constructor(txn: StoreTransaction, private val reverse: Boolean = false)
         : LinksIteratorWithTarget(this@EntitiesWithCertainLinkIterable) {
 
         private var key: PropertyKey? = null
@@ -143,13 +143,13 @@ internal class EntitiesWithCertainLinkIterable(txn: PersistentStoreTransaction,
         }
     }
 
-    private inner class CachedLinksIterable internal constructor(txn: PersistentStoreTransaction,
+    private inner class CachedLinksIterable internal constructor(txn: StoreTransaction,
                                                                  private val localIds: LongArray,
                                                                  private val targets: Array<EntityId>,
                                                                  min: Long, max: Long)
         : SingleTypeUnsortedEntityIdArrayCachedInstanceIterable(txn, this@EntitiesWithCertainLinkIterable, entityTypeId, localIds, null, min, max) {
 
-        override fun getIteratorImpl(txn: PersistentStoreTransaction): LinksIteratorWithTarget {
+        override fun getIteratorImpl(txn: StoreTransaction): LinksIteratorWithTarget {
             return object : LinksIteratorWithTarget(this@CachedLinksIterable) {
 
                 private var i = 0

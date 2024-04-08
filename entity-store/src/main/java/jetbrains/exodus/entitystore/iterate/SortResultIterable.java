@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class SortResultIterable extends EntityIterableDecoratorBase {
 
-    protected SortResultIterable(@NotNull final PersistentStoreTransaction txn,
+    protected SortResultIterable(@NotNull final StoreTransaction txn,
                                  @NotNull final EntityIterableBase source) {
         super(txn, source);
     }
@@ -77,12 +77,12 @@ public class SortResultIterable extends EntityIterableDecoratorBase {
 
     @NotNull
     @Override
-    public EntityIdSet toSet(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIdSet toSet(@NotNull final StoreTransaction txn) {
         return source.toSet(txn);
     }
 
     @Override
-    protected long countImpl(@NotNull final PersistentStoreTransaction txn) {
+    protected long countImpl(@NotNull final StoreTransaction txn) {
         return source.countImpl(txn);
     }
 
@@ -93,7 +93,7 @@ public class SortResultIterable extends EntityIterableDecoratorBase {
 
     @Override
     @NotNull
-    public EntityIterator getIteratorImpl(@NotNull final PersistentStoreTransaction txn) {
+    public EntityIterator getIteratorImpl(@NotNull final StoreTransaction txn) {
         return source.getIteratorImpl(txn);
     }
 
