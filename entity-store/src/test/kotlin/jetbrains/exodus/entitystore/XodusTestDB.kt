@@ -11,7 +11,8 @@ class XodusTestDB: ExternalResource() {
 
     private lateinit var databaseFolder: File
 
-    private lateinit var store: PersistentEntityStoreImpl
+    lateinit var store: PersistentEntityStore
+        private set
 
     override fun before() {
         databaseFolder = File(TestUtil.createTempDir().absolutePath)
@@ -35,7 +36,7 @@ class XodusTestDB: ExternalResource() {
         }
     }
 
-    fun <R> withTx(block: (PersistentStoreTransaction) -> R): R {
+    fun <R> withTx(block: (StoreTransaction) -> R): R {
         val tx = store.beginTransaction()
         try {
             val result = block(tx)
@@ -43,7 +44,7 @@ class XodusTestDB: ExternalResource() {
             return result
         } catch(e: Throwable) {
             if (!tx.isFinished) {
-                tx.revert()
+                tx.abort()
             }
             throw e
         }
