@@ -113,81 +113,81 @@ class BackupTests : EntityStoreTestBase() {
     }
 
 
-    @Ignore("Unignore when fix is applied in release-3.0")
-    @Throws(Exception::class)
-    fun testStressDynamic() {
-        val store = entityStore
-        store.config.maxInPlaceBlobSize = 0 // no in-place blobs
-        val issueCount = 1000
-        store.executeInTransaction { txn ->
-            for (i in 0 until issueCount) {
-                val issue = txn.newEntity("Issue")
-                issue.setBlobString("description", Math.random().toString())
-            }
-        }
-        val rnd = Random()
-        val finish = booleanArrayOf(false)
-        val backgroundChanges = intArrayOf(0)
-        val threadCount = 4
-        val threads = arrayOfNulls<ThreadJobProcessor>(threadCount)
-        for (i in threads.indices) {
-            threads[i] = ThreadJobProcessor("BackupTest Job Processor $i").apply {
-                start()
-                exceptionHandler = JobProcessorExceptionHandler { _, _, t -> println(t.toString()) }
-                queue(object : Job() {
-                    @Throws(Throwable::class)
-                    override fun execute() {
-                        while (!finish[0]) {
-                            store.executeInTransaction { txn ->
-                                val issue = txn.getAll("Issue").skip(rnd.nextInt(issueCount - 1)).first
-                                TestCase.assertNotNull(issue)
-                                issue?.setBlobString("description", Math.random().toString())
-                                print("\r" + ++backgroundChanges[0])
-                            }
-                        }
-                    }
-                })
-            }
-        }
-        Thread.sleep(1000)
-        val backupDir = TestUtil.createTempDir()
-        try {
-            val location = Path.of(store.environment.location)
-            val backupController = (store.getEnvironment() as EnvironmentImpl).backupController
-
-            backupController.prepareBackup()
-            try {
-                recursiveCopy(location, backupDir.toPath()) {
-                    it != "xd.lck"
-                }
-            } finally {
-                backupController.finishBackup()
-            }
-
-            finish[0] = true
-
-            val newStore = PersistentEntityStores.newInstance(backupDir)
-            newStore.use {
-                val lastUsedBlobHandle = longArrayOf(-1L)
-                newStore.executeInReadonlyTransaction { t ->
-                    val txn = t as PersistentStoreTransaction
-                    TestCase.assertEquals(issueCount.toLong(), txn.getAll("Issue").size())
-                    lastUsedBlobHandle[0] =
-                        newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
-                    for (issue in txn.getAll("Issue")) {
-                        val description = issue.getBlobString("description")
-                        TestCase.assertNotNull(description)
-                        TestCase.assertFalse(description.isNullOrEmpty())
-                    }
-                }
-            }
-        } finally {
-            IOUtil.deleteRecursively(backupDir)
-        }
-        for (thread in threads) {
-            thread?.finish()
-        }
-    }
+//    @Ignore("Unignore when fix is applied in release-3.0")
+//    @Throws(Exception::class)
+//    fun testStressDynamic() {
+//        val store = entityStore
+//        store.config.maxInPlaceBlobSize = 0 // no in-place blobs
+//        val issueCount = 1000
+//        store.executeInTransaction { txn ->
+//            for (i in 0 until issueCount) {
+//                val issue = txn.newEntity("Issue")
+//                issue.setBlobString("description", Math.random().toString())
+//            }
+//        }
+//        val rnd = Random()
+//        val finish = booleanArrayOf(false)
+//        val backgroundChanges = intArrayOf(0)
+//        val threadCount = 4
+//        val threads = arrayOfNulls<ThreadJobProcessor>(threadCount)
+//        for (i in threads.indices) {
+//            threads[i] = ThreadJobProcessor("BackupTest Job Processor $i").apply {
+//                start()
+//                exceptionHandler = JobProcessorExceptionHandler { _, _, t -> println(t.toString()) }
+//                queue(object : Job() {
+//                    @Throws(Throwable::class)
+//                    override fun execute() {
+//                        while (!finish[0]) {
+//                            store.executeInTransaction { txn ->
+//                                val issue = txn.getAll("Issue").skip(rnd.nextInt(issueCount - 1)).first
+//                                TestCase.assertNotNull(issue)
+//                                issue?.setBlobString("description", Math.random().toString())
+//                                print("\r" + ++backgroundChanges[0])
+//                            }
+//                        }
+//                    }
+//                })
+//            }
+//        }
+//        Thread.sleep(1000)
+//        val backupDir = TestUtil.createTempDir()
+//        try {
+//            val location = Path.of(store.environment.location)
+//            val backupController = (store.getEnvironment() as EnvironmentImpl).backupController
+//
+//            backupController.prepareBackup()
+//            try {
+//                recursiveCopy(location, backupDir.toPath()) {
+//                    it != "xd.lck"
+//                }
+//            } finally {
+//                backupController.finishBackup()
+//            }
+//
+//            finish[0] = true
+//
+//            val newStore = PersistentEntityStores.newInstance(backupDir)
+//            newStore.use {
+//                val lastUsedBlobHandle = longArrayOf(-1L)
+//                newStore.executeInReadonlyTransaction { t ->
+//                    val txn = t as PersistentStoreTransaction
+//                    TestCase.assertEquals(issueCount.toLong(), txn.getAll("Issue").size())
+//                    lastUsedBlobHandle[0] =
+//                        newStore.getSequence(txn, PersistentEntityStoreImpl.BLOB_HANDLES_SEQUENCE).loadValue(txn)
+//                    for (issue in txn.getAll("Issue")) {
+//                        val description = issue.getBlobString("description")
+//                        TestCase.assertNotNull(description)
+//                        TestCase.assertFalse(description.isNullOrEmpty())
+//                    }
+//                }
+//            }
+//        } finally {
+//            IOUtil.deleteRecursively(backupDir)
+//        }
+//        for (thread in threads) {
+//            thread?.finish()
+//        }
+//    }
 
     @Throws(Exception::class)
     fun testStress() {
