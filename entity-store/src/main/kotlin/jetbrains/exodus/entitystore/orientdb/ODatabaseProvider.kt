@@ -4,8 +4,14 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 
 interface ODatabaseProvider {
-    val databaseSession: ODatabaseSession
     val databaseLocation: String
     val database: OrientDB
+    fun acquireSession(): ODatabaseSession
     fun close()
+}
+
+fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
+    acquireSession().use { session ->
+        return block(session)
+    }
 }

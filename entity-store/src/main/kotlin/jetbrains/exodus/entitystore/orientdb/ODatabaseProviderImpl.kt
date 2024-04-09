@@ -10,13 +10,12 @@ class ODatabaseProviderImpl(
     private val userName: String,
     private val password: String
 ) : ODatabaseProvider {
-    override val databaseSession: ODatabaseSession
-        get() {
-            return database.cachedPool(databaseName, userName, password).acquire()
-        }
-
     override val databaseLocation: String
         get() = database.accessInternal.basePath
+
+    override fun acquireSession(): ODatabaseSession {
+        return database.cachedPool(databaseName, userName, password).acquire()
+    }
 
     override fun close() {
         //TODO this should call some other method, also to remove pool from database internal hashmap
