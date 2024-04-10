@@ -33,7 +33,6 @@ class OPersistentEntityStore(
 
     override fun beginTransaction(): StoreTransaction {
         val session = databaseProvider.databaseSession
-        session.isPooled
         session.activateOnCurrentThread()
         val txn = session.begin().transaction
         return OStoreTransactionImpl(session, txn, this)
