@@ -4,6 +4,7 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.withSession
 
 
@@ -38,17 +39,24 @@ class XodusToOrientDataMigrator(
                 oSession.getClass(type) ?: oSession.createVertexClass(type)
             }
         }
+
+        oSession.getClass(BINARY_BLOB_CLASS_NAME) ?: oSession.createClass(BINARY_BLOB_CLASS_NAME)
     }
 
     private fun copyPropertiesAndBlobs(oSession: ODatabaseSession) {
         xodus.withReadonlyTx { xTx ->
             oSession.withCountingTx(entitiesPerTransaction) { countingTx ->
                 for (type in xTx.entityTypes) {
-                    for (entity in xTx.getAll(type)) {
+                    for (xEntity in xTx.getAll(type)) {
                         val vertex = oSession.newVertex(type)
                         val oEntity = OVertexEntity(vertex, orient)
-                        for (prop in entity.propertyNames) {
-                            oEntity.setProperty(prop, entity.getProperty(prop) as Comparable<*>)
+                        for (propName in xEntity.propertyNames) {
+                            oEntity.setProperty(propName, xEntity.getProperty(propName) as Comparable<*>)
+                        }
+                        for (blobName in xEntity.blobNames) {
+                            xEntity.getBlob(blobName)?.let { blobValue ->
+                                oEntity.setBlob(blobName, blobValue)
+                            }
                         }
                         countingTx.increment()
                     }
