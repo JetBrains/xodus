@@ -232,7 +232,7 @@ class OStoreTransactionIterablesTest {
         // When
         orientDB.withSession {
             val equal1 = tx.find(Issues.CLASS, "name", test.issue1.name())
-            val equal2 = tx.find(Issues.CLASS, "name", test.issue2.name())
+            val equal2 = tx.find(Issues.CLASS, "name", test.issue1.name())
 
             val issues = equal1.union(equal2)
 
