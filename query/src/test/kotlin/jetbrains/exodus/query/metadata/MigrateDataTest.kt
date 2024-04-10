@@ -46,7 +46,6 @@ class MigrateDataTest {
 
     @Test
     fun `copy blobs`() {
-        ByteArrayInputStream("".encodeToByteArray())
         val entities = pileOfEntities(
             eBlobs("type1", 1, "blob1" to "one"),
             eBlobs("type1", 2, "blob1" to "two"),
@@ -55,6 +54,41 @@ class MigrateDataTest {
             eBlobs("type2", 4, "bob1" to "four"),
             eBlobs("type2", 5, "bob1" to "five"),
             eBlobs("type2", 6, "bob1" to "six"),
+        )
+
+        xodus.withTx { tx ->
+            tx.createEntities(entities)
+        }
+
+        XodusToOrientDataMigrator(xodus.store, orientDb.store).migrate()
+
+        orientDb.withSession { oSession ->
+            oSession.assertOrientContainsAllTheEntities(entities)
+        }
+    }
+
+    @Test
+    fun `copy links`() {
+        val entities = pileOfEntities(
+            eLinks("type1", 1,
+                Link("link1", "type1", 2), Link("link1", "type1", 3), // several links with the same name
+                Link("link2", "type2", 4)
+            ),
+            eLinks("type1", 2,
+                Link("link1", "type1", 1), // cycle
+                Link("link2", "type2", 4)
+            ),
+            eLinks("type1", 3,
+                Link("link1", "type1", 2), // cycle too
+                Link("link2", "type2", 5)
+            ),
+
+            eLinks("type2", 4,
+                Link("link2", "type2", 5)
+            ),
+            eLinks("type2", 5,
+                Link("link1", "type1", 2), // cycle too
+            ),
         )
 
         xodus.withTx { tx ->
@@ -88,6 +122,12 @@ class MigrateDataTest {
             val actualValue = actual.getBlob(blobName)!!.readAllBytes()
             Assert.assertEquals(blobValue, actualValue.decodeToString())
         }
+
+        for (expectedLink in expected.links) {
+            val actualLinks = actual.getLinks(expectedLink.name).toList()
+            val tartedActual = actualLinks.first { it.getProperty("id") == expectedLink.targetId }
+            Assert.assertEquals(expectedLink.targetType, tartedActual.type)
+        }
     }
 
     private fun ODocument.getId(): Int = getProperty("id")
@@ -96,6 +136,11 @@ class MigrateDataTest {
         for (type in pile.types) {
             for (entity in pile.getAll(type)) {
                 this.createEntity(entity)
+            }
+        }
+        for (type in pile.types) {
+            for (entity in pile.getAll(type)) {
+                this.createLinks(entity)
             }
         }
     }
@@ -109,6 +154,14 @@ class MigrateDataTest {
         }
         for ((name, value) in entity.blobs) {
             e.setBlob(name, ByteArrayInputStream(value.encodeToByteArray()))
+        }
+    }
+
+    private fun StoreTransaction.createLinks(entity: Entity) {
+        val xEntity = this.getAll(entity.type).first { it.getProperty("id") == entity.id }
+        for (link in entity.links) {
+            val targetXEntity = this.getAll(link.targetType).first { it.getProperty("id") == link.targetId }
+            xEntity.addLink(link.name, targetXEntity)
         }
     }
 }
@@ -131,7 +184,14 @@ data class Entity(
     val type: String,
     val id: Int,
     val props: Map<String, Comparable<*>>,
-    val blobs: Map<String, String>
+    val blobs: Map<String, String>,
+    val links: List<Link>
+)
+
+data class Link(
+    val name: String,
+    val targetType: String,
+    val targetId : Int,
 )
 
 fun pileOfEntities(vararg entities: Entity): PileOfEntities {
@@ -143,10 +203,14 @@ fun pileOfEntities(vararg entities: Entity): PileOfEntities {
 }
 
 fun eProps(type: String, id: Int, vararg props: Pair<String, Comparable<*>>): Entity {
-    return Entity(type, id, props.toMap(), mapOf())
+    return Entity(type, id, props.toMap(), mapOf(), listOf())
 }
 
 fun eBlobs(type: String, id: Int, vararg blobs: Pair<String, String>): Entity {
-    return Entity(type, id, mapOf(), blobs.toMap())
+    return Entity(type, id, mapOf(), blobs.toMap(), listOf())
+}
+
+fun eLinks(type: String, id: Int, vararg links: Link): Entity {
+    return Entity(type, id, mapOf(), mapOf(), links.toList())
 }
 
