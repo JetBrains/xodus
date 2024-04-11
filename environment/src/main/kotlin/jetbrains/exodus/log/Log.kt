@@ -774,14 +774,38 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             break
         }
 
-        logger.info("Files found in directory $location ...")
-        logger.info("------------------------------------------------------")
-        val blockAddressIterator = blocks.keys.iterator()
-        while (blockAddressIterator.hasNext()) {
-            val address = blockAddressIterator.next()
-            logger.info(LogUtil.getLogFilename(address))
+        apply {
+            logger.info("Files found in directory $location ...")
+            logger.info("------------------------------------------------------")
+            val blockAddressIterator = blocks.keys.iterator()
+            while (blockAddressIterator.hasNext()) {
+                val address = blockAddressIterator.next()
+                logger.info(LogUtil.getLogFilename(address))
+            }
+            logger.info("------------------------------------------------------")
         }
-        logger.info("------------------------------------------------------")
+
+        val blocksToTruncateLimit = 2
+
+        if (!config.isProceedDataRestoreAtAnyCost) {
+            val newBlocks = TreeMap<Long, Block>()
+
+            while (newBlocks.size < blocksToTruncateLimit + 16) {
+                val entry = blocks.pollLastEntry() ?: break
+                newBlocks[entry.key] = entry.value
+            }
+            blocks = newBlocks
+
+            logger.info("Files to be checked for data consistency : ")
+            logger.info("------------------------------------------------------")
+
+            val blockAddressIterator = blocks.keys.iterator()
+            while (blockAddressIterator.hasNext()) {
+                val address = blockAddressIterator.next()
+                logger.info(LogUtil.getLogFilename(address))
+            }
+            logger.info("------------------------------------------------------")
+        }
 
         val clearInvalidLog = config.isClearInvalidLog
         var hasNext: Boolean
@@ -942,7 +966,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val blocksToTruncate = blocks.tailMap(endBlockAddress, true)
 
 
-                    if (!config.isProceedDataRestoreAtAnyCost && blocksToTruncate.size > 2) {
+                    if (!config.isProceedDataRestoreAtAnyCost && blocksToTruncate.size > blocksToTruncateLimit) {
                         throw DataCorruptionException(
                             "Database $location is corrupted, " +
                                     "but to be restored till the valid state ${blocksToTruncate.size} " +
@@ -1851,18 +1875,6 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
     fun notifyBlockModified(block: Block) {
         blockListeners.notifyListeners { it.blockModified(block) }
-    }
-
-    fun mutableBlocksUnsafe(): BlockSet.Mutable {
-        return writer.mutableBlocksUnsafe()
-    }
-
-    fun updateBlockSetHighAddressUnsafe(
-        prevHighAddress: Long,
-        highAddress: Long,
-        blockSet: BlockSet.Immutable
-    ) {
-        writer.updateBlockSetHighAddressUnsafe(prevHighAddress, highAddress, blockSet)
     }
 
     private fun notifyReadBytes(bytes: ByteArray, count: Int) {

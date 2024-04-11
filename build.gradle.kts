@@ -133,7 +133,6 @@ subprojects {
     }
     tasks.withType<JavaCompile> {
         options.encoding = "UTF-8"
-        options.compilerArgs = listOf("--add-modules", "jdk.incubator.vector", "--enable-preview")
     }
 
     tasks.jar {
@@ -151,10 +150,7 @@ subprojects {
         maxHeapSize = "1g"
         jvmArgs = listOf(
             "-ea",
-            "-XX:+HeapDumpOnOutOfMemoryError",
-            "--add-modules",
-            "jdk.incubator.vector",
-            "--enable-preview"
+            "-XX:+HeapDumpOnOutOfMemoryError"
         )
     }
 
@@ -162,7 +158,6 @@ subprojects {
         isFailOnError = false
         options.quiet()
         (options as CoreJavadocOptions).addStringOption("Xdoclint:none", "-quiet")
-        (options as CoreJavadocOptions).addBooleanOption("-enable-preview", true)
         (options as CoreJavadocOptions).addStringOption("source", 17.toString())
     }
 
