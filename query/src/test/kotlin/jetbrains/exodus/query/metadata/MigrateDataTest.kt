@@ -37,7 +37,7 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        XodusToOrientDataMigrator(xodus.store, orientDb.store).migrate()
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
 
         orientDb.withSession { oSession ->
             oSession.assertOrientContainsAllTheEntities(entities)
@@ -60,7 +60,7 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        XodusToOrientDataMigrator(xodus.store, orientDb.store).migrate()
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
 
         orientDb.withSession { oSession ->
             oSession.assertOrientContainsAllTheEntities(entities)
@@ -95,10 +95,42 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        XodusToOrientDataMigrator(xodus.store, orientDb.store).migrate()
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
 
         orientDb.withSession { oSession ->
             oSession.assertOrientContainsAllTheEntities(entities)
+        }
+    }
+
+    @Test
+    fun `remember class IDs and largest entity ID in each class`() {
+        val entities = pileOfEntities(
+            eProps("type1", 1),
+            eProps("type1", 2),
+            eProps("type1", 3),
+
+            eProps("type2", 2),
+            eProps("type2", 4),
+            eProps("type2", 5),
+        )
+        xodus.withTx { tx ->
+            tx.createEntities(entities)
+        }
+
+        val (classNameToClassId, classNameToLargestEntityId) = migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+
+        xodus.withTx { tx ->
+            for (type in tx.entityTypes) {
+                val typeId = xodus.store.getEntityTypeId(type)
+                Assert.assertEquals(typeId, classNameToClassId.getValue(type))
+
+                var largestEntityId = 0L
+                for (xEntity in tx.getAll(type)) {
+                    largestEntityId = maxOf(largestEntityId, xEntity.id.localId)
+                }
+                Assert.assertTrue(largestEntityId > 0)
+                Assert.assertEquals(largestEntityId, classNameToLargestEntityId.getValue(type))
+            }
         }
     }
 

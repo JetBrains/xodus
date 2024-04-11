@@ -8,6 +8,22 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.withSession
 
+fun migrateDataFromXodusToOrientDb(
+    xodus: PersistentEntityStore,
+    orient: OPersistentEntityStore,
+    /*
+    * How many entities should be copied in a single transaction
+    * */
+    entitiesPerTransaction: Int = 10
+): MigrationResult {
+    val migrator = XodusToOrientDataMigrator(xodus, orient, entitiesPerTransaction)
+    return migrator.migrate()
+}
+
+data class MigrationResult(
+    val classNameToClassId: Map<String, Int>,
+    val classNameToLargestEntityId: Map<String, Long>
+)
 
 /**
  * This class is responsible for migrating data from Xodus to OrientDB.
@@ -16,7 +32,7 @@ import jetbrains.exodus.entitystore.orientdb.withSession
  * @param orient The OrientDB OPersistentEntityStore instance.
  * @param entitiesPerTransaction The number of entities to be copied in a single transaction.
  */
-class XodusToOrientDataMigrator(
+internal class XodusToOrientDataMigrator(
     private val xodus: PersistentEntityStore,
     private val orient: OPersistentEntityStore,
     /*
@@ -26,13 +42,20 @@ class XodusToOrientDataMigrator(
 ) {
     private val xEntityIdToOEntityId = HashMap<EntityId, EntityId>()
 
-    fun migrate() {
+    // it is required for backward compatible EntityId
+    private val classNameToClassId = HashMap<String, Int>()
+
+    // it is required for backward compatible EntityId
+    private val classNameToLargestEntityId = HashMap<String, Long>()
+
+    fun migrate(): MigrationResult {
         orient.databaseProvider.withSession { oSession ->
             createVertexClassesIfAbsent(oSession)
             val edgeClassesToCreate = copyPropertiesAndBlobs(oSession)
             createEdgeClassesIfAbsent(oSession, edgeClassesToCreate)
             copyLinks(oSession)
         }
+        return MigrationResult(classNameToClassId, classNameToLargestEntityId)
     }
 
     private fun createVertexClassesIfAbsent(oSession: ODatabaseSession) {
@@ -41,6 +64,7 @@ class XodusToOrientDataMigrator(
         xodus.withReadonlyTx { xTx ->
             for (type in xTx.entityTypes) {
                 oSession.getClass(type) ?: oSession.createVertexClass(type)
+                classNameToClassId[type] = xodus.getEntityTypeId(type)
             }
         }
 
@@ -58,6 +82,7 @@ class XodusToOrientDataMigrator(
         xodus.withReadonlyTx { xTx ->
             oSession.withCountingTx(entitiesPerTransaction) { countingTx ->
                 for (type in xTx.entityTypes) {
+                    var largestEntityId = 0L
                     for (xEntity in xTx.getAll(type)) {
                         val vertex = oSession.newVertex(type)
                         val oEntity = OVertexEntity(vertex, orient)
@@ -72,8 +97,10 @@ class XodusToOrientDataMigrator(
                         xEntityIdToOEntityId[xEntity.id] = oEntity.id
                         countingTx.increment()
 
+                        largestEntityId = maxOf(largestEntityId, xEntity.id.localId)
                         edgeClassesToCreate.addAll(xEntity.linkNames)
                     }
+                    classNameToLargestEntityId[type] = largestEntityId
                 }
             }
         }
@@ -87,6 +114,7 @@ class XodusToOrientDataMigrator(
                     for (xEntity in xTx.getAll(type)) {
                         val oEntityId = xEntityIdToOEntityId.getValue(xEntity.id)
                         val oEntity = orient.getEntity(oEntityId)
+
                         var copiedSomeLinks = false
                         for (linkName in xEntity.linkNames) {
                             for (xTargetEntity in xEntity.getLinks(linkName)) {
