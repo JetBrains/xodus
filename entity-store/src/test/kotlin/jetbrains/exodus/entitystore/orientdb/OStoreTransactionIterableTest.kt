@@ -5,13 +5,13 @@ import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import org.junit.Rule
 import org.junit.Test
 import java.util.Comparator
 
-class OStoreTransactionIterablesTest {
+class OStoreTransactionIterableTest {
 
     @Rule
     @JvmField
@@ -232,7 +232,7 @@ class OStoreTransactionIterablesTest {
         // When
         orientDB.withSession {
             val equal1 = tx.find(Issues.CLASS, "name", test.issue1.name())
-            val equal2 = tx.find(Issues.CLASS, "name", test.issue2.name())
+            val equal2 = tx.find(Issues.CLASS, "name", test.issue1.name())
 
             val issues = equal1.union(equal2)
 
@@ -325,7 +325,6 @@ class OStoreTransactionIterablesTest {
 
             // Then
             assertThat(issues).hasSize(4)
-            // ToDo: should pass when distinct is implemented
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
@@ -353,7 +352,31 @@ class OStoreTransactionIterablesTest {
     }
 
     @Test
-    fun `should find links`() {
+    fun `should iterable find links`() {
+        // Given
+        val test = givenTestCase()
+        val tx = givenOTransaction()
+
+        orientDB.addIssueToBoard(test.issue1, test.board1)
+        orientDB.addIssueToBoard(test.issue1, test.board2)
+        orientDB.addIssueToBoard(test.issue2, test.board1)
+        orientDB.addIssueToBoard(test.issue3, test.board3)
+
+        // When
+        orientDB.withSession {
+            // boards 1 and 2
+            val boards = tx.find(Boards.CLASS, "name", test.board1.name())
+                .union(tx.find(Boards.CLASS, "name", test.board2.name()))
+            val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
+            val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD)!!
+
+            // Then
+            assertNamesExactly(issuesOnBoards, "issue1", "issue2")
+        }
+    }
+
+    @Test
+    fun `should find links by link entity id`() {
         // Given
         val tx = givenOTransaction()
         val testCase = givenTestCase()
@@ -368,6 +391,26 @@ class OStoreTransactionIterablesTest {
 
             // Then
             assertNamesExactly(issues, "issue1", "issue2")
+        }
+    }
+
+    @Test
+    fun `should find links by link iterables`() {
+        // Given
+        val tx = givenOTransaction()
+        val testCase = givenTestCase()
+
+        orientDB.addIssueToProject(testCase.issue1, testCase.project1)
+        orientDB.addIssueToProject(testCase.issue2, testCase.project1)
+        orientDB.addIssueToProject(testCase.issue3, testCase.project2)
+
+        // When
+        orientDB.withSession {
+            val projects = tx.getAll(Projects.CLASS)
+            val issues = tx.findLinks(Issues.CLASS, projects, Issues.Links.IN_PROJECT)
+
+            // Then
+            assertNamesExactly(issues, "issue1", "issue2", "issue3")
         }
     }
 
@@ -542,7 +585,7 @@ class OStoreTransactionIterablesTest {
 
         // When
         orientDB.withSession {
-            val issues = tx.getAll(Issues.CLASS) as OEntityIterableBase
+            val issues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
             // Then
@@ -563,7 +606,7 @@ class OStoreTransactionIterablesTest {
 
         // When
         orientDB.withSession {
-            val issues = tx.getAll(Issues.CLASS) as OEntityIterableBase
+            val issues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
             val boards = issues.selectDistinct(Issues.Links.ON_BOARD)
 
             // Then
@@ -647,7 +690,9 @@ class OStoreTransactionIterablesTest {
                 true
             )
 
-            val comparator = Comparator<Entity> { o1, o2 -> o1.getProperty(Issues.Props.PRIORITY)?.compareTo(o2.getProperty(Issues.Props.PRIORITY)) ?: -1 }
+            val comparator = Comparator<Entity> { o1, o2 ->
+                o1.getProperty(Issues.Props.PRIORITY)?.compareTo(o2.getProperty(Issues.Props.PRIORITY)) ?: -1
+            }
 
             val mergeSorted =
                 tx.mergeSorted(arrayListOf(issuesOnBoard2, issuesOnBoard1, issuesOnBoard3), comparator)
@@ -657,7 +702,6 @@ class OStoreTransactionIterablesTest {
         }
 
     }
-
 
 
     // Util methods
