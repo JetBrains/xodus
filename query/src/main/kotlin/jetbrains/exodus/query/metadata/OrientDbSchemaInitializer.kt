@@ -24,8 +24,10 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -57,10 +59,10 @@ internal class OrientDbSchemaInitializer(
     private fun appendLine(s: String = "") = paddedLogger.appendLine(s)
 
 
-    private val indices = HashMap<String, MutableSet<DeferredIndex>>()
+    private val indices = HashMap<String, MutableMap<String, DeferredIndex>>()
 
     private fun addIndex(index: DeferredIndex) {
-        indices.getOrPut(index.ownerVertexName) { HashSet() }.add(index)
+        indices.getOrPut(index.ownerVertexName) { HashMap() }[index.indexName] = index
     }
 
     private fun simplePropertyIndex(entityName: String, propertyName: String): DeferredIndex {
@@ -70,7 +72,7 @@ internal class OrientDbSchemaInitializer(
         return DeferredIndex(entityName, listOf(indexField), unique = false)
     }
 
-    fun getIndices(): Map<String, Set<DeferredIndex>> = indices
+    fun getIndices(): Map<String, Set<DeferredIndex>> = indices.map { it.key to it.value.values.toSet() }.toMap()
 
     fun apply() {
         try {
@@ -128,8 +130,8 @@ internal class OrientDbSchemaInitializer(
                 for ((indexOwner, indices) in indices) {
                     appendLine("$indexOwner:")
                     withPadding {
-                        for (index in indices) {
-                            appendLine(index.indexName)
+                        for ((indexName, _) in indices) {
+                            appendLine(indexName)
                         }
                     }
                 }
@@ -142,12 +144,7 @@ internal class OrientDbSchemaInitializer(
     // ClassId
 
     private fun createClassIdSequenceIfAbsent() {
-        val sequences = oSession.metadata.sequenceLibrary
-        if (sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) {
-            val params = OSequence.CreateParams()
-            params.start = 0L
-            sequences.createSequence(CLASS_ID_SEQUENCE_NAME, OSequence.SEQUENCE_TYPE.ORDERED, params)
-        }
+        createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME)
     }
 
     private fun OClass.setClassIdIfAbsent() {
@@ -169,6 +166,12 @@ internal class OrientDbSchemaInitializer(
 
         if (backwardCompatibleEntityId) {
             oClass.setClassIdIfAbsent()
+            createSequenceIfAbsent(localEntityIdSequenceName(dnqEntity.type))
+            /*
+            * We do not apply a unique index to the localEntityId property because indices in OrientDB are polymorphic.
+            * So, you can not have the same value in a property in an instance of a superclass and in an instance of its subclass.
+            * But it exactly what happens in the original Xodus.
+            * */
         }
 
         /*
@@ -332,6 +335,12 @@ internal class OrientDbSchemaInitializer(
                     val requiredBecauseOfIndex = dnqEntity.ownIndexes.any { index -> index.fields.any { it.name == propertyMetaData.name } }
                     oClass.applySimpleProperty(propertyMetaData, required || requiredBecauseOfIndex)
                 }
+            }
+            if (backwardCompatibleEntityId) {
+                val prop = SimplePropertyMetaDataImpl(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, "long")
+                oClass.applySimpleProperty(prop, true)
+                // we need this index regardless what we have in indexForEverySimpleProperty
+                addIndex(simplePropertyIndex(dnqEntity.type, BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME))
             }
         }
     }
@@ -544,6 +553,15 @@ internal class OrientDbSchemaInitializer(
         require(oProperty.type == OType.EMBEDDEDSET) { "$propertyName type is ${oProperty.type} but ${OType.EMBEDDEDSET} was expected instead. Types migration is not supported."  }
         require(oProperty.linkedType == oType) { "$propertyName type of the set is ${oProperty.linkedType} but $oType was expected instead. Types migration is not supported." }
         return oProperty
+    }
+
+    private fun createSequenceIfAbsent(sequenceName: String) {
+        val sequences = oSession.metadata.sequenceLibrary
+        if (sequences.getSequence(sequenceName) == null) {
+            val params = OSequence.CreateParams()
+            params.start = 0L
+            sequences.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, params)
+        }
     }
 
     private fun getOType(jvmTypeName: String): OType {

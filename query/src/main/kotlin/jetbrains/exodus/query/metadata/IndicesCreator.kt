@@ -73,7 +73,7 @@ data class DeferredIndex(
 ) {
     constructor(ownerVertexName: String, properties: List<IndexField>, unique: Boolean): this(
         ownerVertexName,
-        indexName = "${ownerVertexName}_${properties.joinToString("_") { it.name }}",
+        indexName = "${ownerVertexName}_${properties.joinToString("_") { it.name }}${if (unique) "_unique" else ""}",
         properties,
         unique = unique
     )
