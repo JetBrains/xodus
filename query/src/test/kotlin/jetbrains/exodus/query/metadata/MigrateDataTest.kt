@@ -6,9 +6,12 @@ import com.orientechnologies.orient.core.record.impl.OVertexDocument
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import junit.framework.TestCase.assertNull
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -166,10 +169,84 @@ class MigrateDataTest {
         }
     }
 
+    @Test
+    fun `if backward compatible EntityId enabled, copy localEntityId for every entity and create a sequence for every class to generate new localEntityIds`() {
+        val entities = pileOfEntities(
+            eProps("type1", 1),
+            eProps("type1", 2),
+            eProps("type1", 3),
+
+            eProps("type2", 2),
+            eProps("type2", 4),
+            eProps("type2", 5),
+        )
+        xodus.withTx { tx ->
+            tx.createEntities(entities)
+        }
+
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store, backwardCompatibleEntityId = true)
+
+        xodus.withTx { xTx ->
+            orientDb.withSession { oSession ->
+                for (type in xTx.entityTypes) {
+                    val xTestIdToLocalEntityId = HashMap<Int, Long>()
+                    val oTestIdToLocalEntityId = HashMap<Int, Long>()
+                    var maxLocalEntityId = 0L
+                    for (xEntity in xTx.getAll(type)) {
+                        val testId = xEntity.getProperty("id") as Int
+                        val localEntityId = xEntity.id.localId
+                        xTestIdToLocalEntityId[testId] = localEntityId
+                        maxLocalEntityId = maxOf(maxLocalEntityId, localEntityId)
+                    }
+
+                    for (oEntity in oSession.browseClass(type)) {
+                        val testId = oEntity.getTestId()
+                        val localEntityId = oEntity.getProperty<Long>(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME)
+                        oTestIdToLocalEntityId[testId] = localEntityId
+                    }
+
+                    assertTrue(maxLocalEntityId > 0)
+                    val nextGeneratedLocalEntityId = oSession.metadata.sequenceLibrary.getSequence(localEntityIdSequenceName(type)).next()
+                    assertEquals(maxLocalEntityId + 1, nextGeneratedLocalEntityId)
+
+                    assertEquals(xTestIdToLocalEntityId, oTestIdToLocalEntityId)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `if backward compatible EntityId disabled, ignore localEntityId`() {
+        val entities = pileOfEntities(
+            eProps("type1", 1),
+            eProps("type1", 2),
+            eProps("type1", 3),
+
+            eProps("type2", 2),
+            eProps("type2", 4),
+            eProps("type2", 5),
+        )
+        xodus.withTx { tx ->
+            tx.createEntities(entities)
+        }
+
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+
+        xodus.withTx { xTx ->
+            orientDb.withSession { oSession ->
+                for (type in xTx.entityTypes) {
+                    val oClass = oSession.getClass(type)
+                    assertNull(oClass.getProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME))
+                    assertNull(oSession.metadata.sequenceLibrary.getSequence(localEntityIdSequenceName(type)))
+                }
+            }
+        }
+    }
+
     private fun ODatabaseSession.assertOrientContainsAllTheEntities(pile: PileOfEntities) {
         for (type in pile.types) {
             for (record in this.browseClass(type)) {
-                val entity = pile.getEntity(type, record.getId())
+                val entity = pile.getEntity(type, record.getTestId())
                 record.assertEquals(entity)
             }
         }
@@ -179,7 +256,7 @@ class MigrateDataTest {
         val actualDocument = this
         val actual = OVertexEntity(actualDocument as OVertexDocument, orientDb.store)
 
-        Assert.assertEquals(expected.id, actualDocument.getId())
+        Assert.assertEquals(expected.id, actualDocument.getTestId())
         for ((propName, propValue) in expected.props) {
             Assert.assertEquals(propValue, actual.getProperty(propName))
         }
@@ -195,7 +272,7 @@ class MigrateDataTest {
         }
     }
 
-    private fun ODocument.getId(): Int = getProperty("id")
+    private fun ODocument.getTestId(): Int = getProperty("id")
 
     private fun StoreTransaction.createEntities(pile: PileOfEntities) {
         for (type in pile.types) {

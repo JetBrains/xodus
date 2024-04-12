@@ -1,14 +1,17 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.withSession
 
 fun migrateDataFromXodusToOrientDb(
@@ -42,9 +45,6 @@ internal class XodusToOrientDataMigrator(
 ) {
     private val xEntityIdToOEntityId = HashMap<EntityId, EntityId>()
 
-    // it is required for backward compatible EntityId
-    private val classNameToLargestEntityId = HashMap<String, Long>()
-
     fun migrate() {
         orient.databaseProvider.withSession { oSession ->
             createVertexClassesIfAbsent(oSession)
@@ -66,18 +66,22 @@ internal class XodusToOrientDataMigrator(
                 if (backwardCompatibleEntityId) {
                     oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
                     maxClassId = maxOf(maxClassId, classId)
+
+                    // create localEntityId property if absent
+                    if (oClass.getProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
+                        oClass.createProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, OType.LONG)
+                    }
                 }
             }
         }
 
         if (backwardCompatibleEntityId) {
+            // create a sequence to generate classIds
             val sequences = oSession.metadata.sequenceLibrary
 
             require(sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
 
-            val params = OSequence.CreateParams()
-            params.start = maxClassId.toLong()
-            sequences.createSequence(CLASS_ID_SEQUENCE_NAME, OSequence.SEQUENCE_TYPE.ORDERED, params)
+            oSession.createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, maxClassId.toLong())
         }
 
         oSession.getClass(BINARY_BLOB_CLASS_NAME) ?: oSession.createClass(BINARY_BLOB_CLASS_NAME)
@@ -109,14 +113,33 @@ internal class XodusToOrientDataMigrator(
                         xEntityIdToOEntityId[xEntity.id] = oEntity.id
                         countingTx.increment()
 
-                        largestEntityId = maxOf(largestEntityId, xEntity.id.localId)
                         edgeClassesToCreate.addAll(xEntity.linkNames)
+
+                        if (backwardCompatibleEntityId) {
+                            // copy localEntityId
+                            val localEntityId = xEntity.id.localId
+                            oEntity.setProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
+
+                            largestEntityId = maxOf(largestEntityId, localEntityId)
+                        }
                     }
-                    classNameToLargestEntityId[type] = largestEntityId
+                    if (backwardCompatibleEntityId) {
+                        // create a sequence to generate localEntityIds for the class
+                        oSession.createSequenceIfAbsent(localEntityIdSequenceName(type), largestEntityId)
+                    }
                 }
             }
         }
         return edgeClassesToCreate
+    }
+
+    private fun ODatabaseSession.createSequenceIfAbsent(sequenceName: String, startingFrom: Long) {
+        val sequences = metadata.sequenceLibrary
+        if (sequences.getSequence(sequenceName) == null) {
+            val params = OSequence.CreateParams()
+            params.start = startingFrom
+            sequences.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, params)
+        }
     }
 
     private fun copyLinks(oSession: ODatabaseSession) {
