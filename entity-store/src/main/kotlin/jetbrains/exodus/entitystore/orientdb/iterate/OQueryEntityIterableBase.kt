@@ -1,9 +1,11 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
+import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterableHandle
 import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.asOQueryIterable
 import jetbrains.exodus.entitystore.asOStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
@@ -14,6 +16,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OMinusEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterableFiltered
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
 import jetbrains.exodus.entitystore.util.unsupported
@@ -129,5 +132,16 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
 
     override fun asProbablyCached(): EntityIterableBase? {
         return this
+    }
+
+    override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable? {
+        return OLinkIterableToEntityIterableFiltered(transaction, entities.asOQueryIterable(), linkName, this)
+    }
+
+    override fun findLinks(entities: Iterable<Entity?>, linkName: String): EntityIterable? {
+        if (entities !is OQueryEntityIterable) {
+            unsupported { "findLinks with non-OrientDB entity iterable" }
+        }
+        return findLinks(entities, linkName)
     }
 }

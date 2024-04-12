@@ -10,7 +10,7 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.merge.OMergeSortedEntityIterable
@@ -151,7 +151,7 @@ class OStoreTransactionImpl(
     }
 
     override fun findLinks(entityType: String, entities: EntityIterable, linkName: String): EntityIterable {
-        return OLinkSelectEntityIterable(this, entities.asOIterable(), linkName)
+        return OLinkIterableToEntityIterable(this, entities.asOQueryIterable(), linkName)
     }
 
     override fun findWithLinks(entityType: String, linkName: String): EntityIterable {
@@ -177,7 +177,7 @@ class OStoreTransactionImpl(
         rightOrder: EntityIterable,
         ascending: Boolean
     ): EntityIterable {
-        return OPropertySortedIterable(this, entityType, propertyName, rightOrder.asOIterable(), ascending)
+        return OPropertySortedIterable(this, entityType, propertyName, rightOrder.asOQueryIterable(), ascending)
     }
 
     override fun sortLinks(
@@ -187,7 +187,7 @@ class OStoreTransactionImpl(
         linkName: String,
         rightOrder: EntityIterable
     ): EntityIterable {
-        return OLinkSortEntityIterable(this, sortedLinks.asOIterable(), linkName, rightOrder.asOIterable())
+        return OLinkSortEntityIterable(this, sortedLinks.asOQueryIterable(), linkName, rightOrder.asOQueryIterable())
     }
 
     override fun sortLinks(
@@ -256,10 +256,4 @@ class OStoreTransactionImpl(
     }
 
     override fun getQueryCancellingPolicy() = this.queryCancellingPolicy
-
-
-    private fun EntityIterable.asOIterable(): OQueryEntityIterable {
-        require(this is OQueryEntityIterable) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
-        return this
-    }
 }
