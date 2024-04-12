@@ -6,11 +6,15 @@ import com.orientechnologies.orient.core.record.impl.OVertexDocument
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MigrateDataTest {
 
@@ -103,7 +107,7 @@ class MigrateDataTest {
     }
 
     @Test
-    fun `remember class IDs and largest entity ID in each class`() {
+    fun `if backward compatible EntityId enabled, copy existing class IDs and create the sequence to generate new class IDs`() {
         val entities = pileOfEntities(
             eProps("type1", 1),
             eProps("type1", 2),
@@ -117,19 +121,47 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        val (classNameToClassId, classNameToLargestEntityId) = migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store, backwardCompatibleEntityId = true)
 
-        xodus.withTx { tx ->
-            for (type in tx.entityTypes) {
-                val typeId = xodus.store.getEntityTypeId(type)
-                Assert.assertEquals(typeId, classNameToClassId.getValue(type))
-
-                var largestEntityId = 0L
-                for (xEntity in tx.getAll(type)) {
-                    largestEntityId = maxOf(largestEntityId, xEntity.id.localId)
+        var maxClassId = 0
+        xodus.withTx { xTx ->
+            orientDb.withSession { oSession ->
+                for (type in xTx.entityTypes) {
+                    val typeId = xodus.store.getEntityTypeId(type)
+                    Assert.assertEquals(typeId, oSession.getClass(type).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME).toInt())
+                    maxClassId = maxOf(maxClassId, typeId)
                 }
-                Assert.assertTrue(largestEntityId > 0)
-                Assert.assertEquals(largestEntityId, classNameToLargestEntityId.getValue(type))
+                assertTrue(maxClassId > 0)
+
+                val nextGeneratedClassId = oSession.metadata.sequenceLibrary.getSequence(CLASS_ID_SEQUENCE_NAME).next()
+                assertEquals(maxClassId.toLong() + 1, nextGeneratedClassId)
+            }
+        }
+    }
+
+    @Test
+    fun `if backward compatible EntityId disabled, ignore class IDs`() {
+        val entities = pileOfEntities(
+            eProps("type1", 1),
+            eProps("type1", 2),
+            eProps("type1", 3),
+
+            eProps("type2", 2),
+            eProps("type2", 4),
+            eProps("type2", 5),
+        )
+        xodus.withTx { tx ->
+            tx.createEntities(entities)
+        }
+
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+
+        xodus.withTx { xTx ->
+            orientDb.withSession { oSession ->
+                for (type in xTx.entityTypes) {
+                    Assert.assertNull(oSession.getClass(type).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME))
+                }
+                Assert.assertNull(oSession.metadata.sequenceLibrary.getSequence(CLASS_ID_SEQUENCE_NAME))
             }
         }
     }
@@ -138,12 +170,13 @@ class MigrateDataTest {
         for (type in pile.types) {
             for (record in this.browseClass(type)) {
                 val entity = pile.getEntity(type, record.getId())
-                assertEquals(entity, record)
+                record.assertEquals(entity)
             }
         }
     }
 
-    private fun assertEquals(expected: Entity, actualDocument: ODocument) {
+    private fun ODocument.assertEquals(expected: Entity) {
+        val actualDocument = this
         val actual = OVertexEntity(actualDocument as OVertexDocument, orientDb.store)
 
         Assert.assertEquals(expected.id, actualDocument.getId())

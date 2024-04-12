@@ -1,11 +1,14 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.withSession
 
 fun migrateDataFromXodusToOrientDb(
@@ -14,16 +17,12 @@ fun migrateDataFromXodusToOrientDb(
     /*
     * How many entities should be copied in a single transaction
     * */
-    entitiesPerTransaction: Int = 10
-): MigrationResult {
-    val migrator = XodusToOrientDataMigrator(xodus, orient, entitiesPerTransaction)
+    entitiesPerTransaction: Int = 10,
+    backwardCompatibleEntityId: Boolean = false
+) {
+    val migrator = XodusToOrientDataMigrator(xodus, orient, entitiesPerTransaction, backwardCompatibleEntityId)
     return migrator.migrate()
 }
-
-data class MigrationResult(
-    val classNameToClassId: Map<String, Int>,
-    val classNameToLargestEntityId: Map<String, Long>
-)
 
 /**
  * This class is responsible for migrating data from Xodus to OrientDB.
@@ -38,34 +37,47 @@ internal class XodusToOrientDataMigrator(
     /*
     * How many entities should be copied in a single transaction
     * */
-    private val entitiesPerTransaction: Int = 10
+    private val entitiesPerTransaction: Int = 10,
+    private val backwardCompatibleEntityId: Boolean = false
 ) {
     private val xEntityIdToOEntityId = HashMap<EntityId, EntityId>()
 
     // it is required for backward compatible EntityId
-    private val classNameToClassId = HashMap<String, Int>()
-
-    // it is required for backward compatible EntityId
     private val classNameToLargestEntityId = HashMap<String, Long>()
 
-    fun migrate(): MigrationResult {
+    fun migrate() {
         orient.databaseProvider.withSession { oSession ->
             createVertexClassesIfAbsent(oSession)
             val edgeClassesToCreate = copyPropertiesAndBlobs(oSession)
             createEdgeClassesIfAbsent(oSession, edgeClassesToCreate)
             copyLinks(oSession)
         }
-        return MigrationResult(classNameToClassId, classNameToLargestEntityId)
     }
 
     private fun createVertexClassesIfAbsent(oSession: ODatabaseSession) {
         // make sure all the vertex classes are created in OrientDB
         // classes can not be created in a transaction, so we have to create them before copying the data
+        var maxClassId = 0
         xodus.withReadonlyTx { xTx ->
             for (type in xTx.entityTypes) {
-                oSession.getClass(type) ?: oSession.createVertexClass(type)
-                classNameToClassId[type] = xodus.getEntityTypeId(type)
+                val oClass = oSession.getClass(type) ?: oSession.createVertexClass(type)
+                val classId = xodus.getEntityTypeId(type)
+
+                if (backwardCompatibleEntityId) {
+                    oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
+                    maxClassId = maxOf(maxClassId, classId)
+                }
             }
+        }
+
+        if (backwardCompatibleEntityId) {
+            val sequences = oSession.metadata.sequenceLibrary
+
+            require(sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
+
+            val params = OSequence.CreateParams()
+            params.start = maxClassId.toLong()
+            sequences.createSequence(CLASS_ID_SEQUENCE_NAME, OSequence.SEQUENCE_TYPE.ORDERED, params)
         }
 
         oSession.getClass(BINARY_BLOB_CLASS_NAME) ?: oSession.createClass(BINARY_BLOB_CLASS_NAME)

@@ -35,9 +35,8 @@ fun ODatabaseSession.applySchema(
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true,
     backwardCompatibleEntityId: Boolean = false,
-    classNameToClassId: Map<String, Int> = mapOf()
 ): Map<String, Set<DeferredIndex>> {
-    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality, backwardCompatibleEntityId, classNameToClassId)
+    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality, backwardCompatibleEntityId)
     initializer.apply()
     return initializer.getIndices()
 }
@@ -47,8 +46,7 @@ internal class OrientDbSchemaInitializer(
     private val oSession: ODatabaseSession,
     private val indexForEverySimpleProperty: Boolean,
     private val applyLinkCardinality: Boolean,
-    private val backwardCompatibleEntityId: Boolean,
-    private val classNameToClassId: Map<String, Int>
+    private val backwardCompatibleEntityId: Boolean
 ) {
     private val paddedLogger = PaddedLogger(log)
 
@@ -77,7 +75,7 @@ internal class OrientDbSchemaInitializer(
     fun apply() {
         try {
             if (backwardCompatibleEntityId) {
-                setClassIdsIfProvided()
+                createClassIdSequenceIfAbsent()
             }
 
             appendLine("applying the DNQ schema to OrientDB")
@@ -143,29 +141,11 @@ internal class OrientDbSchemaInitializer(
 
     // ClassId
 
-    private fun setClassIdsIfProvided() {
-        /*
-        * There is only one valid case when classIds provided explicitly - right after the data migration.
-        * The data migration happens only once and allowed only to an empty database.
-        * We do not support multiple data migration and dirty data migrations.
-        *
-        * So, if explicit classIds are provided (means the data migration just happened) and the classId sequence is already created
-        * (means the database was already initialized before), throw an exception.
-        * */
+    private fun createClassIdSequenceIfAbsent() {
         val sequences = oSession.metadata.sequenceLibrary
-        if (classNameToClassId.isNotEmpty()) {
-            require(sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) { "ClassId sequence has been already initialized, so it is not possible to apply custom classId anymore" }
-        }
-
-        for ((className, classId) in classNameToClassId) {
-            // all the classes were created during the data migration
-            val oClass = oSession.getClass(className) ?: throw IllegalArgumentException("$className not found")
-            oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
-        }
-
         if (sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) {
             val params = OSequence.CreateParams()
-            params.start = classNameToClassId.values.maxOrNull()?.toLong() ?: 0L
+            params.start = 0L
             sequences.createSequence(CLASS_ID_SEQUENCE_NAME, OSequence.SEQUENCE_TYPE.ORDERED, params)
         }
     }
