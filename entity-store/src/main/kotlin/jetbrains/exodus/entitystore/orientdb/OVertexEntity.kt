@@ -41,6 +41,9 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
         fun blobHashProperty(propertyName: String) = "\$$propertyName$STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX"
 
         const val STRING_BLOB_CLASS_NAME: String = "StringBlob"
+
+        const val CLASS_ID_CUSTOM_PROPERTY_NAME = "classId"
+        const val CLASS_ID_SEQUENCE_NAME = "sequence_classId"
     }
 
     private val activeSession get() = ODatabaseSession.getActiveSession()

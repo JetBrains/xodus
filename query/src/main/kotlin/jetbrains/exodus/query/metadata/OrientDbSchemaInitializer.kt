@@ -20,9 +20,12 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -30,9 +33,11 @@ private val log = KotlinLogging.logger {}
 fun ODatabaseSession.applySchema(
     model: ModelMetaDataImpl,
     indexForEverySimpleProperty: Boolean = false,
-    applyLinkCardinality: Boolean = true
+    applyLinkCardinality: Boolean = true,
+    backwardCompatibleEntityId: Boolean = false,
+    classNameToClassId: Map<String, Int> = mapOf()
 ): Map<String, Set<DeferredIndex>> {
-    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality)
+    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality, backwardCompatibleEntityId, classNameToClassId)
     initializer.apply()
     return initializer.getIndices()
 }
@@ -41,7 +46,9 @@ internal class OrientDbSchemaInitializer(
     private val dnqModel: ModelMetaDataImpl,
     private val oSession: ODatabaseSession,
     private val indexForEverySimpleProperty: Boolean,
-    private val applyLinkCardinality: Boolean
+    private val applyLinkCardinality: Boolean,
+    private val backwardCompatibleEntityId: Boolean,
+    private val classNameToClassId: Map<String, Int>
 ) {
     private val paddedLogger = PaddedLogger(log)
 
@@ -67,9 +74,12 @@ internal class OrientDbSchemaInitializer(
 
     fun getIndices(): Map<String, Set<DeferredIndex>> = indices
 
-
     fun apply() {
         try {
+            if (backwardCompatibleEntityId) {
+                setClassIdsIfProvided()
+            }
+
             appendLine("applying the DNQ schema to OrientDB")
             val sortedEntities = dnqModel.entitiesMetaData.sortedTopologically()
 
@@ -131,6 +141,43 @@ internal class OrientDbSchemaInitializer(
         }
     }
 
+    // ClassId
+
+    private fun setClassIdsIfProvided() {
+        /*
+        * There is only one valid case when classIds provided explicitly - right after the data migration.
+        * The data migration happens only once and allowed only to an empty database.
+        * We do not support multiple data migration and dirty data migrations.
+        *
+        * So, if explicit classIds are provided (means the data migration just happened) and the classId sequence is already created
+        * (means the database was already initialized before), throw an exception.
+        * */
+        val sequences = oSession.metadata.sequenceLibrary
+        if (classNameToClassId.isNotEmpty()) {
+            require(sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) { "ClassId sequence has been already initialized, so it is not possible to apply custom classId anymore" }
+        }
+
+        for ((className, classId) in classNameToClassId) {
+            // all the classes were created during the data migration
+            val oClass = oSession.getClass(className) ?: throw IllegalArgumentException("$className not found")
+            oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
+        }
+
+        if (sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) {
+            val params = OSequence.CreateParams()
+            params.start = classNameToClassId.values.maxOrNull()?.toLong() ?: 0L
+            sequences.createSequence(CLASS_ID_SEQUENCE_NAME, OSequence.SEQUENCE_TYPE.ORDERED, params)
+        }
+    }
+
+    private fun OClass.setClassIdIfAbsent() {
+        if (getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME) == null) {
+            val sequences = oSession.metadata.sequenceLibrary
+            val sequence: OSequence = sequences.getSequence(CLASS_ID_SEQUENCE_NAME) ?: throw IllegalStateException("$CLASS_ID_SEQUENCE_NAME not found")
+
+            setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, sequence.next().toString())
+        }
+    }
 
     // Vertices and Edges
 
@@ -139,6 +186,10 @@ internal class OrientDbSchemaInitializer(
         val oClass = oSession.createVertexClassIfAbsent(dnqEntity.type)
         oClass.applySuperClass(dnqEntity.superType)
         appendLine()
+
+        if (backwardCompatibleEntityId) {
+            oClass.setClassIdIfAbsent()
+        }
 
         /*
         * It is more efficient to create indices after the data migration.
