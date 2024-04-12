@@ -325,7 +325,6 @@ class OStoreTransactionIterableTest {
 
             // Then
             assertThat(issues).hasSize(4)
-            // ToDo: should pass when distinct is implemented
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
