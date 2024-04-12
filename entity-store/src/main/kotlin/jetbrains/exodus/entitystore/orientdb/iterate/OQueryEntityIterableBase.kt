@@ -6,8 +6,8 @@ import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.asOStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
+import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterator.Companion.create
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
@@ -19,7 +19,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
 import jetbrains.exodus.entitystore.util.unsupported
 import java.util.concurrent.Executors
 
-abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(tx), OEntityIterable {
+abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(tx), OQueryEntityIterable {
 
     private val oStoreTransaction: OStoreTransaction? = tx?.asOStoreTransaction()
 
@@ -33,7 +33,7 @@ abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(t
     }
 
     override fun union(right: EntityIterable): EntityIterable {
-        if (right is OEntityIterableBase) {
+        if (right is OQueryEntityIterable) {
             return OUnionEntityIterable(transaction, this, right)
         } else {
             unsupported { "Union with non-OrientDB entity iterable" }
@@ -45,7 +45,7 @@ abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(t
     }
 
     override fun intersect(right: EntityIterable): EntityIterable {
-        if (right is OEntityIterableBase) {
+        if (right is OQueryEntityIterable) {
             return OIntersectionEntityIterable(transaction, this, right)
         } else {
             unsupported { "Intersecting with non-OrientDB entity iterable" }
@@ -53,7 +53,7 @@ abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(t
     }
 
     override fun concat(right: EntityIterable): EntityIterable {
-        if (right is OEntityIterableBase) {
+        if (right is OQueryEntityIterable) {
             return OConcatEntityIterable(transaction, this, right)
         } else {
             unsupported { "Concat with non-OrientDB entity iterable" }
@@ -66,7 +66,7 @@ abstract class OEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(t
     }
 
     override fun minus(right: EntityIterable): EntityIterable {
-        if (right is OEntityIterableBase) {
+        if (right is OQueryEntityIterable) {
             return OMinusEntityIterable(transaction, this, right)
         } else {
             unsupported { "Minus with non-OrientDB entity iterable" }

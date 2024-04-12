@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition
 import jetbrains.exodus.entitystore.orientdb.query.OOrderByField
@@ -26,7 +26,7 @@ class OPropertyExistsSortedIterable(
     txn: StoreTransaction,
     private val entityType: String,
     private val propertyName: String,
-) : OEntityIterableBase(txn) {
+) : OQueryEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         val condition = OFieldExistsCondition(propertyName)

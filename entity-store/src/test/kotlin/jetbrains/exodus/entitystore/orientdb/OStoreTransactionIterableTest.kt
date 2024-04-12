@@ -5,13 +5,13 @@ import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import org.junit.Rule
 import org.junit.Test
 import java.util.Comparator
 
-class OStoreTransactionIterablesTest {
+class OStoreTransactionIterableTest {
 
     @Rule
     @JvmField
@@ -542,7 +542,7 @@ class OStoreTransactionIterablesTest {
 
         // When
         orientDB.withSession {
-            val issues = tx.getAll(Issues.CLASS) as OEntityIterableBase
+            val issues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
             // Then
@@ -563,7 +563,7 @@ class OStoreTransactionIterablesTest {
 
         // When
         orientDB.withSession {
-            val issues = tx.getAll(Issues.CLASS) as OEntityIterableBase
+            val issues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
             val boards = issues.selectDistinct(Issues.Links.ON_BOARD)
 
             // Then

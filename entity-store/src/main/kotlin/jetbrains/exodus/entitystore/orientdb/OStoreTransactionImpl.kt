@@ -8,9 +8,9 @@ import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.property.*
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.merge.OMergeSortedEntityIterable
@@ -151,25 +151,7 @@ class OStoreTransactionImpl(
     }
 
     override fun findLinks(entityType: String, entities: EntityIterable, linkName: String): EntityIterable {
-        var links: MutableList<EntityIterable>? = null
-        for (entity in entities) {
-            if (links == null) {
-                links = ArrayList()
-            }
-            links.add(findLinks(entityType, entity, linkName))
-        }
-        if (links == null) {
-            // ToDo: return OEntityIterableBase.EMPTY
-            return EntityIterableBase.EMPTY
-        }
-        if (links.size > 1) {
-            var i = 0
-            while (i < links.size - 1) {
-                links.add(links[i].union(links[i + 1]))
-                i += 2
-            }
-        }
-        return links[links.size - 1]
+        return OLinkSelectEntityIterable(this, entities.asOIterable(), linkName)
     }
 
     override fun findWithLinks(entityType: String, linkName: String): EntityIterable {
@@ -276,8 +258,8 @@ class OStoreTransactionImpl(
     override fun getQueryCancellingPolicy() = this.queryCancellingPolicy
 
 
-    private fun EntityIterable.asOIterable(): OEntityIterableBase {
-        require(this is OEntityIterableBase) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
+    private fun EntityIterable.asOIterable(): OQueryEntityIterable {
+        require(this is OQueryEntityIterable) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
         return this
     }
 }

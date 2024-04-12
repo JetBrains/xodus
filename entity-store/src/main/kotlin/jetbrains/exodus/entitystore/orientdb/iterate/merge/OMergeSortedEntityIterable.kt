@@ -3,8 +3,8 @@ package jetbrains.exodus.entitystore.orientdb.iterate.merge
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
-import jetbrains.exodus.entitystore.orientdb.OEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 import jetbrains.exodus.entitystore.orientdb.query.OUnionSelect
 import java.util.*
@@ -14,23 +14,23 @@ class OMergeSortedEntityIterable(
     private val sorted: List<EntityIterable>,
     private val valueGetter: (Entity) -> Comparable<Any?>,
     private val comparator: Comparator<Comparable<Any>?>
-) : OEntityIterableBase(tx) {
+) : OQueryEntityIterableBase(tx) {
 
     override fun getIteratorImpl(txn: StoreTransaction): EntityIterator {
         return MergeSortedIterator(this)
     }
 
     override fun query(): OSelect {
-        if (!sorted.all { it is OEntityIterable }){
+        if (!sorted.all { it is OQueryEntityIterable }){
             throw UnsupportedOperationException("Not supported for non-OrientDB entity iterables")
         }
         if (sorted.size <= 1) {
-            return (sorted[0] as OEntityIterable).query()
+            return (sorted[0] as OQueryEntityIterable).query()
         } else {
-            val first = sorted[0] as OEntityIterable
-            val second = sorted[1] as OEntityIterable
+            val first = sorted[0] as OQueryEntityIterable
+            val second = sorted[1] as OQueryEntityIterable
             return sorted.drop(2).fold(OUnionSelect(first.query(), second.query())) { acc, item ->
-                item as OEntityIterable
+                item as OQueryEntityIterable
                 OUnionSelect(acc, item.query())
             }
         }
