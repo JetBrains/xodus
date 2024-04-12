@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.iterate.property
 
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.ORangeCondition
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
@@ -27,7 +27,7 @@ class OPropertyRangeIterable(
     private val propertyName: String,
     private val min: Comparable<*>,
     private val max: Comparable<*>,
-) : OEntityIterableBase(txn) {
+) : OQueryEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         val condition = ORangeCondition(propertyName, min, max)
