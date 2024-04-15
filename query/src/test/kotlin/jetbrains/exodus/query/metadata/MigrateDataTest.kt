@@ -11,7 +11,6 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CU
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import junit.framework.TestCase.assertNull
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -110,7 +109,7 @@ class MigrateDataTest {
     }
 
     @Test
-    fun `if backward compatible EntityId enabled, copy existing class IDs and create the sequence to generate new class IDs`() {
+    fun `copy existing class IDs and create the sequence to generate new class IDs`() {
         val entities = pileOfEntities(
             eProps("type1", 1),
             eProps("type1", 2),
@@ -124,7 +123,7 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store, backwardCompatibleEntityId = true)
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
 
         var maxClassId = 0
         xodus.withTx { xTx ->
@@ -143,7 +142,7 @@ class MigrateDataTest {
     }
 
     @Test
-    fun `if backward compatible EntityId disabled, ignore class IDs`() {
+    fun `copy localEntityId for every entity and create a sequence for every class to generate new localEntityIds`() {
         val entities = pileOfEntities(
             eProps("type1", 1),
             eProps("type1", 2),
@@ -158,33 +157,6 @@ class MigrateDataTest {
         }
 
         migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
-
-        xodus.withTx { xTx ->
-            orientDb.withSession { oSession ->
-                for (type in xTx.entityTypes) {
-                    Assert.assertNull(oSession.getClass(type).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME))
-                }
-                Assert.assertNull(oSession.metadata.sequenceLibrary.getSequence(CLASS_ID_SEQUENCE_NAME))
-            }
-        }
-    }
-
-    @Test
-    fun `if backward compatible EntityId enabled, copy localEntityId for every entity and create a sequence for every class to generate new localEntityIds`() {
-        val entities = pileOfEntities(
-            eProps("type1", 1),
-            eProps("type1", 2),
-            eProps("type1", 3),
-
-            eProps("type2", 2),
-            eProps("type2", 4),
-            eProps("type2", 5),
-        )
-        xodus.withTx { tx ->
-            tx.createEntities(entities)
-        }
-
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store, backwardCompatibleEntityId = true)
 
         xodus.withTx { xTx ->
             orientDb.withSession { oSession ->
@@ -210,34 +182,6 @@ class MigrateDataTest {
                     assertEquals(maxLocalEntityId + 1, nextGeneratedLocalEntityId)
 
                     assertEquals(xTestIdToLocalEntityId, oTestIdToLocalEntityId)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `if backward compatible EntityId disabled, ignore localEntityId`() {
-        val entities = pileOfEntities(
-            eProps("type1", 1),
-            eProps("type1", 2),
-            eProps("type1", 3),
-
-            eProps("type2", 2),
-            eProps("type2", 4),
-            eProps("type2", 5),
-        )
-        xodus.withTx { tx ->
-            tx.createEntities(entities)
-        }
-
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
-
-        xodus.withTx { xTx ->
-            orientDb.withSession { oSession ->
-                for (type in xTx.entityTypes) {
-                    val oClass = oSession.getClass(type)
-                    assertNull(oClass.getProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME))
-                    assertNull(oSession.metadata.sequenceLibrary.getSequence(localEntityIdSequenceName(type)))
                 }
             }
         }
