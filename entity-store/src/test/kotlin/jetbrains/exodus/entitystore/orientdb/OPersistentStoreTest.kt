@@ -4,15 +4,19 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
+import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 
-class OPersistentStoreTest {
+class OPersistentStoreTest: OTestMixin {
+
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB()
+    val orientDbRule = InMemoryOrientDB()
+
+    override val orientDb = orientDbRule
 
     @Test
     fun renameClassTest() {
@@ -81,6 +85,4 @@ class OPersistentStoreTest {
             Assert.assertEquals(401, sequence.increment())
         }
     }
-
-
 }

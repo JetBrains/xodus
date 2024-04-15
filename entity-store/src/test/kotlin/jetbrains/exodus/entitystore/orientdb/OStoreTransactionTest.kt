@@ -7,24 +7,24 @@ import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.testutil.*
-import jetbrains.exodus.testutil.eventually
 import org.junit.Rule
 import org.junit.Test
 
-class OStoreTransactionIterableTest {
+class OStoreTransactionTest : OTestMixin {
 
     @Rule
     @JvmField
-    val orientDB = InMemoryOrientDB()
+    val orientDbRule = InMemoryOrientDB()
+
+    override val orientDb = orientDbRule
 
     @Test
     fun `should find all`() {
         // Given
         givenTestCase()
-        val tx = givenOTransaction()
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issues = tx.getAll(Issues.CLASS)
 
             // Then
@@ -36,10 +36,9 @@ class OStoreTransactionIterableTest {
     fun `should find property equal`() {
         // Given
         givenTestCase()
-        val tx = givenOTransaction()
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val result = tx.find(Issues.CLASS, "name", "issue2")
 
             // Then
@@ -51,12 +50,12 @@ class OStoreTransactionIterableTest {
     fun `should find property contains`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        orientDB.withSession { test.issue2.setProperty("case", "Find me if YOU can") }
+        orientDb.withSession {
+            test.issue2.setProperty("case", "Find me if YOU can")
+        }
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issues = tx.findContaining(Issues.CLASS, "case", "YOU", true)
             val empty = tx.findContaining(Issues.CLASS, "case", "not", true)
 
@@ -70,12 +69,10 @@ class OStoreTransactionIterableTest {
     fun `should find property starts with`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        orientDB.withSession { test.issue2.setProperty("case", "Find me if YOU can") }
+        orientDb.withSession { test.issue2.setProperty("case", "Find me if YOU can") }
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issues = tx.findStartingWith(Issues.CLASS, "case", "Find")
             val empty = tx.findStartingWith(Issues.CLASS, "case", "you")
 
@@ -89,12 +86,10 @@ class OStoreTransactionIterableTest {
     fun `should find property in range`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        orientDB.withSession { test.issue2.setProperty("value", 3) }
+        orientDb.withSession { test.issue2.setProperty("value", 3) }
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val exclusive = tx.find(Issues.CLASS, "value", 1, 5)
             val inclusiveMin = tx.find(Issues.CLASS, "value", 3, 5)
             val inclusiveMax = tx.find(Issues.CLASS, "value", 1, 3)
@@ -112,12 +107,11 @@ class OStoreTransactionIterableTest {
     fun `should find property exists`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.withSession { test.issue2.setProperty("prop", "test") }
+        orientDb.withSession { test.issue2.setProperty("prop", "test") }
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issues = tx.findWithProp(Issues.CLASS, "prop")
             val empty = tx.findWithProp(Issues.CLASS, "no_prop")
 
@@ -131,9 +125,8 @@ class OStoreTransactionIterableTest {
     fun `should find entity with blob`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.withSession {
+        orientDb.withSession {
             //correct blob (can be found)
             test.issue1.setBlob("myBlob", "Hello".toByteArray().inputStream())
 
@@ -149,8 +142,8 @@ class OStoreTransactionIterableTest {
             blobContainer.save<OElement>()
         }
 
-        orientDB.withSession {
-            // When
+        // When
+        oTransactional { tx ->
             val issues = tx.findWithBlob(Issues.CLASS, "myBlob")
 
             // Then
@@ -162,16 +155,15 @@ class OStoreTransactionIterableTest {
     fun `should sorted by property`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.withSession {
+        orientDb.withSession {
             test.issue1.setProperty("order", "1")
             test.issue2.setProperty("order", "2")
             test.issue3.setProperty("order", "3")
         }
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issuesAscending = tx.sort(Issues.CLASS, "order", true)
             val issuesDescending = tx.sort(Issues.CLASS, "order", false)
 
@@ -185,15 +177,14 @@ class OStoreTransactionIterableTest {
     fun `should sort iterable by property`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.withSession {
+        orientDb.withSession {
             test.issue1.setProperty("order", "1")
             test.issue3.setProperty("order", "3")
         }
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issues = tx.findWithPropSortedByValue(Issues.CLASS, "order")
             val issuesAscending = tx.sort(Issues.CLASS, "order", issues, true)
             val issuesDescending = tx.sort(Issues.CLASS, "order", issues, false)
@@ -205,246 +196,16 @@ class OStoreTransactionIterableTest {
     }
 
     @Test
-    fun `should iterable union different issues`() {
-        // Given
-        val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        // When
-        orientDB.withSession {
-            val equal1 = tx.find(Issues.CLASS, "name", test.issue1.name())
-            val equal2 = tx.find(Issues.CLASS, "name", test.issue2.name())
-
-            val issues = equal1.union(equal2)
-
-            // Then
-            assertNamesExactly(issues, "issue1", "issue2")
-        }
-    }
-
-    @Test
-    fun `should iterable union same issue`() {
-        // Given
-        val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        // When
-        orientDB.withSession {
-            val equal1 = tx.find(Issues.CLASS, "name", test.issue1.name())
-            val equal2 = tx.find(Issues.CLASS, "name", test.issue1.name())
-
-            val issues = equal1.union(equal2)
-
-            // Then
-            // Union operation can distinct result set if query is optimized to OR conditions
-            assertNamesExactly(issues, "issue1")
-        }
-    }
-
-    @Test
-    fun `should iterable intersect`() {
-        // Given
-        val test = givenTestCase()
-        val tx = givenOTransaction()
-        orientDB.withSession {
-            test.issue2.setProperty(Issues.Props.PRIORITY, "normal")
-        }
-
-        // When
-        orientDB.withSession {
-            val nameEqual = tx.find(Issues.CLASS, "name", test.issue2.name())
-            val priorityEqual = tx.find(Issues.CLASS, Issues.Props.PRIORITY, "normal")
-            val issues = nameEqual.intersect(priorityEqual)
-
-            // Then
-            assertNamesExactly(issues, "issue2")
-            assertThat(issues.first().getProperty("priority")).isEqualTo("normal")
-        }
-    }
-
-    @Test
-    fun `should iterable concat with properties`() {
-        // Given
-        val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue1, test.board2)
-
-        // When
-        orientDB.withSession {
-            val issue1 = tx.find(Issues.CLASS, "name", "issue1")
-            val issue2 = tx.find(Issues.CLASS, "name", "issue2")
-            val concat = issue1.concat(issue2).concat(issue1)
-
-            // Then
-            assertNamesExactly(concat, "issue1", "issue2", "issue1")
-        }
-    }
-
-    @Test
-    fun `should iterable concat with links`() {
-        // Given
-        val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue1, test.board2)
-
-        // When
-        orientDB.withSession {
-            val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
-            val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
-            val concat = issuesOnBoard1.concat(issuesOnBoard2)
-
-            // Then
-            assertNamesExactly(concat, "issue1", "issue2", "issue1")
-        }
-    }
-
-    @Test
-    fun `should iterable distinct`() {
-        // Given
-        val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue1, test.board2)
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue3, test.board1)
-
-        // When
-        orientDB.withSession {
-            val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
-            val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
-            val issues = issuesOnBoard1.union(issuesOnBoard2)
-            val issuesDistinct = issues.distinct()
-
-            // Then
-            assertThat(issues).hasSize(4)
-            assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
-        }
-    }
-
-    @Test
-    fun `should iterable minus`() {
-        // Given
-        val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue1, test.board2)
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue3, test.board1)
-
-        // When
-        orientDB.withSession {
-            val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
-            val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
-            val issues = issuesOnBoard1.minus(issuesOnBoard2)
-
-            // Then
-            assertNamesExactly(issues, "issue2", "issue3")
-        }
-    }
-
-    @Test
-    fun `should iterable find links`() {
-        // Given
-        val test = givenTestCase()
-        val tx = givenOTransaction()
-
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue1, test.board2)
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue3, test.board3)
-
-        // When
-        orientDB.withSession {
-            // boards 1 and 2
-            val boards = tx.find(Boards.CLASS, "name", test.board1.name())
-                .union(tx.find(Boards.CLASS, "name", test.board2.name()))
-            val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-            val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD)!!
-
-            // Then
-            assertNamesExactly(issuesOnBoards, "issue1", "issue2")
-        }
-    }
-
-    @Test
-    fun `should iterable size`() {
-        // Given
-        givenTestCase()
-        val tx = givenOTransaction()
-
-        // When
-        // boards 1 and 2
-        val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-
-        // Then
-        assertThat(allIssues.size()).isEqualTo(3)
-    }
-
-    @Test
-    fun `should iterable count`() {
-        // Given
-        givenTestCase()
-        val tx = givenOTransaction()
-
-        // When
-        val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-
-        // Then
-        // Count is not calculated yet
-        assertThat(allIssues.count()).isEqualTo(-1)
-        // Wait until the count is updated asynchronously
-        eventually { assertThat(allIssues.count()).isEqualTo(3) }
-    }
-
-    @Test
-    fun `should iterable rough size sync`() {
-        // Given
-        givenTestCase()
-        val tx = givenOTransaction()
-
-        // When
-        val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-
-        // Then
-        assertThat(allIssues.roughSize).isEqualTo(3)
-    }
-
-    @Test
-    fun `should iterable rough count`() {
-        // Given
-        givenTestCase()
-        val tx = givenOTransaction()
-
-        // When
-        val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-
-        // Then
-        assertThat(allIssues.roughCount).isEqualTo(-1)
-        assertThat(allIssues.count()).isEqualTo(-1)
-        // Wait until the count is updated asynchronously
-        assertThat(allIssues.roughCount).isEqualTo(3)
-    }
-
-    @Test
     fun `should find links by link entity id`() {
         // Given
-        val tx = givenOTransaction()
         val testCase = givenTestCase()
 
-        orientDB.addIssueToProject(testCase.issue1, testCase.project1)
-        orientDB.addIssueToProject(testCase.issue2, testCase.project1)
-        orientDB.addIssueToProject(testCase.issue3, testCase.project2)
+        orientDb.addIssueToProject(testCase.issue1, testCase.project1)
+        orientDb.addIssueToProject(testCase.issue2, testCase.project1)
+        orientDb.addIssueToProject(testCase.issue3, testCase.project2)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issues = tx.findLinks(Issues.CLASS, testCase.project1, Issues.Links.IN_PROJECT)
 
             // Then
@@ -455,15 +216,14 @@ class OStoreTransactionIterableTest {
     @Test
     fun `should find links by link iterables`() {
         // Given
-        val tx = givenOTransaction()
         val testCase = givenTestCase()
 
-        orientDB.addIssueToProject(testCase.issue1, testCase.project1)
-        orientDB.addIssueToProject(testCase.issue2, testCase.project1)
-        orientDB.addIssueToProject(testCase.issue3, testCase.project2)
+        orientDb.addIssueToProject(testCase.issue1, testCase.project1)
+        orientDb.addIssueToProject(testCase.issue2, testCase.project1)
+        orientDb.addIssueToProject(testCase.issue3, testCase.project2)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val projects = tx.getAll(Projects.CLASS)
             val issues = tx.findLinks(Issues.CLASS, projects, Issues.Links.IN_PROJECT)
 
@@ -476,13 +236,12 @@ class OStoreTransactionIterableTest {
     fun `should find with links`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue2, test.board2)
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+        orientDb.addIssueToBoard(test.issue2, test.board2)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issuesOnBoard = tx.findWithLinks(Issues.CLASS, Issues.Links.ON_BOARD)
             val issuesInProject = tx.findWithLinks(Issues.CLASS, Issues.Links.IN_PROJECT)
 
@@ -496,14 +255,13 @@ class OStoreTransactionIterableTest {
     fun `should find links and iterable union`() {
         // Given
         val testCase = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.addIssueToProject(testCase.issue1, testCase.project1)
-        orientDB.addIssueToProject(testCase.issue2, testCase.project1)
-        orientDB.addIssueToProject(testCase.issue3, testCase.project2)
+        orientDb.addIssueToProject(testCase.issue1, testCase.project1)
+        orientDb.addIssueToProject(testCase.issue2, testCase.project1)
+        orientDb.addIssueToProject(testCase.issue3, testCase.project2)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             // Find all issues that in project1 or project2
             val issuesInProject1 = tx.findLinks(Issues.CLASS, testCase.project1, Issues.Links.IN_PROJECT)
             val issuesInProject2 = tx.findLinks(Issues.CLASS, testCase.project2, Issues.Links.IN_PROJECT)
@@ -518,15 +276,14 @@ class OStoreTransactionIterableTest {
     fun `should find links and iterable intersect`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue2, test.board2)
-        orientDB.addIssueToBoard(test.issue3, test.board3)
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+        orientDb.addIssueToBoard(test.issue2, test.board1)
+        orientDb.addIssueToBoard(test.issue2, test.board2)
+        orientDb.addIssueToBoard(test.issue3, test.board3)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             // Find all issues that are on board1 and board2 at the same time
             val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
             val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
@@ -541,14 +298,13 @@ class OStoreTransactionIterableTest {
     fun `should find different links and iterable union`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.addIssueToProject(test.issue1, test.project1)
-        orientDB.addIssueToBoard(test.issue2, test.board2)
-        orientDB.addIssueToBoard(test.issue3, test.board3)
+        orientDb.addIssueToProject(test.issue1, test.project1)
+        orientDb.addIssueToBoard(test.issue2, test.board2)
+        orientDb.addIssueToBoard(test.issue3, test.board3)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             // Find all issues that are either in project1 or board2
             val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.project1, Issues.Links.IN_PROJECT)
             val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
@@ -563,14 +319,13 @@ class OStoreTransactionIterableTest {
     fun `should sort links by property`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.addIssueToProject(test.issue1, test.project3)
-        orientDB.addIssueToProject(test.issue2, test.project2)
-        orientDB.addIssueToProject(test.issue3, test.project1)
+        orientDb.addIssueToProject(test.issue1, test.project3)
+        orientDb.addIssueToProject(test.issue2, test.project2)
+        orientDb.addIssueToProject(test.issue3, test.project1)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val links = tx.getAll(Projects.CLASS)
             val issues = tx.getAll(Issues.CLASS)
 
@@ -600,20 +355,19 @@ class OStoreTransactionIterableTest {
     fun `should sort links by property distinct`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
+
         // Issues assigned to projects in reverse order
-        orientDB.addIssueToProject(test.issue1, test.project3)
-        orientDB.addIssueToProject(test.issue1, test.project2)
+        orientDb.addIssueToProject(test.issue1, test.project3)
+        orientDb.addIssueToProject(test.issue1, test.project2)
 
-        orientDB.addIssueToProject(test.issue2, test.project2)
-        orientDB.addIssueToProject(test.issue2, test.project1)
+        orientDb.addIssueToProject(test.issue2, test.project2)
+        orientDb.addIssueToProject(test.issue2, test.project1)
 
-        orientDB.addIssueToProject(test.issue3, test.project1)
-        orientDB.addIssueToProject(test.issue3, test.project2)
-
+        orientDb.addIssueToProject(test.issue3, test.project1)
+        orientDb.addIssueToProject(test.issue3, test.project2)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val links = tx.getAll(Projects.CLASS)
             val issues = tx.getAll(Issues.CLASS)
 
@@ -635,14 +389,13 @@ class OStoreTransactionIterableTest {
     fun `should select many links`() {
         // Given
         val test = givenTestCase()
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue1, test.board2)
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue3, test.board1)
-        val tx = givenOTransaction()
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+        orientDb.addIssueToBoard(test.issue1, test.board2)
+        orientDb.addIssueToBoard(test.issue2, test.board1)
+        orientDb.addIssueToBoard(test.issue3, test.board1)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
@@ -655,15 +408,14 @@ class OStoreTransactionIterableTest {
     fun `should select many links distinct`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
 
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue1, test.board2)
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue3, test.board1)
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+        orientDb.addIssueToBoard(test.issue1, test.board2)
+        orientDb.addIssueToBoard(test.issue2, test.board1)
+        orientDb.addIssueToBoard(test.issue3, test.board1)
 
         // When
-        orientDB.withSession {
+        oTransactional { tx ->
             val issues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
             val boards = issues.selectDistinct(Issues.Links.ON_BOARD)
 
@@ -677,24 +429,23 @@ class OStoreTransactionIterableTest {
     fun `should merge sorted issues with comparable getter`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
-        val anotherIssue = orientDB.createIssue("issue4")
+        val anotherIssue = orientDb.createIssue("issue4")
 
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue2, test.board2)
-        orientDB.addIssueToBoard(test.issue3, test.board3)
-        orientDB.addIssueToBoard(anotherIssue, test.board3)
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+        orientDb.addIssueToBoard(test.issue2, test.board2)
+        orientDb.addIssueToBoard(test.issue3, test.board3)
+        orientDb.addIssueToBoard(anotherIssue, test.board3)
 
 
-        orientDB.withSession {
+        orientDb.withSession {
             test.issue1.setProperty(Issues.Props.PRIORITY, "1")
             test.issue2.setProperty(Issues.Props.PRIORITY, "2")
             test.issue3.setProperty(Issues.Props.PRIORITY, "3")
             anotherIssue.setProperty(Issues.Props.PRIORITY, "0")
         }
 
-        //When
-        orientDB.withSession {
+        // When
+        oTransactional { tx ->
             val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
             val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
             val issuesOnBoard3 = tx.sort(
@@ -713,32 +464,29 @@ class OStoreTransactionIterableTest {
             // Then
             assertNamesExactly(mergeSorted, "issue4", "issue1", "issue2", "issue3")
         }
-
     }
-
 
     @Test
     fun `should merge sorted issues`() {
         // Given
         val test = givenTestCase()
-        val tx = givenOTransaction()
-        val anotherIssue = orientDB.createIssue("issue4")
+        val anotherIssue = orientDb.createIssue("issue4")
 
-        orientDB.addIssueToBoard(test.issue1, test.board1)
-        orientDB.addIssueToBoard(test.issue2, test.board2)
-        orientDB.addIssueToBoard(test.issue3, test.board3)
-        orientDB.addIssueToBoard(anotherIssue, test.board3)
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+        orientDb.addIssueToBoard(test.issue2, test.board2)
+        orientDb.addIssueToBoard(test.issue3, test.board3)
+        orientDb.addIssueToBoard(anotherIssue, test.board3)
 
 
-        orientDB.withSession {
+        orientDb.withSession {
             test.issue1.setProperty(Issues.Props.PRIORITY, "1")
             test.issue2.setProperty(Issues.Props.PRIORITY, "2")
             test.issue3.setProperty(Issues.Props.PRIORITY, "3")
             anotherIssue.setProperty(Issues.Props.PRIORITY, "0")
         }
 
-        //When
-        orientDB.withSession {
+        // When
+        oTransactional { tx ->
             val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
             val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
             val issuesOnBoard3 = tx.sort(
@@ -758,22 +506,5 @@ class OStoreTransactionIterableTest {
             // Then
             assertNamesExactly(mergeSorted, "issue4", "issue1", "issue2", "issue3")
         }
-
     }
-
-
-    // Util methods
-    private fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
-        assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
-    }
-
-    private fun givenOTransaction(): OStoreTransactionImpl {
-        val store = orientDB.store
-        val session = orientDB.openSession()
-        val tx = session.begin().transaction
-        return OStoreTransactionImpl(session, tx, store)
-    }
-
-    private fun givenTestCase() = OTaskTrackerTestCase(orientDB)
 }
-

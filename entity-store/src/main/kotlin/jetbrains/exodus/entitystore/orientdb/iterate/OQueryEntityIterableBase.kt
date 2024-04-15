@@ -1,7 +1,5 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
-import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
-import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterableHandle
@@ -14,7 +12,6 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterator.Companion.create
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OMinusEntityIterable
@@ -22,17 +19,53 @@ import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterableFiltered
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
+import jetbrains.exodus.entitystore.orientdb.query.OSelect
 import jetbrains.exodus.entitystore.util.unsupported
 import java.util.concurrent.Executor
 
 abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(tx), OQueryEntityIterable {
 
-    private val oStoreTransaction: OStoreTransaction? = tx?.asOStoreTransaction()
-    private val countExecutor: Executor? = oStoreTransaction?.store?.asOStore()?.countExecutor
+    private val otx: OStoreTransaction? = tx?.asOStoreTransaction()
+    private val countExecutor: Executor? = tx?.store?.asOStore()?.countExecutor
+
+    companion object {
+
+        val EMPTY = object : OQueryEntityIterableBase(null) {
+
+            override fun iterator(): EntityIterator {
+                return OQueryEntityIterator.EMPTY
+            }
+
+            override fun query(): OSelect {
+                unsupported { "Should never be called" }
+            }
+
+            override fun size() = 0L
+            override fun getRoughSize() = 0L
+            override fun count() = 0L
+            override fun getRoughCount() = 0L
+            override fun union(right: EntityIterable) = right
+            override fun concat(right: EntityIterable) = right
+            override fun intersect(right: EntityIterable) = this
+            override fun distinct() = this
+            override fun minus(right: EntityIterable) = this
+            override fun selectMany(linkName: String) = this
+            override fun selectManyDistinct(linkName: String) = this
+            override fun selectDistinct(linkName: String) = this
+        }
+    }
+
+    override fun iterator(): EntityIterator {
+        if (otx == null) {
+            return EMPTY.iterator()
+        } else {
+            val query = query()
+            return OQueryEntityIterator.executeAndCreate(query, otx)
+        }
+    }
 
     override fun getIteratorImpl(txn: StoreTransaction): EntityIterator {
-        val query = query()
-        return create(query, txn.asOStoreTransaction())
+        unsupported { "Should never be called" }
     }
 
     override fun getHandleImpl(): EntityIterableHandle {
@@ -40,31 +73,31 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun union(right: EntityIterable): EntityIterable {
-        if (right is OQueryEntityIterable) {
-            return OUnionEntityIterable(transaction, this, right)
-        } else {
-            unsupported { "Union with non-OrientDB entity iterable" }
+        if (right == EMPTY) {
+            return this
         }
+        return OUnionEntityIterable(transaction, this, right.asOQueryIterable())
     }
 
     override fun intersectSavingOrder(right: EntityIterable): EntityIterable {
+        if (right == EMPTY) {
+            return this
+        }
         return intersect(right)
     }
 
     override fun intersect(right: EntityIterable): EntityIterable {
-        if (right is OQueryEntityIterable) {
-            return OIntersectionEntityIterable(transaction, this, right)
-        } else {
-            unsupported { "Intersecting with non-OrientDB entity iterable" }
+        if (right == EMPTY) {
+            return this
         }
+        return OIntersectionEntityIterable(transaction, this, right.asOQueryIterable())
     }
 
     override fun concat(right: EntityIterable): EntityIterable {
-        if (right is OQueryEntityIterable) {
-            return OConcatEntityIterable(transaction, this, right)
-        } else {
-            unsupported { "Concat with non-OrientDB entity iterable" }
+        if (right == EMPTY) {
+            return this
         }
+        return OConcatEntityIterable(transaction, this, right.asOQueryIterable())
     }
 
     override fun distinct(): EntityIterable {
@@ -72,11 +105,10 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun minus(right: EntityIterable): EntityIterable {
-        if (right is OQueryEntityIterable) {
-            return OMinusEntityIterable(transaction, this, right)
-        } else {
-            unsupported { "Minus with non-OrientDB entity iterable" }
+        if (right == EMPTY) {
+            return this
         }
+        return OMinusEntityIterable(transaction, this, right.asOQueryIterable())
     }
 
     override fun selectMany(linkName: String): EntityIterable {
@@ -91,6 +123,20 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         return selectManyDistinct(linkName)
     }
 
+    override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable? {
+        if (entities == EMPTY) {
+            return EMPTY
+        }
+        return OLinkIterableToEntityIterableFiltered(transaction, entities.asOQueryIterable(), linkName, this)
+    }
+
+    override fun findLinks(entities: Iterable<Entity?>, linkName: String): EntityIterable? {
+        if (entities !is OQueryEntityIterable) {
+            unsupported { "findLinks with non-OrientDB entity iterable" }
+        }
+        return findLinks(entities, linkName)
+    }
+
     override fun asSortResult(): EntityIterable {
         return this
     }
@@ -101,7 +147,7 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     override fun size(): Long {
         val sourceQuery = query()
         val countQuery = OCountSelect(sourceQuery)
-        cachedSize = countQuery.count(oStoreTransaction?.activeSession)
+        cachedSize = countQuery.count(otx?.activeSession)
         return cachedSize
     }
 
@@ -114,7 +160,7 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         val size = cachedSize
         if (size == -1L) {
             countExecutor?.execute {
-                setSessionToCurrentThread()
+                otx?.activeSession?.activateOnCurrentThread()
                 size()
             }
         }
@@ -135,20 +181,5 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
 
     override fun asProbablyCached(): EntityIterableBase? {
         return this
-    }
-
-    override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable? {
-        return OLinkIterableToEntityIterableFiltered(transaction, entities.asOQueryIterable(), linkName, this)
-    }
-
-    override fun findLinks(entities: Iterable<Entity?>, linkName: String): EntityIterable? {
-        if (entities !is OQueryEntityIterable) {
-            unsupported { "findLinks with non-OrientDB entity iterable" }
-        }
-        return findLinks(entities, linkName)
-    }
-
-    private fun setSessionToCurrentThread() {
-        ODatabaseRecordThreadLocal.instance().set(oStoreTransaction?.activeSession as ODatabaseDocumentInternal)
     }
 }

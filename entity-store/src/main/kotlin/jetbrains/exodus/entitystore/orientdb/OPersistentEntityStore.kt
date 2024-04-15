@@ -154,6 +154,5 @@ class OPersistentEntityStore(
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 
-
     private val currentOTransaction get() = currentTransaction as OStoreTransaction
 }
