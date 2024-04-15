@@ -420,8 +420,7 @@ class OStoreTransactionTest : OTestMixin {
             val boards = issues.selectDistinct(Issues.Links.ON_BOARD)
 
             // Then
-            // ToDo: should pass when distinct is implemented
-            assertNamesExactly(boards.sorted(), "board1", "board1", "board2")
+            assertNamesExactly(boards.sorted(), "board1", "board2")
         }
     }
 
