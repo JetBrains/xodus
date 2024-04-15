@@ -2,9 +2,13 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -14,6 +18,15 @@ class OEntityTest {
     @Rule
     @JvmField
     val orientDb = InMemoryOrientDB()
+
+    @Before
+    fun setup() {
+        orientDb.withSession { session ->
+            session.createVertexClass(Issues.CLASS)
+            session.createClass(STRING_BLOB_CLASS_NAME)
+            session.createClass(BINARY_BLOB_CLASS_NAME)
+        }
+    }
 
     @Test
     fun `multiple links should work`() {
