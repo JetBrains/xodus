@@ -1,9 +1,6 @@
 package jetbrains.exodus.entitystore.orientdb.query
 
-interface OOrder {
-
-    fun sql(): String
-}
+interface OOrder: OSql
 
 class OOrderByField(
     val field: String,

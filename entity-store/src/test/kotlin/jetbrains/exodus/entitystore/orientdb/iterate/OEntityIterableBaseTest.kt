@@ -158,6 +158,49 @@ class OEntityIterableBaseTest : OTestMixin {
         }
     }
 
+
+    @Test
+    fun `should iterable skip`() {
+        // Given
+        givenTestCase()
+
+        // When
+        oTransactional { tx ->
+            val issues = tx.getAll(Issues.CLASS).skip(1)
+
+            // Then
+            assertNamesExactly(issues, "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should iterable take`() {
+        // Given
+        givenTestCase()
+
+        // When
+        oTransactional { tx ->
+            val issues = tx.getAll(Issues.CLASS).take(2)
+
+            // Then
+            assertNamesExactly(issues, "issue1", "issue2")
+        }
+    }
+
+    @Test
+    fun `should iterable skip and take`() {
+        // Given
+        givenTestCase()
+
+        // When
+        oTransactional { tx ->
+            val issues = tx.getAll(Issues.CLASS).skip(1).take(1)
+
+            // Then
+            assertNamesExactly(issues, "issue2")
+        }
+    }
+
     @Test
     fun `should iterable find links`() {
         // Given

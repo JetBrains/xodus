@@ -111,6 +111,14 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         return OMinusEntityIterable(transaction, this, right.asOQueryIterable())
     }
 
+    override fun take(number: Int): EntityIterable {
+        return OTakeEntityIterable(transaction, this, number)
+    }
+
+    override fun skip(number: Int): EntityIterable {
+        return OSkipEntityIterable(transaction, this, number)
+    }
+
     override fun selectMany(linkName: String): EntityIterable {
         return OLinkSelectEntityIterable(transaction, this, linkName)
     }

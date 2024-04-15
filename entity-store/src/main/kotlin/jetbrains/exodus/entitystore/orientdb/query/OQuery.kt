@@ -7,9 +7,8 @@ import com.orientechnologies.orient.core.sql.executor.OResultSet
 /**
  * Implementations must be immutable.
  */
-interface OQuery {
+interface OQuery : OSql {
 
-    fun sql(): String
     fun params(): List<Any> = emptyList<Any>()
 
     fun execute(session: ODatabaseDocument? = null): OResultSet {
