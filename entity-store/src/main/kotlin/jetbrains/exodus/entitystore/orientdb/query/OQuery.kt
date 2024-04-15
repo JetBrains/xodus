@@ -13,6 +13,7 @@ interface OQuery {
     fun params(): List<Any> = emptyList<Any>()
 
     fun execute(session: ODatabaseDocument? = null): OResultSet {
+        ODatabaseSession.getActiveSession()
         val session = session ?: ODatabaseSession.getActiveSession()
         return session.query(sql(), *params().toTypedArray())
     }

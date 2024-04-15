@@ -7,9 +7,9 @@ import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.testutil.*
+import jetbrains.exodus.testutil.eventually
 import org.junit.Rule
 import org.junit.Test
-import java.util.Comparator
 
 class OStoreTransactionIterableTest {
 
@@ -107,7 +107,6 @@ class OStoreTransactionIterableTest {
             assertThat(empty).isEmpty()
         }
     }
-
 
     @Test
     fun `should find property exists`() {
@@ -373,6 +372,65 @@ class OStoreTransactionIterableTest {
             // Then
             assertNamesExactly(issuesOnBoards, "issue1", "issue2")
         }
+    }
+
+    @Test
+    fun `should iterable size`() {
+        // Given
+        givenTestCase()
+        val tx = givenOTransaction()
+
+        // When
+        // boards 1 and 2
+        val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
+
+        // Then
+        assertThat(allIssues.size()).isEqualTo(3)
+    }
+
+    @Test
+    fun `should iterable count`() {
+        // Given
+        givenTestCase()
+        val tx = givenOTransaction()
+
+        // When
+        val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
+
+        // Then
+        // Count is not calculated yet
+        assertThat(allIssues.count()).isEqualTo(-1)
+        // Wait until the count is updated asynchronously
+        eventually { assertThat(allIssues.count()).isEqualTo(3) }
+    }
+
+    @Test
+    fun `should iterable rough size sync`() {
+        // Given
+        givenTestCase()
+        val tx = givenOTransaction()
+
+        // When
+        val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
+
+        // Then
+        assertThat(allIssues.roughSize).isEqualTo(3)
+    }
+
+    @Test
+    fun `should iterable rough count`() {
+        // Given
+        givenTestCase()
+        val tx = givenOTransaction()
+
+        // When
+        val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
+
+        // Then
+        assertThat(allIssues.roughCount).isEqualTo(-1)
+        assertThat(allIssues.count()).isEqualTo(-1)
+        // Wait until the count is updated asynchronously
+        assertThat(allIssues.roughCount).isEqualTo(3)
     }
 
     @Test
@@ -647,7 +705,7 @@ class OStoreTransactionIterableTest {
             )
 
             val comparableGetter = ComparableGetter { it.getProperty(Issues.Props.PRIORITY) }
-            val comparator = Comparator<Comparable<Any>?> { o1, o2 -> o1.compareTo(o2) }
+            val comparator = Comparator<Comparable<Any>?> { o1, o2 -> o1?.compareTo(o2!!) ?: -1 }
 
             val mergeSorted =
                 tx.mergeSorted(listOf(issuesOnBoard2, issuesOnBoard1, issuesOnBoard3), comparableGetter, comparator)

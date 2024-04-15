@@ -1,11 +1,14 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
+import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterableHandle
 import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.asOQueryIterable
+import jetbrains.exodus.entitystore.asOStore
 import jetbrains.exodus.entitystore.asOStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
@@ -20,11 +23,12 @@ import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityI
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
 import jetbrains.exodus.entitystore.util.unsupported
-import java.util.concurrent.Executors
+import java.util.concurrent.Executor
 
 abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(tx), OQueryEntityIterable {
 
     private val oStoreTransaction: OStoreTransaction? = tx?.asOStoreTransaction()
+    private val countExecutor: Executor? = oStoreTransaction?.store?.asOStore()?.countExecutor
 
     override fun getIteratorImpl(txn: StoreTransaction): EntityIterator {
         val query = query()
@@ -92,34 +96,33 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     @Volatile
-    private var cachedCount: Long = -1
-
-    // ToDo: get executor from persistent store
-    val executor = Executors.newSingleThreadExecutor()
+    private var cachedSize: Long = -1
 
     override fun size(): Long {
         val sourceQuery = query()
         val countQuery = OCountSelect(sourceQuery)
-        return countQuery.count(oStoreTransaction?.activeSession)
-    }
-
-    override fun count(): Long {
-        val count = cachedCount
-        if (count == -1L) {
-            executor.submit {
-                cachedCount = size()
-            }
-        }
-        return count
-    }
-
-    override fun getRoughCount(): Long {
-        return cachedCount
+        cachedSize = countQuery.count(oStoreTransaction?.activeSession)
+        return cachedSize
     }
 
     override fun getRoughSize(): Long {
-        val count = cachedCount
-        return if (count > -1) count else size()
+        val size = cachedSize
+        return if (size != -1L) size else size()
+    }
+
+    override fun count(): Long {
+        val size = cachedSize
+        if (size == -1L) {
+            countExecutor?.execute {
+                setSessionToCurrentThread()
+                size()
+            }
+        }
+        return size
+    }
+
+    override fun getRoughCount(): Long {
+        return cachedSize
     }
 
     override fun isSortedById(): Boolean {
@@ -143,5 +146,9 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
             unsupported { "findLinks with non-OrientDB entity iterable" }
         }
         return findLinks(entities, linkName)
+    }
+
+    private fun setSessionToCurrentThread() {
+        ODatabaseRecordThreadLocal.instance().set(oStoreTransaction?.activeSession as ODatabaseDocumentInternal)
     }
 }
