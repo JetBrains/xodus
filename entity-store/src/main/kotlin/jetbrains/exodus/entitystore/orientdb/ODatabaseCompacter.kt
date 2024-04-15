@@ -23,7 +23,7 @@ class ODatabaseCompacter(
         val listener = OCommandOutputListener { iText -> logger.info("Compacting database: $iText") }
 
         val exporter = ODatabaseExport(
-            dbProvider.databaseSession as ODatabaseDocumentInternal,
+            dbProvider.acquireSession() as ODatabaseDocumentInternal,
             backupFile.outputStream(),
             listener
         )
@@ -36,7 +36,7 @@ class ODatabaseCompacter(
         dbProvider.close()
         logger.info("Importing database from dump")
         val importer = ODatabaseImport(
-            dbProvider.databaseSession as ODatabaseDocumentInternal,
+            dbProvider.acquireSession() as ODatabaseDocumentInternal,
             backupFile.inputStream(),
             listener
         )

@@ -197,6 +197,26 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
+    fun `one-directional associations ignore cardinality`(): Unit = orientDb.withSession { oSession ->
+        val model = model {
+            entity("type1")
+            entity("type2") {
+                for (cardinality in AssociationEndCardinality.entries) {
+                    association("prop1$cardinality", "type1", cardinality)
+                }
+            }
+        }
+
+        oSession.applySchema(model, applyLinkCardinality = false)
+
+        val inClass = oSession.getClass("type1")!!
+        val outClass = oSession.getClass("type2")!!
+        for (cardinality in AssociationEndCardinality.entries) {
+            oSession.checkAssociation("prop1$cardinality", outClass, inClass, null)
+        }
+    }
+
+    @Test
     fun `two-directional associations`(): Unit = orientDb.withSession { oSession ->
         val model = model {
             entity("type1")
@@ -339,7 +359,7 @@ class OrientDbSchemaInitializerTest {
         }
     }
 
-    private fun ODatabaseSession.checkAssociation(edgeName: String, outClass: OClass, inClass: OClass, cardinality: AssociationEndCardinality) {
+    private fun ODatabaseSession.checkAssociation(edgeName: String, outClass: OClass, inClass: OClass, cardinality: AssociationEndCardinality?) {
         val edge = requireEdgeClass(edgeName)
 
         val outPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
@@ -365,6 +385,11 @@ class OrientDbSchemaInitializerTest {
             AssociationEndCardinality._1_n -> {
                 assertTrue(outProp.isMandatory)
                 assertTrue(outProp.min == "1")
+                assertTrue(outProp.max == null)
+            }
+            null -> {
+                assertTrue(!outProp.isMandatory)
+                assertTrue(outProp.min == null)
                 assertTrue(outProp.max == null)
             }
         }
