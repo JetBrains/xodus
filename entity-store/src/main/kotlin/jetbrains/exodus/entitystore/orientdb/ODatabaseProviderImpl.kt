@@ -36,13 +36,12 @@ class ODatabaseProviderImpl(
         ODatabaseCompacter(this, databaseType, databaseName, userName, password).compactDatabase()
     }
 
-    override val databaseSession: ODatabaseSession
-        get() {
-            return database.cachedPool(databaseName, userName, password, config).acquire()
-        }
-
     override val databaseLocation: String
         get() = database.accessInternal.basePath
+
+    override fun acquireSession(): ODatabaseSession {
+        return database.cachedPool(databaseName, userName, password).acquire()
+    }
 
     override fun close() {
         //TODO this should call some other method, also to remove pool from database internal hashmap

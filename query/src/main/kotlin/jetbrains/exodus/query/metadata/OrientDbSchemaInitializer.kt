@@ -27,8 +27,12 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
-fun ODatabaseSession.applySchema(model: ModelMetaDataImpl, indexForEverySimpleProperty: Boolean = false): Map<String, Set<DeferredIndex>> {
-    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty)
+fun ODatabaseSession.applySchema(
+    model: ModelMetaDataImpl,
+    indexForEverySimpleProperty: Boolean = false,
+    applyLinkCardinality: Boolean = true
+): Map<String, Set<DeferredIndex>> {
+    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality)
     initializer.apply()
     return initializer.getIndices()
 }
@@ -36,7 +40,8 @@ fun ODatabaseSession.applySchema(model: ModelMetaDataImpl, indexForEverySimplePr
 internal class OrientDbSchemaInitializer(
     private val dnqModel: ModelMetaDataImpl,
     private val oSession: ODatabaseSession,
-    private val indexForEverySimpleProperty: Boolean
+    private val indexForEverySimpleProperty: Boolean,
+    private val applyLinkCardinality: Boolean
 ) {
     private val paddedLogger = PaddedLogger(log)
 
@@ -223,7 +228,9 @@ internal class OrientDbSchemaInitializer(
         val propOutName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
         append("${outClass.name}.$propOutName")
         val propOut = outClass.createEdgePropertyIfAbsent(propOutName, edgeClass)
-        propOut.applyCardinality(outCardinality)
+        if (applyLinkCardinality) {
+            propOut.applyCardinality(outCardinality)
+        }
         appendLine()
 
         val propInName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClass.name)

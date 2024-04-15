@@ -10,7 +10,7 @@ import jetbrains.exodus.management.Statistics
 import java.io.File
 
 class OPersistentEntityStore(
-    private val databaseProvider: ODatabaseProvider,
+    val databaseProvider: ODatabaseProvider,
     private val name: String
 ) : PersistentEntityStore {
 
@@ -32,7 +32,7 @@ class OPersistentEntityStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
-        val session = databaseProvider.databaseSession
+        val session = databaseProvider.acquireSession()
         session.activateOnCurrentThread()
         val txn = session.begin().transaction
         return OStoreTransactionImpl(session, txn, this)
