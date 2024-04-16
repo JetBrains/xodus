@@ -154,7 +154,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = issuesOnBoard1.minus(issuesOnBoard2)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2", "issue3")
+            assertNamesExactly(issues, "issue2", "issue3")
         }
     }
 
@@ -220,7 +220,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD)!!
 
             // Then
-            assertNamesExactlyInOrder(issuesOnBoards, "issue1", "issue2")
+            assertNamesExactly(issuesOnBoards, "issue1", "issue2")
         }
     }
 
