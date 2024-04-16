@@ -199,7 +199,8 @@ class OStoreTransactionImpl(
         oppositeEntityType: String,
         oppositeLinkName: String
     ): EntityIterable {
-        TODO("Not yet implemented")
+        // Not sure about skipping oppositeEntityType and oppositeLinkName values
+        return OLinkSortEntityIterable(this, sortedLinks.asOQueryIterable(), linkName, rightOrder.asOQueryIterable())
     }
 
     @Deprecated("Deprecated in Java")
