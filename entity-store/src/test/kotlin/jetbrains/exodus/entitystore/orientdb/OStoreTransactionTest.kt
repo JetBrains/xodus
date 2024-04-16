@@ -383,6 +383,7 @@ class OStoreTransactionTest : OTestMixin {
 
             // Then
             // As sorted by project name
+            // ToDo: should be fixed with https://youtrack.jetbrains.com/issue/XD-1010
             assertNamesExactlyInOrder(issuesAsc, "issue1", "issue2", "issue3")
             assertNamesExactlyInOrder(issuesDesc, "issue3", "issue2", "issue1")
         }

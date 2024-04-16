@@ -225,6 +225,38 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
+    fun `should iterable skip and take while intersect`() {
+        // Given
+        givenTestCase()
+
+        // When
+        oTransactional { tx ->
+            val skippedIssues = tx.getAll(Issues.CLASS).skip(1).take(2)
+            val limitIssues = tx.getAll(Issues.CLASS).take(1)
+            val issues = skippedIssues.intersect(limitIssues)
+
+            // Then
+            assertNamesExactlyInOrder(issues, "issue2")
+        }
+    }
+
+    @Test
+    fun `should iterable skip and take while union`() {
+        // Given
+        givenTestCase()
+
+        // When
+        oTransactional { tx ->
+            val skippedIssues = tx.getAll(Issues.CLASS).skip(1).take(1)
+            val limitIssues = tx.getAll(Issues.CLASS).take(2)
+            val issues = skippedIssues.union(limitIssues)
+
+            // Then
+            assertNamesExactlyInOrder(issues, "issue2", "issue3")
+        }
+    }
+
+    @Test
     fun `should iterable size`() {
         // Given
         givenTestCase()

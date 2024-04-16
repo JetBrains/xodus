@@ -22,3 +22,9 @@ class OOrderByFields(
         }
     }
 }
+
+fun OOrder?.merge(order: OOrder?): OOrder? {
+    if (this == null) return order
+    if (order == null) return this
+    return this.merge(order)
+}

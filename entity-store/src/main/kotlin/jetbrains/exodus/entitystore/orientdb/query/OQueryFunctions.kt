@@ -7,7 +7,13 @@ object OQueryFunctions {
             left is OClassSelect && right is OClassSelect -> {
                 ensureSameClassName(left, right)
                 val newCondition = left.condition.and(right.condition)
-                OClassSelect(left.className, newCondition)
+                val newOrder = left.order.merge(right.order)
+
+                // narrow down the result set
+                val newSkip = left.skip.max(right.skip)
+                val newLimit = left.limit.min(right.limit)
+
+                OClassSelect(left.className, newCondition, newOrder, newSkip, newLimit)
             }
 
             else -> {
@@ -21,7 +27,13 @@ object OQueryFunctions {
             left is OClassSelect && right is OClassSelect -> {
                 ensureSameClassName(left, right)
                 val newCondition = left.condition.or(right.condition)
-                OClassSelect(left.className, newCondition)
+                val newOrder = left.order.merge(right.order)
+
+                // shrink the result set
+                val newSkip = left.skip.min(right.skip)
+                val newLimit = left.limit.max(right.limit)
+
+                OClassSelect(left.className, newCondition, newOrder, newSkip, newLimit)
             }
 
             else -> {
