@@ -20,6 +20,9 @@ import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterableFiltered
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
+import jetbrains.exodus.entitystore.orientdb.query.OFirstSelect
+import jetbrains.exodus.entitystore.orientdb.query.OLastSelect
+import jetbrains.exodus.entitystore.orientdb.query.OQuery
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 import jetbrains.exodus.entitystore.util.unsupported
 import java.util.concurrent.Executor
@@ -154,13 +157,38 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         unsupported()
     }
 
+    override fun getFirst(): Entity? {
+        val lastSelect = OFirstSelect(query())
+        return getFirstFromQuery(lastSelect)
+    }
+
+    override fun getLast(): Entity? {
+        val lastSelect = OLastSelect(query())
+        return getFirstFromQuery(lastSelect)
+    }
+
+    private fun getFirstFromQuery(query: OQuery): Entity? {
+        if (otx == null) {
+            return null
+        }
+        val iterator = OQueryEntityIterator.executeAndCreate(query, otx)
+        return if (iterator.hasNext()) {
+            iterator.next()
+        } else {
+            null
+        }
+    }
+
     @Volatile
     private var cachedSize: Long = -1
 
     override fun size(): Long {
+        if (otx == null) {
+            return 0
+        }
         val sourceQuery = query()
         val countQuery = OCountSelect(sourceQuery)
-        cachedSize = countQuery.count(otx?.activeSession)
+        cachedSize = countQuery.count(otx.activeSession)
         return cachedSize
     }
 

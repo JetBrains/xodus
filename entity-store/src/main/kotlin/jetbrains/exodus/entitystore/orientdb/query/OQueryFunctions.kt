@@ -1,5 +1,7 @@
 package jetbrains.exodus.entitystore.orientdb.query
 
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+
 object OQueryFunctions {
 
     fun intersect(left: OSelect, right: OSelect): OSelect {
@@ -53,4 +55,31 @@ object OQueryFunctions {
     private fun ensureSameClassName(left: OClassSelect, right: OClassSelect) {
         require(left.className == right.className) { "Cannot intersect different DB classes: ${left.className} and ${right.className}" }
     }
+}
+
+class OCountSelect(
+    val source: OSelect,
+) : OQuery {
+
+    override fun sql() = "SELECT count(*) as count FROM (${source.sql()})"
+    override fun params() = source.params()
+
+    fun count(session: ODatabaseDocument): Long = execute(session).next().getProperty<Long>("count")
+}
+
+class OFirstSelect(
+    val source: OSelect,
+) : OQuery {
+
+    override fun sql() = "SELECT expand(first(*)) FROM (${source.sql()})"
+    override fun params() = source.params()
+}
+
+
+class OLastSelect(
+    val source: OSelect,
+) : OQuery {
+
+    override fun sql() = "SELECT expand(last(*)) FROM (${source.sql()})"
+    override fun params() = source.params()
 }

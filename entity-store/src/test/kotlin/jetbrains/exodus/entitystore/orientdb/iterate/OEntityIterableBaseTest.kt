@@ -257,6 +257,34 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
+    fun `should iterable get first`() {
+        // Given
+        givenTestCase()
+
+        // When
+        oTransactional { tx ->
+            val issue = tx.sort(Issues.CLASS, "name", true).first
+
+            // Then
+            assertThat(issue?.getProperty("name")).isEqualTo("issue1")
+        }
+    }
+
+    @Test
+    fun `should iterable get last`() {
+        // Given
+        givenTestCase()
+
+        // When
+        oTransactional { tx ->
+            val issue = tx.sort(Issues.CLASS, "name", true).last
+
+            // Then
+            assertThat(issue?.getProperty("name")).isEqualTo("issue3")
+        }
+    }
+
+    @Test
     fun `should iterable size`() {
         // Given
         givenTestCase()
