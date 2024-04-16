@@ -9,8 +9,8 @@ interface OTestMixin {
 
     val orientDb: InMemoryOrientDB
 
-    fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
-        assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
+    fun assertNamesExactlyInOrder(result: Iterable<Entity>, vararg names: String) {
+        assertThat(result.map { it.getProperty("name") }).containsExactly(*names).inOrder()
     }
 
     fun beginTransaction(): OStoreTransactionImpl {

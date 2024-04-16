@@ -32,7 +32,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = equal1.union(equal2)
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2")
         }
     }
 
@@ -50,7 +50,7 @@ class OEntityIterableBaseTest : OTestMixin {
 
             // Then
             // Union operation can distinct result set if query is optimized to OR conditions
-            assertNamesExactly(issues, "issue1")
+            assertNamesExactlyInOrder(issues, "issue1")
         }
     }
 
@@ -69,7 +69,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = nameEqual.intersect(priorityEqual)
 
             // Then
-            assertNamesExactly(issues, "issue2")
+            assertNamesExactlyInOrder(issues, "issue2")
             assertThat(issues.first().getProperty("priority")).isEqualTo("normal")
         }
     }
@@ -90,7 +90,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val concat = issue1.concat(issue2).concat(issue1)
 
             // Then
-            assertNamesExactly(concat, "issue1", "issue2", "issue1")
+            assertNamesExactlyInOrder(concat, "issue1", "issue2", "issue1")
         }
     }
 
@@ -110,7 +110,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val concat = issuesOnBoard1.concat(issuesOnBoard2)
 
             // Then
-            assertNamesExactly(concat, "issue1", "issue2", "issue1")
+            assertNamesExactlyInOrder(concat, "issue1", "issue2", "issue1")
         }
     }
 
@@ -133,7 +133,7 @@ class OEntityIterableBaseTest : OTestMixin {
 
             // Then
             assertThat(issues).hasSize(4)
-            assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
 
@@ -154,7 +154,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = issuesOnBoard1.minus(issuesOnBoard2)
 
             // Then
-            assertNamesExactly(issues, "issue2", "issue3")
+            assertNamesExactlyInOrder(issues, "issue2", "issue3")
         }
     }
 
@@ -169,7 +169,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = tx.getAll(Issues.CLASS).skip(1)
 
             // Then
-            assertNamesExactly(issues, "issue2", "issue3")
+            assertNamesExactlyInOrder(issues, "issue2", "issue3")
         }
     }
 
@@ -183,7 +183,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = tx.getAll(Issues.CLASS).take(2)
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2")
         }
     }
 
@@ -197,7 +197,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = tx.getAll(Issues.CLASS).skip(1).take(1)
 
             // Then
-            assertNamesExactly(issues, "issue2")
+            assertNamesExactlyInOrder(issues, "issue2")
         }
     }
 
@@ -220,7 +220,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD)!!
 
             // Then
-            assertNamesExactly(issuesOnBoards, "issue1", "issue2")
+            assertNamesExactlyInOrder(issuesOnBoards, "issue1", "issue2")
         }
     }
 

@@ -1,11 +1,24 @@
 package jetbrains.exodus.entitystore.orientdb.query
 
-interface OOrder: OSql
+sealed interface OOrder : OSql {
+    fun merge(order: OOrder): OOrder
+}
 
-class OOrderByField(
-    val field: String,
-    val ascending: Boolean = true
+data class OrderItem(val field: String, val ascending: Boolean = true)
+
+class OOrderByFields(
+    val items: List<OrderItem>
 ) : OOrder {
 
-    override fun sql() = "$field ${if (ascending) "ASC" else "DESC"}"
+    constructor(field: String, ascending: Boolean = true) : this(listOf(OrderItem(field, ascending)))
+
+    override fun sql() = items.map { (field, ascending) ->
+        "$field ${if (ascending) "ASC" else "DESC"}"
+    }.joinToString(", ")
+
+    override fun merge(order: OOrder): OOrder {
+        return when (order) {
+            is OOrderByFields -> OOrderByFields(items + order.items)
+        }
+    }
 }

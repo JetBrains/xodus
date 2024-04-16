@@ -8,6 +8,7 @@ import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.asOQueryIterable
 import jetbrains.exodus.entitystore.asOStore
 import jetbrains.exodus.entitystore.asOStoreTransaction
+import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
@@ -147,6 +148,10 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
 
     override fun asSortResult(): EntityIterable {
         return this
+    }
+
+    override fun toSet(txn: StoreTransaction): EntityIdSet {
+        unsupported()
     }
 
     @Volatile

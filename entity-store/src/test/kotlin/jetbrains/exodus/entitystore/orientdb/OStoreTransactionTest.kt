@@ -28,7 +28,7 @@ class OStoreTransactionTest : OTestMixin {
             val issues = tx.getAll(Issues.CLASS)
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2", "issue3")
         }
     }
 
@@ -42,7 +42,7 @@ class OStoreTransactionTest : OTestMixin {
             val result = tx.find(Issues.CLASS, "name", "issue2")
 
             // Then
-            assertNamesExactly(result, "issue2")
+            assertNamesExactlyInOrder(result, "issue2")
         }
     }
 
@@ -60,7 +60,7 @@ class OStoreTransactionTest : OTestMixin {
             val empty = tx.findContaining(Issues.CLASS, "case", "not", true)
 
             // Then
-            assertNamesExactly(issues, "issue2")
+            assertNamesExactlyInOrder(issues, "issue2")
             assertThat(empty).isEmpty()
         }
     }
@@ -77,7 +77,7 @@ class OStoreTransactionTest : OTestMixin {
             val empty = tx.findStartingWith(Issues.CLASS, "case", "you")
 
             // Then
-            assertNamesExactly(issues, "issue2")
+            assertNamesExactlyInOrder(issues, "issue2")
             assertThat(empty).isEmpty()
         }
     }
@@ -96,9 +96,9 @@ class OStoreTransactionTest : OTestMixin {
             val empty = tx.find(Issues.CLASS, "value", 6, 12)
 
             // Then
-            assertNamesExactly(exclusive, "issue2")
-            assertNamesExactly(inclusiveMin, "issue2")
-            assertNamesExactly(inclusiveMax, "issue2")
+            assertNamesExactlyInOrder(exclusive, "issue2")
+            assertNamesExactlyInOrder(inclusiveMin, "issue2")
+            assertNamesExactlyInOrder(inclusiveMax, "issue2")
             assertThat(empty).isEmpty()
         }
     }
@@ -116,7 +116,7 @@ class OStoreTransactionTest : OTestMixin {
             val empty = tx.findWithProp(Issues.CLASS, "no_prop")
 
             // Then
-            assertNamesExactly(issues, "issue2")
+            assertNamesExactlyInOrder(issues, "issue2")
             assertThat(empty).isEmpty()
         }
     }
@@ -147,7 +147,7 @@ class OStoreTransactionTest : OTestMixin {
             val issues = tx.findWithBlob(Issues.CLASS, "myBlob")
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2")
         }
     }
 
@@ -168,8 +168,8 @@ class OStoreTransactionTest : OTestMixin {
             val issuesDescending = tx.sort(Issues.CLASS, "order", false)
 
             // Then
-            assertNamesExactly(issuesAscending, "issue1", "issue2", "issue3")
-            assertNamesExactly(issuesDescending, "issue3", "issue2", "issue1")
+            assertNamesExactlyInOrder(issuesAscending, "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(issuesDescending, "issue3", "issue2", "issue1")
         }
     }
 
@@ -185,13 +185,46 @@ class OStoreTransactionTest : OTestMixin {
 
         // When
         oTransactional { tx ->
-            val issues = tx.findWithPropSortedByValue(Issues.CLASS, "order")
+            val issues = tx.findWithProp(Issues.CLASS, "order")
             val issuesAscending = tx.sort(Issues.CLASS, "order", issues, true)
             val issuesDescending = tx.sort(Issues.CLASS, "order", issues, false)
 
             // Then
-            assertNamesExactly(issuesAscending, "issue1", "issue3")
-            assertNamesExactly(issuesDescending, "issue3", "issue1")
+            assertNamesExactlyInOrder(issuesAscending, "issue1", "issue3")
+            assertNamesExactlyInOrder(issuesDescending, "issue3", "issue1")
+        }
+    }
+
+    @Test
+    fun `should sort iterable by two properties`() {
+        // Given
+        val test = givenTestCase()
+
+        orientDb.withSession {
+            // Apple -> Appointment -> 3
+            test.issue3.setProperty("project", "Apple")
+            test.issue3.setProperty("type", "Appointment")
+
+            // Apple -> Billing -> 1
+            test.issue1.setProperty("project", "Apple")
+            test.issue1.setProperty("type", "Billing")
+
+            // Pear -> Appointment -> 2
+            test.issue2.setProperty("project", "Pear")
+            test.issue2.setProperty("type", "Appointment")
+        }
+
+        // When
+        oTransactional { tx ->
+            // Sorted by project then by type in ascending order
+            val sortedByProject = tx.findWithPropSortedByValue(Issues.CLASS, "project")
+            val issues = tx.sort(Issues.CLASS, "type", sortedByProject, true)
+
+            // Then
+            // Apple -> Appointment -> 3
+            //       -> Billing     -> 1
+            // Pear  -> Appointment -> 2
+            assertNamesExactlyInOrder(issues, "issue3", "issue1", "issue2")
         }
     }
 
@@ -209,7 +242,7 @@ class OStoreTransactionTest : OTestMixin {
             val issues = tx.findLinks(Issues.CLASS, testCase.project1, Issues.Links.IN_PROJECT)
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2")
         }
     }
 
@@ -228,7 +261,7 @@ class OStoreTransactionTest : OTestMixin {
             val issues = tx.findLinks(Issues.CLASS, projects, Issues.Links.IN_PROJECT)
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2", "issue3")
         }
     }
 
@@ -246,7 +279,7 @@ class OStoreTransactionTest : OTestMixin {
             val issuesInProject = tx.findWithLinks(Issues.CLASS, Issues.Links.IN_PROJECT)
 
             // Then
-            assertNamesExactly(issuesOnBoard, "issue1", "issue2")
+            assertNamesExactlyInOrder(issuesOnBoard, "issue1", "issue2")
             assertThat(issuesInProject).isEmpty()
         }
     }
@@ -268,7 +301,7 @@ class OStoreTransactionTest : OTestMixin {
             val issues = issuesInProject1.union(issuesInProject2)
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2", "issue3")
         }
     }
 
@@ -290,7 +323,7 @@ class OStoreTransactionTest : OTestMixin {
             val issues = issuesOnBoard1.intersect(issuesOnBoard2)
 
             // Then
-            assertNamesExactly(issues, "issue2")
+            assertNamesExactlyInOrder(issues, "issue2")
         }
     }
 
@@ -311,7 +344,7 @@ class OStoreTransactionTest : OTestMixin {
             val issues = issuesOnBoard1.union(issuesOnBoard2)
 
             // Then
-            assertNamesExactly(issues, "issue1", "issue2")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2")
         }
     }
 
@@ -320,25 +353,29 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
+        // Issues assigned to projects in reverse order
         orientDb.addIssueToProject(test.issue1, test.project3)
         orientDb.addIssueToProject(test.issue2, test.project2)
         orientDb.addIssueToProject(test.issue3, test.project1)
 
         // When
         oTransactional { tx ->
-            val links = tx.getAll(Projects.CLASS)
+            val projects = tx.getAll(Projects.CLASS)
             val issues = tx.getAll(Issues.CLASS)
 
-            val issueAsc = tx.sortLinks(
+            val projectsAsc = tx.sort(Projects.CLASS, "name", projects, true)
+            val issueDesc = tx.sortLinks(
                 Issues.CLASS, // entity class
-                tx.sort(Projects.CLASS, "name", links, false), // links sorted asc by name
+                projectsAsc, // links sorted asc by name
                 false, // is multiple
                 Issues.Links.IN_PROJECT, // link name
                 issues // entities
             )
-            val issuesDesc = tx.sortLinks(
+
+            val projectsDesc = tx.sort(Projects.CLASS, "name", projects, false)
+            val issuesAsc = tx.sortLinks(
                 Issues.CLASS, // entity class
-                tx.sort(Projects.CLASS, "name", links, false), // links sorted desc by name
+                projectsDesc, // links sorted desc by name
                 false, // is multiple
                 Issues.Links.IN_PROJECT, // link name
                 issues // entities
@@ -346,8 +383,8 @@ class OStoreTransactionTest : OTestMixin {
 
             // Then
             // As sorted by project name
-            assertNamesExactly(issueAsc, "issue3", "issue2", "issue1")
-            assertNamesExactly(issuesDesc, "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(issueDesc, "issue3", "issue2", "issue1")
+            assertNamesExactlyInOrder(issuesAsc, "issue1", "issue2", "issue3")
         }
     }
 
@@ -381,7 +418,7 @@ class OStoreTransactionTest : OTestMixin {
             ).distinct()
 
             // Then
-            assertNamesExactly(issuesAsc, "issue3", "issue2", "issue1")
+            assertNamesExactlyInOrder(issuesAsc, "issue3", "issue2", "issue1")
         }
     }
 
@@ -400,7 +437,7 @@ class OStoreTransactionTest : OTestMixin {
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
             // Then
-            assertNamesExactly(boards.sorted(), "board1", "board1", "board1", "board2")
+            assertNamesExactlyInOrder(boards.sorted(), "board1", "board1", "board1", "board2")
         }
     }
 
@@ -420,7 +457,7 @@ class OStoreTransactionTest : OTestMixin {
             val boards = issues.selectDistinct(Issues.Links.ON_BOARD)
 
             // Then
-            assertNamesExactly(boards.sorted(), "board1", "board2")
+            assertNamesExactlyInOrder(boards.sorted(), "board1", "board2")
         }
     }
 
@@ -461,7 +498,7 @@ class OStoreTransactionTest : OTestMixin {
                 tx.mergeSorted(listOf(issuesOnBoard2, issuesOnBoard1, issuesOnBoard3), comparableGetter, comparator)
 
             // Then
-            assertNamesExactly(mergeSorted, "issue4", "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(mergeSorted, "issue4", "issue1", "issue2", "issue3")
         }
     }
 
@@ -503,7 +540,7 @@ class OStoreTransactionTest : OTestMixin {
                 tx.mergeSorted(arrayListOf(issuesOnBoard2, issuesOnBoard1, issuesOnBoard3), comparator)
 
             // Then
-            assertNamesExactly(mergeSorted, "issue4", "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(mergeSorted, "issue4", "issue1", "issue2", "issue3")
         }
     }
 }
