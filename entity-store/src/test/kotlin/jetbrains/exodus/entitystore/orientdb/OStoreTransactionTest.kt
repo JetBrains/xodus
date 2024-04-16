@@ -354,9 +354,9 @@ class OStoreTransactionTest : OTestMixin {
         val test = givenTestCase()
 
         // Issues assigned to projects in reverse order
-        orientDb.addIssueToProject(test.issue1, test.project3)
+        orientDb.addIssueToProject(test.issue1, test.project1)
         orientDb.addIssueToProject(test.issue2, test.project2)
-        orientDb.addIssueToProject(test.issue3, test.project1)
+        orientDb.addIssueToProject(test.issue3, test.project3)
 
         // When
         oTransactional { tx ->
@@ -364,7 +364,7 @@ class OStoreTransactionTest : OTestMixin {
             val issues = tx.getAll(Issues.CLASS)
 
             val projectsAsc = tx.sort(Projects.CLASS, "name", projects, true)
-            val issueDesc = tx.sortLinks(
+            val issuesAsc = tx.sortLinks(
                 Issues.CLASS, // entity class
                 projectsAsc, // links sorted asc by name
                 false, // is multiple
@@ -373,7 +373,7 @@ class OStoreTransactionTest : OTestMixin {
             )
 
             val projectsDesc = tx.sort(Projects.CLASS, "name", projects, false)
-            val issuesAsc = tx.sortLinks(
+            val issuesDesc = tx.sortLinks(
                 Issues.CLASS, // entity class
                 projectsDesc, // links sorted desc by name
                 false, // is multiple
@@ -383,8 +383,8 @@ class OStoreTransactionTest : OTestMixin {
 
             // Then
             // As sorted by project name
-            assertNamesExactlyInOrder(issueDesc, "issue3", "issue2", "issue1")
             assertNamesExactlyInOrder(issuesAsc, "issue1", "issue2", "issue3")
+            assertNamesExactlyInOrder(issuesDesc, "issue3", "issue2", "issue1")
         }
     }
 
