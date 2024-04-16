@@ -123,6 +123,32 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         return OSkipEntityIterable(transaction, this, number)
     }
 
+    override fun getFirst(): Entity? {
+        val lastSelect = OFirstSelect(query())
+        return querySingleEntity(lastSelect)
+    }
+
+    override fun getLast(): Entity? {
+        val lastSelect = OLastSelect(query())
+        return querySingleEntity(lastSelect)
+    }
+
+    private fun querySingleEntity(query: OQuery): Entity? {
+        if (otx == null) {
+            return null
+        }
+        val iterator = OQueryEntityIterator.executeAndCreate(query, otx)
+        return if (iterator.hasNext()) {
+            iterator.next()
+        } else {
+            null
+        }
+    }
+
+    override fun reverse(): EntityIterable {
+        unsupported { "Should be supported on demand" }
+    }
+
     override fun selectMany(linkName: String): EntityIterable {
         return OLinkSelectEntityIterable(transaction, this, linkName)
     }
@@ -154,29 +180,7 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun toSet(txn: StoreTransaction): EntityIdSet {
-        unsupported()
-    }
-
-    override fun getFirst(): Entity? {
-        val lastSelect = OFirstSelect(query())
-        return getFirstFromQuery(lastSelect)
-    }
-
-    override fun getLast(): Entity? {
-        val lastSelect = OLastSelect(query())
-        return getFirstFromQuery(lastSelect)
-    }
-
-    private fun getFirstFromQuery(query: OQuery): Entity? {
-        if (otx == null) {
-            return null
-        }
-        val iterator = OQueryEntityIterator.executeAndCreate(query, otx)
-        return if (iterator.hasNext()) {
-            iterator.next()
-        } else {
-            null
-        }
+        unsupported { "Should be supported on demand" }
     }
 
     @Volatile
