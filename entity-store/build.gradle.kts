@@ -11,6 +11,7 @@ dependencies {
     testImplementation(project(":xodus-utils", "testArtifacts"))
     testImplementation(libs.mockk)
     testImplementation(libs.truth)
+    testImplementation(kotlin("test"))
 }
 
 val testArtifacts: Configuration by configurations.creating
