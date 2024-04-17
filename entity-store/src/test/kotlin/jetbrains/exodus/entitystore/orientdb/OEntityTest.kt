@@ -203,7 +203,7 @@ class OEntityTest {
         }
 
         orientDb.withSession {
-            Assert.assertEquals(listOf("hello", "name", "june", "year").sorted(), issue.propertyNames.sorted())
+            Assert.assertEquals(listOf(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, "hello", "name", "june", "year").sorted(), issue.propertyNames.sorted())
         }
     }
 
