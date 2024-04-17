@@ -5,11 +5,11 @@ import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.sql.executor.OResultSet
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
+import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import org.junit.rules.ExternalResource
 
@@ -33,14 +33,14 @@ class InMemoryOrientDB(
 
         if (createClasses) {
             withSession { session ->
-                session.createVertexClass(CLASS)
+                session.getOrCreateVertexClass(CLASS)
                 session.createClass(STRING_BLOB_CLASS_NAME)
                 session.createClass(BINARY_BLOB_CLASS_NAME)
             }
         }
 
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
-        store = OPersistentEntityStore(provider, dbName)
+        store = OPersistentEntityStore(provider, dbName, mapOf())
     }
 
     override fun after() {
