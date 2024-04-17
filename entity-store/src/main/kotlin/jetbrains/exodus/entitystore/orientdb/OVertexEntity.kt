@@ -331,3 +331,50 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
 
     private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this, store) }
 }
+
+fun ODatabaseSession.createClassIdSequenceIfAbsent(startFrom: Long = 0L) {
+    createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, startFrom)
+}
+
+fun ODatabaseSession.createLocalEntityIdSequenceIfAbsent(oClass: OClass, startFrom: Long = 0L) {
+    createSequenceIfAbsent(localEntityIdSequenceName(oClass.name), startFrom)
+}
+
+fun ODatabaseSession.createSequenceIfAbsent(sequenceName: String, startFrom: Long = 0L) {
+    val sequences = metadata.sequenceLibrary
+    if (sequences.getSequence(sequenceName) == null) {
+        val params = OSequence.CreateParams()
+        params.start = startFrom
+        sequences.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, params)
+    }
+}
+
+fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
+    if (oClass.getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME) == null) {
+        val sequences = metadata.sequenceLibrary
+        val sequence: OSequence = sequences.getSequence(CLASS_ID_SEQUENCE_NAME) ?: throw IllegalStateException("$CLASS_ID_SEQUENCE_NAME not found")
+
+        oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, sequence.next().toString())
+    }
+}
+
+fun ODatabaseSession.setLocalEntityIdIfAbsent(vertex: OVertex) {
+    if (vertex.getProperty<Long>(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
+        val sequences = metadata.sequenceLibrary
+        val oClass = vertex.schemaClass ?: throw java.lang.IllegalStateException("schemaClass not found for the vertex $vertex")
+        val sequenceName = localEntityIdSequenceName(oClass.name)
+        val sequence: OSequence = sequences.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName not found")
+        vertex.setProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
+    }
+}
+
+fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {
+    val existingClass = this.getClass(className)
+    if (existingClass != null) return existingClass
+
+    createClassIdSequenceIfAbsent()
+    val oClass = createVertexClass(className)
+    setClassIdIfAbsent(oClass)
+    createLocalEntityIdSequenceIfAbsent(oClass)
+    return oClass
+}

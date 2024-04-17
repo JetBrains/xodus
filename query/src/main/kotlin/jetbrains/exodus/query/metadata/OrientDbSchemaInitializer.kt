@@ -20,14 +20,13 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
+import jetbrains.exodus.entitystore.orientdb.createClassIdSequenceIfAbsent
+import jetbrains.exodus.entitystore.orientdb.createLocalEntityIdSequenceIfAbsent
+import jetbrains.exodus.entitystore.orientdb.setClassIdIfAbsent
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -74,7 +73,7 @@ internal class OrientDbSchemaInitializer(
 
     fun apply() {
         try {
-            createClassIdSequenceIfAbsent()
+            oSession.createClassIdSequenceIfAbsent()
 
             appendLine("applying the DNQ schema to OrientDB")
             val sortedEntities = dnqModel.entitiesMetaData.sortedTopologically()
@@ -137,21 +136,6 @@ internal class OrientDbSchemaInitializer(
         }
     }
 
-    // ClassId
-
-    private fun createClassIdSequenceIfAbsent() {
-        createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME)
-    }
-
-    private fun OClass.setClassIdIfAbsent() {
-        if (getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME) == null) {
-            val sequences = oSession.metadata.sequenceLibrary
-            val sequence: OSequence = sequences.getSequence(CLASS_ID_SEQUENCE_NAME) ?: throw IllegalStateException("$CLASS_ID_SEQUENCE_NAME not found")
-
-            setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, sequence.next().toString())
-        }
-    }
-
     // Vertices and Edges
 
     private fun createVertexClassIfAbsent(dnqEntity: EntityMetaData) {
@@ -160,8 +144,8 @@ internal class OrientDbSchemaInitializer(
         oClass.applySuperClass(dnqEntity.superType)
         appendLine()
 
-        oClass.setClassIdIfAbsent()
-        createSequenceIfAbsent(localEntityIdSequenceName(dnqEntity.type))
+        oSession.setClassIdIfAbsent(oClass)
+        oSession.createLocalEntityIdSequenceIfAbsent(oClass)
         /*
         * We do not apply a unique index to the localEntityId property because indices in OrientDB are polymorphic.
         * So, you can not have the same value in a property in an instance of a superclass and in an instance of its subclass.
@@ -547,15 +531,6 @@ internal class OrientDbSchemaInitializer(
         require(oProperty.type == OType.EMBEDDEDSET) { "$propertyName type is ${oProperty.type} but ${OType.EMBEDDEDSET} was expected instead. Types migration is not supported."  }
         require(oProperty.linkedType == oType) { "$propertyName type of the set is ${oProperty.linkedType} but $oType was expected instead. Types migration is not supported." }
         return oProperty
-    }
-
-    private fun createSequenceIfAbsent(sequenceName: String) {
-        val sequences = oSession.metadata.sequenceLibrary
-        if (sequences.getSequence(sequenceName) == null) {
-            val params = OSequence.CreateParams()
-            params.start = 0L
-            sequences.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, params)
-        }
     }
 
     private fun getOType(jvmTypeName: String): OType {
