@@ -5,14 +5,12 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
-import jetbrains.exodus.entitystore.orientdb.withSession
 
 fun migrateDataFromXodusToOrientDb(
     xodus: PersistentEntityStore,
@@ -93,6 +91,11 @@ internal class XodusToOrientDataMigrator(
                     var largestEntityId = 0L
                     for (xEntity in xTx.getAll(type)) {
                         val vertex = oSession.newVertex(type)
+                        // copy localEntityId
+                        val localEntityId = xEntity.id.localId
+                        vertex.setProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
+                        largestEntityId = maxOf(largestEntityId, localEntityId)
+
                         val oEntity = OVertexEntity(vertex, orient)
                         for (propName in xEntity.propertyNames) {
                             oEntity.setProperty(propName, xEntity.getProperty(propName) as Comparable<*>)
@@ -106,11 +109,6 @@ internal class XodusToOrientDataMigrator(
                         countingTx.increment()
 
                         edgeClassesToCreate.addAll(xEntity.linkNames)
-
-                        // copy localEntityId
-                        val localEntityId = xEntity.id.localId
-                        oEntity.setProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
-                        largestEntityId = maxOf(largestEntityId, localEntityId)
                     }
 
                     // create a sequence to generate localEntityIds for the class
