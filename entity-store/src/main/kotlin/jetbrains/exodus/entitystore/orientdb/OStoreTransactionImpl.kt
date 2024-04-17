@@ -87,8 +87,8 @@ class OStoreTransactionImpl(
     }
 
     override fun getEntity(id: EntityId): Entity {
-        require(id is OEntityId) { "Only OEntity is supported, but was ${id.javaClass.simpleName}" }
-        val vertex: OVertex = session.load(id.asOId())
+        val oId = store.requireOEntityId(id)
+        val vertex: OVertex = session.load(oId.asOId())
         return OVertexEntity(vertex, store)
     }
 

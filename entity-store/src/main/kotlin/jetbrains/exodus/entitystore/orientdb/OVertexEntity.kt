@@ -18,12 +18,18 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORecordId
+import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
 import mu.KLogging
 import java.io.ByteArrayInputStream
@@ -227,8 +233,8 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
     }
 
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
-        require(targetId is OEntityId) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
-        val target = activeSession.getRecord<OVertex>(targetId.asOId())
+        val targetOId = store.requireOEntityId(targetId)
+        val target = activeSession.getRecord<OVertex>(targetOId.asOId())
         return addLink(linkName, OVertexEntity(target, store))
     }
 
@@ -258,8 +264,8 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
     }
 
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
-        require(targetId is OEntityId) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
-        val target = activeSession.getRecord<OVertex>(targetId.asOId())
+        val targetOId = store.requireOEntityId(targetId)
+        val target = activeSession.getRecord<OVertex>(targetOId.asOId())
         return setLink(linkName, OVertexEntity(target, store))
     }
 
