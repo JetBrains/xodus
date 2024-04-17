@@ -1,7 +1,9 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.id.OEmptyRecordId
 import com.orientechnologies.orient.core.record.OVertex
+import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
@@ -11,7 +13,8 @@ import java.io.File
 
 class OPersistentEntityStore(
     val databaseProvider: ODatabaseProvider,
-    private val name: String
+    private val name: String,
+    private val classIdToOClassId: Map<Int, Int>
 ) : PersistentEntityStore {
 
     private val config = PersistentEntityStoreConfig()
@@ -111,9 +114,9 @@ class OPersistentEntityStore(
     }
 
     override fun getEntity(id: EntityId): Entity {
-        require(id is OEntityId) { "Only OEntityId is supported, but was ${id.javaClass.simpleName}" }
+        val oId = requireOEntityId(id)
         val txn = currentOTransaction.oTransaction
-        val vertex = txn.database.load<OVertex>(id.asOId())
+        val vertex = txn.database.load<OVertex>(oId.asOId())
         return OVertexEntity(vertex, this)
     }
 
@@ -153,4 +156,37 @@ class OPersistentEntityStore(
 
 
     private val currentOTransaction get() = currentTransaction as OStoreTransaction
+
+    fun getORIDEntityId(entityId: PersistentEntityId): ORIDEntityId {
+        // Keep in mind that it is possible that we are given an entityId that is not in the database.
+        // It is a valid case.
+
+        val oSession = ODatabaseSession.getActiveSession() ?: throw IllegalStateException("no active database session found")
+        val classId = entityId.typeId
+        val localEntityId = entityId.localId
+        val oClassId = classIdToOClassId[classId] ?: -1
+        val className = oSession.getClusterNameById(oClassId)
+        val oClass = oSession.getClass(className)
+
+        val resultSet: OResultSet = oSession.query("SELECT FROM $className WHERE ${OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME} = ?", localEntityId)
+        val oid = if (resultSet.hasNext()) {
+            val result = resultSet.next()
+            result.toVertex()?.identity ?: OEmptyRecordId()
+        } else {
+            OEmptyRecordId()
+        }
+
+        return ORIDEntityId(classId, localEntityId, oid, oClass)
+    }
+}
+
+internal fun PersistentEntityStore.requireOEntityId(id: EntityId): OEntityId {
+    return when (id) {
+        is OEntityId -> id
+        is PersistentEntityId -> {
+            val oEntityStore = this as? OPersistentEntityStore ?: throw IllegalArgumentException("OPersistentEntityStore is required to get OEntityId, the provided type is ${this.javaClass.simpleName}")
+            oEntityStore.getORIDEntityId(id)
+        }
+        else -> throw IllegalArgumentException("Only OEntityId and PersistentEntityId are supported, but was ${id.javaClass.simpleName}")
+    }
 }
