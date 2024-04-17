@@ -35,10 +35,9 @@ private val log = KotlinLogging.logger {}
 fun ODatabaseSession.applySchema(
     model: ModelMetaDataImpl,
     indexForEverySimpleProperty: Boolean = false,
-    applyLinkCardinality: Boolean = true,
-    backwardCompatibleEntityId: Boolean = false,
+    applyLinkCardinality: Boolean = true
 ): Map<String, Set<DeferredIndex>> {
-    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality, backwardCompatibleEntityId)
+    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality)
     initializer.apply()
     return initializer.getIndices()
 }
@@ -47,8 +46,7 @@ internal class OrientDbSchemaInitializer(
     private val dnqModel: ModelMetaDataImpl,
     private val oSession: ODatabaseSession,
     private val indexForEverySimpleProperty: Boolean,
-    private val applyLinkCardinality: Boolean,
-    private val backwardCompatibleEntityId: Boolean
+    private val applyLinkCardinality: Boolean
 ) {
     private val paddedLogger = PaddedLogger(log)
 
@@ -76,9 +74,7 @@ internal class OrientDbSchemaInitializer(
 
     fun apply() {
         try {
-            if (backwardCompatibleEntityId) {
-                createClassIdSequenceIfAbsent()
-            }
+            createClassIdSequenceIfAbsent()
 
             appendLine("applying the DNQ schema to OrientDB")
             val sortedEntities = dnqModel.entitiesMetaData.sortedTopologically()
@@ -164,15 +160,13 @@ internal class OrientDbSchemaInitializer(
         oClass.applySuperClass(dnqEntity.superType)
         appendLine()
 
-        if (backwardCompatibleEntityId) {
-            oClass.setClassIdIfAbsent()
-            createSequenceIfAbsent(localEntityIdSequenceName(dnqEntity.type))
-            /*
-            * We do not apply a unique index to the localEntityId property because indices in OrientDB are polymorphic.
-            * So, you can not have the same value in a property in an instance of a superclass and in an instance of its subclass.
-            * But it exactly what happens in the original Xodus.
-            * */
-        }
+        oClass.setClassIdIfAbsent()
+        createSequenceIfAbsent(localEntityIdSequenceName(dnqEntity.type))
+        /*
+        * We do not apply a unique index to the localEntityId property because indices in OrientDB are polymorphic.
+        * So, you can not have the same value in a property in an instance of a superclass and in an instance of its subclass.
+        * But it exactly what happens in the original Xodus.
+        * */
 
         /*
         * It is more efficient to create indices after the data migration.
@@ -332,16 +326,16 @@ internal class OrientDbSchemaInitializer(
                 if (propertyMetaData is PropertyMetaDataImpl) {
                     val required = propertyMetaData.name in dnqEntity.requiredProperties
                     // Xodus does not let a property be null/empty if it is in an index
-                    val requiredBecauseOfIndex = dnqEntity.ownIndexes.any { index -> index.fields.any { it.name == propertyMetaData.name } }
+                    val requiredBecauseOfIndex =
+                        dnqEntity.ownIndexes.any { index -> index.fields.any { it.name == propertyMetaData.name } }
                     oClass.applySimpleProperty(propertyMetaData, required || requiredBecauseOfIndex)
                 }
             }
-            if (backwardCompatibleEntityId) {
-                val prop = SimplePropertyMetaDataImpl(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, "long")
-                oClass.applySimpleProperty(prop, true)
-                // we need this index regardless what we have in indexForEverySimpleProperty
-                addIndex(simplePropertyIndex(dnqEntity.type, BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME))
-            }
+
+            val prop = SimplePropertyMetaDataImpl(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, "long")
+            oClass.applySimpleProperty(prop, true)
+            // we need this index regardless what we have in indexForEverySimpleProperty
+            addIndex(simplePropertyIndex(dnqEntity.type, BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME))
         }
     }
 

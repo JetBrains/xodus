@@ -32,7 +32,6 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 class OrientDbSchemaInitializerTest {
     @Rule
@@ -330,30 +329,14 @@ class OrientDbSchemaInitializerTest {
         }
 
         val indices = oSession.applySchema(model)
-        assertTrue(indices.isEmpty())
+        assertTrue(indices.none { (indexName, _) -> indexName.contains("prop")})
     }
 
 
     // Backward compatible EntityId
 
     @Test
-    fun `backward compatible EntityId disabled, classId is null`(): Unit = orientDb.withSession { oSession ->
-        val types = listOf("type1", "type2", "type3")
-        val model = model {
-            for (type in types) {
-                entity(type)
-            }
-        }
-
-        oSession.applySchema(model)
-
-        for (type in types) {
-            assertNull(oSession.getClass(type).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME))
-        }
-    }
-
-    @Test
-    fun `backward compatible EntityId enabled, classId is a monotonically increasing long`(): Unit = orientDb.withSession { oSession ->
+    fun `classId is a monotonically increasing long`(): Unit = orientDb.withSession { oSession ->
         val types = mutableListOf("type1", "type2", "type3")
         val model = model {
             for (type in types) {
@@ -361,7 +344,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        oSession.applySchema(model, backwardCompatibleEntityId = true)
+        oSession.applySchema(model)
 
         val classIds = mutableSetOf<Long>()
         val classIdToClassName = mutableMapOf<Long, String>()
@@ -382,7 +365,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        oSession.applySchema(anotherModel, backwardCompatibleEntityId = true)
+        oSession.applySchema(anotherModel)
 
         classIds.clear()
         for (type in types) {
@@ -397,7 +380,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `backward compatible EntityId enabled, every class gets localEntityId property`(): Unit = orientDb.withSession { oSession ->
+    fun `every class gets localEntityId property`(): Unit = orientDb.withSession { oSession ->
         val types = mutableListOf("type1", "type2", "type3")
         val model = model {
             for (type in types) {
@@ -405,7 +388,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        val indices = oSession.applySchema(model, backwardCompatibleEntityId = true)
+        val indices = oSession.applySchema(model)
 
         val sequences = oSession.metadata.sequenceLibrary
         for (type in types) {
@@ -422,31 +405,12 @@ class OrientDbSchemaInitializerTest {
         }
 
         // emulate the next run of the application
-        oSession.applySchema(model, backwardCompatibleEntityId = true)
+        oSession.applySchema(model)
 
         for (type in types) {
             val sequence = sequences.getSequence(localEntityIdSequenceName(type))
             // sequences are the same
             assertEquals(2, sequence.next())
-        }
-    }
-
-    @Test
-    fun `backward compatible EntityId disable, localEntityId is ignored`(): Unit = orientDb.withSession { oSession ->
-        val types = mutableListOf("type1", "type2", "type3")
-        val model = model {
-            for (type in types) {
-                entity(type)
-            }
-        }
-
-        val indices = oSession.applySchema(model)
-
-        val sequences = oSession.metadata.sequenceLibrary
-        for (type in types) {
-            assertNull(oSession.getClass(type).getProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME))
-            assertTrue(indices.isEmpty())
-            assertNull(sequences.getSequence(localEntityIdSequenceName(type)))
         }
     }
 
