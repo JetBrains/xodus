@@ -10,7 +10,7 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterable
+
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.merge.OMergeSortedEntityIterable
@@ -88,7 +88,10 @@ class OStoreTransactionImpl(
 
     override fun getEntity(id: EntityId): Entity {
         val oId = store.requireOEntityId(id)
-        val vertex: OVertex = session.load(oId.asOId())
+        if (oId == ORIDEntityId.EMPTY_ID) {
+            throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
+        }
+        val vertex: OVertex = session.load(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         return OVertexEntity(vertex, store)
     }
 

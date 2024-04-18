@@ -1,5 +1,6 @@
 package jetbrains.exodus.entitystore.orientdb
 
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
@@ -7,6 +8,7 @@ import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class OStoreTransactionTest {
     @Rule
@@ -36,6 +38,32 @@ class OStoreTransactionTest {
 
             Assert.assertEquals(aId, a.id)
             Assert.assertEquals(bId, b.id)
+        }
+    }
+
+    @Test
+    fun `getEntity() throws an exception if the entity not found`() {
+        val aId = orientDb.createIssue("A").id
+
+        // delete the issue
+        orientDb.store.databaseProvider.withSession { oSession ->
+            oSession.delete(aId.asOId())
+        }
+
+        // entity not found
+        orientDb.store.executeInTransaction { tx ->
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                tx.getEntity(aId)
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                tx.getEntity(PersistentEntityId(300, 300))
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                tx.getEntity(PersistentEntityId.EMPTY_ID)
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                tx.getEntity(ORIDEntityId.EMPTY_ID)
+            }
         }
     }
 
