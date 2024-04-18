@@ -6,6 +6,7 @@ import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertEquals
 
 class OStoreTransactionTest {
     @Rule
@@ -27,14 +28,34 @@ class OStoreTransactionTest {
         }
 
         // use legacy ids
+        val legacyIdA = PersistentEntityId(aId.typeId, aId.localId)
+        val legacyIdB = PersistentEntityId(bId.typeId, bId.localId)
         orientDb.store.executeInTransaction { tx ->
-            val legacyIdA = PersistentEntityId(aId.typeId, aId.localId)
-            val legacyIdB = PersistentEntityId(bId.typeId, bId.localId)
             val a = tx.getEntity(legacyIdA)
             val b = tx.getEntity(legacyIdB)
 
             Assert.assertEquals(aId, a.id)
             Assert.assertEquals(bId, b.id)
+        }
+    }
+
+    @Test
+    fun `tx works with both ORIDEntityId and PersistentEntityId representations`() {
+        val aId = orientDb.createIssue("A").id
+        val bId = orientDb.createIssue("B").id
+        val aIdRepresentation = aId.toString()
+        val bIdRepresentation = bId.toString()
+        val aLegacyId = PersistentEntityId(aId.typeId, aId.localId)
+        val bLegacyId = PersistentEntityId(bId.typeId, bId.localId)
+        val aLegacyIdRepresentation = aLegacyId.toString()
+        val bLegacyIdRepresentation = bLegacyId.toString()
+
+        orientDb.store.executeInTransaction { tx ->
+            assertEquals(aId, tx.toEntityId(aIdRepresentation))
+            assertEquals(bId, tx.toEntityId(bIdRepresentation))
+
+            assertEquals(aId, tx.toEntityId(aLegacyIdRepresentation))
+            assertEquals(bId, tx.toEntityId(bLegacyIdRepresentation))
         }
     }
 }

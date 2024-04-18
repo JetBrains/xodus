@@ -236,7 +236,8 @@ class OStoreTransactionImpl(
     }
 
     override fun toEntityId(representation: String): EntityId {
-        TODO("Not yet implemented")
+        val legacyId = PersistentEntityId.toEntityId(representation)
+        return store.requireOEntityId(legacyId)
     }
 
     override fun getSequence(sequenceName: String): Sequence {
