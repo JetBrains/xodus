@@ -1,6 +1,9 @@
 package jetbrains.exodus.entitystore.orientdb
 
+import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
@@ -30,5 +33,15 @@ class ORIDEntityIdTest {
             ORIDEntityId.fromVertex(vertex)
 
         }
+    }
+
+    @Test
+    fun `id representation is the same as for PersistentEntityId`() {
+        val id = orientDb.createIssue("trista").id
+        val legacyId = PersistentEntityId(id.typeId, id.localId)
+        val idRepresentation = id.toString()
+        val legacyIdRepresentation = legacyId.toString()
+
+        assertEquals(legacyIdRepresentation, idRepresentation)
     }
 }
