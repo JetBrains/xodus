@@ -6,7 +6,7 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.*
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
@@ -63,8 +63,8 @@ internal class XodusToOrientDataMigrator(
                 maxClassId = maxOf(maxClassId, classId)
 
                 // create localEntityId property if absent
-                if (oClass.getProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
-                    oClass.createProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, OType.LONG)
+                if (oClass.getProperty(LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
+                    oClass.createProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, OType.LONG)
                 }
             }
         }
@@ -93,7 +93,7 @@ internal class XodusToOrientDataMigrator(
                         val vertex = oSession.newVertex(type)
                         // copy localEntityId
                         val localEntityId = xEntity.id.localId
-                        vertex.setProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
+                        vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
                         largestEntityId = maxOf(largestEntityId, localEntityId)
 
                         val oEntity = OVertexEntity(vertex, orient)

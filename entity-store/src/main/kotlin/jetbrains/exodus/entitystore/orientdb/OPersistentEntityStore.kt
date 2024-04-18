@@ -169,7 +169,7 @@ class OPersistentEntityStore(
         val className = oSession.getClusterNameById(oClassId)
         val oClass = oSession.getClass(className)
 
-        val resultSet: OResultSet = oSession.query("SELECT FROM $className WHERE ${OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME} = ?", localEntityId)
+        val resultSet: OResultSet = oSession.query("SELECT FROM $className WHERE ${OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME} = ?", localEntityId)
         val oid = if (resultSet.hasNext()) {
             val result = resultSet.next()
             result.toVertex()?.identity ?: OEmptyRecordId()

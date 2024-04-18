@@ -22,7 +22,7 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
@@ -392,9 +392,9 @@ class OrientDbSchemaInitializerTest {
 
         val sequences = oSession.metadata.sequenceLibrary
         for (type in types) {
-            assertNotNull(oSession.getClass(type).getProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME))
+            assertNotNull(oSession.getClass(type).getProperty(LOCAL_ENTITY_ID_PROPERTY_NAME))
             // index for the localEntityId must be created regardless the indexForEverySimpleProperty param
-            indices.checkIndex(type, false, BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME)
+            indices.checkIndex(type, false, LOCAL_ENTITY_ID_PROPERTY_NAME)
             // the index for localEntityId must not be unique, otherwise it will not let the same localEntityId
             // for subtypes of a supertype
             assertTrue(indices.getValue(type).none { it.unique })

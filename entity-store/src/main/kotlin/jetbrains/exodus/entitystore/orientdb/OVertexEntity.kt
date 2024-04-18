@@ -26,7 +26,7 @@ import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
@@ -53,7 +53,7 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
         const val CLASS_ID_CUSTOM_PROPERTY_NAME = "classId"
         const val CLASS_ID_SEQUENCE_NAME = "sequence_classId"
 
-        const val BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME = "backwardCompatibleLocalEntityId"
+        const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
     }
 
@@ -365,12 +365,12 @@ fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
 }
 
 fun ODatabaseSession.setLocalEntityIdIfAbsent(vertex: OVertex) {
-    if (vertex.getProperty<Long>(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
+    if (vertex.getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
         val sequences = metadata.sequenceLibrary
         val oClass = vertex.requireSchemaClass()
         val sequenceName = localEntityIdSequenceName(oClass.name)
         val sequence: OSequence = sequences.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName not found")
-        vertex.setProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
+        vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
     }
 }
 
@@ -394,5 +394,5 @@ fun OVertex.requireSchemaClass(): OClass {
 }
 
 fun OVertex.requireLocalEntityId(): Long {
-    return getProperty<Long>(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) ?: throw IllegalStateException("localEntityId not found for the vertex")
+    return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) ?: throw IllegalStateException("localEntityId not found for the vertex")
 }

@@ -25,7 +25,7 @@ class ORIDEntityIdTest {
                 ORIDEntityId.fromVertex(vertex)
             }
 
-            vertex.setProperty(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, 200L)
+            vertex.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 200L)
 
             ORIDEntityId.fromVertex(vertex)
 
