@@ -14,6 +14,9 @@ class ORIDEntityId(
 
     companion object {
 
+        @JvmStatic
+        val EMPTY_ID: OEntityId = EmptyOEntityId()
+
         fun fromVertex(vertex: OVertex): ORIDEntityId {
             val oClass = vertex.requireSchemaClass()
             val classId = oClass.requireClassId()
