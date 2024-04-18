@@ -115,8 +115,11 @@ class OPersistentEntityStore(
 
     override fun getEntity(id: EntityId): Entity {
         val oId = requireOEntityId(id)
+        if (oId == ORIDEntityId.EMPTY_ID) {
+            throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
+        }
         val txn = currentOTransaction.oTransaction
-        val vertex = txn.database.load<OVertex>(oId.asOId())
+        val vertex = txn.database.load<OVertex>(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         return OVertexEntity(vertex, this)
     }
 
@@ -157,7 +160,7 @@ class OPersistentEntityStore(
 
     private val currentOTransaction get() = currentTransaction as OStoreTransaction
 
-    fun getOEntityId(entityId: PersistentEntityId): OEntityId {
+    fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
         // Keep in mind that it is possible that we are given an entityId that is not in the database.
         // It is a valid case.
 
@@ -180,9 +183,9 @@ class OPersistentEntityStore(
     }
 }
 
-internal fun PersistentEntityStore.requireOEntityId(id: EntityId): OEntityId {
+internal fun PersistentEntityStore.requireOEntityId(id: EntityId): ORIDEntityId {
     return when (id) {
-        is OEntityId -> id
+        is ORIDEntityId -> id
         PersistentEntityId.EMPTY_ID -> ORIDEntityId.EMPTY_ID
         is PersistentEntityId -> {
             val oEntityStore = this as? OPersistentEntityStore ?: throw IllegalArgumentException("OPersistentEntityStore is required to get OEntityId, the provided type is ${this.javaClass.simpleName}")

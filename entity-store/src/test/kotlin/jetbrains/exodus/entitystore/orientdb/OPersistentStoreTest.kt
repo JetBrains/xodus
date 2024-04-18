@@ -2,6 +2,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
@@ -10,6 +11,7 @@ import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertFailsWith
 
 class OPersistentStoreTest {
     @Rule
@@ -85,7 +87,7 @@ class OPersistentStoreTest {
     }
 
     @Test
-    fun `store lets search for an entity using PersistentEntityId`() {
+    fun `getEntity() works with both ORIDEntityId and PersistentEntityId`() {
         val aId = orientDb.createIssue("A").id
         val bId = orientDb.createIssue("B").id
         val store = orientDb.store
@@ -99,7 +101,6 @@ class OPersistentStoreTest {
             assertEquals(bId, b.id)
         }
 
-
         // use legacy ids
         orientDb.store.executeInTransaction {
             val legacyIdA = PersistentEntityId(aId.typeId, aId.localId)
@@ -109,6 +110,33 @@ class OPersistentStoreTest {
 
             assertEquals(aId, a.id)
             assertEquals(bId, b.id)
+        }
+
+    }
+
+    @Test
+    fun `getEntity() throw exception the entity is not found`() {
+        val aId = orientDb.createIssue("A").id
+
+        // delete the issue
+        orientDb.store.databaseProvider.withSession { oSession ->
+            oSession.delete(aId.asOId())
+        }
+
+        // entity not found
+        orientDb.store.executeInTransaction { tx ->
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                orientDb.store.getEntity(aId)
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                orientDb.store.getEntity(PersistentEntityId(300, 300))
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                orientDb.store.getEntity(PersistentEntityId.EMPTY_ID)
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                orientDb.store.getEntity(ORIDEntityId.EMPTY_ID)
+            }
         }
     }
 
