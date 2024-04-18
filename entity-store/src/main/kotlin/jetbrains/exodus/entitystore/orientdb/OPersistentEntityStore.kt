@@ -2,6 +2,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.id.OEmptyRecordId
+import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.backup.BackupStrategy
@@ -188,5 +189,13 @@ internal fun PersistentEntityStore.requireOEntityId(id: EntityId): OEntityId {
             oEntityStore.getORIDEntityId(id)
         }
         else -> throw IllegalArgumentException("Only OEntityId and PersistentEntityId are supported, but was ${id.javaClass.simpleName}")
+    }
+}
+
+fun ODatabaseSession.getClassIdToOClassIdMap(): Map<Int, Int> = buildMap {
+    for (oClass in metadata.schema.classes) {
+        if (oClass.isVertexType && oClass.name != OClass.VERTEX_CLASS_NAME) {
+            put(oClass.requireClassId(), oClass.defaultClusterId)
+        }
     }
 }

@@ -9,6 +9,7 @@ import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
+import jetbrains.exodus.entitystore.orientdb.getClassIdToOClassIdMap
 import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import org.junit.rules.ExternalResource
@@ -40,7 +41,10 @@ class InMemoryOrientDB(
         }
 
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
-        store = OPersistentEntityStore(provider, dbName, mapOf())
+        val classIdToOClassId = withSession { oSession ->
+            oSession.getClassIdToOClassIdMap()
+        }
+        store = OPersistentEntityStore(provider, dbName, classIdToOClassId)
     }
 
     override fun after() {
