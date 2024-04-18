@@ -36,8 +36,8 @@ class PackedLongHashSet(source: Collection<Long>? = null, loadFactor: Float = Ha
         }
 
     override fun contains(element: Long): Boolean {
-        val v = map[element.key]
-        return v != null && v and masks[element.bit] != 0L
+        val v = map.getEntry(element.key)
+        return v != null && v.value and masks[element.bit] != 0L
     }
 
     override fun add(element: Long): Boolean {
