@@ -23,8 +23,8 @@ import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
+import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -346,14 +346,14 @@ class OrientDbSchemaInitializerTest {
 
         oSession.applySchema(model)
 
-        val classIds = mutableSetOf<Long>()
-        val classIdToClassName = mutableMapOf<Long, String>()
+        val classIds = mutableSetOf<Int>()
+        val classIdToClassName = mutableMapOf<Int, String>()
         for (type in types) {
-            val classId = oSession.getClass(type).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME).toLong()
+            val classId = oSession.getClass(type).requireClassId()
             classIdToClassName[classId] = type
             classIds.add(classId)
         }
-        assertEquals(setOf<Long>(1, 2, 3), classIds)
+        assertEquals(setOf(1, 2, 3), classIds)
 
 
         // emulate the next run of the application with new classes in the codebase
@@ -369,14 +369,14 @@ class OrientDbSchemaInitializerTest {
 
         classIds.clear()
         for (type in types) {
-            val classId = oSession.getClass(type).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME).toLong()
+            val classId = oSession.getClass(type).requireClassId()
             // classId is not changed if it has been already assigned
             if (classId in classIdToClassName) {
                 assertEquals(classIdToClassName.getValue(classId), type)
             }
             classIds.add(classId)
         }
-        assertEquals(setOf<Long>(1, 2, 3, 4, 5), classIds)
+        assertEquals(setOf(1, 2, 3, 4, 5), classIds)
     }
 
     @Test

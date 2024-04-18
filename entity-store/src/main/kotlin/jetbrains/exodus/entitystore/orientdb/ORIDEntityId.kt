@@ -15,9 +15,9 @@ class ORIDEntityId(
     companion object {
 
         fun fromVertex(vertex: OVertex): ORIDEntityId {
-            val oClass = vertex.schemaClass ?: throw IllegalStateException("schemaClass not found for $vertex")
-            val classId = oClass.getCustom(OVertexEntity.CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt() ?: throw IllegalStateException("classId not found for ${oClass.name}")
-            val localEntityId = vertex.getProperty<Long>(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) ?: throw IllegalStateException("localEntityId not found for the vertex")
+            val oClass = vertex.requireSchemaClass()
+            val classId = oClass.requireClassId()
+            val localEntityId = vertex.requireLocalEntityId()
             return ORIDEntityId(classId, localEntityId, vertex.identity, oClass)
         }
     }

@@ -6,10 +6,10 @@ import com.orientechnologies.orient.core.record.impl.OVertexDocument
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
+import jetbrains.exodus.entitystore.orientdb.requireClassId
+import jetbrains.exodus.entitystore.orientdb.requireLocalEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import org.junit.Assert
 import org.junit.Rule
@@ -130,7 +130,7 @@ class MigrateDataTest {
             orientDb.withSession { oSession ->
                 for (type in xTx.entityTypes) {
                     val typeId = xodus.store.getEntityTypeId(type)
-                    Assert.assertEquals(typeId, oSession.getClass(type).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME).toInt())
+                    Assert.assertEquals(typeId, oSession.getClass(type).requireClassId())
                     maxClassId = maxOf(maxClassId, typeId)
                 }
                 assertTrue(maxClassId > 0)
@@ -171,9 +171,9 @@ class MigrateDataTest {
                         maxLocalEntityId = maxOf(maxLocalEntityId, localEntityId)
                     }
 
-                    for (oEntity in oSession.browseClass(type)) {
+                    for (oEntity in oSession.browseClass(type).map { it as OVertexDocument }) {
                         val testId = oEntity.getTestId()
-                        val localEntityId = oEntity.getProperty<Long>(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME)
+                        val localEntityId = oEntity.requireLocalEntityId()
                         oTestIdToLocalEntityId[testId] = localEntityId
                     }
 

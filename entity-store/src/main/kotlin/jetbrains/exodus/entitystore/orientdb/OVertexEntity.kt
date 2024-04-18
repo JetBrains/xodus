@@ -367,7 +367,7 @@ fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
 fun ODatabaseSession.setLocalEntityIdIfAbsent(vertex: OVertex) {
     if (vertex.getProperty<Long>(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
         val sequences = metadata.sequenceLibrary
-        val oClass = vertex.schemaClass ?: throw java.lang.IllegalStateException("schemaClass not found for the vertex $vertex")
+        val oClass = vertex.requireSchemaClass()
         val sequenceName = localEntityIdSequenceName(oClass.name)
         val sequence: OSequence = sequences.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName not found")
         vertex.setProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
@@ -383,4 +383,16 @@ fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {
     setClassIdIfAbsent(oClass)
     createLocalEntityIdSequenceIfAbsent(oClass)
     return oClass
+}
+
+fun OClass.requireClassId(): Int {
+    return getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt() ?: throw IllegalStateException("classId not found for ${this.name}")
+}
+
+fun OVertex.requireSchemaClass(): OClass {
+    return schemaClass ?: throw IllegalStateException("schemaClass not found for $this")
+}
+
+fun OVertex.requireLocalEntityId(): Long {
+    return getProperty<Long>(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) ?: throw IllegalStateException("localEntityId not found for the vertex")
 }
