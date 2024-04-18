@@ -5,6 +5,7 @@ import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
+import junit.framework.TestCase.assertFalse
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -159,6 +160,34 @@ class OEntityTest {
         }
         orientDb.withSession {
             Assert.assertEquals(issueB, issueA.getLink(linkName))
+        }
+    }
+
+    @Test
+    fun `setLink() and addLink() return false if the target entity is not found`() {
+        val linkName = "link"
+        orientDb.withSession { session ->
+            session.createEdgeClass(linkName)
+        }
+        
+        val issueB = orientDb.createIssue("A")
+
+        orientDb.withTxSession { tx ->
+            tx.delete(issueB.id.asOId())
+        }
+
+        orientDb.withTxSession {
+            assertFalse(issueB.addLink(linkName, issueB.id))
+            assertFalse(issueB.addLink(linkName, ORIDEntityId.EMPTY_ID))
+            assertFalse(issueB.addLink(linkName, PersistentEntityId.EMPTY_ID))
+            assertFalse(issueB.addLink(linkName, PersistentEntityId(300, 300)))
+        }
+
+        orientDb.withTxSession {
+            assertFalse(issueB.setLink(linkName, issueB.id))
+            assertFalse(issueB.setLink(linkName, ORIDEntityId.EMPTY_ID))
+            assertFalse(issueB.setLink(linkName, PersistentEntityId.EMPTY_ID))
+            assertFalse(issueB.setLink(linkName, PersistentEntityId(300, 300)))
         }
     }
 

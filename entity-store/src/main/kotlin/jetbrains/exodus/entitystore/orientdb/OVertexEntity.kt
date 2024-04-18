@@ -234,7 +234,10 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
 
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
         val targetOId = store.requireOEntityId(targetId)
-        val target = activeSession.getRecord<OVertex>(targetOId.asOId())
+        if (targetOId == ORIDEntityId.EMPTY_ID) {
+            return false
+        }
+        val target = activeSession.getRecord<OVertex>(targetOId.asOId()) ?: return false
         return addLink(linkName, OVertexEntity(target, store))
     }
 
@@ -265,7 +268,10 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
 
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
         val targetOId = store.requireOEntityId(targetId)
-        val target = activeSession.getRecord<OVertex>(targetOId.asOId())
+        if (targetOId == ORIDEntityId.EMPTY_ID) {
+            return false
+        }
+        val target = activeSession.getRecord<OVertex>(targetOId.asOId()) ?: return false
         return setLink(linkName, OVertexEntity(target, store))
     }
 
