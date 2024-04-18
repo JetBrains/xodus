@@ -1,5 +1,6 @@
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.id.OEmptyRecordId
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
@@ -9,13 +10,13 @@ class ORIDEntityId(
     private val classId: Int,
     private val localEntityId: Long,
     private val oId: ORID,
-    private val schemaClass: OClass
+    private val schemaClass: OClass?
 ) : OEntityId {
 
     companion object {
 
         @JvmStatic
-        val EMPTY_ID: OEntityId = EmptyOEntityId()
+        val EMPTY_ID: ORIDEntityId = ORIDEntityId(-1, -1, OEmptyRecordId(), null)
 
         fun fromVertex(vertex: OVertex): ORIDEntityId {
             val oClass = vertex.requireSchemaClass()
@@ -34,7 +35,7 @@ class ORIDEntityId(
     }
 
     fun getTypeName(): String {
-        return schemaClass.name
+        return schemaClass?.name ?: "typeNotFound"
     }
 
     override fun getLocalId(): Long {
