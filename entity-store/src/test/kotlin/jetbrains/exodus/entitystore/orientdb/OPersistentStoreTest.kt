@@ -2,10 +2,12 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -28,7 +30,7 @@ class OPersistentStoreTest {
         }
         Assert.assertNotNull(issueByNewName)
         issueByNewName!!
-        Assert.assertEquals(summary, issueByNewName.getProperty("name"))
+        assertEquals(summary, issueByNewName.getProperty("name"))
     }
 
     @Test
@@ -50,10 +52,10 @@ class OPersistentStoreTest {
             it.getSequence("first")
         }
         store.executeInTransaction {
-            Assert.assertEquals(1, sequence.increment())
+            assertEquals(1, sequence.increment())
         }
         store.executeInTransaction {
-            Assert.assertEquals(1,it.getSequence("first").get())
+            assertEquals(1,it.getSequence("first").get())
         }
     }
 
@@ -64,7 +66,7 @@ class OPersistentStoreTest {
             it.getSequence("first", 99)
         }
         store.executeInTransaction {
-            Assert.assertEquals(100, sequence.increment())
+            assertEquals(100, sequence.increment())
         }
     }
 
@@ -78,9 +80,35 @@ class OPersistentStoreTest {
             sequence.set(400)
         }
         store.executeInTransaction {
-            Assert.assertEquals(401, sequence.increment())
+            assertEquals(401, sequence.increment())
         }
     }
 
+    @Test
+    fun `store lets search for an entity using PersistentEntityId`() {
+        val aId = orientDb.createIssue("A").id
+        val bId = orientDb.createIssue("B").id
+        val store = orientDb.store
 
+        // use default ids
+        orientDb.store.executeInTransaction {
+            val a = store.getEntity(aId)
+            val b = store.getEntity(bId)
+
+            assertEquals(aId, a.id)
+            assertEquals(bId, b.id)
+        }
+
+
+        // use legacy ids
+        orientDb.store.executeInTransaction {
+            val legacyIdA = PersistentEntityId(aId.typeId, aId.localId)
+            val legacyIdB = PersistentEntityId(bId.typeId, bId.localId)
+            val a = store.getEntity(legacyIdA)
+            val b = store.getEntity(legacyIdB)
+
+            assertEquals(aId, a.id)
+            assertEquals(bId, b.id)
+        }
+    }
 }
