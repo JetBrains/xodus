@@ -2,6 +2,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert
@@ -132,7 +133,33 @@ class OEntityTest {
         orientDb.withSession {
             Assert.assertEquals(issueC, issueA.getLink(linkName))
         }
+    }
 
+    @Test
+    fun `setLink() and addLink() should work correctly with PersistentEntityId`() {
+        val linkName = "link"
+        orientDb.withSession { session ->
+            session.createEdgeClass(linkName)
+        }
+
+        val issueA = orientDb.createIssue("A")
+        val issueB = orientDb.createIssue("B")
+        val issueC = orientDb.createIssue("C")
+
+        orientDb.withTxSession {
+            val legacyId = PersistentEntityId(issueB.id.typeId, issueB.id.localId)
+            issueA.setLink(linkName, legacyId)
+        }
+        orientDb.withSession {
+            Assert.assertEquals(issueB, issueA.getLink(linkName))
+        }
+        orientDb.withTxSession {
+            val legacyId = PersistentEntityId(issueC.id.typeId, issueC.id.localId)
+            issueB.addLink(linkName, legacyId)
+        }
+        orientDb.withSession {
+            Assert.assertEquals(issueB, issueA.getLink(linkName))
+        }
     }
 
     @Test
@@ -203,7 +230,7 @@ class OEntityTest {
         }
 
         orientDb.withSession {
-            Assert.assertEquals(listOf(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, "hello", "name", "june", "year").sorted(), issue.propertyNames.sorted())
+            Assert.assertEquals(listOf(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, "hello", "name", "june", "year").sorted(), issue.propertyNames.sorted())
         }
     }
 
