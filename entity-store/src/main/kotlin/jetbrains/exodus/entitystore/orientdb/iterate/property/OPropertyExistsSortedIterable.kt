@@ -19,7 +19,7 @@ import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition
-import jetbrains.exodus.entitystore.orientdb.query.OOrderByField
+import jetbrains.exodus.entitystore.orientdb.query.OOrderByFields
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OPropertyExistsSortedIterable(
@@ -30,7 +30,7 @@ class OPropertyExistsSortedIterable(
 
     override fun query(): OSelect {
         val condition = OFieldExistsCondition(propertyName)
-        val order = OOrderByField(propertyName)
+        val order = OOrderByFields(propertyName)
         return OClassSelect(entityType, condition, order)
     }
 }

@@ -147,7 +147,7 @@ class OStoreTransactionImpl(
     }
 
     override fun findLinks(entityType: String, entity: Entity, linkName: String): EntityIterable {
-        return OLinkToEntityIterable(this, linkName, entity.id as OEntityId)
+        return OLinkToEntityIterable(this, entityType, linkName, entity.id as OEntityId)
     }
 
     override fun findLinks(entityType: String, entities: EntityIterable, linkName: String): EntityIterable {
@@ -199,7 +199,8 @@ class OStoreTransactionImpl(
         oppositeEntityType: String,
         oppositeLinkName: String
     ): EntityIterable {
-        TODO("Not yet implemented")
+        // Not sure about skipping oppositeEntityType and oppositeLinkName values
+        return OLinkSortEntityIterable(this, sortedLinks.asOQueryIterable(), linkName, rightOrder.asOQueryIterable())
     }
 
     @Deprecated("Deprecated in Java")

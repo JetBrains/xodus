@@ -16,7 +16,7 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.query.Utils.safe_equals
 import jetbrains.exodus.query.metadata.ModelMetaData
 
@@ -29,28 +29,13 @@ class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val lin
         metaData: ModelMetaData,
         context: InstantiateContext
     ): Iterable<Entity> {
-        queryEngine.assertOperational()
-        return (queryEngine.instantiateGetAll(entityType) as EntityIterableBase)
-            .findLinks(instantiateDecorated(linkEntityType, queryEngine, metaData, context), linkName)
+        val txn = queryEngine.persistentStore.andCheckCurrentTransaction
+        return OEntityOfTypeIterable(txn, entityType).findLinks(
+            decorated.instantiate(linkEntityType, queryEngine, metaData, context), linkName
+        )
     }
 
     override fun getClone(): NodeBase = LinksEqualDecorator(linkName, decorated.clone, linkEntityType)
-
-    protected fun instantiateDecorated(
-        entityType: String,
-        queryEngine: QueryEngine,
-        metaData: ModelMetaData?,
-        context: InstantiateContext
-    ): Iterable<Entity> {
-        val emd = metaData?.getEntityMetaData(entityType)
-        var result =
-            if (emd?.isAbstract == true) EntityIterableBase.EMPTY
-            else decorated.instantiate(entityType, queryEngine, metaData, context)
-        for (subType in emd?.subTypes ?: emptyList()) {
-            result = queryEngine.unionAdjusted(result, instantiateDecorated(subType, queryEngine, metaData, context))
-        }
-        return result
-    }
 
     override fun optimize(sorts: Sorts, rules: OptimizationPlan) {
         if (decorated is LinkEqual) {

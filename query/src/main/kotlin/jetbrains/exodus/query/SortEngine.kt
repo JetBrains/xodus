@@ -259,7 +259,7 @@ open class SortEngine {
                 else -> {
                     queryEngine.assertOperational()
                     queryEngine.persistentStore.andCheckCurrentTransaction.mergeSorted(iterables,
-                            ComparableGetter { entity -> valueGetter.select(attach(entity)) }, comparator) as EntityIterableBase
+                        { entity -> valueGetter.select(attach(entity)) }, comparator) as EntityIterableBase
                 }
             }
         }
@@ -270,7 +270,7 @@ open class SortEngine {
         fun getIterable(type: String): EntityIterableBase
     }
 
-    private class EntityComparator constructor(private val selector: ComparableGetter) : Comparator<Entity> {
+    private class EntityComparator(private val selector: ComparableGetter) : Comparator<Entity> {
 
         override fun compare(o1: Entity, o2: Entity): Int {
             val c1 = selector.select(o1)
@@ -279,7 +279,7 @@ open class SortEngine {
         }
     }
 
-    private class ReverseComparator constructor(private val source: Comparator<Entity>) : Comparator<Entity> {
+    private class ReverseComparator(private val source: Comparator<Entity>) : Comparator<Entity> {
 
         override fun compare(o1: Entity, o2: Entity): Int {
             return source.compare(o2, o1)
@@ -325,22 +325,11 @@ open class SortEngine {
 
     private inner class SingleLinkComparableGetter(private val linkName: String,
                                                    private val propName: String,
-                                                   private val txn: PersistentStoreTransaction) : ComparableGetter {
-        private val store = queryEngine.persistentStore
-        private val linkId = store.getLinkId(txn, linkName, false)
+                                                   txn: StoreTransaction) : ComparableGetter {
         private val readOnlyTxn = txn.isReadonly
 
         override fun select(entity: Entity): Comparable<*>? {
-            if (linkId < 0) return null
-            val isPersistentEntity = entity is PersistentEntity
-            val target: Entity?
-            target = if (readOnlyTxn || isPersistentEntity) {
-                val sourceId = entity.id
-                val targetId = store.getRawLinkAsEntityId(txn, PersistentEntityId(sourceId), linkId)
-                if (targetId == null) null else store.getEntity(targetId)
-            } else {
-                entity.getLink(linkName)
-            }
+            val target = entity.getLink(linkName)
             return if (target == null) null else getProperty(target, propName, readOnlyTxn)
         }
     }

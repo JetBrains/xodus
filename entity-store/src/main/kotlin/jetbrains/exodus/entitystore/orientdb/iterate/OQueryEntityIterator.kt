@@ -14,7 +14,9 @@ class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterato
 
     companion object : KLogging() {
 
-        fun create(query: OQuery, txn: OStoreTransaction): OQueryEntityIterator {
+        val EMPTY = OQueryEntityIterator(emptyList<Entity>().iterator())
+
+        fun executeAndCreate(query: OQuery, txn: OStoreTransaction): OQueryEntityIterator {
             val resultSet = query.execute(txn.activeSession)
             // Log execution plan
             val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)

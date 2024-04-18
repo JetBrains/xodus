@@ -1,5 +1,9 @@
 package jetbrains.exodus.entitystore.orientdb.query
 
+import com.orientechnologies.orient.core.id.ORID
+import jetbrains.exodus.entitystore.orientdb.OEntityId
+
+
 // Where
 sealed interface OCondition : OQuery
 
@@ -67,4 +71,15 @@ class OFieldExistsCondition(
 ) : OCondition {
 
     override fun sql() = "not($field is null)"
+}
+
+//link
+
+class OLinkEqualCondition(
+    val field: String,
+    val valueId: OEntityId,
+) : OCondition {
+
+    override fun sql() = "out('$field').@rid = ?"
+    override fun params() = listOf(valueId.asOId())
 }

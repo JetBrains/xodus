@@ -333,7 +333,7 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     @NotNull
     @Override
-    public final EntityIterableBase skip(final int number) {
+    public EntityIterable skip(final int number) {
         if (number <= 0 || store == null) {
             return this;
         }
@@ -383,7 +383,7 @@ public abstract class EntityIterableBase implements EntityIterable {
             return EMPTY;
         }
         final PersistentStoreTransaction txn = getPersistentTransaction();
-        return new SelectManyIterable(txn, this,  getStoreImpl().getLinkId(txn, linkName, false), true);
+        return new SelectManyIterable(txn, this, getStoreImpl().getLinkId(txn, linkName, false), true);
     }
 
     @NotNull

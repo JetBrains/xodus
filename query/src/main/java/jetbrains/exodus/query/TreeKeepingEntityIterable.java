@@ -16,7 +16,6 @@
 package jetbrains.exodus.query;
 
 
-import jetbrains.exodus.entitystore.DualCompatibilityKt;
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.Explainer;
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
@@ -46,7 +45,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
                                      @NotNull final NodeBase queryTree, @Nullable String leftChildPresentation,
                                      @Nullable String rightChildPresentation, @NotNull QueryEngine queryEngine) {
         super(queryEngine);
-        final Explainer explainer = queryEngine.getPersistentStore().getExplainer();
+        final Explainer explainer = ((PersistentEntityStoreImpl) queryEngine.getPersistentStore()).getExplainer();
         isExplainOn = explainer.isExplainOn();
         origin = explainer.genOrigin();
         if (isExplainOn) {
@@ -135,7 +134,7 @@ public class TreeKeepingEntityIterable extends StaticTypedEntityIterable {
             if (explained instanceof EntityIterableBase) {
                 final EntityIterableBase entityIterable = ((EntityIterableBase) explained).getSource();
                 if (entityIterable != EntityIterableBase.EMPTY) {
-                    final PersistentEntityStoreImpl store = queryEngine.getPersistentStore();
+                    final PersistentEntityStoreImpl store = (PersistentEntityStoreImpl) queryEngine.getPersistentStore();
                     final Explainer explainer = store.getExplainer();
                     final boolean explainForcedForThread = Explainer.isExplainForcedForThread();
                     if (!explainForcedForThread) {

@@ -17,6 +17,7 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyStartsWithIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
@@ -33,8 +34,8 @@ public class PropertyStartsWith extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        queryEngine.assertOperational();
-        return queryEngine.getPersistentStore().getAndCheckCurrentTransaction().findStartingWith(entityType, name, starts);
+        var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        return new OPropertyStartsWithIterable(txn, entityType, name, starts);
     }
 
     @Override

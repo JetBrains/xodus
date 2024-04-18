@@ -18,14 +18,15 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.core.dataStructures.NanoSet;
 import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 public class GetAll extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        queryEngine.assertOperational();
-        return queryEngine.instantiateGetAll(entityType);
+        var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        return new OEntityOfTypeIterable(txn, entityType);
     }
 
     @Override
