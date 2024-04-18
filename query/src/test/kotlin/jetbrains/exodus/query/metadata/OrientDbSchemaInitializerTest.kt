@@ -32,7 +32,7 @@ import kotlin.test.assertFailsWith
 class OrientDbSchemaInitializerTest {
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB(createClasses = false)
+    val orientDb = InMemoryOrientDB()
 
     @Test
     fun `create vertex-class for every entity`() = orientDb.withSession { oSession ->

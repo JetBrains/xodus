@@ -24,7 +24,12 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public class And extends CommutativeOperator {
 
@@ -41,18 +46,15 @@ public class And extends CommutativeOperator {
                                         final InstantiateContext context) {
         final NodeBase left = getLeft();
         final NodeBase right = getRight();
-        final Instantiatable directClosure = () -> {
-            var leftInstance = left.instantiate(entityType, queryEngine, metaData, context);
-            var rightInstance = right.instantiate(entityType, queryEngine, metaData, context);
-            return queryEngine.intersectAdjusted(leftInstance, rightInstance);
-        };
-        if (left instanceof LinksEqualDecorator) {
-            return instantiateCustom(entityType, queryEngine, metaData, context, right, (LinksEqualDecorator) left, directClosure);
+        var leftInstance = left.instantiate(entityType, queryEngine, metaData, context);
+        var rightInstance = right.instantiate(entityType, queryEngine, metaData, context);
+        if (leftInstance instanceof EntityIterable && rightInstance instanceof EntityIterable){
+            return ((EntityIterable) leftInstance).intersect((EntityIterable) rightInstance);
+        } else {
+            var leftStream = StreamSupport.stream(leftInstance.spliterator(), false);
+            var rightSet = StreamSupport.stream(rightInstance.spliterator(), false).collect(Collectors.toSet());
+            return leftStream.filter(rightSet::contains).collect(Collectors.toList());
         }
-        if (right instanceof LinksEqualDecorator) {
-            return instantiateCustom(entityType, queryEngine, metaData, context, left, (LinksEqualDecorator) right, directClosure);
-        }
-        return directClosure.instantiate();
     }
 
     @Override
@@ -85,44 +87,5 @@ public class And extends CommutativeOperator {
             return left;
         }
         return new And(left, right);
-    }
-
-    private static Iterable<Entity> instantiateCustom(@NotNull final String entityType,
-                                                      @NotNull final QueryEngine queryEngine,
-                                                      @NotNull final ModelMetaData metaData,
-                                                      @NotNull final InstantiateContext context,
-                                                      @NotNull final NodeBase self,
-                                                      @NotNull final LinksEqualDecorator decorator,
-                                                      @NotNull final Instantiatable directClosure) {
-        final Iterable<Entity> selfInstance = self.instantiate(entityType, queryEngine, metaData, context);
-        if (selfInstance instanceof EntityIterableBase) {
-            final EntityIterable result = ((EntityIterableBase) selfInstance).findLinks(
-                ((EntityIterableBase) decorator.instantiateDecorated(decorator.getLinkEntityType(), queryEngine, metaData, context)).getSource(),
-                decorator.getLinkName());
-            if (traceFindLinks) {
-                final Iterator<Entity> directIt = directClosure.instantiate().iterator();
-                final EntityIterator it = result.iterator();
-                while (true) {
-                    final boolean directHasNext = directIt.hasNext();
-                    final boolean hasNext = it.hasNext();
-                    if (directHasNext != hasNext) {
-                        throw new EntityStoreException("Invalid custom findLinks() result: different sizes");
-                    }
-                    if (!hasNext) {
-                        break;
-                    }
-                    if (!directIt.next().getId().equals(it.nextId())) {
-                        throw new EntityStoreException("Invalid custom findLinks() result");
-                    }
-                }
-            }
-            return result;
-        }
-        return directClosure.instantiate();
-    }
-
-    private interface Instantiatable {
-
-        Iterable<Entity> instantiate();
     }
 }

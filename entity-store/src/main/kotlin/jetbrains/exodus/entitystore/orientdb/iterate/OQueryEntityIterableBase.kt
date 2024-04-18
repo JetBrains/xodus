@@ -161,14 +161,14 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         return selectManyDistinct(linkName)
     }
 
-    override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable? {
+    override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable {
         if (entities == EMPTY) {
             return EMPTY
         }
         return OLinkIterableToEntityIterableFiltered(transaction, entities.asOQueryIterable(), linkName, this)
     }
 
-    override fun findLinks(entities: Iterable<Entity?>, linkName: String): EntityIterable? {
+    override fun findLinks(entities: Iterable<Entity?>, linkName: String): EntityIterable {
         if (entities !is OQueryEntityIterable) {
             unsupported { "findLinks with non-OrientDB entity iterable" }
         }

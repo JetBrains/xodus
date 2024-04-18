@@ -147,7 +147,7 @@ class OStoreTransactionImpl(
     }
 
     override fun findLinks(entityType: String, entity: Entity, linkName: String): EntityIterable {
-        return OLinkToEntityIterable(this, linkName, entity.id as OEntityId)
+        return OLinkToEntityIterable(this, entityType, linkName, entity.id as OEntityId)
     }
 
     override fun findLinks(entityType: String, entities: EntityIterable, linkName: String): EntityIterable {
