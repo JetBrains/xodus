@@ -11,10 +11,11 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.getClassIdToOClassIdMap
 import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
-import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import org.junit.rules.ExternalResource
 
-class InMemoryOrientDB() : ExternalResource() {
+class InMemoryOrientDB(
+    private val initializeIssueSchema: Boolean = true
+) : ExternalResource() {
 
     private lateinit var db: OrientDB
     lateinit var store: OPersistentEntityStore
@@ -30,19 +31,19 @@ class InMemoryOrientDB() : ExternalResource() {
         db = OrientDB("memory", OrientDBConfig.defaultConfig())
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
 
-        if (createClasses) {
+        val classIdToOClassId = if (initializeIssueSchema) {
             withSession { session ->
-                session.getOrCreateVertexClass(CLASS)
+                session.getOrCreateVertexClass(Issues.CLASS)
+                session.getOrCreateVertexClass(Boards.CLASS)
+                session.getOrCreateVertexClass(Projects.CLASS)
                 session.createClass(STRING_BLOB_CLASS_NAME)
                 session.createClass(BINARY_BLOB_CLASS_NAME)
+                session.getClassIdToOClassIdMap()
             }
-        }
+        } else mapOf()
 
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
-        val classIdToOClassId = withSession { oSession ->
-            oSession.getClassIdToOClassIdMap()
-        }
-        store = OPersistentEntityStore(provider, dbName, classIdToOClassId)
+        store = OPersistentEntityStore(provider, dbName, classIdToOClassId = classIdToOClassId)
     }
 
     override fun after() {

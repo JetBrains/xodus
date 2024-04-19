@@ -22,7 +22,7 @@ class MigrateDataTest {
 
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB()
+    val orientDb = InMemoryOrientDB(initializeIssueSchema = false)
 
     @Rule
     @JvmField
