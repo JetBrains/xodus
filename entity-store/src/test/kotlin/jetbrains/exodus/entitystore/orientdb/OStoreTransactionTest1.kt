@@ -10,7 +10,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-class OStoreTransactionTest {
+class OStoreTransactionTest1 {
     @Rule
     @JvmField
     val orientDb = InMemoryOrientDB()
