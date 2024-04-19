@@ -37,13 +37,12 @@ class IterableDecorator(iterable: Iterable<Entity>) : NodeBase() {
         val entityStore = queryEngine.persistentStore
         val txn = entityStore.andCheckCurrentTransaction
         if (it is EntityIterableBase) {
-            return queryEngine.wrap(it.source.intersect(queryEngine.instantiateGetAll(txn, entityType)))
+            return it.source.intersect(queryEngine.instantiateGetAll(txn, entityType))
         }
-        val typeId = entityStore.getEntityTypeId(txn, entityType, false)
         if (it is List<*>) {
-            return it.filter { entity -> entity.id.typeId == typeId }
+            return it.filter { entity -> entity.type == entityType }
         }
-        return it.asSequence().filter { entity -> entity.id.typeId == typeId }.asIterable()
+        return it.asSequence().filter { entity -> entity.type == entityType }.asIterable()
     }
 
     override fun getClone() = IterableDecorator(it)

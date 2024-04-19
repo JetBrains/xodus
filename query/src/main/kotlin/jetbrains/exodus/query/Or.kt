@@ -16,11 +16,14 @@
 package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentStoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIdSetIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
 import java.util.*
+import kotlin.collections.HashSet
 
 @Suppress("EqualsOrHashCode")
 class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
@@ -45,31 +48,13 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
         metaData: ModelMetaData,
         context: InstantiateContext
     ): Iterable<Entity> {
-        if (depth >= Utils.reduceUnionsOfLinksDepth && !context.visited.contains(this)) {
-            val linkNames = hashMapOf<String, EntityIdSetIterable>()
-            val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            if (isUnionOfLinks(txn, linkNames, context)) {
-                val all = (queryEngine.instantiateGetAll(txn, entityType) as EntityIterableBase).source
-                var result: Iterable<Entity> = EntityIterableBase.EMPTY
-                linkNames.forEach { (linkName, ids) ->
-                    result = queryEngine.union(result, all.findLinks(ids, linkName))
-                }
-                return result
-            }
+        val leftInstance = left.instantiate(entityType, queryEngine, metaData, context);
+        val rightInstance = right.instantiate(entityType, queryEngine, metaData, context);
+        if (leftInstance is EntityIterable && rightInstance is EntityIterable){
+            return leftInstance.union(rightInstance)
+        } else {
+            return leftInstance.union(rightInstance)
         }
-        var result: Iterable<Entity> = EntityIterableBase.EMPTY
-        val stack = ArrayDeque<NodeBase>()
-        stack.push(this)
-        while (stack.isNotEmpty()) {
-            val node = stack.pop()
-            if (node !is Or) {
-                result = queryEngine.unionAdjusted(result, node.instantiate(entityType, queryEngine, metaData, context))
-            } else {
-                stack.push(node.left)
-                stack.push(node.right)
-            }
-        }
-        return result
     }
 
     override fun equals(other: Any?): Boolean {
@@ -89,36 +74,5 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
 
     override fun getSimpleName(): String {
         return "or"
-    }
-
-    private fun isUnionOfLinks(
-        txn: PersistentStoreTransaction,
-        linkNames: MutableMap<String, EntityIdSetIterable>,
-        context: InstantiateContext
-    ): Boolean {
-        if (context.visited.contains(this)) return false
-        val stack = ArrayDeque<Or>()
-        stack.push(this)
-        while (stack.isNotEmpty()) {
-            val or = stack.pop()
-            if (!context.visited.add(or)) continue
-            or.left.let { left ->
-                if (left is Or) {
-                    stack.push(left)
-                } else {
-                    if (left !is LinkEqual) return false
-                    linkNames.computeIfAbsent(left.name) { EntityIdSetIterable(txn) }.addTarget(left.toId)
-                }
-            }
-            or.right.let { right ->
-                if (right is Or) {
-                    stack.push(right)
-                } else {
-                    if (right !is LinkEqual) return false
-                    linkNames.computeIfAbsent(right.name) { EntityIdSetIterable(txn) }.addTarget(right.toId)
-                }
-            }
-        }
-        return true
     }
 }

@@ -169,7 +169,7 @@ class OEntityTest {
         orientDb.withSession { session ->
             session.createEdgeClass(linkName)
         }
-        
+
         val issueB = orientDb.createIssue("A")
 
         orientDb.withTxSession { tx ->

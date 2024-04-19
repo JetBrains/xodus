@@ -16,9 +16,11 @@
 package jetbrains.exodus.query;
 
 
-import jetbrains.exodus.entitystore.*;
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase;
+import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.entitystore.EntityId;
+import jetbrains.exodus.entitystore.PersistentEntityId;
 import jetbrains.exodus.entitystore.orientdb.OEntity;
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
@@ -41,9 +43,8 @@ public class LinkEqual extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        var store = queryEngine.getPersistentStore();
-        var transaction = store.getAndCheckCurrentTransaction();
-        return transaction.findLinks(entityType, entity, name);
+        var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        return new OLinkToEntityIterable(txn, entityType, name, ((OEntity) entity).getId());
     }
 
     @Override

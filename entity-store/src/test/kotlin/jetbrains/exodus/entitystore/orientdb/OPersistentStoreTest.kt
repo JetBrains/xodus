@@ -6,6 +6,7 @@ import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
+import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import org.junit.Assert
 import org.junit.Assert.assertEquals
@@ -13,10 +14,13 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
 
-class OPersistentStoreTest {
+class OPersistentStoreTest: OTestMixin {
+
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB()
+    val orientDbRule = InMemoryOrientDB()
+
+    override val orientDb = orientDbRule
 
     @Test
     fun renameClassTest() {

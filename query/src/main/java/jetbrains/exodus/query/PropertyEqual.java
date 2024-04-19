@@ -17,6 +17,7 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyEqualIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.Nullable;
 
@@ -43,8 +44,8 @@ public class PropertyEqual extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        queryEngine.assertOperational();
-        return queryEngine.getPersistentStore().getAndCheckCurrentTransaction().find(entityType, name, value);
+        var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        return new OPropertyEqualIterable(txn, entityType, name, value);
     }
 
     @Override

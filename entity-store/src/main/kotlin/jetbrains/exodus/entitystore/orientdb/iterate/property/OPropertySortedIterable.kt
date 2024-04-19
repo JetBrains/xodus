@@ -19,7 +19,7 @@ import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
-import jetbrains.exodus.entitystore.orientdb.query.OOrderByField
+import jetbrains.exodus.entitystore.orientdb.query.OOrderByFields
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OPropertySortedIterable(
@@ -34,8 +34,8 @@ class OPropertySortedIterable(
         if (source != null) {
             return source.query().withOrder(propertyName, ascending)
         } else {
-            val order = OOrderByField(propertyName, ascending)
-            return OClassSelect(entityType, condition = null, order)
+            val order = OOrderByFields(propertyName, ascending)
+            return OClassSelect(entityType, order = order)
         }
     }
 }

@@ -10,12 +10,15 @@ import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.management.Statistics
 import java.io.File
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 class OPersistentEntityStore(
     val databaseProvider: ODatabaseProvider,
     private val name: String,
+    override val countExecutor: Executor = Executors.newSingleThreadExecutor(),
     private val classIdToOClassId: Map<Int, Int>
-) : PersistentEntityStore {
+) : PersistentEntityStore, OEntityStore {
 
     private val config = PersistentEntityStoreConfig()
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
@@ -156,7 +159,6 @@ class OPersistentEntityStore(
     override fun getAndCheckCurrentTransaction() = currentTransaction
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
-
 
     private val currentOTransaction get() = currentTransaction as OStoreTransaction
 

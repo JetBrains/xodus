@@ -18,6 +18,8 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction;
+import jetbrains.exodus.entitystore.iterate.property.OPropertyExistsIterable;
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
@@ -31,9 +33,8 @@ public class LinkNotNull extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        queryEngine.assertOperational();
-        final PersistentStoreTransaction txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
-        return txn.findWithLinks(entityType, name);
+        var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        return new OLinkExistsEntityIterable(txn, entityType, name);
     }
 
     @Override

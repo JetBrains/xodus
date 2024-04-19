@@ -14,9 +14,7 @@ import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import org.junit.rules.ExternalResource
 
-class InMemoryOrientDB(
-    private val createClasses: Boolean = true
-) : ExternalResource() {
+class InMemoryOrientDB() : ExternalResource() {
 
     private lateinit var db: OrientDB
     lateinit var store: OPersistentEntityStore

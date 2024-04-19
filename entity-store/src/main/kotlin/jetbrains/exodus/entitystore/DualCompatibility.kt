@@ -1,5 +1,6 @@
 package jetbrains.exodus.entitystore
 
+import jetbrains.exodus.entitystore.orientdb.OEntityStore
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 
@@ -25,5 +26,10 @@ fun StoreTransaction.asOStoreTransaction(): OStoreTransaction {
 
 fun EntityIterable.asOQueryIterable(): OQueryEntityIterable {
     require(this is OQueryEntityIterable) { "Only OEntityIterableBase is supported, but was ${this.javaClass.simpleName}" }
+    return this
+}
+
+fun EntityStore.asOStore(): OEntityStore {
+    require(this is OEntityStore) { "Only OEntityStore is supported, but was ${this.javaClass.simpleName}" }
     return this
 }
