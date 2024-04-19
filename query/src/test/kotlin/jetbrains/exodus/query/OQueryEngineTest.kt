@@ -24,7 +24,6 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 
-@Ignore("Should be un-ignored after migration of query module to orinetdb")
 class OQueryEngineTest {
 
     @Rule
@@ -448,7 +447,7 @@ class OQueryEngineTest {
             val issues = engine.query(
                 Issues.CLASS,
                 Or(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
-            ).instantiate() as EntityIterableBase
+            ) as EntityIterableBase
 
             val issuesDistinct = issues.distinct()
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
@@ -490,7 +489,7 @@ class OQueryEngineTest {
 
         // When
         orientDB.withSession {
-            val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
+            val issues = engine.queryGetAll(Issues.CLASS) as EntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
             // Then
@@ -510,7 +509,7 @@ class OQueryEngineTest {
 
         // When
         orientDB.withSession {
-            val issues = engine.queryGetAll(Issues.CLASS).instantiate() as EntityIterableBase
+            val issues = engine.queryGetAll(Issues.CLASS) as EntityIterableBase
             val boardsDistinct = engine.selectDistinct(issues, Issues.Links.ON_BOARD)
 
             // Then

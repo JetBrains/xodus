@@ -26,7 +26,7 @@ public class Minus extends BinaryOperator {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        return queryEngine.excludeAdjusted(
+        return queryEngine.exclude(
             getLeft().instantiate(entityType, queryEngine, metaData, context),
             getRight().instantiate(entityType, queryEngine, metaData, context));
     }
