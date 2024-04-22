@@ -1,3 +1,18 @@
+/*
+ * Copyright ${inceptionYear} - ${year} ${owner}
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
@@ -6,14 +21,12 @@ import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.merge.OMergeSortedEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.env.Transaction
 
@@ -147,7 +160,7 @@ class OStoreTransactionImpl(
     }
 
     override fun findLinks(entityType: String, entity: Entity, linkName: String): EntityIterable {
-        return OLinkToEntityIterable(this, entityType, linkName, entity.id as OEntityId)
+        return OLinkToEntityIterable(this, linkName, entity.id as OEntityId)
     }
 
     override fun findLinks(entityType: String, entities: EntityIterable, linkName: String): EntityIterable {
@@ -205,11 +218,7 @@ class OStoreTransactionImpl(
 
     @Deprecated("Deprecated in Java")
     override fun mergeSorted(sorted: MutableList<EntityIterable>, comparator: Comparator<Entity>): EntityIterable {
-        val selfGetter = ComparableGetter { it }
-        val comparatorWrapper = java.util.Comparator<Comparable<Any>?> { o1, o2 ->
-            comparator.compare(o1 as Entity, o2 as Entity)
-        }
-        return mergeSorted(sorted, selfGetter, comparatorWrapper)
+        throw UnsupportedOperationException("Not implemented")
     }
 
     override fun mergeSorted(
@@ -217,23 +226,7 @@ class OStoreTransactionImpl(
         valueGetter: ComparableGetter,
         comparator: java.util.Comparator<Comparable<Any>?>
     ): EntityIterable {
-        var filtered: MutableList<EntityIterable>? = null
-        for (it in sorted) {
-            if (it !== EntityIterableBase.EMPTY) {
-                if (filtered == null) {
-                    filtered = arrayListOf()
-                }
-                filtered.add(it)
-            }
-        }
-        return if (filtered == null) EntityIterableBase.EMPTY else OMergeSortedEntityIterable(
-            this,
-            sorted,
-            {
-                valueGetter.select(it)
-            },
-            comparator
-        )
+      throw UnsupportedOperationException("Not implemented")
     }
 
     override fun toEntityId(representation: String): EntityId {
