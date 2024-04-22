@@ -132,7 +132,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issuesDistinct = issues.distinct()
 
             // Then
-            assertThat(issues).hasSize(4)
+            assertThat(issues).hasSize(3)
             assertNamesExactlyInOrder(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }
@@ -217,7 +217,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val boards = tx.find(Boards.CLASS, "name", test.board1.name())
                 .union(tx.find(Boards.CLASS, "name", test.board2.name()))
             val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-            val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD)!!
+            val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD)
 
             // Then
             assertNamesExactly(issuesOnBoards, "issue1", "issue2")
