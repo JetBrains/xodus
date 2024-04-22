@@ -147,7 +147,7 @@ class OEntityIterableBaseTest : OTestMixin {
             val issuesDistinct = issues.distinct()
 
             // Then
-            assertThat(issues).hasSize(3)
+            assertThat(issuesDistinct).hasSize(3)
             assertNamesExactlyInOrder(issuesDistinct, "issue1", "issue2", "issue3")
         }
     }

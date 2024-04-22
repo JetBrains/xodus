@@ -86,7 +86,7 @@ class OFirstSelect(
     val source: OSelect,
 ) : OQuery {
 
-    override fun sql() = "SELECT expand(first(*)) FROM (${source.sql()})"
+    override fun sql() = "SELECT expand(first(\$a)) LET \$a = (${source.sql()})"
     override fun params() = source.params()
 }
 
@@ -95,6 +95,6 @@ class OLastSelect(
     val source: OSelect,
 ) : OQuery {
 
-    override fun sql() = "SELECT expand(last(*)) FROM (${source.sql()})"
+    override fun sql() = "SELECT expand(last(\$a)) LET \$a = (${source.sql()})"
     override fun params() = source.params()
 }
