@@ -29,8 +29,15 @@ class BitmapIterator(
 ) : LongIterator, Closeable {
 
     val cursor: Cursor = store.openCursor(txn)
-    private var current: Long? = null
-    private var next: Long? = null
+
+    // We must use currentSet bit, as values may reach the -1L
+    private var current: Long = -1L
+    private var currentSet: Boolean = false
+
+    // We must use nextSet bit, as values may reach the -1L
+    private var next: Long = -1L
+    private var nextSet: Boolean = false
+
     private var key = 0L
     private var value = 0L
     private var bitIndex = 1
@@ -42,7 +49,8 @@ class BitmapIterator(
     }
 
     override fun remove() {
-        current?.let { current ->
+        if (currentSet) {
+            val current = current
             val keyEntry = LongBinding.longToCompressedEntry(current.key)
             val bitmap = store.get(txn, keyEntry)?.asLong ?: 0L
             (bitmap xor (1L shl current.index)).let {
@@ -52,28 +60,33 @@ class BitmapIterator(
                     store.put(txn, keyEntry, it.asEntry)
                 }
             }
-            this.current = null
+
+            this.current = -1L
+            this.currentSet = false
+
             return
         }
         throw IllegalStateException()
     }
 
     override fun hasNext(): Boolean {
-        if (next == null) {
+        if (!nextSet) {
             setNext()
         }
-        return next != null
+        return nextSet
     }
 
     override fun next(): Long = nextLong()
 
     override fun nextLong(): Long {
         if (hasNext()) {
+            // hasNext implies nextSet
             current = next
-            next?.also {
-                setNext()
-                return it
-            }
+            currentSet = true
+
+            val prev = next
+            setNext()
+            return prev
         }
         throw NoSuchElementException()
     }
@@ -89,10 +102,15 @@ class BitmapIterator(
 
         if (value != 0L) {
             setNextBitIndex()
+
             next = (key shl 6) + bitIndex
+            nextSet = true
+
             value -= 1L shl bitIndex
         } else {
-            next = null
+            next = -1L
+            nextSet = false
+
             cursor.close()
         }
     }
