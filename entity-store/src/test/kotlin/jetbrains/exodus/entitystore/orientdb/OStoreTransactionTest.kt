@@ -18,8 +18,6 @@ package jetbrains.exodus.entitystore.orientdb
 import com.google.common.truth.Truth.assertThat
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.ComparableGetter
-import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
