@@ -21,9 +21,23 @@ import jetbrains.exodus.entitystore.orientdb.withSession
 class OModelMetaData(
     private val databaseProvider: ODatabaseProvider
 ) : ModelMetaDataImpl() {
+
     override fun afterPrepare(entitiesMetaData: MutableCollection<EntityMetaData>) {
         databaseProvider.withSession { session ->
             session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
         }
     }
+
+    override fun onAddAssociation(typeName: String, association: AssociationEndMetaData) {
+        databaseProvider.withSession { session ->
+            session.addAssociation(typeName, association)
+        }
+    }
+
+    override fun onRemoveAssociation(typeName: String, associationName: String) {
+        databaseProvider.withSession { session ->
+
+        }
+    }
+
 }

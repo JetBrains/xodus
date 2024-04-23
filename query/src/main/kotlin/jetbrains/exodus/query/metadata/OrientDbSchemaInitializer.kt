@@ -47,6 +47,22 @@ fun ODatabaseSession.applySchema(
     return initializer.getIndices()
 }
 
+fun ODatabaseSession.addAssociation(
+    className: String,
+    association: AssociationEndMetaData,
+    applyLinkCardinality: Boolean = true
+) {
+    val initializer = OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = applyLinkCardinality)
+    initializer.addAssociation(className, association)
+}
+
+fun ODatabaseSession.removeAssociation(
+    className: String,
+    associationName: String
+) {
+    
+}
+
 internal class OrientDbSchemaInitializer(
     private val entitiesMetaData: Iterable<EntityMetaData>,
     private val oSession: ODatabaseSession,
@@ -140,6 +156,10 @@ internal class OrientDbSchemaInitializer(
         } finally {
             paddedLogger.flush()
         }
+    }
+
+    fun addAssociation(className: String, association: AssociationEndMetaData) {
+        applyAssociation(className, association)
     }
 
     // Vertices and Edges
