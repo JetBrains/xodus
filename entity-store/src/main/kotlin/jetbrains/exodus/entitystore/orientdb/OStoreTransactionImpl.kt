@@ -144,7 +144,13 @@ class OStoreTransactionImpl(
     }
 
     override fun findIds(entityType: String, minValue: Long, maxValue: Long): EntityIterable {
-        TODO("Not yet implemented")
+        return OPropertyRangeIterable(
+            this,
+            entityType,
+            OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME,
+            minValue,
+            maxValue
+        )
     }
 
     override fun findWithProp(entityType: String, propertyName: String): EntityIterable {
