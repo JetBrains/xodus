@@ -17,13 +17,11 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
+import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
+import junit.framework.TestCase.assertFalse
 import org.junit.Assert
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -33,15 +31,6 @@ class OEntityTest {
     @Rule
     @JvmField
     val orientDb = InMemoryOrientDB()
-
-    @Before
-    fun setup() {
-        orientDb.withSession { session ->
-            session.createVertexClass(Issues.CLASS)
-            session.createClass(STRING_BLOB_CLASS_NAME)
-            session.createClass(BINARY_BLOB_CLASS_NAME)
-        }
-    }
 
     @Test
     fun `multiple links should work`() {
@@ -160,7 +149,61 @@ class OEntityTest {
         orientDb.withSession {
             Assert.assertEquals(issueC, issueA.getLink(linkName))
         }
+    }
 
+    @Test
+    fun `setLink() and addLink() should work correctly with PersistentEntityId`() {
+        val linkName = "link"
+        orientDb.withSession { session ->
+            session.createEdgeClass(linkName)
+        }
+
+        val issueA = orientDb.createIssue("A")
+        val issueB = orientDb.createIssue("B")
+        val issueC = orientDb.createIssue("C")
+
+        orientDb.withTxSession {
+            val legacyId = PersistentEntityId(issueB.id.typeId, issueB.id.localId)
+            issueA.setLink(linkName, legacyId)
+        }
+        orientDb.withSession {
+            Assert.assertEquals(issueB, issueA.getLink(linkName))
+        }
+        orientDb.withTxSession {
+            val legacyId = PersistentEntityId(issueC.id.typeId, issueC.id.localId)
+            issueB.addLink(linkName, legacyId)
+        }
+        orientDb.withSession {
+            Assert.assertEquals(issueB, issueA.getLink(linkName))
+        }
+    }
+
+    @Test
+    fun `setLink() and addLink() return false if the target entity is not found`() {
+        val linkName = "link"
+        orientDb.withSession { session ->
+            session.createEdgeClass(linkName)
+        }
+
+        val issueB = orientDb.createIssue("A")
+
+        orientDb.withTxSession { tx ->
+            tx.delete(issueB.id.asOId())
+        }
+
+        orientDb.withTxSession {
+            assertFalse(issueB.addLink(linkName, issueB.id))
+            assertFalse(issueB.addLink(linkName, ORIDEntityId.EMPTY_ID))
+            assertFalse(issueB.addLink(linkName, PersistentEntityId.EMPTY_ID))
+            assertFalse(issueB.addLink(linkName, PersistentEntityId(300, 300)))
+        }
+
+        orientDb.withTxSession {
+            assertFalse(issueB.setLink(linkName, issueB.id))
+            assertFalse(issueB.setLink(linkName, ORIDEntityId.EMPTY_ID))
+            assertFalse(issueB.setLink(linkName, PersistentEntityId.EMPTY_ID))
+            assertFalse(issueB.setLink(linkName, PersistentEntityId(300, 300)))
+        }
     }
 
     @Test
@@ -231,7 +274,7 @@ class OEntityTest {
         }
 
         orientDb.withSession {
-            Assert.assertEquals(listOf("hello", "name", "june", "year").sorted(), issue.propertyNames.sorted())
+            Assert.assertEquals(listOf(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, "hello", "name", "june", "year").sorted(), issue.propertyNames.sorted())
         }
     }
 

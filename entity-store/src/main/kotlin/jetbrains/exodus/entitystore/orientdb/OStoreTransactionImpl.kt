@@ -25,6 +25,7 @@ import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterable
+
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
@@ -91,7 +92,9 @@ class OStoreTransactionImpl(
     }
 
     override fun newEntity(entityType: String): Entity {
-        return OVertexEntity(session.newVertex(entityType), store)
+        val vertex = session.newVertex(entityType)
+        session.setLocalEntityId(entityType, vertex)
+        return OVertexEntity(vertex, store)
     }
 
     override fun saveEntity(entity: Entity) {
@@ -100,8 +103,11 @@ class OStoreTransactionImpl(
     }
 
     override fun getEntity(id: EntityId): Entity {
-        require(id is OEntityId) { "Only OEntity is supported, but was ${id.javaClass.simpleName}" }
-        val vertex: OVertex = session.load(id.asOId())
+        val oId = store.requireOEntityId(id)
+        if (oId == ORIDEntityId.EMPTY_ID) {
+            throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
+        }
+        val vertex: OVertex = session.load(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         return OVertexEntity(vertex, store)
     }
 
@@ -147,7 +153,7 @@ class OStoreTransactionImpl(
         return OPropertyRangeIterable(
             this,
             entityType,
-            OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME,
+            OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME,
             minValue,
             maxValue
         )
@@ -236,7 +242,8 @@ class OStoreTransactionImpl(
     }
 
     override fun toEntityId(representation: String): EntityId {
-        TODO("Not yet implemented")
+        val legacyId = PersistentEntityId.toEntityId(representation)
+        return store.requireOEntityId(legacyId)
     }
 
     override fun getSequence(sequenceName: String): Sequence {

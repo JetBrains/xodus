@@ -19,8 +19,7 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
@@ -105,13 +104,10 @@ private fun ODatabaseSession.createNamedEntity(
 ): OVertexEntity {
     val oClass = this.getOrCreateVertexClass(className)
     val entity = this.newVertex(oClass)
+    setLocalEntityIdIfAbsent(entity)
     entity.setProperty("name", name)
     entity.save<OVertex>()
     return OVertexEntity(entity, store)
-}
-
-private fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {
-    return this.getClass(className) ?: this.createVertexClass(className)
 }
 
 private fun ODatabaseSession.getOrCreateEdgeClass(className: String): OClass {

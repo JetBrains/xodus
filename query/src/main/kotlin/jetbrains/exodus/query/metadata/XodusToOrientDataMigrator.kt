@@ -20,14 +20,12 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
-import jetbrains.exodus.entitystore.orientdb.withSession
 
 fun migrateDataFromXodusToOrientDb(
     xodus: PersistentEntityStore,
@@ -35,10 +33,9 @@ fun migrateDataFromXodusToOrientDb(
     /*
     * How many entities should be copied in a single transaction
     * */
-    entitiesPerTransaction: Int = 10,
-    backwardCompatibleEntityId: Boolean = false
+    entitiesPerTransaction: Int = 10
 ) {
-    val migrator = XodusToOrientDataMigrator(xodus, orient, entitiesPerTransaction, backwardCompatibleEntityId)
+    val migrator = XodusToOrientDataMigrator(xodus, orient, entitiesPerTransaction)
     return migrator.migrate()
 }
 
@@ -55,8 +52,7 @@ internal class XodusToOrientDataMigrator(
     /*
     * How many entities should be copied in a single transaction
     * */
-    private val entitiesPerTransaction: Int = 10,
-    private val backwardCompatibleEntityId: Boolean = false
+    private val entitiesPerTransaction: Int = 10
 ) {
     private val xEntityIdToOEntityId = HashMap<EntityId, EntityId>()
 
@@ -78,26 +74,20 @@ internal class XodusToOrientDataMigrator(
                 val oClass = oSession.getClass(type) ?: oSession.createVertexClass(type)
                 val classId = xodus.getEntityTypeId(type)
 
-                if (backwardCompatibleEntityId) {
-                    oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
-                    maxClassId = maxOf(maxClassId, classId)
+                oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, classId.toString())
+                maxClassId = maxOf(maxClassId, classId)
 
-                    // create localEntityId property if absent
-                    if (oClass.getProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
-                        oClass.createProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, OType.LONG)
-                    }
+                // create localEntityId property if absent
+                if (oClass.getProperty(LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
+                    oClass.createProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, OType.LONG)
                 }
             }
         }
 
-        if (backwardCompatibleEntityId) {
-            // create a sequence to generate classIds
-            val sequences = oSession.metadata.sequenceLibrary
-
-            require(sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
-
-            oSession.createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, maxClassId.toLong())
-        }
+        // create a sequence to generate classIds
+        val sequences = oSession.metadata.sequenceLibrary
+        require(sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
+        oSession.createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, maxClassId.toLong())
 
         oSession.getClass(BINARY_BLOB_CLASS_NAME) ?: oSession.createClass(BINARY_BLOB_CLASS_NAME)
     }
@@ -116,6 +106,11 @@ internal class XodusToOrientDataMigrator(
                     var largestEntityId = 0L
                     for (xEntity in xTx.getAll(type)) {
                         val vertex = oSession.newVertex(type)
+                        // copy localEntityId
+                        val localEntityId = xEntity.id.localId
+                        vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
+                        largestEntityId = maxOf(largestEntityId, localEntityId)
+
                         val oEntity = OVertexEntity(vertex, orient)
                         for (propName in xEntity.propertyNames) {
                             oEntity.setProperty(propName, xEntity.getProperty(propName) as Comparable<*>)
@@ -129,19 +124,10 @@ internal class XodusToOrientDataMigrator(
                         countingTx.increment()
 
                         edgeClassesToCreate.addAll(xEntity.linkNames)
-
-                        if (backwardCompatibleEntityId) {
-                            // copy localEntityId
-                            val localEntityId = xEntity.id.localId
-                            oEntity.setProperty(BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
-
-                            largestEntityId = maxOf(largestEntityId, localEntityId)
-                        }
                     }
-                    if (backwardCompatibleEntityId) {
-                        // create a sequence to generate localEntityIds for the class
-                        oSession.createSequenceIfAbsent(localEntityIdSequenceName(type), largestEntityId)
-                    }
+
+                    // create a sequence to generate localEntityIds for the class
+                    oSession.createSequenceIfAbsent(localEntityIdSequenceName(type), largestEntityId)
                 }
             }
         }

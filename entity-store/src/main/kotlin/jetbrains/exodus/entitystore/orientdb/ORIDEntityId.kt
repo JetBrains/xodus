@@ -15,66 +15,61 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.id.OEmptyRecordId
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityId
 
-class ORIDEntityId(private val id: ORID, private val schemaClass: OClass) : OEntityId {
+class ORIDEntityId(
+    private val classId: Int,
+    private val localEntityId: Long,
+    private val oId: ORID,
+    private val schemaClass: OClass?
+) : OEntityId {
 
     companion object {
 
+        @JvmStatic
+        val EMPTY_ID: ORIDEntityId = ORIDEntityId(-1, -1, OEmptyRecordId(), null)
+
         fun fromVertex(vertex: OVertex): ORIDEntityId {
-            val schema = vertex.schemaClass
-            require(schema != null) { "Vertex $vertex must have a schema class" }
-            return ORIDEntityId(vertex.identity, schema)
+            val oClass = vertex.requireSchemaClass()
+            val classId = oClass.requireClassId()
+            val localEntityId = vertex.requireLocalEntityId()
+            return ORIDEntityId(classId, localEntityId, vertex.identity, oClass)
         }
     }
 
-    @Volatile
-    private var cachedLocalId: Long = -1
-
     override fun asOId(): ORID {
-        return id
+        return oId
     }
 
     override fun getTypeId(): Int {
-        // Default cluster id is always the same for the same class
-        // Can not use class.name as it might be changed from the outside
-        return schemaClass.defaultClusterId
+        return classId
     }
 
     fun getTypeName(): String {
-        return schemaClass.name
+        return schemaClass?.name ?: "typeNotFound"
     }
 
     override fun getLocalId(): Long {
-        if (cachedLocalId != -1L){
-            return cachedLocalId
-        }
-        /*
-        The idea is that (localId % clusterSize) is equal for all records from the same cluster.
-        For records from different clusters it's not equal. Cluster ids assumed to be increasing with delta = 1.
-         */
-        val clustersCount = schemaClass.clusterIds.size
-        val div = id.clusterId - schemaClass.defaultClusterId
-        cachedLocalId = div + clustersCount * id.clusterPosition
-        return cachedLocalId
+        return localEntityId
     }
 
     override fun compareTo(other: EntityId?): Int {
         if (other !is ORIDEntityId) {
             throw IllegalArgumentException("Cannot compare ORIDEntityId with ${other?.javaClass?.name}")
         }
-        return id.compareTo(other.id)
+        return oId.compareTo(other.oId)
     }
 
     override fun toString(): String {
-        return "${schemaClass}:${id}"
+        return "${classId}-${localEntityId}"
     }
 
     override fun hashCode(): Int {
-        return id.hashCode()
+        return oId.hashCode()
     }
 
     override fun equals(other: Any?): Boolean {
@@ -83,8 +78,6 @@ class ORIDEntityId(private val id: ORID, private val schemaClass: OClass) : OEnt
 
         other as ORIDEntityId
 
-        return id == other.id
+        return oId == other.oId
     }
-
-
 }

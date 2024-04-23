@@ -18,13 +18,16 @@ package jetbrains.exodus.entitystore.orientdb
 import com.google.common.truth.Truth.assertThat
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.ComparableGetter
-import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
+import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.testutil.*
+import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class OStoreTransactionTest : OTestMixin {
 
@@ -484,9 +487,9 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
         oTransactional {
-            test.issue1.setProperty(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, 0)
-            test.issue2.setProperty(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, 3)
-            test.issue3.setProperty(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, 99)
+            test.issue1.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 0L)
+            test.issue2.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 3L)
+            test.issue3.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 99L)
         }
 
         // When
@@ -494,6 +497,86 @@ class OStoreTransactionTest : OTestMixin {
             val issues = tx.findIds(Issues.CLASS, 2, 100) as OQueryEntityIterableBase
             // Then
             assertNamesExactlyInOrder(issues, test.issue2.getProperty("name").toString(), test.issue3.getProperty("name").toString())
+        }
+    }
+
+    @Test
+    fun `tx lets search for an entity using PersistentEntityId`() {
+        val aId = orientDb.createIssue("A").id
+        val bId = orientDb.createIssue("B").id
+
+        // use default ids
+        orientDb.store.executeInTransaction { tx ->
+            val a = tx.getEntity(aId)
+            val b = tx.getEntity(bId)
+
+            Assert.assertEquals(aId, a.id)
+            Assert.assertEquals(bId, b.id)
+        }
+
+        // use legacy ids
+        val legacyIdA = PersistentEntityId(aId.typeId, aId.localId)
+        val legacyIdB = PersistentEntityId(bId.typeId, bId.localId)
+        orientDb.store.executeInTransaction { tx ->
+            val a = tx.getEntity(legacyIdA)
+            val b = tx.getEntity(legacyIdB)
+
+            Assert.assertEquals(aId, a.id)
+            Assert.assertEquals(bId, b.id)
+        }
+    }
+
+    @Test
+    fun `getEntity() throws an exception if the entity not found`() {
+        val aId = orientDb.createIssue("A").id
+
+        // delete the issue
+        orientDb.store.databaseProvider.withSession { oSession ->
+            oSession.delete(aId.asOId())
+        }
+
+        // entity not found
+        orientDb.store.executeInTransaction { tx ->
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                tx.getEntity(aId)
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                tx.getEntity(PersistentEntityId(300, 300))
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                tx.getEntity(PersistentEntityId.EMPTY_ID)
+            }
+            assertFailsWith<EntityRemovedInDatabaseException> {
+                tx.getEntity(ORIDEntityId.EMPTY_ID)
+            }
+        }
+    }
+
+    @Test
+    fun `tx works with both ORIDEntityId and PersistentEntityId representations`() {
+        val aId = orientDb.createIssue("A").id
+        val bId = orientDb.createIssue("B").id
+        val aIdRepresentation = aId.toString()
+        val bIdRepresentation = bId.toString()
+        val aLegacyId = PersistentEntityId(aId.typeId, aId.localId)
+        val bLegacyId = PersistentEntityId(bId.typeId, bId.localId)
+        val aLegacyIdRepresentation = aLegacyId.toString()
+        val bLegacyIdRepresentation = bLegacyId.toString()
+
+        orientDb.store.executeInTransaction { tx ->
+            assertEquals(aId, tx.toEntityId(aIdRepresentation))
+            assertEquals(bId, tx.toEntityId(bIdRepresentation))
+
+            assertEquals(aId, tx.toEntityId(aLegacyIdRepresentation))
+            assertEquals(bId, tx.toEntityId(bLegacyIdRepresentation))
+        }
+    }
+
+    @Test
+    fun `newEntity sets localEntityId`() {
+        orientDb.store.executeInTransaction { tx ->
+            val issue = tx.newEntity(Issues.CLASS)
+            assertEquals(issue.id.localId, 1)
         }
     }
 }

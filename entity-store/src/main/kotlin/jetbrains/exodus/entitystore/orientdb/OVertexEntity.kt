@@ -16,14 +16,21 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORecordId
+import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
 import mu.KLogging
 import java.io.ByteArrayInputStream
@@ -47,7 +54,7 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
         const val CLASS_ID_CUSTOM_PROPERTY_NAME = "classId"
         const val CLASS_ID_SEQUENCE_NAME = "sequence_classId"
 
-        const val BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME = "backwardCompatibleLocalEntityId"
+        const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
     }
 
@@ -227,8 +234,11 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
     }
 
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
-        require(targetId is OEntityId) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
-        val target = activeSession.getRecord<OVertex>(targetId.asOId())
+        val targetOId = store.requireOEntityId(targetId)
+        if (targetOId == ORIDEntityId.EMPTY_ID) {
+            return false
+        }
+        val target = activeSession.getRecord<OVertex>(targetOId.asOId()) ?: return false
         return addLink(linkName, OVertexEntity(target, store))
     }
 
@@ -258,8 +268,11 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
     }
 
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
-        require(targetId is OEntityId) { "Only OEntity is supported, but was ${targetId.javaClass.simpleName}" }
-        val target = activeSession.getRecord<OVertex>(targetId.asOId())
+        val targetOId = store.requireOEntityId(targetId)
+        if (targetOId == ORIDEntityId.EMPTY_ID) {
+            return false
+        }
+        val target = activeSession.getRecord<OVertex>(targetOId.asOId()) ?: return false
         return setLink(linkName, OVertexEntity(target, store))
     }
 
@@ -330,4 +343,67 @@ class OVertexEntity(private var vertex: OVertex, private val store: PersistentEn
     }
 
     private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this, store) }
+}
+
+fun ODatabaseSession.createClassIdSequenceIfAbsent(startFrom: Long = 0L) {
+    createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, startFrom)
+}
+
+fun ODatabaseSession.createLocalEntityIdSequenceIfAbsent(oClass: OClass, startFrom: Long = 0L) {
+    createSequenceIfAbsent(localEntityIdSequenceName(oClass.name), startFrom)
+}
+
+fun ODatabaseSession.createSequenceIfAbsent(sequenceName: String, startFrom: Long = 0L) {
+    val sequences = metadata.sequenceLibrary
+    if (sequences.getSequence(sequenceName) == null) {
+        val params = OSequence.CreateParams()
+        params.start = startFrom
+        sequences.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, params)
+    }
+}
+
+fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
+    if (oClass.getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME) == null) {
+        val sequences = metadata.sequenceLibrary
+        val sequence: OSequence = sequences.getSequence(CLASS_ID_SEQUENCE_NAME) ?: throw IllegalStateException("$CLASS_ID_SEQUENCE_NAME not found")
+
+        oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, sequence.next().toString())
+    }
+}
+
+fun ODatabaseSession.setLocalEntityIdIfAbsent(vertex: OVertex) {
+    if (vertex.getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
+        val oClass = vertex.requireSchemaClass()
+        setLocalEntityId(oClass.name, vertex)
+    }
+}
+
+fun ODatabaseDocument.setLocalEntityId(className: String, vertex: OVertex) {
+    val sequences = metadata.sequenceLibrary
+    val sequenceName = localEntityIdSequenceName(className)
+    val sequence: OSequence = sequences.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName not found")
+    vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
+}
+
+fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {
+    val existingClass = this.getClass(className)
+    if (existingClass != null) return existingClass
+
+    createClassIdSequenceIfAbsent()
+    val oClass = createVertexClass(className)
+    setClassIdIfAbsent(oClass)
+    createLocalEntityIdSequenceIfAbsent(oClass)
+    return oClass
+}
+
+fun OClass.requireClassId(): Int {
+    return getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt() ?: throw IllegalStateException("classId not found for ${this.name}")
+}
+
+fun OVertex.requireSchemaClass(): OClass {
+    return schemaClass ?: throw IllegalStateException("schemaClass not found for $this")
+}
+
+fun OVertex.requireLocalEntityId(): Long {
+    return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) ?: throw IllegalStateException("localEntityId not found for the vertex")
 }
