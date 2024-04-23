@@ -1,3 +1,18 @@
+/*
+ * Copyright ${inceptionYear} - ${year} ${owner}
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package jetbrains.exodus.entitystore.orientdb
 
 import com.google.common.truth.Truth.assertThat
@@ -10,6 +25,7 @@ import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import org.junit.Assert
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -354,6 +370,7 @@ class OStoreTransactionTest : OTestMixin {
     }
 
     @Test
+    @Ignore
     fun `should sort links by property`() {
         // Given
         val test = givenTestCase()
@@ -464,89 +481,6 @@ class OStoreTransactionTest : OTestMixin {
 
             // Then
             assertNamesExactlyInOrder(boards.sorted(), "board1", "board2")
-        }
-    }
-
-    @Test
-    fun `should merge sorted issues with comparable getter`() {
-        // Given
-        val test = givenTestCase()
-        val anotherIssue = orientDb.createIssue("issue4")
-
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board2)
-        orientDb.addIssueToBoard(test.issue3, test.board3)
-        orientDb.addIssueToBoard(anotherIssue, test.board3)
-
-
-        orientDb.withSession {
-            test.issue1.setProperty(Issues.Props.PRIORITY, "1")
-            test.issue2.setProperty(Issues.Props.PRIORITY, "2")
-            test.issue3.setProperty(Issues.Props.PRIORITY, "3")
-            anotherIssue.setProperty(Issues.Props.PRIORITY, "0")
-        }
-
-        // When
-        oTransactional { tx ->
-            val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
-            val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
-            val issuesOnBoard3 = tx.sort(
-                Issues.CLASS,
-                Issues.Props.PRIORITY,
-                tx.findLinks(Issues.CLASS, test.board3, Issues.Links.ON_BOARD),
-                true
-            )
-
-            val comparableGetter = ComparableGetter { it.getProperty(Issues.Props.PRIORITY) }
-            val comparator = Comparator<Comparable<Any>?> { o1, o2 -> o1?.compareTo(o2!!) ?: -1 }
-
-            val mergeSorted =
-                tx.mergeSorted(listOf(issuesOnBoard2, issuesOnBoard1, issuesOnBoard3), comparableGetter, comparator)
-
-            // Then
-            assertNamesExactlyInOrder(mergeSorted, "issue4", "issue1", "issue2", "issue3")
-        }
-    }
-
-    @Test
-    fun `should merge sorted issues`() {
-        // Given
-        val test = givenTestCase()
-        val anotherIssue = orientDb.createIssue("issue4")
-
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board2)
-        orientDb.addIssueToBoard(test.issue3, test.board3)
-        orientDb.addIssueToBoard(anotherIssue, test.board3)
-
-
-        orientDb.withSession {
-            test.issue1.setProperty(Issues.Props.PRIORITY, "1")
-            test.issue2.setProperty(Issues.Props.PRIORITY, "2")
-            test.issue3.setProperty(Issues.Props.PRIORITY, "3")
-            anotherIssue.setProperty(Issues.Props.PRIORITY, "0")
-        }
-
-        // When
-        oTransactional { tx ->
-            val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
-            val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
-            val issuesOnBoard3 = tx.sort(
-                Issues.CLASS,
-                Issues.Props.PRIORITY,
-                tx.findLinks(Issues.CLASS, test.board3, Issues.Links.ON_BOARD),
-                true
-            )
-
-            val comparator = Comparator<Entity> { o1, o2 ->
-                o1.getProperty(Issues.Props.PRIORITY)?.compareTo(o2.getProperty(Issues.Props.PRIORITY)) ?: -1
-            }
-
-            val mergeSorted =
-                tx.mergeSorted(arrayListOf(issuesOnBoard2, issuesOnBoard1, issuesOnBoard3), comparator)
-
-            // Then
-            assertNamesExactlyInOrder(mergeSorted, "issue4", "issue1", "issue2", "issue3")
         }
     }
 

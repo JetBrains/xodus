@@ -45,7 +45,7 @@ class Or(left: NodeBase, right: NodeBase) : CommutativeOperator(left, right) {
     override fun instantiate(
         entityType: String,
         queryEngine: QueryEngine,
-        metaData: ModelMetaData,
+        metaData: ModelMetaData?,
         context: InstantiateContext
     ): Iterable<Entity> {
         val leftInstance = left.instantiate(entityType, queryEngine, metaData, context);

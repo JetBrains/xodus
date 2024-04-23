@@ -20,6 +20,8 @@ import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Objects;
+
 public abstract class Sort extends UnaryNode {
     static final int MAX_NESTED_SORTS = 4;
 
@@ -44,7 +46,8 @@ public abstract class Sort extends UnaryNode {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        throw new RuntimeException(getClass() + " node in optimized tree.");
+        var iterable = queryEngine.instantiateGetAll(queryEngine.getPersistentStore().getAndCheckCurrentTransaction(),entityType);
+        return applySort(entityType, iterable, Objects.requireNonNull(queryEngine.getSortEngine()));
     }
 
     public abstract Iterable<Entity> applySort(String entityType, Iterable<Entity> iterable, @NotNull final SortEngine sortEngine);
