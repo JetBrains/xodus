@@ -487,9 +487,9 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
         oTransactional {
-            test.issue1.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 0)
-            test.issue2.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 3)
-            test.issue3.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 99)
+            test.issue1.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 0L)
+            test.issue2.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 3L)
+            test.issue3.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 99L)
         }
 
         // When
