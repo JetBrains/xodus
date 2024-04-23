@@ -553,4 +553,12 @@ class OStoreTransactionTest : OTestMixin {
             assertEquals(bId, tx.toEntityId(bLegacyIdRepresentation))
         }
     }
+
+    @Test
+    fun `newEntity sets localEntityId`() {
+        orientDb.store.executeInTransaction { tx ->
+            val issue = tx.newEntity(Issues.CLASS)
+            assertEquals(issue.id.localId, 1)
+        }
+    }
 }

@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
@@ -372,12 +373,16 @@ fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
 
 fun ODatabaseSession.setLocalEntityIdIfAbsent(vertex: OVertex) {
     if (vertex.getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
-        val sequences = metadata.sequenceLibrary
         val oClass = vertex.requireSchemaClass()
-        val sequenceName = localEntityIdSequenceName(oClass.name)
-        val sequence: OSequence = sequences.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName not found")
-        vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
+        setLocalEntityId(oClass.name, vertex)
     }
+}
+
+fun ODatabaseDocument.setLocalEntityId(className: String, vertex: OVertex) {
+    val sequences = metadata.sequenceLibrary
+    val sequenceName = localEntityIdSequenceName(className)
+    val sequence: OSequence = sequences.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName not found")
+    vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
 }
 
 fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {
