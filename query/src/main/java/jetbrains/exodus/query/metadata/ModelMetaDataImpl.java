@@ -22,10 +22,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ModelMetaDataImpl implements ModelMetaData {
@@ -158,8 +155,16 @@ public class ModelMetaDataImpl implements ModelMetaData {
                 } while (t != null);
                 ((EntityMetaDataImpl) emd).setThisAndSuperTypes(thisAndSuperTypes);
             }
+            afterPrepare(result.values());
             return result;
         }
+    }
+
+    /*
+    * Is called in a synchronized block
+    * */
+    protected void afterPrepare(@NotNull Collection<EntityMetaData> entitiesMetaData) {
+
     }
 
     private void addSubTypeToMetaData(Map<String, EntityMetaData> typeToEntityMetaDatas, EntityMetaData emd, String superType) {
