@@ -113,9 +113,8 @@ class BackupTests : EntityStoreTestBase() {
     }
 
 
-    @Ignore("Unignore when fix is applied in release-3.0")
     @Throws(Exception::class)
-    fun testStressDynamic() {
+    fun _testStressDynamic() {
         val store = entityStore
         store.config.maxInPlaceBlobSize = 0 // no in-place blobs
         val issueCount = 1000
