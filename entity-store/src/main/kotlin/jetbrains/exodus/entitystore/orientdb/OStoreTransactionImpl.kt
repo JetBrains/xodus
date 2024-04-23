@@ -153,7 +153,7 @@ class OStoreTransactionImpl(
         return OPropertyRangeIterable(
             this,
             entityType,
-            OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME,
+            OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME,
             minValue,
             maxValue
         )
