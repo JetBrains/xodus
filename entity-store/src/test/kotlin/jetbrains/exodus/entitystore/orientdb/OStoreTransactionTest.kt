@@ -483,6 +483,24 @@ class OStoreTransactionTest : OTestMixin {
     }
 
     @Test
+    fun `select by id range dummy test`() {
+        // Given
+        val test = givenTestCase()
+        oTransactional {
+            test.issue1.setProperty(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, 0)
+            test.issue2.setProperty(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, 3)
+            test.issue3.setProperty(OVertexEntity.BACKWARD_COMPATIBLE_LOCAL_ENTITY_ID_PROPERTY_NAME, 99)
+        }
+
+        // When
+        oTransactional { tx ->
+            val issues = tx.findIds(Issues.CLASS, 2, 100) as OQueryEntityIterableBase
+            // Then
+            assertNamesExactlyInOrder(issues, test.issue2.getProperty("name").toString(), test.issue3.getProperty("name").toString())
+        }
+    }
+
+    @Test
     fun `tx lets search for an entity using PersistentEntityId`() {
         val aId = orientDb.createIssue("A").id
         val bId = orientDb.createIssue("B").id
@@ -551,6 +569,14 @@ class OStoreTransactionTest : OTestMixin {
 
             assertEquals(aId, tx.toEntityId(aLegacyIdRepresentation))
             assertEquals(bId, tx.toEntityId(bLegacyIdRepresentation))
+        }
+    }
+
+    @Test
+    fun `newEntity sets localEntityId`() {
+        orientDb.store.executeInTransaction { tx ->
+            val issue = tx.newEntity(Issues.CLASS)
+            assertEquals(issue.id.localId, 1)
         }
     }
 }
