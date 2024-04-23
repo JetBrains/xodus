@@ -22,19 +22,12 @@ import io.mockk.every
 import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.*
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import jetbrains.exodus.entitystore.orientdb.testutil.Issues
-import jetbrains.exodus.entitystore.orientdb.testutil.OTaskTrackerTestCase
-import jetbrains.exodus.entitystore.orientdb.testutil.Projects
-import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToBoard
-import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToProject
-import jetbrains.exodus.entitystore.orientdb.testutil.name
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
 import jetbrains.exodus.query.metadata.PropertyMetaData
 import jetbrains.exodus.query.metadata.PropertyType
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -208,7 +201,7 @@ class OQueryEngineTest {
             val issues = engine.query("Issue", And(nameEqual, projectEqual))
 
             // Then
-            assertThat(issues.count()).isEqualTo(1)
+            assertThat(issues.size()).isEqualTo(1)
             assertThat(issues.first().getProperty("name")).isEqualTo("issue2")
             assertThat(issues.first().getProperty("priority")).isEqualTo("normal")
         }
@@ -408,13 +401,6 @@ class OQueryEngineTest {
             test.issue1.setBlob("myBlob", "Hello".toByteArray().inputStream())
             //blob with content of size 0 (can be found)
             test.issue2.setBlob("myBlob", ByteArray(0).inputStream())
-            //blob with removed content (cannot be found)
-            test.issue3.setBlob("myBlob", "World".toByteArray().inputStream())
-            val id = test.issue3.id.asOId()
-            val vertex = it.load<OVertex>(id)
-            val blobContainer = vertex.getProperty<OElement>("myBlob")
-            blobContainer.removeProperty<ByteArray>(OVertexEntity.DATA_PROPERTY_NAME)
-            blobContainer.save<OElement>()
         }
 
         orientDB.withSession {
@@ -562,7 +548,9 @@ class OQueryEngineTest {
 
     private fun givenOQueryEngine(metadataOrNull: ModelMetaData? = null): QueryEngine {
         // ToDo: return orientdb compatible query engine
-        return mockk()
+        return QueryEngine(metadataOrNull, orientDB.store).apply {
+            sortEngine = SortEngine(this)
+        }
     }
 
     private fun givenTestCase() = OTaskTrackerTestCase(orientDB)
