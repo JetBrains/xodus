@@ -32,17 +32,23 @@ import mu.KotlinLogging
 private val log = KotlinLogging.logger {}
 
 fun ODatabaseSession.applySchema(
-    model: ModelMetaDataImpl,
+    metaData: ModelMetaData,
+    indexForEverySimpleProperty: Boolean = false,
+    applyLinkCardinality: Boolean = true
+): Map<String, Set<DeferredIndex>> = applySchema(metaData.entitiesMetaData, indexForEverySimpleProperty, applyLinkCardinality)
+
+fun ODatabaseSession.applySchema(
+    entitiesMetaData: Iterable<EntityMetaData>,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
 ): Map<String, Set<DeferredIndex>> {
-    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality)
+    val initializer = OrientDbSchemaInitializer(entitiesMetaData, this, indexForEverySimpleProperty, applyLinkCardinality)
     initializer.apply()
     return initializer.getIndices()
 }
 
 internal class OrientDbSchemaInitializer(
-    private val dnqModel: ModelMetaDataImpl,
+    private val entitiesMetaData: Iterable<EntityMetaData>,
     private val oSession: ODatabaseSession,
     private val indexForEverySimpleProperty: Boolean,
     private val applyLinkCardinality: Boolean
@@ -76,7 +82,7 @@ internal class OrientDbSchemaInitializer(
             oSession.createClassIdSequenceIfAbsent()
 
             appendLine("applying the DNQ schema to OrientDB")
-            val sortedEntities = dnqModel.entitiesMetaData.sortedTopologically()
+            val sortedEntities = entitiesMetaData.sortedTopologically()
 
             appendLine("creating classes if absent:")
             withPadding {
