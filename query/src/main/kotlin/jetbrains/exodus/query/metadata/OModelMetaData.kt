@@ -31,9 +31,6 @@ class OModelMetaData(
         }
     }
 
-    override fun onReset() {
-    }
-
     /*
     * The parent class uses a concurrent hash map for association metadata.
     * It kind of hints us that concurrent access is expected/possible.

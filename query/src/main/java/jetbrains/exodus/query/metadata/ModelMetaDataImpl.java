@@ -70,7 +70,6 @@ public class ModelMetaDataImpl implements ModelMetaData {
         }
         synchronized (entityMetaDatas) {
             typeToEntityMetaDatas = null;
-            onReset();
         }
     }
 
@@ -165,13 +164,6 @@ public class ModelMetaDataImpl implements ModelMetaData {
     * Synchronized
     * */
     protected void onPrepared(@NotNull Collection<EntityMetaData> entitiesMetaData) {
-
-    }
-
-    /*
-     * Synchronized
-     * */
-    protected void onReset() {
 
     }
 
