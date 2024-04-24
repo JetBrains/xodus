@@ -41,6 +41,10 @@ class PaddedLogger(
     }
 
     fun flush() {
+        // trim last \n
+        if (sb.isNotEmpty() && sb.last() == '\n') {
+            sb.setLength(sb.length - 1)
+        }
         logger.info { sb.toString() }
         sb.clear()
         newLine = true

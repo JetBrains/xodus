@@ -194,11 +194,21 @@ internal class OrientDbSchemaInitializer(
     }
 
     fun addAssociation(association: OAssociationMetadata) {
-        this.applyAssociation( association)
+        try {
+            appendLine("create association [${association.outClassName} -> ${association.name} -> ${association.inClassName}] if absent:")
+            this.applyAssociation(association)
+        } finally {
+            paddedLogger.flush()
+        }
     }
 
     fun removeAssociation(association: OAssociationMetadata) {
-        removeAssociationImpl(association)
+        try {
+            appendLine("remove association [${association.outClassName} -> ${association.name} -> ${association.inClassName}] if exists:")
+            removeAssociationImpl(association)
+        } finally {
+            paddedLogger.flush()
+        }
     }
 
     // Vertices and Edges
@@ -363,31 +373,26 @@ internal class OrientDbSchemaInitializer(
     }
 
     private fun removeAssociationImpl(association: OAssociationMetadata) {
-        append(association.name)
+        removeEdge(association.outClassName, association.name, ODirection.OUT)
+        removeEdge(association.inClassName, association.name, ODirection.IN)
+    }
 
-        val sourceClass = oSession.getClass(association.outClassName)
+    private fun removeEdge(className: String, associationName: String, direction: ODirection) {
+        append(className)
+        val sourceClass = oSession.getClass(className)
         if (sourceClass != null) {
-            val propOutName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, association.name)
+            val propOutName = OVertex.getDirectEdgeLinkFieldName(direction, associationName)
+            append(".$propOutName")
             if (sourceClass.existsProperty(propOutName)) {
                 sourceClass.dropProperty(propOutName)
+                append(" deleted")
             } else {
-
+                append(" not found")
             }
         } else {
-
+            append(" not found")
         }
-
-        val targetClass = oSession.getClass(association.inClassName)
-        if (targetClass != null) {
-            val propInName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, association.name)
-            if (targetClass.existsProperty(propInName)) {
-                targetClass.dropProperty(propInName)
-            } else {
-
-            }
-        } else {
-
-        }
+        appendLine()
     }
 
 
