@@ -61,10 +61,12 @@ class OStoreTransactionImpl(
     }
 
     override fun commit(): Boolean {
-        txn.commit()
-        if (!txn.isActive) {
-            session.release()
+        try {
+            txn.commit()
+        } finally {
+            cleanUpTxIfNeeded()
         }
+
         return true
     }
 
@@ -73,18 +75,38 @@ class OStoreTransactionImpl(
     }
 
     override fun abort() {
-        txn.rollback()
+        try {
+            txn.rollback()
+        } finally {
+            cleanUpTxIfNeeded()
+        }
     }
 
     override fun flush(): Boolean {
-        commit()
-        txn.begin()
+        try {
+            txn.commit()
+            txn.begin()
+        } finally {
+            cleanUpTxIfNeeded()
+        }
+
         return true
     }
 
+    private fun cleanUpTxIfNeeded() {
+        if (!txn.isActive) {
+            (store as OPersistentEntityStore).completeTx()
+            session.close()
+        }
+    }
+
     override fun revert() {
-        txn.rollback()
-        txn.begin()
+        try {
+            txn.rollback()
+            txn.begin()
+        } finally {
+            cleanUpTxIfNeeded()
+        }
     }
 
     override fun getSnapshot(): StoreTransaction {
@@ -94,6 +116,8 @@ class OStoreTransactionImpl(
     override fun newEntity(entityType: String): Entity {
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
+        vertex.save<OVertex>()
+
         return OVertexEntity(vertex, store)
     }
 
@@ -238,7 +262,7 @@ class OStoreTransactionImpl(
         valueGetter: ComparableGetter,
         comparator: java.util.Comparator<Comparable<Any>?>
     ): EntityIterable {
-      throw UnsupportedOperationException("Not implemented")
+        throw UnsupportedOperationException("Not implemented")
     }
 
     override fun toEntityId(representation: String): EntityId {
