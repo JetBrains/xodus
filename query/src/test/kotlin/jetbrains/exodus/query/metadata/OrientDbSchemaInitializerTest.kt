@@ -15,18 +15,16 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
@@ -193,7 +191,7 @@ class OrientDbSchemaInitializerTest {
         oSession.applySchema(model)
 
         for (cardinality in AssociationEndCardinality.entries) {
-            oSession.checkAssociation("prop1$cardinality", "type2", "type1", cardinality)
+            oSession.assertAssociationExists("type2", "type1", "prop1$cardinality", cardinality)
         }
     }
 
@@ -211,7 +209,7 @@ class OrientDbSchemaInitializerTest {
         oSession.applySchema(model, applyLinkCardinality = false)
 
         for (cardinality in AssociationEndCardinality.entries) {
-            oSession.checkAssociation("prop1$cardinality", "type2", "type1", null)
+            oSession.assertAssociationExists("type2", "type1", "prop1$cardinality", null)
         }
     }
 
@@ -239,8 +237,8 @@ class OrientDbSchemaInitializerTest {
 
         for (cardinality1 in AssociationEndCardinality.entries) {
             for (cardinality2 in AssociationEndCardinality.entries) {
-                oSession.checkAssociation("prop1${cardinality1}_${cardinality2}", "type1", "type2", cardinality1)
-                oSession.checkAssociation("prop2${cardinality2}_${cardinality1}", "type2", "type1", cardinality2)
+                oSession.assertAssociationExists("type1", "type2", "prop1${cardinality1}_${cardinality2}", cardinality1)
+                oSession.assertAssociationExists("type2", "type1", "prop2${cardinality2}_${cardinality1}", cardinality2)
             }
         }
     }
@@ -344,7 +342,7 @@ class OrientDbSchemaInitializerTest {
         }
 
         for (cardinality in AssociationEndCardinality.entries) {
-            session.checkAssociation("ass1${cardinality.name}", "type1", "type2", cardinality)
+            session.assertAssociationExists("type1", "type2", "ass1${cardinality.name}", cardinality)
         }
 
         for (cardinality in AssociationEndCardinality.entries) {
@@ -356,7 +354,14 @@ class OrientDbSchemaInitializerTest {
         }
 
         for (cardinality in AssociationEndCardinality.entries) {
-            session.checkNoAssociation("ass1${cardinality.name}", "type1", "type2")
+            /*
+            * We do not delete the edge class when deleting an association because
+            * it (the edge class) may be used by other associations.
+            *
+            * Maybe it is possible to check an edge class if it is not used anywhere, but
+            * we do not do it at the moment. Maybe some day in the future.
+            * */
+            session.assertAssociationNotExist("type1", "type2", "ass1${cardinality.name}", requireEdgeClass = true)
         }
     }
 
@@ -474,161 +479,6 @@ class OrientDbSchemaInitializerTest {
     }
 
     private fun indexName(entityName: String, unique: Boolean, vararg fieldNames: String): String = "${entityName}_${fieldNames.joinToString("_")}${if (unique) "_unique" else ""}"
-
-    private fun ODatabaseSession.checkNoAssociation(edgeName: String, outClassName: String, inClassName: String) {
-        /*
-        * We do not delete the edge class when deleting an association because
-        * it (the edge class) may be used by other associations.
-        *
-        * Maybe it is possible to check an edge class if it is not used anywhere, but
-        * we do not do it at the moment. Maybe some day in the future.
-        * */
-        requireEdgeClass(edgeName)
-
-        val inClass = getClass(inClassName)!!
-        val outClass = getClass(outClassName)!!
-
-        val outPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
-        assertNull(outClass.getProperty(outPropName))
-
-        val inPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeName)
-        assertNull(inClass.getProperty(inPropName))
-    }
-
-    private fun ODatabaseSession.checkAssociation(edgeName: String, outClassName: String, inClassName: String, cardinality: AssociationEndCardinality?) {
-        val edge = requireEdgeClass(edgeName)
-        val inClass = getClass(inClassName)!!
-        val outClass = getClass(outClassName)!!
-
-        val outPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
-        val outProp = outClass.getProperty(outPropName)!!
-        assertEquals(OType.LINKBAG, outProp.type)
-        assertEquals(edge, outProp.linkedClass)
-        when (cardinality) {
-            AssociationEndCardinality._0_1 -> {
-                assertTrue(!outProp.isMandatory)
-                assertTrue(outProp.min == "0")
-                assertTrue(outProp.max == "1")
-            }
-            AssociationEndCardinality._1 -> {
-                assertTrue(outProp.isMandatory)
-                assertTrue(outProp.min == "1")
-                assertTrue(outProp.max == "1")
-            }
-            AssociationEndCardinality._0_n -> {
-                assertTrue(!outProp.isMandatory)
-                assertTrue(outProp.min == "0")
-                assertTrue(outProp.max == null)
-            }
-            AssociationEndCardinality._1_n -> {
-                assertTrue(outProp.isMandatory)
-                assertTrue(outProp.min == "1")
-                assertTrue(outProp.max == null)
-            }
-            null -> {
-                assertTrue(!outProp.isMandatory)
-                assertTrue(outProp.min == null)
-                assertTrue(outProp.max == null)
-            }
-        }
-
-        val inPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeName)
-        val inProp = inClass.getProperty(inPropName)!!
-        assertEquals(OType.LINKBAG, inProp.type)
-        assertEquals(edge, inProp.linkedClass)
-    }
-
-    private fun ODatabaseSession.assertVertexClassExists(name: String) {
-        assertHasSuperClass(name, "V")
-    }
-
-    private fun ODatabaseSession.requireEdgeClass(name: String): OClass {
-        val edge = getClass(name)!!
-        assertTrue(edge.superClassesNames.contains("E"))
-        return edge
-    }
-
-    private fun ODatabaseSession.assertHasSuperClass(className: String, superClassName: String) {
-        assertTrue(getClass(className)!!.superClassesNames.contains(superClassName))
-    }
-
-    private fun model(initialize: ModelMetaDataImpl.() -> Unit): ModelMetaDataImpl {
-        val model = ModelMetaDataImpl()
-        model.initialize()
-        return model
-    }
-
-    private fun ModelMetaDataImpl.entity(type: String, superType: String? = null, init: EntityMetaDataImpl.() -> Unit = {}) {
-        val entity = EntityMetaDataImpl()
-        entity.type = type
-        entity.superType = superType
-        addEntityMetaData(entity)
-        entity.init()
-    }
-
-    private fun EntityMetaDataImpl.index(vararg fieldNames: String) {
-        val index = IndexImpl()
-        index.fields = fieldNames.map { fieldName ->
-            val field = IndexFieldImpl()
-            field.isProperty = true
-            field.name = fieldName
-            field
-        }
-        index.ownerEntityType = this.type
-        this.ownIndexes = this.ownIndexes + setOf(index)
-    }
-
-    private fun EntityMetaDataImpl.property(name: String, typeName: String, required: Boolean = false) {
-        this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, typeName))
-        if (required) {
-            requiredProperties = requiredProperties + setOf(name)
-        }
-    }
-
-    private fun EntityMetaDataImpl.blobProperty(name: String) {
-        this.propertiesMetaData = listOf(PropertyMetaDataImpl(name, PropertyType.BLOB))
-    }
-
-    private fun EntityMetaDataImpl.stringBlobProperty(name: String) {
-        this.propertiesMetaData = listOf(PropertyMetaDataImpl(name, PropertyType.TEXT))
-    }
-
-    private fun EntityMetaDataImpl.setProperty(name: String, dataType: String) {
-        this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, "Set", listOf(dataType)))
-    }
-
-    private fun EntityMetaDataImpl.association(associationName: String, targetEntity: String, cardinality: AssociationEndCardinality) {
-        modelMetaData.addAssociation(
-            this.type,
-            targetEntity,
-            AssociationType.Directed, // ingored
-            associationName,
-            cardinality,
-            false, false, false ,false, // ignored
-            null, null, false, false, false, false
-        )
-    }
-
-    private fun ModelMetaData.twoDirectionalAssociation(
-        sourceEntity: String,
-        sourceName: String,
-        sourceCardinality: AssociationEndCardinality,
-        targetEntity: String,
-        targetName: String,
-        targetCardinality: AssociationEndCardinality,
-    ) {
-        addAssociation(
-            sourceEntity,
-            targetEntity,
-            AssociationType.Undirected, // two-directional
-            sourceName,
-            sourceCardinality,
-            false, false, false ,false, // ignored
-            targetName,
-            targetCardinality,
-            false, false, false, false // ignored
-        )
-    }
 
     private val supportedSimplePropertyTypes: List<String> = listOf(
         "boolean",
