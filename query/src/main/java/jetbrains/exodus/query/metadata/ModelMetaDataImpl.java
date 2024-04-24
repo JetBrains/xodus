@@ -70,6 +70,7 @@ public class ModelMetaDataImpl implements ModelMetaData {
         }
         synchronized (entityMetaDatas) {
             typeToEntityMetaDatas = null;
+            onReset();
         }
     }
 
@@ -155,15 +156,22 @@ public class ModelMetaDataImpl implements ModelMetaData {
                 } while (t != null);
                 ((EntityMetaDataImpl) emd).setThisAndSuperTypes(thisAndSuperTypes);
             }
-            afterPrepare(result.values());
+            onPrepared(result.values());
             return result;
         }
     }
 
     /*
-    * Is called in a synchronized block
+    * Synchronized
     * */
-    protected void afterPrepare(@NotNull Collection<EntityMetaData> entitiesMetaData) {
+    protected void onPrepared(@NotNull Collection<EntityMetaData> entitiesMetaData) {
+
+    }
+
+    /*
+     * Synchronized
+     * */
+    protected void onReset() {
 
     }
 
@@ -269,21 +277,21 @@ public class ModelMetaDataImpl implements ModelMetaData {
         EntityMetaDataImpl source = (EntityMetaDataImpl) getEntityMetaData(entityName);
         AssociationEndMetaData aemd = removeAssociationEndMetaDataFromEntityTypeSubtree(typeToEntityMetaDatas, source, associationName);
         AssociationMetaData amd = aemd.getAssociationMetaData();
-        onRemoveAssociation(entityName, associationName);
+        EntityMetaDataImpl target = (EntityMetaDataImpl) aemd.getOppositeEntityMetaData();
+        onRemoveAssociation(source.getType(), target.getType(), associationName);
 
         // remove from target
-        EntityMetaDataImpl target = (EntityMetaDataImpl) aemd.getOppositeEntityMetaData();
         if (amd.getType() != AssociationType.Directed) {
             String oppositeAssociationName = amd.getOppositeEnd(aemd).getName();
             removeAssociationEndMetaDataFromEntityTypeSubtree(typeToEntityMetaDatas, target, oppositeAssociationName);
-            onRemoveAssociation(target.getType(), oppositeAssociationName);
+            onRemoveAssociation(target.getType(), source.getType(), oppositeAssociationName);
         }
 
         associationMetaDatas.remove(getUniqueAssociationName(entityName, target.getType(), associationName));
         return amd;
     }
 
-    protected void onRemoveAssociation(@NotNull String typeName, @NotNull String associationName) {
+    protected void onRemoveAssociation(@NotNull String sourceTypeName, @NotNull String targetTypeName, @NotNull String associationName) {
 
     }
 
