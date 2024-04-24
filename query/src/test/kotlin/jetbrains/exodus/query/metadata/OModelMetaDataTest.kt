@@ -4,6 +4,7 @@ import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertFailsWith
 
 class OModelMetaDataTest {
     @Rule
@@ -57,12 +58,55 @@ class OModelMetaDataTest {
 
         model.addAssociation(
             "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
-            false, false,false,false, null,
+            false, false, false, false, null,
             null, false, false, false, false
         )
 
         orientDb.withSession { session ->
             session.assertAssociationExists("type2", "type1", "ass1", AssociationEndCardinality._1)
+        }
+    }
+
+    @Test
+    fun `if there is an active session on the current thread, the model uses it`() {
+        val model = oModel(orientDb.provider) {
+            entity("type1")
+            entity("type2")
+        }
+
+        orientDb.withSession {
+            model.prepare()
+            model.addAssociation(
+                "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
+                false, false, false, false, null,
+                null, false, false, false, false
+            )
+            model.removeAssociation("type2", "ass1")
+        }
+    }
+
+    @Test
+    fun `if there is an active transaction, throw an exception`() {
+        val model = oModel(orientDb.provider) {
+            entity("type1")
+            entity("type2")
+        }
+
+        orientDb.withSession { session ->
+            session.begin()
+            assertFailsWith<AssertionError> {
+                model.prepare()
+            }
+            assertFailsWith<AssertionError> {
+                model.addAssociation(
+                    "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
+                    false, false, false, false, null,
+                    null, false, false, false, false
+                )
+            }
+            assertFailsWith<AssertionError> {
+                model.removeAssociation("type2", "ass1")
+            }
         }
     }
 

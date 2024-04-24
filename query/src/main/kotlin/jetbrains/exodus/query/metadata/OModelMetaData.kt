@@ -15,6 +15,8 @@
  */
 package jetbrains.exodus.query.metadata
 
+import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
+import com.orientechnologies.orient.core.db.ODatabaseSession
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
 import jetbrains.exodus.entitystore.orientdb.withSession
 import jetbrains.exodus.kotlin.synchronized
@@ -25,7 +27,7 @@ class OModelMetaData(
 
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
-        databaseProvider.withSession { session ->
+        withSession { session ->
             val indices = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
             session.applyIndices(indices)
         }
@@ -39,7 +41,7 @@ class OModelMetaData(
 
     override fun onAddAssociation(typeName: String, association: AssociationEndMetaData) {
         synchronized {
-            databaseProvider.withSession { session ->
+            withSession { session ->
                 session.addAssociation(typeName, association)
             }
         }
@@ -47,9 +49,31 @@ class OModelMetaData(
 
     override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
         synchronized {
-            databaseProvider.withSession { session ->
+            withSession { session ->
                 session.removeAssociation(sourceTypeName, targetTypeName, associationName)
             }
         }
+    }
+
+    private fun hasActiveSession(): Boolean {
+        val db = ODatabaseRecordThreadLocal.instance().getIfDefined()
+        return db != null
+    }
+
+    private fun <R> withSession(block: (ODatabaseSession) -> R): R {
+        return if (hasActiveSession()) {
+            val activeSession = ODatabaseSession.getActiveSession() as ODatabaseSession
+            activeSession.requireNoActiveTransaction()
+            block(activeSession)
+        } else {
+            databaseProvider.withSession { newSession ->
+                block(newSession)
+            }
+        }
+    }
+
+    private fun ODatabaseSession.requireNoActiveTransaction() {
+        println("$transaction, status:${transaction.status}, isActive:${transaction.isActive}")
+        assert(transaction == null || !transaction.isActive) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
     }
 }
