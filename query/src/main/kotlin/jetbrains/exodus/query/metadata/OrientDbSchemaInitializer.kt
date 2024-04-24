@@ -52,8 +52,15 @@ fun ODatabaseSession.addAssociation(
     association: AssociationEndMetaData,
     applyLinkCardinality: Boolean = true
 ) {
+    addAssociation(association.toOMetadata(className), applyLinkCardinality)
+}
+
+fun ODatabaseSession.addAssociation(
+    association: OAssociationMetadata,
+    applyLinkCardinality: Boolean = true
+) {
     val initializer = OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = applyLinkCardinality)
-    initializer.addAssociation(className, association)
+    initializer.addAssociation(association)
 }
 
 fun ODatabaseSession.removeAssociation(
@@ -61,9 +68,35 @@ fun ODatabaseSession.removeAssociation(
     targetClassName: String,
     associationName: String
 ) {
-    val initializer = OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = false)
-    initializer.removeAssociation(sourceClassName, targetClassName, associationName)
+    removeAssociation(OAssociationMetadata(
+        name = associationName,
+        outClassName = sourceClassName,
+        inClassName = targetClassName,
+        // it is ignored
+        cardinality = AssociationEndCardinality._1)
+    )
 }
+
+fun ODatabaseSession.removeAssociation(
+    association: OAssociationMetadata
+) {
+    val initializer = OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = false)
+    initializer.removeAssociation(association)
+}
+
+data class OAssociationMetadata(
+    val name: String,
+    val outClassName: String,
+    val inClassName: String,
+    val cardinality: AssociationEndCardinality
+)
+
+fun AssociationEndMetaData.toOMetadata(outClassName: String): OAssociationMetadata = OAssociationMetadata(
+    name = name,
+    outClassName = outClassName,
+    inClassName = oppositeEntityMetaData.type,
+    cardinality = cardinality
+)
 
 internal class OrientDbSchemaInitializer(
     private val entitiesMetaData: Iterable<EntityMetaData>,
@@ -136,7 +169,7 @@ internal class OrientDbSchemaInitializer(
                     appendLine(dnqEntity.type)
                     withPadding {
                         for (associationEnd in dnqEntity.associationEndsMetaData) {
-                            applyAssociation(dnqEntity.type, associationEnd)
+                            this.applyAssociation(associationEnd.toOMetadata(dnqEntity.type))
                         }
                     }
                 }
@@ -160,12 +193,12 @@ internal class OrientDbSchemaInitializer(
         }
     }
 
-    fun addAssociation(className: String, association: AssociationEndMetaData) {
-        applyAssociation(className, association)
+    fun addAssociation(association: OAssociationMetadata) {
+        this.applyAssociation( association)
     }
 
-    fun removeAssociation(sourceClassName: String, targetClassName: String, associationName: String) {
-        removeAssociationImpl(sourceClassName, targetClassName, associationName)
+    fun removeAssociation(association: OAssociationMetadata) {
+        removeAssociationImpl(association)
     }
 
     // Vertices and Edges
@@ -243,18 +276,18 @@ internal class OrientDbSchemaInitializer(
 
     // Associations
 
-    private fun applyAssociation(className: String, association: AssociationEndMetaData) {
+    private fun applyAssociation(association: OAssociationMetadata) {
         append(association.name)
 
-        val class1 = oSession.getClass(className) ?: throw IllegalStateException("${className} class is not found")
-        val class2 = oSession.getClass(association.oppositeEntityMetaData.type) ?: throw IllegalStateException("${association.oppositeEntityMetaData.type} class is not found")
+        val class1 = oSession.getClass(association.outClassName) ?: throw IllegalStateException("${association.outClassName} class is not found")
+        val class2 = oSession.getClass(association.inClassName) ?: throw IllegalStateException("${association.inClassName} class is not found")
 
         val edgeClass = oSession.createEdgeClassIfAbsent(association.name)
         appendLine()
 
         withPadding {
             // class1.prop1 -> edgeClass -> class2
-            applyLink(
+            applyAssociation(
                 edgeClass,
                 outClass = class1,
                 outCardinality = association.cardinality,
@@ -263,7 +296,7 @@ internal class OrientDbSchemaInitializer(
         }
     }
 
-    private fun applyLink(
+    private fun applyAssociation(
         edgeClass: OClass,
         outClass: OClass,
         outCardinality: AssociationEndCardinality,
@@ -329,12 +362,12 @@ internal class OrientDbSchemaInitializer(
         }
     }
 
-    private fun removeAssociationImpl(sourceClassName: String, targetClassName: String, associationName: String) {
-        append(associationName)
+    private fun removeAssociationImpl(association: OAssociationMetadata) {
+        append(association.name)
 
-        val sourceClass = oSession.getClass(sourceClassName)
+        val sourceClass = oSession.getClass(association.outClassName)
         if (sourceClass != null) {
-            val propOutName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, associationName)
+            val propOutName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, association.name)
             if (sourceClass.existsProperty(propOutName)) {
                 sourceClass.dropProperty(propOutName)
             } else {
@@ -344,9 +377,9 @@ internal class OrientDbSchemaInitializer(
 
         }
 
-        val targetClass = oSession.getClass(targetClassName)
+        val targetClass = oSession.getClass(association.inClassName)
         if (targetClass != null) {
-            val propInName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, associationName)
+            val propInName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, association.name)
             if (targetClass.existsProperty(propInName)) {
                 targetClass.dropProperty(propInName)
             } else {
@@ -356,7 +389,7 @@ internal class OrientDbSchemaInitializer(
 
         }
 
-        val edgeClass = oSession.getClass(associationName)
+        val edgeClass = oSession.getClass(association.name)
         // todo should we delete if count == 0 ?
         edgeClass.count()
     }
