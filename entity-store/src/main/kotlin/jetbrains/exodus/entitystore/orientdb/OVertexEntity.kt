@@ -355,6 +355,11 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         return this
     }
 
+    fun getSnapshot(txn: OStoreTransaction): OReadonlyVertexEntity {
+        require(txn.store === store) { "Can't get entity snapshot against transaction from another store!" }
+        return OReadonlyVertexEntity(txn, id)
+    }
+
     protected open fun assertWritable() {}
 
     private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this, store) }
