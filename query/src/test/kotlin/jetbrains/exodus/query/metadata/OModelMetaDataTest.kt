@@ -47,7 +47,7 @@ class OModelMetaDataTest {
     }
 
     @Test
-    fun `removeAssociation()`() {
+    fun removeAssociation() {
         val model = oModel(orientDb.provider) {
             entity("type1")
             entity("type2") {
@@ -62,7 +62,20 @@ class OModelMetaDataTest {
     }
 
     @Test
-    fun indices() {
+    fun `prepare() creates indices`() {
+        val model = oModel(orientDb.provider) {
+            entity("type1") {
+                property("prop1", "int")
+                property("prop2", "long")
 
+                index("prop1", "prop2")
+            }
+        }
+
+        model.prepare()
+
+        orientDb.withSession { session ->
+            session.checkIndex("type1", true, "prop1", "prop2")
+        }
     }
 }

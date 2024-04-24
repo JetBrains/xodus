@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
@@ -159,7 +158,7 @@ class OrientDbSchemaInitializerTest {
             oSession.applyIndices(indices)
 
             for (type in supportedSimplePropertyTypes) {
-                oSession.getClass("type1").checkIndex(unique = false, "setProp$type")
+                oSession.checkIndex("type1", unique = false, "setProp$type")
             }
         }
     }
@@ -279,9 +278,8 @@ class OrientDbSchemaInitializerTest {
         orientDb.withSession { oSession ->
             oSession.applyIndices(indices)
 
-            val entity = oSession.getClass("type1")!!
-            entity.checkIndex(true, "prop1", "prop2")
-            entity.checkIndex(true, "prop3")
+            oSession.checkIndex("type1", true, "prop1", "prop2")
+            oSession.checkIndex("type1", true, "prop3")
         }
     }
 
@@ -447,38 +445,10 @@ class OrientDbSchemaInitializerTest {
         }
     }
 
-    private fun OClass.checkIndex(unique: Boolean, vararg fieldNames: String) {
-        val indexName = indexName(name, unique, *fieldNames)
-        val index = indexes.first { it.name == indexName }
-        assertEquals(unique, index.isUnique)
-
-        assertEquals(fieldNames.size, index.definition.fields.size)
-        for (fieldName in fieldNames) {
-            assertTrue(index.definition.fields.contains(fieldName))
-        }
-    }
-
     private fun OProperty.check(required: Boolean, notNull: Boolean) {
         assertEquals(required, isMandatory)
         assertEquals(notNull, isNotNull)
     }
-
-    private fun Map<String, Set<DeferredIndex>>.checkIndex(entityName: String, unique: Boolean, vararg fieldNames: String) {
-        val indexName = indexName(entityName, unique, *fieldNames)
-        val indices = getValue(entityName)
-        val index = indices.first { it.indexName == indexName }
-
-        assertEquals(unique, index.unique)
-        assertEquals(entityName, index.ownerVertexName)
-        assertEquals(fieldNames.size, index.properties.size)
-        assertTrue(index.allFieldsAreSimpleProperty)
-
-        for (fieldName in fieldNames) {
-            assertTrue(index.properties.any { it.name == fieldName })
-        }
-    }
-
-    private fun indexName(entityName: String, unique: Boolean, vararg fieldNames: String): String = "${entityName}_${fieldNames.joinToString("_")}${if (unique) "_unique" else ""}"
 
     private val supportedSimplePropertyTypes: List<String> = listOf(
         "boolean",

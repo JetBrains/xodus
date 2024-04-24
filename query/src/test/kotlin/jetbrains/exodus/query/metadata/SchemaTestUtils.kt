@@ -92,9 +92,37 @@ internal fun ODatabaseSession.assertHasSuperClass(className: String, superClassN
     assertTrue(getClass(className)!!.superClassesNames.contains(superClassName))
 }
 
+internal fun ODatabaseSession.checkIndex(className: String, unique: Boolean, vararg fieldNames: String) {
+    val entity = getClass(className)!!
+    val indexName = indexName(className, unique, *fieldNames)
+    val index = entity.indexes.first { it.name == indexName }
+    assertEquals(unique, index.isUnique)
+
+    assertEquals(fieldNames.size, index.definition.fields.size)
+    for (fieldName in fieldNames) {
+        assertTrue(index.definition.fields.contains(fieldName))
+    }
+}
+
+internal fun Map<String, Set<DeferredIndex>>.checkIndex(entityName: String, unique: Boolean, vararg fieldNames: String) {
+    val indexName = indexName(entityName, unique, *fieldNames)
+    val indices = getValue(entityName)
+    val index = indices.first { it.indexName == indexName }
+
+    assertEquals(unique, index.unique)
+    assertEquals(entityName, index.ownerVertexName)
+    assertEquals(fieldNames.size, index.properties.size)
+    assertTrue(index.allFieldsAreSimpleProperty)
+
+    for (fieldName in fieldNames) {
+        assertTrue(index.properties.any { it.name == fieldName })
+    }
+}
+
+internal fun indexName(entityName: String, unique: Boolean, vararg fieldNames: String): String = "${entityName}_${fieldNames.joinToString("_")}${if (unique) "_unique" else ""}"
+
 
 // Model
-
 
 internal fun model(initialize: ModelMetaDataImpl.() -> Unit): ModelMetaDataImpl {
     val model = ModelMetaDataImpl()

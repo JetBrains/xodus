@@ -26,7 +26,8 @@ class OModelMetaData(
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
         databaseProvider.withSession { session ->
-            session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
+            val indices = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
+            session.applyIndices(indices)
         }
     }
 
