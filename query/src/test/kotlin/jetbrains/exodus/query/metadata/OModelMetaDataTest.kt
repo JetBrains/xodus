@@ -47,6 +47,26 @@ class OModelMetaDataTest {
     }
 
     @Test
+    fun addAssociation() {
+        val model = oModel(orientDb.provider) {
+            entity("type1")
+            entity("type2")
+        }
+
+        model.prepare()
+
+        model.addAssociation(
+            "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
+            false, false,false,false, null,
+            null, false, false, false, false
+        )
+
+        orientDb.withSession { session ->
+            session.assertAssociationExists("type2", "type1", "ass1", AssociationEndCardinality._1)
+        }
+    }
+
+    @Test
     fun removeAssociation() {
         val model = oModel(orientDb.provider) {
             entity("type1")
