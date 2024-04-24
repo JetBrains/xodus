@@ -23,27 +23,14 @@ class OModelMetaData(
     private val databaseProvider: ODatabaseProvider
 ) : ModelMetaDataImpl() {
 
-    /*
-    * addAssociation() is called before and after prepare().
-    *
-    * Before prepare() is called, it does not make sense to initialize associations in the database
-    * because the classes may be not created yet. All associations added before prepare() get
-    * created in onPrepared().
-    *
-    * After prepare() is called, that is during the application lifetime, we translate add/remove
-    * association to the database.
-    * */
-    private var prepared = false
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
         databaseProvider.withSession { session ->
             session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
         }
-        prepared = true
     }
 
     override fun onReset() {
-        prepared = false
     }
 
     /*
@@ -53,21 +40,17 @@ class OModelMetaData(
     * */
 
     override fun onAddAssociation(typeName: String, association: AssociationEndMetaData) {
-        if (prepared) {
-            synchronized {
-                databaseProvider.withSession { session ->
-                    session.addAssociation(typeName, association)
-                }
+        synchronized {
+            databaseProvider.withSession { session ->
+                session.addAssociation(typeName, association)
             }
         }
     }
 
     override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
-        if (prepared) {
-            synchronized {
-                databaseProvider.withSession { session ->
-                    session.removeAssociation(sourceTypeName, targetTypeName, associationName)
-                }
+        synchronized {
+            databaseProvider.withSession { session ->
+                session.removeAssociation(sourceTypeName, targetTypeName, associationName)
             }
         }
     }
