@@ -26,8 +26,7 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTIT
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
@@ -193,10 +192,8 @@ class OrientDbSchemaInitializerTest {
 
         oSession.applySchema(model)
 
-        val inClass = oSession.getClass("type1")!!
-        val outClass = oSession.getClass("type2")!!
         for (cardinality in AssociationEndCardinality.entries) {
-            oSession.checkAssociation("prop1$cardinality", outClass, inClass, cardinality)
+            oSession.checkAssociation("prop1$cardinality", "type2", "type1", cardinality)
         }
     }
 
@@ -213,10 +210,8 @@ class OrientDbSchemaInitializerTest {
 
         oSession.applySchema(model, applyLinkCardinality = false)
 
-        val inClass = oSession.getClass("type1")!!
-        val outClass = oSession.getClass("type2")!!
         for (cardinality in AssociationEndCardinality.entries) {
-            oSession.checkAssociation("prop1$cardinality", outClass, inClass, null)
+            oSession.checkAssociation("prop1$cardinality", "type2", "type1", null)
         }
     }
 
@@ -242,12 +237,10 @@ class OrientDbSchemaInitializerTest {
 
         oSession.applySchema(model)
 
-        val class1 = oSession.getClass("type1")!!
-        val class2 = oSession.getClass("type2")!!
         for (cardinality1 in AssociationEndCardinality.entries) {
             for (cardinality2 in AssociationEndCardinality.entries) {
-                oSession.checkAssociation("prop1${cardinality1}_${cardinality2}", class1, class2, cardinality1)
-                oSession.checkAssociation("prop2${cardinality2}_${cardinality1}", class2, class1, cardinality2)
+                oSession.checkAssociation("prop1${cardinality1}_${cardinality2}", "type1", "type2", cardinality1)
+                oSession.checkAssociation("prop2${cardinality2}_${cardinality1}", "type2", "type1", cardinality2)
             }
         }
     }
@@ -330,6 +323,41 @@ class OrientDbSchemaInitializerTest {
 
         val indices = oSession.applySchema(model)
         assertTrue(indices.none { (indexName, _) -> indexName.contains("prop")})
+    }
+
+    @Test
+    fun `addAssociation, removeAssociation`(): Unit = orientDb.withSession { session ->
+        val model = model {
+            entity("type1")
+            entity("type2")
+        }
+
+        session.applySchema(model)
+
+        for (cardinality in AssociationEndCardinality.entries) {
+            session.addAssociation(OAssociationMetadata(
+                name = "ass1${cardinality.name}",
+                outClassName = "type1",
+                inClassName = "type2",
+                cardinality = cardinality
+            ))
+        }
+
+        for (cardinality in AssociationEndCardinality.entries) {
+            session.checkAssociation("ass1${cardinality.name}", "type1", "type2", cardinality)
+        }
+
+        for (cardinality in AssociationEndCardinality.entries) {
+            session.removeAssociation(
+                sourceClassName = "type1",
+                targetClassName = "type2",
+                associationName = "ass1${cardinality.name}"
+            )
+        }
+
+        for (cardinality in AssociationEndCardinality.entries) {
+            session.checkNoAssociation("ass1${cardinality.name}", "type1", "type2")
+        }
     }
 
 
@@ -447,8 +475,30 @@ class OrientDbSchemaInitializerTest {
 
     private fun indexName(entityName: String, unique: Boolean, vararg fieldNames: String): String = "${entityName}_${fieldNames.joinToString("_")}${if (unique) "_unique" else ""}"
 
-    private fun ODatabaseSession.checkAssociation(edgeName: String, outClass: OClass, inClass: OClass, cardinality: AssociationEndCardinality?) {
+    private fun ODatabaseSession.checkNoAssociation(edgeName: String, outClassName: String, inClassName: String) {
+        /*
+        * We do not delete the edge class when deleting an association because
+        * it (the edge class) may be used by other associations.
+        *
+        * Maybe it is possible to check an edge class if it is not used anywhere, but
+        * we do not do it at the moment. Maybe some day in the future.
+        * */
+        requireEdgeClass(edgeName)
+
+        val inClass = getClass(inClassName)!!
+        val outClass = getClass(outClassName)!!
+
+        val outPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
+        assertNull(outClass.getProperty(outPropName))
+
+        val inPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeName)
+        assertNull(inClass.getProperty(inPropName))
+    }
+
+    private fun ODatabaseSession.checkAssociation(edgeName: String, outClassName: String, inClassName: String, cardinality: AssociationEndCardinality?) {
         val edge = requireEdgeClass(edgeName)
+        val inClass = getClass(inClassName)!!
+        val outClass = getClass(outClassName)!!
 
         val outPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
         val outProp = outClass.getProperty(outPropName)!!

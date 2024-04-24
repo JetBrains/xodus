@@ -388,10 +388,6 @@ internal class OrientDbSchemaInitializer(
         } else {
 
         }
-
-        val edgeClass = oSession.getClass(association.name)
-        // todo should we delete if count == 0 ?
-        edgeClass.count()
     }
 
 
