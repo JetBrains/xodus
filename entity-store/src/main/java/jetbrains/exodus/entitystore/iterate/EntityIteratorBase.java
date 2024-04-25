@@ -21,6 +21,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.NoSuchElementException;
+import java.util.concurrent.ThreadLocalRandom;
 
 @SuppressWarnings({"AssignmentToStaticFieldFromInstanceMethod"})
 public abstract class EntityIteratorBase implements EntityIterator {
@@ -46,8 +47,6 @@ public abstract class EntityIteratorBase implements EntityIterator {
             }
         };
     }
-
-    private static int nextIdCounter = 0;
 
     @NotNull
     private final EntityIterableBase iterable;
@@ -113,7 +112,7 @@ public abstract class EntityIteratorBase implements EntityIterator {
     @Nullable
     public EntityId nextId() {
         throwNoSuchElementExceptionIfNecessary();
-        if ((++nextIdCounter & 0x1ff) == 0) {
+        if (ThreadLocalRandom.current().nextInt(0x1ff) == 0) {
             // do not check QueryCancellingPolicy too often
             QueryCancellingPolicy.cancelIfNecessary(getQueryCancellingPolicy());
         }
