@@ -88,7 +88,9 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun getHandleImpl(): EntityIterableHandle {
-        return OEntityIterableHandle(query().sql())
+        val builder = StringBuilder()
+        query().sql(builder)
+        return OEntityIterableHandle(builder.toString())
     }
 
     override fun union(right: EntityIterable): EntityIterable {

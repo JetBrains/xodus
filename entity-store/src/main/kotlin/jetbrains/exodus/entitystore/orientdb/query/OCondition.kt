@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.entitystore.orientdb.query
 
-import jetbrains.exodus.entitystore.orientdb.OEntityId
-
 
 // Where
 sealed interface OCondition : OQuery
@@ -27,7 +25,10 @@ class OEqualCondition(
     val value: Any,
 ) : OCondition {
 
-    override fun sql() = "$field = ?"
+    override fun sql(builder: StringBuilder) {
+        builder.append(field).append(" = ?")
+    }
+
     override fun params() = listOf(value)
 }
 
@@ -36,7 +37,10 @@ class OContainsCondition(
     val value: String,
 ) : OCondition {
 
-    override fun sql() = "$field containsText ?"
+    override fun sql(builder: StringBuilder) {
+        builder.append(field).append(" containsText ?")
+    }
+
     override fun params() = listOf(value)
 }
 
@@ -45,7 +49,10 @@ class OStartsWithCondition(
     val value: String,
 ) : OCondition {
 
-    override fun sql() = "$field like ?"
+    override fun sql(builder: StringBuilder) {
+        builder.append(field).append(" like ?")
+    }
+
     override fun params() = listOf("${value}%")
 }
 
@@ -56,7 +63,14 @@ sealed class OBiCondition(
     val right: OCondition
 ) : OCondition {
 
-    override fun sql() = "(${left.sql()} $operation ${right.sql()})"
+    override fun sql(builder: StringBuilder) {
+        builder.append("(")
+        left.sql(builder)
+        builder.append(" ").append(operation).append(" ")
+        right.sql(builder)
+        builder.append(")")
+    }
+
     override fun params() = left.params() + right.params()
 }
 
@@ -69,7 +83,10 @@ class ORangeCondition(
 ) : OCondition {
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Where.html#between
-    override fun sql() = "($field between ? and ?)"
+    override fun sql(builder: StringBuilder) {
+        builder.append("(").append(field).append(" between ? and ?)")
+    }
+
     override fun params() = listOf(minInclusive, maxInclusive)
 }
 
@@ -77,23 +94,16 @@ class OEdgeExistsCondition(
     val edge: String
 ) : OCondition {
 
-    override fun sql() = "outE('$edge').size() > 0"
+    override fun sql(builder: StringBuilder) {
+        builder.append("outE('").append(edge).append("').size() > 0")
+    }
 }
 
 class OFieldExistsCondition(
     val field: String
 ) : OCondition {
 
-    override fun sql() = "not($field is null)"
-}
-
-//link
-
-class OLinkEqualCondition(
-    val field: String,
-    val valueId: OEntityId,
-) : OCondition {
-
-    override fun sql() = "out('$field').@rid = ?"
-    override fun params() = listOf(valueId.asOId())
+    override fun sql(builder: StringBuilder) {
+        builder.append("not(").append(field).append(" is null)")
+    }
 }

@@ -35,7 +35,9 @@ class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterato
             val resultSet = query.execute(txn.activeSession)
             // Log execution plan
             val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
-            logger.info { "Query: ${query.sql()}, params: ${query.params()}, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}" }
+            val builder = StringBuilder()
+            query.sql(builder)
+            logger.info { "Query: $builder, params: ${query.params()}, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}" }
 
             val iterator = resultSet.toEntityIterator(txn.store as PersistentEntityStore)
             return OQueryEntityIterator(iterator)

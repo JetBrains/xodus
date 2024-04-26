@@ -25,11 +25,26 @@ class OOrderByFields(
     val items: List<OrderItem>
 ) : OOrder {
 
-    constructor(field: String, ascending: Boolean = true) : this(listOf(OrderItem(field, ascending)))
+    constructor(field: String, ascending: Boolean = true) : this(
+        listOf(
+            OrderItem(
+                field,
+                ascending
+            )
+        )
+    )
 
-    override fun sql() = items.map { (field, ascending) ->
-        "$field ${if (ascending) "ASC" else "DESC"}"
-    }.joinToString(", ")
+    override fun sql(builder: StringBuilder) {
+        var count = 0
+
+        for ((field, ascending) in items) {
+            if (count++ > 0) {
+                builder.append(", ")
+            }
+
+            builder.append(field).append(" ").append(if (ascending) "ASC" else "DESC")
+        }
+    }
 
     override fun merge(order: OOrder): OOrder {
         return when (order) {
