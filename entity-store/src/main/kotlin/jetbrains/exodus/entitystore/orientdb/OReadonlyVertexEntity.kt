@@ -21,8 +21,7 @@ class OReadonlyVertexEntity(val txn: OStoreTransaction, id: OEntityId) : OVertex
     txn.activeSession.load(id.asOId()), txn.store as PersistentEntityStore
 ) {
     override fun assertWritable() {
-        super.assertWritable()
-        throw IllegalArgumentException("Can't update readonly entity!")
+        throw IllegalArgumentException("Can't update readonly entity (id=${id})")
     }
 }
 
