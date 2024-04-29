@@ -42,7 +42,7 @@ class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterato
         }
     }
 
-    override fun next(): Entity? {
+    override fun next(): Entity {
         return source.next()
     }
 
@@ -61,7 +61,7 @@ class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterato
     }
 
     override fun nextId(): EntityId? {
-        return next()?.id
+        return next().id
     }
 
     override fun dispose(): Boolean {
