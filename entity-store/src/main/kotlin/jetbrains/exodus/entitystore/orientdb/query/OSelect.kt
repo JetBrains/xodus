@@ -43,8 +43,14 @@ abstract class OSelectBase(
     override var limit: OLimit? = null
 ) : OSelect {
 
-    override fun sql() = selectSql() + order.orderBy() + skip.skip() + limit.limit()
-    abstract fun selectSql(): String
+    override fun sql(builder: StringBuilder) {
+        selectSql(builder)
+        order.orderBy(builder)
+        skip.skip(builder)
+        limit.limit(builder)
+    }
+
+    abstract fun selectSql(builder: StringBuilder)
 
     override fun withOrder(field: String, ascending: Boolean): OSelect {
         val newOrder = OOrderByFields(field, ascending)
@@ -72,9 +78,18 @@ class OClassSelect(
     limit: OLimit? = null
 ) : OSelectBase(order, skip, limit), OConditional {
 
-    override fun sql() = selectSql() + condition.where() + order.orderBy() + skip.skip() + limit.limit()
+    override fun sql(builder: StringBuilder) {
+        selectSql(builder)
+        condition.where(builder)
+        order.orderBy(builder)
+        skip.skip(builder)
+        limit.limit(builder)
+    }
 
-    override fun selectSql() = "SELECT FROM $className"
+    override fun selectSql(builder: StringBuilder) {
+        builder.append("SELECT FROM ")
+        builder.append(className)
+    }
 
     override fun params() = condition?.params() ?: emptyList()
 }
@@ -87,7 +102,11 @@ class OLinkInFromSubQuerySelect(
     limit: OLimit? = null
 ) : OSelectBase(order, skip, limit) {
 
-    override fun selectSql() = "SELECT expand(in('$linkName')) FROM (${subQuery.sql()})"
+    override fun selectSql(builder: StringBuilder) {
+        builder.append("SELECT expand(in('").append(linkName).append("')) FROM (")
+        subQuery.sql(builder)
+        builder.append(")")
+    }
 
     override fun params() = subQuery.params()
 }
@@ -100,7 +119,10 @@ class OLinkInFromIdsSelect(
     limit: OLimit? = null
 ) : OSelectBase(order, skip, limit) {
 
-    override fun selectSql() = "SELECT expand(in('$linkName')) FROM $targetIdsSql"
+    override fun selectSql(builder: StringBuilder) {
+        builder.append("SELECT expand(in('").append(linkName).append("')) FROM ")
+            .append(targetIdsSql)
+    }
 
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 }
@@ -113,7 +135,11 @@ class OLinkOutFromSubQuerySelect(
     limit: OLimit? = null
 ) : OSelectBase(order, skip, limit) {
 
-    override fun selectSql() = "SELECT expand(out('$linkName')) FROM (${subQuery.sql()})"
+    override fun selectSql(builder: StringBuilder) {
+        builder.append("SELECT expand(out('").append(linkName).append("')) FROM (")
+        subQuery.sql(builder)
+        builder.append(")")
+    }
 
     override fun params() = subQuery.params()
 }
@@ -128,7 +154,14 @@ class OIntersectSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
     // intersect returns projection thus need to expand it into collection
-    override fun selectSql() = "SELECT expand(intersect(\$a, \$b)) LET \$a=(${left.sql()}), \$b=(${right.sql()})"
+    override fun selectSql(builder: StringBuilder) {
+        builder.append("SELECT expand(intersect(\$a, \$b)) LET \$a=(")
+        left.sql(builder)
+        builder.append("), \$b=(")
+        right.sql(builder)
+        builder.append(")")
+    }
+
 
     override fun params() = left.params() + right.params()
 }
@@ -143,7 +176,13 @@ class OUnionSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
     // intersect returns projection thus need to expand it into collection
-    override fun selectSql() = "SELECT expand(unionall(\$a, \$b)) LET \$a=(${left.sql()}), \$b=(${right.sql()})"
+    override fun selectSql(builder: StringBuilder) {
+        builder.append("SELECT expand(unionall(\$a, \$b)) LET \$a=(")
+        left.sql(builder)
+        builder.append("), \$b=(")
+        right.sql(builder)
+        builder.append(")")
+    }
 
     override fun params() = left.params() + right.params()
 }
@@ -155,7 +194,11 @@ class ODistinctSelect(
     limit: OLimit? = null
 ) : OSelectBase(order, skip, limit) {
 
-    override fun selectSql() = "SELECT DISTINCT * FROM (${subQuery.sql()})"
+    override fun selectSql(builder: StringBuilder) {
+        builder.append("SELECT DISTINCT * FROM (")
+        subQuery.sql(builder)
+        builder.append(")")
+    }
 
     override fun params() = subQuery.params()
 }
@@ -168,12 +211,41 @@ class ODifferenceSelect(
     limit: OLimit? = null
 ) : OSelectBase(order, skip, limit) {
 
-    override fun selectSql() = "SELECT expand(difference(\$a, \$b)) LET \$a=(${left.sql()}), \$b=(${right.sql()})"
+    override fun selectSql(builder: StringBuilder) {
+        builder.append("SELECT expand(difference(\$a, \$b)) LET \$a=(")
+        left.sql(builder)
+        builder.append("), \$b=(")
+        right.sql(builder)
+        builder.append(")")
+    }
 
     override fun params() = left.params() + right.params()
 }
 
-fun OCondition?.where() = this?.let { " WHERE ${it.sql()}" } ?: ""
-fun OOrder?.orderBy() = this?.let { " ORDER BY ${it.sql()}" } ?: ""
-fun OSkip?.skip() = this?.let { " SKIP ${it.sql()}" } ?: ""
-fun OLimit?.limit() = this?.let { " LIMIT ${it.sql()}" } ?: ""
+fun OCondition?.where(builder: StringBuilder) {
+    this?.let {
+        builder.append(" WHERE ")
+        it.sql(builder)
+    } ?: builder.append("")
+}
+
+fun OOrder?.orderBy(builder: StringBuilder) {
+    this?.let {
+        builder.append(" ORDER BY ")
+        it.sql(builder)
+    } ?: builder.append("")
+}
+
+fun OSkip?.skip(builder: StringBuilder) {
+    this?.let {
+        builder.append(" SKIP ")
+        it.sql(builder)
+    } ?: builder.append("")
+}
+
+fun OLimit?.limit(builder: StringBuilder) {
+    this?.let {
+        builder.append(" LIMIT ")
+        it.sql(builder)
+    } ?: builder.append("")
+}

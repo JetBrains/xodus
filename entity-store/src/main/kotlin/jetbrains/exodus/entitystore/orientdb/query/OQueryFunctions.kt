@@ -76,7 +76,12 @@ class OCountSelect(
     val source: OSelect,
 ) : OQuery {
 
-    override fun sql() = "SELECT count(*) as count FROM (${source.sql()})"
+    override fun sql(builder: StringBuilder) {
+        builder.append("SELECT count(*) as count FROM (")
+        source.sql(builder)
+        builder.append(")")
+    }
+
     override fun params() = source.params()
 
     fun count(session: ODatabaseDocument): Long = execute(session).next().getProperty<Long>("count")
@@ -86,7 +91,12 @@ class OFirstSelect(
     val source: OSelect,
 ) : OQuery {
 
-    override fun sql() = "SELECT expand(first(\$a)) LET \$a = (${source.sql()})"
+    override fun sql(builder: StringBuilder) {
+        builder.append("SELECT expand(first(\$a)) LET \$a = (")
+        source.sql(builder)
+        builder.append(")")
+    }
+
     override fun params() = source.params()
 }
 
@@ -95,6 +105,11 @@ class OLastSelect(
     val source: OSelect,
 ) : OQuery {
 
-    override fun sql() = "SELECT expand(last(\$a)) LET \$a = (${source.sql()})"
+    override fun sql(builder: StringBuilder) {
+        builder.append("SELECT expand(last(\$a)) LET \$a = (")
+        source.sql(builder)
+        builder.append(")")
+    }
+
     override fun params() = source.params()
 }

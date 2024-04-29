@@ -24,7 +24,9 @@ class OLimitValue(
     val value: Int
 ) : OLimit {
 
-    override fun sql() = "$value"
+    override fun sql(builder: StringBuilder) {
+        builder.append(value)
+    }
 
     override fun min(other: OLimit): OLimit {
         return when (other) {
