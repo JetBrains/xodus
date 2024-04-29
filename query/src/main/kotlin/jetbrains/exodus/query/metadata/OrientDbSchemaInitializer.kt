@@ -32,17 +32,74 @@ import mu.KotlinLogging
 private val log = KotlinLogging.logger {}
 
 fun ODatabaseSession.applySchema(
-    model: ModelMetaDataImpl,
+    metaData: ModelMetaData,
+    indexForEverySimpleProperty: Boolean = false,
+    applyLinkCardinality: Boolean = true
+): Map<String, Set<DeferredIndex>> = applySchema(metaData.entitiesMetaData, indexForEverySimpleProperty, applyLinkCardinality)
+
+fun ODatabaseSession.applySchema(
+    entitiesMetaData: Iterable<EntityMetaData>,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
 ): Map<String, Set<DeferredIndex>> {
-    val initializer = OrientDbSchemaInitializer(model, this, indexForEverySimpleProperty, applyLinkCardinality)
+    val initializer = OrientDbSchemaInitializer(entitiesMetaData, this, indexForEverySimpleProperty, applyLinkCardinality)
     initializer.apply()
     return initializer.getIndices()
 }
 
+fun ODatabaseSession.addAssociation(
+    className: String,
+    association: AssociationEndMetaData,
+    applyLinkCardinality: Boolean = true
+) {
+    addAssociation(association.toOMetadata(className), applyLinkCardinality)
+}
+
+fun ODatabaseSession.addAssociation(
+    association: OAssociationMetadata,
+    applyLinkCardinality: Boolean = true
+) {
+    val initializer = OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = applyLinkCardinality)
+    initializer.addAssociation(association)
+}
+
+fun ODatabaseSession.removeAssociation(
+    sourceClassName: String,
+    targetClassName: String,
+    associationName: String
+) {
+    removeAssociation(OAssociationMetadata(
+        name = associationName,
+        outClassName = sourceClassName,
+        inClassName = targetClassName,
+        // it is ignored
+        cardinality = AssociationEndCardinality._1)
+    )
+}
+
+fun ODatabaseSession.removeAssociation(
+    association: OAssociationMetadata
+) {
+    val initializer = OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = false)
+    initializer.removeAssociation(association)
+}
+
+data class OAssociationMetadata(
+    val name: String,
+    val outClassName: String,
+    val inClassName: String,
+    val cardinality: AssociationEndCardinality
+)
+
+fun AssociationEndMetaData.toOMetadata(outClassName: String): OAssociationMetadata = OAssociationMetadata(
+    name = name,
+    outClassName = outClassName,
+    inClassName = oppositeEntityMetaData.type,
+    cardinality = cardinality
+)
+
 internal class OrientDbSchemaInitializer(
-    private val dnqModel: ModelMetaDataImpl,
+    private val entitiesMetaData: Iterable<EntityMetaData>,
     private val oSession: ODatabaseSession,
     private val indexForEverySimpleProperty: Boolean,
     private val applyLinkCardinality: Boolean
@@ -76,7 +133,7 @@ internal class OrientDbSchemaInitializer(
             oSession.createClassIdSequenceIfAbsent()
 
             appendLine("applying the DNQ schema to OrientDB")
-            val sortedEntities = dnqModel.entitiesMetaData.sortedTopologically()
+            val sortedEntities = entitiesMetaData.sortedTopologically()
 
             appendLine("creating classes if absent:")
             withPadding {
@@ -112,7 +169,7 @@ internal class OrientDbSchemaInitializer(
                     appendLine(dnqEntity.type)
                     withPadding {
                         for (associationEnd in dnqEntity.associationEndsMetaData) {
-                            applyAssociation(dnqEntity.type, associationEnd)
+                            this.applyAssociation(associationEnd.toOMetadata(dnqEntity.type))
                         }
                     }
                 }
@@ -131,6 +188,24 @@ internal class OrientDbSchemaInitializer(
                     }
                 }
             }
+        } finally {
+            paddedLogger.flush()
+        }
+    }
+
+    fun addAssociation(association: OAssociationMetadata) {
+        try {
+            appendLine("create association [${association.outClassName} -> ${association.name} -> ${association.inClassName}] if absent:")
+            this.applyAssociation(association)
+        } finally {
+            paddedLogger.flush()
+        }
+    }
+
+    fun removeAssociation(association: OAssociationMetadata) {
+        try {
+            appendLine("remove association [${association.outClassName} -> ${association.name} -> ${association.inClassName}] if exists:")
+            removeAssociationImpl(association)
         } finally {
             paddedLogger.flush()
         }
@@ -211,18 +286,18 @@ internal class OrientDbSchemaInitializer(
 
     // Associations
 
-    private fun applyAssociation(className: String, association: AssociationEndMetaData) {
+    private fun applyAssociation(association: OAssociationMetadata) {
         append(association.name)
 
-        val class1 = oSession.getClass(className) ?: throw IllegalStateException("${association.oppositeEntityMetaData.type} class is not found")
-        val class2 = oSession.getClass(association.oppositeEntityMetaData.type) ?: throw IllegalStateException("${association.oppositeEntityMetaData.type} class is not found")
+        val class1 = oSession.getClass(association.outClassName) ?: throw IllegalStateException("${association.outClassName} class is not found")
+        val class2 = oSession.getClass(association.inClassName) ?: throw IllegalStateException("${association.inClassName} class is not found")
 
         val edgeClass = oSession.createEdgeClassIfAbsent(association.name)
         appendLine()
 
         withPadding {
             // class1.prop1 -> edgeClass -> class2
-            applyLink(
+            applyAssociation(
                 edgeClass,
                 outClass = class1,
                 outCardinality = association.cardinality,
@@ -231,7 +306,7 @@ internal class OrientDbSchemaInitializer(
         }
     }
 
-    private fun applyLink(
+    private fun applyAssociation(
         edgeClass: OClass,
         outClass: OClass,
         outCardinality: AssociationEndCardinality,
@@ -295,6 +370,29 @@ internal class OrientDbSchemaInitializer(
             setMin(min)
             append(" set")
         }
+    }
+
+    private fun removeAssociationImpl(association: OAssociationMetadata) {
+        removeEdge(association.outClassName, association.name, ODirection.OUT)
+        removeEdge(association.inClassName, association.name, ODirection.IN)
+    }
+
+    private fun removeEdge(className: String, associationName: String, direction: ODirection) {
+        append(className)
+        val sourceClass = oSession.getClass(className)
+        if (sourceClass != null) {
+            val propOutName = OVertex.getDirectEdgeLinkFieldName(direction, associationName)
+            append(".$propOutName")
+            if (sourceClass.existsProperty(propOutName)) {
+                sourceClass.dropProperty(propOutName)
+                append(" deleted")
+            } else {
+                append(" not found")
+            }
+        } else {
+            append(" not found")
+        }
+        appendLine()
     }
 
 
