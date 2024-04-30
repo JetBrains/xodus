@@ -787,25 +787,15 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
         val blocksToTruncateLimit = 2
 
-        if (!config.isProceedDataRestoreAtAnyCost) {
-            val newBlocks = TreeMap<Long, Block>()
+        logger.info("Files to be checked for data consistency : ")
+        logger.info("------------------------------------------------------")
 
-            while (newBlocks.size < blocksToTruncateLimit + 16) {
-                val entry = blocks.pollLastEntry() ?: break
-                newBlocks[entry.key] = entry.value
-            }
-            blocks = newBlocks
-
-            logger.info("Files to be checked for data consistency : ")
-            logger.info("------------------------------------------------------")
-
-            val blockAddressIterator = blocks.keys.iterator()
-            while (blockAddressIterator.hasNext()) {
-                val address = blockAddressIterator.next()
-                logger.info(LogUtil.getLogFilename(address))
-            }
-            logger.info("------------------------------------------------------")
+        val blockAddressIterator = blocks.keys.iterator()
+        while (blockAddressIterator.hasNext()) {
+            val address = blockAddressIterator.next()
+            logger.info(LogUtil.getLogFilename(address))
         }
+        logger.info("------------------------------------------------------")
 
         val clearInvalidLog = config.isClearInvalidLog
         var hasNext: Boolean
