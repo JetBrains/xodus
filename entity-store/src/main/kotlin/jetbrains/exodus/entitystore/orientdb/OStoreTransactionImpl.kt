@@ -94,6 +94,7 @@ class OStoreTransactionImpl(
     override fun newEntity(entityType: String): Entity {
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
+        vertex.save<OVertex>()
         return OVertexEntity(vertex, store)
     }
 
