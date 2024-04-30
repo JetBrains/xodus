@@ -164,12 +164,20 @@ public class FindTests extends EntityStoreTestBase {
         Assert.assertEquals(2, count);
 
         config.setEnvQueryOptimizedContains(true);
-        issues = txn.findContaining("Issue", "description", "ı", true);
+        assertContainsOptimized(txn, "ı", 0);
+        assertContainsOptimized(txn, "I", 2);
+        assertContainsOptimized(txn, "i", 2);
+        assertContainsOptimized(txn, "İ", 2);
+    }
+
+    private static void assertContainsOptimized(StoreTransaction txn, String needle, int expectedCount) {
+        int count = 0;
+        EntityIterable issues = txn.findContaining("Issue", "description", needle, true);
         count = 0;
         for (final Entity issue : issues) {
             count++;
         }
-        Assert.assertEquals(0, count);
+        Assert.assertEquals(expectedCount, count);
     }
 
     @TestFor(issue = "XD-837")
