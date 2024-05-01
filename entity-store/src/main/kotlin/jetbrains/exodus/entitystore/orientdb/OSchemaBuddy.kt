@@ -65,7 +65,11 @@ class OSchemaBuddyImpl(
     }
 
     override fun makeSureTypeExists(session: ODatabaseDocument, entityType: String) {
-        session.getOrCreateVertexClass(entityType)
+        val existingClass = session.getClass(entityType)
+        if (existingClass != null) return
+
+        val oClass = session.createVertexClassWithClassId(entityType)
+        classIdToOClassId[oClass.requireClassId()] = oClass.defaultClusterId
     }
 
 }
@@ -110,14 +114,18 @@ fun ODatabaseDocument.setLocalEntityId(className: String, vertex: OVertex) {
     vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
 }
 
-fun ODatabaseDocument.getOrCreateVertexClass(className: String): OClass {
-    val existingClass = this.getClass(className)
-    if (existingClass != null) return existingClass
-
+fun ODatabaseDocument.createVertexClassWithClassId(className: String): OClass {
     requireNoActiveTransaction()
     createClassIdSequenceIfAbsent()
     val oClass = createVertexClass(className)
     setClassIdIfAbsent(oClass)
     createLocalEntityIdSequenceIfAbsent(oClass)
     return oClass
+}
+
+fun ODatabaseDocument.getOrCreateVertexClass(className: String): OClass {
+    val existingClass = this.getClass(className)
+    if (existingClass != null) return existingClass
+
+    return createVertexClassWithClassId(className)
 }

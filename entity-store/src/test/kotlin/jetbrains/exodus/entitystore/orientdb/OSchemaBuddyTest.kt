@@ -33,6 +33,20 @@ class OSchemaBuddyTest {
     }
 
     @Test
+    fun `buddy properly creates a class if absent`() {
+        val buddy = OSchemaBuddyImpl(orientDb.provider)
+        val className = "trista"
+        orientDb.withSession { session ->
+            assertNull(session.getClass(className))
+            buddy.makeSureTypeExists(session, className)
+            val oClass = session.getClass(className)
+            assertNotNull(oClass)
+            assertNotNull(oClass.getCustom(OVertexEntity.CLASS_ID_CUSTOM_PROPERTY_NAME))
+            assertNotNull(session.metadata.sequenceLibrary.getSequence(OVertexEntity.localEntityIdSequenceName(className)))
+        }
+    }
+
+    @Test
     fun `getOEntityId() works with both existing and not existing EntityId`() {
         val issueId = orientDb.createIssue("trista").id
         val buddy = OSchemaBuddyImpl(orientDb.provider, autoInitialize = true)
