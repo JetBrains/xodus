@@ -34,7 +34,8 @@ import jetbrains.exodus.env.Transaction
 class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
     private val txn: OTransaction,
-    private val store: PersistentEntityStore
+    private val store: PersistentEntityStore,
+    private val schemaBuddy: OSchemaBuddy
 ) : OStoreTransaction {
 
     private var queryCancellingPolicy: QueryCancellingPolicy? = null
@@ -92,6 +93,7 @@ class OStoreTransactionImpl(
     }
 
     override fun newEntity(entityType: String): Entity {
+        schemaBuddy.makeSureTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
         return OVertexEntity(vertex, store)
