@@ -15,8 +15,13 @@
  */
 package jetbrains.exodus.query.metadata
 
+import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.ORIDEntityId
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.createNamedEntity
 import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
@@ -155,6 +160,33 @@ class OModelMetaDataTest {
 
         orientDb.withSession { session ->
             session.checkIndex("type1", true, "prop1", "prop2")
+        }
+    }
+
+    @Test
+    fun `prepare() initializes the classId map`() {
+        val model = oModel(orientDb.provider, OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)) {
+            entity("type1")
+        }
+
+        // We have not yet called prepare() for the model, autoInitialize is disabled
+
+        val entityId = orientDb.withSession { session ->
+            session.createNamedEntity("type1", "trista", orientDb.store).id
+        }
+
+        val oldSchoolEntityId = PersistentEntityId(entityId.typeId, entityId.localId)
+
+        // model does not find the id because internal data structures are not initialized yet
+        orientDb.withSession {
+            assertEquals(ORIDEntityId.EMPTY_ID, model.getOEntityId(oldSchoolEntityId))
+        }
+
+        // prepare() must initialize internal data structures in the end
+        model.prepare()
+
+        orientDb.withSession { session ->
+            assertEquals(entityId, model.getOEntityId(oldSchoolEntityId))
         }
     }
 }

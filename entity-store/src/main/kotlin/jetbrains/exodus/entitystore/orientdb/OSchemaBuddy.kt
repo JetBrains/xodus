@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
 interface OSchemaBuddy {
     fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId
     fun makeSureTypeExists(session: ODatabaseDocument, entityType: String)
+    fun initialize()
 }
 
 class OSchemaBuddyImpl(
@@ -31,7 +32,7 @@ class OSchemaBuddyImpl(
         }
     }
 
-    fun initialize() {
+    override fun initialize() {
         dbProvider.withCurrentOrNewSession { session ->
             session.createClassIdSequenceIfAbsent()
             for (oClass in session.metadata.schema.classes) {

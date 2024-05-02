@@ -21,6 +21,8 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
 import org.junit.Assert.*
 
 // assertions
@@ -145,9 +147,13 @@ internal fun model(initialize: ModelMetaDataImpl.() -> Unit): ModelMetaDataImpl 
     return model
 }
 
-internal fun oModel(databaseProvider: ODatabaseProvider, initialize: ModelMetaDataImpl.() -> Unit): OModelMetaData {
-    val model = OModelMetaData(databaseProvider)
-    model.initialize()
+internal fun oModel(
+    databaseProvider: ODatabaseProvider,
+    schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider, autoInitialize = false),
+    buildModel: ModelMetaDataImpl.() -> Unit
+): OModelMetaData {
+    val model = OModelMetaData(databaseProvider, schemaBuddy)
+    model.buildModel()
     return model
 }
 

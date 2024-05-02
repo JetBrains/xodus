@@ -22,13 +22,15 @@ import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import org.junit.rules.ExternalResource
 
 class InMemoryOrientDB(
-    private val initializeIssueSchema: Boolean = true
+    private val initializeIssueSchema: Boolean = true,
+    private val autoInitializeSchemaBuddy: Boolean = true
 ) : ExternalResource() {
 
     private lateinit var db: OrientDB
@@ -56,7 +58,9 @@ class InMemoryOrientDB(
         }
 
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
-        store = OPersistentEntityStore(provider, dbName)
+        store = OPersistentEntityStore(provider, dbName,
+            schemaBuddy = OSchemaBuddyImpl(provider, autoInitialize = autoInitializeSchemaBuddy)
+        )
     }
 
     override fun after() {

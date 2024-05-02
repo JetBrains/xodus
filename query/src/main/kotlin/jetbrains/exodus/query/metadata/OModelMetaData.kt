@@ -15,41 +15,44 @@
  */
 package jetbrains.exodus.query.metadata
 
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
-import jetbrains.exodus.entitystore.orientdb.withCurrentOrNewSession
-import jetbrains.exodus.kotlin.synchronized
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.*
 
 class OModelMetaData(
-    private val databaseProvider: ODatabaseProvider
-) : ModelMetaDataImpl() {
-
+    private val databaseProvider: ODatabaseProvider,
+    private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider, autoInitialize = false)
+) : ModelMetaDataImpl(), OSchemaBuddy {
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             val indices = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
             session.applyIndices(indices)
+            initialize()
         }
     }
 
-    /*
-    * The parent class uses a concurrent hash map for association metadata.
-    * It kind of hints us that concurrent access is expected/possible.
-    * So, we synchronize adding/removing associations here.
-    * */
-
     override fun onAddAssociation(typeName: String, association: AssociationEndMetaData) {
-        synchronized {
-            databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-                session.addAssociation(typeName, association)
-            }
+        databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+            session.addAssociation(typeName, association)
         }
     }
 
     override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
-        synchronized {
-            databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-                session.removeAssociation(sourceTypeName, targetTypeName, associationName)
-            }
+        databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+            session.removeAssociation(sourceTypeName, targetTypeName, associationName)
         }
+    }
+
+    override fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
+        return schemaBuddy.getOEntityId(entityId)
+    }
+
+    override fun makeSureTypeExists(session: ODatabaseDocument, entityType: String) {
+        schemaBuddy.makeSureTypeExists(session, entityType)
+    }
+
+    override fun initialize() {
+        schemaBuddy.initialize()
     }
 }
