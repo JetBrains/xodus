@@ -20,6 +20,7 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.record.impl.OVertexDocument
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
+import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
@@ -61,7 +62,7 @@ class MigrateDataTest {
         migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
 
         orientDb.withSession { oSession ->
-            oSession.assertOrientContainsAllTheEntities(entities)
+            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
         }
     }
 
@@ -84,7 +85,7 @@ class MigrateDataTest {
         migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
 
         orientDb.withSession { oSession ->
-            oSession.assertOrientContainsAllTheEntities(entities)
+            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
         }
     }
 
@@ -119,7 +120,7 @@ class MigrateDataTest {
         migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
 
         orientDb.withSession { oSession ->
-            oSession.assertOrientContainsAllTheEntities(entities)
+            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
         }
     }
 
@@ -202,68 +203,69 @@ class MigrateDataTest {
         }
     }
 
-    private fun ODatabaseSession.assertOrientContainsAllTheEntities(pile: PileOfEntities) {
-        for (type in pile.types) {
-            for (record in this.browseClass(type)) {
-                val entity = pile.getEntity(type, record.getTestId())
-                record.assertEquals(entity)
-            }
+}
+
+internal fun ODatabaseSession.assertOrientContainsAllTheEntities(pile: PileOfEntities, entityStore: OPersistentEntityStore) {
+    for (type in pile.types) {
+        for (record in this.browseClass(type)) {
+            val entity = pile.getEntity(type, record.getTestId())
+            record.assertEquals(entity, entityStore)
         }
     }
+}
 
-    private fun ODocument.assertEquals(expected: Entity) {
-        val actualDocument = this
-        val actual = OVertexEntity(actualDocument as OVertexDocument, orientDb.store)
+internal fun ODocument.assertEquals(expected: Entity, entityStore: OPersistentEntityStore) {
+    val actualDocument = this
+    val actual = OVertexEntity(actualDocument as OVertexDocument, entityStore)
 
-        Assert.assertEquals(expected.id, actualDocument.getTestId())
-        for ((propName, propValue) in expected.props) {
-            Assert.assertEquals(propValue, actual.getProperty(propName))
-        }
-        for ((blobName, blobValue) in expected.blobs) {
-            val actualValue = actual.getBlob(blobName)!!.readAllBytes()
-            Assert.assertEquals(blobValue, actualValue.decodeToString())
-        }
-
-        for (expectedLink in expected.links) {
-            val actualLinks = actual.getLinks(expectedLink.name).toList()
-            val tartedActual = actualLinks.first { it.getProperty("id") == expectedLink.targetId }
-            Assert.assertEquals(expectedLink.targetType, tartedActual.type)
-        }
+    Assert.assertEquals(expected.id, actualDocument.getTestId())
+    for ((propName, propValue) in expected.props) {
+        Assert.assertEquals(propValue, actual.getProperty(propName))
+    }
+    for ((blobName, blobValue) in expected.blobs) {
+        val actualValue = actual.getBlob(blobName)!!.readAllBytes()
+        Assert.assertEquals(blobValue, actualValue.decodeToString())
     }
 
-    private fun ODocument.getTestId(): Int = getProperty("id")
+    for (expectedLink in expected.links) {
+        val actualLinks = actual.getLinks(expectedLink.name).toList()
+        val tartedActual = actualLinks.first { it.getProperty("id") == expectedLink.targetId }
+        Assert.assertEquals(expectedLink.targetType, tartedActual.type)
+    }
+}
 
-    private fun StoreTransaction.createEntities(pile: PileOfEntities) {
-        for (type in pile.types) {
-            for (entity in pile.getAll(type)) {
-                this.createEntity(entity)
-            }
-        }
-        for (type in pile.types) {
-            for (entity in pile.getAll(type)) {
-                this.createLinks(entity)
-            }
+internal fun ODocument.getTestId(): Int = getProperty("id")
+
+internal fun StoreTransaction.createEntities(pile: PileOfEntities) {
+    for (type in pile.types) {
+        for (entity in pile.getAll(type)) {
+            this.createEntity(entity)
         }
     }
-
-    private fun StoreTransaction.createEntity(entity: Entity) {
-        val e = this.newEntity(entity.type)
-        e.setProperty("id", entity.id)
-
-        for ((name, value) in entity.props) {
-            e.setProperty(name, value)
-        }
-        for ((name, value) in entity.blobs) {
-            e.setBlob(name, ByteArrayInputStream(value.encodeToByteArray()))
+    for (type in pile.types) {
+        for (entity in pile.getAll(type)) {
+            this.createLinks(entity)
         }
     }
+}
 
-    private fun StoreTransaction.createLinks(entity: Entity) {
-        val xEntity = this.getAll(entity.type).first { it.getProperty("id") == entity.id }
-        for (link in entity.links) {
-            val targetXEntity = this.getAll(link.targetType).first { it.getProperty("id") == link.targetId }
-            xEntity.addLink(link.name, targetXEntity)
-        }
+internal fun StoreTransaction.createEntity(entity: Entity) {
+    val e = this.newEntity(entity.type)
+    e.setProperty("id", entity.id)
+
+    for ((name, value) in entity.props) {
+        e.setProperty(name, value)
+    }
+    for ((name, value) in entity.blobs) {
+        e.setBlob(name, ByteArrayInputStream(value.encodeToByteArray()))
+    }
+}
+
+internal fun StoreTransaction.createLinks(entity: Entity) {
+    val xEntity = this.getAll(entity.type).first { it.getProperty("id") == entity.id }
+    for (link in entity.links) {
+        val targetXEntity = this.getAll(link.targetType).first { it.getProperty("id") == link.targetId }
+        xEntity.addLink(link.name, targetXEntity)
     }
 }
 
