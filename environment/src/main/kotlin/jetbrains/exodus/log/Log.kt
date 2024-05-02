@@ -43,6 +43,7 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.Semaphore
 import kotlin.experimental.xor
+import kotlin.math.min
 
 class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, CacheDataProvider {
 
@@ -787,159 +788,69 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
         val blocksToTruncateLimit = 2
 
-        logger.info("Files to be checked for data consistency : ")
-        logger.info("------------------------------------------------------")
-
-        val blockAddressIterator = blocks.keys.iterator()
-        while (blockAddressIterator.hasNext()) {
-            val address = blockAddressIterator.next()
-            logger.info(LogUtil.getLogFilename(address))
-        }
-        logger.info("------------------------------------------------------")
-
         val clearInvalidLog = config.isClearInvalidLog
-        var hasNext: Boolean
-
         var dbRootAddress = Long.MIN_VALUE
         var dbRootEndAddress = Long.MIN_VALUE
 
-        var nextBlockCorruptionMessage: String? = null
-        var corruptedFileAddress = -1L
         var loggablesProcessed = 0
-
-        val fileBlockIterator = blocks.values.iterator()
         try {
-            do {
-                if (nextBlockCorruptionMessage != null) {
-                    DataCorruptionException.raise(
-                        nextBlockCorruptionMessage,
-                        this,
-                        corruptedFileAddress
+            var counter = 1
+            var blocksLimit = 100
+            val blocksStep = 100
+
+            while (true) {
+                logger.info("Trying to restore database $location. Attempt $counter")
+
+                val blocksToCheckSize = min(blocks.size, blocksLimit)
+                val blocksReverse = blocks.descendingMap()
+                val blocksToCheck = TreeMap<Long, Block>()
+
+                for (i: Int in 0 until blocksToCheckSize) {
+                    val block = blocksReverse.pollFirstEntry()
+                    blocksToCheck[block.key] = block.value
+                }
+
+                logger.info("Files to be checked for data consistency : ")
+                logger.info("------------------------------------------------------")
+                val blockAddressIterator = blocksToCheck.keys.iterator()
+                while (blockAddressIterator.hasNext()) {
+                    val address = blockAddressIterator.next()
+                    logger.info(LogUtil.getLogFilename(address))
+                }
+                logger.info("------------------------------------------------------")
+
+                try {
+                    blockSetMutable.clear()
+
+                    val triple = extractRestoreInformation(
+                        blocksToCheck.values.iterator(),
+                        blockSetMutable
                     )
-                }
 
-                val block = fileBlockIterator.next()
-                val startBlockAddress = block.address
-                val endBlockAddress = startBlockAddress + fileLengthBound
+                    dbRootAddress = triple.first
+                    dbRootEndAddress = triple.second
+                    loggablesProcessed = triple.third
+                    break
+                } catch (e: LogCorruptionException) {
+                    dbRootAddress = e.dbRootAddress
+                    dbRootEndAddress = e.dbRootEndAddress
+                    loggablesProcessed = e.loggablesProcessed
 
-                logger.info("File ${LogUtil.getLogFilename(startBlockAddress)} is being verified.")
-
-                val blockLength = block.length()
-                // if it is not the last file and its size is not as expected
-                hasNext = fileBlockIterator.hasNext()
-
-                if (blockLength > fileLengthBound || hasNext && blockLength != fileLengthBound || blockLength == 0L) {
-                    nextBlockCorruptionMessage = "Unexpected file length. " +
-                            "Expected length : $fileLengthBound, actual file length : $blockLength ."
-                    corruptedFileAddress = startBlockAddress
-
-                    if (blockLength == 0L) {
-                        continue
-                    }
-                }
-
-                // if the file address is not a multiple of fileLengthBound
-                if (startBlockAddress != getFileAddress(startBlockAddress)) {
-                    DataCorruptionException.raise(
-                        "Unexpected file address. Expected ${getFileAddress(startBlockAddress)}, actual $startBlockAddress.",
-                        this,
-                        startBlockAddress
-                    )
-                }
-
-                val blockDataIterator = BlockDataIterator(
-                    this, block, startBlockAddress,
-                    formatWithHashCodeIsUsed
-                )
-                while (blockDataIterator.hasNext()) {
-                    val loggableAddress = blockDataIterator.address
-
-                    if (loggableAddress >= endBlockAddress) {
+                    if (dbRootAddress > 0) {
                         break
                     }
 
-                    val loggableType = blockDataIterator.next() xor 0x80.toByte()
-                    if (loggableType < 0 && config.isSkipInvalidLoggableType) {
-                        continue
-                    }
-
-                    checkLoggableType(loggableType, loggableAddress)
-
-                    if (NullLoggable.isNullLoggable(loggableType)) {
-                        loggablesProcessed++
-                        continue
-                    }
-
-                    if (HashCodeLoggable.isHashCodeLoggable(loggableType)) {
-                        for (i in 0 until Long.SIZE_BYTES) {
-                            blockDataIterator.next()
-                        }
-                        loggablesProcessed++
-                        continue
-                    }
-
-                    val structureId = CompressedUnsignedLongByteIterable.getInt(blockDataIterator)
-                    checkStructureId(structureId, loggableAddress)
-
-                    val dataLength = CompressedUnsignedLongByteIterable.getInt(blockDataIterator)
-                    checkDataLength(dataLength, loggableAddress)
-
-                    if (blockDataIterator.address >= endBlockAddress) {
-                        break
-                    }
-
-                    if (loggableType == DatabaseRoot.DATABASE_ROOT_TYPE) {
-                        if (structureId != Loggable.NO_STRUCTURE_ID) {
-                            DataCorruptionException.raise(
-                                "Invalid structure id ($structureId) for root loggable.",
-                                this, loggableAddress
-                            )
-                        }
-
-                        val loggableData = ByteArray(dataLength)
-                        val dataAddress = blockDataIterator.address
-
-                        for (i in 0 until dataLength) {
-                            loggableData[i] = blockDataIterator.next()
-                        }
-
-                        val rootLoggable = SinglePageLoggable(
-                            loggableAddress,
-                            blockDataIterator.address,
-                            loggableType,
-                            structureId,
-                            dataAddress,
-                            loggableData, 0, dataLength
-                        )
-
-                        val dbRoot = DatabaseRoot(rootLoggable)
-                        if (dbRoot.isValid) {
-                            dbRootAddress = loggableAddress
-                            dbRootEndAddress = blockDataIterator.address
-                        } else {
-                            DataCorruptionException.raise(
-                                "Corrupted database root was found", this,
-                                loggableAddress
-                            )
-                        }
+                    if (blocksLimit < blocks.size) {
+                        blocksLimit = min(blocksLimit + blocksStep, blocks.size)
+                        counter++
                     } else {
-                        for (i in 0 until dataLength) {
-                            blockDataIterator.next()
-                        }
+                        throw e
                     }
-
-                    loggablesProcessed++
+                } catch (e: Exception) {
+                    throw e
                 }
+            }
 
-                blockSetMutable.add(startBlockAddress, block)
-                if (!hasNext && nextBlockCorruptionMessage != null) {
-                    DataCorruptionException.raise(
-                        nextBlockCorruptionMessage,
-                        this,
-                        corruptedFileAddress
-                    )
-                }
-            } while (hasNext)
         } catch (exception: Exception) {
             logger.warn("Error during verification of database $location", exception)
 
@@ -1141,6 +1052,157 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         }
 
         return Long.MIN_VALUE
+    }
+
+    private fun extractRestoreInformation(
+        fileBlockIterator: MutableIterator<Block>,
+        blockSetMutable: BlockSet.Mutable
+    ): Triple<Long, Long, Int> {
+        var loggablesProcessed = 0
+        var dbRootAddress: Long = Long.MIN_VALUE
+        var dbRootEndAddress: Long = Long.MIN_VALUE
+
+        try {
+            var nextBlockCorruptionMessage: String? = null
+            var corruptedFileAddress: Long = 0
+            var hasNext: Boolean
+            do {
+                if (nextBlockCorruptionMessage != null) {
+                    DataCorruptionException.raise(
+                        nextBlockCorruptionMessage,
+                        this,
+                        corruptedFileAddress
+                    )
+                }
+
+                val block = fileBlockIterator.next()
+                val startBlockAddress = block.address
+                val endBlockAddress = startBlockAddress + fileLengthBound
+
+                logger.info("File ${LogUtil.getLogFilename(startBlockAddress)} is being verified.")
+
+                val blockLength = block.length()
+                // if it is not the last file and its size is not as expected
+                hasNext = fileBlockIterator.hasNext()
+
+                if (blockLength > fileLengthBound || hasNext && blockLength != fileLengthBound || blockLength == 0L) {
+                    nextBlockCorruptionMessage = "Unexpected file length. " +
+                            "Expected length : $fileLengthBound, actual file length : $blockLength ."
+                    corruptedFileAddress = startBlockAddress
+
+                    if (blockLength == 0L) {
+                        continue
+                    }
+                }
+
+                // if the file address is not a multiple of fileLengthBound
+                if (startBlockAddress != getFileAddress(startBlockAddress)) {
+                    DataCorruptionException.raise(
+                        "Unexpected file address. Expected ${getFileAddress(startBlockAddress)}, actual $startBlockAddress.",
+                        this,
+                        startBlockAddress
+                    )
+                }
+
+                val blockDataIterator = BlockDataIterator(
+                    this, block, startBlockAddress,
+                    formatWithHashCodeIsUsed
+                )
+                while (blockDataIterator.hasNext()) {
+                    val loggableAddress = blockDataIterator.address
+
+                    if (loggableAddress >= endBlockAddress) {
+                        break
+                    }
+
+                    val loggableType = blockDataIterator.next() xor 0x80.toByte()
+                    if (loggableType < 0 && config.isSkipInvalidLoggableType) {
+                        continue
+                    }
+
+                    checkLoggableType(loggableType, loggableAddress)
+
+                    if (NullLoggable.isNullLoggable(loggableType)) {
+                        loggablesProcessed++
+                        continue
+                    }
+
+                    if (HashCodeLoggable.isHashCodeLoggable(loggableType)) {
+                        for (i in 0 until Long.SIZE_BYTES) {
+                            blockDataIterator.next()
+                        }
+                        loggablesProcessed++
+                        continue
+                    }
+
+                    val structureId = CompressedUnsignedLongByteIterable.getInt(blockDataIterator)
+                    checkStructureId(structureId, loggableAddress)
+
+                    val dataLength = CompressedUnsignedLongByteIterable.getInt(blockDataIterator)
+                    checkDataLength(dataLength, loggableAddress)
+
+                    if (blockDataIterator.address >= endBlockAddress) {
+                        break
+                    }
+
+                    if (loggableType == DatabaseRoot.DATABASE_ROOT_TYPE) {
+                        if (structureId != Loggable.NO_STRUCTURE_ID) {
+                            DataCorruptionException.raise(
+                                "Invalid structure id ($structureId) for root loggable.",
+                                this, loggableAddress
+                            )
+                        }
+
+                        val loggableData = ByteArray(dataLength)
+                        val dataAddress = blockDataIterator.address
+
+                        for (i in 0 until dataLength) {
+                            loggableData[i] = blockDataIterator.next()
+                        }
+
+                        val rootLoggable = SinglePageLoggable(
+                            loggableAddress,
+                            blockDataIterator.address,
+                            loggableType,
+                            structureId,
+                            dataAddress,
+                            loggableData, 0, dataLength
+                        )
+
+                        val dbRoot = DatabaseRoot(rootLoggable)
+                        if (dbRoot.isValid) {
+                            dbRootAddress = loggableAddress
+                            dbRootEndAddress = blockDataIterator.address
+                        } else {
+                            DataCorruptionException.raise(
+                                "Corrupted database root was found", this,
+                                loggableAddress
+                            )
+                        }
+                    } else {
+                        for (i in 0 until dataLength) {
+                            blockDataIterator.next()
+                        }
+                    }
+
+                    loggablesProcessed++
+                }
+
+                blockSetMutable.add(startBlockAddress, block)
+                if (!hasNext && nextBlockCorruptionMessage != null) {
+                    DataCorruptionException.raise(
+                        nextBlockCorruptionMessage,
+                        this,
+                        corruptedFileAddress
+                    )
+                }
+            } while (hasNext)
+            return Triple(dbRootAddress, dbRootEndAddress, loggablesProcessed)
+        } catch (e: Exception) {
+            logger.error("Error during verification of database $location", e)
+            throw LogCorruptionException(dbRootAddress, dbRootEndAddress, loggablesProcessed, e)
+        }
+
     }
 
     private fun clearDataCorruptionLog(exception: Exception, blockSetMutable: BlockSet.Mutable) {
@@ -2018,4 +2080,12 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
             }
         }
     }
+}
+
+private class LogCorruptionException(
+    val dbRootAddress: Long,
+    val dbRootEndAddress: Long,
+    val loggablesProcessed: Int, override val cause: Throwable?
+) :
+    Exception("Data corruption was detected. ", cause) {
 }
