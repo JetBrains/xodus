@@ -842,7 +842,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                     if (blocksLimit < blocks.size) {
                         logger.info("Attempt to restore database $location failed. Increasing the number of files to be checked.")
-                        
+
                         blocksLimit = min(blocksLimit + blocksStep, blocks.size)
                         counter++
 
