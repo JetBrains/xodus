@@ -312,17 +312,29 @@ internal class OrientDbSchemaInitializer(
         outCardinality: AssociationEndCardinality,
         inClass: OClass,
     ) {
-        val propOutName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
-        append("${outClass.name}.$propOutName")
-        val propOut = outClass.createEdgePropertyIfAbsent(propOutName, edgeClass)
+        val directLinkOutPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
+        val edgeLinkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
+        append("directOutProp: ${outClass.name}.$directLinkOutPropName")
+        append("edgeOutProp: ${outClass.name}$edgeLinkOutPropName")
+        outClass.createLinkPropertyIfAbsent(edgeLinkOutPropName, edgeClass)
+        val directOutProp = outClass.createLinkPropertyIfAbsent(directLinkOutPropName, inClass)
         if (applyLinkCardinality) {
-            propOut.applyCardinality(outCardinality)
+            // applying cardinality only to out direct property
+            directOutProp.applyCardinality(outCardinality)
         }
         appendLine()
 
-        val propInName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClass.name)
-        append("${inClass.name}.$propInName")
-        inClass.createEdgePropertyIfAbsent(propInName, edgeClass)
+        val directLinkInPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClass.name)
+        val edgeLinkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
+        append("directOutProp: ${inClass.name}.$directLinkInPropName")
+        append("edgeOutProp: ${inClass.name}.$edgeLinkInPropName")
+        inClass.createLinkPropertyIfAbsent(edgeLinkInPropName, edgeClass)
+        inClass.createLinkPropertyIfAbsent(directLinkInPropName, null)
+
+        /*
+        * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
+        * Because AssociationEndCardinality describes the cardinality of a single end.
+        * */
 
         appendLine()
     }
@@ -595,17 +607,30 @@ internal class OrientDbSchemaInitializer(
         return oProperty
     }
 
-    private fun OClass.createEdgePropertyIfAbsent(propertyName: String, edgeClass: OClass): OProperty {
-        append(", edge-class is ${edgeClass.name}")
+    /*
+    * linkedClass is nullable because sometimes we do not set it.
+    *
+    * We do not set linkedClass for direct link in-properties
+    * because there can be several links with the same name.
+    * Consider the following example:
+    * type2 -[link1]-> type1
+    * type3 -[link1]-> type1
+    *
+    * What linkedClass should be for type1.directInProperty?
+    *
+    * But we still can set linkedClassType for direct link out-properties.
+    * */
+    private fun OClass.createLinkPropertyIfAbsent(propertyName: String, linkedClass: OClass?): OProperty {
+        append(", linkedClassType class is ${linkedClass?.name}")
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")
             getProperty(propertyName)
         } else {
             append(", created")
-            createProperty(propertyName, OType.LINKBAG, edgeClass)
+            createProperty(propertyName, OType.LINKBAG, linkedClass)
         }
         require(oProperty.type == OType.LINKBAG) { "$propertyName type is ${oProperty.type} but ${OType.LINKBAG} was expected instead. Types migration is not supported."  }
-        require(oProperty.linkedClass == edgeClass) { "$propertyName type of the set is ${oProperty.linkedClass.name} but ${edgeClass.name} was expected instead. Types migration is not supported." }
+        require(oProperty.linkedClass == linkedClass) { "$propertyName type of the set is ${oProperty.linkedClass.name} but ${linkedClass?.name} was expected instead. Types migration is not supported." }
         return oProperty
     }
 

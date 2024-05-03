@@ -195,6 +195,24 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
+    fun `two association with the same name to a single type`(): Unit = orientDb.withSession { oSession ->
+        val model = model {
+            entity("type1")
+            entity("type2") {
+                association("link1", "type1", AssociationEndCardinality._0_n)
+            }
+            entity("type3") {
+                association("link1", "type1", AssociationEndCardinality._0_n)
+            }
+        }
+
+        oSession.applySchema(model)
+
+        oSession.assertAssociationExists("type2", "type1", "link1", AssociationEndCardinality._0_n)
+        oSession.assertAssociationExists("type3", "type1", "link1", AssociationEndCardinality._0_n)
+    }
+
+    @Test
     fun `one-directional associations ignore cardinality`(): Unit = orientDb.withSession { oSession ->
         val model = model {
             entity("type1")
