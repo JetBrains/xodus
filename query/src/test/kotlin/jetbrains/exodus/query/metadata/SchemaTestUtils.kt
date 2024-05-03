@@ -211,9 +211,9 @@ internal fun EntityMetaDataImpl.setProperty(name: String, dataType: String) {
     this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, "Set", listOf(dataType)))
 }
 
-internal fun EntityMetaDataImpl.association(associationName: String, targetEntity: String, cardinality: AssociationEndCardinality) {
-    modelMetaData.addAssociation(
-        this.type,
+internal fun ModelMetaData.association(sourceEntity: String, associationName: String, targetEntity: String, cardinality: AssociationEndCardinality) {
+    addAssociation(
+        sourceEntity,
         targetEntity,
         AssociationType.Directed, // ingored
         associationName,

@@ -180,10 +180,9 @@ class OrientDbSchemaInitializerTest {
     fun `one-directional associations`(): Unit = orientDb.withSession { oSession ->
         val model = model {
             entity("type1")
-            entity("type2") {
-                for (cardinality in AssociationEndCardinality.entries) {
-                    association("prop1$cardinality", "type1", cardinality)
-                }
+            entity("type2")
+            for (cardinality in AssociationEndCardinality.entries) {
+                association("type2", "prop1$cardinality", "type1", cardinality)
             }
         }
 
@@ -198,12 +197,10 @@ class OrientDbSchemaInitializerTest {
     fun `two association with the same name to a single type`(): Unit = orientDb.withSession { oSession ->
         val model = model {
             entity("type1")
-            entity("type2") {
-                association("link1", "type1", AssociationEndCardinality._0_n)
-            }
-            entity("type3") {
-                association("link1", "type1", AssociationEndCardinality._0_n)
-            }
+            entity("type2")
+            entity("type3")
+            association("type2", "link1", "type1", AssociationEndCardinality._0_n)
+            association("type3", "link1", "type1", AssociationEndCardinality._0_n)
         }
 
         oSession.applySchema(model)
@@ -216,10 +213,9 @@ class OrientDbSchemaInitializerTest {
     fun `one-directional associations ignore cardinality`(): Unit = orientDb.withSession { oSession ->
         val model = model {
             entity("type1")
-            entity("type2") {
-                for (cardinality in AssociationEndCardinality.entries) {
-                    association("prop1$cardinality", "type1", cardinality)
-                }
+            entity("type2")
+            for (cardinality in AssociationEndCardinality.entries) {
+                association("type2", "prop1$cardinality", "type1", cardinality)
             }
         }
 

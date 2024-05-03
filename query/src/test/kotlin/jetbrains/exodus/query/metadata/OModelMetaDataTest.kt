@@ -55,9 +55,8 @@ class OModelMetaDataTest {
     fun `addAssociation() implicitly call prepare() and applies the schema to OrientDB`() {
         oModel(orientDb.provider) {
             entity("type1")
-            entity("type2") {
-                association("ass1", "type1", AssociationEndCardinality._1)
-            }
+            entity("type2")
+            association("type2", "ass1", "type1", AssociationEndCardinality._1)
         }
 
         orientDb.withSession { session ->
@@ -134,9 +133,8 @@ class OModelMetaDataTest {
     fun removeAssociation() {
         val model = oModel(orientDb.provider) {
             entity("type1")
-            entity("type2") {
-                association("ass1", "type1", AssociationEndCardinality._1)
-            }
+            entity("type2")
+            association("type2", "ass1", "type1", AssociationEndCardinality._1)
         }
 
         model.removeAssociation("type2", "ass1")

@@ -125,15 +125,16 @@ class MigrateXodusToOrientDbSmokeTest {
             property("prop2", "boolean")
             property("prop3", "double")
             property("prop4", "string")
-            association("link1", "type1", AssociationEndCardinality._0_n)
         }
         entity("type2") {
             property("pop1", "string")
             property("pop2", "boolean")
             property("pop3", "double")
             property("pop4", "string")
-            association("link1", "type1", AssociationEndCardinality._0_n)
         }
+
+        association("type1","link1", "type1", AssociationEndCardinality._0_n)
+        association("type2","link1", "type1", AssociationEndCardinality._0_n)
     }
 
     private fun PersistentEntityStoreImpl.createTestData(): PileOfEntities {
