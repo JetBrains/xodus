@@ -29,6 +29,8 @@ interface OQuery : OSql {
     fun execute(session: ODatabaseDocument? = null): OResultSet {
         ODatabaseSession.getActiveSession()
         val session = session ?: ODatabaseSession.getActiveSession()
-        return session.query(sql(), *params().toTypedArray())
+        val builder = StringBuilder()
+        sql(builder)
+        return session.query(builder.toString(), *params().toTypedArray())
     }
 }

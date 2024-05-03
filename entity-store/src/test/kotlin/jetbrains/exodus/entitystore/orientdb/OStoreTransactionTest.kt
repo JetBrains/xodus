@@ -572,6 +572,16 @@ class OStoreTransactionTest : OTestMixin {
         }
     }
 
+
+    @Test
+    fun `entity id should be valid and accessible just after creation`(){
+        orientDb.store.executeInTransaction { tx->
+            val entity = tx.newEntity(Issues.CLASS)
+            val orid = (entity.id as OEntityId).asOId()
+            Assert.assertTrue(orid.clusterId > 0)
+        }
+    }
+
     @Test
     fun `newEntity sets localEntityId`() {
         orientDb.store.executeInTransaction { tx ->

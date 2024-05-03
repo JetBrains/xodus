@@ -96,6 +96,7 @@ class OStoreTransactionImpl(
         schemaBuddy.makeSureTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
+        vertex.save<OVertex>()
         return OVertexEntity(vertex, store)
     }
 
