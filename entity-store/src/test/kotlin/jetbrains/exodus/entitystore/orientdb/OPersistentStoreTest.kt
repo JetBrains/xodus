@@ -76,7 +76,7 @@ class OPersistentStoreTest: OTestMixin {
             assertEquals(1, sequence.increment())
         }
         store.executeInTransaction {
-            assertEquals(1,it.getSequence("first").get())
+            assertEquals(1, it.getSequence("first").get())
         }
     }
 
@@ -92,7 +92,7 @@ class OPersistentStoreTest: OTestMixin {
     }
 
     @Test
-    fun `can set actual value to sequence`(){
+    fun `can set actual value to sequence`() {
         val store = orientDb.store
         val sequence = store.computeInTransaction {
             it.getSequence("first", 99)

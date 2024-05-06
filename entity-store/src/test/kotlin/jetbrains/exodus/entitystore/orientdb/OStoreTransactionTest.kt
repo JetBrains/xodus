@@ -33,7 +33,7 @@ class OStoreTransactionTest : OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB()
+    val orientDbRule = InMemoryOrientDB(true)
 
     override val orientDb = orientDbRule
 
@@ -587,6 +587,18 @@ class OStoreTransactionTest : OTestMixin {
         orientDb.store.executeInTransaction { tx ->
             val issue = tx.newEntity(Issues.CLASS)
             assertEquals(issue.id.localId, 1)
+        }
+    }
+
+    /*
+    * This behaviour may change in the future if we support schema changes in transactions
+    * */
+    @Test
+    fun `newEntity() throws exception if the type is not created`() {
+        orientDb.store.executeInTransaction { tx ->
+            assertFailsWith<AssertionError> {
+                tx.newEntity("opca")
+            }
         }
     }
 }

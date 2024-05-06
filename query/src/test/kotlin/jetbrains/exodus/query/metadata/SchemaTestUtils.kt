@@ -17,10 +17,13 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
 import org.junit.Assert.*
 
 // assertions
@@ -55,42 +58,56 @@ internal fun ODatabaseSession.assertAssociationExists(
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    val outPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
-    val outProp = outClass.getProperty(outPropName)!!
-    assertEquals(OType.LINKBAG, outProp.type)
-    assertEquals(edge, outProp.linkedClass)
+    val directOutPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
+    val directOutProp = outClass.getProperty(directOutPropName)!!
+    assertEquals(OType.LINKBAG, directOutProp.type)
+    assertEquals(inClass, directOutProp.linkedClass)
+    directOutProp.assertCardinality(cardinality)
+
+    val edgeOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeName)
+    val edgeOutProp = outClass.getProperty(edgeOutPropName)!!
+    assertEquals(OType.LINKBAG, edgeOutProp.type)
+    assertEquals(edge, edgeOutProp.linkedClass)
+
+    val directInPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeName)
+    val directInProp = inClass.getProperty(directInPropName)!!
+    assertEquals(OType.LINKBAG, directInProp.type)
+    assertEquals(null, directInProp.linkedClass)
+
+    val edgeInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeName)
+    val edgeInProp = inClass.getProperty(edgeInPropName)!!
+    assertEquals(OType.LINKBAG, edgeInProp.type)
+    assertEquals(edge, edgeInProp.linkedClass)
+}
+
+private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality?) {
     when (cardinality) {
         AssociationEndCardinality._0_1 -> {
-            assertTrue(!outProp.isMandatory)
-            assertTrue(outProp.min == "0")
-            assertTrue(outProp.max == "1")
+            assertTrue(!this.isMandatory)
+            assertTrue(this.min == "0")
+            assertTrue(this.max == "1")
         }
         AssociationEndCardinality._1 -> {
-            assertTrue(outProp.isMandatory)
-            assertTrue(outProp.min == "1")
-            assertTrue(outProp.max == "1")
+            assertTrue(this.isMandatory)
+            assertTrue(this.min == "1")
+            assertTrue(this.max == "1")
         }
         AssociationEndCardinality._0_n -> {
-            assertTrue(!outProp.isMandatory)
-            assertTrue(outProp.min == "0")
-            assertTrue(outProp.max == null)
+            assertTrue(!this.isMandatory)
+            assertTrue(this.min == "0")
+            assertTrue(this.max == null)
         }
         AssociationEndCardinality._1_n -> {
-            assertTrue(outProp.isMandatory)
-            assertTrue(outProp.min == "1")
-            assertTrue(outProp.max == null)
+            assertTrue(this.isMandatory)
+            assertTrue(this.min == "1")
+            assertTrue(this.max == null)
         }
         null -> {
-            assertTrue(!outProp.isMandatory)
-            assertTrue(outProp.min == null)
-            assertTrue(outProp.max == null)
+            assertTrue(!this.isMandatory)
+            assertTrue(this.min == null)
+            assertTrue(this.max == null)
         }
     }
-
-    val inPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeName)
-    val inProp = inClass.getProperty(inPropName)!!
-    assertEquals(OType.LINKBAG, inProp.type)
-    assertEquals(edge, inProp.linkedClass)
 }
 
 internal fun ODatabaseSession.assertVertexClassExists(name: String) {
@@ -145,9 +162,13 @@ internal fun model(initialize: ModelMetaDataImpl.() -> Unit): ModelMetaDataImpl 
     return model
 }
 
-internal fun oModel(databaseProvider: ODatabaseProvider, initialize: ModelMetaDataImpl.() -> Unit): OModelMetaData {
-    val model = OModelMetaData(databaseProvider)
-    model.initialize()
+internal fun oModel(
+    databaseProvider: ODatabaseProvider,
+    schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider, autoInitialize = false),
+    buildModel: ModelMetaDataImpl.() -> Unit
+): OModelMetaData {
+    val model = OModelMetaData(databaseProvider, schemaBuddy)
+    model.buildModel()
     return model
 }
 
@@ -190,9 +211,9 @@ internal fun EntityMetaDataImpl.setProperty(name: String, dataType: String) {
     this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, "Set", listOf(dataType)))
 }
 
-internal fun EntityMetaDataImpl.association(associationName: String, targetEntity: String, cardinality: AssociationEndCardinality) {
-    modelMetaData.addAssociation(
-        this.type,
+internal fun ModelMetaData.association(sourceEntity: String, associationName: String, targetEntity: String, cardinality: AssociationEndCardinality) {
+    addAssociation(
+        sourceEntity,
         targetEntity,
         AssociationType.Directed, // ingored
         associationName,

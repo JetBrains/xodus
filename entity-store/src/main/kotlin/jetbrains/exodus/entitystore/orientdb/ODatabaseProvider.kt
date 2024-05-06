@@ -15,8 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
 interface ODatabaseProvider {
     val databaseLocation: String
@@ -29,4 +31,28 @@ fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
     acquireSession().use { session ->
         return block(session)
     }
+}
+
+fun <R> ODatabaseProvider.withCurrentOrNewSession(requireNoActiveTransaction: Boolean = false, block: (ODatabaseSession) -> R): R {
+    return if (hasActiveSession()) {
+        val activeSession = ODatabaseSession.getActiveSession() as ODatabaseSession
+        if (requireNoActiveTransaction) {
+            activeSession.requireNoActiveTransaction()
+        }
+        block(activeSession)
+    } else {
+        withSession { newSession ->
+            block(newSession)
+        }
+    }
+}
+
+fun ODatabaseDocument.requireNoActiveTransaction() {
+    println("$transaction, status:${transaction.status}, isActive:${transaction.isActive}")
+    assert(transaction == null || !transaction.isActive) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
+}
+
+private fun hasActiveSession(): Boolean {
+    val db = ODatabaseRecordThreadLocal.instance().getIfDefined()
+    return db != null
 }
