@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.iterate
 
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.kotlin.notNull
+import jetbrains.exodus.kotlin.*
 
 class PropertyContainsValueEntityIterable(
     txn: PersistentStoreTransaction,
@@ -25,6 +25,8 @@ class PropertyContainsValueEntityIterable(
     private val value: String,
     private val ignoreCase: Boolean
 ) : PropertyRangeOrValueIterableBase(txn, entityTypeId, propertyId) {
+
+    private val useOptimzedContains = txn.environmentTransaction.environment.environmentConfig.envQueryOptimizedContains
 
     override fun getIteratorImpl(txn: PersistentStoreTransaction): EntityIterator {
         val iterator = propertyValueIndex.iterator()
@@ -113,7 +115,12 @@ class PropertyContainsValueEntityIterable(
                 while (index.hasNext()) {
                     nextId = index.nextId()
                     (index.currentValue() as String).let {
-                        if (it.contains(value, ignoreCase)) {
+                        val contains =
+                            if (useOptimzedContains && ignoreCase)
+                                containsOptimized(it)
+                            else it.contains(value, ignoreCase)
+
+                        if (contains) {
                             currentValue = it
                             return
                         }
@@ -121,6 +128,34 @@ class PropertyContainsValueEntityIterable(
                 }
                 nextId = PersistentEntityId.EMPTY_ID
             }
+        }
+
+        /**
+         * This is 'String.contains(other, ignoreCase = true)' implementation
+         * that is twice as fast as the one from the standard library,
+         * but it comes with the price of incorrect matching of some symbols such as `İ`.
+         * Thus it is disabled by default and enabled where it is not an issue.
+         * See JT-81377.
+         */
+        private fun containsOptimized(property: String): Boolean {
+            val endLimit: Int = property.length - value.length + 1
+            if (endLimit < 0) {
+                return false
+            }
+            if (value.length == 0) {
+                return true
+            }
+
+            outer@ for (i in 0 until endLimit) {
+                for (j in 0 until value.length) {
+                    if (property[i + j].lowercaseChar() != value[j].lowercaseChar()) {
+                        continue@outer
+                    }
+                }
+                return true
+            }
+
+            return false
         }
     }
 
