@@ -42,6 +42,8 @@ class OStoreTransactionImpl(
 
     override val activeSession = session
 
+    private var hasWriteOperations = false
+
     override val oTransaction = txn
 
     override fun getStore(): EntityStore {
@@ -54,7 +56,10 @@ class OStoreTransactionImpl(
     }
 
     override fun isReadonly(): Boolean {
-        return txn is OTransactionNoTx
+        if (!hasWriteOperations){
+            hasWriteOperations = txn.recordOperations.iterator().hasNext()
+        }
+        return !hasWriteOperations
     }
 
     override fun isFinished(): Boolean {
