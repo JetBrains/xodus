@@ -38,6 +38,7 @@ class InMemoryOrientDB(
         private set
 
     lateinit var provider: ODatabaseProviderImpl
+    lateinit var schemaBuddy: OSchemaBuddyImpl
 
     val username = "admin"
     val password = "password"
@@ -58,8 +59,9 @@ class InMemoryOrientDB(
         }
 
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
+        schemaBuddy = OSchemaBuddyImpl(provider, autoInitialize = autoInitializeSchemaBuddy)
         store = OPersistentEntityStore(provider, dbName,
-            schemaBuddy = OSchemaBuddyImpl(provider, autoInitialize = autoInitializeSchemaBuddy)
+            schemaBuddy = schemaBuddy
         )
     }
 

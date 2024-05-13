@@ -18,7 +18,9 @@ package jetbrains.exodus.query.metadata
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
@@ -97,6 +99,24 @@ class OrientDbSchemaInitializerTest {
 
         assertFailsWith<IllegalArgumentException>() {
             oSession.applySchema(model)
+        }
+    }
+
+    @Test
+    fun `SchemaBuddy impl can correctly initialize StringBlob and Blob`(){
+        val model = model {
+            entity("type1") {
+                blobProperty("blob1")
+                stringBlobProperty("strBlob1")
+            }
+        }
+        orientDb.withSession {
+            it.applySchema(model)
+        }
+        orientDb.schemaBuddy.initialize()
+
+        orientDb.withSession {
+            assertEquals(null, it.metadata.schema.getClass(STRING_BLOB_CLASS_NAME).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME))
         }
     }
 
