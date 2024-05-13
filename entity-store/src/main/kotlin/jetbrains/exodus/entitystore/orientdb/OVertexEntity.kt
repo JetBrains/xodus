@@ -31,8 +31,10 @@ import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
+import jetbrains.exodus.util.UTFUtil
 import mu.KLogging
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 
@@ -143,7 +145,9 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         val ref = vertex.getLinkProperty(blobName)
         return ref?.let {
             val record = activeSession.getRecord<OElement>(ref)
-            record.getProperty(DATA_PROPERTY_NAME)
+            record.getProperty<ByteArray>(DATA_PROPERTY_NAME)?.let {
+                UTFUtil.readUTF(ByteArrayInputStream(it))
+            }
         }
     }
 
@@ -195,7 +199,9 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
             record = record ?: activeSession.getRecord(ref) as OElement
             vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
             vertex.setProperty(blobSizeProperty(blobName), blobString.length.toLong())
-            record.setProperty(DATA_PROPERTY_NAME, blobString)
+            val baos = ByteArrayOutputStream(blobString.length)
+            UTFUtil.writeUTF(baos, blobString)
+            record.setProperty(DATA_PROPERTY_NAME, baos.toByteArray())
             vertex.save<OVertex>()
         }
 

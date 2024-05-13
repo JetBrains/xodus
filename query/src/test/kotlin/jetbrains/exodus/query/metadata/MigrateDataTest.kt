@@ -76,6 +76,8 @@ class MigrateDataTest {
             eBlobs("type2", 4, "bob1" to "four"),
             eBlobs("type2", 5, "bob1" to "five"),
             eBlobs("type2", 6, "bob1" to "six"),
+            eStringBlobs("type2", 7, "alice" to "cooper"),
+            eStringBlobs("type2", 8, "alice" to "coopercooper"),
         )
 
         xodus.withTx { tx ->
@@ -226,6 +228,10 @@ internal fun ODocument.assertEquals(expected: Entity, entityStore: OPersistentEn
         val actualValue = actual.getBlob(blobName)!!.readAllBytes()
         Assert.assertEquals(blobValue, actualValue.decodeToString())
     }
+    for ((blobName, blobValue) in expected.stringBlobs) {
+        val actualValue = actual.getBlobString(blobName)!!
+        Assert.assertEquals(blobValue, actualValue)
+    }
 
     for (expectedLink in expected.links) {
         val actualLinks = actual.getLinks(expectedLink.name).toList()
@@ -259,6 +265,9 @@ internal fun StoreTransaction.createEntity(entity: Entity) {
     for ((name, value) in entity.blobs) {
         e.setBlob(name, ByteArrayInputStream(value.encodeToByteArray()))
     }
+    for ((name, value) in entity.stringBlobs) {
+        e.setBlobString(name, value)
+    }
 }
 
 internal fun StoreTransaction.createLinks(entity: Entity) {
@@ -288,6 +297,7 @@ data class Entity(
     val id: Int,
     val props: Map<String, Comparable<*>>,
     val blobs: Map<String, String>,
+    val stringBlobs: Map<String, String>,
     val links: List<Link>
 )
 
@@ -306,14 +316,18 @@ fun pileOfEntities(vararg entities: Entity): PileOfEntities {
 }
 
 fun eProps(type: String, id: Int, vararg props: Pair<String, Comparable<*>>): Entity {
-    return Entity(type, id, props.toMap(), mapOf(), listOf())
+    return Entity(type, id, props.toMap(), mapOf(), mapOf(), listOf())
 }
 
 fun eBlobs(type: String, id: Int, vararg blobs: Pair<String, String>): Entity {
-    return Entity(type, id, mapOf(), blobs.toMap(), listOf())
+    return Entity(type, id, mapOf(), blobs.toMap(), mapOf(), listOf())
+}
+
+fun eStringBlobs(type: String, id: Int, vararg blobs: Pair<String, String>): Entity {
+    return Entity(type, id, mapOf(), mapOf(), blobs.toMap(), listOf())
 }
 
 fun eLinks(type: String, id: Int, vararg links: Link): Entity {
-    return Entity(type, id, mapOf(), mapOf(), links.toList())
+    return Entity(type, id, mapOf(), mapOf(), mapOf(), links.toList())
 }
 
