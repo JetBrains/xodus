@@ -22,9 +22,11 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import java.util.concurrent.ConcurrentHashMap
 
@@ -38,6 +40,9 @@ class OSchemaBuddyImpl(
     private val dbProvider: ODatabaseProvider,
     autoInitialize: Boolean = true,
 ): OSchemaBuddy {
+    companion object {
+        val INTERNAL_CLASS_NAMES = hashSetOf(OClass.VERTEX_CLASS_NAME, STRING_BLOB_CLASS_NAME, BINARY_BLOB_CLASS_NAME)
+    }
 
     private val classIdToOClassId = ConcurrentHashMap<Int, Int>()
 
@@ -51,8 +56,8 @@ class OSchemaBuddyImpl(
         dbProvider.withCurrentOrNewSession { session ->
             session.createClassIdSequenceIfAbsent()
             for (oClass in session.metadata.schema.classes) {
-                if (oClass.isVertexType && oClass.name != OClass.VERTEX_CLASS_NAME) {
-                    classIdToOClassId.put(oClass.requireClassId(), oClass.defaultClusterId)
+                if (oClass.isVertexType && !INTERNAL_CLASS_NAMES.contains(oClass.name)) {
+                    classIdToOClassId[oClass.requireClassId()] = oClass.defaultClusterId
                 }
             }
         }
