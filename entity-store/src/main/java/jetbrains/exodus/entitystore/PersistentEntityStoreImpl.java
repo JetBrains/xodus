@@ -18,11 +18,11 @@ package jetbrains.exodus.entitystore;
 import jetbrains.exodus.*;
 import jetbrains.exodus.backup.BackupStrategy;
 import jetbrains.exodus.bindings.*;
+import jetbrains.exodus.core.dataStructures.IntArrayList;
 import jetbrains.exodus.core.dataStructures.Pair;
+import jetbrains.exodus.core.dataStructures.hash.*;
 import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
-import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
-import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.TransactionType;
@@ -293,35 +293,97 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     private void clearNotRegisteredBlobs(PersistentStoreTransaction txn) {
-        logger.warn("Database: " + getLocation() +
-                " . Clearing blobs not registered inside database.");
+        logger.warn("Database: {} . Clearing blobs not registered inside database.", getLocation());
 
         var envTx = txn.getEnvironmentTransaction();
-        var blobsToRemove = new ArrayList<Long>();
 
+        var allEntityTypes = new IntArrayList();
+        try (Cursor entityTypesCursor = entityTypes.getTable().getSecondIndexCursor(txn.getEnvironmentTransaction())) {
+            while (entityTypesCursor.getNext()) {
+                final int entityTypeId = IntegerBinding.compressedEntryToInt(entityTypesCursor.getKey());
+                allEntityTypes.add(entityTypeId);
+            }
+        }
+
+        var blobHandles = new LongHashSet();
         if (blobVault instanceof FileSystemBlobVaultOld) {
             var blobHandleIterator = ((FileSystemBlobVaultOld) blobVault).storedBlobHandles();
+            logger.info("Database: {}. Collecting existing BLOBs ...", getLocation());
             while (blobHandleIterator.hasNext()) {
-                var blobHandle = blobHandleIterator.next();
-                var blobLen = getBlobFileLength(blobHandle, envTx);
-                if (blobLen == null) {
-                    blobsToRemove.add(blobHandle);
+                blobHandles.add(blobHandleIterator.next());
+            }
+
+            if (blobHandles.isEmpty()) {
+                logger.info("Database: {}. No BLOBs were found in the BLOB vault.", getLocation());
+                return;
+            }
+
+            logger.info("Database: {}. {} BLOBs were collected.", getLocation(), blobHandles.size());
+            logger.info("Database: {}. Collecting all BLOB references ...", getLocation());
+            var refCount = 0L;
+
+            for (var i = 0; i < allEntityTypes.size(); i++) {
+                var entityTypeId = allEntityTypes.get(i);
+                var blobTable = getBlobsTable(txn, entityTypeId);
+                var store = blobTable.getPrimaryIndex();
+
+                refCount += store.count(envTx);
+            }
+
+            if (refCount > 0) {
+                logger.info("Database: {}. {} BLOB references were collected. Checking their validness",
+                        getLocation(), refCount);
+            } else {
+                logger.info("Database: {}. No BLOB references were found. All found BLOBs will be removed.", getLocation());
+            }
+
+            var processed = 0;
+            var reportInterval = refCount / 100;
+            var lasReported = reportInterval;
+
+            for (var i = 0; i < allEntityTypes.size(); i++) {
+                var entityTypeId = allEntityTypes.get(i);
+                var blobTable = getBlobsTable(txn, entityTypeId);
+                var store = blobTable.getPrimaryIndex();
+
+                try (var cursor = store.openCursor(envTx)) {
+                    while (cursor.getNext()) {
+                        var value = cursor.getValue();
+                        var blobHandle = entryToBlobHandle(value);
+                        blobHandles.remove(blobHandle);
+
+                        processed++;
+
+                        if (processed > lasReported) {
+                            logger.info("Database: {}. {} BLOB references were checked.", getLocation(), processed);
+                            lasReported += reportInterval;
+                        }
+                    }
                 }
             }
 
-            if (!blobsToRemove.isEmpty()) {
-                logger.warn("Database: " + getLocation() + ". " + blobsToRemove.size() +
-                        " not registered BLOBs were found. Removing them.");
 
-                blobsToRemove.forEach(blob -> {
-                    var blobLocation = blobVault.getBlobLocation(blob);
-                    blobVault.delete(blob);
-                    logger.warn("BLOB at " + blobLocation + " was removed.");
+            if (!blobHandles.isEmpty()) {
+                logger.warn("Database: {}. {} not registered BLOBs were found. Removing them.", getLocation(), blobHandles.size());
+
+                blobHandles.forEach(blobHandle -> {
+                    deleteBlobFileLength(txn, blobHandle);
+                    txn.deleteBlob(blobHandle);
+
+                    var blobLocation = blobVault.getBlobLocation(blobHandle);
+                    blobVault.delete(blobHandle);
+
+                    logger.warn("BLOB at {} was removed.", blobLocation);
                 });
             }
         }
 
-        logger.warn("Database: " + getLocation() + ". Blobs not registered inside database were cleared.");
+
+        if (!blobHandles.isEmpty()) {
+            logger.warn("Database: {}. {} BLOBs not registered inside database were cleared.", getLocation(), blobHandles.size());
+        } else {
+            logger.info("Database: {}. No dangling BLOBs were found.", getLocation());
+        }
     }
 
     private void initBasicStores(Transaction envTxn) {
@@ -690,7 +752,7 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                                                 " does not exist in expected location.");
                                     }
 
-                                    var expectedBlobLength = getBlobFileLength(blobHandle, envTransaction).longValue();
+                                    var expectedBlobLength = getBlobFileLength(blobHandle, envTransaction);
                                     if (blobLocation.length() != expectedBlobLength) {
                                         throw new ExodusException("Blob file " + blobLocation.getAbsolutePath() +
                                                 " expected length is " + expectedBlobLength + " but actual is " +
