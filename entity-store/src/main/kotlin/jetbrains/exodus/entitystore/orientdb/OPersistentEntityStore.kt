@@ -37,10 +37,13 @@ class OPersistentEntityStore(
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
     private val env = OEnvironment(databaseProvider.database, this)
-
+    private val currentTransaction = ThreadLocal<OStoreTransactionImpl>()
 
     override fun close() {
         //or it should be closed independently
+        currentTransaction.get()?.abort()
+
+        currentTransaction.remove()
         databaseProvider.close()
     }
 
@@ -51,10 +54,20 @@ class OPersistentEntityStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
+        val currentTx = currentTransaction.get()
+
+        if (currentTx != null && currentTx.oTransaction.isActive) {
+            currentTx.oTransaction.begin()
+            return currentTx
+        }
+
         val session = databaseProvider.acquireSession()
         session.activateOnCurrentThread()
         val txn = session.begin().transaction
-        return OStoreTransactionImpl(session, txn, this, schemaBuddy)
+
+        return OStoreTransactionImpl(session, txn, this, schemaBuddy).also {
+            currentTransaction.set(it)
+        }
     }
 
     override fun beginExclusiveTransaction(): StoreTransaction {
@@ -65,13 +78,8 @@ class OPersistentEntityStore(
         return beginTransaction()
     }
 
-    override fun getCurrentTransaction(): StoreTransaction {
-        return OStoreTransactionImpl(
-            ODatabaseSession.getActiveSession(),
-            ODatabaseSession.getActiveSession().transaction,
-            this,
-            schemaBuddy
-        )
+    override fun getCurrentTransaction(): StoreTransaction? {
+        return currentTransaction.get()
     }
 
     override fun getBackupStrategy(): BackupStrategy {
@@ -91,9 +99,10 @@ class OPersistentEntityStore(
         val txn = beginTransaction() as OStoreTransactionImpl
         try {
             executable.execute(txn)
-        } finally {
-            // if txn has not already been aborted in execute()
-            txn.activeSession.commit()
+            txn.commit()
+        } catch (e: Exception) {
+            txn.abort()
+            throw e
         }
     }
 
@@ -107,11 +116,17 @@ class OPersistentEntityStore(
         //i'm not sure about implementation
         val txn = beginTransaction() as OStoreTransactionImpl
         try {
-            return computable.compute(txn)
-        } finally {
-            // if txn has not already been aborted in execute()
-            txn.activeSession.commit()
+            val result = computable.compute(txn)
+            txn.commit()
+            return result
+        } catch (e: Exception) {
+            txn.abort()
+            throw e
         }
+    }
+
+    fun completeTx() {
+        currentTransaction.remove()
     }
 
     override fun <T : Any?> computeInExclusiveTransaction(computable: StoreTransactionalComputable<T>) =
@@ -155,7 +170,7 @@ class OPersistentEntityStore(
         val oldClass = computeInTransaction {
             val txn = it as OStoreTransaction
             txn.activeSession.metadata.schema.getClass(oldEntityTypeName)
-                ?: throw IllegalStateException("Class found by name $oldEntityTypeName")
+                ?: throw IllegalArgumentException("Class $oldEntityTypeName not found")
         }
         oldClass.setName(newEntityTypeName)
     }
@@ -170,7 +185,11 @@ class OPersistentEntityStore(
 
     override fun getStatistics() = dummyStatistics
 
-    override fun getAndCheckCurrentTransaction() = currentTransaction
+    override fun getAndCheckCurrentTransaction(): StoreTransaction {
+        val transaction = getCurrentTransaction()
+            ?: throw java.lang.IllegalStateException("EntityStore: current transaction is not set.")
+        return transaction
+    }
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 
