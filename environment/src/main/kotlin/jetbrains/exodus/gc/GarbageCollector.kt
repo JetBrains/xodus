@@ -33,6 +33,7 @@ import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.tree.ExpiredLoggableCollection
+import jetbrains.exodus.tree.patricia.UnexpectedLoggableException
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
 import java.io.File
@@ -255,7 +256,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         val guard = OOMGuard(softRef = false)
 
         val sortedFiles = TreeSet<Long>()
-        for(fileId in fragmentedFiles) {
+        for (fileId in fragmentedFiles) {
             sortedFiles.add(fileId)
         }
 
@@ -352,7 +353,11 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             throw ExodusException("Attempt to clean already cleaned file")
         }
         loggingInfo {
-            "start cleanFile(${environment.location}${File.separatorChar}${LogUtil.getLogFilename(fileAddress)})" +
+            "start cleanFile(${environment.location}${File.separatorChar}${
+                LogUtil.getLogFilename(
+                    fileAddress
+                )
+            })" +
                     ", free bytes = ${formatBytes(getFileFreeBytes(fileAddress))}"
         }
         val log = log
@@ -362,14 +367,17 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             logger.debug(
                 String.format(
                     "Cleaner acquired txn when log high address was: %d (%s@%d) when cleaning file %s",
-                    high, LogUtil.getLogFilename(highFile), high - highFile, LogUtil.getLogFilename(fileAddress)
+                    high,
+                    LogUtil.getLogFilename(highFile),
+                    high - highFile,
+                    LogUtil.getLogFilename(fileAddress)
                 )
             )
         }
 
         try {
             val nextFileAddress = fileAddress + log.fileLengthBound
-            val loggables = log.getLoggableIterator(fileAddress)
+            var loggables = log.getLoggableIterator(fileAddress)
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
 
@@ -381,12 +389,38 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 if (structureId != Loggable.NO_STRUCTURE_ID && structureId != EnvironmentImpl.META_TREE_ID) {
                     var store = openStoresCache.get(structureId)
                     if (store == null) {
-                        // TODO: remove openStoresCache when txn.openStoreByStructureId() is fast enough (XD-381)
                         store = txn.openStoreByStructureId(structureId)
                         openStoresCache[structureId] = store
                     }
 
-                    store.reclaim(txn, loggable, loggables)
+                    try {
+                        store.reclaim(txn, loggable, loggables)
+                    } catch (e: UnexpectedLoggableException) {
+                        logger.warn(
+                            "Unexpected loggable (address: ${loggable.address})  was found " +
+                                    "checking its presence in store ${store.name}."
+                        )
+                        val tree = txn.getTree(store)
+
+                        val addressIter = tree.addressIterator()
+                        //try to find address in tree
+                        while (addressIter.hasNext()) {
+                            val address = addressIter.next()
+                            if (address == loggable.address) {
+                                throw e
+                            }
+                        }
+
+                        logger.warn(
+                            "Loggable (address: ${loggable.address})  " +
+                                    "not found in store ${store.name}, skipping as a garbage"
+                        )
+                        //if address not found in tree,
+                        //then loggable is a garbage left after the restore of DB crash,
+                        //start from the last valid loggable
+                        loggables = log.getLoggableIterator(e.lastValidLoggableAddress)
+                    }
+
                 }
             }
         } catch (e: Throwable) {
@@ -420,6 +454,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             logger.debug { message() }
         }
 
-        internal fun formatBytes(bytes: Long) = if (bytes == Long.MAX_VALUE) "Unknown" else "${bytes / 1000}Kb"
+        internal fun formatBytes(bytes: Long) =
+            if (bytes == Long.MAX_VALUE) "Unknown" else "${bytes / 1000}Kb"
     }
 }

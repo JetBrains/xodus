@@ -45,6 +45,7 @@ interface EnvironmentConfigMBean {
     var envStoreGetCacheMaxValueSize: Int
     var envCloseForcedly: Boolean
     var envTxnReplayTimeout: Long
+    var envQueryOptimizedContains: Boolean
     var envTxnReplayMaxCount: Int
     var envTxnDowngradeAfterFlush: Boolean
     var envTxnSingleThreadWrites: Boolean

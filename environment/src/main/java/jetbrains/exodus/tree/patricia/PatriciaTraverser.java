@@ -118,7 +118,8 @@ class PatriciaTraverser implements TreeTraverser {
         if (top == 0) {
             return currentNode.hasValue() ? currentNode.keySequence : ByteIterable.EMPTY;
         }
-        final LightOutputStream output = new LightOutputStream(7);
+        // The ~90% key size fits in 28 and anything else often gets almost immediately promoted to 28
+        final LightOutputStream output = new LightOutputStream(28);
         for (int i = 0; i < top; ++i) {
             ByteIterableBase.fillBytes(stack[i].getKey(), output);
             output.write(stack[i].getNode().firstByte); // seems that firstByte isn't mutated

@@ -486,6 +486,15 @@ public class EnvironmentConfig extends AbstractConfig {
    */
   public static final String ENV_TXN_REPLAY_TIMEOUT = "exodus.env.txn.replayTimeout";
 
+    /**
+     * If is set to {@code true} then {@code jetbrains.exodus.entitystore.StoreTransaction#findContaining}
+     * starts using tailored underlying implementation that yields twice throughput of the default one,
+     * but sacrifices precision in operation with some Unicode specimen, namely Turkish dotted/dotless I.
+     * Mutable at runtime: yes
+     * Default: false
+     */
+    public static final String ENV_TXN_QUERY_OPTIMIZED_CONTAINS = "exodus.env.txn.optimizedContains";
+
   /**
    * Defines the number of times which a {@linkplain Transaction} can try to flush without attempts
    * to upgrade (switch to an exclusive mode). Default value is {@code 2}.
@@ -842,6 +851,7 @@ public class EnvironmentConfig extends AbstractConfig {
         new Pair(ENV_STOREGET_CACHE_MAX_VALUE_SIZE, 200),
         new Pair(ENV_CLOSE_FORCEDLY, false),
         new Pair(ENV_TXN_REPLAY_TIMEOUT, 2000L),
+        new Pair(ENV_TXN_QUERY_OPTIMIZED_CONTAINS, false),
         new Pair(ENV_TXN_REPLAY_MAX_COUNT, 2),
         new Pair(ENV_TXN_DOWNGRADE_AFTER_FLUSH, true),
         new Pair(ENV_TXN_SINGLE_THREAD_WRITES, false),
@@ -2041,6 +2051,25 @@ public class EnvironmentConfig extends AbstractConfig {
    */
   public int getEnvTxnReplayMaxCount() {
     return (Integer) getSetting(ENV_TXN_REPLAY_MAX_COUNT);
+  }
+
+  /**
+   * Returns whether to use optimized contains implementation for `propertyContains` request,
+   * that yields higher throughput, but fails on some Unicode specimen.
+   *
+   * @return whether to use optimized contains
+   * @see ENV_TXN_QUERY_OPTIMIZED_CONTAINS
+   * @see jetbrains.exodus.entitystore.StoreTransaction#findContaining(String, String, String, boolean)
+   */
+  public boolean getEnvQueryOptimizedContains() {
+      return (Boolean) getSetting(ENV_TXN_QUERY_OPTIMIZED_CONTAINS);
+  }
+
+  /**
+   * Sets {@link ENV_TXN_QUERY_OPTIMIZED_CONTAINS}, see its description
+   */
+  public EnvironmentConfig setEnvQueryOptimizedContains(final boolean value) {
+      return setSetting(ENV_TXN_QUERY_OPTIMIZED_CONTAINS, value);
   }
 
   /**
