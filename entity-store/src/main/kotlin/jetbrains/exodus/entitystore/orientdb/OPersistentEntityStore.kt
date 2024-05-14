@@ -172,7 +172,9 @@ class OPersistentEntityStore(
             txn.activeSession.metadata.schema.getClass(oldEntityTypeName)
                 ?: throw IllegalArgumentException("Class $oldEntityTypeName not found")
         }
+        val session = databaseProvider.acquireSession()
         oldClass.setName(newEntityTypeName)
+        session.close()
     }
 
     override fun getUsableSpace(): Long {
@@ -193,7 +195,7 @@ class OPersistentEntityStore(
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 
-    private val currentOTransaction get() = currentTransaction as OStoreTransaction
+    private val currentOTransaction get() = currentTransaction.get() as OStoreTransaction
 
     fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
         return schemaBuddy.getOEntityId(entityId)

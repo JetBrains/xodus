@@ -49,9 +49,11 @@ class OPersistentStoreTest: OTestMixin {
             it as OStoreTransaction
             (it.activeSession as ODatabaseSession).queryEntities("select from $newClassName", store).firstOrNull()
         }
-        Assert.assertNotNull(issueByNewName)
-        issueByNewName!!
-        assertEquals(summary, issueByNewName.getProperty("name"))
+        store.executeInTransaction {
+            Assert.assertNotNull(issueByNewName)
+            issueByNewName!!
+            assertEquals(summary, issueByNewName.getProperty("name"))
+        }
     }
 
     @Test
