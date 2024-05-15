@@ -15,9 +15,7 @@
  */
 package jetbrains.exodus.tree.patricia
 
-import jetbrains.exodus.ArrayByteIterable
-import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.ExodusException
+import jetbrains.exodus.*
 import jetbrains.exodus.core.dataStructures.hash.HashSet
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.log.*
@@ -48,6 +46,9 @@ internal class PatriciaTreeMutable(
     override fun getMutableCopy() = this
 
     override fun put(key: ByteIterable, value: ByteIterable): Boolean {
+        checkLength(key)
+        checkLength(value)
+
         val it = key.iterator()
         var node: MutableNode = root
         var prev: MutableNode? = null
@@ -103,6 +104,9 @@ internal class PatriciaTreeMutable(
     }
 
     override fun putRight(key: ByteIterable, value: ByteIterable) {
+        checkLength(key)
+        checkLength(value)
+
         val it = key.iterator()
         var node: MutableNode = root
         var prev: MutableNode? = null
@@ -152,6 +156,9 @@ internal class PatriciaTreeMutable(
     }
 
     override fun add(key: ByteIterable, value: ByteIterable): Boolean {
+        checkLength(key)
+        checkLength(value)
+
         val it = key.iterator()
         var node: NodeBase = root
         var mutableNode: MutableNode? = null
@@ -539,6 +546,20 @@ internal class PatriciaTreeMutable(
         private class ReclaimFrame {
             var srcPushes = 0
             var actPushes = 0
+        }
+    }
+
+    private fun checkLength(byteIterable: ByteIterable) {
+        if (byteIterable is ArrayByteIterable
+            || byteIterable is FixedLengthByteIterable
+            || byteIterable is ByteBufferByteIterable
+        ) {
+            val maxFileSize = log.fileLengthBound / 2
+            if (byteIterable.length > maxFileSize) {
+                throw TooBigLoggableException(
+                    "ByteIterable length is greater than max allowed size of $maxFileSize bytes"
+                )
+            }
         }
     }
 }
