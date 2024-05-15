@@ -36,6 +36,7 @@ public abstract class OEntityStoreTestBase extends TestBase {
 
     private OrientDB orientDB;
     private PersistentEntityStore store;
+    protected OSchemaBuddy schemaBuddy;
 
     protected boolean isPartiallyTornDown;
     protected boolean shouldCleanopOnTearDown;
@@ -97,7 +98,8 @@ public abstract class OEntityStoreTestBase extends TestBase {
                 orientDB.close();
             }
         };
-        return new OPersistentEntityStore(databaseProvider, getName(), Executors.newSingleThreadExecutor(), new OSchemaBuddyImpl(databaseProvider, true));
+        schemaBuddy = new OSchemaBuddyImpl(databaseProvider, true);
+        return new OPersistentEntityStore(databaseProvider, getName(), Executors.newSingleThreadExecutor(), schemaBuddy);
     }
 
     @Override

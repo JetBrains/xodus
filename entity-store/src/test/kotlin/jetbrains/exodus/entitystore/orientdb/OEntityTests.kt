@@ -21,10 +21,10 @@ import org.junit.Assert
 import java.util.*
 
 class OEntityTests : OEntityStoreTestBase() {
+
+
     fun testCreateSingleEntity() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         val entity = entityStore.computeInTransaction { txn ->
             val entity = txn.newEntity("Issue")
@@ -74,9 +74,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testCreateTwoEntitiesInTransaction() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val entity1 = txn.newEntity("Issue")
@@ -92,9 +90,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testCreateTwoEntitiesInTwoTransactions() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val entity1 = txn.newEntity("Issue")
@@ -111,9 +107,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testCreateAndGetSingleEntity() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val entity = txn.newEntity("Issue")
@@ -129,9 +123,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testIntProperty() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val entity = txn.newEntity("Issue")
@@ -149,9 +141,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testLongProperty() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val entity = txn.newEntity("Issue")
@@ -167,9 +157,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testStringProperty() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
         transactional { txn ->
             val entity = txn.newEntity("Issue")
             entity.setProperty("description", "This is a test issue")
@@ -184,9 +172,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testDoubleAndFloatProperties() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
         transactional { txn ->
             val entity = txn.newEntity("Issue")
             entity.setProperty("hitRate", 0.123456789)
@@ -207,9 +193,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testDateProperty() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val entity = txn.newEntity("Issue")
@@ -229,9 +213,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testBooleanProperty() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
         transactional { txn ->
             val entity = txn.newEntity("Issue")
             entity.setProperty("ready", true)
@@ -253,9 +235,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testHeterogeneousProperties() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val entity = txn.newEntity("Issue")
@@ -275,9 +255,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testOverwriteProperty() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val entity = txn.newEntity("Issue")
@@ -295,9 +273,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testDeleteProperty() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             val issue = txn.newEntity("Issue")
@@ -344,9 +320,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testDeleteEntities() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             txn.newEntity("Issue")
@@ -367,9 +341,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testRenameEntityType() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             for (i in 0..9) {
@@ -384,9 +356,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testRenameNonExistingEntityType() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         transactional { txn ->
             for (i in 0..9) {
@@ -432,9 +402,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testTxnCachesIsolation() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         val issue = entityStore.computeInTransaction { txn ->
             txn.newEntity("Issue").apply { setProperty("description", "1") }
@@ -456,9 +424,7 @@ class OEntityTests : OEntityStoreTestBase() {
     }
 
     fun testTxnCachesIsolation2() {
-        acquireSession().use {
-            it.createVertexClass("Issue")
-        }
+        createClasses(listOf("Issue"))
 
         val issue = entityStore.computeInTransaction { txn ->
             txn.newEntity("Issue").apply { setProperty("description", "1") }
@@ -474,5 +440,13 @@ class OEntityTests : OEntityStoreTestBase() {
 
             Assert.assertEquals("3", issue.getProperty("description"))
         }
+    }
+
+    private fun createClasses( vectorClasses: Collection<String>, edgeClasses: Collection<String> = listOf()) {
+        acquireSession().use {
+            vectorClasses.forEach { name -> it.createVertexClassWithClassId(name) }
+            edgeClasses.forEach { name -> it.createEdgeClass(name) }
+        }
+        schemaBuddy.initialize()
     }
 }
