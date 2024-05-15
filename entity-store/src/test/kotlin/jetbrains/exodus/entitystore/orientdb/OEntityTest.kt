@@ -38,7 +38,7 @@ class OEntityTest {
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
         val linkName = "link"
-        orientDb.withSession { session ->
+        orientDb.provider.acquireSession().use { session ->
             session.createEdgeClass(linkName)
         }
 
@@ -77,7 +77,7 @@ class OEntityTest {
     @Test
     fun `should delete all links`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        orientDb.provider.acquireSession().use { session ->
             session.createEdgeClass(linkName)
         }
 
@@ -129,7 +129,7 @@ class OEntityTest {
     @Test
     fun `should replace a link correctly`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        orientDb.provider.acquireSession().use { session ->
             session.createEdgeClass(linkName)
         }
 
@@ -154,7 +154,7 @@ class OEntityTest {
     @Test
     fun `setLink() and addLink() should work correctly with PersistentEntityId`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        orientDb.provider.acquireSession().use { session ->
             session.createEdgeClass(linkName)
         }
 
@@ -181,7 +181,7 @@ class OEntityTest {
     @Test
     fun `setLink() and addLink() return false if the target entity is not found`() {
         val linkName = "link"
-        orientDb.withSession { session ->
+        orientDb.provider.acquireSession().use { session ->
             session.createEdgeClass(linkName)
         }
 

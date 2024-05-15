@@ -57,6 +57,9 @@ object Boards {
 }
 
 fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVertexEntity {
+    provider.acquireSession().use { session ->
+        session.getOrCreateVertexClass(CLASS)
+    }
     return withSession { session ->
         val issue = session.createNamedEntity(CLASS, name, store)
         priority?.let { issue.setProperty(PRIORITY, it) }
@@ -66,33 +69,42 @@ fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVerte
 }
 
 fun InMemoryOrientDB.createProject(name: String): OVertexEntity {
+    provider.acquireSession().use { session ->
+        session.getOrCreateVertexClass(Projects.CLASS)
+    }
     return withSession { session ->
         session.createNamedEntity(Projects.CLASS, name, store)
     }
 }
 
 fun InMemoryOrientDB.createBoard(name: String): OVertexEntity {
+    provider.acquireSession().use { session ->
+        session.getOrCreateVertexClass(Boards.CLASS)
+    }
     return withSession { session ->
         session.createNamedEntity(Boards.CLASS, name, store)
     }
 }
 
 fun InMemoryOrientDB.addIssueToProject(issue: OEntity, project: OEntity) {
-    withSession { session ->
+    provider.acquireSession().use { session ->
         session.getOrCreateEdgeClass(IN_PROJECT)
-        issue.addLink(IN_PROJECT, project)
-
         session.getOrCreateEdgeClass(HAS_ISSUE)
+    }
+
+    withSession {
+        issue.addLink(IN_PROJECT, project)
         project.addLink(HAS_ISSUE, issue)
     }
 }
 
 fun InMemoryOrientDB.addIssueToBoard(issue: OEntity, board: OEntity) {
-    withSession { session ->
+    provider.acquireSession().use { session ->
         session.getOrCreateEdgeClass(ON_BOARD)
-        issue.addLink(ON_BOARD, board)
-
         session.getOrCreateEdgeClass(HAS_ISSUE)
+    }
+    withSession {
+        issue.addLink(ON_BOARD, board)
         board.addLink(Boards.Links.HAS_ISSUE, issue)
     }
 }
@@ -102,7 +114,7 @@ fun ODatabaseSession.createNamedEntity(
     name: String,
     store: PersistentEntityStore
 ): OVertexEntity {
-    val oClass = this.getOrCreateVertexClass(className)
+    val oClass = this.getClass(className) ?: throw IllegalStateException("Create class $className before using it")
     val entity = this.newVertex(oClass)
     setLocalEntityIdIfAbsent(entity)
     entity.setProperty("name", name)

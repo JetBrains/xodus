@@ -290,8 +290,8 @@ class OEntityTests : OEntityStoreTestBase() {
 
     fun testReadingWithoutTransaction() {
         acquireSession().use {
-            it.createVertexClass("Issue")
-            it.createVertexClass("User")
+            it.createVertexClassWithClassId("Issue")
+            it.createVertexClassWithClassId("User")
             it.createEdgeClass("creator")
         }
 
@@ -349,8 +349,9 @@ class OEntityTests : OEntityStoreTestBase() {
             }
             txn.flush()
             Assert.assertEquals(10, txn.getAll("Issue").size())
-            entityStore.renameEntityType("Issue", "Comment")
-            txn.flush()
+        }
+        entityStore.renameEntityType("Issue", "Comment")
+        transactional { txn ->
             Assert.assertEquals(10, txn.getAll("Comment").size())
         }
     }

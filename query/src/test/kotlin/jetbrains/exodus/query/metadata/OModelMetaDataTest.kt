@@ -18,6 +18,7 @@ package jetbrains.exodus.query.metadata
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.ORIDEntityId
 import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.createVertexClassWithClassId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createNamedEntity
 import org.junit.Assert
@@ -93,7 +94,7 @@ class OModelMetaDataTest {
             entity("type2")
         }
 
-        orientDb.withSession {
+        orientDb.provider.acquireSession().use {
             model.prepare()
             model.addAssociation(
                 "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
@@ -168,7 +169,9 @@ class OModelMetaDataTest {
         }
 
         // We have not yet called prepare() for the model, autoInitialize is disabled
-
+        orientDb.provider.acquireSession().use {
+            it.createVertexClassWithClassId("type1")
+        }
         val entityId = orientDb.withSession { session ->
             session.createNamedEntity("type1", "trista", orientDb.store).id
         }

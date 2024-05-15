@@ -15,7 +15,9 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
+import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 
 
 /**
@@ -31,43 +33,38 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
  * @property commitEvery The number of changes increments before a commit is triggered.
  */
 class CountingOTransaction(
-    private val oSession: ODatabaseSession,
+    private val store:OPersistentEntityStore,
     private val commitEvery: Int
 ) {
     private var counter = 0
+    private lateinit var txn : StoreTransaction
 
     fun increment() {
         counter++
         if (counter == commitEvery) {
-            oSession.commit()
-            oSession.begin()
+            txn.flush()
             counter = 0
         }
     }
 
     fun begin() {
-        require(oSession.transaction == null || !oSession.transaction.isActive)
-        oSession.begin()
+        txn = store.beginTransaction()
     }
 
     fun commit() {
-        oSession.transaction?.let { tx ->
-            if (tx.isActive) {
-                oSession.commit()
-            }
-        }
+        txn.commit()
     }
 
     fun rollback() {
-        oSession.transaction?.let { tx ->
-            if (tx.isActive) {
-                oSession.rollback()
-            }
-        }
+        (txn as OStoreTransaction).oTransaction.rollback()
     }
+
+    val session get() = (txn as OStoreTransaction).activeSession
+
 }
 
-fun <R> ODatabaseSession.withCountingTx(commitEvery: Int, block: (CountingOTransaction) -> R): R {
+fun <R> OPersistentEntityStore.withCountingTx(commitEvery: Int, block: (CountingOTransaction) -> R): R {
+
     val tx = CountingOTransaction(this, commitEvery)
     tx.begin()
     try {

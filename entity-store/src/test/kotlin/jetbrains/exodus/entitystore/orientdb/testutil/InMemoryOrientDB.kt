@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.orientechnologies.orient.core.db.*
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
@@ -85,10 +82,12 @@ class InMemoryOrientDB(
     }
 
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
-        val session = openSession()
+        val txn = store.beginTransaction()
+        val session = ODatabaseRecordThreadLocal.instance().get()
         try {
             return block(session)
         } finally {
+            txn.commit()
             session.close()
         }
     }

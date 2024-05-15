@@ -37,7 +37,7 @@ class OrientDbSchemaInitializerTest {
     val orientDb = InMemoryOrientDB(initializeIssueSchema = false)
 
     @Test
-    fun `create vertex-class for every entity`() = orientDb.withSession { oSession ->
+    fun `create vertex-class for every entity`() = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1")
             entity("type2")
@@ -50,7 +50,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `set super-classes`() = orientDb.withSession { oSession ->
+    fun `set super-classes`() = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1")
             entity("type2", "type1")
@@ -64,7 +64,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `simple properties of known types are created`() = orientDb.withSession { oSession ->
+    fun `simple properties of known types are created`() = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1") {
                 for (type in supportedSimplePropertyTypes) {
@@ -90,7 +90,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `simple properties of not-known types cause exception`(): Unit = orientDb.withSession { oSession ->
+    fun `simple properties of not-known types cause exception`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1") {
                 property("prop1", "notSupportedType")
@@ -110,18 +110,18 @@ class OrientDbSchemaInitializerTest {
                 stringBlobProperty("strBlob1")
             }
         }
-        orientDb.withSession {
+        orientDb.provider.acquireSession().use  {
             it.applySchema(model)
         }
         orientDb.schemaBuddy.initialize()
 
-        orientDb.withSession {
+        orientDb.provider.acquireSession().use  {
             assertEquals(null, it.metadata.schema.getClass(STRING_BLOB_CLASS_NAME).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME))
         }
     }
 
     @Test
-    fun `create blob and string-blob properties`(): Unit = orientDb.withSession { oSession ->
+    fun `create blob and string-blob properties`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1") {
                 blobProperty("blob1")
@@ -152,7 +152,7 @@ class OrientDbSchemaInitializerTest {
 
     @Test
     fun `embedded set properties with supported types`() {
-        val indices = orientDb.withSession { oSession ->
+        val indices = orientDb.provider.acquireSession().use  { oSession ->
             val model = model {
                 entity("type1") {
                     for (type in supportedSimplePropertyTypes) {
@@ -174,7 +174,7 @@ class OrientDbSchemaInitializerTest {
             indices
         }
 
-        orientDb.withSession { oSession ->
+        orientDb.provider.acquireSession().use  { oSession ->
             oSession.applyIndices(indices)
 
             for (type in supportedSimplePropertyTypes) {
@@ -184,7 +184,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `embedded set properties with not-supported types cause exception`(): Unit = orientDb.withSession { oSession ->
+    fun `embedded set properties with not-supported types cause exception`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1") {
                 setProperty("setProp$type", "cavaBanga")
@@ -197,7 +197,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `one-directional associations`(): Unit = orientDb.withSession { oSession ->
+    fun `one-directional associations`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1")
             entity("type2")
@@ -214,7 +214,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `two association with the same name to a single type`(): Unit = orientDb.withSession { oSession ->
+    fun `two association with the same name to a single type`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1")
             entity("type2")
@@ -230,7 +230,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `one-directional associations ignore cardinality`(): Unit = orientDb.withSession { oSession ->
+    fun `one-directional associations ignore cardinality`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1")
             entity("type2")
@@ -247,7 +247,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `two-directional associations`(): Unit = orientDb.withSession { oSession ->
+    fun `two-directional associations`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1")
             entity("type2")
@@ -278,7 +278,7 @@ class OrientDbSchemaInitializerTest {
 
     @Test
     fun `own indices`() {
-        val indices = orientDb.withSession { oSession ->
+        val indices = orientDb.provider.acquireSession().use  { oSession ->
             val model = model {
                 entity("type1") {
                     property("prop1", "int")
@@ -309,7 +309,7 @@ class OrientDbSchemaInitializerTest {
             indices
         }
 
-        orientDb.withSession { oSession ->
+        orientDb.provider.acquireSession().use  { oSession ->
             oSession.applyIndices(indices)
 
             oSession.checkIndex("type1", true, "prop1", "prop2")
@@ -318,7 +318,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `index for every simple property if required`() = orientDb.withSession { oSession ->
+    fun `index for every simple property if required`() = orientDb.provider.acquireSession().use { oSession ->
         val model = model {
             entity("type1") {
                 property("prop1", "int")
@@ -341,7 +341,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `no indices for simple properties by default`() = orientDb.withSession { oSession ->
+    fun `no indices for simple properties by default`() = orientDb.provider.acquireSession().use  { oSession ->
         val model = model {
             entity("type1") {
                 property("prop1", "int")
@@ -356,7 +356,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `addAssociation, removeAssociation`(): Unit = orientDb.withSession { session ->
+    fun `addAssociation, removeAssociation`(): Unit = orientDb.provider.acquireSession().use  { session ->
         val model = model {
             entity("type1")
             entity("type2")
@@ -401,7 +401,7 @@ class OrientDbSchemaInitializerTest {
     // Backward compatible EntityId
 
     @Test
-    fun `classId is a monotonically increasing long`(): Unit = orientDb.withSession { oSession ->
+    fun `classId is a monotonically increasing long`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val types = mutableListOf("type1", "type2", "type3")
         val model = model {
             for (type in types) {
@@ -445,7 +445,7 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `every class gets localEntityId property`(): Unit = orientDb.withSession { oSession ->
+    fun `every class gets localEntityId property`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val types = mutableListOf("type1", "type2", "type3")
         val model = model {
             for (type in types) {
