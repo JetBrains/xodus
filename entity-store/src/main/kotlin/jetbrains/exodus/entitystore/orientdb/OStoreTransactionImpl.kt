@@ -87,7 +87,7 @@ class OStoreTransactionImpl(
     }
 
     override fun revert() {
-        (txn as OTransactionOptimistic).abort()
+        (txn as OTransactionOptimistic).revert()
     }
 
     override fun getSnapshot(): StoreTransaction {
