@@ -55,7 +55,7 @@ class OStoreTransactionImpl(
 
     override fun isReadonly(): Boolean {
         if (!hasWriteOperations){
-            hasWriteOperations = isIdempotent
+            hasWriteOperations = !isIdempotent
         }
         return !hasWriteOperations
     }
