@@ -16,16 +16,14 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.orientechnologies.orient.core.db.record.ORecordOperation
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
-import com.orientechnologies.orient.core.tx.OTransactionNoTx
+import com.orientechnologies.orient.core.tx.OTransactionOptimistic
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterable
-
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
@@ -52,12 +50,12 @@ class OStoreTransactionImpl(
 
     override fun isIdempotent(): Boolean {
         val operations = txn.recordOperations ?: listOf()
-        return operations.firstOrNull() == null || operations.all { it.type == ORecordOperation.LOADED }
+        return operations.firstOrNull() == null
     }
 
     override fun isReadonly(): Boolean {
         if (!hasWriteOperations){
-            hasWriteOperations = txn.recordOperations.iterator().hasNext()
+            hasWriteOperations = isIdempotent
         }
         return !hasWriteOperations
     }
@@ -69,7 +67,7 @@ class OStoreTransactionImpl(
     override fun commit(): Boolean {
         txn.commit()
         if (!txn.isActive) {
-            session.release()
+            session.close()
         }
         return true
     }
@@ -79,7 +77,7 @@ class OStoreTransactionImpl(
     }
 
     override fun abort() {
-        txn.rollback()
+        (txn as OTransactionOptimistic).abort()
     }
 
     override fun flush(): Boolean {
@@ -89,8 +87,7 @@ class OStoreTransactionImpl(
     }
 
     override fun revert() {
-        txn.rollback()
-        txn.begin()
+        (txn as OTransactionOptimistic).abort()
     }
 
     override fun getSnapshot(): StoreTransaction {
