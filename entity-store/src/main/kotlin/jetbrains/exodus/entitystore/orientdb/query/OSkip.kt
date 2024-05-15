@@ -25,7 +25,9 @@ class OSkipValue(
     val value: Int
 ) : OSkip {
 
-    override fun sql() = "$value"
+    override fun sql(builder: StringBuilder) {
+        builder.append(value)
+    }
 
     override fun min(other: OSkip): OSkip {
         return when (other) {

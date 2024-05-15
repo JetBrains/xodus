@@ -13,8 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.orientdb.query
+package jetbrains.exodus.entitystore.orientdb
 
-interface OSql {
-    fun sql(builder: StringBuilder)
+import jetbrains.exodus.entitystore.PersistentEntityStore
+
+class OReadonlyVertexEntity(val txn: OStoreTransaction, id: OEntityId) : OVertexEntity(
+    txn.activeSession.load(id.asOId()), txn.store as PersistentEntityStore
+) {
+    override fun assertWritable() {
+        throw IllegalArgumentException("Can't update readonly entity (id=${id})")
+    }
 }
+

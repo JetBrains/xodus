@@ -19,18 +19,16 @@ import com.orientechnologies.orient.core.db.ODatabaseSession;
 import com.orientechnologies.orient.core.db.ODatabaseType;
 import com.orientechnologies.orient.core.db.OrientDB;
 import com.orientechnologies.orient.core.db.OrientDBConfig;
+import jetbrains.exodus.TestUtil;
+import jetbrains.exodus.entitystore.*;
+import jetbrains.exodus.util.IOUtil;
+import org.jetbrains.annotations.NotNull;
+import org.junit.Assert;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
-
-import jetbrains.exodus.TestUtil;
-import jetbrains.exodus.entitystore.*;
-import jetbrains.exodus.util.IOUtil;
-
-import org.jetbrains.annotations.NotNull;
-import org.junit.Assert;
 
 public abstract class OEntityStoreTestBase extends TestBase {
 
@@ -75,7 +73,7 @@ public abstract class OEntityStoreTestBase extends TestBase {
     }
 
     public PersistentEntityStore createStore(String dbTempFolder) {
-        return new OPersistentEntityStore(new ODatabaseProvider() {
+        ODatabaseProvider databaseProvider = new ODatabaseProvider() {
             @NotNull
             @Override
             public String getDatabaseLocation() {
@@ -98,7 +96,8 @@ public abstract class OEntityStoreTestBase extends TestBase {
             public void close() {
                 orientDB.close();
             }
-        }, getName(), Executors.newSingleThreadExecutor());
+        };
+        return new OPersistentEntityStore(databaseProvider, getName(), Executors.newSingleThreadExecutor(), new OSchemaBuddyImpl(databaseProvider, true));
     }
 
     @Override

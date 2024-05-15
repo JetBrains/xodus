@@ -34,12 +34,15 @@ import jetbrains.exodus.env.Transaction
 class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
     private val txn: OTransaction,
-    private val store: PersistentEntityStore
+    private val store: PersistentEntityStore,
+    private val schemaBuddy: OSchemaBuddy
 ) : OStoreTransaction {
 
     private var queryCancellingPolicy: QueryCancellingPolicy? = null
 
     override val activeSession = session
+
+    private var hasWriteOperations = false
 
     override val oTransaction = txn
 
@@ -53,7 +56,10 @@ class OStoreTransactionImpl(
     }
 
     override fun isReadonly(): Boolean {
-        return txn is OTransactionNoTx
+        if (!hasWriteOperations){
+            hasWriteOperations = txn.recordOperations.iterator().hasNext()
+        }
+        return !hasWriteOperations
     }
 
     override fun isFinished(): Boolean {
@@ -114,10 +120,10 @@ class OStoreTransactionImpl(
     }
 
     override fun newEntity(entityType: String): Entity {
+        schemaBuddy.makeSureTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
         vertex.save<OVertex>()
-
         return OVertexEntity(vertex, store)
     }
 

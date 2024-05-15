@@ -97,7 +97,7 @@ fun InMemoryOrientDB.addIssueToBoard(issue: OEntity, board: OEntity) {
     }
 }
 
-private fun ODatabaseSession.createNamedEntity(
+fun ODatabaseSession.createNamedEntity(
     className: String,
     name: String,
     store: PersistentEntityStore

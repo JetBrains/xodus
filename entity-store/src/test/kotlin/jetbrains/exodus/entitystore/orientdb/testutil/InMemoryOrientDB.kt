@@ -22,14 +22,15 @@ import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
-import jetbrains.exodus.entitystore.orientdb.getClassIdToOClassIdMap
 import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import org.junit.rules.ExternalResource
 
 class InMemoryOrientDB(
-    private val initializeIssueSchema: Boolean = true
+    private val initializeIssueSchema: Boolean = true,
+    private val autoInitializeSchemaBuddy: Boolean = true
 ) : ExternalResource() {
 
     private lateinit var db: OrientDB
@@ -37,6 +38,7 @@ class InMemoryOrientDB(
         private set
 
     lateinit var provider: ODatabaseProviderImpl
+    lateinit var schemaBuddy: OSchemaBuddyImpl
 
     val username = "admin"
     val password = "password"
@@ -46,19 +48,21 @@ class InMemoryOrientDB(
         db = OrientDB("memory", OrientDBConfig.defaultConfig())
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
 
-        val classIdToOClassId = if (initializeIssueSchema) {
+        if (initializeIssueSchema) {
             withSession { session ->
                 session.getOrCreateVertexClass(Issues.CLASS)
                 session.getOrCreateVertexClass(Boards.CLASS)
                 session.getOrCreateVertexClass(Projects.CLASS)
                 session.createClass(STRING_BLOB_CLASS_NAME)
                 session.createClass(BINARY_BLOB_CLASS_NAME)
-                session.getClassIdToOClassIdMap()
             }
-        } else mapOf()
+        }
 
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
-        store = OPersistentEntityStore(provider, dbName, classIdToOClassId = classIdToOClassId)
+        schemaBuddy = OSchemaBuddyImpl(provider, autoInitialize = autoInitializeSchemaBuddy)
+        store = OPersistentEntityStore(provider, dbName,
+            schemaBuddy = schemaBuddy
+        )
     }
 
     override fun after() {
@@ -72,7 +76,9 @@ class InMemoryOrientDB(
         try {
             session.begin()
             val result = block(session)
-            session.commit()
+            if (session.transaction.isActive) {
+                session.commit()
+            }
             return result
         } finally {
             session.close()

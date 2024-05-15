@@ -33,7 +33,7 @@ class OStoreTransactionTest : OTestMixin {
 
     @Rule
     @JvmField
-    val orientDbRule = InMemoryOrientDB()
+    val orientDbRule = InMemoryOrientDB(true)
 
     override val orientDb = orientDbRule
 
@@ -572,11 +572,57 @@ class OStoreTransactionTest : OTestMixin {
         }
     }
 
+
+    @Test
+    fun `entity id should be valid and accessible just after creation`(){
+        orientDb.store.executeInTransaction { tx->
+            val entity = tx.newEntity(Issues.CLASS)
+            val orid = (entity.id as OEntityId).asOId()
+            Assert.assertTrue(orid.clusterId > 0)
+        }
+    }
+
     @Test
     fun `newEntity sets localEntityId`() {
         orientDb.store.executeInTransaction { tx ->
             val issue = tx.newEntity(Issues.CLASS)
             assertEquals(issue.id.localId, 1)
+        }
+    }
+
+    /*
+    * This behaviour may change in the future if we support schema changes in transactions
+    * */
+    @Test
+    fun `newEntity() throws exception if the type is not created`() {
+        orientDb.store.executeInTransaction { tx ->
+            assertFailsWith<AssertionError> {
+                tx.newEntity("opca")
+            }
+        }
+    }
+
+    @Test
+    fun `isReadOnly by default is true`(){
+        orientDb.store.executeInTransaction { tx ->
+            Assert.assertTrue(tx.isReadonly)
+        }
+    }
+
+    @Test
+    fun `isReadOnly is switched to false after modification operation`(){
+        val issue = orientDb.store.computeInTransaction { tx ->
+            val issue = tx.newEntity(Issues.CLASS)
+            Assert.assertFalse(tx.isReadonly)
+            issue
+        }
+        orientDb.store.computeInTransaction { tx ->
+            issue.setProperty("priority", "Normal2")
+            Assert.assertFalse(tx.isReadonly)
+        }
+        orientDb.store.computeInTransaction { tx ->
+            issue.delete()
+            Assert.assertFalse(tx.isReadonly)
         }
     }
 }
