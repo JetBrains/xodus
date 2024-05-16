@@ -821,7 +821,9 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                 try {
                     blockSetMutable.clear()
-
+                    for(block in blocks.headMap(blocksToCheck.firstKey(), false)) {
+                        blockSetMutable.add(block.key, block.value)
+                    }
                     val triple = extractRestoreInformation(
                         blocksToCheck.values.iterator(),
                         blockSetMutable
