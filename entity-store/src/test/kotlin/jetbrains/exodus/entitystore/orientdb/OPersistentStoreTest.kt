@@ -51,7 +51,9 @@ class OPersistentStoreTest: OTestMixin {
         }
         Assert.assertNotNull(issueByNewName)
         issueByNewName!!
-        assertEquals(summary, issueByNewName.getProperty("name"))
+        store.executeInTransaction {
+            assertEquals(summary, issueByNewName.getProperty("name"))
+        }
     }
 
     @Test

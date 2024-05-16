@@ -51,7 +51,7 @@ class OSchemaBuddyTest {
     fun `buddy properly creates a class if absent`() {
         val buddy = OSchemaBuddyImpl(orientDb.provider)
         val className = "trista"
-        orientDb.withSession { session ->
+        orientDb.provider.acquireSession().use { session ->
             assertNull(session.getClass(className))
             buddy.makeSureTypeExists(session, className)
             val oClass = session.getClass(className)

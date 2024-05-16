@@ -15,11 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.sql.executor.OResultSet
+import com.orientechnologies.orient.core.db.*
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
@@ -47,9 +43,10 @@ class InMemoryOrientDB(
     override fun before() {
         db = OrientDB("memory", OrientDBConfig.defaultConfig())
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
+        provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
 
         if (initializeIssueSchema) {
-            withSession { session ->
+            provider.acquireSession().let { session->
                 session.getOrCreateVertexClass(Issues.CLASS)
                 session.getOrCreateVertexClass(Boards.CLASS)
                 session.getOrCreateVertexClass(Projects.CLASS)
@@ -58,7 +55,6 @@ class InMemoryOrientDB(
             }
         }
 
-        provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
         schemaBuddy = OSchemaBuddyImpl(provider, autoInitialize = autoInitializeSchemaBuddy)
         store = OPersistentEntityStore(provider, dbName,
             schemaBuddy = schemaBuddy
@@ -86,18 +82,13 @@ class InMemoryOrientDB(
     }
 
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
-        val session = openSession()
+        val txn = store.beginTransaction()
+        val session = ODatabaseRecordThreadLocal.instance().get()
         try {
             return block(session)
         } finally {
+            txn.commit()
             session.close()
-        }
-    }
-
-    fun withQuery(query: String, block: (OResultSet) -> Unit) {
-        return withSession { session ->
-            val result = session.query(query)
-            block(result)
         }
     }
 

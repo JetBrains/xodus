@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
@@ -30,14 +31,22 @@ class ORIDEntityIdTest {
 
     @Test
     fun `require both classId and localEntityId to create an instance`() {
-        orientDb.withSession { oSession ->
-            val oClass = oSession.createVertexClass("type1")
-            val vertex = oSession.newVertex(oClass)
+        val oClass = orientDb.provider.withSession { oSession ->
+             oSession.createVertexClass("type1")
+        }
+        val vertex:OVertex = orientDb.withSession { oSession ->
+            oSession.newVertex(oClass)
+        }
+        orientDb.withSession {
             assertFailsWith<IllegalStateException> {
                 ORIDEntityId.fromVertex(vertex)
             }
+        }
 
+        orientDb.provider.withSession {
             oClass.setCustom(OVertexEntity.CLASS_ID_CUSTOM_PROPERTY_NAME, 300.toString())
+        }
+        orientDb.withSession {
 
             assertFailsWith<IllegalStateException> {
                 ORIDEntityId.fromVertex(vertex)
@@ -46,7 +55,6 @@ class ORIDEntityIdTest {
             vertex.setProperty(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, 200L)
 
             ORIDEntityId.fromVertex(vertex)
-
         }
     }
 
