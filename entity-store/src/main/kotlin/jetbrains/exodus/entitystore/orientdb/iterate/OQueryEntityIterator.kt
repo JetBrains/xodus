@@ -24,24 +24,16 @@ import jetbrains.exodus.entitystore.orientdb.query.OQuery
 import jetbrains.exodus.entitystore.orientdb.query.OQueryExecution
 import jetbrains.exodus.entitystore.orientdb.query.OQueryTimeoutException
 import jetbrains.exodus.entitystore.orientdb.toEntityIterator
-import mu.KLogging
 
 
 class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterator {
 
-    companion object : KLogging() {
+    companion object {
 
         val EMPTY = OQueryEntityIterator(emptyList<Entity>().iterator())
 
         fun executeAndCreate(query: OQuery, txn: OStoreTransaction): OQueryEntityIterator {
             val resultSet = OQueryExecution.execute(query, txn)
-
-            // Log execution plan
-            val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
-            val builder = StringBuilder()
-            query.sql(builder)
-            logger.info { "Query: $builder, params: ${query.params()}, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}" }
-
             val iterator = resultSet.toEntityIterator(txn.store as PersistentEntityStore)
             return OQueryEntityIterator(iterator)
         }
