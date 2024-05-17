@@ -28,4 +28,11 @@ class OTaskTrackerTestCase(val orientDB: InMemoryOrientDB) {
     val board1 = orientDB.createBoard("board1")
     val board2 = orientDB.createBoard("board2")
     val board3 = orientDB.createBoard("board3")
+
+
+    fun createManyIssues(count: Int) {
+        for (i in 1..count) {
+            orientDB.createIssue("issue$i")
+        }
+    }
 }

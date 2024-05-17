@@ -21,6 +21,8 @@ import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
+import jetbrains.exodus.entitystore.orientdb.query.OQueryExecution
+import jetbrains.exodus.entitystore.orientdb.query.OQueryTimeoutException
 import jetbrains.exodus.entitystore.orientdb.toEntityIterator
 import mu.KLogging
 
@@ -32,7 +34,8 @@ class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterato
         val EMPTY = OQueryEntityIterator(emptyList<Entity>().iterator())
 
         fun executeAndCreate(query: OQuery, txn: OStoreTransaction): OQueryEntityIterator {
-            val resultSet = query.execute(txn.activeSession)
+            val resultSet = OQueryExecution.execute(query, txn)
+
             // Log execution plan
             val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
             val builder = StringBuilder()
@@ -45,11 +48,11 @@ class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterato
     }
 
     override fun next(): Entity {
-        return source.next()
+        return OQueryTimeoutException.withTimeoutWrap { source.next() }
     }
 
     override fun hasNext(): Boolean {
-        return source.hasNext()
+        return OQueryTimeoutException.withTimeoutWrap { source.hasNext() }
     }
 
     override fun skip(number: Int): Boolean {

@@ -21,6 +21,8 @@ import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
+import jetbrains.exodus.entitystore.orientdb.query.OQueryTimeoutException
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import org.junit.Assert
 import org.junit.Ignore
@@ -496,7 +498,11 @@ class OStoreTransactionTest : OTestMixin {
         oTransactional { tx ->
             val issues = tx.findIds(Issues.CLASS, 2, 100) as OQueryEntityIterableBase
             // Then
-            assertNamesExactlyInOrder(issues, test.issue2.getProperty("name").toString(), test.issue3.getProperty("name").toString())
+            assertNamesExactlyInOrder(
+                issues,
+                test.issue2.getProperty("name").toString(),
+                test.issue3.getProperty("name").toString()
+            )
         }
     }
 
@@ -574,8 +580,8 @@ class OStoreTransactionTest : OTestMixin {
 
 
     @Test
-    fun `entity id should be valid and accessible just after creation`(){
-        orientDb.store.executeInTransaction { tx->
+    fun `entity id should be valid and accessible just after creation`() {
+        orientDb.store.executeInTransaction { tx ->
             val entity = tx.newEntity(Issues.CLASS)
             val orid = (entity.id as OEntityId).asOId()
             Assert.assertTrue(orid.clusterId > 0)
@@ -603,14 +609,14 @@ class OStoreTransactionTest : OTestMixin {
     }
 
     @Test
-    fun `isReadOnly by default is true`(){
+    fun `isReadOnly by default is true`() {
         orientDb.store.executeInTransaction { tx ->
             Assert.assertTrue(tx.isReadonly)
         }
     }
 
     @Test
-    fun `isReadOnly is switched to false after modification operation`(){
+    fun `isReadOnly is switched to false after modification operation`() {
         val issue = orientDb.store.computeInTransaction { tx ->
             val issue = tx.newEntity(Issues.CLASS)
             Assert.assertFalse(tx.isReadonly)
@@ -623,6 +629,23 @@ class OStoreTransactionTest : OTestMixin {
         orientDb.store.computeInTransaction { tx ->
             issue.delete()
             Assert.assertFalse(tx.isReadonly)
+        }
+    }
+
+    @Test
+    fun `should throw timeout exception when timeout is small`() {
+        // Given
+        val test = givenTestCase()
+        test.createManyIssues(1000)
+
+        // When
+        orientDb.store.executeInTransaction { transaction ->
+            transaction.queryCancellingPolicy = OQueryCancellingPolicy.timeout(0)
+
+            val exception = Assert.assertThrows(OQueryTimeoutException::class.java) {
+                transaction.getAll(Issues.CLASS).toList()
+            }
+            assertThat(exception.message).contains("Query execution timed out")
         }
     }
 }

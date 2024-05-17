@@ -15,22 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb.query
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.orientechnologies.orient.core.sql.executor.OResultSet
-
 /**
  * Implementations must be immutable.
  */
 interface OQuery : OSql {
 
     fun params(): List<Any> = emptyList<Any>()
-
-    fun execute(session: ODatabaseDocument? = null): OResultSet {
-        ODatabaseSession.getActiveSession()
-        val session = session ?: ODatabaseSession.getActiveSession()
-        val builder = StringBuilder()
-        sql(builder)
-        return session.query(builder.toString(), *params().toTypedArray())
-    }
 }
