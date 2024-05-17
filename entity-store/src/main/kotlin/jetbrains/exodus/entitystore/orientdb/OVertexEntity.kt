@@ -30,6 +30,7 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
 import jetbrains.exodus.util.UTFUtil
 import mu.KLogging
@@ -43,6 +44,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     companion object : KLogging() {
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
         const val DATA_PROPERTY_NAME = "data"
+        const val EDGE_CLASS_SUFFIX = "\$link"
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
         private const val STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX = "_string_blob_hash"
         fun blobSizeProperty(propertyName: String) = "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
@@ -57,6 +59,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
         const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
+        fun edgeClassName(className:String) :String = "$className$EDGE_CLASS_SUFFIX"
     }
 
     private val activeSession get() = ODatabaseSession.getActiveSession()
@@ -234,9 +237,10 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         reload()
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
         // Optimization?
-        val currentEdge = findEdge(linkName, target.id)
+        val edgeClassName = edgeClassName(linkName)
+        val currentEdge = findEdge(edgeClassName, target.id)
         if (currentEdge == null) {
-            vertex.addEdge(target.asVertex, linkName)
+            vertex.addEdge(target.asVertex, edgeClassName)
             vertex.save<OVertex>()
             return true
         } else {
@@ -256,7 +260,8 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun getLink(linkName: String): Entity? {
         reload()
-        val target = vertex.getVertices(ODirection.OUT, linkName).firstOrNull()
+        val edgeClassName = edgeClassName(linkName)
+        val target = vertex.getVertices(ODirection.OUT, edgeClassName).firstOrNull()
         return target.toOEntityOrNull()
     }
 
@@ -266,15 +271,17 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
         reload()
         val currentLink = getLink(linkName) as OVertexEntity?
+        val edgeClassName = edgeClassName(linkName)
+
         if (currentLink == target) {
             return false
         }
         if (currentLink != null) {
-            findEdge(linkName, currentLink.id)?.delete()
+            findEdge(edgeClassName, currentLink.id)?.delete()
             currentLink.vertex.save<OVertex>()
         }
         if (target != null) {
-            vertex.addEdge(target.vertex, linkName)
+            vertex.addEdge(target.vertex, edgeClassName)
             vertex.save<OVertex>()
         }
         return true
@@ -292,20 +299,23 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun getLinks(linkName: String): EntityIterable {
         reload()
-        val links = vertex.getVertices(ODirection.OUT, linkName)
+        val edgeClassName = edgeClassName(linkName)
+        val links = vertex.getVertices(ODirection.OUT, edgeClassName)
         return OVertexEntityIterable(links, store)
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
         reload()
-        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *linkNames.toTypedArray()), store)
+        val edgeClassNames = linkNames.map { edgeClassName(it) }
+        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *edgeClassNames.toTypedArray()), store)
     }
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         assertWritable()
         reload()
         target as OVertexEntity
-        vertex.deleteEdge(target.vertex, linkName)
+        val edgeClassName = edgeClassName(linkName)
+        vertex.deleteEdge(target.vertex, edgeClassName)
         val result = vertex.isDirty
         vertex.save<OVertex>()
         return result
@@ -321,7 +331,8 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     override fun deleteLinks(linkName: String) {
         assertWritable()
         reload()
-        vertex.getEdges(ODirection.OUT, linkName).forEach {
+        val edgeClassName = edgeClassName(linkName)
+        vertex.getEdges(ODirection.OUT, edgeClassName).forEach {
             it.delete()
         }
         vertex.save<OVertex>()
@@ -329,14 +340,16 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun getLinkNames(): List<String> {
         reload()
-        return ArrayList(vertex.getEdgeNames(ODirection.OUT))
+        return ArrayList(vertex.getEdgeNames(ODirection.OUT)
+            .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
+            .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
     }
 
     override fun compareTo(other: Entity) = id.compareTo(other.id)
 
-    private fun findEdge(linkName: String, targetId: OEntityId): OEdge? {
+    private fun findEdge(edgeClassName: String, targetId: OEntityId): OEdge? {
         return vertex
-            .getEdges(ODirection.OUT, linkName)
+            .getEdges(ODirection.OUT, edgeClassName)
             .find { it.to.identity == targetId.asOId() }
     }
 
@@ -376,3 +389,6 @@ fun OVertex.requireSchemaClass(): OClass {
 fun OVertex.requireLocalEntityId(): Long {
     return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) ?: throw IllegalStateException("localEntityId not found for the vertex")
 }
+
+
+val String.asEdgeClass get() = OVertexEntity.edgeClassName(this)

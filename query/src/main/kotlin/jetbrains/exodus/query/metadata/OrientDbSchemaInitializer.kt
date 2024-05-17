@@ -258,9 +258,10 @@ internal class OrientDbSchemaInitializer(
     }
 
     private fun ODatabaseSession.createEdgeClassIfAbsent(name: String): OClass {
-        var oClass: OClass? = getClass(name)
+        val className = OVertexEntity.edgeClassName(name)
+        var oClass: OClass? = getClass(className)
         if (oClass == null) {
-            oClass = oSession.createEdgeClass(name)!!
+            oClass = oSession.createEdgeClass(className)!!
             append(", edge class created")
         } else {
             append(", edge class already created")
