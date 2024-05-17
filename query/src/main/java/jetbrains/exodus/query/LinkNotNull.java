@@ -17,8 +17,6 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.entitystore.iterate.property.OPropertyExistsIterable;
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
