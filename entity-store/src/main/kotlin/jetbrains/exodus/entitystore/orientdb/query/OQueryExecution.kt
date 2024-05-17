@@ -21,7 +21,6 @@ import mu.KLogging
 
 object OQueryExecution : KLogging() {
 
-
     fun execute(query: OQuery, tx: OStoreTransaction): OResultSet {
         val builder = StringBuilder()
         query.sql(builder)
