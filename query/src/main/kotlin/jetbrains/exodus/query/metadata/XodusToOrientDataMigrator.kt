@@ -20,15 +20,12 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
-import jetbrains.exodus.entitystore.orientdb.createSequenceIfAbsent
-import jetbrains.exodus.entitystore.orientdb.withSession
 
 fun migrateDataFromXodusToOrientDb(
     xodus: PersistentEntityStore,
@@ -98,7 +95,7 @@ internal class XodusToOrientDataMigrator(
     private fun createEdgeClassesIfAbsent(edgeClassesToCreate: Set<String>) {
         orient.databaseProvider.withSession { oSession ->
             for (edgeClassName in edgeClassesToCreate) {
-                oSession.getClass(edgeClassName) ?: oSession.createEdgeClass(edgeClassName)
+                oSession.getClass(edgeClassName.asEdgeClass) ?: oSession.createEdgeClass(edgeClassName.asEdgeClass)
             }
         }
     }
