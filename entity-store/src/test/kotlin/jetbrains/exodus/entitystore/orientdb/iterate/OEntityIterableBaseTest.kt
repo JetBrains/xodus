@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToBoard
 import jetbrains.exodus.entitystore.orientdb.testutil.name
 import jetbrains.exodus.testutil.eventually
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 
@@ -251,7 +252,8 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = skippedIssues.intersect(limitIssues)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2")
+            val exception = Assert.assertThrows(IllegalStateException::class.java) { issues.toList() }
+            assertThat(exception.message).contains("Skip can not be used for sub-query")
         }
     }
 
@@ -267,7 +269,8 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = skippedIssues.union(limitIssues)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2", "issue3")
+            val exception = Assert.assertThrows(IllegalStateException::class.java) { issues.toList() }
+            assertThat(exception.message).contains("Skip can not be used for sub-query")
         }
     }
 
