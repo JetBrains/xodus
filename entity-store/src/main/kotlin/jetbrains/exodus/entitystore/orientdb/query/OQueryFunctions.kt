@@ -56,7 +56,21 @@ object OQueryFunctions {
     }
 
     fun difference(left: OSelect, right: OSelect): OSelect {
-        return ODifferenceSelect(left, right)
+        return when {
+            left is OClassSelect && right is OClassSelect -> {
+                ensureSameClassName(left, right)
+                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when minus" }
+                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when minus" }
+
+                val newCondition = left.condition.andNot(right.condition)
+                val newOrder = left.order.merge(right.order)
+                OClassSelect(left.className, newCondition, newOrder)
+            }
+
+            else -> {
+                ODifferenceSelect(left, right)
+            }
+        }
     }
 
     fun distinct(source: OSelect): OSelect {

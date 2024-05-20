@@ -27,6 +27,12 @@ fun OCondition?.or(other: OCondition?): OCondition? {
     return OOrCondition(this, other)
 }
 
+fun OCondition?.andNot(other: OCondition?): OCondition? {
+    if (this == null) return other
+    if (other == null) return this
+    return OAndNotCondition(this, other)
+}
+
 fun equal(field: String, value: Any) = OEqualCondition(field, value)
 fun or(left: OCondition, right: OCondition) = OOrCondition(left, right)
 fun and(left: OCondition, right: OCondition) = OAndCondition(left, right)

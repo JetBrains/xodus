@@ -76,6 +76,24 @@ sealed class OBiCondition(
 
 class OAndCondition(left: OCondition, right: OCondition) : OBiCondition("AND", left, right)
 class OOrCondition(left: OCondition, right: OCondition) : OBiCondition("OR", left, right)
+
+class OAndNotCondition(
+    val left: OCondition,
+    val right: OCondition
+) : OCondition {
+
+    override fun sql(builder: StringBuilder) {
+        builder.append("(")
+        left.sql(builder)
+        builder.append(" AND NOT (")
+        right.sql(builder)
+        builder.append("))")
+    }
+
+    override fun params() = left.params() + right.params()
+}
+
+// Others
 class ORangeCondition(
     val field: String,
     val minInclusive: Any,
