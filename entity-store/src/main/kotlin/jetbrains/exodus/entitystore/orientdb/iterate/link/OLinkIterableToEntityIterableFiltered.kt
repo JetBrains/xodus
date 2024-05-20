@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.orientdb.iterate.link
 
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.asEdgeClass
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OIntersectSelect
 import jetbrains.exodus.entitystore.orientdb.query.OLinkInFromSubQuerySelect
@@ -30,7 +31,7 @@ class OLinkIterableToEntityIterableFiltered(
 ) : OQueryEntityIterableBase(txn) {
 
     override fun query(): OSelect {
-        val byLinkSelect = OLinkInFromSubQuerySelect(linkName, linkIterable.query())
+        val byLinkSelect = OLinkInFromSubQuerySelect(linkName.asEdgeClass, linkIterable.query())
         return OIntersectSelect(source.query(), byLinkSelect)
     }
 }

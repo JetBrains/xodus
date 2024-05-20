@@ -24,6 +24,7 @@ import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
 import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
 import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.asEdgeClass
 import org.junit.Assert.*
 
 // assertions
@@ -35,7 +36,7 @@ internal fun ODatabaseSession.assertAssociationNotExist(
     requireEdgeClass: Boolean = false
 ) {
     if (requireEdgeClass) {
-        requireEdgeClass(edgeName)
+        requireEdgeClass(edgeName.asEdgeClass)
     }
 
     val inClass = getClass(inClassName)!!
@@ -54,27 +55,28 @@ internal fun ODatabaseSession.assertAssociationExists(
     edgeName: String,
     cardinality: AssociationEndCardinality?
 ) {
-    val edge = requireEdgeClass(edgeName)
+    val edgeClass = edgeName.asEdgeClass
+    val edge = requireEdgeClass(edgeClass)
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    val directOutPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
+    val directOutPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClass)
     val directOutProp = outClass.getProperty(directOutPropName)!!
     assertEquals(OType.LINKBAG, directOutProp.type)
     assertEquals(inClass, directOutProp.linkedClass)
     directOutProp.assertCardinality(cardinality)
 
-    val edgeOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeName)
+    val edgeOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass)
     val edgeOutProp = outClass.getProperty(edgeOutPropName)!!
     assertEquals(OType.LINKBAG, edgeOutProp.type)
     assertEquals(edge, edgeOutProp.linkedClass)
 
-    val directInPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeName)
+    val directInPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClass)
     val directInProp = inClass.getProperty(directInPropName)!!
     assertEquals(OType.LINKBAG, directInProp.type)
     assertEquals(null, directInProp.linkedClass)
 
-    val edgeInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeName)
+    val edgeInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass)
     val edgeInProp = inClass.getProperty(edgeInPropName)!!
     assertEquals(OType.LINKBAG, edgeInProp.type)
     assertEquals(edge, edgeInProp.linkedClass)

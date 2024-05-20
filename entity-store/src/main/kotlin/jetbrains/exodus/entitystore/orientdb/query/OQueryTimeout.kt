@@ -15,10 +15,11 @@
  */
 package jetbrains.exodus.entitystore.orientdb.query
 
-/**
- * Implementations must be immutable.
- */
-interface OQuery : OSql {
+class OQueryTimeout(
+    val timeoutMillis: Long
+) : OQuery {
 
-    fun params(): List<Any> = emptyList<Any>()
+    override fun sql(builder: StringBuilder) {
+        builder.append(" TIMEOUT $timeoutMillis")
+    }
 }

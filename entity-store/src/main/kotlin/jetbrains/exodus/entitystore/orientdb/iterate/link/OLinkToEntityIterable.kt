@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.orientdb.iterate.link
 
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OEntityId
+import jetbrains.exodus.entitystore.orientdb.asEdgeClass
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.*
 
@@ -27,6 +28,6 @@ class OLinkToEntityIterable(
 ) : OQueryEntityIterableBase(txn) {
 
     override fun query(): OSelect {
-        return OLinkInFromIdsSelect(linkName, listOf(linkEntityId.asOId()))
+        return OLinkInFromIdsSelect(linkName.asEdgeClass, listOf(linkEntityId.asOId()))
     }
 }

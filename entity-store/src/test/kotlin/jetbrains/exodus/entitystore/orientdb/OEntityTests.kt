@@ -292,7 +292,7 @@ class OEntityTests : OEntityStoreTestBase() {
         acquireSession().use {
             it.createVertexClassWithClassId("Issue")
             it.createVertexClassWithClassId("User")
-            it.createEdgeClass("creator")
+            it.createEdgeClass("creator".asEdgeClass)
         }
 
         transactional { txn ->
