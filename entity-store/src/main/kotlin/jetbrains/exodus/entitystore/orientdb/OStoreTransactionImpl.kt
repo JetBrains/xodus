@@ -27,6 +27,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityI
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
+import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.env.Transaction
 
 class OStoreTransactionImpl(
@@ -36,7 +37,7 @@ class OStoreTransactionImpl(
     private val schemaBuddy: OSchemaBuddy
 ) : OStoreTransaction {
 
-    private var queryCancellingPolicy: QueryCancellingPolicy? = null
+    private var queryCancellingPolicy: OQueryCancellingPolicy? = null
 
     override val activeSession = session
 
@@ -54,7 +55,7 @@ class OStoreTransactionImpl(
     }
 
     override fun isReadonly(): Boolean {
-        if (!hasWriteOperations){
+        if (!hasWriteOperations) {
             hasWriteOperations = !isIdempotent
         }
         return !hasWriteOperations
@@ -286,6 +287,7 @@ class OStoreTransactionImpl(
     }
 
     override fun setQueryCancellingPolicy(policy: QueryCancellingPolicy?) {
+        require(policy is OQueryCancellingPolicy) { "Only OQueryCancellingPolicy is supported, but was ${policy?.javaClass?.simpleName}" }
         this.queryCancellingPolicy = policy
     }
 

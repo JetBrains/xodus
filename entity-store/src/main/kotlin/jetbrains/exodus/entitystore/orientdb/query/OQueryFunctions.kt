@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.query
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 
 object OQueryFunctions {
 
@@ -84,7 +84,7 @@ class OCountSelect(
 
     override fun params() = source.params()
 
-    fun count(session: ODatabaseDocument): Long = execute(session).next().getProperty<Long>("count")
+    fun count(tx: OStoreTransaction): Long = OQueryExecution.execute(this, tx).next().getProperty<Long>("count")
 }
 
 class OFirstSelect(
