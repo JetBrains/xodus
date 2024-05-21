@@ -23,14 +23,12 @@ object OQueryFunctions {
         return when {
             left is OClassSelect && right is OClassSelect -> {
                 ensureSameClassName(left, right)
+                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when intersect" }
+                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when intersect" }
+
                 val newCondition = left.condition.and(right.condition)
                 val newOrder = left.order.merge(right.order)
-
-                // narrow down the result set
-                val newSkip = left.skip.max(right.skip)
-                val newLimit = left.limit.min(right.limit)
-
-                OClassSelect(left.className, newCondition, newOrder, newSkip, newLimit)
+                OClassSelect(left.className, newCondition, newOrder)
             }
 
             else -> {
@@ -43,14 +41,12 @@ object OQueryFunctions {
         return when {
             left is OClassSelect && right is OClassSelect -> {
                 ensureSameClassName(left, right)
+                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when union" }
+                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when union" }
+
                 val newCondition = left.condition.or(right.condition)
                 val newOrder = left.order.merge(right.order)
-
-                // shrink the result set
-                val newSkip = left.skip.min(right.skip)
-                val newLimit = left.limit.max(right.limit)
-
-                OClassSelect(left.className, newCondition, newOrder, newSkip, newLimit)
+                OClassSelect(left.className, newCondition, newOrder)
             }
 
             else -> {
@@ -60,7 +56,21 @@ object OQueryFunctions {
     }
 
     fun difference(left: OSelect, right: OSelect): OSelect {
-        return ODifferenceSelect(left, right)
+        return when {
+            left is OClassSelect && right is OClassSelect -> {
+                ensureSameClassName(left, right)
+                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when minus" }
+                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when minus" }
+
+                val newCondition = left.condition.andNot(right.condition)
+                val newOrder = left.order.merge(right.order)
+                OClassSelect(left.className, newCondition, newOrder)
+            }
+
+            else -> {
+                ODifferenceSelect(left, right)
+            }
+        }
     }
 
     fun distinct(source: OSelect): OSelect {

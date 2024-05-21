@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToBoard
 import jetbrains.exodus.entitystore.orientdb.testutil.name
 import jetbrains.exodus.testutil.eventually
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 
@@ -153,7 +154,34 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
-    fun `should iterable minus`() {
+    fun `should iterable minus with properties`() {
+        // Given
+        val test = givenTestCase()
+        orientDb.withSession {
+            test.issue1.setProperty("complex", "true")
+            test.issue1.setProperty("blocked", "true")
+
+            test.issue2.setProperty("complex", "true")
+            test.issue2.setProperty("blocked", "false")
+
+            test.issue3.setProperty("complex", "false")
+            test.issue3.setProperty("blocked", "true")
+
+        }
+
+        // When
+        oTransactional { tx ->
+            val complexIssues = tx.find(Issues.CLASS, "complex", "true")
+            val blockedIssues = tx.find(Issues.CLASS, "blocked", "true")
+            val complexUnblockedIssues = complexIssues.minus(blockedIssues)
+
+            // Then
+            assertNamesExactly(complexUnblockedIssues, "issue2")
+        }
+    }
+
+    @Test
+    fun `should iterable minus with links`() {
         // Given
         val test = givenTestCase()
 
@@ -251,7 +279,8 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = skippedIssues.intersect(limitIssues)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2")
+            val exception = Assert.assertThrows(IllegalStateException::class.java) { issues.toList() }
+            assertThat(exception.message).contains("Skip can not be used for sub-query")
         }
     }
 
@@ -267,7 +296,8 @@ class OEntityIterableBaseTest : OTestMixin {
             val issues = skippedIssues.union(limitIssues)
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue2", "issue3")
+            val exception = Assert.assertThrows(IllegalStateException::class.java) { issues.toList() }
+            assertThat(exception.message).contains("Skip can not be used for sub-query")
         }
     }
 
