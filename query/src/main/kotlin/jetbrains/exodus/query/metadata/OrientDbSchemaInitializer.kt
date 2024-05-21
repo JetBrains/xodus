@@ -671,7 +671,7 @@ internal class OrientDbSchemaInitializer(
             "float" -> OType.FLOAT
             "double" -> OType.DOUBLE
 
-            "datetime" -> OType.DATETIME
+            "datetime" -> OType.LONG
 
             else -> throw IllegalArgumentException("$jvmTypeName is not supported. Feel free to support it.")
         }
