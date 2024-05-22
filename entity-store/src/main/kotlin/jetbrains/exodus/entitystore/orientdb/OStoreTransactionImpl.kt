@@ -22,10 +22,7 @@ import com.orientechnologies.orient.core.tx.OTransactionOptimistic
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSortEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.*
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.env.Transaction
@@ -148,7 +145,7 @@ class OStoreTransactionImpl(
     }
 
     override fun getSingletonIterable(entity: Entity): EntityIterable {
-        TODO("Not Implemented")
+        return OSingleEntityIterable(this, entity)
     }
 
     override fun find(entityType: String, propertyName: String, value: Comparable<Nothing>): EntityIterable {

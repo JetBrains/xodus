@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.entitystore.orientdb.query.OQueryTimeoutException
+import jetbrains.exodus.entitystore.orientdb.query.or
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import org.junit.Assert
 import org.junit.Ignore
@@ -191,6 +192,15 @@ class OStoreTransactionTest : OTestMixin {
             // Then
             assertNamesExactlyInOrder(issuesAscending, "issue1", "issue2", "issue3")
             assertNamesExactlyInOrder(issuesDescending, "issue3", "issue2", "issue1")
+        }
+    }
+
+    @Test
+    fun `single entity iterable test`(){
+        val test = givenTestCase()
+        orientDb.store.executeInTransaction {
+            val issue3 = it.getSingletonIterable(test.issue3).iterator().next()
+            Assert.assertEquals(test.issue3, issue3)
         }
     }
 
