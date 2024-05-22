@@ -117,16 +117,6 @@ class OEdgeExistsCondition(
     }
 }
 
-class OSingleVertexCondition(
-    val rid:String
-):OCondition {
-    override fun sql(builder: StringBuilder) {
-        builder.append("@rid=?")
-    }
-
-    override fun params() = listOf(rid)
-}
-
 class OFieldExistsCondition(
     val field: String
 ) : OCondition {

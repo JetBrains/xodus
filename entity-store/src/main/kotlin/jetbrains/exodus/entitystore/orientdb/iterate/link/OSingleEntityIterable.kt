@@ -19,15 +19,14 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
-import jetbrains.exodus.entitystore.orientdb.query.OSingleVertexCondition
+import jetbrains.exodus.entitystore.orientdb.query.OSingleSelect
+
 
 open class OSingleEntityIterable(tx: StoreTransaction?, val entity: Entity) : OQueryEntityIterableBase(tx) {
     override fun query(): OSelect {
-        return OClassSelect(
-            className = entity.type,
-            condition = OSingleVertexCondition((entity.id as OEntityId).asOId().toString())
+        return OSingleSelect(
+            (entity.id as OEntityId).asOId()
         )
     }
 }
