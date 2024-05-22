@@ -137,7 +137,17 @@ class OLinkOutFromSubQuerySelect(
 
     override fun selectSql(builder: StringBuilder) {
         builder.append("SELECT expand(out('").append(linkName).append("')) FROM (")
-        subQuery.sql(builder)
+        if (subQuery is OConditional && subQuery.condition != null){
+            val linkExistsCondition = OAndCondition(subQuery.condition!!, OEdgeExistsCondition(linkName))
+            (subQuery as OSelectBase).selectSql(builder)
+            linkExistsCondition.where(builder)
+            subQuery.order.orderBy(builder)
+            subQuery.skip.skip(builder)
+            subQuery.limit.limit(builder)
+        } else {
+            subQuery.sql(builder)
+            OEdgeExistsCondition(linkName).where(builder)
+        }
         builder.append(")")
     }
 
