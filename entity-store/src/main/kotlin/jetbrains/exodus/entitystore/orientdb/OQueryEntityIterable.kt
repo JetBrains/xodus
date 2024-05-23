@@ -21,4 +21,6 @@ import jetbrains.exodus.entitystore.orientdb.query.OSelect
 interface OQueryEntityIterable : EntityIterable {
 
     fun query(): OSelect
+
+    override fun unwrap() = this
 }

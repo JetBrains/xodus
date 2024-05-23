@@ -31,7 +31,7 @@ open class SortEngine {
     fun sort(entityType: String, propertyName: String, source: Iterable<Entity>, asc: Boolean): Iterable<Entity> {
         if (source is EntityIterable) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            return txn.sort(entityType, propertyName, source, asc)
+            return txn.sort(entityType, propertyName, source.unwrap(), asc)
         } else {
             return if (asc) source.sortedBy { it.getProperty(propertyName) } else source.sortedByDescending { it.getProperty(propertyName) }
         }
