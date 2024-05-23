@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.db.record.OTrackedSet
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
@@ -85,7 +86,12 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun getProperty(propertyName: String): Comparable<*>? {
         reload()
-        return vertex.getProperty<Comparable<*>>(propertyName)
+        val value = vertex.getProperty<Any>(propertyName)
+        return if (value == null || value !is MutableSet<*>) {
+            value as Comparable<*>?
+        } else {
+            OComparableSet(value)
+        }
     }
 
     private fun reload() {
@@ -101,10 +107,25 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     override fun setProperty(propertyName: String, value: Comparable<*>): Boolean {
         assertWritable()
         reload()
-        val oldProperty = vertex.getProperty<Comparable<*>>(propertyName)
-        vertex.setProperty(propertyName, value)
+        val oldProperty = vertex.getProperty<Any>(propertyName)
+
+        if (value is OComparableSet<*> || oldProperty is MutableSet<*>) {
+            return setSetProperty(propertyName, value as OComparableSet<*>, oldProperty)
+        } else {
+            vertex.setProperty(propertyName, value)
+            vertex.save<OVertex>()
+            return oldProperty?.equals(value) != true
+        }
+    }
+
+    private fun setSetProperty(propertyName: String, value: Any?, oldValue: Any?): Boolean {
+        if (value is OComparableSet<*>) {
+            vertex.setProperty(propertyName, value.source)
+        } else {
+            vertex.setProperty(propertyName, value)
+        }
         vertex.save<OVertex>()
-        return oldProperty?.equals(value) != true
+        return vertex.getProperty<OTrackedSet<*>>(propertyName)?.isTransactionModified == true
     }
 
     override fun deleteProperty(propertyName: String): Boolean {
