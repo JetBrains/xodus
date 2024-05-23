@@ -29,6 +29,7 @@ import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
+import kotlin.streams.toList
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -656,6 +657,22 @@ class OStoreTransactionTest : OTestMixin {
                 transaction.getAll(Issues.CLASS).toList()
             }
             assertThat(exception.message).contains("Query execution timed out")
+        }
+    }
+
+    @Test
+    fun `should not return nulls on empty links`() {
+        // Given
+        val test = givenTestCase()
+
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+        orientDb.addIssueToBoard(test.issue2, test.board2)
+
+        // When
+        orientDb.withSession {
+            val boards = it.query("SELECT expand(out('${OVertexEntity.edgeClassName("OnBoard")}')) FROM Issue").vertexStream().toList()
+            Assert.assertEquals(2, boards.size)
+            Assert.assertEquals("Should not contain nulls", 0, boards.filter { board -> board == null }.size)
         }
     }
 }
