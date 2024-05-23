@@ -216,11 +216,15 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         reload()
         val ref = vertex.getLinkProperty(blobName)
         return if (ref != null) {
-            //todo check if remove is norm
-            vertex.removeProperty<OIdentifiable>(blobName)
-            vertex.removeProperty<Long>(blobSizeProperty(blobName))
-            vertex.save<OVertex>()
-            activeSession.delete(ref.identity)
+            val record = ref.getRecord<OElement>()
+            if (record.schemaClass?.name == STRING_BLOB_CLASS_NAME) {
+                record.setProperty(DATA_PROPERTY_NAME, null)
+            } else {
+                vertex.removeProperty<OIdentifiable>(blobName)
+                vertex.removeProperty<Long>(blobSizeProperty(blobName))
+                vertex.save<OVertex>()
+                activeSession.delete(ref.identity)
+            }
             true
         } else false
     }
