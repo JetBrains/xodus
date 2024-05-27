@@ -31,7 +31,6 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
 import jetbrains.exodus.util.UTFUtil
 import mu.KLogging
@@ -60,7 +59,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
         const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
-        fun edgeClassName(className:String) :String = "$className$EDGE_CLASS_SUFFIX"
+        fun edgeClassName(className: String): String = "$className$EDGE_CLASS_SUFFIX"
     }
 
     private val activeSession get() = ODatabaseSession.getActiveSession()
@@ -79,7 +78,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun delete(): Boolean {
         vertex.delete()
-        return false
+        return true
     }
 
     override fun getRawProperty(propertyName: String): ByteIterable? = null
@@ -110,7 +109,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         val oldProperty = vertex.getProperty<Any>(propertyName)
 
         if (value is OComparableSet<*> || oldProperty is MutableSet<*>) {
-            return setSetProperty(propertyName, value as OComparableSet<*>, oldProperty)
+            return setPropertyAsSet(propertyName, value as OComparableSet<*>, oldProperty)
         } else {
             vertex.setProperty(propertyName, value)
             vertex.save<OVertex>()
@@ -404,7 +403,8 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 }
 
 fun OClass.requireClassId(): Int {
-    return getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt() ?: throw IllegalStateException("classId not found for ${this.name}")
+    return getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt()
+        ?: throw IllegalStateException("classId not found for ${this.name}")
 }
 
 fun OVertex.requireSchemaClass(): OClass {
@@ -412,7 +412,8 @@ fun OVertex.requireSchemaClass(): OClass {
 }
 
 fun OVertex.requireLocalEntityId(): Long {
-    return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) ?: throw IllegalStateException("localEntityId not found for the vertex")
+    return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME)
+        ?: throw IllegalStateException("localEntityId not found for the vertex")
 }
 
 
