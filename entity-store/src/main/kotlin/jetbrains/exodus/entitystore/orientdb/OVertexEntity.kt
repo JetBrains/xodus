@@ -118,7 +118,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         }
     }
 
-    private fun setSetProperty(propertyName: String, value: Any?, oldValue: Any?): Boolean {
+    private fun setPropertyAsSet(propertyName: String, value: Any?, oldValue: Any?): Boolean {
         if (value is OComparableSet<*>) {
             vertex.setProperty(propertyName, value.source)
         } else {
