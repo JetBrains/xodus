@@ -30,7 +30,6 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
 import jetbrains.exodus.util.UTFUtil
 import mu.KLogging
@@ -59,7 +58,12 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
         const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
-        fun edgeClassName(className:String) :String = "$className$EDGE_CLASS_SUFFIX"
+        fun edgeClassName(className:String): String {
+            // YouTrack has fancy link names like '__CUSTOM_FIELD__Country/Region_227'. OrientDB does not like symbols
+            // like '/' in class names. So we have to get rid of them.
+            val sanitizedClassName = className.replace('/', '_')
+            return "$sanitizedClassName$EDGE_CLASS_SUFFIX"
+        }
     }
 
     private val activeSession get() = ODatabaseSession.getActiveSession()

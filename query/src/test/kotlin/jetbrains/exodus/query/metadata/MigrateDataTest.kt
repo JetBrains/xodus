@@ -127,6 +127,26 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `copy links with questionable names`() {
+        val entities = pileOfEntities(
+            eLinks("type1", 1,
+                Link("link2/cava/banga", "type2", 2)
+            ),
+            eLinks("type2", 2)
+        )
+
+        xodus.withTx { tx ->
+            tx.createEntities(entities)
+        }
+
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+
+        orientDb.withSession { oSession ->
+            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
+        }
+    }
+
+    @Test
     fun `copy existing class IDs and create the sequence to generate new class IDs`() {
         val entities = pileOfEntities(
             eProps("type1", 1),
