@@ -67,6 +67,20 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `copy an empty entity`() {
+        val entityId = xodus.withTx { tx ->
+            tx.newEntity("type1").id
+        }
+
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        orientDb.schemaBuddy.initialize()
+
+        orientDb.withSession {
+            orientDb.store.getEntity(entityId)
+        }
+    }
+
+    @Test
     fun `copy blobs`() {
         val entities = pileOfEntities(
             eBlobs("type1", 1, "blob1" to "one"),
