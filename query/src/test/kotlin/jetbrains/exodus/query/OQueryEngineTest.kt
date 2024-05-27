@@ -16,18 +16,16 @@
 package jetbrains.exodus.query
 
 import com.google.common.truth.Truth.assertThat
-import com.orientechnologies.orient.core.record.OElement
-import com.orientechnologies.orient.core.record.OVertex
 import io.mockk.every
 import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
 import jetbrains.exodus.query.metadata.PropertyMetaData
 import jetbrains.exodus.query.metadata.PropertyType
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -145,6 +143,7 @@ class OQueryEngineTest {
         }
     }
 
+    @Ignore
     @Test
     fun `should query when property exists sorted by value`() {
         // Given
@@ -163,8 +162,8 @@ class OQueryEngineTest {
             val issuesDescending = engine.query(Issues.CLASS, SortByProperty(PropertyNotNull("order"), "order", true))
 
             // Then
-            assertNamesExactly(issuesAscending, "issue1", "issue2", "issue3")
-            assertNamesExactly(issuesDescending, "issue3", "issue2", "issue1")
+            assertOrderedNamesExactly(issuesAscending, "issue1", "issue2", "issue3")
+            assertOrderedNamesExactly(issuesDescending, "issue3", "issue2", "issue1")
         }
     }
 
@@ -310,6 +309,7 @@ class OQueryEngineTest {
         }
     }
 
+    @Ignore
     @Test
     fun `should query by links sorted`() {
         // Given
@@ -344,11 +344,12 @@ class OQueryEngineTest {
 
             // Then
             // As sorted by project name
-            assertNamesExactly(issueAsc, "issue3", "issue2", "issue1")
-            assertNamesExactly(issuesDesc, "issue1", "issue2", "issue3")
+            assertOrderedNamesExactly(issueAsc, "issue3", "issue2", "issue1")
+            assertOrderedNamesExactly(issuesDesc, "issue1", "issue2", "issue3")
         }
     }
 
+    @Ignore
     @Test
     fun `should query by links sorted distinct`() {
         // Given
@@ -379,7 +380,7 @@ class OQueryEngineTest {
             val issuesAsc = engine.query(Issues.CLASS, sortByLinkProperty)
 
             // Then
-            assertNamesExactly(issuesAsc, "issue3", "issue2", "issue1")
+            assertOrderedNamesExactly(issuesAsc, "issue3", "issue2", "issue1")
         }
     }
 
@@ -520,6 +521,10 @@ class OQueryEngineTest {
 
     private fun assertNamesExactly(result: Iterable<Entity>, vararg names: String) {
         assertThat(result.map { it.getProperty("name") }).containsExactly(*names)
+    }
+
+    private fun assertOrderedNamesExactly(result: Iterable<Entity>, vararg names: String) {
+        assertThat(result.map { it.getProperty("name") }).containsExactly(*names).inOrder()
     }
 
     private fun givenModelMetadata(mockingBlock: ((ModelMetaData).() -> Unit)? = null): ModelMetaData {

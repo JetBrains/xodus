@@ -20,10 +20,10 @@ import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.entitystore.orientdb.query.OQueryTimeoutException
-import jetbrains.exodus.entitystore.orientdb.query.or
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import org.junit.Assert
 import org.junit.Ignore
@@ -196,7 +196,7 @@ class OStoreTransactionTest : OTestMixin {
     }
 
     @Test
-    fun `single entity iterable test`(){
+    fun `single entity iterable test`() {
         val test = givenTestCase()
         orientDb.store.executeInTransaction {
             val issue3 = it.getSingletonIterable(test.issue3).iterator().next()
@@ -656,6 +656,22 @@ class OStoreTransactionTest : OTestMixin {
                 transaction.getAll(Issues.CLASS).toList()
             }
             assertThat(exception.message).contains("Query execution timed out")
+        }
+    }
+
+    @Test
+    fun `should not return nulls on empty links`() {
+        // Given
+        val test = givenTestCase()
+
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+        orientDb.addIssueToBoard(test.issue2, test.board2)
+
+        orientDb.store.executeInTransaction { tx ->
+            val boards = OEntityOfTypeIterable(tx, Issues.CLASS).selectManyDistinct(Issues.Links.ON_BOARD).toList()
+            //selectManyDistinct
+            Assert.assertEquals(2, boards.size)
+            Assert.assertEquals("Should not contain nulls", 0, boards.filter { board -> board == null }.size)
         }
     }
 }

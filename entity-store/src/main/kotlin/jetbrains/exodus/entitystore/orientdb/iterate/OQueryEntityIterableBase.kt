@@ -244,4 +244,6 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     override fun asProbablyCached(): EntityIterableBase? {
         return this
     }
+
+    override fun unwrap() = this
 }
