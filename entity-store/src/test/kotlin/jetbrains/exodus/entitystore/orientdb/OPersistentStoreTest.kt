@@ -75,10 +75,13 @@ class OPersistentStoreTest: OTestMixin {
             it.getSequence("first")
         }
         store.executeInTransaction {
-            assertEquals(1, sequence.increment())
+            assertEquals(0, sequence.increment())
         }
         store.executeInTransaction {
-            assertEquals(1, it.getSequence("first").get())
+            assertEquals(0, it.getSequence("first").get())
+        }
+        store.executeInTransaction {
+            assertEquals(1, sequence.increment())
         }
     }
 

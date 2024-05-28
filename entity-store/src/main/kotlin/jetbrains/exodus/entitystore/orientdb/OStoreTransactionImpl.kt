@@ -31,7 +31,8 @@ class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
     private val txn: OTransaction,
     private val store: PersistentEntityStore,
-    private val schemaBuddy: OSchemaBuddy
+    private val schemaBuddy: OSchemaBuddy,
+    private val sessionCreator: () -> ODatabaseDocument
 ) : OStoreTransaction {
 
     private var queryCancellingPolicy: OQueryCancellingPolicy? = null
@@ -272,11 +273,11 @@ class OStoreTransactionImpl(
     }
 
     override fun getSequence(sequenceName: String): Sequence {
-        return OSequenceImpl(sequenceName)
+        return OSequenceImpl(sequenceName, sessionCreator, -1)
     }
 
     override fun getSequence(sequenceName: String, initialValue: Long): Sequence {
-        return OSequenceImpl(sequenceName, initialValue)
+        return OSequenceImpl(sequenceName, sessionCreator, initialValue)
     }
 
     override fun getEnvironmentTransaction(): Transaction {
