@@ -31,40 +31,43 @@ class OSequenceImpl(
 
 
     override fun increment(): Long {
-        return accessSequenceInSession {
+        return withSequenceInSession {
             it.next()
         }
     }
 
     override fun get(): Long {
-        return accessSequenceInSession {
+        return withSequenceInSession {
             it.current()
         }
     }
 
     override fun set(l: Long) {
-        accessSequenceInSession {
+        withSequenceInSession {
             it.updateParams(CreateParams().setCurrentValue(l))
         }
     }
 
-    private fun <T> accessSequenceInSession(action: (OSequence) -> T): T {
+    private fun <T> withSequenceInSession(action: (OSequence) -> T): T {
         val currentSession = ODatabaseSession.getActiveSession()
-        val result = sessionCreator().use { session ->
-            session.activateOnCurrentThread().begin()
-            val sequenceLibrary: OSequenceLibrary = session.metadata.sequenceLibrary
-            var oSequence = sequenceLibrary.getSequence(sequenceName)
-            if (oSequence == null) {
-                val params = CreateParams().setStart(initialValue).setIncrement(1)
-                oSequence = sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
+        try {
+            val result = sessionCreator().use { session ->
+                session.activateOnCurrentThread().begin()
+                val sequenceLibrary: OSequenceLibrary = session.metadata.sequenceLibrary
+                var oSequence = sequenceLibrary.getSequence(sequenceName)
+                if (oSequence == null) {
+                    val params = CreateParams().setStart(initialValue).setIncrement(1)
+                    oSequence = sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
+                    session.commit()
+                    session.begin()
+                }
+                val actionResult = action(oSequence)
                 session.commit()
-                session.begin()
+                actionResult
             }
-            val actionResult = action(oSequence)
-            session.commit()
-            actionResult
+            return result
+        } finally {
+            currentSession?.activateOnCurrentThread()
         }
-        currentSession?.activateOnCurrentThread()
-        return result
     }
 }

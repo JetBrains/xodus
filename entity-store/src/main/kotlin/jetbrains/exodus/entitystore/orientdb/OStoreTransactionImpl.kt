@@ -23,6 +23,7 @@ import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.*
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyEqualIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.env.Transaction
