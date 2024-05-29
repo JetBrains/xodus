@@ -135,6 +135,6 @@ class OInstanceOfCondition(
         if (invert){
             builder.append("NOT ")
         }
-        builder.append("@this INSTANCEOF '$instanceOf'")
+        builder.append("@this INSTANCEOF '$className'")
     }
 }
