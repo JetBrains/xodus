@@ -237,11 +237,11 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         val ref = vertex.getLinkProperty(blobName)
         return if (ref != null) {
             val record = ref.getRecord<OElement>()
+            vertex.removeProperty<Long>(blobSizeProperty(blobName))
             if (record.schemaClass?.name == STRING_BLOB_CLASS_NAME) {
                 record.setProperty(DATA_PROPERTY_NAME, null)
             } else {
                 vertex.removeProperty<OIdentifiable>(blobName)
-                vertex.removeProperty<Long>(blobSizeProperty(blobName))
                 vertex.save<OVertex>()
                 activeSession.delete(ref.identity)
             }
