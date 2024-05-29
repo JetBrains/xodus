@@ -50,7 +50,6 @@ class OSequenceImpl(
 
     private fun <T> accessSequenceInSession(action: (OSequence) -> T): T {
         val currentSession = ODatabaseSession.getActiveSession()
-        currentSession?.transaction
         val result = sessionCreator().use { session ->
             session.activateOnCurrentThread().begin()
             val sequenceLibrary: OSequenceLibrary = session.metadata.sequenceLibrary
