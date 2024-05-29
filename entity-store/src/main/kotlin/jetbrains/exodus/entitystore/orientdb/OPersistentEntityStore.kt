@@ -65,7 +65,7 @@ class OPersistentEntityStore(
         val txn = session.begin().transaction
         session.activateOnCurrentThread()
 
-        currentTx = OStoreTransactionImpl(session, txn, this, schemaBuddy)
+        currentTx = OStoreTransactionImpl(session, txn, this, schemaBuddy, databaseProvider::acquireSession)
         currentTransaction.set(currentTx)
 
         return currentTx

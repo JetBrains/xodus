@@ -102,4 +102,6 @@ class OVertexEntityIterable(
     override fun isSortResult() = false
 
     override fun asSortResult() = this
+
+    override fun unwrap() = this
 }

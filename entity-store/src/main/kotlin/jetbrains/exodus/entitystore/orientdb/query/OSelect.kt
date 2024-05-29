@@ -222,7 +222,7 @@ class ODifferenceSelect(
     override fun params() = left.params() + right.params()
 }
 
-class OSingleSelect(private val orid: ORID) : OSelectBase(){
+class OSingleSelect(private val orid: ORID) : OSelectBase() {
 
     override fun selectSql(builder: StringBuilder) {
         builder.append("SELECT FROM ").append(orid)

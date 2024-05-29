@@ -17,6 +17,7 @@ package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 
 open class SortEngine {
 
@@ -31,7 +32,7 @@ open class SortEngine {
     fun sort(entityType: String, propertyName: String, source: Iterable<Entity>, asc: Boolean): Iterable<Entity> {
         if (source is EntityIterable) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            return txn.sort(entityType, propertyName, source, asc)
+            return txn.sort(entityType, propertyName, source.unwrap(), asc)
         } else {
             return if (asc) source.sortedBy { it.getProperty(propertyName) } else source.sortedByDescending { it.getProperty(propertyName) }
         }

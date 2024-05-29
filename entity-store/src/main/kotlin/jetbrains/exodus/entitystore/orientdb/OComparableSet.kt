@@ -15,12 +15,20 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.orientdb.query.OSelect
+import com.orientechnologies.orient.core.db.record.OTrackedSet
 
-interface OQueryEntityIterable : EntityIterable {
+class OComparableSet<E>(val source: MutableSet<E>) : MutableSet<E> by source, Comparable<MutableSet<E>> {
 
-    fun query(): OSelect
+    val isDirty: Boolean
+        get() {
+            return if (source is OTrackedSet) {
+                source.isTransactionModified
+            } else {
+                true
+            }
+        }
 
-    override fun unwrap() = this
+    override fun compareTo(other: MutableSet<E>): Int {
+        return 0
+    }
 }

@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.db.record.OTrackedSet
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
@@ -82,14 +83,19 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun delete(): Boolean {
         vertex.delete()
-        return false
+        return true
     }
 
     override fun getRawProperty(propertyName: String): ByteIterable? = null
 
     override fun getProperty(propertyName: String): Comparable<*>? {
         reload()
-        return vertex.getProperty<Comparable<*>>(propertyName)
+        val value = vertex.getProperty<Any>(propertyName)
+        return if (value == null || value !is MutableSet<*>) {
+            value as Comparable<*>?
+        } else {
+            OComparableSet(value)
+        }
     }
 
     private fun reload() {
@@ -105,10 +111,25 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     override fun setProperty(propertyName: String, value: Comparable<*>): Boolean {
         assertWritable()
         reload()
-        val oldProperty = vertex.getProperty<Comparable<*>>(propertyName)
-        vertex.setProperty(propertyName, value)
+        val oldProperty = vertex.getProperty<Any>(propertyName)
+
+        if (value is OComparableSet<*> || oldProperty is MutableSet<*>) {
+            return setPropertyAsSet(propertyName, value as OComparableSet<*>, oldProperty)
+        } else {
+            vertex.setProperty(propertyName, value)
+            vertex.save<OVertex>()
+            return oldProperty?.equals(value) != true
+        }
+    }
+
+    private fun setPropertyAsSet(propertyName: String, value: Any?, oldValue: Any?): Boolean {
+        if (value is OComparableSet<*>) {
+            vertex.setProperty(propertyName, value.source)
+        } else {
+            vertex.setProperty(propertyName, value)
+        }
         vertex.save<OVertex>()
-        return oldProperty?.equals(value) != true
+        return vertex.getProperty<OTrackedSet<*>>(propertyName)?.isTransactionModified == true
     }
 
     override fun deleteProperty(propertyName: String): Boolean {
@@ -220,11 +241,15 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         reload()
         val ref = vertex.getLinkProperty(blobName)
         return if (ref != null) {
-            //todo check if remove is norm
-            vertex.removeProperty<OIdentifiable>(blobName)
+            val record = ref.getRecord<OElement>()
             vertex.removeProperty<Long>(blobSizeProperty(blobName))
-            vertex.save<OVertex>()
-            activeSession.delete(ref.identity)
+            if (record.schemaClass?.name == STRING_BLOB_CLASS_NAME) {
+                record.setProperty(DATA_PROPERTY_NAME, null)
+            } else {
+                vertex.removeProperty<OIdentifiable>(blobName)
+                vertex.save<OVertex>()
+                activeSession.delete(ref.identity)
+            }
             true
         } else false
     }
@@ -383,7 +408,8 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 }
 
 fun OClass.requireClassId(): Int {
-    return getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt() ?: throw IllegalStateException("classId not found for ${this.name}")
+    return getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt()
+        ?: throw IllegalStateException("classId not found for ${this.name}")
 }
 
 fun OVertex.requireSchemaClass(): OClass {
@@ -391,7 +417,8 @@ fun OVertex.requireSchemaClass(): OClass {
 }
 
 fun OVertex.requireLocalEntityId(): Long {
-    return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) ?: throw IllegalStateException("localEntityId not found for the vertex")
+    return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME)
+        ?: throw IllegalStateException("localEntityId not found for the vertex")
 }
 
 

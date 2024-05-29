@@ -17,7 +17,7 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.iterate.property.OPropertyEqualIterable;
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyEqualIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.Nullable;
 

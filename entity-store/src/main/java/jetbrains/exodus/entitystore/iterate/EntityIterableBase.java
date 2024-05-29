@@ -456,6 +456,11 @@ public abstract class EntityIterableBase implements EntityIterable {
         return this;
     }
 
+    @Override
+    public @NotNull EntityIterable unwrap() {
+        return this;
+    }
+
     public boolean isSortedById() {
         return true;
     }

@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
@@ -24,36 +25,49 @@ import jetbrains.exodus.entitystore.Sequence
 
 class OSequenceImpl(
     private val sequenceName: String,
-    initialValue: Long = 0
+    private val sessionCreator: () -> ODatabaseDocument,
+    private val initialValue: Long = 0
 ) : Sequence {
 
-    private var sequence = getOrCreateSequence(initialValue)
 
     override fun increment(): Long {
-        return sequence.next()
+        return withSequenceInSession {
+            it.next()
+        }
     }
 
     override fun get(): Long {
-        return sequence.current()
+        return withSequenceInSession {
+            it.current()
+        }
     }
 
     override fun set(l: Long) {
-        val session = ODatabaseSession.getActiveSession()
-        val sequenceLibrary: OSequenceLibrary = session.metadata.sequenceLibrary
-        sequenceLibrary.dropSequence(sequenceName)
-        sequence = getOrCreateSequence(l)
-    }
-
-
-    private fun getOrCreateSequence(start:Long): OSequence {
-        val session = ODatabaseSession.getActiveSession()
-        val sequenceLibrary: OSequenceLibrary = session.metadata.sequenceLibrary
-        var result = sequenceLibrary.getSequence(sequenceName)
-        if (result == null) {
-            val params = CreateParams().setStart(start).setIncrement(1)
-            result = sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
+        withSequenceInSession {
+            it.updateParams(CreateParams().setCurrentValue(l))
         }
-        return result
     }
 
+    private fun <T> withSequenceInSession(action: (OSequence) -> T): T {
+        val currentSession = ODatabaseSession.getActiveSession()
+        try {
+            val result = sessionCreator().use { session ->
+                session.activateOnCurrentThread().begin()
+                val sequenceLibrary: OSequenceLibrary = session.metadata.sequenceLibrary
+                var oSequence = sequenceLibrary.getSequence(sequenceName)
+                if (oSequence == null) {
+                    val params = CreateParams().setStart(initialValue).setIncrement(1)
+                    oSequence = sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
+                    session.commit()
+                    session.begin()
+                }
+                val actionResult = action(oSequence)
+                session.commit()
+                actionResult
+            }
+            return result
+        } finally {
+            currentSession?.activateOnCurrentThread()
+        }
+    }
 }
