@@ -78,7 +78,7 @@ internal class XodusToOrientDataMigrator(
         var maxClassId = 0
         orient.databaseProvider.withSession { oSession ->
             xodus.withReadonlyTx { xTx ->
-                val entityTypes = xTx.entityTypes
+                val entityTypes = xTx.entityTypes.toSet()
                 log.info { "${entityTypes.size} entity types to copy" }
                 entityTypes.forEachIndexed { i, type ->
                     log.info { "$i $type is being copied" }
@@ -113,7 +113,8 @@ internal class XodusToOrientDataMigrator(
                 var totalEntities = 0L
                 var totalProperties = 0
                 var totalBlobs = 0
-                xTx.entityTypes.forEachIndexed { typeIdx, type ->
+                val entityTypes = xTx.entityTypes.toSet()
+                entityTypes.forEachIndexed { typeIdx, type ->
                     var largestEntityId = 0L
                     val xEntities = xTx.getAll(type)
                     xodus.getEntityTypeId(type)
@@ -163,7 +164,7 @@ internal class XodusToOrientDataMigrator(
                     totalProperties += properties
                     totalBlobs += blobs
                 }
-                log.info { "Entities have been copied. Entity types: ${xTx.entityTypes.size}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
+                log.info { "Entities have been copied. Entity types: ${entityTypes.size}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
             }
         }
         return edgeClassesToCreate
@@ -185,7 +186,7 @@ internal class XodusToOrientDataMigrator(
         log.info { "4. Copy links" }
         xodus.withReadonlyTx { xTx ->
             orient.withCountingTx(entitiesPerTransaction) { countingTx ->
-                val entityTypes = xTx.entityTypes
+                val entityTypes = xTx.entityTypes.toSet()
                 log.info { "${entityTypes.size} entity types to copy links" }
                 var totalEntities = 0L
                 var totalLinksProcessed = 0
