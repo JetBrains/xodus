@@ -127,7 +127,7 @@ class OFieldExistsCondition(
 }
 
 class OInstanceOfCondition(
-    val instanceOf: String,
+    val className: String,
     val invert: Boolean
 ) : OCondition {
 
