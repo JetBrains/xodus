@@ -16,12 +16,14 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
 import com.google.common.truth.Truth.assertThat
-import jetbrains.exodus.entitystore.orientdb.testutil.Boards
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import jetbrains.exodus.entitystore.orientdb.testutil.Issues
-import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
-import jetbrains.exodus.entitystore.orientdb.testutil.addIssueToBoard
-import jetbrains.exodus.entitystore.orientdb.testutil.name
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OInstanceOfIterable
+import jetbrains.exodus.entitystore.orientdb.setLocalEntityIdIfAbsent
+import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.testutil.eventually
 import org.junit.Assert
 import org.junit.Rule
@@ -389,6 +391,33 @@ class OEntityIterableBaseTest : OTestMixin {
             assertThat(allIssues.count()).isEqualTo(-1)
             // Wait until the count is updated asynchronously
             eventually { assertThat(allIssues.roughCount).isEqualTo(3) }
+        }
+    }
+
+    @Test
+    fun `instance of should work`() {
+        // Create 10 Issue and 1 SubIssue and their classes
+        orientDb.provider.acquireSession().use { session ->
+            val subIssue = session.getOrCreateVertexClass("ChildIssue")
+            val issueClass = session.getOrCreateVertexClass(Issues.CLASS)
+            subIssue.setSuperClasses(listOf(issueClass))
+        }
+        (1..10).forEach {
+            orientDb.createIssue("issue$it")
+        }
+        oTransactional {
+            val session = (it as OStoreTransaction).activeSession
+            val subIssue = session.getOrCreateVertexClass("ChildIssue")
+            session.newVertex(subIssue).apply {
+                session.setLocalEntityIdIfAbsent(this)
+            }.save<OVertex>()
+        }
+
+        orientDb.store.executeInTransaction { txn ->
+            val childIssues = OInstanceOfIterable(txn, "Issue", "ChildIssue", false)
+            val notChildIssues = OInstanceOfIterable(txn, "Issue", "ChildIssue", true)
+            Assert.assertEquals(10, notChildIssues.toList().size)
+            Assert.assertEquals(1, childIssues.toList().size)
         }
     }
 }
