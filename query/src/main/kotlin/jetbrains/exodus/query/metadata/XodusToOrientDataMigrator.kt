@@ -21,6 +21,7 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
@@ -57,7 +58,8 @@ internal class XodusToOrientDataMigrator(
     /*
     * How many entities should be copied in a single transaction
     * */
-    private val entitiesPerTransaction: Int = 10
+    private val entitiesPerTransaction: Int = 10,
+    private val printProgressAtLeastOnceIn: Int = 5_000
 ) {
     private val xEntityIdToOEntityId = HashMap<EntityId, EntityId>()
 
@@ -108,11 +110,18 @@ internal class XodusToOrientDataMigrator(
         val edgeClassesToCreate = HashSet<String>()
         xodus.withReadonlyTx { xTx ->
             orient.withCountingTx(entitiesPerTransaction) { countingTx ->
-                xTx.entityTypes.forEachIndexed { i, type ->
+                var totalEntities = 0L
+                var totalProperties = 0
+                var totalBlobs = 0
+                xTx.entityTypes.forEachIndexed { typeIdx, type ->
                     var largestEntityId = 0L
                     val xEntities = xTx.getAll(type)
-                    log.info { "$i $type ${xEntities.size()} entities to copy" }
-                    for (xEntity in xEntities) {
+                    xodus.getEntityTypeId(type)
+                    log.info { "$typeIdx $type ${xEntities.size()} entities to copy" }
+                    var properties = 0
+                    var blobs = 0
+                    var lastProgressPrintedAt = System.currentTimeMillis()
+                    xEntities.forEachIndexed { xEntityIdx, xEntity ->
                         val vertex = countingTx.session.newVertex(type)
                         // copy localEntityId
                         val localEntityId = xEntity.id.localId
@@ -127,23 +136,34 @@ internal class XodusToOrientDataMigrator(
                                 // todo ignore for now, how the bug is fixed, delete this if
                             } else {
                                 oEntity.setProperty(propName, propValue as Comparable<*>)
+                                properties++
                             }
                         }
                         for (blobName in xEntity.blobNames) {
                             xEntity.getBlob(blobName)?.let { blobValue ->
                                 oEntity.setBlob(blobName, blobValue)
+                                blobs++
                             }
                         }
                         xEntityIdToOEntityId[xEntity.id] = oEntity.id
                         countingTx.increment()
+
+                        if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
+                            log.info { "$typeIdx $type current entity: $xEntityIdx, properties processed: $properties, blobs copied: $blobs" }
+                            lastProgressPrintedAt = System.currentTimeMillis()
+                        }
 
                         edgeClassesToCreate.addAll(xEntity.linkNames)
                     }
 
                     // create a sequence to generate localEntityIds for the class
                     countingTx.session.createSequenceIfAbsent(localEntityIdSequenceName(type), largestEntityId)
-                    log.info { "$i $type ${xEntities.size()} entities have been copied" }
+                    log.info { "$typeIdx $type entities copied: ${xEntities.size()}, properties copied: $properties, blobs copied: $blobs" }
+                    totalEntities += xEntities.size()
+                    totalProperties += properties
+                    totalBlobs += blobs
                 }
+                log.info { "Entities have been copied. Entity types: ${xTx.entityTypes.size}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
             }
         }
         return edgeClassesToCreate
@@ -167,27 +187,48 @@ internal class XodusToOrientDataMigrator(
             orient.withCountingTx(entitiesPerTransaction) { countingTx ->
                 val entityTypes = xTx.entityTypes
                 log.info { "${entityTypes.size} entity types to copy links" }
-                entityTypes.forEachIndexed { i, type ->
+                var totalEntities = 0L
+                var totalLinksProcessed = 0
+                var totalLinksCopied = 0
+                entityTypes.forEachIndexed { typeIdx, type ->
+                    var linksProcessed = 0
+                    var linksCopied = 0
                     val xEntities = xTx.getAll(type)
-                    log.info { "$i $type ${xEntities.size()} entities to copy links" }
-                    for (xEntity in xEntities) {
+                    log.info { "$typeIdx $type ${xEntities.size()} entities to copy links" }
+                    var lastProgressPrintedAt = System.currentTimeMillis()
+                    xEntities.forEachIndexed { xEntityIdx, xEntity ->
                         val oEntityId = xEntityIdToOEntityId.getValue(xEntity.id)
                         val oEntity = orient.getEntity(oEntityId)
 
                         var copiedSomeLinks = false
                         for (linkName in xEntity.linkNames) {
                             for (xTargetEntity in xEntity.getLinks(linkName)) {
-                                val oTargetId = xEntityIdToOEntityId.getValue(xTargetEntity.id)
-                                oEntity.addLink(linkName, oTargetId)
-                                copiedSomeLinks = true
+                                linksProcessed++
+                                try {
+                                    xTx.getEntity(xTargetEntity.id)
+                                    val oTargetId = xEntityIdToOEntityId.getValue(xTargetEntity.id)
+                                    oEntity.addLink(linkName, oTargetId)
+                                    copiedSomeLinks = true
+                                    linksCopied++
+                                } catch (e: EntityRemovedInDatabaseException) {
+                                    // ignore
+                                }
+                                if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
+                                    log.info { "$typeIdx $type current entity: $xEntityIdx, links processed: $linksProcessed, links copied: $linksCopied" }
+                                    lastProgressPrintedAt = System.currentTimeMillis()
+                                }
                             }
                         }
                         if (copiedSomeLinks) {
                             countingTx.increment()
                         }
                     }
-                    log.info { "$i $type ${xEntities.size()} entities have been processed" }
+                    log.info { "$typeIdx $type entities processed: ${xEntities.size()}, links processed: $linksProcessed, links copied: $linksCopied" }
+                    totalEntities += xEntities.size()
+                    totalLinksProcessed += linksProcessed
+                    totalLinksCopied += linksCopied
                 }
+                log.info { "Links have been copied. Entity types: ${entityTypes.size}, entities processed: $totalEntities, links processed: $totalLinksProcessed, links copied: $totalLinksCopied" }
             }
         }
     }
