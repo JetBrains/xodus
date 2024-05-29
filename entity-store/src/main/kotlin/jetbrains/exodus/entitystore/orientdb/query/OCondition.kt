@@ -125,3 +125,16 @@ class OFieldExistsCondition(
         builder.append("not(").append(field).append(" is null)")
     }
 }
+
+class OInstanceOfCondition(
+    val instanceOf: String,
+    val invert: Boolean
+) : OCondition {
+
+    override fun sql(builder: StringBuilder) {
+        if (invert){
+            builder.append("NOT ")
+        }
+        builder.append("@this INSTANCEOF '$instanceOf'")
+    }
+}
