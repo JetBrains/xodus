@@ -133,12 +133,13 @@ internal class XodusToOrientDataMigrator(
                         val oEntity = OVertexEntity(vertex, orient)
                         for (propName in xEntity.propertyNames) {
                             val propValue = xEntity.getProperty(propName)
-                            if (propValue is ComparableSet<*>) {
-                                // todo ignore for now, how the bug is fixed, delete this if
+                            val comparableValue = if (propValue is ComparableSet<*>) {
+                                OComparableSet(propValue.toHashSet())
                             } else {
-                                oEntity.setProperty(propName, propValue as Comparable<*>)
-                                properties++
+                                propValue as Comparable<*>
                             }
+                            oEntity.setProperty(propName, comparableValue)
+                            properties++
                         }
                         for (blobName in xEntity.blobNames) {
                             xEntity.getBlob(blobName)?.let { blobValue ->
