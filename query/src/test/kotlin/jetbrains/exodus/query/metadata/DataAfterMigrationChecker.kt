@@ -1,13 +1,17 @@
 package jetbrains.exodus.query.metadata
 
 import jetbrains.exodus.bindings.ComparableSet
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityStore
+import jetbrains.exodus.entitystore.orientdb.OComparableSet
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import mu.KotlinLogging
+import java.io.InputStream
 import java.lang.IllegalStateException
+import kotlin.collections.HashSet
 
 private val log = KotlinLogging.logger { }
 
@@ -18,15 +22,15 @@ fun checkDataIsSame(xStore: PersistentEntityStore, oStore: OPersistentEntityStor
 internal class DataAfterMigrationChecker(
     private val xStore: PersistentEntityStore,
     private val oStore: OPersistentEntityStore,
+    private val printProgressAtLeastOnceIn: Int = 5_000
 ) {
     fun checkDataIsSame() {
         checkEntityTypes()
-        checkPropertiesAndBlobs()
-//        createEdgeClassesIfAbsent(edgeClassesToCreate)
-//        copyLinks()
+        checkPropertiesBlobsAndLinks()
     }
 
     private fun checkEntityTypes() {
+        log.info { "1. Check entity types" }
         xStore.withReadonlyTx { xTx ->
             oStore.withReadonlyTx { oTx ->
                 val xTypes = xTx.entityTypes.toSet()
@@ -43,60 +47,95 @@ internal class DataAfterMigrationChecker(
         }
     }
 
-    private fun checkPropertiesAndBlobs(): Set<String> {
+    private fun checkPropertiesBlobsAndLinks() {
+        log.info { "2. Check properties, blobs and links" }
         val edgeClassesToCreate = HashSet<String>()
         xStore.withReadonlyTx { xTx ->
-            for (type in xTx.entityTypes) {
-                oStore.withReadonlyTx { oTx ->
-                    val xSize = xTx.getAll(type).size()
-                    val oSize = oTx.getAll(type).size()
-                    require(xSize == oSize) { "different number of $type. xStore - $xSize, oStore - $oSize" }
-                    for (e1 in xTx.getAll(type)) {
+            val entityTypes = xTx.entityTypes.toSet()
+            log.info { "${entityTypes.size} entity types to process" }
+            entityTypes.forEachIndexed { typeIdx, type ->
+                val xEntities = xTx.getAll(type)
+                val xSize = xEntities.size()
+                log.info { "${typeIdx}/${entityTypes.size} $type $xSize entities to process" }
+                val oSize = oStore.withReadonlyTx { oTx -> oTx.getAll(type).size() }
+                require(xSize == oSize) { "different number of $type entities. xStore - $xSize, oStore - $oSize" }
+                var lastProgressPrintedAt = System.currentTimeMillis()
+                xEntities.forEachIndexed { entityIdx, e1 ->
+                    // oStore does not close resultSets, it causes a flood in the log and out of memory crash,
+                    // so we have to process entity by entity until it is fixed :(
+                    oStore.withReadonlyTx { oTx ->
                         val e2 = oTx.getEntity(e1.id)
                         for (propName in e1.propertyNames) {
-                            val v1 = e1.getProperty(propName)
-                            val v2 = e2.getProperty(propName)
+                            val v1: Comparable<Any?>? = e1.getProperty(propName)
+                            val v2: Comparable<Any?>? = e2.getProperty(propName)
 
-                            if (v1 is ComparableSet<*>) continue
-
-                            require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) { "zb" }
+                            if (v1 is ComparableSet<*>) {
+                                val set1 = v1.toSet()
+                                val set2 = (v2 as OComparableSet<*>).toSet()
+                                require(set1.containsAll(set2) && set2.containsAll(set1)) {
+                                    "$type $entityIdx/$xSize ${e1.id} $propName content is different. " +
+                                            "xStore: ${set1.map { it.toString() }.sorted().joinToString(", ")}. " +
+                                            "oStore: ${set2.map { it.toString() }.sorted().joinToString(", ")}"
+                                }
+                            } else {
+                                require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) { "$type $entityIdx/$xSize ${e1.id} $propName is different. xStore: $v1. oStore: $v2" }
+                            }
                         }
                         for (blobName in e1.blobNames) {
-                            e1.getBlob(blobName)?.let { blobValue ->
+                            val blob1: InputStream? = e1.getBlob(blobName)
+                            val blob2: InputStream? = e2.getBlob(blobName)
+                            when {
+                                blob1 == null && blob2 == null -> Unit
+                                blob1 != null && blob2 != null && blobsEqual(blob1, blob2) -> Unit
+                                else -> throw IllegalStateException("$type $entityIdx/$xSize ${e1.id} $blobName are different")
+                            }
+                        }
+                        for (linkName in e1.linkNames) {
+                            val xTargetEntities = e1.getLinks(linkName).filter { xTargetEntity ->
+                                // filter "dead" links
+                                try {
+                                    xTx.getEntity(xTargetEntity.id)
+                                    true
+                                } catch (e: EntityRemovedInDatabaseException) {
+                                    false
+                                }
+                            }.map { it.id.toString() }.toSet()
+                            val oTargetEntities = e2.getLinks(linkName).map { it.id.toString() }
+                            require(xTargetEntities.size == oTargetEntities.size && xTargetEntities.containsAll(oTargetEntities) && oTargetEntities.containsAll(xTargetEntities)) {
+                                "$type $entityIdx/$xSize ${e1.id} $linkName links are different. xStore: ${xTargetEntities.size}, oStore: ${oTargetEntities.size}"
                             }
                         }
                         edgeClassesToCreate.addAll(e1.linkNames)
                     }
+                    if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
+                        log.info { "${typeIdx}/${entityTypes.size} $type $entityIdx/$xSize has been processed" }
+                        lastProgressPrintedAt = System.currentTimeMillis()
+                    }
                 }
             }
         }
-        return edgeClassesToCreate
     }
 
-//    private fun copyLinks() {
-//        store1.withReadonlyTx { xTx ->
-//            store2.withCountingTx(entitiesPerTransaction) { countingTx ->
-//                for (type in xTx.entityTypes) {
-//                    for (xEntity in xTx.getAll(type)) {
-//                        val oEntityId = xEntityIdToOEntityId.getValue(xEntity.id)
-//                        val oEntity = store2.getEntity(oEntityId)
-//
-//                        var copiedSomeLinks = false
-//                        for (linkName in xEntity.linkNames) {
-//                            for (xTargetEntity in xEntity.getLinks(linkName)) {
-//                                val oTargetId = xEntityIdToOEntityId.getValue(xTargetEntity.id)
-//                                oEntity.addLink(linkName, oTargetId)
-//                                copiedSomeLinks = true
-//                            }
-//                        }
-//                        if (copiedSomeLinks) {
-//                            countingTx.increment()
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
+    private fun blobsEqual(blob1: InputStream, blob2: InputStream, chunkSize: Int = 1024): Boolean {
+        val buffer1 = ByteArray(chunkSize)
+        val buffer2 = ByteArray(chunkSize)
+
+        try {
+            while (true) {
+                val bytesRead1 = blob1.read(buffer1)
+                val bytesRead2 = blob2.read(buffer2)
+
+                if (bytesRead1 != bytesRead2) return false
+                if (!buffer1.contentEquals(buffer2)) return false
+                if (bytesRead1 == -1) break
+            }
+        } finally {
+            blob1.close()
+            blob2.close()
+        }
+
+        return true
+    }
 }
 
 private val oEntityStoreExtraEntityTypes = setOf(
