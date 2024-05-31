@@ -95,11 +95,11 @@ class OSchemaBuddyImpl(
 
 }
 
-fun ODatabaseDocument.createClassIdSequenceIfAbsent(startFrom: Long = 0L) {
+fun ODatabaseDocument.createClassIdSequenceIfAbsent(startFrom: Long = -1L) {
     createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, startFrom)
 }
 
-fun ODatabaseDocument.createLocalEntityIdSequenceIfAbsent(oClass: OClass, startFrom: Long = 0L) {
+fun ODatabaseDocument.createLocalEntityIdSequenceIfAbsent(oClass: OClass, startFrom: Long = -1L) {
     createSequenceIfAbsent(localEntityIdSequenceName(oClass.name), startFrom)
 }
 

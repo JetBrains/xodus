@@ -22,6 +22,7 @@ import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.entitystore.orientdb.query.OQueryTimeoutException
 import jetbrains.exodus.entitystore.orientdb.testutil.*
@@ -602,7 +603,7 @@ class OStoreTransactionTest : OTestMixin {
     fun `newEntity sets localEntityId`() {
         orientDb.store.executeInTransaction { tx ->
             val issue = tx.newEntity(Issues.CLASS)
-            assertEquals(issue.id.localId, 1)
+            assertEquals(issue.id.localId, 0)
         }
     }
 
@@ -672,6 +673,22 @@ class OStoreTransactionTest : OTestMixin {
             //selectManyDistinct
             Assert.assertEquals(2, boards.size)
             Assert.assertEquals("Should not contain nulls", 0, boards.filter { board -> board == null }.size)
+        }
+    }
+
+    @Test
+    fun `contains should work `(){
+        // Given
+        val test = givenTestCase()
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+
+        orientDb.store.executeInTransaction { tx ->
+            val issues = OEntityOfTypeIterable(tx, Issues.CLASS)
+            Assert.assertTrue(issues.contains(test.issue1))
+            val issuesOnBoard = OLinkToEntityIterable(tx, Issues.Links.ON_BOARD, test.board1.id)
+            Assert.assertEquals(1, issuesOnBoard.toList().size)
+            Assert.assertFalse(issuesOnBoard.contains(test.issue2))
+            Assert.assertTrue(issuesOnBoard.contains(test.issue1))
         }
     }
 }
