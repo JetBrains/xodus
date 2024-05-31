@@ -402,7 +402,7 @@ class OrientDbSchemaInitializerTest {
 
     @Test
     fun `classId is a monotonically increasing long`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
-        val types = mutableListOf("type1", "type2", "type3")
+        val types = mutableListOf("type0", "type1", "type2")
         val model = model {
             for (type in types) {
                 entity(type)
@@ -418,7 +418,7 @@ class OrientDbSchemaInitializerTest {
             classIdToClassName[classId] = type
             classIds.add(classId)
         }
-        assertEquals(setOf(1, 2, 3), classIds)
+        assertEquals(setOf(0, 1, 2), classIds)
 
 
         // emulate the next run of the application with new classes in the codebase
@@ -441,12 +441,12 @@ class OrientDbSchemaInitializerTest {
             }
             classIds.add(classId)
         }
-        assertEquals(setOf(1, 2, 3, 4, 5), classIds)
+        assertEquals(setOf(0, 1, 2, 3, 4), classIds)
     }
 
     @Test
     fun `every class gets localEntityId property`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
-        val types = mutableListOf("type1", "type2", "type3")
+        val types = mutableListOf("type0", "type1", "type2")
         val model = model {
             for (type in types) {
                 entity(type)
@@ -466,7 +466,7 @@ class OrientDbSchemaInitializerTest {
 
             val sequence = sequences.getSequence(localEntityIdSequenceName(type))
             assertNotNull(sequence)
-            assertEquals(1, sequence.next())
+            assertEquals(0, sequence.next())
         }
 
         // emulate the next run of the application
@@ -475,7 +475,7 @@ class OrientDbSchemaInitializerTest {
         for (type in types) {
             val sequence = sequences.getSequence(localEntityIdSequenceName(type))
             // sequences are the same
-            assertEquals(2, sequence.next())
+            assertEquals(1, sequence.next())
         }
     }
 
