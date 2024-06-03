@@ -418,9 +418,13 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                         //if address not found in tree,
                         //then loggable is a garbage left after the restore of DB crash,
                         //start from the last valid loggable
-                        loggables = log.getLoggableIterator(e.lastValidLoggableAddress)
+                        if(e.lastValidLoggableAddress >= 0) {
+                            loggables = log.getLoggableIterator(e.lastValidLoggableAddress)
+                        } else {
+                            logger.warn("Last valid loggable address is not found, skipping the rest of the file")
+                            break
+                        }
                     }
-
                 }
             }
         } catch (e: Throwable) {

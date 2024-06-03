@@ -311,14 +311,21 @@ internal class PatriciaTreeMutable(
         val sourceTree = PatriciaTreeForReclaim(log, maxAddress, structureId)
         val sourceRoot = sourceTree.root
         val backRef = sourceTree.backRef
+
         if (backRef > 0) {
             val treeStartAddress = sourceTree.rootAddress - backRef
-            check(treeStartAddress <= minAddress) { "Wrong back reference!" }
+
+            if (treeStartAddress > minAddress) {
+                throw UnexpectedLoggableException("Wrong back reference!", treeStartAddress)
+            }
+
             if (!log.hasAddressRange(treeStartAddress, maxAddress)) {
                 return false
             }
+
             minAddress = treeStartAddress
         }
+
         val actual = PatriciaReclaimActualTraverser(this)
         reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, minAddress), actual)
         return actual.wasReclaim || sourceRoot.address == root.sourceAddress
