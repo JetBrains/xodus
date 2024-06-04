@@ -1113,6 +1113,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     this, block, startBlockAddress,
                     formatWithHashCodeIsUsed
                 )
+                var blockAdded = false
                 while (blockDataIterator.hasNext()) {
                     val loggableAddress = blockDataIterator.address
 
@@ -1178,6 +1179,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         if (dbRoot.isValid) {
                             dbRootAddress = loggableAddress
                             dbRootEndAddress = blockDataIterator.address
+                            if (!blockAdded) {
+                                blockSetMutable.add(startBlockAddress, block)
+                                blockAdded = true
+                            }
                         } else {
                             DataCorruptionException.raise(
                                 "Corrupted database root was found", this,
@@ -1193,7 +1198,10 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     loggablesProcessed++
                 }
 
-                blockSetMutable.add(startBlockAddress, block)
+                if (!blockAdded) {
+                    blockSetMutable.add(startBlockAddress, block)
+                }
+
                 if (!hasNext && nextBlockCorruptionMessage != null) {
                     DataCorruptionException.raise(
                         nextBlockCorruptionMessage,
