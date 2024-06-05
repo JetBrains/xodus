@@ -24,6 +24,7 @@ data class MigrateToOrientConfig(
     val username: String,
     val password: String,
 )
+
 data class MigrateFromXodusConfig(
     val databaseDirectory: String,
     val storeName: String,
@@ -99,33 +100,37 @@ class XodusToOrientDataMigratorLauncher(
                     checkDataIsSame(xEntityStore, oEntityStore)
                 }
             }
-            log.info { """
+            with(migrateDataStats) {
+                log.info {
+                    """
                 Xodus -> OrientDB migration and validation completed
                 Data Migration
                     total duration: $migrateDataDuration
-                        entity classes: ${migrateDataStats.entityClasses}
-                        create entity classes duration: ${migrateDataStats.createEntityClassesDuration}
+                        entity classes: $entityClasses
+                        create entity classes duration: $createEntityClassesDuration ${percent(createEntityClassesDuration / migrateDataDuration)}
                         
-                        entities: ${migrateDataStats.entities}
-                        properties: ${migrateDataStats.properties}
-                        blobs: ${migrateDataStats.blobs}
-                        copy entities properties and blobs duration: ${migrateDataStats.copyEntitiesPropertiesAndBlobsDuration}
-                            create entities duration: ${migrateDataStats.createEntitiesDuration}
-                            copy properties duration: ${migrateDataStats.copyPropertiesDuration}
-                            copy blobs duration: ${migrateDataStats.copyBlobsDuration}
-                            commits duration: ${migrateDataStats.commitEntitiesPropertiesAndBlobsDuration}
+                        entities: $entities
+                        properties: $properties
+                        blobs: $blobs
+                        copy entities properties and blobs duration: $copyEntitiesPropertiesAndBlobsDuration ${percent(copyEntitiesPropertiesAndBlobsDuration / migrateDataDuration)}
+                            create entities duration: $createEntitiesDuration ${percent(createEntitiesDuration / copyEntitiesPropertiesAndBlobsDuration)}
+                            copy properties duration: $copyPropertiesDuration ${percent(copyPropertiesDuration / copyEntitiesPropertiesAndBlobsDuration)}
+                            copy blobs duration: $copyBlobsDuration ${percent(copyBlobsDuration / copyEntitiesPropertiesAndBlobsDuration)}
+                            commits duration: $commitEntitiesPropertiesAndBlobsDuration ${percent(commitEntitiesPropertiesAndBlobsDuration / copyEntitiesPropertiesAndBlobsDuration)}
                         
-                        edge classes: ${migrateDataStats.edgeClasses}
-                        create edge classes duration: ${migrateDataStats.createEdgeClassesDuration}
+                        edge classes: $edgeClasses
+                        create edge classes duration: $createEdgeClassesDuration ${percent(createEdgeClassesDuration / migrateDataDuration)}
                         
-                        processed links: ${migrateDataStats.processedLinks}
-                        copied links: ${migrateDataStats.copiedLinks}
-                        copy links total duration: ${migrateDataStats.copyLinksTotalDuration}
-                            copy links duration: ${migrateDataStats.copyLinksDuration}
-                            commits duration: ${migrateDataStats.commitLinksDuration}
+                        processed links: ${processedLinks}
+                        copied links: ${copiedLinks}
+                        copy links total duration: ${copyLinksTotalDuration} ${percent(copyLinksTotalDuration / migrateDataDuration)}
+                            copy links duration: ${copyLinksDuration} ${percent(copyLinksDuration / copyLinksTotalDuration)}
+                            commits duration: ${commitLinksDuration} ${percent(commitLinksDuration / copyLinksTotalDuration)}
                         
                 validateDataDuration: $validateDataDuration
-            """.trimIndent() }
+            """.trimIndent()
+                }
+            }
         } catch (e: Exception) {
             throw e
         } finally {
@@ -135,3 +140,5 @@ class XodusToOrientDataMigratorLauncher(
         }
     }
 }
+
+private fun percent(value: Double): String = "%.${2}f".format(value * 100) + "%"

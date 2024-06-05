@@ -186,7 +186,6 @@ internal class XodusToOrientDataMigrator(
                 entityTypes.forEachIndexed { typeIdx, type ->
                     var largestEntityId = 0L
                     val xEntities = xTx.getAll(type)
-                    xodus.getEntityTypeId(type)
                     log.info { "$typeIdx $type ${xEntities.size()} entities to copy" }
                     var properties = 0
                     var blobs = 0
