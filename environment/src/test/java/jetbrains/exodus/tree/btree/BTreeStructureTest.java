@@ -35,7 +35,7 @@ public class BTreeStructureTest extends BTreeTestBase {
 
     BTreeMutable refresh() {
         long a = saveTree();
-        t = new BTree(log, policy, a, false, 1);
+        t = new BTree(log, policy, a, false, 1, Integer.MAX_VALUE);
         tm = getTree().getMutableCopy();
         return (BTreeMutable) tm;
     }
@@ -43,7 +43,7 @@ public class BTreeStructureTest extends BTreeTestBase {
 
     @Test
     public void simple() {
-        tm = new BTreeEmpty(log, policy, false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, policy, false, 1, Integer.MAX_VALUE).getMutableCopy();
         add("c");
         for (int i = 0; i <= 6; i++) {
             add("a" + i);
@@ -59,7 +59,7 @@ public class BTreeStructureTest extends BTreeTestBase {
 
     @Test
     public void childExistsTest() {
-        tm = new BTreeEmpty(log, policy, false, 1).getMutableCopy();
+        tm = new BTreeEmpty(log, policy, false, 1, Integer.MAX_VALUE).getMutableCopy();
         for (int i = 0; i <= 60; i++) {
             tm.add(key("k " + i), value("v " + i));
         }

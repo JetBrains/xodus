@@ -41,12 +41,12 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
     private final ExtraMutableBelongings extraBelongings;
 
 
-    BTreeMutable(@NotNull final BTreeBase tree) {
-        this(tree, new ExtraMutableBelongings());
+    BTreeMutable(@NotNull final BTreeBase tree, final int maxEntrySize) {
+        this(tree, new ExtraMutableBelongings(), maxEntrySize);
     }
 
-    BTreeMutable(@NotNull final BTreeBase tree, final ExtraMutableBelongings extraBelongings) {
-        super(tree.log, tree.balancePolicy, tree.allowsDuplicates, tree.structureId);
+    BTreeMutable(@NotNull final BTreeBase tree, final ExtraMutableBelongings extraBelongings, final int maxEntrySize) {
+        super(tree.log, tree.balancePolicy, tree.allowsDuplicates, tree.structureId, maxEntrySize);
         immutableTree = tree;
         root = tree.getRoot().getMutableCopy(this);
         size = tree.getSize();
@@ -430,10 +430,10 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         if (byteIterable instanceof ArrayByteIterable
                 || byteIterable instanceof FixedLengthByteIterable
                 || byteIterable instanceof ByteBufferByteIterable) {
-            var maxFileSize = log.getFileLengthBound() / 2;
-            if (byteIterable.getLength() > maxFileSize) {
+            if (byteIterable.getLength() > maxEntrySize) {
                 throw new TooBigLoggableException(
-                        "ByteIterable length is greater than max allowed size of " + maxFileSize + " bytes");
+                        "ByteIterable length is greater than max allowed size of " + maxEntrySize +
+                                " bytes, length is " + byteIterable.getLength());
             }
         }
 

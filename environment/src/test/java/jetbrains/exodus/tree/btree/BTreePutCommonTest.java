@@ -23,11 +23,11 @@ public class BTreePutCommonTest extends TreePutTest {
 
     @Override
     protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
-        return new BTreeEmpty(log, hasDuplicates, structureId).getMutableCopy();
+        return new BTreeEmpty(log, hasDuplicates, structureId, Integer.MAX_VALUE).getMutableCopy();
     }
 
     @Override
     protected ITree openTree(long address, boolean hasDuplicates) {
-        return new BTree(log, address, hasDuplicates, 1);
+        return new BTree(log, address, hasDuplicates, 1, Integer.MAX_VALUE);
     }
 }

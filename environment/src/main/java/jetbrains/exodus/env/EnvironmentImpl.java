@@ -882,7 +882,9 @@ public class EnvironmentImpl implements Environment {
     @Nullable
     BTree loadMetaTree(final long rootAddress, final long highAddress) {
         if (rootAddress < 0 || rootAddress >= highAddress) return null;
-        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
+
+        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID,
+                ec.getEnvMaximumTreeEntrySize()) {
             @NotNull
             @Override
             public DataIterator getDataIterator(long address) {
@@ -893,7 +895,8 @@ public class EnvironmentImpl implements Environment {
 
     @Nullable
     BTree loadMetaTree(final long rootAddress) {
-        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID) {
+        return new BTree(log, getBTreeBalancePolicy(), rootAddress, false, META_TREE_ID,
+                ec.getEnvMaximumTreeEntrySize()) {
             @NotNull
             @Override
             public DataIterator getDataIterator(long address) {

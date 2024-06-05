@@ -35,7 +35,7 @@ final class BTreeDupMutable extends BTreeMutable {
     long address = Loggable.NULL_ADDRESS;
 
     BTreeDupMutable(@NotNull final BTreeBase dupTree, @NotNull final ByteIterable key) {
-        super(dupTree, null);
+        super(dupTree, null, dupTree.maxEntrySize);
         size = dupTree.size;
         this.key = key;
     }

@@ -25,9 +25,9 @@ public class PatriciaTree extends PatriciaTreeBase {
 
     private final RandomAccessLoggable rootLoggable;
     private final ImmutableNode root;
+    public PatriciaTree(@NotNull final Log log, final long rootAddress, final int structureId, final int maxEntrySize) {
+        super(log, structureId, maxEntrySize);
 
-    public PatriciaTree(@NotNull final Log log, final long rootAddress, final int structureId) {
-        super(log, structureId);
         if (rootAddress == Loggable.NULL_ADDRESS) {
             throw new IllegalArgumentException("Can't instantiate nonempty tree with null root address");
         }
@@ -57,7 +57,7 @@ public class PatriciaTree extends PatriciaTreeBase {
     @NotNull
     @Override
     public final PatriciaTreeMutable getMutableCopy() {
-        return new PatriciaTreeMutable(log, structureId, size, (ImmutableNode) getRoot());
+        return new PatriciaTreeMutable(log, structureId, size, (ImmutableNode) getRoot(), maxEntrySize);
     }
 
     @Override

@@ -21,8 +21,6 @@ import jetbrains.exodus.tree.ITreeMutable;
 import jetbrains.exodus.tree.TreeCursorNoDuplicatesTest;
 import org.junit.Test;
 
-import java.io.IOException;
-
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -33,12 +31,12 @@ public class BTreeCursorNoDuplicatesTest extends TreeCursorNoDuplicatesTest {
 
     @Override
     protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
-        return new BTreeEmpty(log, false, structureId).getMutableCopy();
+        return new BTreeEmpty(log, false, structureId, Integer.MAX_VALUE).getMutableCopy();
     }
 
     @Override
     protected ITree openTree(long address, boolean hasDuplicates) {
-        return new BTree(log, address, hasDuplicates, 1);
+        return new BTree(log, address, hasDuplicates, 1, Integer.MAX_VALUE);
     }
 
     @Test

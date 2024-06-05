@@ -21,8 +21,9 @@ import org.jetbrains.annotations.NotNull;
 public class PatriciaTreeForReclaim extends PatriciaTree {
     private long backRef;
 
-    public PatriciaTreeForReclaim(@NotNull final Log log, final long rootAddress, final int structureId) {
-        super(log, rootAddress, structureId);
+    public PatriciaTreeForReclaim(@NotNull final Log log, final long rootAddress,
+                                  final int structureId, int maxEntrySize) {
+        super(log, rootAddress, structureId, maxEntrySize);
     }
 
     @Override

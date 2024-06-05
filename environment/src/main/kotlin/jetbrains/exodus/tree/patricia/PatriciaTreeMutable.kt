@@ -27,8 +27,9 @@ internal class PatriciaTreeMutable(
     log: Log,
     structureId: Int,
     treeSize: Long,
-    immutableRoot: ImmutableNode
-) : PatriciaTreeBase(log, structureId), ITreeMutable {
+    immutableRoot: ImmutableNode,
+    maxEntrySize: Int
+) : PatriciaTreeBase(log, structureId, maxEntrySize), ITreeMutable {
 
     private var root = MutableRoot(immutableRoot)
     private var expiredLoggables: ExpiredLoggableCollection? = null
@@ -308,7 +309,7 @@ internal class PatriciaTreeMutable(
 
         val maxAddress = l.address
 
-        val sourceTree = PatriciaTreeForReclaim(log, maxAddress, structureId)
+        val sourceTree = PatriciaTreeForReclaim(log, maxAddress, structureId, maxEntrySize)
         val sourceRoot = sourceTree.root
         val backRef = sourceTree.backRef
 
@@ -561,10 +562,10 @@ internal class PatriciaTreeMutable(
             || byteIterable is FixedLengthByteIterable
             || byteIterable is ByteBufferByteIterable
         ) {
-            val maxFileSize = log.fileLengthBound / 2
-            if (byteIterable.length > maxFileSize) {
+            if (byteIterable.length > maxEntrySize) {
                 throw TooBigLoggableException(
-                    "ByteIterable length is greater than max allowed size of $maxFileSize bytes"
+                    "ByteIterable length is greater than max allowed size of $maxEntrySize " +
+                            "bytes but was ${byteIterable.length}"
                 )
             }
         }

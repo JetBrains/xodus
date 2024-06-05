@@ -16,10 +16,8 @@
 package jetbrains.exodus.tree.patricia;
 
 import jetbrains.exodus.ByteIterable;
-import jetbrains.exodus.log.ByteIterableWithAddress;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.Loggable;
-import jetbrains.exodus.log.NullLoggable;
 import jetbrains.exodus.tree.ITreeCursor;
 import jetbrains.exodus.tree.ITreeMutable;
 import org.jetbrains.annotations.NotNull;
@@ -29,8 +27,8 @@ public final class PatriciaTreeEmpty extends PatriciaTreeBase {
 
     private final boolean hasDuplicates;
 
-    public PatriciaTreeEmpty(@NotNull final Log log, final int structureId, final boolean hasDuplicates) {
-        super(log, structureId);
+    public PatriciaTreeEmpty(@NotNull final Log log, final int structureId, final boolean hasDuplicates, int maxEntrySize) {
+        super(log, structureId, maxEntrySize);
         size = 0;
         this.hasDuplicates = hasDuplicates;
     }
@@ -39,7 +37,7 @@ public final class PatriciaTreeEmpty extends PatriciaTreeBase {
     @Override
     public ITreeMutable getMutableCopy() {
         final PatriciaTreeMutable treeMutable = new PatriciaTreeMutable(log, structureId, 0,
-                (ImmutableNode) getRoot());
+                (ImmutableNode) getRoot(), maxEntrySize);
         return hasDuplicates ? new PatriciaTreeWithDuplicatesMutable(treeMutable) : treeMutable;
     }
 
