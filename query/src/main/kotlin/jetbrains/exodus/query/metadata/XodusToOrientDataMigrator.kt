@@ -66,7 +66,9 @@ data class XodusToOrientMigrationStats(
     val copiedLinks: Long,
     val copyLinksTotalDuration: Duration,
     val copyLinksDuration: Duration,
-    val commitLinksDuration: Duration
+    val commitLinksDuration: Duration,
+
+    val xEntityIdToOEntityId: Map<EntityId, EntityId>
 )
 
 /**
@@ -138,7 +140,9 @@ internal class XodusToOrientDataMigrator(
             copiedLinks = totalLinksCopied,
             copyLinksTotalDuration = copyLinksTotalDuration,
             copyLinksDuration = copyLinksDuration,
-            commitLinksDuration = commitLinksDuration
+            commitLinksDuration = commitLinksDuration,
+
+            xEntityIdToOEntityId = xEntityIdToOEntityId
         )
     }
 

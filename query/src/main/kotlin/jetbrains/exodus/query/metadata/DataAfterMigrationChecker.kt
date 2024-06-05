@@ -1,6 +1,7 @@
 package jetbrains.exodus.query.metadata
 
 import jetbrains.exodus.bindings.ComparableSet
+import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OComparableSet
@@ -17,8 +18,8 @@ import kotlin.time.measureTimedValue
 
 private val log = KotlinLogging.logger { }
 
-fun checkDataIsSame(xStore: PersistentEntityStore, oStore: OPersistentEntityStore): DataAfterMigrationCheckingStats {
-    return DataAfterMigrationChecker(xStore, oStore).checkDataIsSame()
+fun checkDataIsSame(xStore: PersistentEntityStore, oStore: OPersistentEntityStore, xEntityIdToOEntityId: Map<EntityId, EntityId>): DataAfterMigrationCheckingStats {
+    return DataAfterMigrationChecker(xStore, oStore, xEntityIdToOEntityId).checkDataIsSame()
 }
 
 data class DataAfterMigrationCheckingStats(
@@ -34,6 +35,7 @@ data class DataAfterMigrationCheckingStats(
 internal class DataAfterMigrationChecker(
     private val xStore: PersistentEntityStore,
     private val oStore: OPersistentEntityStore,
+    private val xEntityIdToOEntityId: Map<EntityId, EntityId>,
     private val printProgressAtLeastOnceIn: Int = 5_000
 ) {
     private var findEntitiesDuration = Duration.ZERO
@@ -96,7 +98,7 @@ internal class DataAfterMigrationChecker(
                     // so we have to process entity by entity until it is fixed :(
                     oStore.withReadonlyTx { oTx ->
                         val (e2, findEntityDuration) = measureTimedValue {
-                            oTx.getEntity(e1.id)
+                            oTx.getEntity(xEntityIdToOEntityId.getValue(e1.id))
                         }
                         findEntitiesDuration += findEntityDuration
 
