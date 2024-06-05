@@ -12,7 +12,6 @@ import jetbrains.exodus.env.newEnvironmentConfig
 import mu.KotlinLogging
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
 
 private val log = KotlinLogging.logger { }
@@ -95,16 +94,16 @@ class XodusToOrientDataMigratorLauncher(
             schemaBuddy.initialize()
 
             // 4. Check data is the same
-            val validateDataDuration = measureTime {
+            val (checkDataStats, validateDataDuration) = measureTimedValue {
                 if (validateDataAfterMigration) {
                     checkDataIsSame(xEntityStore, oEntityStore)
-                }
+                } else null
             }
+            log.info { "Xodus -> OrientDB migration and validation completed" }
             with(migrateDataStats) {
                 log.info {
                     """
-                Xodus -> OrientDB migration and validation completed
-                Data Migration
+                Data Migration stats
                     total duration: $migrateDataDuration
                         entity classes: $entityClasses
                         create entity classes duration: $createEntityClassesDuration ${percent(createEntityClassesDuration / migrateDataDuration)}
@@ -121,14 +120,28 @@ class XodusToOrientDataMigratorLauncher(
                         edge classes: $edgeClasses
                         create edge classes duration: $createEdgeClassesDuration ${percent(createEdgeClassesDuration / migrateDataDuration)}
                         
-                        processed links: ${processedLinks}
-                        copied links: ${copiedLinks}
-                        copy links total duration: ${copyLinksTotalDuration} ${percent(copyLinksTotalDuration / migrateDataDuration)}
-                            copy links duration: ${copyLinksDuration} ${percent(copyLinksDuration / copyLinksTotalDuration)}
-                            commits duration: ${commitLinksDuration} ${percent(commitLinksDuration / copyLinksTotalDuration)}
-                        
-                validateDataDuration: $validateDataDuration
+                        processed links: $processedLinks
+                        copied links: $copiedLinks
+                        copy links total duration: $copyLinksTotalDuration ${percent(copyLinksTotalDuration / migrateDataDuration)}
+                            copy links duration: $copyLinksDuration ${percent(copyLinksDuration / copyLinksTotalDuration)}
+                            commits duration: $commitLinksDuration ${percent(commitLinksDuration / copyLinksTotalDuration)}
             """.trimIndent()
+                }
+            }
+
+            if (checkDataStats != null) {
+                with(checkDataStats) {
+                    log.info { """
+                        Validation data stats
+                            total duration: $validateDataDuration
+                                check entity types duration: $checkEntityTypesDuration ${percent(checkEntityTypesDuration / validateDataDuration)}
+                                
+                                check entities duration: $checkEntitiesDuration ${percent(checkEntitiesDuration / validateDataDuration)}
+                                    find entities duration:  $findEntitiesDuration ${percent(findEntitiesDuration / checkEntitiesDuration)}
+                                    check properties duration: $checkPropertiesDuration ${percent(checkPropertiesDuration / checkEntitiesDuration)}
+                                    check blobs duration: $checkBlobsDuration ${percent(checkBlobsDuration / checkEntitiesDuration)}
+                                    check links duration: $checkLinksDuration ${percent(checkLinksDuration / checkEntitiesDuration)}
+                    """.trimIndent() }
                 }
             }
         } catch (e: Exception) {
