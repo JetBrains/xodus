@@ -15,29 +15,6 @@
  */
 package jetbrains.exodus.entitystore;
 
-import org.jetbrains.annotations.NotNull;
-
-class PersistentSequenceBlobHandleGenerator implements UpdatableBlobHandleGenerator {
-
-    @NotNull
-    private final PersistentSequenceGetter sequenceGetter;
-
-    PersistentSequenceBlobHandleGenerator(@NotNull final PersistentSequenceGetter sequenceGetter) {
-        this.sequenceGetter = sequenceGetter;
-    }
-
-    @Override
-    public long nextHandle() {
-        return sequenceGetter.get().increment();
-    }
-
-    @Override
-    public void setHandle(long handle) {
-        sequenceGetter.get().set(handle);
-    }
-
-    interface PersistentSequenceGetter {
-
-        PersistentSequence get();
-    }
+public interface UpdatableBlobHandleGenerator extends BlobHandleGenerator{
+    void setHandle(long handle);
 }
