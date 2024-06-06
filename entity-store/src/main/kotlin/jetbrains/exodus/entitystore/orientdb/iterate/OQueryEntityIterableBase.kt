@@ -34,6 +34,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.binop.OMinusEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterableFiltered
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OSingleEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
 import jetbrains.exodus.entitystore.orientdb.query.OFirstSelect
 import jetbrains.exodus.entitystore.orientdb.query.OLastSelect
@@ -243,6 +244,10 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
 
     override fun asProbablyCached(): EntityIterableBase? {
         return this
+    }
+
+    override fun contains(entity: Entity): Boolean {
+        return OIntersectionEntityIterable(otx, this, OSingleEntityIterable(otx, entity)).iterator().hasNext()
     }
 
     override fun unwrap() = this
