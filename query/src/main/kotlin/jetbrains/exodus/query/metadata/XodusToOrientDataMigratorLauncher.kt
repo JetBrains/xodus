@@ -10,8 +10,7 @@ import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
 import mu.KotlinLogging
-import java.nio.file.Files
-import java.nio.file.Path
+import java.io.File
 import kotlin.time.measureTimedValue
 
 private val log = KotlinLogging.logger { }
@@ -43,12 +42,18 @@ class XodusToOrientDataMigratorLauncher(
         // create the database
         log.info { "1. Initialize OrientDB" }
         if (orient.databaseType != ODatabaseType.MEMORY) {
-            val path = Path.of(orient.url)
-            path.iterator()
-            require(Files.notExists(path) || path.count() == 0) { "The provided OrientDB directory is not empty. Sorry, pal, it was a good try. Try to find an empty directory." }
+            val dir = File(orient.url.removePrefix("plocal:"))
+            if (dir.exists()) {
+                require(dir.list() != null) { "The provided OrientDB directory is not a directory. That is a bald move, man!" }
+                require(dir.list()?.isEmpty() == true) { "The provided OrientDB directory is not empty. Sorry, pal, it was a good try. Try to find an empty directory." }
+            }
         }
         val db = OrientDB(orient.url, OrientDBConfig.defaultConfig())
-        db.execute("create database ${orient.dbName} ${if (orient.databaseType == ODatabaseType.MEMORY) "MEMORY" else ""} users ( ${orient.username} identified by '${orient.password}' role admin )")
+        if (orient.databaseType == ODatabaseType.MEMORY) {
+            db.execute("create database ${orient.dbName} MEMORY users ( ${orient.username} identified by '${orient.password}' role admin )")
+        } else {
+            db.create(orient.dbName, orient.databaseType, orient.username, orient.password, "admin")
+        }
         // create a provider
         val dbProvider = ODatabaseProviderImpl(db, orient.dbName, orient.username, orient.password, orient.databaseType)
 
