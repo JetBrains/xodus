@@ -169,6 +169,7 @@ class OIntersectSelect(
 class OUnionSelect(
     val left: OSelect,
     val right: OSelect,
+    val distinct: Boolean = true,
     order: OOrder? = null,
     skip: OSkip? = null,
     limit: OLimit? = null
@@ -177,7 +178,9 @@ class OUnionSelect(
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
     // intersect returns projection thus need to expand it into collection
     override fun selectSql(builder: StringBuilder) {
-        builder.append("SELECT expand(unionall(\$a, \$b)) LET \$a=(")
+        builder.append("SELECT expand(unionall(\$a, \$b)")
+        if (distinct) builder.append(".asSet()")
+        builder.append(") LET \$a=(")
         left.sql(builder)
         builder.append("), \$b=(")
         right.sql(builder)

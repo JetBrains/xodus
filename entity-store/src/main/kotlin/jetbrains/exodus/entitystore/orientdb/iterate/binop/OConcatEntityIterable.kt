@@ -28,7 +28,7 @@ class OConcatEntityIterable(
 ) : OQueryEntityIterableBase(txn) {
 
     override fun query(): OSelect {
-        return OUnionSelect(iterable1.query(), iterable2.query())
+        return OUnionSelect(iterable1.query(), iterable2.query(), false)
     }
 }
 

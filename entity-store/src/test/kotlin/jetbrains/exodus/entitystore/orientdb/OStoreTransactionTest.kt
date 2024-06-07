@@ -386,7 +386,7 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        // Issues assigned to projects in reverse order
+        // Issues assigned to projects ink reverse order
         orientDb.addIssueToProject(test.issue1, test.project1)
         orientDb.addIssueToProject(test.issue2, test.project2)
         orientDb.addIssueToProject(test.issue3, test.project3)
