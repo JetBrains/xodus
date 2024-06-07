@@ -251,4 +251,13 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun unwrap() = this
+
+
+    override fun isEmpty(): Boolean {
+        val iter = iterator()
+        val result = iter.hasNext()
+        iter.dispose()
+        return !result
+    }
+
 }
