@@ -284,16 +284,18 @@ internal class XodusToOrientDataMigrator(
                         val oEntityId = xEntityIdToOEntityId.getValue(xEntity.id)
                         val oEntity = orient.getEntity(oEntityId)
 
-                        var copiedSomeLinks = false
+                        val copiedLinks = HashSet<EntityId>()
                         copyLinksDuration += measureTime {
                             for (linkName in xEntity.linkNames) {
                                 for (xTargetEntity in xEntity.getLinks(linkName)) {
                                     linksProcessed++
+                                    if (copiedLinks.contains(xTargetEntity.id)) continue
+
                                     try {
                                         xTx.getEntity(xTargetEntity.id)
                                         val oTargetId = xEntityIdToOEntityId.getValue(xTargetEntity.id)
                                         oEntity.addLink(linkName, oTargetId)
-                                        copiedSomeLinks = true
+                                        copiedLinks.add(xTargetEntity.id)
                                         linksCopied++
                                     } catch (e: EntityRemovedInDatabaseException) {
                                         // ignore
@@ -305,7 +307,7 @@ internal class XodusToOrientDataMigrator(
                                 }
                             }
                         }
-                        if (copiedSomeLinks) {
+                        if (copiedLinks.isNotEmpty()) {
                             commitLinksDuration += measureTime {
                                 countingTx.increment()
                             }
