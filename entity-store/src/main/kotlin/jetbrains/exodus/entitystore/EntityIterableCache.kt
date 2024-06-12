@@ -51,6 +51,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     private val heavyIterablesCache =
         ConcurrentObjectCache<Any, Long>(config.entityIterableCacheHeavyIterablesCacheSize)
 
+    @Volatile
     private var cacheAdapter = EntityIterableCacheAdapter.create(config)
 
     val stats = EntityIterableCacheStatistics()
