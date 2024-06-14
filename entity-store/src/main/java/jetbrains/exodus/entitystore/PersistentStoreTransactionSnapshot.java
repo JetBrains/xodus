@@ -40,10 +40,15 @@ final class PersistentStoreTransactionSnapshot extends PersistentStoreTransactio
 
     @Override
     public void abort() {
+        txLifeCycleLock.lock();
         try {
-            revertCaches();
+            try {
+                revertCaches();
+            } finally {
+                txn.abort();
+            }
         } finally {
-            txn.abort();
+            txLifeCycleLock.unlock();
         }
     }
 

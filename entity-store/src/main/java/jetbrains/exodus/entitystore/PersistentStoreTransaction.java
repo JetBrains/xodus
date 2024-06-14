@@ -82,6 +82,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private boolean checkInvalidateBlobsFlag;
 
+    protected final ReentrantLock txLifeCycleLock = new ReentrantLock();
+
     PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, TransactionType.Regular);
     }
@@ -165,14 +167,19 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public boolean commit() {
-        // txn can be read-only if Environment is in read-only mode
-        if (!isReadonly()) {
-            apply();
-            return doCommit();
-        } else if (txn.isExclusive()) {
-            applyExclusiveTransactionCaches();
+        txLifeCycleLock.lock();
+        try {
+            // txn can be read-only if Environment is in read-only mode
+            if (!isReadonly()) {
+                apply();
+                return doCommit();
+            } else if (txn.isExclusive()) {
+                applyExclusiveTransactionCaches();
+            }
+            return true;
+        } finally {
+            txLifeCycleLock.unlock();
         }
-        return true;
     }
 
     public boolean isCurrent() {
@@ -192,25 +199,35 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public void abort() {
+        txLifeCycleLock.lock();
         try {
-            closeOpenedBlobStreams();
-            store.unregisterTransaction(this);
-            revertCaches();
+            try {
+                closeOpenedBlobStreams();
+                store.unregisterTransaction(this);
+                revertCaches();
+            } finally {
+                txn.abort();
+            }
         } finally {
-            txn.abort();
+            txLifeCycleLock.unlock();
         }
     }
 
     @Override
     public boolean flush() {
-        // txn can be read-only if Environment is in read-only mode
-        if (!isReadonly()) {
-            apply();
-            return doFlush();
-        } else if (txn.isExclusive()) {
-            applyExclusiveTransactionCaches();
+        txLifeCycleLock.lock();
+        try {
+            // txn can be read-only if Environment is in read-only mode
+            if (!isReadonly()) {
+                apply();
+                return doFlush();
+            } else if (txn.isExclusive()) {
+                applyExclusiveTransactionCaches();
+            }
+            return true;
+        } finally {
+            txLifeCycleLock.unlock();
         }
-        return true;
     }
 
     // exposed only for tests
@@ -226,9 +243,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public void revert() {
-        closeOpenedBlobStreams();
-        txn.revert();
-        revertCaches();
+        txLifeCycleLock.lock();
+        try {
+            closeOpenedBlobStreams();
+            txn.revert();
+            revertCaches();
+        } finally {
+            txLifeCycleLock.unlock();
+        }
     }
 
     public PersistentStoreTransaction getSnapshot() {
@@ -949,15 +971,20 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    public void flushCaches(final boolean clearPropsAndLinksCache) {
+    private void flushCaches(final boolean clearPropsAndLinksCache) {
         resetCaches(clearPropsAndLinksCache);
     }
 
     public void revertCaches() {
-        if (mutableCache != null) {
-            mutableCache.release();
+        txLifeCycleLock.lock();
+        try {
+            if (mutableCache != null) {
+                mutableCache.release();
+            }
+            resetCaches(true);
+        } finally {
+            txLifeCycleLock.unlock();
         }
-        resetCaches(true);
     }
 
     private void resetCaches(final boolean clearPropsAndLinksCache) {
