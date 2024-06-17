@@ -118,8 +118,7 @@ subprojects {
         }
     }
 
-
-    if (name !in listOf("benchmarks", "compress", "crypto", "openAPI", "samples", "utils")) {
+    if (name !in listOf("xodus-benchmarks", "xodus-compress", "xodus-crypto", "xodus-openAPI", "xodus-samples", "xodus-utils", "xodus-query")) {
         tasks.test {
             systemProperty("exodus.cipherId", "jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider")
             systemProperty("exodus.cipherKey", "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f")

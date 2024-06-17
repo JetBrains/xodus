@@ -59,7 +59,12 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
         const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
-        fun edgeClassName(className: String): String = "$className$EDGE_CLASS_SUFFIX"
+        fun edgeClassName(className: String): String {
+            // YouTrack has fancy link names like '__CUSTOM_FIELD__Country/Region_227'. OrientDB does not like symbols
+            // like '/' in class names. So we have to get rid of them.
+            val sanitizedClassName = className.replace('/', '_')
+            return "$sanitizedClassName$EDGE_CLASS_SUFFIX"
+        }
     }
 
     private val activeSession get() = ODatabaseSession.getActiveSession()
@@ -109,7 +114,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         val oldProperty = vertex.getProperty<Any>(propertyName)
 
         if (value is OComparableSet<*> || oldProperty is MutableSet<*>) {
-            return setPropertyAsSet(propertyName, value as OComparableSet<*>, oldProperty)
+            return setPropertyAsSet(propertyName, value as OComparableSet<*>)
         } else {
             vertex.setProperty(propertyName, value)
             vertex.save<OVertex>()
@@ -117,7 +122,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         }
     }
 
-    private fun setPropertyAsSet(propertyName: String, value: Any?, oldValue: Any?): Boolean {
+    private fun setPropertyAsSet(propertyName: String, value: Any?): Boolean {
         if (value is OComparableSet<*>) {
             vertex.setProperty(propertyName, value.source)
         } else {
@@ -264,7 +269,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         val edgeClassName = edgeClassName(linkName)
         val currentEdge = findEdge(edgeClassName, target.id)
         if (currentEdge == null) {
-            vertex.addEdge(target.asVertex, edgeClassName)
+            vertex.addLightWeightEdge(target.asVertex, edgeClassName)
             vertex.save<OVertex>()
             return true
         } else {
@@ -305,7 +310,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
             currentLink.vertex.save<OVertex>()
         }
         if (target != null) {
-            vertex.addEdge(target.vertex, edgeClassName)
+            vertex.addLightWeightEdge(target.vertex, edgeClassName)
             vertex.save<OVertex>()
         }
         return true

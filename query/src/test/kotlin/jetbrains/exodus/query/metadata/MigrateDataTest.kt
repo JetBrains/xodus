@@ -67,6 +67,20 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `copy an empty entity`() {
+        val entityId = xodus.withTx { tx ->
+            tx.newEntity("type1").id
+        }
+
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        orientDb.schemaBuddy.initialize()
+
+        orientDb.withSession {
+            orientDb.store.getEntity(entityId)
+        }
+    }
+
+    @Test
     fun `copy blobs`() {
         val entities = pileOfEntities(
             eBlobs("type1", 1, "blob1" to "one"),
@@ -113,6 +127,26 @@ class MigrateDataTest {
             eLinks("type2", 5,
                 Link("link1", "type1", 2), // cycle too
             ),
+        )
+
+        xodus.withTx { tx ->
+            tx.createEntities(entities)
+        }
+
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+
+        orientDb.withSession { oSession ->
+            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
+        }
+    }
+
+    @Test
+    fun `copy links with questionable names`() {
+        val entities = pileOfEntities(
+            eLinks("type1", 1,
+                Link("link2/cava/banga", "type2", 2)
+            ),
+            eLinks("type2", 2)
         )
 
         xodus.withTx { tx ->

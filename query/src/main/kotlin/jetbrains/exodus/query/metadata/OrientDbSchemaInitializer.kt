@@ -35,14 +35,16 @@ fun ODatabaseSession.applySchema(
     metaData: ModelMetaData,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
-): Map<String, Set<DeferredIndex>> = applySchema(metaData.entitiesMetaData, indexForEverySimpleProperty, applyLinkCardinality)
+): Map<String, Set<DeferredIndex>> =
+    applySchema(metaData.entitiesMetaData, indexForEverySimpleProperty, applyLinkCardinality)
 
 fun ODatabaseSession.applySchema(
     entitiesMetaData: Iterable<EntityMetaData>,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
 ): Map<String, Set<DeferredIndex>> {
-    val initializer = OrientDbSchemaInitializer(entitiesMetaData, this, indexForEverySimpleProperty, applyLinkCardinality)
+    val initializer =
+        OrientDbSchemaInitializer(entitiesMetaData, this, indexForEverySimpleProperty, applyLinkCardinality)
     initializer.apply()
     return initializer.getIndices()
 }
@@ -59,7 +61,12 @@ fun ODatabaseSession.addAssociation(
     association: OAssociationMetadata,
     applyLinkCardinality: Boolean = true
 ) {
-    val initializer = OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = applyLinkCardinality)
+    val initializer = OrientDbSchemaInitializer(
+        listOf(),
+        this,
+        indexForEverySimpleProperty = false,
+        applyLinkCardinality = applyLinkCardinality
+    )
     initializer.addAssociation(association)
 }
 
@@ -68,19 +75,22 @@ fun ODatabaseSession.removeAssociation(
     targetClassName: String,
     associationName: String
 ) {
-    removeAssociation(OAssociationMetadata(
-        name = associationName,
-        outClassName = sourceClassName,
-        inClassName = targetClassName,
-        // it is ignored
-        cardinality = AssociationEndCardinality._1)
+    removeAssociation(
+        OAssociationMetadata(
+            name = associationName,
+            outClassName = sourceClassName,
+            inClassName = targetClassName,
+            // it is ignored
+            cardinality = AssociationEndCardinality._1
+        )
     )
 }
 
 fun ODatabaseSession.removeAssociation(
     association: OAssociationMetadata
 ) {
-    val initializer = OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = false)
+    val initializer =
+        OrientDbSchemaInitializer(listOf(), this, indexForEverySimpleProperty = false, applyLinkCardinality = false)
     initializer.removeAssociation(association)
 }
 
@@ -231,7 +241,7 @@ internal class OrientDbSchemaInitializer(
         * It is more efficient to create indices after the data migration.
         * So, we only remember indices here and let the user create them later.
         * */
-        for (index in dnqEntity.ownIndexes.map { DeferredIndex(it, unique = true)}) {
+        for (index in dnqEntity.ownIndexes.map { DeferredIndex(it, unique = true) }) {
             index.requireAllFieldsAreSimpleProperty()
             addIndex(index)
         }
@@ -261,7 +271,7 @@ internal class OrientDbSchemaInitializer(
         val className = OVertexEntity.edgeClassName(name)
         var oClass: OClass? = getClass(className)
         if (oClass == null) {
-            oClass = oSession.createEdgeClass(className)!!
+            oClass = oSession.createLightweightEdgeClass(className)!!
             append(", edge class created")
         } else {
             append(", edge class already created")
@@ -290,8 +300,10 @@ internal class OrientDbSchemaInitializer(
     private fun applyAssociation(association: OAssociationMetadata) {
         append(association.name)
 
-        val class1 = oSession.getClass(association.outClassName) ?: throw IllegalStateException("${association.outClassName} class is not found")
-        val class2 = oSession.getClass(association.inClassName) ?: throw IllegalStateException("${association.inClassName} class is not found")
+        val class1 = oSession.getClass(association.outClassName)
+            ?: throw IllegalStateException("${association.outClassName} class is not found")
+        val class2 = oSession.getClass(association.inClassName)
+            ?: throw IllegalStateException("${association.inClassName} class is not found")
 
         val edgeClass = oSession.createEdgeClassIfAbsent(association.name)
         appendLine()
@@ -313,24 +325,18 @@ internal class OrientDbSchemaInitializer(
         outCardinality: AssociationEndCardinality,
         inClass: OClass,
     ) {
-        val directLinkOutPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
-        val edgeLinkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
-        append("directOutProp: ${outClass.name}.$directLinkOutPropName")
-        append("edgeOutProp: ${outClass.name}$edgeLinkOutPropName")
-        outClass.createLinkPropertyIfAbsent(edgeLinkOutPropName, edgeClass)
-        val directOutProp = outClass.createLinkPropertyIfAbsent(directLinkOutPropName, inClass)
+        val linkPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
+        append("outProp: ${outClass.name}.$linkPropName")
+        val outProp = outClass.createLinkPropertyIfAbsent(linkPropName, null)
         if (applyLinkCardinality) {
             // applying cardinality only to out direct property
-            directOutProp.applyCardinality(outCardinality)
+            outProp.applyCardinality(outCardinality)
         }
         appendLine()
 
-        val directLinkInPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClass.name)
-        val edgeLinkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
-        append("directOutProp: ${inClass.name}.$directLinkInPropName")
-        append("edgeOutProp: ${inClass.name}.$edgeLinkInPropName")
-        inClass.createLinkPropertyIfAbsent(edgeLinkInPropName, edgeClass)
-        inClass.createLinkPropertyIfAbsent(directLinkInPropName, null)
+        val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
+        append("inProp: ${inClass.name}.$linkInPropName")
+        inClass.createLinkPropertyIfAbsent(linkInPropName, null)
 
         /*
         * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
@@ -347,16 +353,19 @@ internal class OrientDbSchemaInitializer(
                 setMinIfDifferent("0")
                 setMaxIfDifferent("1")
             }
+
             AssociationEndCardinality._1 -> {
                 setRequirement(true)
                 setMinIfDifferent("1")
                 setMaxIfDifferent("1")
             }
+
             AssociationEndCardinality._0_n -> {
                 setRequirement(false)
                 setMinIfDifferent("0")
                 setMaxIfDifferent(null)
             }
+
             AssociationEndCardinality._1_n -> {
                 setRequirement(true)
                 setMinIfDifferent("1")
@@ -394,7 +403,7 @@ internal class OrientDbSchemaInitializer(
         append(className)
         val sourceClass = oSession.getClass(className)
         if (sourceClass != null) {
-            val propOutName = OVertex.getDirectEdgeLinkFieldName(direction, associationName)
+            val propOutName = OVertex.getEdgeLinkFieldName(direction, associationName)
             append(".$propOutName")
             if (sourceClass.existsProperty(propOutName)) {
                 sourceClass.dropProperty(propOutName)
@@ -444,7 +453,8 @@ internal class OrientDbSchemaInitializer(
         when (simpleProp.type) {
             PropertyType.PRIMITIVE -> {
                 require(simpleProp is SimplePropertyMetaDataImpl) { "$propertyName is a primitive property but it is not an instance of SimplePropertyMetaDataImpl. Happy fixing!" }
-                val primitiveTypeName = simpleProp.primitiveTypeName ?: throw IllegalArgumentException("primitiveTypeName is null")
+                val primitiveTypeName =
+                    simpleProp.primitiveTypeName ?: throw IllegalArgumentException("primitiveTypeName is null")
 
                 if (primitiveTypeName.lowercase() == "set") {
                     append(", is not supported yet")
@@ -456,7 +466,8 @@ internal class OrientDbSchemaInitializer(
                     *   1. DNQMetaDataUtil.kt, addEntityMetaData(), 119 line, fill that argumentType param
                     * 3. Support here
                     * */
-                    val typeParameter = simpleProp.typeParameterNames?.firstOrNull() ?: throw IllegalStateException("$propertyName is Set but does not contain information about the type parameter")
+                    val typeParameter = simpleProp.typeParameterNames?.firstOrNull()
+                        ?: throw IllegalStateException("$propertyName is Set but does not contain information about the type parameter")
                     val oProperty = createEmbeddedSetPropertyIfAbsent(propertyName, getOType(typeParameter))
 
                     /*
@@ -517,10 +528,12 @@ internal class OrientDbSchemaInitializer(
                 * Feel free to do anything you want in this regard.
                 * */
             }
+
             PropertyType.TEXT -> {
                 val oProperty = createStringBlobPropertyIfAbsent(propertyName)
                 oProperty.setRequirement(required)
             }
+
             PropertyType.BLOB -> {
                 val oProperty = createBinaryBlobPropertyIfAbsent(propertyName)
                 oProperty.setRequirement(required)
@@ -529,9 +542,11 @@ internal class OrientDbSchemaInitializer(
         appendLine()
     }
 
-    private fun OClass.createBinaryBlobPropertyIfAbsent(propertyName: String): OProperty = createBlobPropertyIfAbsent(propertyName, OVertexEntity.BINARY_BLOB_CLASS_NAME)
+    private fun OClass.createBinaryBlobPropertyIfAbsent(propertyName: String): OProperty =
+        createBlobPropertyIfAbsent(propertyName, OVertexEntity.BINARY_BLOB_CLASS_NAME)
 
-    private fun OClass.createStringBlobPropertyIfAbsent(propertyName: String): OProperty = createBlobPropertyIfAbsent(propertyName, OVertexEntity.STRING_BLOB_CLASS_NAME)
+    private fun OClass.createStringBlobPropertyIfAbsent(propertyName: String): OProperty =
+        createBlobPropertyIfAbsent(propertyName, OVertexEntity.STRING_BLOB_CLASS_NAME)
 
     private fun OClass.createBlobPropertyIfAbsent(propertyName: String, blobClassName: String): OProperty {
         val blobClass = oSession.createBlobClassIfAbsent(blobClassName)
@@ -604,7 +619,7 @@ internal class OrientDbSchemaInitializer(
                 append(", set case-insensitive collate")
             }
         }
-        require(oProperty.type == oType) { "$propertyName type is ${oProperty.type} but $oType was expected instead. Types migration is not supported."  }
+        require(oProperty.type == oType) { "$propertyName type is ${oProperty.type} but $oType was expected instead. Types migration is not supported." }
         return oProperty
     }
 
@@ -630,7 +645,7 @@ internal class OrientDbSchemaInitializer(
             append(", created")
             createProperty(propertyName, OType.LINKBAG, linkedClass)
         }
-        require(oProperty.type == OType.LINKBAG) { "$propertyName type is ${oProperty.type} but ${OType.LINKBAG} was expected instead. Types migration is not supported."  }
+        require(oProperty.type == OType.LINKBAG) { "$propertyName type is ${oProperty.type} but ${OType.LINKBAG} was expected instead. Types migration is not supported." }
         require(oProperty.linkedClass == linkedClass) { "$propertyName type of the set is ${oProperty.linkedClass.name} but ${linkedClass?.name} was expected instead. Types migration is not supported." }
         return oProperty
     }
@@ -652,7 +667,7 @@ internal class OrientDbSchemaInitializer(
                 append(", set case-insensitive collate")
             }
         }
-        require(oProperty.type == OType.EMBEDDEDSET) { "$propertyName type is ${oProperty.type} but ${OType.EMBEDDEDSET} was expected instead. Types migration is not supported."  }
+        require(oProperty.type == OType.EMBEDDEDSET) { "$propertyName type is ${oProperty.type} but ${OType.EMBEDDEDSET} was expected instead. Types migration is not supported." }
         require(oProperty.linkedType == oType) { "$propertyName type of the set is ${oProperty.linkedType} but $oType was expected instead. Types migration is not supported." }
         return oProperty
     }
@@ -666,6 +681,7 @@ internal class OrientDbSchemaInitializer(
             "short" -> OType.SHORT
             "int",
             "integer" -> OType.INTEGER
+
             "long" -> OType.LONG
 
             "float" -> OType.FLOAT

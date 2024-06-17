@@ -42,10 +42,10 @@ internal fun ODatabaseSession.assertAssociationNotExist(
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    val outPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeName)
+    val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeName)
     assertNull(outClass.getProperty(outPropName))
 
-    val inPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeName)
+    val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeName)
     assertNull(inClass.getProperty(inPropName))
 }
 
@@ -56,30 +56,17 @@ internal fun ODatabaseSession.assertAssociationExists(
     cardinality: AssociationEndCardinality?
 ) {
     val edgeClass = edgeName.asEdgeClass
-    val edge = requireEdgeClass(edgeClass)
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    val directOutPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, edgeClass)
-    val directOutProp = outClass.getProperty(directOutPropName)!!
+    val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass)
+    val directOutProp = outClass.getProperty(outPropName)!!
     assertEquals(OType.LINKBAG, directOutProp.type)
-    assertEquals(inClass, directOutProp.linkedClass)
     directOutProp.assertCardinality(cardinality)
 
-    val edgeOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass)
-    val edgeOutProp = outClass.getProperty(edgeOutPropName)!!
-    assertEquals(OType.LINKBAG, edgeOutProp.type)
-    assertEquals(edge, edgeOutProp.linkedClass)
-
-    val directInPropName = OVertex.getDirectEdgeLinkFieldName(ODirection.IN, edgeClass)
-    val directInProp = inClass.getProperty(directInPropName)!!
+    val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass)
+    val directInProp = inClass.getProperty(inPropName)!!
     assertEquals(OType.LINKBAG, directInProp.type)
-    assertEquals(null, directInProp.linkedClass)
-
-    val edgeInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass)
-    val edgeInProp = inClass.getProperty(edgeInPropName)!!
-    assertEquals(OType.LINKBAG, edgeInProp.type)
-    assertEquals(edge, edgeInProp.linkedClass)
 }
 
 private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality?) {
@@ -89,21 +76,25 @@ private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality?)
             assertTrue(this.min == "0")
             assertTrue(this.max == "1")
         }
+
         AssociationEndCardinality._1 -> {
             assertTrue(this.isMandatory)
             assertTrue(this.min == "1")
             assertTrue(this.max == "1")
         }
+
         AssociationEndCardinality._0_n -> {
             assertTrue(!this.isMandatory)
             assertTrue(this.min == "0")
             assertTrue(this.max == null)
         }
+
         AssociationEndCardinality._1_n -> {
             assertTrue(this.isMandatory)
             assertTrue(this.min == "1")
             assertTrue(this.max == null)
         }
+
         null -> {
             assertTrue(!this.isMandatory)
             assertTrue(this.min == null)
@@ -138,7 +129,11 @@ internal fun ODatabaseSession.checkIndex(className: String, unique: Boolean, var
     }
 }
 
-internal fun Map<String, Set<DeferredIndex>>.checkIndex(entityName: String, unique: Boolean, vararg fieldNames: String) {
+internal fun Map<String, Set<DeferredIndex>>.checkIndex(
+    entityName: String,
+    unique: Boolean,
+    vararg fieldNames: String
+) {
     val indexName = indexName(entityName, unique, *fieldNames)
     val indices = getValue(entityName)
     val index = indices.first { it.indexName == indexName }
@@ -153,7 +148,8 @@ internal fun Map<String, Set<DeferredIndex>>.checkIndex(entityName: String, uniq
     }
 }
 
-internal fun indexName(entityName: String, unique: Boolean, vararg fieldNames: String): String = "${entityName}_${fieldNames.joinToString("_")}${if (unique) "_unique" else ""}"
+internal fun indexName(entityName: String, unique: Boolean, vararg fieldNames: String): String =
+    "${entityName}_${fieldNames.joinToString("_")}${if (unique) "_unique" else ""}"
 
 
 // Model
@@ -174,7 +170,11 @@ internal fun oModel(
     return model
 }
 
-internal fun ModelMetaDataImpl.entity(type: String, superType: String? = null, init: EntityMetaDataImpl.() -> Unit = {}) {
+internal fun ModelMetaDataImpl.entity(
+    type: String,
+    superType: String? = null,
+    init: EntityMetaDataImpl.() -> Unit = {}
+) {
     val entity = EntityMetaDataImpl()
     entity.type = type
     entity.superType = superType
@@ -213,14 +213,19 @@ internal fun EntityMetaDataImpl.setProperty(name: String, dataType: String) {
     this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, "Set", listOf(dataType)))
 }
 
-internal fun ModelMetaData.association(sourceEntity: String, associationName: String, targetEntity: String, cardinality: AssociationEndCardinality) {
+internal fun ModelMetaData.association(
+    sourceEntity: String,
+    associationName: String,
+    targetEntity: String,
+    cardinality: AssociationEndCardinality
+) {
     addAssociation(
         sourceEntity,
         targetEntity,
         AssociationType.Directed, // ingored
         associationName,
         cardinality,
-        false, false, false ,false, // ignored
+        false, false, false, false, // ignored
         null, null, false, false, false, false
     )
 }
@@ -239,7 +244,7 @@ internal fun ModelMetaData.twoDirectionalAssociation(
         AssociationType.Undirected, // two-directional
         sourceName,
         sourceCardinality,
-        false, false, false ,false, // ignored
+        false, false, false, false, // ignored
         targetName,
         targetCardinality,
         false, false, false, false // ignored
