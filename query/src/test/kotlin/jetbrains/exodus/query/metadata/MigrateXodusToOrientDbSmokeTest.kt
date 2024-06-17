@@ -105,11 +105,11 @@ class MigrateXodusToOrientDbSmokeTest {
             val type2 = session.getClass("type2")!!
 
             assertTrue(type1.existsProperty("prop4"))
-            assertTrue(type1.existsProperty(OVertex.getDirectEdgeLinkFieldName(ODirection.IN, "link1".asEdgeClass)))
-            assertTrue(type1.existsProperty(OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, "link1".asEdgeClass)))
+            assertTrue(type1.existsProperty(OVertex.getEdgeLinkFieldName(ODirection.IN, "link1".asEdgeClass)))
+            assertTrue(type1.existsProperty(OVertex.getEdgeLinkFieldName(ODirection.OUT, "link1".asEdgeClass)))
 
             assertTrue(type2.existsProperty("pop4"))
-            assertTrue(type2.existsProperty(OVertex.getDirectEdgeLinkFieldName(ODirection.OUT, "link1".asEdgeClass)))
+            assertTrue(type2.existsProperty(OVertex.getEdgeLinkFieldName(ODirection.OUT, "link1".asEdgeClass)))
         }
     }
 
