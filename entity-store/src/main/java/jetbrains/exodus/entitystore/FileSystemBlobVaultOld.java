@@ -455,18 +455,27 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
             private File[] files = EMPTY;
             private int i = 0;
 
+            private boolean nextIsReady = false;
+
             @Override
             public boolean hasNext() {
+                if (nextIsReady) {
+                    return true;
+                }
+
                 while (true) {
                     if (i < files.length) {
                         final File file = files[i++];
                         if (file.isDirectory()) {
                             stack.push(file);
                             files = EMPTY;
+
                             i = 0;
                         } else {
                             final String name = file.getName();
+
                             if (name.endsWith(blobExtension)) {
+                                nextIsReady = true;
                                 return true;
                             }
                         }
@@ -474,6 +483,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                         if (stack.isEmpty()) {
                             return false;
                         }
+
                         final File dir = stack.pop();
                         files = dir.listFiles();
                         if (files == null) {
@@ -489,6 +499,9 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
                 if (!hasNext()) {
                     throw new NoSuchElementException();
                 }
+
+                nextIsReady = false;
+
                 final File file = files[i - 1];
                 return getBlobHandleByFile(file);
             }
