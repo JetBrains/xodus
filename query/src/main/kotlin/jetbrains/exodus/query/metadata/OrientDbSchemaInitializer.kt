@@ -242,7 +242,6 @@ internal class OrientDbSchemaInitializer(
         * So, we only remember indices here and let the user create them later.
         * */
         for (index in dnqEntity.ownIndexes.map { DeferredIndex(it, unique = true) }) {
-            index.requireAllFieldsAreSimpleProperty()
             addIndex(index)
         }
 

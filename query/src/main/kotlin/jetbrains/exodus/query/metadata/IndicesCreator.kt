@@ -35,9 +35,6 @@ internal class IndicesCreator(
             with (logger) {
                 appendLine("applying indices to OrientDB")
 
-                appendLine("validating indices...")
-                indicesByOwnerVertexName.forEach { (_, indices) -> indices.forEach { it.requireAllFieldsAreSimpleProperty() } }
-
                 appendLine("creating indices if absent:")
                 for ((ownerVertexName, indices) in indicesByOwnerVertexName) {
                     val oClass = oSession.getClass(ownerVertexName) ?: throw IllegalStateException("$ownerVertexName not found")
@@ -79,11 +76,7 @@ data class DeferredIndex(
     )
 
     constructor(index: Index, unique: Boolean): this(index.ownerEntityType, index.fields, unique)
-
-    val allFieldsAreSimpleProperty: Boolean = properties.all { it.isProperty }
 }
-
-fun DeferredIndex.requireAllFieldsAreSimpleProperty() = require(allFieldsAreSimpleProperty) { "Found an index with a link: $indexName. Indices with links are not supported." }
 
 fun OClass.makeDeferredIndexForEmbeddedSet(propertyName: String): DeferredIndex {
     val indexField = IndexFieldImpl()

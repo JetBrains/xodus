@@ -141,7 +141,6 @@ internal fun Map<String, Set<DeferredIndex>>.checkIndex(
     assertEquals(unique, index.unique)
     assertEquals(entityName, index.ownerVertexName)
     assertEquals(fieldNames.size, index.properties.size)
-    assertTrue(index.allFieldsAreSimpleProperty)
 
     for (fieldName in fieldNames) {
         assertTrue(index.properties.any { it.name == fieldName })
