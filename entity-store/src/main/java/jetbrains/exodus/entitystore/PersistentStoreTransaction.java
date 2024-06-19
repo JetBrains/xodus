@@ -82,7 +82,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private boolean checkInvalidateBlobsFlag;
 
-    protected final ReentrantLock txLifeCycleLock = new ReentrantLock();
 
     PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, TransactionType.Regular);
@@ -98,11 +97,15 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source,
                                @NotNull final TransactionType txnType) {
         this.store = source.store;
+
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCache = source.localCache;
+
+        assert localCache == store.getEntityIterableCache().getCacheAdapter();
+
         localCacheAttempts = localCacheHits = 0;
         switch (txnType) {
             case Regular:
@@ -167,19 +170,14 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public boolean commit() {
-        txLifeCycleLock.lock();
-        try {
-            // txn can be read-only if Environment is in read-only mode
-            if (!isReadonly()) {
-                apply();
-                return doCommit();
-            } else if (txn.isExclusive()) {
-                applyExclusiveTransactionCaches();
-            }
-            return true;
-        } finally {
-            txLifeCycleLock.unlock();
+        // txn can be read-only if Environment is in read-only mode
+        if (!isReadonly()) {
+            apply();
+            return doCommit();
+        } else if (txn.isExclusive()) {
+            applyExclusiveTransactionCaches();
         }
+        return true;
     }
 
     public boolean isCurrent() {
@@ -199,35 +197,25 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public void abort() {
-        txLifeCycleLock.lock();
         try {
-            try {
-                closeOpenedBlobStreams();
-                store.unregisterTransaction(this);
-                revertCaches();
-            } finally {
-                txn.abort();
-            }
+            closeOpenedBlobStreams();
+            store.unregisterTransaction(this);
+            revertCaches();
         } finally {
-            txLifeCycleLock.unlock();
+            txn.abort();
         }
     }
 
     @Override
     public boolean flush() {
-        txLifeCycleLock.lock();
-        try {
-            // txn can be read-only if Environment is in read-only mode
-            if (!isReadonly()) {
-                apply();
-                return doFlush();
-            } else if (txn.isExclusive()) {
-                applyExclusiveTransactionCaches();
-            }
-            return true;
-        } finally {
-            txLifeCycleLock.unlock();
+        // txn can be read-only if Environment is in read-only mode
+        if (!isReadonly()) {
+            apply();
+            return doFlush();
+        } else if (txn.isExclusive()) {
+            applyExclusiveTransactionCaches();
         }
+        return true;
     }
 
     // exposed only for tests
@@ -243,14 +231,9 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     @Override
     public void revert() {
-        txLifeCycleLock.lock();
-        try {
-            closeOpenedBlobStreams();
-            txn.revert();
-            revertCaches();
-        } finally {
-            txLifeCycleLock.unlock();
-        }
+        closeOpenedBlobStreams();
+        txn.revert();
+        revertCaches();
     }
 
     public PersistentStoreTransaction getSnapshot() {
@@ -976,15 +959,10 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     public void revertCaches() {
-        txLifeCycleLock.lock();
-        try {
-            if (mutableCache != null) {
-                mutableCache.release();
-            }
-            resetCaches(true);
-        } finally {
-            txLifeCycleLock.unlock();
+        if (mutableCache != null) {
+            mutableCache.release();
         }
+        resetCaches(true);
     }
 
     private void resetCaches(final boolean clearPropsAndLinksCache) {
