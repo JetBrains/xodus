@@ -56,16 +56,18 @@ class OPersistentEntityStore(
     override fun beginTransaction(): StoreTransaction {
         var currentTx = currentTransaction.get()
 
-        if (currentTx != null && currentTx.oTransaction.isActive) {
-            currentTx.oTransaction.begin()
+        if (currentTx != null) {
+            if (!currentTx.activeSession.hasActiveTransaction()) {
+                currentTx.activeSession.begin()
+            }
             return currentTx
         }
 
         val session = databaseProvider.acquireSession()
-        val txn = session.begin().transaction
+        session.begin()
         session.activateOnCurrentThread()
 
-        currentTx = OStoreTransactionImpl(session, txn, this, schemaBuddy, databaseProvider::acquireSession)
+        currentTx = OStoreTransactionImpl(session, this, schemaBuddy, databaseProvider::acquireSession)
         currentTransaction.set(currentTx)
 
         return currentTx
@@ -151,7 +153,7 @@ class OPersistentEntityStore(
         if (oId == ORIDEntityId.EMPTY_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
-        val txn = currentOTransaction.oTransaction
+        val txn = currentOTransaction.activeSession.requireActiveTransaction()
         val vertex = txn.database.load<OVertex>(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         return OVertexEntity(vertex, this)
     }

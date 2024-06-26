@@ -26,14 +26,13 @@ import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
  * For example, you copy 1B entities, you do not want to copy them in the scope of a single transaction,
  * because when the transaction fails at the last entity, you have to start copying from the beginning.
  *
- * If you use a counting transaction and set it commit every 100 entities. You just copy entity by entity,
+ * If you use a counting transaction and set it, commit every 100 entities. You just copy entity by entity,
  * increment() the transaction, and it will make sure to commit when necessary.
  *
- * @property oSession The underlying ODatabaseSession that this CountingOTransaction operates on.
  * @property commitEvery The number of changes increments before a commit is triggered.
  */
 class CountingOTransaction(
-    private val store:OPersistentEntityStore,
+    private val store: OPersistentEntityStore,
     private val commitEvery: Int
 ) {
     private var counter = 0
@@ -56,7 +55,7 @@ class CountingOTransaction(
     }
 
     fun rollback() {
-        (txn as OStoreTransaction).oTransaction.rollback()
+        txn.abort()
     }
 
     val session get() = (txn as OStoreTransaction).activeSession
@@ -64,7 +63,6 @@ class CountingOTransaction(
 }
 
 fun <R> OPersistentEntityStore.withCountingTx(commitEvery: Int, block: (CountingOTransaction) -> R): R {
-
     val tx = CountingOTransaction(this, commitEvery)
     tx.begin()
     try {
