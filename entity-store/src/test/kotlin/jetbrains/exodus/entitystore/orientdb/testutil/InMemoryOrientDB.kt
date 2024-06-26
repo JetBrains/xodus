@@ -16,12 +16,9 @@
 package jetbrains.exodus.entitystore.orientdb.testutil
 
 import com.orientechnologies.orient.core.db.*
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
-import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import org.junit.rules.ExternalResource
 
 class InMemoryOrientDB(
@@ -46,7 +43,7 @@ class InMemoryOrientDB(
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
 
         if (initializeIssueSchema) {
-            provider.acquireSession().let { session->
+            provider.withSession { session ->
                 session.getOrCreateVertexClass(Issues.CLASS)
                 session.getOrCreateVertexClass(Boards.CLASS)
                 session.getOrCreateVertexClass(Projects.CLASS)
