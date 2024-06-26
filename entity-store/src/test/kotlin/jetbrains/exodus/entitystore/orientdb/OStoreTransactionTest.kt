@@ -16,6 +16,8 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.google.common.truth.Truth.assertThat
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.exception.ODatabaseException
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
@@ -689,6 +691,16 @@ class OStoreTransactionTest : OTestMixin {
             Assert.assertEquals(1, issuesOnBoard.toList().size)
             Assert.assertFalse(issuesOnBoard.contains(test.issue2))
             Assert.assertTrue(issuesOnBoard.contains(test.issue1))
+        }
+    }
+
+    @Test
+    fun `active session still has an active transaction after flush`() {
+        assertFailsWith<ODatabaseException> { ODatabaseSession.getActiveSession() }
+        oTransactional { tx ->
+            ODatabaseSession.getActiveSession().requireActiveTransaction()
+            tx.flush()
+            ODatabaseSession.getActiveSession().requireActiveTransaction()
         }
     }
 }
