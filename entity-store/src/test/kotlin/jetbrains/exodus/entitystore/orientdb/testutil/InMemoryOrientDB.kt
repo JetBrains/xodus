@@ -68,8 +68,17 @@ class InMemoryOrientDB(
     val database get() = db
 
     fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
-        return store.computeInTransaction {
-            block(ODatabaseSession.getActiveSession() as ODatabaseSession)
+        val tx = store.beginTransaction()
+        try {
+            val result = block(ODatabaseSession.getActiveSession() as ODatabaseSession)
+            if (!tx.isFinished) {
+                tx.commit()
+            }
+            return result
+        } finally {
+            if (!tx.isFinished) {
+                tx.abort()
+            }
         }
     }
 

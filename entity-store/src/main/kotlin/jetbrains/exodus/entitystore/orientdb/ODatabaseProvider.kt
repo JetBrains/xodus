@@ -52,8 +52,7 @@ fun <R> ODatabaseProvider.withCurrentOrNewSession(
 }
 
 fun ODatabaseDocument.hasActiveTransaction(): Boolean {
-    val tx = transaction
-    return tx != null && tx.isActive
+    return isActiveOnCurrentThread && transaction.let { tx -> tx != null && tx.isActive }
 }
 
 fun ODatabaseDocument.requireActiveTransaction(): OTransaction {
