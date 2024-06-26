@@ -54,12 +54,24 @@ class OPersistentEntityStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
-        var currentTx = currentTransaction.get()
+        var currentTx: OStoreTransactionImpl? = currentTransaction.get()
 
+        /**
+         * Meet nested transactions!
+         *
+         * The fact that we return the same tx object for all the nested transactions is,
+         * to say the least, questionable.
+         *
+         * Consider the following snippet
+         * tx1 = store.beginTransaction()
+         * tx2 = store.beginTransaction()
+         * tx2.commit() - commits the second transaction as expected
+         * tx2.commit() - commits the first transaction as nobody would expect
+         *
+         * So this approach definitely requires fixing.
+         */
         if (currentTx != null) {
-            if (!currentTx.activeSession.hasActiveTransaction()) {
-                currentTx.activeSession.begin()
-            }
+            currentTx.activeSession.begin()
             return currentTx
         }
 
