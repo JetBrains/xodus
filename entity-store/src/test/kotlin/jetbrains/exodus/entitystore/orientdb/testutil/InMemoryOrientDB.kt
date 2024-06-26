@@ -15,7 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
-import com.orientechnologies.orient.core.db.*
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.ODatabaseType
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
@@ -69,9 +72,7 @@ class InMemoryOrientDB(
         try {
             session.begin()
             val result = block(session)
-            if (session.transaction.isActive) {
-                session.commit()
-            }
+            session.commit()
             return result
         } finally {
             session.close()
@@ -79,12 +80,10 @@ class InMemoryOrientDB(
     }
 
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
-        val txn = store.beginTransaction()
-        val session = ODatabaseRecordThreadLocal.instance().get()
+        val session = openSession()
         try {
             return block(session)
         } finally {
-            txn.commit()
             session.close()
         }
     }
