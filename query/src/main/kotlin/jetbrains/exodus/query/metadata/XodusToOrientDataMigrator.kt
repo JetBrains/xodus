@@ -285,9 +285,9 @@ internal class XodusToOrientDataMigrator(
                         val oEntityId = xEntityIdToOEntityId.getValue(xEntity.id)
                         val oEntity = orient.getEntity(oEntityId)
 
-                        val copiedLinks = HashSet<EntityId>()
                         copyLinksDuration += measureTime {
                             for (linkName in xEntity.linkNames) {
+                                val copiedLinks = HashSet<EntityId>()
                                 for (xTargetEntity in xEntity.getLinks(linkName)) {
                                     linksProcessed++
                                     if (copiedLinks.contains(xTargetEntity.id)) continue
@@ -306,11 +306,14 @@ internal class XodusToOrientDataMigrator(
                                         lastProgressPrintedAt = System.currentTimeMillis()
                                     }
                                 }
-                            }
-                        }
-                        if (copiedLinks.isNotEmpty()) {
-                            commitLinksDuration += measureTime {
-                                countingTx.increment()
+                                if (copiedLinks.isNotEmpty()) {
+                                    val commitDuration = measureTime {
+                                        countingTx.increment()
+                                    }
+                                    commitLinksDuration += commitDuration
+                                    // we want to exclude the commit duration from the copy duration
+                                    copyLinksDuration -= commitDuration
+                                }
                             }
                         }
                     }

@@ -15,13 +15,13 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
-import com.orientechnologies.orient.core.db.*
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.ODatabaseType
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
-import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import org.junit.rules.ExternalResource
 
 class InMemoryOrientDB(
@@ -46,7 +46,7 @@ class InMemoryOrientDB(
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
 
         if (initializeIssueSchema) {
-            provider.acquireSession().let { session->
+            provider.withSession { session ->
                 session.getOrCreateVertexClass(Issues.CLASS)
                 session.getOrCreateVertexClass(Boards.CLASS)
                 session.getOrCreateVertexClass(Projects.CLASS)
@@ -68,26 +68,25 @@ class InMemoryOrientDB(
     val database get() = db
 
     fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
-        val session = openSession()
+        val tx = store.beginTransaction()
         try {
-            session.begin()
-            val result = block(session)
-            if (session.transaction.isActive) {
-                session.commit()
+            val result = block(ODatabaseSession.getActiveSession() as ODatabaseSession)
+            if (!tx.isFinished) {
+                tx.commit()
             }
             return result
         } finally {
-            session.close()
+            if (!tx.isFinished) {
+                tx.abort()
+            }
         }
     }
 
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
-        val txn = store.beginTransaction()
-        val session = ODatabaseRecordThreadLocal.instance().get()
+        val session = openSession()
         try {
             return block(session)
         } finally {
-            txn.commit()
             session.close()
         }
     }

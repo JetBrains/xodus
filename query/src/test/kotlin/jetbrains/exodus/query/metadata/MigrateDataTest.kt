@@ -75,7 +75,7 @@ class MigrateDataTest {
         migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
         orientDb.schemaBuddy.initialize()
 
-        orientDb.withSession {
+        orientDb.withTxSession {
             orientDb.store.getEntity(entityId)
         }
     }

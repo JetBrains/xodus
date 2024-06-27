@@ -54,18 +54,32 @@ class OPersistentEntityStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
-        var currentTx = currentTransaction.get()
+        var currentTx: OStoreTransactionImpl? = currentTransaction.get()
 
-        if (currentTx != null && currentTx.oTransaction.isActive) {
-            currentTx.oTransaction.begin()
+        /**
+         * Meet nested transactions!
+         *
+         * The fact that we return the same tx object for all the nested transactions is,
+         * to say the least, questionable.
+         *
+         * Consider the following snippet
+         * tx1 = store.beginTransaction()
+         * tx2 = store.beginTransaction()
+         * tx2.commit() - commits the second transaction as expected
+         * tx2.commit() - commits the first transaction as nobody would expect
+         *
+         * So this approach definitely requires fixing.
+         */
+        if (currentTx != null) {
+            currentTx.activeSession.begin()
             return currentTx
         }
 
         val session = databaseProvider.acquireSession()
-        val txn = session.begin().transaction
+        session.begin()
         session.activateOnCurrentThread()
 
-        currentTx = OStoreTransactionImpl(session, txn, this, schemaBuddy, databaseProvider::acquireSession)
+        currentTx = OStoreTransactionImpl(session, this, schemaBuddy, databaseProvider::acquireSession)
         currentTransaction.set(currentTx)
 
         return currentTx
@@ -151,7 +165,7 @@ class OPersistentEntityStore(
         if (oId == ORIDEntityId.EMPTY_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
-        val txn = currentOTransaction.oTransaction
+        val txn = currentOTransaction.activeSession.requireActiveTransaction()
         val vertex = txn.database.load<OVertex>(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         return OVertexEntity(vertex, this)
     }
