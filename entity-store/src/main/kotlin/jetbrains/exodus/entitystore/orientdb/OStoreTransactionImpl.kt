@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
-import com.orientechnologies.orient.core.tx.OTransactionOptimistic
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
@@ -30,7 +29,6 @@ import jetbrains.exodus.env.Transaction
 
 class OStoreTransactionImpl(
     private val session: ODatabaseDocument,
-    private val txn: OTransaction,
     private val store: PersistentEntityStore,
     private val schemaBuddy: OSchemaBuddy,
     private val sessionCreator: () -> ODatabaseDocument
@@ -42,14 +40,14 @@ class OStoreTransactionImpl(
 
     private var hasWriteOperations = false
 
-    override val oTransaction = txn
+    private fun getCurrentTx(): OTransaction? = session.transaction
 
     override fun getStore(): EntityStore {
         return store
     }
 
     override fun isIdempotent(): Boolean {
-        val operations = txn.recordOperations ?: listOf()
+        val operations = getCurrentTx()?.recordOperations ?: listOf()
         return operations.firstOrNull() == null
     }
 
@@ -61,12 +59,12 @@ class OStoreTransactionImpl(
     }
 
     override fun isFinished(): Boolean {
-        return !txn.isActive
+        return !session.hasActiveTransaction()
     }
 
     override fun commit(): Boolean {
         try {
-            txn.commit()
+            session.commit()
         } finally {
             cleanUpTxIfNeeded()
         }
@@ -80,7 +78,7 @@ class OStoreTransactionImpl(
 
     override fun abort() {
         try {
-            (txn as OTransactionOptimistic).abort()
+            session.rollback()
         } finally {
             cleanUpTxIfNeeded()
         }
@@ -88,8 +86,8 @@ class OStoreTransactionImpl(
 
     override fun flush(): Boolean {
         try {
-            txn.commit()
-            txn.begin()
+            session.commit()
+            session.begin()
         } finally {
             cleanUpTxIfNeeded()
         }
@@ -98,7 +96,7 @@ class OStoreTransactionImpl(
     }
 
     private fun cleanUpTxIfNeeded() {
-        if (!txn.isActive) {
+        if (!session.hasActiveTransaction()) {
             (store as OPersistentEntityStore).completeTx()
             session.close()
         }
@@ -106,7 +104,8 @@ class OStoreTransactionImpl(
 
     override fun revert() {
         try {
-            (txn as OTransactionOptimistic).revert()
+            session.rollback()
+            session.begin()
         } finally {
             cleanUpTxIfNeeded()
         }

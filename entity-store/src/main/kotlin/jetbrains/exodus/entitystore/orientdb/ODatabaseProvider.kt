@@ -19,6 +19,7 @@ import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.tx.OTransaction
 
 interface ODatabaseProvider {
     val databaseLocation: String
@@ -33,7 +34,10 @@ fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
     }
 }
 
-fun <R> ODatabaseProvider.withCurrentOrNewSession(requireNoActiveTransaction: Boolean = false, block: (ODatabaseSession) -> R): R {
+fun <R> ODatabaseProvider.withCurrentOrNewSession(
+    requireNoActiveTransaction: Boolean = false,
+    block: (ODatabaseSession) -> R
+): R {
     return if (hasActiveSession()) {
         val activeSession = ODatabaseSession.getActiveSession() as ODatabaseSession
         if (requireNoActiveTransaction) {
@@ -47,8 +51,16 @@ fun <R> ODatabaseProvider.withCurrentOrNewSession(requireNoActiveTransaction: Bo
     }
 }
 
+fun ODatabaseDocument.hasActiveTransaction(): Boolean {
+    return isActiveOnCurrentThread && transaction.let { tx -> tx != null && tx.isActive }
+}
+
+fun ODatabaseDocument.requireActiveTransaction(): OTransaction {
+    require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
+    return transaction
+}
+
 fun ODatabaseDocument.requireNoActiveTransaction() {
-    println("$transaction, status:${transaction.status}, isActive:${transaction.isActive}")
     assert(transaction == null || !transaction.isActive) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
 }
 
