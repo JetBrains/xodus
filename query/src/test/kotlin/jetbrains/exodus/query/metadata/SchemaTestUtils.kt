@@ -194,6 +194,7 @@ internal fun EntityMetaDataImpl.index(vararg fieldNames: String) {
 }
 
 internal fun EntityMetaDataImpl.property(name: String, typeName: String, required: Boolean = false) {
+    // regardless of the name, this setter actually ADDS new properties to its internal collection
     this.propertiesMetaData = listOf(SimplePropertyMetaDataImpl(name, typeName))
     if (required) {
         requiredProperties = requiredProperties + setOf(name)
