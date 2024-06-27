@@ -136,6 +136,13 @@ internal class OrientDbSchemaInitializer(
         return DeferredIndex(entityName, listOf(indexField), unique = false)
     }
 
+    private fun linkIndex(entityName: String, outPropertyName: String): DeferredIndex {
+        val indexField = IndexFieldImpl()
+        indexField.isProperty = false
+        indexField.name = outPropertyName
+        return DeferredIndex(entityName, listOf(indexField), unique = true)
+    }
+
     fun getIndices(): Map<String, Set<DeferredIndex>> = indices.map { it.key to it.value.values.toSet() }.toMap()
 
     fun apply() {
@@ -324,18 +331,20 @@ internal class OrientDbSchemaInitializer(
         outCardinality: AssociationEndCardinality,
         inClass: OClass,
     ) {
-        val linkPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
-        append("outProp: ${outClass.name}.$linkPropName")
-        val outProp = outClass.createLinkPropertyIfAbsent(linkPropName, null)
+        val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
+        append("outProp: ${outClass.name}.$linkOutPropName")
+        val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName, null)
         if (applyLinkCardinality) {
             // applying cardinality only to out direct property
             outProp.applyCardinality(outCardinality)
         }
+        addIndex(linkIndex(outClass.name, linkOutPropName))
         appendLine()
 
         val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
         append("inProp: ${inClass.name}.$linkInPropName")
         inClass.createLinkPropertyIfAbsent(linkInPropName, null)
+        addIndex(linkIndex(inClass.name, linkInPropName))
 
         /*
         * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
