@@ -127,6 +127,29 @@ class OLinkInFromIdsSelect(
     private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
 }
 
+
+class OLinkOfTypeInFromIdsSelect(
+    val linkName: String,
+    val targetIds: List<ORID>,
+    val targetEntityType: String,
+    order: OOrder? = null,
+    skip: OSkip? = null,
+    limit: OLimit? = null
+) : OSelectBase(order, skip, limit) {
+
+    override fun selectSql(builder: StringBuilder) {
+        builder
+            .append("SELECT FROM (")
+            .append("SELECT expand(in('").append(linkName).append("')) FROM ")
+            .append(targetIdsSql)
+            .append(") WHERE @class='").append(targetEntityType).append("'")
+
+    }
+
+    private val targetIdsSql get() = "[${targetIds.map(ORID::toString).joinToString(", ")}]"
+}
+
+
 class OLinkOutFromSubQuerySelect(
     val linkName: String,
     val subQuery: OSelect,
