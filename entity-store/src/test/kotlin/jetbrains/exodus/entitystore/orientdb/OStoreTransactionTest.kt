@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.google.common.truth.Truth.assertThat
+import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
@@ -25,6 +26,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.entitystore.orientdb.query.OQueryTimeoutException
+import jetbrains.exodus.entitystore.orientdb.query.or
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import org.junit.Assert
 import org.junit.Ignore
@@ -66,6 +68,23 @@ class OStoreTransactionTest : OTestMixin {
 
             // Then
             assertNamesExactlyInOrder(result, "issue2")
+        }
+    }
+
+    @Test
+    fun `findLinks should return correct entityType`() {
+        val test = givenTestCase()
+
+        orientDb.addIssueToProject(test.issue1, test.project1)
+        orientDb.addIssueToBoard(test.issue1, test.board1)
+
+        oTransactional {
+            Assert.assertEquals(1, it.findLinks(Boards.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size())
+            Assert.assertEquals(1, it.findLinks(Projects.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size())
+            Assert.assertEquals(2,
+                test.issue1.asVertex.getEdges(ODirection.IN, OVertexEntity.edgeClassName(Boards.Links.HAS_ISSUE))
+                    .toList().size
+            )
         }
     }
 
@@ -677,7 +696,7 @@ class OStoreTransactionTest : OTestMixin {
     }
 
     @Test
-    fun `contains should work `(){
+    fun `contains should work `() {
         // Given
         val test = givenTestCase()
         orientDb.addIssueToBoard(test.issue1, test.board1)
