@@ -17,6 +17,7 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseType
 import org.junit.Test
+import kotlin.test.Ignore
 
 class MigrateYourDatabaseTest {
 
