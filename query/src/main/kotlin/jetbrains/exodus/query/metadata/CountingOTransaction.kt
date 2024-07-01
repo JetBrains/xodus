@@ -38,10 +38,14 @@ class CountingOTransaction(
     private var counter = 0
     private lateinit var txn : StoreTransaction
 
+    var transactionsCommited: Long = 0
+        private set
+
     fun increment() {
         counter++
         if (counter == commitEvery) {
             txn.flush()
+            transactionsCommited++
             counter = 0
         }
     }
@@ -51,7 +55,10 @@ class CountingOTransaction(
     }
 
     fun commit() {
-        txn.commit()
+        if (!txn.isFinished) {
+            txn.commit()
+            transactionsCommited++
+        }
     }
 
     fun rollback() {

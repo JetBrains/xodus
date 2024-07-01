@@ -37,6 +37,7 @@ tasks {
             "orientPassword" to (project.findProperty("orientPassword")),
 
             "validateDataAfterMigration" to (project.findProperty("validateDataAfterMigration")),
+            "entitiesPerTransaction" to (project.findProperty("entitiesPerTransaction")),
         )
     }
 }
