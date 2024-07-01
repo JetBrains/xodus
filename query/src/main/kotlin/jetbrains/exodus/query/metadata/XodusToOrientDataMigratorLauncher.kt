@@ -49,6 +49,7 @@ class XodusToOrientDataMigratorLauncher(
     val orient: MigrateToOrientConfig,
     val xodus: MigrateFromXodusConfig,
     val validateDataAfterMigration: Boolean,
+    val entitiesPerTransaction: Int
 ) {
     fun migrate() {
         // 1. Where we migrate the data to
@@ -109,7 +110,7 @@ class XodusToOrientDataMigratorLauncher(
 
             // 3. Migrate the data
             val (migrateDataStats, migrateDataDuration) = measureTimedValue {
-                migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore)
+                migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore, entitiesPerTransaction)
             }
             schemaBuddy.initialize()
 

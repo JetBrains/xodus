@@ -49,7 +49,8 @@ class MigrateYourDatabaseTest {
                 cipherKey = yourCipherKey,
                 cipherIV = yourCipherIV
             ),
-            validateDataAfterMigration = true
+            validateDataAfterMigration = true,
+            entitiesPerTransaction = 100
         )
         launcher.migrate()
     }

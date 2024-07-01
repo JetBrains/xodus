@@ -30,6 +30,7 @@ fun main() {
     val orientPasswordStr = System.getProperty("orientPassword")
 
     val validateDataAfterMigrationStr = System.getProperty("validateDataAfterMigration")
+    val entitiesPerTransactionStr = System.getProperty("entitiesPerTransaction")
     println("""
             Provided params:
                 xodusDatabaseDirectory: $xodusDatabaseDirectory
@@ -44,6 +45,7 @@ fun main() {
                 orientPassword: $orientPasswordStr
                 
                 validateDataAfterMigration: $validateDataAfterMigrationStr
+                entitiesPerTransaction: $entitiesPerTransactionStr
         """.trimIndent())
 
     val xodusCypherIV = xodusCipherIVStr.toLongOrNull() ?: 0L
@@ -63,6 +65,7 @@ fun main() {
     val orientPassword = if (!orientPasswordStr.isNullOrBlank()) orientPasswordStr else "password"
 
     val validateDataAfterMigration = validateDataAfterMigrationStr?.toBooleanStrictOrNull() ?: true
+    val entitiesPerTransaction = validateDataAfterMigrationStr?.toIntOrNull() ?: 100
 
     println("""
             Effective params:
@@ -78,6 +81,7 @@ fun main() {
                 orientPassword: $orientPassword
                
                 validateDataAfterMigration: $validateDataAfterMigration
+                entitiesPerTransaction: $entitiesPerTransaction
         """.trimIndent())
 
     val launcher = XodusToOrientDataMigratorLauncher(
@@ -94,7 +98,8 @@ fun main() {
             username = orientUsername,
             password = orientPassword
         ),
-        validateDataAfterMigration = validateDataAfterMigration
+        validateDataAfterMigration = validateDataAfterMigration,
+        entitiesPerTransaction = entitiesPerTransaction
     )
     launcher.migrate()
 }
