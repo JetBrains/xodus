@@ -25,7 +25,7 @@ class OSkipValue(
     val value: Int
 ) : OSkip {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append(value)
     }
 

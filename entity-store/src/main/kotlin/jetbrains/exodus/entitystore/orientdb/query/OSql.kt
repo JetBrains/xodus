@@ -16,5 +16,28 @@
 package jetbrains.exodus.entitystore.orientdb.query
 
 interface OSql {
-    fun sql(builder: StringBuilder)
+    fun sql(builder: SqlBuilder)
+}
+
+class SqlBuilder(
+    private val stringBuilder: StringBuilder = StringBuilder(),
+    val depth: Int = 0
+) {
+
+    fun append(value: Any): SqlBuilder {
+        stringBuilder.append(value)
+        return this
+    }
+
+    fun deepen(): SqlBuilder {
+        return SqlBuilder(stringBuilder, depth + 1)
+    }
+
+    fun build(): String {
+        return stringBuilder.toString()
+    }
+
+    override fun toString(): String {
+        return stringBuilder.toString()
+    }
 }
