@@ -24,7 +24,7 @@ class OLimitValue(
     val value: Int
 ) : OLimit {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append(value)
     }
 

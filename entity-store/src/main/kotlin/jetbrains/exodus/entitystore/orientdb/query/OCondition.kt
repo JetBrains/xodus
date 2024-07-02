@@ -25,7 +25,7 @@ class OEqualCondition(
     val value: Any,
 ) : OCondition {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append(field).append(" = ?")
     }
 
@@ -37,7 +37,7 @@ class OContainsCondition(
     val value: String,
 ) : OCondition {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append(field).append(" containsText ?")
     }
 
@@ -49,7 +49,7 @@ class OStartsWithCondition(
     val value: String,
 ) : OCondition {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append(field).append(" like ?")
     }
 
@@ -63,11 +63,11 @@ sealed class OBiCondition(
     val right: OCondition
 ) : OCondition {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append("(")
-        left.sql(builder)
+        left.sql(builder.deepen())
         builder.append(" ").append(operation).append(" ")
-        right.sql(builder)
+        right.sql(builder.deepen())
         builder.append(")")
     }
 
@@ -82,11 +82,11 @@ class OAndNotCondition(
     val right: OCondition
 ) : OCondition {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append("(")
-        left.sql(builder)
+        left.sql(builder.deepen())
         builder.append(" AND NOT (")
-        right.sql(builder)
+        right.sql(builder.deepen())
         builder.append("))")
     }
 
@@ -101,7 +101,7 @@ class ORangeCondition(
 ) : OCondition {
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Where.html#between
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append("(").append(field).append(" between ? and ?)")
     }
 
@@ -112,7 +112,7 @@ class OEdgeExistsCondition(
     val edge: String
 ) : OCondition {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append("outE('").append(edge).append("').size() > 0")
     }
 }
@@ -121,7 +121,7 @@ class OFieldExistsCondition(
     val field: String
 ) : OCondition {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append("not(").append(field).append(" is null)")
     }
 }
@@ -131,7 +131,7 @@ class OInstanceOfCondition(
     val invert: Boolean
 ) : OCondition {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         if (invert){
             builder.append("NOT ")
         }

@@ -19,7 +19,7 @@ class OQueryTimeout(
     val timeoutMillis: Long
 ) : OQuery {
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         builder.append(" TIMEOUT $timeoutMillis")
     }
 }

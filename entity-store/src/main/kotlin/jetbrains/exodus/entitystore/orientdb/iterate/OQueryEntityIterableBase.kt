@@ -15,14 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate
 
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.EntityIterableHandle
-import jetbrains.exodus.entitystore.EntityIterator
-import jetbrains.exodus.entitystore.StoreTransaction
-import jetbrains.exodus.entitystore.asOQueryIterable
-import jetbrains.exodus.entitystore.asOStore
-import jetbrains.exodus.entitystore.asOStoreTransaction
+import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
@@ -35,11 +28,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.binop.OUnionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIterableToEntityIterableFiltered
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OSingleEntityIterable
-import jetbrains.exodus.entitystore.orientdb.query.OCountSelect
-import jetbrains.exodus.entitystore.orientdb.query.OFirstSelect
-import jetbrains.exodus.entitystore.orientdb.query.OLastSelect
-import jetbrains.exodus.entitystore.orientdb.query.OQuery
-import jetbrains.exodus.entitystore.orientdb.query.OSelect
+import jetbrains.exodus.entitystore.orientdb.query.*
 import jetbrains.exodus.entitystore.util.unsupported
 import java.util.concurrent.Executor
 
@@ -89,7 +78,7 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun getHandleImpl(): EntityIterableHandle {
-        val builder = StringBuilder()
+        val builder = SqlBuilder()
         query().sql(builder)
         return OEntityIterableHandle(builder.toString())
     }
