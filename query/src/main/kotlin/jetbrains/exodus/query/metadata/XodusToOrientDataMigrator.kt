@@ -54,6 +54,7 @@ data class XodusToOrientMigrationStats(
     val entities: Long,
     val properties: Long,
     val blobs: Long,
+    val copyEntitiesPropertiesAndBlobsTransactions: Long,
     val copyEntitiesPropertiesAndBlobsDuration: Duration,
     val createEntitiesDuration: Duration,
     val copyPropertiesDuration: Duration,
@@ -64,6 +65,7 @@ data class XodusToOrientMigrationStats(
     val createEdgeClassesDuration: Duration,
     val processedLinks: Long,
     val copiedLinks: Long,
+    val copyLinksTransactions: Long,
     val copyLinksTotalDuration: Duration,
     val copyLinksDuration: Duration,
     val commitLinksDuration: Duration,
@@ -105,6 +107,9 @@ internal class XodusToOrientDataMigrator(
     private var copyLinksDuration = Duration.ZERO
     private var commitLinksDuration = Duration.ZERO
 
+    private var copyEntitiesPropertiesAndBlobsTransactions = 0L
+    private var copyLinksTransactions = 0L
+
     fun migrate(): XodusToOrientMigrationStats {
         log.info { "Starting Xodus -> OrientDB data migration" }
         val createVertexClassesDuration = measureTime {
@@ -127,6 +132,7 @@ internal class XodusToOrientDataMigrator(
             entities = totalEntities,
             properties = totalProperties,
             blobs = totalBlobs,
+            copyEntitiesPropertiesAndBlobsTransactions = copyEntitiesPropertiesAndBlobsTransactions,
             copyEntitiesPropertiesAndBlobsDuration = copyPropertiesAndBlobsDuration,
             createEntitiesDuration = createEntitiesDuration,
             copyPropertiesDuration = copyPropertiesDuration,
@@ -138,6 +144,7 @@ internal class XodusToOrientDataMigrator(
 
             processedLinks = totalLinksProcessed,
             copiedLinks = totalLinksCopied,
+            copyLinksTransactions = copyLinksTransactions,
             copyLinksTotalDuration = copyLinksTotalDuration,
             copyLinksDuration = copyLinksDuration,
             commitLinksDuration = commitLinksDuration,
@@ -249,6 +256,8 @@ internal class XodusToOrientDataMigrator(
                     totalProperties += properties
                     totalBlobs += blobs
                 }
+                countingTx.commit()
+                copyEntitiesPropertiesAndBlobsTransactions = countingTx.transactionsCommited
                 log.info { "Entities have been copied. Entity types: ${entityTypes.size}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
             }
         }
@@ -262,7 +271,7 @@ internal class XodusToOrientDataMigrator(
             edgeClassesToCreate.forEachIndexed { i, edgeClassName ->
                 log.info { "$i $edgeClassName ${edgeClassName.asEdgeClass} is being copied" }
                 oSession.getClass(edgeClassName.asEdgeClass)
-                    ?: oSession.createLightweightEdgeClass(edgeClassName.asEdgeClass)
+                    ?: oSession.createEdgeClass(edgeClassName.asEdgeClass)
             }
         }
         log.info { "${edgeClassesToCreate.size} edge classes have been created" }
@@ -322,6 +331,8 @@ internal class XodusToOrientDataMigrator(
                     totalLinksProcessed += linksProcessed
                     totalLinksCopied += linksCopied
                 }
+                countingTx.commit()
+                copyLinksTransactions = countingTx.transactionsCommited
                 log.info { "Links have been copied. Entity types: ${entityTypes.size}, entities processed: $totalEntities, links processed: $totalLinksProcessed, links copied: $totalLinksCopied" }
             }
         }

@@ -20,5 +20,5 @@ package jetbrains.exodus.entitystore.orientdb.query
  */
 interface OQuery : OSql {
 
-    fun params(): List<Any> = emptyList<Any>()
+    fun params(): List<Any> = emptyList()
 }

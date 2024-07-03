@@ -277,7 +277,7 @@ internal class OrientDbSchemaInitializer(
         val className = OVertexEntity.edgeClassName(name)
         var oClass: OClass? = getClass(className)
         if (oClass == null) {
-            oClass = oSession.createLightweightEdgeClass(className)!!
+            oClass = oSession.createEdgeClass(className)!!
             append(", edge class created")
         } else {
             append(", edge class already created")
