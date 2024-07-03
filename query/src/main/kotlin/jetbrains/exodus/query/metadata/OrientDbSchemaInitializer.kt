@@ -21,6 +21,7 @@ import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
@@ -136,11 +137,14 @@ internal class OrientDbSchemaInitializer(
         return DeferredIndex(entityName, listOf(indexField), unique = false)
     }
 
-    private fun linkIndex(entityName: String, outPropertyName: String): DeferredIndex {
-        val indexField = IndexFieldImpl()
-        indexField.isProperty = false
-        indexField.name = outPropertyName
-        return DeferredIndex(entityName, listOf(indexField), unique = true)
+    private fun linkIndex(edgeClassName: String): DeferredIndex {
+        val inProperty = IndexFieldImpl()
+        inProperty.isProperty = false
+        inProperty.name = OEdge.DIRECTION_IN
+        val outProperty = IndexFieldImpl()
+        outProperty.isProperty = false
+        outProperty.name = OEdge.DIRECTION_OUT
+        return DeferredIndex(edgeClassName, listOf(inProperty, outProperty), unique = true)
     }
 
     fun getIndices(): Map<String, Set<DeferredIndex>> = indices.map { it.key to it.value.values.toSet() }.toMap()
@@ -338,14 +342,13 @@ internal class OrientDbSchemaInitializer(
             // applying cardinality only to out direct property
             outProp.applyCardinality(outCardinality)
         }
-        addIndex(linkIndex(outClass.name, linkOutPropName))
         appendLine()
 
         val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
         append("inProp: ${inClass.name}.$linkInPropName")
         inClass.createLinkPropertyIfAbsent(linkInPropName, null)
-        addIndex(linkIndex(inClass.name, linkInPropName))
 
+        addIndex(linkIndex(edgeClass.name))
         /*
         * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
         * Because AssociationEndCardinality describes the cardinality of a single end.

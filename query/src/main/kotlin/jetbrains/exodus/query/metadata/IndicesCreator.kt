@@ -56,6 +56,7 @@ internal class IndicesCreator(
             }
         } catch (e: Throwable) {
             logger.flush()
+            throw e
         } finally {
             logger.flush()
         }

@@ -383,8 +383,8 @@ class OrientDbSchemaInitializerTest {
             v2.setProperty("prop1", 2)
             v2.save<OVertex>()
 
-            v1.addLightWeightEdge(v2, edgeClassName)
-            v1.addLightWeightEdge(v2, edgeClassName)
+            v1.addEdge(v2, edgeClassName)
+            v1.addEdge(v2, edgeClassName)
 
             v1.save<OVertex>()
             v2.save<OVertex>()
@@ -412,29 +412,25 @@ class OrientDbSchemaInitializerTest {
         }
 
         val edgeClassName = edgeClassName("ass1")
-        orientDb.withTxSession { oSession ->
-            val oClass = oSession.getClass("type1")!!
-            val v1 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v1)
-            v1.setProperty("prop1", 1)
-            v1.save<OVertex>()
+        assertFailsWith<ORecordDuplicatedException> {
+            orientDb.withTxSession { oSession ->
+                val oClass = oSession.getClass("type1")!!
+                val v1 = oSession.newVertex(oClass)
+                oSession.setLocalEntityId("type1", v1)
+                v1.setProperty("prop1", 1)
+                v1.save<OVertex>()
 
-            val v2 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v2)
-            v2.setProperty("prop1", 2)
-            v2.save<OVertex>()
+                val v2 = oSession.newVertex(oClass)
+                oSession.setLocalEntityId("type1", v2)
+                v2.setProperty("prop1", 2)
+                v2.save<OVertex>()
 
-            v1.addLightWeightEdge(v2, edgeClassName)
-            v1.addLightWeightEdge(v2, edgeClassName)
+                v1.addEdge(v2, edgeClassName)
+                v1.addEdge(v2, edgeClassName)
 
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-        }
-
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.browseClass("type1").map { it.toVertex()!! }.first { it.getProperty<Int>("prop1") == 1 }
-            val links: MutableIterable<OVertex> = v1.getVertices(ODirection.OUT, edgeClassName)
-            assertEquals(1, links.count())
+                v1.save<OVertex>()
+                v2.save<OVertex>()
+            }
         }
     }
 
