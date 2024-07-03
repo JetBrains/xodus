@@ -292,7 +292,7 @@ class OEntityTests : OEntityStoreTestBase() {
         acquireSession().use {
             it.createVertexClassWithClassId("Issue")
             it.createVertexClassWithClassId("User")
-            it.createLightweightEdgeClass("creator".asEdgeClass)
+            it.createEdgeClass("creator".asEdgeClass)
         }
 
         transactional { txn ->
@@ -446,7 +446,7 @@ class OEntityTests : OEntityStoreTestBase() {
     private fun createClasses( vectorClasses: Collection<String>, edgeClasses: Collection<String> = listOf()) {
         acquireSession().use {
             vectorClasses.forEach { name -> it.createVertexClassWithClassId(name) }
-            edgeClasses.forEach { name -> it.createLightweightEdgeClass(name) }
+            edgeClasses.forEach { name -> it.createEdgeClass(name) }
         }
         schemaBuddy.initialize()
     }

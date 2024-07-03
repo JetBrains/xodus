@@ -124,7 +124,7 @@ fun ODatabaseSession.createNamedEntity(
 
 private fun ODatabaseSession.getOrCreateEdgeClass(className: String): OClass {
     val edgeClassName = OVertexEntity.edgeClassName(className)
-    return this.getClass(edgeClassName) ?: this.createLightweightEdgeClass(edgeClassName)
+    return this.getClass(edgeClassName) ?: this.createEdgeClass(edgeClassName)
 }
 
 fun OEntity.name(): Comparable<*> {

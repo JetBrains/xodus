@@ -39,7 +39,7 @@ class OEntityTest {
         val issueC = orientDb.createIssue("C")
         val linkName = "link"
         orientDb.provider.acquireSession().use { session ->
-            session.createLightweightEdgeClass(OVertexEntity.edgeClassName(linkName))
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
         orientDb.withTxSession {
@@ -78,7 +78,7 @@ class OEntityTest {
     fun `should delete all links`() {
         val linkName = "link"
         orientDb.provider.acquireSession().use { session ->
-            session.createLightweightEdgeClass(OVertexEntity.edgeClassName(linkName))
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
         val issueA = orientDb.createIssue("A")
@@ -130,7 +130,7 @@ class OEntityTest {
     fun `should replace a link correctly`() {
         val linkName = "link"
         orientDb.provider.acquireSession().use { session ->
-            session.createLightweightEdgeClass(OVertexEntity.edgeClassName(linkName))
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
         val issueA = orientDb.createIssue("A")
@@ -155,7 +155,7 @@ class OEntityTest {
     fun `setLink() and addLink() should work correctly with PersistentEntityId`() {
         val linkName = "link"
         orientDb.provider.acquireSession().use { session ->
-            session.createLightweightEdgeClass(OVertexEntity.edgeClassName(linkName))
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
         val issueA = orientDb.createIssue("A")
@@ -182,7 +182,7 @@ class OEntityTest {
     fun `setLink() and addLink() return false if the target entity is not found`() {
         val linkName = "link"
         orientDb.provider.acquireSession().use { session ->
-            session.createLightweightEdgeClass(OVertexEntity.edgeClassName(linkName))
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
         val issueB = orientDb.createIssue("A")
