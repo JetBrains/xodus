@@ -34,7 +34,7 @@ class OOrderByFields(
         )
     )
 
-    override fun sql(builder: StringBuilder) {
+    override fun sql(builder: SqlBuilder) {
         var count = 0
 
         for ((field, ascending) in items) {
