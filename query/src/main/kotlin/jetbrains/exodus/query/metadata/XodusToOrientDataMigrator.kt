@@ -262,7 +262,7 @@ internal class XodusToOrientDataMigrator(
             edgeClassesToCreate.forEachIndexed { i, edgeClassName ->
                 log.info { "$i $edgeClassName ${edgeClassName.asEdgeClass} is being copied" }
                 oSession.getClass(edgeClassName.asEdgeClass)
-                    ?: oSession.createLightweightEdgeClass(edgeClassName.asEdgeClass)
+                    ?: oSession.createEdgeClass(edgeClassName.asEdgeClass)
             }
         }
         log.info { "${edgeClassesToCreate.size} edge classes have been created" }

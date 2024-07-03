@@ -269,7 +269,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         val edgeClassName = edgeClassName(linkName)
         val currentEdge = findEdge(edgeClassName, target.id)
         if (currentEdge == null) {
-            vertex.addLightWeightEdge(target.asVertex, edgeClassName)
+            vertex.addEdge(target.asVertex, edgeClassName)
             vertex.save<OVertex>()
             return true
         } else {
@@ -310,7 +310,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
             currentLink.vertex.save<OVertex>()
         }
         if (target != null) {
-            vertex.addLightWeightEdge(target.vertex, edgeClassName)
+            vertex.addEdge(target.vertex, edgeClassName)
             vertex.save<OVertex>()
         }
         return true
