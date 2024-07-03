@@ -28,9 +28,11 @@ fun OCondition?.or(other: OCondition?): OCondition? {
 }
 
 fun OCondition?.andNot(other: OCondition?): OCondition? {
-    if (this == null) return other
-    if (other == null) return this
-    return OAndNotCondition(this, other)
+    if (this == null && other == null) return null
+    if (this == null && other != null) return NotCondition(other)
+    if (other == null && this != null) return NotCondition(this)
+    if (this != null && other != null) return OAndNotCondition(this, other)
+    return null
 }
 
 fun equal(field: String, value: Any) = OEqualCondition(field, value)

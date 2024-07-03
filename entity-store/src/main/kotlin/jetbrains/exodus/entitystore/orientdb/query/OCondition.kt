@@ -56,6 +56,43 @@ class OStartsWithCondition(
     override fun params() = listOf("${value}%")
 }
 
+class OFieldExistsCondition(
+    val field: String
+) : OCondition {
+
+    override fun sql(builder: SqlBuilder) {
+        builder.append("not(").append(field).append(" is null)")
+    }
+}
+
+class OFieldIsNullCondition(
+    val field: String
+) : OCondition {
+
+    override fun sql(builder: SqlBuilder) {
+        builder.append(field).append(" is null")
+    }
+}
+
+// Edge
+class OEdgeExistsCondition(
+    val edge: String
+) : OCondition {
+
+    override fun sql(builder: SqlBuilder) {
+        builder.append("outE('").append(edge).append("').size() > 0")
+    }
+}
+
+class OEdgeIsNullCondition(
+    val edge: String
+) : OCondition {
+
+    override fun sql(builder: SqlBuilder) {
+        builder.append("outE('").append(edge).append("').size() == 0")
+    }
+}
+
 // Binary
 sealed class OBiCondition(
     val operation: String,
@@ -76,6 +113,20 @@ sealed class OBiCondition(
 
 class OAndCondition(left: OCondition, right: OCondition) : OBiCondition("AND", left, right)
 class OOrCondition(left: OCondition, right: OCondition) : OBiCondition("OR", left, right)
+
+// Negation
+class NotCondition(
+    val condition: OCondition
+) : OCondition {
+
+    override fun sql(builder: SqlBuilder) {
+        builder.append("NOT (")
+        condition.sql(builder.deepen())
+        builder.append(")")
+    }
+
+    override fun params() = condition.params()
+}
 
 class OAndNotCondition(
     val left: OCondition,
@@ -108,31 +159,13 @@ class ORangeCondition(
     override fun params() = listOf(minInclusive, maxInclusive)
 }
 
-class OEdgeExistsCondition(
-    val edge: String
-) : OCondition {
-
-    override fun sql(builder: SqlBuilder) {
-        builder.append("outE('").append(edge).append("').size() > 0")
-    }
-}
-
-class OFieldExistsCondition(
-    val field: String
-) : OCondition {
-
-    override fun sql(builder: SqlBuilder) {
-        builder.append("not(").append(field).append(" is null)")
-    }
-}
-
 class OInstanceOfCondition(
     val className: String,
     val invert: Boolean
 ) : OCondition {
 
     override fun sql(builder: SqlBuilder) {
-        if (invert){
+        if (invert) {
             builder.append("NOT ")
         }
         builder.append("@this INSTANCEOF '$className'")
