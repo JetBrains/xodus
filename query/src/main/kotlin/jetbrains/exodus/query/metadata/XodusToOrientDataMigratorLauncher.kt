@@ -49,6 +49,7 @@ class XodusToOrientDataMigratorLauncher(
     val orient: MigrateToOrientConfig,
     val xodus: MigrateFromXodusConfig,
     val validateDataAfterMigration: Boolean,
+    val entitiesPerTransaction: Int
 ) {
     fun migrate() {
         // 1. Where we migrate the data to
@@ -109,7 +110,7 @@ class XodusToOrientDataMigratorLauncher(
 
             // 3. Migrate the data
             val (migrateDataStats, migrateDataDuration) = measureTimedValue {
-                migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore)
+                migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore, entitiesPerTransaction)
             }
             schemaBuddy.initialize()
 
@@ -131,20 +132,24 @@ class XodusToOrientDataMigratorLauncher(
                         entities: $entities
                         properties: $properties
                         blobs: $blobs
+                        transactions: $copyEntitiesPropertiesAndBlobsTransactions
                         copy entities properties and blobs duration: $copyEntitiesPropertiesAndBlobsDuration ${percent(copyEntitiesPropertiesAndBlobsDuration / migrateDataDuration)}
                             create entities duration: $createEntitiesDuration ${percent(createEntitiesDuration / copyEntitiesPropertiesAndBlobsDuration)}
                             copy properties duration: $copyPropertiesDuration ${percent(copyPropertiesDuration / copyEntitiesPropertiesAndBlobsDuration)}
                             copy blobs duration: $copyBlobsDuration ${percent(copyBlobsDuration / copyEntitiesPropertiesAndBlobsDuration)}
                             commits duration: $commitEntitiesPropertiesAndBlobsDuration ${percent(commitEntitiesPropertiesAndBlobsDuration / copyEntitiesPropertiesAndBlobsDuration)}
-                        
+                            single commit duration: ${commitEntitiesPropertiesAndBlobsDuration / copyEntitiesPropertiesAndBlobsTransactions.toInt()}
+
                         edge classes: $edgeClasses
                         create edge classes duration: $createEdgeClassesDuration ${percent(createEdgeClassesDuration / migrateDataDuration)}
                         
                         processed links: $processedLinks
                         copied links: $copiedLinks
+                        transactions: $copyLinksTransactions
                         copy links total duration: $copyLinksTotalDuration ${percent(copyLinksTotalDuration / migrateDataDuration)}
                             copy links duration: $copyLinksDuration ${percent(copyLinksDuration / copyLinksTotalDuration)}
                             commits duration: $commitLinksDuration ${percent(commitLinksDuration / copyLinksTotalDuration)}
+                            single commit duration: ${commitLinksDuration / copyLinksTransactions.toInt()}
             """.trimIndent()
                 }
             }
