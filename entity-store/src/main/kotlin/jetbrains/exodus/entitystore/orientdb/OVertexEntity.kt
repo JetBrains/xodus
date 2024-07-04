@@ -272,6 +272,14 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         /*
         We check for duplicates only if there is an appropriate index for it.
         Without an index, performance degradation will be catastrophic.
+
+        You may ask why not to throw an exception if there is no an index?
+        Well, we have the data migration process. During this process:
+        1. We do not have any indices
+        2. Skipping this findEdge(...) call is exactly what we want from the performance point of view.
+        3. We avoid duplicates explicitly.
+        Well, during the data migration process, there are no any indices and
+        skipping this findEdge(...) call is exactly what we need.
          */
         val currentEdge: OEdge? = if (edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT)) {
             findEdge(edgeClassName, target.id)
