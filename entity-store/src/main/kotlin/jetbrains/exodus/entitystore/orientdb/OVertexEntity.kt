@@ -267,7 +267,16 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
         // Optimization?
         val edgeClassName = edgeClassName(linkName)
-        val currentEdge = findEdge(edgeClassName, target.id)
+        val edgeClass = ODatabaseSession.getActiveSession().getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName edge class not found in the database. Sorry, pal, it is required for adding a link.")
+
+        /*
+        We check for duplicates only if there is an appropriate index for it.
+        Without an index, performance degradation will be catastrophic.
+         */
+        val currentEdge: OEdge? = if (edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT)) {
+            findEdge(edgeClassName, target.id)
+        } else null
+
         if (currentEdge == null) {
             vertex.addEdge(target.asVertex, edgeClassName)
             vertex.save<OVertex>()
