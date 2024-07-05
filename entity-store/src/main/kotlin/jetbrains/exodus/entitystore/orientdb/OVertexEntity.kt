@@ -38,6 +38,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
+import kotlin.jvm.optionals.getOrNull
 
 open class OVertexEntity(private var vertex: OVertex, private val store: PersistentEntityStore) : OEntity {
 
@@ -394,9 +395,10 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     override fun compareTo(other: Entity) = id.compareTo(other.id)
 
     private fun findEdge(edgeClassName: String, targetId: OEntityId): OEdge? {
-        return vertex
-            .getEdges(ODirection.OUT, edgeClassName)
-            .find { it.to.identity == targetId.asOId() }
+        val query = "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
+        val result = ODatabaseSession.getActiveSession().query(query, mapOf("outId" to vertex.identity, "inId" to targetId.asOId()))
+        val foundEdge = result.edgeStream().findFirst()
+        return foundEdge.getOrNull()
     }
 
     override fun equals(other: Any?): Boolean {

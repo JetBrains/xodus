@@ -411,7 +411,8 @@ class OrientDbSchemaInitializerTest {
         }
 
         val edgeClassName = edgeClassName("ass1")
-        orientDb.withTxSession { oSession ->
+        // trying to add the same edge in a single transaction
+        val (id1, id2) = orientDb.withTxSession { oSession ->
             val oClass = oSession.getClass("type1")!!
             val v1 = oSession.newVertex(oClass)
             oSession.setLocalEntityId("type1", v1)
@@ -426,6 +427,16 @@ class OrientDbSchemaInitializerTest {
             val entity1 = OVertexEntity(v1, orientDb.store)
             val entity2 = OVertexEntity(v2, orientDb.store)
             entity1.addLink("ass1", entity2)
+            entity1.addLink("ass1", entity2)
+            Pair(v1.identity, v2.identity)
+        }
+
+        // trying to add the same edge in another transaction
+        orientDb.withTxSession { oSession ->
+            val v1 = oSession.getRecord<OVertex>(id1)
+            val v2 = oSession.getRecord<OVertex>(id2)
+            val entity1 = OVertexEntity(v1, orientDb.store)
+            val entity2 = OVertexEntity(v2, orientDb.store)
             entity1.addLink("ass1", entity2)
         }
 
