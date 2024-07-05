@@ -68,6 +68,23 @@ class OQueryEngineTest {
     }
 
     @Test
+    fun `should query property null`() {
+        // Given
+        val test = givenTestCase()
+        val engine = givenOQueryEngine()
+        orientDB.withTxSession { test.issue1.setProperty("none", "n1") }
+
+        // When
+        orientDB.withTxSession {
+            val node = PropertyEqual("none", null)
+            val result = engine.query("Issue", node).toList()
+
+            // Then
+            assertNamesExactly(result, "issue2", "issue3")
+        }
+    }
+
+    @Test
     fun `should query property contains`() {
         // Given
         val test = givenTestCase()
@@ -227,6 +244,25 @@ class OQueryEngineTest {
     }
 
     @Test
+    fun `should query by null`() {
+        // Given
+        val testCase = givenTestCase()
+        orientDB.addIssueToProject(testCase.issue1, testCase.project1)
+
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withTxSession {
+            val issuesNotInProject = LinkEqual(Issues.Links.IN_PROJECT, null)
+            val issues = engine.query(Issues.CLASS, issuesNotInProject)
+
+            // Then
+            assertNamesExactly(issues, "issue2", "issue3")
+        }
+    }
+
+
+    @Test
     fun `should query with links not null`() {
         // Given
         val test = givenTestCase()
@@ -242,6 +278,24 @@ class OQueryEngineTest {
             // Then
             assertNamesExactly(issuesOnBoard, "issue1", "issue2")
             assertThat(issuesInProject).isEmpty()
+        }
+    }
+
+    @Test
+    fun `should query by not null using unary not`() {
+        // Given
+        val testCase = givenTestCase()
+        orientDB.addIssueToProject(testCase.issue1, testCase.project1)
+
+        val engine = givenOQueryEngine()
+
+        // When
+        orientDB.withTxSession {
+            val issuesInProject = UnaryNot(LinkEqual(Issues.Links.IN_PROJECT, null))
+            val issues = engine.query(Issues.CLASS, issuesInProject)
+
+            // Then
+            assertNamesExactly(issues, "issue1")
         }
     }
 

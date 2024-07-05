@@ -16,11 +16,11 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
 import com.google.common.truth.Truth.assertThat
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.iterate.property.OPropertyIsNullIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIsNullEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OInstanceOfIterable
 import jetbrains.exodus.entitystore.orientdb.setLocalEntityIdIfAbsent
 import jetbrains.exodus.entitystore.orientdb.testutil.*
@@ -36,6 +36,38 @@ class OEntityIterableBaseTest : OTestMixin {
     val orientDbRule = InMemoryOrientDB()
 
     override val orientDb = orientDbRule
+
+    @Test
+    fun `should iterable property is null`() {
+        // Given
+        val test = givenTestCase()
+        orientDb.withSession {
+            test.issue1.setProperty("none", "n1")
+        }
+
+        // When
+        oTransactional { tx ->
+            val issues = OPropertyIsNullIterable(tx, Issues.CLASS, "none")
+
+            // Then
+            assertNamesExactlyInOrder(issues, "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should iterable link is null`() {
+        // Given
+        val test = givenTestCase()
+        orientDb.addIssueToProject(test.issue1, test.project1)
+
+        // When
+        oTransactional { tx ->
+            val issues = OLinkIsNullEntityIterable(tx, Issues.CLASS, Issues.Links.IN_PROJECT)
+
+            // Then
+            assertNamesExactlyInOrder(issues, "issue2", "issue3")
+        }
+    }
 
     @Test
     fun `should iterable union different issues`() {
@@ -152,6 +184,26 @@ class OEntityIterableBaseTest : OTestMixin {
             // Then
             assertThat(issuesDistinct).hasSize(3)
             assertNamesExactlyInOrder(issuesDistinct, "issue1", "issue2", "issue3")
+        }
+    }
+
+    @Test
+    fun `should iterable minus with properties and all`() {
+        // Given
+        val test = givenTestCase()
+        orientDb.withSession {
+            test.issue1.setProperty("complex", "true")
+            test.issue2.setProperty("complex", "true")
+        }
+
+        // When
+        oTransactional { tx ->
+            val issues = tx.getAll(Issues.CLASS)
+            val complexIssues = tx.find(Issues.CLASS, "complex", "true")
+            val simpleIssues = issues.minus(complexIssues)
+
+            // Then
+            assertNamesExactly(simpleIssues, "issue3")
         }
     }
 

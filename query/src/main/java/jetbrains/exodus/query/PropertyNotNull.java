@@ -17,14 +17,8 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
 import jetbrains.exodus.entitystore.iterate.property.OPropertyExistsIterable;
-import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkExistsEntityIterable;
-import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition;
-import jetbrains.exodus.query.metadata.EntityMetaData;
 import jetbrains.exodus.query.metadata.ModelMetaData;
-import jetbrains.exodus.query.metadata.PropertyMetaData;
-import jetbrains.exodus.query.metadata.PropertyType;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 
