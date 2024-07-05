@@ -44,7 +44,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     companion object : KLogging() {
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
         const val DATA_PROPERTY_NAME = "data"
-        const val EDGE_CLASS_SUFFIX = "\$link"
+        const val EDGE_CLASS_SUFFIX = "_link"
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
         private const val STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX = "_string_blob_hash"
         fun blobSizeProperty(propertyName: String) = "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
