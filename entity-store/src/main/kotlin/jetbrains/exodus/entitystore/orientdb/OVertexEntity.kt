@@ -38,13 +38,14 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
+import kotlin.jvm.optionals.getOrNull
 
 open class OVertexEntity(private var vertex: OVertex, private val store: PersistentEntityStore) : OEntity {
 
     companion object : KLogging() {
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
         const val DATA_PROPERTY_NAME = "data"
-        const val EDGE_CLASS_SUFFIX = "\$link"
+        const val EDGE_CLASS_SUFFIX = "_link"
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
         private const val STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX = "_string_blob_hash"
         fun blobSizeProperty(propertyName: String) = "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
@@ -267,7 +268,24 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
         // Optimization?
         val edgeClassName = edgeClassName(linkName)
-        val currentEdge = findEdge(edgeClassName, target.id)
+        val edgeClass = ODatabaseSession.getActiveSession().getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName edge class not found in the database. Sorry, pal, it is required for adding a link.")
+
+        /*
+        We check for duplicates only if there is an appropriate index for it.
+        Without an index, performance degradation will be catastrophic.
+
+        You may ask why not to throw an exception if there is no an index?
+        Well, we have the data migration process. During this process:
+        1. We do not have any indices
+        2. Skipping this findEdge(...) call is exactly what we want from the performance point of view.
+        3. We avoid duplicates explicitly.
+        Well, during the data migration process, there are no any indices and
+        skipping this findEdge(...) call is exactly what we need.
+         */
+        val currentEdge: OEdge? = if (edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT)) {
+            findEdge(edgeClassName, target.id)
+        } else null
+
         if (currentEdge == null) {
             vertex.addEdge(target.asVertex, edgeClassName)
             vertex.save<OVertex>()
@@ -377,9 +395,10 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     override fun compareTo(other: Entity) = id.compareTo(other.id)
 
     private fun findEdge(edgeClassName: String, targetId: OEntityId): OEdge? {
-        return vertex
-            .getEdges(ODirection.OUT, edgeClassName)
-            .find { it.to.identity == targetId.asOId() }
+        val query = "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
+        val result = ODatabaseSession.getActiveSession().query(query, mapOf("outId" to vertex.identity, "inId" to targetId.asOId()))
+        val foundEdge = result.edgeStream().findFirst()
+        return foundEdge.getOrNull()
     }
 
     override fun equals(other: Any?): Boolean {

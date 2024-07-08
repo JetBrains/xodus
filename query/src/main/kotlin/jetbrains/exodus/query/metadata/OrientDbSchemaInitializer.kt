@@ -21,6 +21,7 @@ import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
@@ -134,6 +135,16 @@ internal class OrientDbSchemaInitializer(
         indexField.isProperty = true
         indexField.name = propertyName
         return DeferredIndex(entityName, listOf(indexField), unique = false)
+    }
+
+    private fun linkIndex(edgeClassName: String): DeferredIndex {
+        val inProperty = IndexFieldImpl()
+        inProperty.isProperty = false
+        inProperty.name = OEdge.DIRECTION_IN
+        val outProperty = IndexFieldImpl()
+        outProperty.isProperty = false
+        outProperty.name = OEdge.DIRECTION_OUT
+        return DeferredIndex(edgeClassName, listOf(inProperty, outProperty), unique = true)
     }
 
     fun getIndices(): Map<String, Set<DeferredIndex>> = indices.map { it.key to it.value.values.toSet() }.toMap()
@@ -324,9 +335,9 @@ internal class OrientDbSchemaInitializer(
         outCardinality: AssociationEndCardinality,
         inClass: OClass,
     ) {
-        val linkPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
-        append("outProp: ${outClass.name}.$linkPropName")
-        val outProp = outClass.createLinkPropertyIfAbsent(linkPropName, null)
+        val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
+        append("outProp: ${outClass.name}.$linkOutPropName")
+        val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName, null)
         if (applyLinkCardinality) {
             // applying cardinality only to out direct property
             outProp.applyCardinality(outCardinality)
@@ -337,6 +348,7 @@ internal class OrientDbSchemaInitializer(
         append("inProp: ${inClass.name}.$linkInPropName")
         inClass.createLinkPropertyIfAbsent(linkInPropName, null)
 
+        addIndex(linkIndex(edgeClass.name))
         /*
         * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
         * Because AssociationEndCardinality describes the cardinality of a single end.
