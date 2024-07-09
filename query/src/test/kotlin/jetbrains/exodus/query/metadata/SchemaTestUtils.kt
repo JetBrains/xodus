@@ -143,7 +143,7 @@ internal fun Map<String, Set<DeferredIndex>>.checkIndex(
     assertEquals(fieldNames.size, index.properties.size)
 
     for (fieldName in fieldNames) {
-        assertTrue(index.properties.any { it.name == fieldName })
+        assertTrue(index.properties.any { it == fieldName })
     }
 }
 
@@ -182,10 +182,16 @@ internal fun ModelMetaDataImpl.entity(
 }
 
 internal fun EntityMetaDataImpl.index(vararg fieldNames: String) {
+    index(*fieldNames.map { IndexedField(it, true) }.toTypedArray())
+}
+
+data class IndexedField(val name: String, val isProperty: Boolean)
+
+internal fun EntityMetaDataImpl.index(vararg fields: IndexedField) {
     val index = IndexImpl()
-    index.fields = fieldNames.map { fieldName ->
+    index.fields = fields.map { (fieldName, isProperty) ->
         val field = IndexFieldImpl()
-        field.isProperty = true
+        field.isProperty = isProperty
         field.name = fieldName
         field
     }

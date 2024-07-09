@@ -46,6 +46,7 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
         const val DATA_PROPERTY_NAME = "data"
         const val EDGE_CLASS_SUFFIX = "_link"
+        private const val LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX = "_targetEntityId"
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
         private const val STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX = "_string_blob_hash"
         fun blobSizeProperty(propertyName: String) = "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
@@ -60,11 +61,16 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
         const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
+
         fun edgeClassName(className: String): String {
             // YouTrack has fancy link names like '__CUSTOM_FIELD__Country/Region_227'. OrientDB does not like symbols
             // like '/' in class names. So we have to get rid of them.
             val sanitizedClassName = className.replace('/', '_')
             return "$sanitizedClassName$EDGE_CLASS_SUFFIX"
+        }
+
+        fun linkTargetEntityIdPropertyName(linkName: String): String {
+            return "$linkName$LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX"
         }
     }
 

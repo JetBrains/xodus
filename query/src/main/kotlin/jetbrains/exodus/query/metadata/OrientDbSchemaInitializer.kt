@@ -25,6 +25,7 @@ import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.createClassIdSequenceIfAbsent
 import jetbrains.exodus.entitystore.orientdb.createLocalEntityIdSequenceIfAbsent
 import jetbrains.exodus.entitystore.orientdb.setClassIdIfAbsent
@@ -125,26 +126,18 @@ internal class OrientDbSchemaInitializer(
 
 
     private val indices = HashMap<String, MutableMap<String, DeferredIndex>>()
+    private val linksInCompositeIndicesByClassName = HashMap<String, Set<String>>()
 
     private fun addIndex(index: DeferredIndex) {
         indices.getOrPut(index.ownerVertexName) { HashMap() }[index.indexName] = index
     }
 
     private fun simplePropertyIndex(entityName: String, propertyName: String): DeferredIndex {
-        val indexField = IndexFieldImpl()
-        indexField.isProperty = true
-        indexField.name = propertyName
-        return DeferredIndex(entityName, listOf(indexField), unique = false)
+        return DeferredIndex(entityName, listOf(propertyName), unique = false)
     }
 
-    private fun linkIndex(edgeClassName: String): DeferredIndex {
-        val inProperty = IndexFieldImpl()
-        inProperty.isProperty = false
-        inProperty.name = OEdge.DIRECTION_IN
-        val outProperty = IndexFieldImpl()
-        outProperty.isProperty = false
-        outProperty.name = OEdge.DIRECTION_OUT
-        return DeferredIndex(edgeClassName, listOf(inProperty, outProperty), unique = true)
+    private fun linkUniqueIndex(edgeClassName: String): DeferredIndex {
+        return DeferredIndex(edgeClassName, listOf(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT), unique = true)
     }
 
     fun getIndices(): Map<String, Set<DeferredIndex>> = indices.map { it.key to it.value.values.toSet() }.toMap()
@@ -252,8 +245,29 @@ internal class OrientDbSchemaInitializer(
         * It is more efficient to create indices after the data migration.
         * So, we only remember indices here and let the user create them later.
         * */
-        for (index in dnqEntity.ownIndexes.map { DeferredIndex(it, unique = true) }) {
-            addIndex(index)
+        for (index in dnqEntity.ownIndexes) {
+            val properties = index.fields.filter { it.isProperty }.map { it.name }
+            val links = index.fields.filter { !it.isProperty }.map { it.name }
+
+            if (properties.isEmpty() && links.size == 1) {
+                /*
+                * It is just an index that guaranties uniqueness of this particular link.
+                * We do that for every link anyway, so we can ignore this index.
+                * */
+                continue
+            }
+
+            /**
+             * These links take part in a composite unique index.
+             * OrientDB does not support links in composite unique indices (due to how links are implemented).
+             * So, we do the following workaround for this case.
+             * We create an internal property for such links that contains the target entity ids, and use this property in the index.
+             */
+            for (link in links) {
+                val linkSet = linksInCompositeIndicesByClassName.getOrPut(dnqEntity.type) { HashSet() } as MutableSet<String>
+                linkSet.add(link)
+            }
+            addIndex(DeferredIndex(dnqEntity.type, properties + links.map { linkTargetEntityIdPropertyName(it) }, unique = true))
         }
 
         /*
@@ -321,6 +335,7 @@ internal class OrientDbSchemaInitializer(
         withPadding {
             // class1.prop1 -> edgeClass -> class2
             applyAssociation(
+                association.name,
                 edgeClass,
                 outClass = class1,
                 outCardinality = association.cardinality,
@@ -330,6 +345,7 @@ internal class OrientDbSchemaInitializer(
     }
 
     private fun applyAssociation(
+        associationName: String,
         edgeClass: OClass,
         outClass: OClass,
         outCardinality: AssociationEndCardinality,
@@ -347,12 +363,19 @@ internal class OrientDbSchemaInitializer(
         val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
         append("inProp: ${inClass.name}.$linkInPropName")
         inClass.createLinkPropertyIfAbsent(linkInPropName, null)
+        appendLine()
 
-        addIndex(linkIndex(edgeClass.name))
+        addIndex(linkUniqueIndex(edgeClass.name))
         /*
         * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
         * Because AssociationEndCardinality describes the cardinality of a single end.
         * */
+
+       if (associationName in linksInCompositeIndicesByClassName.getOrDefault(outClass.name, emptySet())) {
+            val indexedPropName = linkTargetEntityIdPropertyName(associationName)
+            append("prop for composite indices: ${outClass.name}.$indexedPropName")
+            outClass.createPropertyIfAbsent(indexedPropName, OType.LINKBAG)
+        }
 
         appendLine()
     }

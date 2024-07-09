@@ -44,8 +44,7 @@ internal class IndicesCreator(
                             append(indexName)
                             if (oClass.getClassIndex(indexName) == null) {
                                 val indexType = if (unique) OClass.INDEX_TYPE.UNIQUE else OClass.INDEX_TYPE.NOTUNIQUE
-                                val propertiesNames = properties.map { it.name }.toTypedArray()
-                                oClass.createIndex(indexName, indexType, *propertiesNames)
+                                oClass.createIndex(indexName, indexType, *properties.toTypedArray())
                                 appendLine(", created")
                             } else {
                                 appendLine(", already created")
@@ -66,26 +65,21 @@ internal class IndicesCreator(
 data class DeferredIndex(
     val ownerVertexName: String,
     val indexName: String,
-    val properties: List<IndexField>,
+    val properties: List<String>,
     val unique: Boolean
 ) {
-    constructor(ownerVertexName: String, properties: List<IndexField>, unique: Boolean): this(
+    constructor(ownerVertexName: String, properties: List<String>, unique: Boolean): this(
         ownerVertexName,
-        indexName = "${ownerVertexName}_${properties.joinToString("_") { it.name }}${if (unique) "_unique" else ""}",
+        indexName = "${ownerVertexName}_${properties.joinToString("_")}${if (unique) "_unique" else ""}",
         properties,
         unique = unique
     )
-
-    constructor(index: Index, unique: Boolean): this(index.ownerEntityType, index.fields, unique)
 }
 
 fun OClass.makeDeferredIndexForEmbeddedSet(propertyName: String): DeferredIndex {
-    val indexField = IndexFieldImpl()
-    indexField.isProperty = true
-    indexField.name = propertyName
     return DeferredIndex(
         ownerVertexName = this.name,
-        listOf(indexField),
+        listOf(propertyName),
         unique = false
     )
 }
