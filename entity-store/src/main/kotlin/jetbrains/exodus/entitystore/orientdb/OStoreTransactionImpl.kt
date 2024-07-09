@@ -133,8 +133,7 @@ class OStoreTransactionImpl(
         if (oId == ORIDEntityId.EMPTY_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
-        val vertex: OVertex = session.load(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
-        return OVertexEntity(vertex, store)
+        return OVertexEntity(oId, store)
     }
 
     override fun getEntityTypes(): MutableList<String> {
