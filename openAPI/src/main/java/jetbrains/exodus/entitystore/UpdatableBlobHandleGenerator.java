@@ -13,21 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.tree.btree;
+package jetbrains.exodus.entitystore;
 
-import jetbrains.exodus.tree.ITree;
-import jetbrains.exodus.tree.ITreeMutable;
-import jetbrains.exodus.tree.TreePutTest;
-
-public class BTreePutCommonTest extends TreePutTest {
-
-    @Override
-    protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
-        return new BTreeEmpty(log, hasDuplicates, structureId, Integer.MAX_VALUE).getMutableCopy();
-    }
-
-    @Override
-    protected ITree openTree(long address, boolean hasDuplicates) {
-        return new BTree(log, address, hasDuplicates, 1, Integer.MAX_VALUE);
-    }
+public interface UpdatableBlobHandleGenerator extends BlobHandleGenerator{
+    void setHandle(long handle);
 }

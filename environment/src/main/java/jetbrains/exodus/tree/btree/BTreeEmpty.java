@@ -26,19 +26,20 @@ public class BTreeEmpty extends BTreeBase {
     public BTreeEmpty(@NotNull final Log log,
                       @NotNull final BTreeBalancePolicy balancePolicy,
                       final boolean allowsDuplicates,
-                      final int structureId) {
-        super(log, balancePolicy, allowsDuplicates, structureId);
+                      final int structureId, final int maxEntrySize) {
+        super(log, balancePolicy, allowsDuplicates, structureId, maxEntrySize);
         size = 0;
     }
 
-    public BTreeEmpty(@NotNull final Log log, final boolean allowsDuplicates, final int structureId) {
-        this(log, BTreeBalancePolicy.DEFAULT, allowsDuplicates, structureId);
+    public BTreeEmpty(@NotNull final Log log, final boolean allowsDuplicates,
+                      final int structureId, final int maxEntrySize) {
+        this(log, BTreeBalancePolicy.DEFAULT, allowsDuplicates, structureId, maxEntrySize);
     }
 
     @Override
     @NotNull
     public BTreeMutable getMutableCopy() {
-        return new BTreeMutable(this);
+        return new BTreeMutable(this, maxEntrySize);
     }
 
     @Override

@@ -244,7 +244,9 @@ final class MetaTreeImpl implements MetaTree {
     }
 
     private static ITree getEmptyMetaTree(@NotNull final EnvironmentImpl env) {
-        return new BTreeEmpty(env.getLog(), env.getBTreeBalancePolicy(), false, EnvironmentImpl.META_TREE_ID) {
+        var conf = env.getEnvironmentConfig();
+        return new BTreeEmpty(env.getLog(), env.getBTreeBalancePolicy(), false,
+                EnvironmentImpl.META_TREE_ID, conf.getEnvMaximumTreeEntrySize()) {
             @NotNull
             @Override
             public DataIterator getDataIterator(long address) {

@@ -38,20 +38,20 @@ public class PatriciaTestBase extends TreeBaseTest {
 
     @Override
     protected ITreeMutable createMutableTree(final boolean hasDuplicates, final int structureId) {
-        return doCreateMutableTree(hasDuplicates, structureId);
+        return doCreateMutableTree(hasDuplicates, structureId, Integer.MAX_VALUE);
     }
 
     @Override
     protected ITree openTree(long address, boolean hasDuplicates) {
-        return doOpenTree(address, hasDuplicates);
+        return doOpenTree(address, hasDuplicates, Integer.MAX_VALUE);
     }
 
-    protected static ITreeMutable doCreateMutableTree(final boolean hasDuplicates, final int structureId) {
-        return new PatriciaTreeEmpty(log, structureId, hasDuplicates).getMutableCopy();
+    protected static ITreeMutable doCreateMutableTree(final boolean hasDuplicates, final int structureId, int maxEntrySize) {
+        return new PatriciaTreeEmpty(log, structureId, hasDuplicates, maxEntrySize).getMutableCopy();
     }
 
-    protected static ITree doOpenTree(long address, boolean hasDuplicates) {
-        final PatriciaTree tree = new PatriciaTree(log, address, 1);
+    protected static ITree doOpenTree(long address, boolean hasDuplicates, final int maxEntrySize) {
+        final PatriciaTree tree = new PatriciaTree(log, address, 1, maxEntrySize);
         return hasDuplicates ? new PatriciaTreeWithDuplicates(tree) : tree;
     }
 

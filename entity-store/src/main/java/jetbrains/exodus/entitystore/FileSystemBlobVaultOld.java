@@ -142,6 +142,15 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         return blobHandleGenerator.nextHandle();
     }
 
+    public boolean updateNextHandle(long handle) {
+        if (blobHandleGenerator instanceof UpdatableBlobHandleGenerator) {
+            ((UpdatableBlobHandleGenerator) blobHandleGenerator).setHandle(handle);
+            return true;
+        }
+
+        return false;
+    }
+
     private void setContent(final long blobHandle, @NotNull final InputStream content) throws Exception {
         final File location = getBlobLocation(blobHandle, false);
         setContentImpl(content, location);
@@ -242,7 +251,7 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
     public InputStream getContent(final long blobHandle, @NotNull final Transaction txn, @Nullable Long expectedLength) {
         try {
             var location = getBlobLocation(blobHandle);
-            if (expectedLength != null && location.length() != expectedLength.longValue()) {
+            if (expectedLength != null && location.length() != expectedLength) {
                 return null;
             }
 
@@ -349,6 +358,21 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
         IOUtil.deleteRecursively(tmpBlobsDir.toFile());
     }
 
+    public long findMaxBlobHandle() {
+        long maxBlobHandle = -1L;
+
+        final Iterator<Long> it = storedBlobHandles();
+        while (it.hasNext()) {
+            final long blobHandle = it.next();
+
+            if (blobHandle > maxBlobHandle) {
+                maxBlobHandle = blobHandle;
+            }
+        }
+
+        return maxBlobHandle;
+    }
+
     @NotNull
     @Override
     public BackupStrategy getBackupStrategy() {
@@ -425,56 +449,70 @@ public class FileSystemBlobVaultOld extends BlobVault implements DiskBasedBlobVa
 
     public Iterator<Long> storedBlobHandles() {
         return new Iterator<>() {
-          private final Deque<File> stack =
-              new ArrayDeque<>(Collections.singletonList(location.toFile()));
-          private final File[] EMPTY = new File[0];
-          private File[] files = EMPTY;
-          private int i = 0;
+            private final Deque<File> stack =
+                    new ArrayDeque<>(Collections.singletonList(location.toFile()));
+            private final File[] EMPTY = new File[0];
+            private File[] files = EMPTY;
+            private int i = 0;
 
-          @Override
-          public boolean hasNext() {
-            while (true) {
-              if (i < files.length) {
-                final File file = files[i++];
-                if (file.isDirectory()) {
-                  stack.push(file);
-                  files = EMPTY;
-                  i = 0;
-                } else {
-                  final String name = file.getName();
-                  if (name.endsWith(blobExtension)) {
+            private boolean nextIsReady = false;
+
+            @Override
+            public boolean hasNext() {
+                if (nextIsReady) {
                     return true;
-                  }
                 }
-              } else {
-                if (stack.isEmpty()) {
-                  return false;
-                }
-                final File dir = stack.pop();
-                files = dir.listFiles();
-                if (files == null) {
-                  files = EMPTY;
-                }
-                i = 0;
-              }
-            }
-          }
 
-          @Override
-          public Long next() {
-            if (!hasNext()) {
-              throw new NoSuchElementException();
-            }
-            final File file = files[i - 1];
-            return getBlobHandleByFile(file);
-          }
+                while (true) {
+                    if (i < files.length) {
+                        final File file = files[i++];
+                        if (file.isDirectory()) {
+                            stack.push(file);
+                            files = EMPTY;
 
-          @Override
-          public void remove() {
-            throw new UnsupportedOperationException();
-          }
+                            i = 0;
+                        } else {
+                            final String name = file.getName();
+
+                            if (name.endsWith(blobExtension)) {
+                                nextIsReady = true;
+                                return true;
+                            }
+                        }
+                    } else {
+                        if (stack.isEmpty()) {
+                            return false;
+                        }
+
+                        final File dir = stack.pop();
+                        files = dir.listFiles();
+                        if (files == null) {
+                            files = EMPTY;
+                        }
+                        i = 0;
+                    }
+                }
+            }
+
+            @Override
+            public Long next() {
+                if (!hasNext()) {
+                    throw new NoSuchElementException();
+                }
+
+                nextIsReady = false;
+
+                final File file = files[i - 1];
+                return getBlobHandleByFile(file);
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
         };
     }
+
     public long getBlobHandleByFile(@NotNull final File file) {
         final String name = file.getName();
         final String blobExtension = getBlobExtension();

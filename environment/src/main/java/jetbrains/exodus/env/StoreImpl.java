@@ -208,19 +208,23 @@ public class StoreImpl implements Store {
         final boolean hasDuplicates = metaInfo.hasDuplicates();
         final boolean treeIsEmpty = upToDateRootAddress == Loggable.NULL_ADDRESS;
         final Log log = environment.getLog();
+        var config = environment.getEnvironmentConfig();
+
         final ITree result;
         if (!metaInfo.isKeyPrefixing()) {
             final BTreeBalancePolicy balancePolicy = environment.getBTreeBalancePolicy();
             result = treeIsEmpty ?
-                new BTreeEmpty(log, balancePolicy, hasDuplicates, structureId) :
-                new BTree(log, balancePolicy, upToDateRootAddress, hasDuplicates, structureId);
+                    new BTreeEmpty(log, balancePolicy, hasDuplicates, structureId,
+                            config.getEnvMaximumTreeEntrySize()) :
+                    new BTree(log, balancePolicy, upToDateRootAddress, hasDuplicates, structureId,
+                            config.getEnvMaximumTreeEntrySize());
         } else {
             if (treeIsEmpty) {
-                result = new PatriciaTreeEmpty(log, structureId, hasDuplicates);
+                result = new PatriciaTreeEmpty(log, structureId, hasDuplicates, config.getEnvMaximumTreeEntrySize());
             } else {
                 result = hasDuplicates ?
-                    new PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId) :
-                    new PatriciaTree(log, upToDateRootAddress, structureId);
+                        new PatriciaTreeWithDuplicates(log, upToDateRootAddress, structureId, config.getEnvMaximumTreeEntrySize()) :
+                        new PatriciaTree(log, upToDateRootAddress, structureId, config.getEnvMaximumTreeEntrySize());
             }
         }
         return result;

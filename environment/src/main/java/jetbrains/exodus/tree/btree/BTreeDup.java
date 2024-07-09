@@ -31,8 +31,9 @@ final class BTreeDup extends BTreeBase {
     private final long startAddress;
     private final byte dataOffset;
 
-    BTreeDup(@NotNull BTreeBase mainTree, @NotNull LeafNodeDup leafNodeDup) {
-        super(mainTree.getLog(), mainTree.getBalancePolicy(), false, mainTree.getStructureId());
+    BTreeDup(@NotNull BTreeBase mainTree, @NotNull LeafNodeDup leafNodeDup, final int maxEntrySize) {
+        super(mainTree.getLog(), mainTree.getBalancePolicy(), false,
+                mainTree.getStructureId(), maxEntrySize);
         dataIterator = mainTree.getDataIterator(Loggable.NULL_ADDRESS);
         this.leafNodeDup = leafNodeDup;
         leafNodeDupKey = leafNodeDup.getKey();

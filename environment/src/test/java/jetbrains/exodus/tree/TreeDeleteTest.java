@@ -19,7 +19,6 @@ import jetbrains.exodus.TestUtil;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Map;
 
 import static org.junit.Assert.*;

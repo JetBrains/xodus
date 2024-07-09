@@ -30,7 +30,7 @@ public class PatriciaAddressIteratorTest extends PatriciaTestBase {
             getTreeMutable().put(kv("xy" + c, ""));
         }
 
-        t = new PatriciaTree(log, saveTree(), 1);
+        t = new PatriciaTree(log, saveTree(), 1, Integer.MAX_VALUE);
         checkAddressSet(getTree(), 23);
     }
 }

@@ -259,8 +259,6 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
 
             if (environment.isClearBrokenBlobs()) {
                 clearBrokenBlobs(txn);
-
-
             }
             return result;
         });
@@ -282,13 +280,25 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
                     (int) blob[2]));
         }
 
-        if (blobVault instanceof FileSystemBlobVaultOld) {
-            var nextBlobHandle = blobVault.nextHandle();
+        if (blobVault instanceof FileSystemBlobVaultOld blobVaultOld) {
+            var nextBlobHandle = blobVaultOld.nextHandle();
+            var maxBlobHandle = blobVaultOld.findMaxBlobHandle();
+
             try {
-                ((FileSystemBlobVaultOld) blobVault).removeAllBlobsStartingFrom(nextBlobHandle);
+                blobVaultOld.removeAllBlobsStartingFrom(nextBlobHandle);
             } catch (IOException e) {
-                throw new ExodusException("Error during removal of redundant blobs", e);
+                logger.error("Database: {} Error during removal of redundant blobs", getLocation(), e);
+
             }
+
+            if (maxBlobHandle > -1 && maxBlobHandle + 1 > nextBlobHandle) {
+                if (!blobVaultOld.updateNextHandle(maxBlobHandle + 1)) {
+                    logger.warn(
+                            "Database {}: Failed to update next blob handle to {} during removal of redundant blobs.",
+                            getLocation(), maxBlobHandle + 1);
+                }
+            }
+
         }
     }
 

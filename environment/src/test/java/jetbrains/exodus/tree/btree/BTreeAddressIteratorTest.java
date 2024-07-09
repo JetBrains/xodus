@@ -23,7 +23,7 @@ public class BTreeAddressIteratorTest extends TreeAddressIteratorTest {
 
     @Override
     protected ITree createEmpty() {
-        return new BTreeEmpty(log, false, 0);
+        return new BTreeEmpty(log, false, 0, Integer.MAX_VALUE);
     }
 
     @Override

@@ -27,8 +27,9 @@ internal class PatriciaTreeMutable(
     log: Log,
     structureId: Int,
     treeSize: Long,
-    immutableRoot: ImmutableNode
-) : PatriciaTreeBase(log, structureId), ITreeMutable {
+    immutableRoot: ImmutableNode,
+    maxEntrySize: Int
+) : PatriciaTreeBase(log, structureId, maxEntrySize), ITreeMutable {
 
     private var root = MutableRoot(immutableRoot)
     private var expiredLoggables: ExpiredLoggableCollection? = null
@@ -308,17 +309,24 @@ internal class PatriciaTreeMutable(
 
         val maxAddress = l.address
 
-        val sourceTree = PatriciaTreeForReclaim(log, maxAddress, structureId)
+        val sourceTree = PatriciaTreeForReclaim(log, maxAddress, structureId, maxEntrySize)
         val sourceRoot = sourceTree.root
         val backRef = sourceTree.backRef
+
         if (backRef > 0) {
             val treeStartAddress = sourceTree.rootAddress - backRef
-            check(treeStartAddress <= minAddress) { "Wrong back reference!" }
+
+            if (treeStartAddress > minAddress) {
+                throw UnexpectedLoggableException("Wrong back reference!", treeStartAddress)
+            }
+
             if (!log.hasAddressRange(treeStartAddress, maxAddress)) {
                 return false
             }
+
             minAddress = treeStartAddress
         }
+
         val actual = PatriciaReclaimActualTraverser(this)
         reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, minAddress), actual)
         return actual.wasReclaim || sourceRoot.address == root.sourceAddress
@@ -554,10 +562,10 @@ internal class PatriciaTreeMutable(
             || byteIterable is FixedLengthByteIterable
             || byteIterable is ByteBufferByteIterable
         ) {
-            val maxFileSize = log.fileLengthBound / 2
-            if (byteIterable.length > maxFileSize) {
+            if (byteIterable.length > maxEntrySize) {
                 throw TooBigLoggableException(
-                    "ByteIterable length is greater than max allowed size of $maxFileSize bytes"
+                    "ByteIterable length is greater than max allowed size of $maxEntrySize " +
+                            "bytes but was ${byteIterable.length}"
                 )
             }
         }

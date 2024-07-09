@@ -82,6 +82,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     private boolean checkInvalidateBlobsFlag;
 
+
     PersistentStoreTransaction(@NotNull final PersistentEntityStoreImpl store) {
         this(store, TransactionType.Regular);
     }
@@ -96,11 +97,15 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     PersistentStoreTransaction(@NotNull final PersistentStoreTransaction source,
                                @NotNull final TransactionType txnType) {
         this.store = source.store;
+
         final PersistentEntityStoreConfig config = store.getConfig();
         propsCache = createObjectCache(config.getTransactionPropsCacheSize());
         linksCache = createObjectCache(config.getTransactionLinksCacheSize());
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCache = source.localCache;
+
+        assert localCache == store.getEntityIterableCache().getCacheAdapter();
+
         localCacheAttempts = localCacheHits = 0;
         switch (txnType) {
             case Regular:
@@ -949,7 +954,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         }
     }
 
-    public void flushCaches(final boolean clearPropsAndLinksCache) {
+    private void flushCaches(final boolean clearPropsAndLinksCache) {
         resetCaches(clearPropsAndLinksCache);
     }
 
