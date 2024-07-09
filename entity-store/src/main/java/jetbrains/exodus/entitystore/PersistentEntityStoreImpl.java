@@ -316,8 +316,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
 
         var blobHandles = new LongHashSet();
-        if (blobVault instanceof FileSystemBlobVaultOld) {
-            var blobHandleIterator = ((FileSystemBlobVaultOld) blobVault).storedBlobHandles();
+        var blobSource = blobVault.getSourceVault();
+        if (blobSource instanceof FileSystemBlobVaultOld) {
+            var blobHandleIterator = ((FileSystemBlobVaultOld) blobSource).storedBlobHandles();
             logger.info("Database: {}. Collecting existing BLOBs ...", getLocation());
             while (blobHandleIterator.hasNext()) {
                 blobHandles.add(blobHandleIterator.next());
