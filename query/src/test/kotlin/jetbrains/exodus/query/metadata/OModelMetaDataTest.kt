@@ -186,7 +186,7 @@ class OModelMetaDataTest {
         // prepare() must initialize internal data structures in the end
         model.prepare()
 
-        orientDb.withSession { session ->
+        orientDb.withSession {
             assertEquals(entityId, model.getOEntityId(oldSchoolEntityId))
         }
     }

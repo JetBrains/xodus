@@ -25,10 +25,7 @@ import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.EntityId
-import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.PersistentEntityStore
+import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
@@ -40,7 +37,11 @@ import java.io.File
 import java.io.InputStream
 import kotlin.jvm.optionals.getOrNull
 
-open class OVertexEntity(private var vertex: OVertex, private val store: PersistentEntityStore) : OEntity {
+open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store: PersistentEntityStore) : OEntity {
+
+    constructor(vertex: OVertex, store: PersistentEntityStore) : this(ORIDEntityId.fromVertex(vertex), store) {
+        this.vertex = vertex
+    }
 
     companion object : KLogging() {
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
@@ -70,9 +71,20 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     private val activeSession get() = ODatabaseSession.getActiveSession()
 
-    private var txid: Int = activeSession.transaction.id
+    private var vertex: OVertex? = null
 
-    private var oEntityId = ORIDEntityId.fromVertex(vertex)
+    private val dbVertex: OVertex
+        get() {
+            if (vertex == null) {
+                vertex = activeSession.getRecord(oEntityId.asOId())
+            }
+
+            if (vertex == null) {
+                throw EntityRemovedInDatabaseException("Vertex not found for $oEntityId")
+            }
+
+            return vertex!!
+        }
 
     override fun getStore() = store
 
@@ -83,15 +95,14 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     override fun getType(): String = oEntityId.getTypeName()
 
     override fun delete(): Boolean {
-        vertex.delete()
+        dbVertex.delete()
         return true
     }
 
     override fun getRawProperty(propertyName: String): ByteIterable? = null
 
     override fun getProperty(propertyName: String): Comparable<*>? {
-        reload()
-        val value = vertex.getProperty<Any>(propertyName)
+        val value = dbVertex.getProperty<Any>(propertyName)
         return if (value == null || value !is MutableSet<*>) {
             value as Comparable<*>?
         } else {
@@ -99,46 +110,40 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         }
     }
 
-    private fun reload() {
-        val session = activeSession
-        val tx = session.transaction
-
-        if (txid != tx.id) {
-            txid = tx.id
-            vertex = session.load(oEntityId.asOId())
-        }
-    }
-
     override fun setProperty(propertyName: String, value: Comparable<*>): Boolean {
         assertWritable()
-        reload()
-        val oldProperty = vertex.getProperty<Any>(propertyName)
+
+        val dbVertex = this.dbVertex
+        val oldProperty = dbVertex.getProperty<Any>(propertyName)
 
         if (value is OComparableSet<*> || oldProperty is MutableSet<*>) {
             return setPropertyAsSet(propertyName, value as OComparableSet<*>)
         } else {
-            vertex.setProperty(propertyName, value)
-            vertex.save<OVertex>()
+            dbVertex.setProperty(propertyName, value)
+            dbVertex.save<OVertex>()
             return oldProperty?.equals(value) != true
         }
     }
 
     private fun setPropertyAsSet(propertyName: String, value: Any?): Boolean {
+        val dbVertex = this.dbVertex
+
         if (value is OComparableSet<*>) {
-            vertex.setProperty(propertyName, value.source)
+            dbVertex.setProperty(propertyName, value.source)
         } else {
-            vertex.setProperty(propertyName, value)
+            dbVertex.setProperty(propertyName, value)
         }
-        vertex.save<OVertex>()
-        return vertex.getProperty<OTrackedSet<*>>(propertyName)?.isTransactionModified == true
+        dbVertex.save<OVertex>()
+        return dbVertex.getProperty<OTrackedSet<*>>(propertyName)?.isTransactionModified == true
     }
 
     override fun deleteProperty(propertyName: String): Boolean {
         assertWritable()
-        reload()
-        if (vertex.hasProperty(propertyName)) {
-            vertex.removeProperty<Any>(propertyName)
-            vertex.save<OVertex>()
+
+        val dbVertex = this.dbVertex
+        if (dbVertex.hasProperty(propertyName)) {
+            dbVertex.removeProperty<Any>(propertyName)
+            dbVertex.save<OVertex>()
             return true
         } else {
             return false
@@ -147,13 +152,11 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     }
 
     override fun getPropertyNames(): List<String> {
-        reload()
-        return ArrayList(vertex.propertyNames)
+        return ArrayList(dbVertex.propertyNames)
     }
 
     override fun getBlob(blobName: String): InputStream? {
-        reload()
-        val element = vertex.getLinkProperty(blobName)
+        val element = dbVertex.getLinkProperty(blobName)
         return element?.let {
             val record = activeSession.getRecord<OElement>(element)
             return ByteArrayInputStream(record.getProperty(DATA_PROPERTY_NAME))
@@ -161,17 +164,16 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     }
 
     override fun getBlobSize(blobName: String): Long {
-        reload()
+        val dbVertex = this.dbVertex
         val sizePropertyName = blobSizeProperty(blobName)
-        val ref = vertex.getLinkProperty(blobName)
+        val ref = dbVertex.getLinkProperty(blobName)
         return ref?.let {
-            vertex.getProperty<Long>(sizePropertyName)
+            dbVertex.getProperty(sizePropertyName)
         } ?: -1
     }
 
     override fun getBlobString(blobName: String): String? {
-        reload()
-        val ref = vertex.getLinkProperty(blobName)
+        val ref = dbVertex.getLinkProperty(blobName)
         return ref?.let {
             val record = activeSession.getRecord<OElement>(ref)
             record.getProperty<ByteArray>(DATA_PROPERTY_NAME)?.let {
@@ -183,13 +185,14 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun setBlob(blobName: String, blob: InputStream) {
         assertWritable()
-        reload()
-        val ref = vertex.getLinkProperty(blobName)
+        val dbVertex = this.dbVertex
+
+        val ref = dbVertex.getLinkProperty(blobName)
         val blobContainer: OElement
 
         if (ref == null) {
             blobContainer = activeSession.newElement(BINARY_BLOB_CLASS_NAME)
-            vertex.setProperty(blobName, blobContainer)
+            dbVertex.setProperty(blobName, blobContainer)
         } else {
             blobContainer = activeSession.getRecord(ref)
             if (blobContainer.hasProperty(DATA_PROPERTY_NAME)) {
@@ -199,9 +202,9 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
         val data = blob.use { blob.readAllBytes() }
         blobContainer.setProperty(DATA_PROPERTY_NAME, data)
-        vertex.setProperty(blobSizeProperty(blobName), data.size.toLong())
+        dbVertex.setProperty(blobSizeProperty(blobName), data.size.toLong())
         blobContainer.save<OElement>()
-        vertex.save<OVertex>()
+        dbVertex.save<OVertex>()
     }
 
     override fun setBlob(blobName: String, file: File) {
@@ -210,28 +213,29 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun setBlobString(blobName: String, blobString: String): Boolean {
         assertWritable()
-        reload()
-        val ref = vertex.getLinkProperty(blobName)
+
+        val dbVertex = this.dbVertex
+        val ref = dbVertex.getLinkProperty(blobName)
         val update: Boolean
         var record: OElement? = null
 
         if (ref == null) {
             record = activeSession.newElement(STRING_BLOB_CLASS_NAME)
-            vertex.setProperty(blobName, record)
+            dbVertex.setProperty(blobName, record)
             update = true
         } else {
-            update = blobString.hashCode() != vertex.getProperty<Int>(blobHashProperty(blobName))
-                    || blobString.length.toLong() != vertex.getProperty<Long>(blobSizeProperty(blobName))
+            update = blobString.hashCode() != dbVertex.getProperty<Int>(blobHashProperty(blobName))
+                    || blobString.length.toLong() != dbVertex.getProperty<Long>(blobSizeProperty(blobName))
         }
 
         if (update) {
             record = record ?: activeSession.getRecord(ref) as OElement
-            vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
-            vertex.setProperty(blobSizeProperty(blobName), blobString.length.toLong())
+            dbVertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
+            dbVertex.setProperty(blobSizeProperty(blobName), blobString.length.toLong())
             val baos = ByteArrayOutputStream(blobString.length)
             UTFUtil.writeUTF(baos, blobString)
             record.setProperty(DATA_PROPERTY_NAME, baos.toByteArray())
-            vertex.save<OVertex>()
+            dbVertex.save<OVertex>()
         }
 
         return update
@@ -239,16 +243,17 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun deleteBlob(blobName: String): Boolean {
         assertWritable()
-        reload()
-        val ref = vertex.getLinkProperty(blobName)
+
+        val dbVertex = this.dbVertex
+        val ref = dbVertex.getLinkProperty(blobName)
         return if (ref != null) {
             val record = ref.getRecord<OElement>()
-            vertex.removeProperty<Long>(blobSizeProperty(blobName))
+            dbVertex.removeProperty<Long>(blobSizeProperty(blobName))
             if (record.schemaClass?.name == STRING_BLOB_CLASS_NAME) {
                 record.setProperty(DATA_PROPERTY_NAME, null)
             } else {
-                vertex.removeProperty<OIdentifiable>(blobName)
-                vertex.save<OVertex>()
+                dbVertex.removeProperty<OIdentifiable>(blobName)
+                dbVertex.save<OVertex>()
                 activeSession.delete(ref.identity)
             }
             true
@@ -256,19 +261,19 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     }
 
     override fun getBlobNames(): List<String> {
-        reload()
-        return vertex.propertyNames
+        return dbVertex.propertyNames
             .filter { it.endsWith(BLOB_SIZE_PROPERTY_NAME_SUFFIX) }
             .map { it.substring(1).substringBefore(BLOB_SIZE_PROPERTY_NAME_SUFFIX) }
     }
 
     override fun addLink(linkName: String, target: Entity): Boolean {
         assertWritable()
-        reload()
+
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
         // Optimization?
         val edgeClassName = edgeClassName(linkName)
-        val edgeClass = ODatabaseSession.getActiveSession().getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName edge class not found in the database. Sorry, pal, it is required for adding a link.")
+        val edgeClass = ODatabaseSession.getActiveSession().getClass(edgeClassName)
+            ?: throw IllegalStateException("$edgeClassName edge class not found in the database. Sorry, pal, it is required for adding a link.")
 
         /*
         We check for duplicates only if there is an appropriate index for it.
@@ -286,9 +291,10 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
             findEdge(edgeClassName, target.id)
         } else null
 
+        val dbVertex = this.dbVertex
         if (currentEdge == null) {
-            vertex.addEdge(target.asVertex, edgeClassName)
-            vertex.save<OVertex>()
+            dbVertex.addEdge(target.asVertex, edgeClassName)
+            dbVertex.save<OVertex>()
             return true
         } else {
             return false
@@ -306,9 +312,8 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     }
 
     override fun getLink(linkName: String): Entity? {
-        reload()
         val edgeClassName = edgeClassName(linkName)
-        val target = vertex.getVertices(ODirection.OUT, edgeClassName).firstOrNull()
+        val target = dbVertex.getVertices(ODirection.OUT, edgeClassName).firstOrNull()
         return target.toOEntityOrNull()
     }
 
@@ -316,20 +321,21 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         assertWritable()
         require(target is OVertexEntity?) { "Only OVertexEntity is supported, but was ${target?.javaClass?.simpleName}" }
 
-        reload()
         val currentLink = getLink(linkName) as OVertexEntity?
         val edgeClassName = edgeClassName(linkName)
 
         if (currentLink == target) {
             return false
         }
+
+        val dbVertex = this.dbVertex
         if (currentLink != null) {
             findEdge(edgeClassName, currentLink.id)?.delete()
-            currentLink.vertex.save<OVertex>()
+            currentLink.dbVertex.save<OVertex>()
         }
         if (target != null) {
-            vertex.addEdge(target.vertex, edgeClassName)
-            vertex.save<OVertex>()
+            dbVertex.addEdge(target.vertex, edgeClassName)
+            dbVertex.save<OVertex>()
         }
         return true
     }
@@ -345,26 +351,25 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
     }
 
     override fun getLinks(linkName: String): EntityIterable {
-        reload()
         val edgeClassName = edgeClassName(linkName)
-        val links = vertex.getVertices(ODirection.OUT, edgeClassName)
+        val links = dbVertex.getVertices(ODirection.OUT, edgeClassName)
         return OVertexEntityIterable(links, store)
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
-        reload()
         val edgeClassNames = linkNames.map { edgeClassName(it) }
-        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *edgeClassNames.toTypedArray()), store)
+        return OVertexEntityIterable(dbVertex.getVertices(ODirection.OUT, *edgeClassNames.toTypedArray()), store)
     }
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         assertWritable()
-        reload()
         target as OVertexEntity
         val edgeClassName = edgeClassName(linkName)
-        vertex.deleteEdge(target.vertex, edgeClassName)
-        val result = vertex.isDirty
-        vertex.save<OVertex>()
+
+        val dbVertex = this.dbVertex
+        dbVertex.deleteEdge(target.dbVertex, edgeClassName)
+        val result = dbVertex.isDirty
+        dbVertex.save<OVertex>()
         return result
     }
 
@@ -377,17 +382,17 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     override fun deleteLinks(linkName: String) {
         assertWritable()
-        reload()
         val edgeClassName = edgeClassName(linkName)
-        vertex.getEdges(ODirection.OUT, edgeClassName).forEach {
+
+        val dbVertex = this.dbVertex
+        dbVertex.getEdges(ODirection.OUT, edgeClassName).forEach {
             it.delete()
         }
-        vertex.save<OVertex>()
+        dbVertex.save<OVertex>()
     }
 
     override fun getLinkNames(): List<String> {
-        reload()
-        return ArrayList(vertex.getEdgeNames(ODirection.OUT)
+        return ArrayList(dbVertex.getEdgeNames(ODirection.OUT)
             .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
             .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
     }
@@ -396,7 +401,8 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
     private fun findEdge(edgeClassName: String, targetId: OEntityId): OEdge? {
         val query = "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
-        val result = ODatabaseSession.getActiveSession().query(query, mapOf("outId" to vertex.identity, "inId" to targetId.asOId()))
+        val result = ODatabaseSession.getActiveSession()
+            .query(query, mapOf("outId" to dbVertex.identity, "inId" to targetId.asOId()))
         val foundEdge = result.edgeStream().findFirst()
         return foundEdge.getOrNull()
     }
@@ -413,11 +419,11 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         return id.hashCode()
     }
 
-    internal val asVertex = vertex
+    internal val asVertex = dbVertex
 
     override fun save(): OVertexEntity {
         assertWritable()
-        vertex.save<OVertex>()
+        dbVertex.save<OVertex>()
         return this
     }
 
