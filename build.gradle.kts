@@ -111,10 +111,6 @@ subprojects {
         implementation(rootProject.libs.kotlin.stdlib)
 
         testImplementation(rootProject.libs.junit)
-
-        if (name != "vectoriadb-server") {
-            testImplementation(rootProject.libs.slf4j.simple)
-        }
     }
 
 
