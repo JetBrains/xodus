@@ -126,7 +126,7 @@ internal class OrientDbSchemaInitializer(
 
 
     private val indices = HashMap<String, MutableMap<String, DeferredIndex>>()
-    private val linksInCompositeIndicesByClassName = HashMap<String, Set<String>>()
+    private val linksInUniqueIndicesByClassName = HashMap<String, Set<String>>()
 
     private fun addIndex(index: DeferredIndex) {
         indices.getOrPut(index.ownerVertexName) { HashMap() }[index.indexName] = index
@@ -249,22 +249,14 @@ internal class OrientDbSchemaInitializer(
             val properties = index.fields.filter { it.isProperty }.map { it.name }
             val links = index.fields.filter { !it.isProperty }.map { it.name }
 
-            if (properties.isEmpty() && links.size == 1) {
-                /*
-                * It is just an index that guaranties uniqueness of this particular link.
-                * We do that for every link anyway, so we can ignore this index.
-                * */
-                continue
-            }
-
             /**
-             * These links take part in a composite unique index.
-             * OrientDB does not support links in composite unique indices (due to how links are implemented).
+             * These links take part in unique indices.
+             * OrientDB does not support links in unique indices (due to how links are implemented).
              * So, we do the following workaround for this case.
              * We create an internal property for such links that contains the target entity ids, and use this property in the index.
              */
             for (link in links) {
-                val linkSet = linksInCompositeIndicesByClassName.getOrPut(dnqEntity.type) { HashSet() } as MutableSet<String>
+                val linkSet = linksInUniqueIndicesByClassName.getOrPut(dnqEntity.type) { HashSet() } as MutableSet<String>
                 linkSet.add(link)
             }
             addIndex(DeferredIndex(dnqEntity.type, properties + links.map { linkTargetEntityIdPropertyName(it) }, unique = true))
@@ -371,7 +363,7 @@ internal class OrientDbSchemaInitializer(
         * Because AssociationEndCardinality describes the cardinality of a single end.
         * */
 
-       if (associationName in linksInCompositeIndicesByClassName.getOrDefault(outClass.name, emptySet())) {
+       if (associationName in linksInUniqueIndicesByClassName.getOrDefault(outClass.name, emptySet())) {
             val indexedPropName = linkTargetEntityIdPropertyName(associationName)
             append("prop for composite indices: ${outClass.name}.$indexedPropName")
             outClass.createPropertyIfAbsent(indexedPropName, OType.LINKBAG)
