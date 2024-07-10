@@ -31,11 +31,11 @@ class OPropertySortedIterable(
 ) : OQueryEntityIterableBase(txn) {
 
     override fun query(): OSelect {
-        if (source != null) {
-            return source.query().withOrder(propertyName, ascending)
+        val order = OOrderByFields(propertyName, ascending)
+        return if (source != null) {
+            source.query().withOrder(order)
         } else {
-            val order = OOrderByFields(propertyName, ascending)
-            return OClassSelect(entityType, order = order)
+            OClassSelect(entityType, order = order)
         }
     }
 }

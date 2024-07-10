@@ -16,18 +16,19 @@
 package jetbrains.exodus.entitystore.orientdb.query
 
 sealed interface OOrder : OSql {
-    fun merge(order: OOrder): OOrder
+    fun merge(newOrder: OOrder): OOrder
+    fun reverse(): OOrder
 }
 
-data class OrderItem(val field: String, val ascending: Boolean = true)
+data class FieldOrder(val field: String, val ascending: Boolean = true)
 
 class OOrderByFields(
-    val items: List<OrderItem>
+    private val fields: List<FieldOrder>
 ) : OOrder {
 
     constructor(field: String, ascending: Boolean = true) : this(
         listOf(
-            OrderItem(
+            FieldOrder(
                 field,
                 ascending
             )
@@ -37,7 +38,7 @@ class OOrderByFields(
     override fun sql(builder: SqlBuilder) {
         var count = 0
 
-        for ((field, ascending) in items) {
+        for ((field, ascending) in fields) {
             if (count++ > 0) {
                 builder.append(", ")
             }
@@ -46,10 +47,18 @@ class OOrderByFields(
         }
     }
 
-    override fun merge(order: OOrder): OOrder {
-        return when (order) {
-            is OOrderByFields -> OOrderByFields(items + order.items)
+    override fun merge(newOrder: OOrder): OOrder {
+        return when (newOrder) {
+            is OOrderByFields -> {
+                val newFields = (newOrder.fields + fields)
+                    .distinctBy { it.field } // filter out duplicates in favor of the new order
+                OOrderByFields(newFields)
+            }
         }
+    }
+
+    override fun reverse(): OOrder {
+        return OOrderByFields(fields.map { FieldOrder(it.field, !it.ascending) })
     }
 }
 
