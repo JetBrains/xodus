@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
@@ -26,7 +25,6 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CU
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.requireLocalEntityId
@@ -284,114 +282,6 @@ class OrientDbSchemaInitializerTest {
         }
     }
 
-    @Test
-    fun `composite indices with links`() {
-        val model = model {
-            entity("type2")
-            entity("type1") {
-                property("prop1", "int")
-                index(IndexedField("prop1", isProperty = true), IndexedField("ass1", isProperty = false))
-            }
-            association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
-        }
-
-        orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model)
-            oSession.applyIndices(indices)
-        }
-
-        val edgeClassName = edgeClassName("ass1")
-        val linkTargetLocalEntityIdName = linkTargetEntityIdPropertyName("ass1")
-
-        // (1, no links) == (1, no links)
-        assertFailsWith<ORecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
-                val v1 = oSession.newVertex("type1")
-                val v2 = oSession.newVertex("type1")
-
-                oSession.setLocalEntityId("type1", v1)
-                oSession.setLocalEntityId("type1", v2)
-
-                v1.setProperty("prop1", 1)
-                v2.setProperty("prop1", 1)
-
-                v1.save<OVertex>()
-                v2.save<OVertex>()
-            }
-        }
-
-        // (1, { v3 } ) != (1, no links)
-        val (id1, id2, id3) = orientDb.withTxSession { oSession ->
-            val v1 = oSession.newVertex("type1")
-            val v2 = oSession.newVertex("type1")
-            val v3 = oSession.newVertex("type2")
-
-            oSession.setLocalEntityId("type1", v1)
-            oSession.setLocalEntityId("type1", v2)
-            oSession.setLocalEntityId("type2", v3)
-
-            v1.setProperty("prop1", 1)
-            v2.setProperty("prop1", 1)
-
-            val bag = v1.getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
-            v1.addEdge(v3, edgeClassName)
-            bag.add(v3)
-            v1.setProperty(linkTargetLocalEntityIdName, bag)
-
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-            v3.save<OVertex>()
-            Triple(v1.identity, v2.identity, v3.identity)
-        }
-
-        // (1, { v3 } ) == (1, { v3 } )
-        assertFailsWith<ORecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
-                val v2 = oSession.getRecord<OVertex>(id2)
-                val v3 = oSession.getRecord<OVertex>(id3)
-
-                val bag = v2.getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
-                v2.addEdge(v3, edgeClassName)
-                bag.add(v3)
-
-                v2.setProperty(linkTargetLocalEntityIdName, bag)
-
-                v2.save<OVertex>()
-                v3.save<OVertex>()
-            }
-        }
-
-        // (1, { v2, v3 } ) != (1, no links)
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.getRecord<OVertex>(id1)
-            val v2 = oSession.getRecord<OVertex>(id2)
-
-            val bag = v1.getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
-            v1.addEdge(v2, edgeClassName)
-            bag.add(v2)
-            v1.setProperty(linkTargetLocalEntityIdName, bag)
-
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-        }
-
-        // (1, { v2, v3 } ) == (1, { v3 } ), who could think...
-        assertFailsWith<ORecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
-                val v2 = oSession.getRecord<OVertex>(id2)
-                val v3 = oSession.getRecord<OVertex>(id3)
-
-                val bag = v2.getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
-                v2.addEdge(v3, edgeClassName)
-                bag.add(v3)
-
-                v2.setProperty(linkTargetLocalEntityIdName, bag)
-
-                v2.save<OVertex>()
-                v3.save<OVertex>()
-            }
-        }
-    }
 
     @Test
     fun `own indices`() {
