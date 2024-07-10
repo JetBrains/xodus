@@ -40,6 +40,90 @@ class OrientDbSchemaInitializerCompositeIndicesTest {
     val orientDb = InMemoryOrientDB(initializeIssueSchema = false)
 
     @Test
+    fun `unique index prevents duplicates`() {
+        val model = model {
+            entity("type2")
+            entity("type1") {
+                index(IndexedField("ass1", isProperty = false))
+            }
+            association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
+        }
+
+        orientDb.withSession { oSession ->
+            val indices = oSession.applySchema(model)
+            oSession.applyIndices(indices)
+        }
+
+        // (no links) == (no links)
+        assertFailsWith<ORecordDuplicatedException> {
+            orientDb.withTxSession { oSession ->
+                val v1 = oSession.createVertexAndSetLocalEntityId("type1")
+                val v2 = oSession.createVertexAndSetLocalEntityId("type1")
+
+                v1.save<OVertex>()
+                v2.save<OVertex>()
+            }
+        }
+
+        // ({ v3 }) != (no links)
+        val (id1, id2, id3) = orientDb.withTxSession { oSession ->
+            val v1 = oSession.createVertexAndSetLocalEntityId("type1")
+            val v2 = oSession.createVertexAndSetLocalEntityId("type1")
+            val v3 = oSession.createVertexAndSetLocalEntityId("type2")
+
+            v1.addIndexedEdge("ass1", v3)
+
+            v1.save<OVertex>()
+            v2.save<OVertex>()
+            v3.save<OVertex>()
+            Triple(v1.identity, v2.identity, v3.identity)
+        }
+
+        // ({ v3 }) == ({ v3 })
+        assertFailsWith<ORecordDuplicatedException> {
+            orientDb.withTxSession { oSession ->
+                val v1 = oSession.getRecord<OVertex>(id1)
+                val v3 = oSession.getRecord<OVertex>(id3)
+
+                v1.addIndexedEdge("ass1", v3)
+
+                v1.save<OVertex>()
+                v3.save<OVertex>()
+            }
+        }
+
+        // ({ v2, v3 }) == ({ v3 })
+        assertFailsWith<ORecordDuplicatedException> {
+            orientDb.withTxSession { oSession ->
+                val v1 = oSession.getRecord<OVertex>(id1)
+                val v2 = oSession.getRecord<OVertex>(id2)
+                val v3 = oSession.getRecord<OVertex>(id3)
+
+                v1.addIndexedEdge("ass1", v2)
+                v2.addIndexedEdge("ass1", v3)
+
+                v1.save<OVertex>()
+                v2.save<OVertex>()
+                v3.save<OVertex>()
+            }
+        }
+
+        // ({ v2 }) != ({ v3 })
+        orientDb.withTxSession { oSession ->
+            val v1 = oSession.getRecord<OVertex>(id1)
+            val v2 = oSession.getRecord<OVertex>(id2)
+            val v3 = oSession.getRecord<OVertex>(id3)
+
+            v1.deleteIndexedEdge("ass1", v3)
+            v2.addIndexedEdge("ass1", v3)
+
+            v1.save<OVertex>()
+            v2.save<OVertex>()
+            v3.save<OVertex>()
+        }
+    }
+
+    @Test
     fun `composite indices prevent duplicates`() {
         val model = model {
             entity("type2")

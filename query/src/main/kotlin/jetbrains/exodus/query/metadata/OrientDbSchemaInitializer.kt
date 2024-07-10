@@ -455,7 +455,12 @@ internal class OrientDbSchemaInitializer(
             for (propertyMetaData in dnqEntity.propertiesMetaData) {
                 if (propertyMetaData is PropertyMetaDataImpl) {
                     val required = propertyMetaData.name in dnqEntity.requiredProperties
-                    // Xodus does not let a property be null/empty if it is in an index
+                    /*
+                     Xodus does not let a property be null/empty if it is in an index.
+                     Check out TransientSessionImpl.checkBeforeSaveChangesConstraints() for details.
+                     Xodus explicitly prohibits empty values for indexed simple properties (it throws more or less understandable exception).
+                     Xodus implicitly prohibits empty values for indexed links (it crashes with null pointer exception).
+                     */
                     val requiredBecauseOfIndex =
                         dnqEntity.ownIndexes.any { index -> index.fields.any { it.name == propertyMetaData.name } }
                     oClass.applySimpleProperty(propertyMetaData, required || requiredBecauseOfIndex)
