@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.db.record.OTrackedSet
+import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
@@ -294,6 +295,13 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
 
         if (currentEdge == null) {
             vertex.addEdge(target.asVertex, edgeClassName)
+            // If the link is indexed, we have to update the complementary internal property.
+            val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
+            if (vertex.requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
+                val bag = vertex.getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
+                bag.add(target.asVertex)
+                vertex.setProperty(linkTargetEntityIdPropertyName, bag)
+            }
             vertex.save<OVertex>()
             return true
         } else {
@@ -370,6 +378,15 @@ open class OVertexEntity(private var vertex: OVertex, private val store: Persist
         val edgeClassName = edgeClassName(linkName)
         vertex.deleteEdge(target.vertex, edgeClassName)
         val result = vertex.isDirty
+
+        // if the link in a composite index, we have to update the complementary internal property.
+        val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
+        if (vertex.requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
+            val bag = vertex.getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
+            bag.remove(target.vertex)
+            vertex.setProperty(linkTargetEntityIdPropertyName, bag)
+        }
+
         vertex.save<OVertex>()
         return result
     }
