@@ -22,6 +22,7 @@ fun main() {
     val xodusStoreName = requireParam("xodusStoreName")
     val xodusCipherKey = System.getProperty("xodusCipherKey")
     val xodusCipherIVStr = System.getProperty("xodusCipherIV")
+    val xodusMemoryUsagePercentageStr = System.getProperty("xodusMemoryUsagePercentage")
 
     val orientDatabaseTypeStr = System.getProperty("orientDatabaseType")
     val orientDatabaseDirectoryStr = System.getProperty("orientDatabaseDirectory")
@@ -37,6 +38,7 @@ fun main() {
                 xodusStoreName: $xodusStoreName
                 xodusCipherKey: ${if (!xodusCipherKey.isNullOrBlank()) "provided" else "null" }
                 xodusCipherIV: ${if (!xodusCipherKey.isNullOrBlank()) "provided" else "null" }
+                xodusMemoryUsagePercentage: $xodusMemoryUsagePercentageStr
                 
                 orientDatabaseType: $orientDatabaseTypeStr
                 orientDatabaseDirectory: $orientDatabaseDirectoryStr
@@ -49,6 +51,7 @@ fun main() {
         """.trimIndent())
 
     val xodusCypherIV = xodusCipherIVStr.toLongOrNull() ?: 0L
+    val xodusMemoryUsagePercentage = xodusMemoryUsagePercentageStr.toIntOrNull() ?: 10
     val orientDatabaseType = if (orientDatabaseTypeStr.isNullOrBlank() || orientDatabaseTypeStr.lowercase() == "memory") {
         ODatabaseType.MEMORY
     } else {
@@ -73,6 +76,7 @@ fun main() {
                 xodusStoreName: $xodusStoreName
                 xodusCipherKey: ${if (!xodusCipherKey.isNullOrBlank()) "provided" else "null" }
                 xodusCipherIV: ${if (!xodusCipherKey.isNullOrBlank()) "provided" else "0" }
+                xodusMemoryUsagePercentage: $xodusMemoryUsagePercentage
                 
                 orientDatabaseType: $orientDatabaseType
                 orientDatabaseDirectory: $orientDatabaseDirectory
@@ -89,7 +93,8 @@ fun main() {
             databaseDirectory = xodusDatabaseDirectory,
             storeName = xodusStoreName,
             cipherKey = xodusCipherKey,
-            cipherIV = xodusCypherIV
+            cipherIV = xodusCypherIV,
+            memoryUsagePercentage = xodusMemoryUsagePercentage
         ),
         orient = MigrateToOrientConfig(
             databaseType = orientDatabaseType,
@@ -99,7 +104,7 @@ fun main() {
             password = orientPassword
         ),
         validateDataAfterMigration = validateDataAfterMigration,
-        entitiesPerTransaction = entitiesPerTransaction
+        entitiesPerTransaction = entitiesPerTransaction,
     )
     launcher.migrate()
 }

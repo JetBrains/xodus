@@ -29,6 +29,7 @@ tasks {
             "xodusStoreName" to (project.findProperty("xodusStoreName")),
             "xodusCipherKey" to (project.findProperty("xodusCipherKey")),
             "xodusCipherIV" to (project.findProperty("xodusCipherIV")),
+            "xodusMemoryUsagePercentage" to (project.findProperty("xodusMemoryUsagePercentage")),
 
             "orientDatabaseType" to (project.findProperty("orientDatabaseType")),
             "orientDatabaseDirectory" to (project.findProperty("orientDatabaseDirectory")),

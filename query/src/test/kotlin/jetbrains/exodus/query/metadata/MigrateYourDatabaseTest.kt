@@ -47,7 +47,8 @@ class MigrateYourDatabaseTest {
                 databaseDirectory = yourXodusDatabaseFolder,
                 storeName = yourStoreName,
                 cipherKey = yourCipherKey,
-                cipherIV = yourCipherIV
+                cipherIV = yourCipherIV,
+                memoryUsagePercentage = 10
             ),
             validateDataAfterMigration = true,
             entitiesPerTransaction = 100
