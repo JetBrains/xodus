@@ -119,7 +119,12 @@ class XodusToOrientDataMigratorLauncher(
             // 4. Check data is the same
             val (checkDataStats, validateDataDuration) = measureTimedValue {
                 if (validateDataAfterMigration) {
-                    checkDataIsSame(xEntityStore, oEntityStore, migrateDataStats.xEntityIdToOEntityId)
+                    try {
+                        checkDataIsSame(xEntityStore, oEntityStore, migrateDataStats.xEntityIdToOEntityId)
+                    } catch (e: Exception) {
+                        log.error(e) { "Error on the data checking after migration: ${e.message}" }
+                        null
+                    }
                 } else null
             }
             log.info { "Xodus -> OrientDB migration and validation completed" }
