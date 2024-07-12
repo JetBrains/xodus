@@ -131,7 +131,14 @@ internal class DataAfterMigrationChecker(
                                                 "oStore: ${set2.map { it.toString() }.sorted().joinToString(", ")}"
                                     }
                                 } else {
-                                    require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) { "$type $entityIdx/$xSize ${e1.id} $propName is different. xStore: $v1. oStore: $v2" }
+                                    require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) {
+                                        """
+                                            $type $entityIdx/$xSize ${e1.id} $propName is different. 
+                                            xStore type: ${v1?.javaClass}, oStore type: ${v2?.javaClass}
+                                            xStore value: '${v1}', oStore value: '${v2}'
+                                            comparison result ${v1?.compareTo(v2)}
+                                        """.trimIndent()
+                                    }
                                 }
                             }
                         }
