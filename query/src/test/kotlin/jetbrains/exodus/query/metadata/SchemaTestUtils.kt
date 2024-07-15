@@ -16,15 +16,13 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
-import jetbrains.exodus.entitystore.orientdb.asEdgeClass
+import jetbrains.exodus.entitystore.orientdb.*
 import org.junit.Assert.*
 
 // assertions
@@ -255,4 +253,30 @@ internal fun ModelMetaData.twoDirectionalAssociation(
         targetCardinality,
         false, false, false, false // ignored
     )
+}
+
+internal fun ODatabaseSession.createVertexAndSetLocalEntityId(className: String): OVertex {
+    val v = newVertex(className)
+    setLocalEntityId(className, v)
+    return v
+}
+
+internal fun OVertex.addIndexedEdge(linkName: String, target: OVertex) {
+    val edgeClassName = OVertexEntity.edgeClassName(linkName)
+    val linkTargetLocalEntityIdName = OVertexEntity.linkTargetEntityIdPropertyName(linkName)
+
+    val bag1 = getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
+    addEdge(target, edgeClassName)
+    bag1.add(target)
+    setProperty(linkTargetLocalEntityIdName, bag1)
+}
+
+internal fun OVertex.deleteIndexedEdge(linkName: String, target: OVertex) {
+    val edgeClassName = OVertexEntity.edgeClassName(linkName)
+    val linkTargetLocalEntityIdName = OVertexEntity.linkTargetEntityIdPropertyName(linkName)
+
+    val bag1 = getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
+    deleteEdge(target, edgeClassName)
+    bag1.remove(target)
+    setProperty(linkTargetLocalEntityIdName, bag1)
 }

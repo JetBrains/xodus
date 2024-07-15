@@ -1,7 +1,5 @@
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
@@ -11,29 +9,6 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
 
-internal fun ODatabaseSession.createVertexAndSetLocalEntityId(className: String): OVertex {
-    val v = newVertex(className)
-    setLocalEntityId(className, v)
-    return v
-}
-internal fun OVertex.addIndexedEdge(linkName: String, target: OVertex) {
-    val edgeClassName = OVertexEntity.edgeClassName(linkName)
-    val linkTargetLocalEntityIdName = OVertexEntity.linkTargetEntityIdPropertyName(linkName)
-
-    val bag1 = getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
-    addEdge(target, edgeClassName)
-    bag1.add(target)
-    setProperty(linkTargetLocalEntityIdName, bag1)
-}
-internal fun OVertex.deleteIndexedEdge(linkName: String, target: OVertex) {
-    val edgeClassName = OVertexEntity.edgeClassName(linkName)
-    val linkTargetLocalEntityIdName = OVertexEntity.linkTargetEntityIdPropertyName(linkName)
-
-    val bag1 = getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
-    deleteEdge(target, edgeClassName)
-    bag1.remove(target)
-    setProperty(linkTargetLocalEntityIdName, bag1)
-}
 class OrientDbSchemaInitializerCompositeIndicesTest {
     @Rule
     @JvmField
