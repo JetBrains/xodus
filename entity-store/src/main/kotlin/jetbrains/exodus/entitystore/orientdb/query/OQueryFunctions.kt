@@ -77,6 +77,11 @@ object OQueryFunctions {
         return ODistinctSelect(source)
     }
 
+    fun reverse(query: OSelect): OSelect {
+        val order = query.order?.reverse() ?: return query
+        return query.withOrder(order)
+    }
+
     private fun ensureSameClassName(left: OClassSelect, right: OClassSelect) {
         require(left.className == right.className) { "Cannot intersect different DB classes: ${left.className} and ${right.className}" }
     }

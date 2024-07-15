@@ -152,8 +152,11 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         }
     }
 
+    /**
+     * **Note:** Takes effect only if the iterable is sorted.
+     */
     override fun reverse(): EntityIterable {
-        unsupported { "Should be supported on demand" }
+        return OReversedEntityIterable(transaction, this)
     }
 
     override fun selectMany(linkName: String): EntityIterable {

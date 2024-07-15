@@ -13,29 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.iterate.property
+package jetbrains.exodus.entitystore.orientdb.iterate
 
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
-import jetbrains.exodus.entitystore.orientdb.query.OOrderByFields
+import jetbrains.exodus.entitystore.orientdb.query.OQueryFunctions
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
-class OPropertySortedIterable(
-    txn: StoreTransaction,
-    private val entityType: String,
-    private val propertyName: String,
-    private val source: OQueryEntityIterable? = null,
-    private val ascending: Boolean,
+class OReversedEntityIterable(
+    txn: StoreTransaction?,
+    private val source: OQueryEntityIterable,
 ) : OQueryEntityIterableBase(txn) {
 
     override fun query(): OSelect {
-        val order = OOrderByFields(propertyName, ascending)
-        return if (source != null) {
-            source.query().withOrder(order)
-        } else {
-            OClassSelect(entityType, order = order)
-        }
+        return OQueryFunctions.reverse(source.query())
     }
 }

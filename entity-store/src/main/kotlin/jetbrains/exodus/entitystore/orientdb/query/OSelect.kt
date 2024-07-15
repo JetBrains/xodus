@@ -24,7 +24,7 @@ interface OConditional {
 interface OSortable {
     val order: OOrder?
 
-    fun withOrder(field: String, ascending: Boolean): OSelect
+    fun withOrder(order: OOrder): OSelect
 }
 
 interface OSizable {
@@ -52,9 +52,8 @@ abstract class OSelectBase(
 
     abstract fun selectSql(builder: SqlBuilder)
 
-    override fun withOrder(field: String, ascending: Boolean): OSelect {
-        val newOrder = OOrderByFields(field, ascending)
-        order = order?.merge(newOrder) ?: newOrder
+    override fun withOrder(order: OOrder): OSelect {
+        this.order = this.order?.merge(order) ?: order
         return this
     }
 

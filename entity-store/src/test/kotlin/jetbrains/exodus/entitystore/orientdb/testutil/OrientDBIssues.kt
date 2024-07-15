@@ -60,7 +60,7 @@ fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVerte
     provider.acquireSession().use { session ->
         session.getOrCreateVertexClass(CLASS)
     }
-    return withSession { session ->
+    return withTxSession { session ->
         val issue = session.createNamedEntity(CLASS, name, store)
         priority?.let { issue.setProperty(PRIORITY, it) }
         issue.save()
