@@ -51,7 +51,8 @@ class OOrderByFields(
         return when (newOrder) {
             is OOrderByFields -> {
                 val newFields = (newOrder.fields + fields)
-                    .distinctBy { it.field } // filter out duplicates in favor of the new order
+                    .distinctBy { it.field } // filter out duplicates in favor of the new order fields
+                    .reversed() // reverse to keep the original order of fields
                 OOrderByFields(newFields)
             }
         }
