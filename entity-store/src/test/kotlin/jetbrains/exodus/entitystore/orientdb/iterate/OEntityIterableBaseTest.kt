@@ -299,6 +299,20 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
+    fun `should iterable reverse when with order`() {
+        // Given
+        givenTestCase()
+
+        // When
+        oTransactional { tx ->
+            val reversedByName = tx.sort(Issues.CLASS, "name", true).reverse()
+
+            // Then
+            assertNamesExactlyInOrder(reversedByName, "issue3", "issue2", "issue1")
+        }
+    }
+
+    @Test
     fun `should iterable find links`() {
         // Given
         val test = givenTestCase()
@@ -472,4 +486,6 @@ class OEntityIterableBaseTest : OTestMixin {
             Assert.assertEquals(1, childIssues.toList().size)
         }
     }
+
+
 }
