@@ -26,7 +26,15 @@ class OModelMetaData(
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-            val indices = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
+            val (indices, _) = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
+            // todo initialize the complementary properties for indexed links
+            // the schema applying process provides the list of properties for processing. Those are links that take part in indices
+            // and just have been created. When we migrate database, it will process all the links before the indices creation, that is
+            // good for performance. linksForProcessingFromSchema
+            // the index creation process also provide a list of links for processing, those are links for that an index just has been created.
+            // linksForProcessingFromIndices
+            // It is for the case, when a link has been in the database for a while, and at some point, developers add an index for it.
+            // At this step, we should copy only (linksForProcessingFromIndices - linksForProcessingFromSchema)
             session.applyIndices(indices)
             initialize()
         }

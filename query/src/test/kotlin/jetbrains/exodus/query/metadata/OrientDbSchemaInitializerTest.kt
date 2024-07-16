@@ -167,7 +167,7 @@ class OrientDbSchemaInitializerTest {
                 }
             }
 
-            val indices = oSession.applySchema(model)
+            val (indices, _) = oSession.applySchema(model)
 
             val oClass = oSession.getClass("type1")!!
             for (type in supportedSimplePropertyTypes) {
@@ -298,7 +298,7 @@ class OrientDbSchemaInitializerTest {
                 }
             }
 
-            val indices = oSession.applySchema(model)
+            val (indices, _) = oSession.applySchema(model)
 
             indices.checkIndex("type1", unique = true, "prop1", "prop2")
             indices.checkIndex("type1", unique = true, "prop3")
@@ -335,7 +335,7 @@ class OrientDbSchemaInitializerTest {
         }
 
         orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model, indexForEverySimpleProperty = false)
+            val (indices, _) = oSession.applySchema(model, indexForEverySimpleProperty = false)
             oSession.applyIndices(indices)
         }
 
@@ -407,7 +407,7 @@ class OrientDbSchemaInitializerTest {
         }
 
         orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model, indexForEverySimpleProperty = false)
+            val (indices, _) = oSession.applySchema(model, indexForEverySimpleProperty = false)
             oSession.applyIndices(indices)
         }
 
@@ -459,7 +459,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        val indices = oSession.applySchema(model, indexForEverySimpleProperty = true)
+        val (indices, _) = oSession.applySchema(model, indexForEverySimpleProperty = true)
 
         indices.checkIndex("type1", unique = false, "prop1")
         indices.checkIndex("type1", unique = false, "prop2")
@@ -482,7 +482,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        val indices = oSession.applySchema(model)
+        val (indices, _) = oSession.applySchema(model)
         assertTrue(indices.none { (indexName, _) -> indexName.contains("prop")})
     }
 
@@ -584,7 +584,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        val indices = oSession.applySchema(model)
+        val (indices, _) = oSession.applySchema(model)
 
         val sequences = oSession.metadata.sequenceLibrary
         for (type in types) {

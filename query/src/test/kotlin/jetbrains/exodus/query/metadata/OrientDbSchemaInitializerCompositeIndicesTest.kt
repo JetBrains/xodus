@@ -3,16 +3,55 @@ package jetbrains.exodus.query.metadata
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.setLocalEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class OrientDbSchemaInitializerCompositeIndicesTest {
     @Rule
     @JvmField
     val orientDb = InMemoryOrientDB(initializeIssueSchema = false)
+
+    @Test
+    fun `complementary properties for indexed links are created only once`() {
+        val model = model {
+            entity("type2") {
+                index(IndexedField("indexedAss3", isProperty = false))
+            }
+            entity("type1") {
+                property("prop1", "int")
+                index(IndexedField("indexedAss1", isProperty = false))
+                index(IndexedField("prop1", isProperty = true), IndexedField("indexedAss2", isProperty = false))
+            }
+            association("type1", "indexedAss1", "type2", AssociationEndCardinality._0_n)
+            association("type1", "indexedAss2", "type2", AssociationEndCardinality._0_n)
+            association("type2", "indexedAss3", "type1", AssociationEndCardinality._0_n)
+            association("type2", "ass1", "type1", AssociationEndCardinality._0_n)
+        }
+
+        val newIndexedLinkComplementaryProperties = orientDb.withSession { oSession ->
+            oSession.applySchema(model).newIndexedLinkComplementaryProperties
+        }
+
+        assertEquals(
+            setOf(linkTargetEntityIdPropertyName("indexedAss1"), linkTargetEntityIdPropertyName("indexedAss2")),
+            newIndexedLinkComplementaryProperties.getValue("type1")
+        )
+        assertEquals(
+            setOf(linkTargetEntityIdPropertyName("indexedAss3")),
+            newIndexedLinkComplementaryProperties.getValue("type2")
+        )
+
+        val newIndexedLinkComplementaryPropertiesAgain = orientDb.withSession { oSession ->
+            oSession.applySchema(model).newIndexedLinkComplementaryProperties
+        }
+        assertTrue(newIndexedLinkComplementaryPropertiesAgain.isEmpty())
+    }
 
     @Test
     fun `unique index prevents duplicates`() {
@@ -25,7 +64,7 @@ class OrientDbSchemaInitializerCompositeIndicesTest {
         }
 
         orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model)
+            val (indices, _) = oSession.applySchema(model)
             oSession.applyIndices(indices)
         }
 
@@ -110,7 +149,7 @@ class OrientDbSchemaInitializerCompositeIndicesTest {
         }
 
         orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model)
+            val (indices, _) = oSession.applySchema(model)
             oSession.applyIndices(indices)
         }
 
@@ -215,7 +254,7 @@ class OrientDbSchemaInitializerCompositeIndicesTest {
         }
 
         orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model)
+            val (indices, _) = oSession.applySchema(model)
             oSession.applyIndices(indices)
         }
 
@@ -263,7 +302,7 @@ class OrientDbSchemaInitializerCompositeIndicesTest {
         }
 
         orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model)
+            val (indices, _) = oSession.applySchema(model)
             oSession.applyIndices(indices)
         }
 

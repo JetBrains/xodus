@@ -33,22 +33,26 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
+data class SchemaApplicationResult(
+    val indices: Map<String, Set<DeferredIndex>>,
+    val newIndexedLinkComplementaryProperties: Map<String, Set<String>> // ClassName -> set of property names
+)
+
 fun ODatabaseSession.applySchema(
     metaData: ModelMetaData,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
-): Map<String, Set<DeferredIndex>> =
+): SchemaApplicationResult =
     applySchema(metaData.entitiesMetaData, indexForEverySimpleProperty, applyLinkCardinality)
 
 fun ODatabaseSession.applySchema(
     entitiesMetaData: Iterable<EntityMetaData>,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
-): Map<String, Set<DeferredIndex>> {
+): SchemaApplicationResult {
     val initializer =
         OrientDbSchemaInitializer(entitiesMetaData, this, indexForEverySimpleProperty, applyLinkCardinality)
-    initializer.apply()
-    return initializer.getIndices()
+    return initializer.apply()
 }
 
 fun ODatabaseSession.addAssociation(
@@ -125,11 +129,14 @@ internal class OrientDbSchemaInitializer(
     private fun appendLine(s: String = "") = paddedLogger.appendLine(s)
 
 
-    private val indices = HashMap<String, MutableMap<String, DeferredIndex>>()
+    private val indices = HashMap<String, MutableSet<DeferredIndex>>()
+
     private val linksInUniqueIndicesByClassName = HashMap<String, Set<String>>()
 
+    private val newIndexedLinkComplementaryProperties = HashMap<String, MutableSet<String>>()
+
     private fun addIndex(index: DeferredIndex) {
-        indices.getOrPut(index.ownerVertexName) { HashMap() }[index.indexName] = index
+        indices.getOrPut(index.ownerVertexName) { HashSet() }.add(index)
     }
 
     private fun simplePropertyIndex(entityName: String, propertyName: String): DeferredIndex {
@@ -140,9 +147,7 @@ internal class OrientDbSchemaInitializer(
         return DeferredIndex(edgeClassName, listOf(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT), unique = true)
     }
 
-    fun getIndices(): Map<String, Set<DeferredIndex>> = indices.map { it.key to it.value.values.toSet() }.toMap()
-
-    fun apply() {
+    fun apply(): SchemaApplicationResult {
         try {
             oSession.createClassIdSequenceIfAbsent()
 
@@ -202,6 +207,11 @@ internal class OrientDbSchemaInitializer(
                     }
                 }
             }
+
+            return SchemaApplicationResult(
+                indices = indices,
+                newIndexedLinkComplementaryProperties
+            )
         } finally {
             paddedLogger.flush()
         }
@@ -259,7 +269,13 @@ internal class OrientDbSchemaInitializer(
                 val linkSet = linksInUniqueIndicesByClassName.getOrPut(dnqEntity.type) { HashSet() } as MutableSet<String>
                 linkSet.add(link)
             }
-            addIndex(DeferredIndex(dnqEntity.type, properties + links.map { linkTargetEntityIdPropertyName(it) }, unique = true))
+            addIndex(
+                DeferredIndex(
+                    dnqEntity.type,
+                    properties + links.map { linkTargetEntityIdPropertyName(it) },
+                    unique = true
+                )
+            )
         }
 
         /*
@@ -363,9 +379,13 @@ internal class OrientDbSchemaInitializer(
         * Because AssociationEndCardinality describes the cardinality of a single end.
         * */
 
-       if (associationName in linksInUniqueIndicesByClassName.getOrDefault(outClass.name, emptySet())) {
+        if (associationName in linksInUniqueIndicesByClassName.getOrDefault(outClass.name, emptySet())) {
             val indexedPropName = linkTargetEntityIdPropertyName(associationName)
             append("prop for composite indices: ${outClass.name}.$indexedPropName")
+
+            if (!outClass.existsProperty(indexedPropName)) {
+                newIndexedLinkComplementaryProperties.getOrPut(outClass.name) { HashSet() }.add(indexedPropName)
+            }
             outClass.createPropertyIfAbsent(indexedPropName, OType.LINKBAG)
         }
 
