@@ -110,8 +110,8 @@ class OEntityTest {
             issue.setBlob(linkName, ByteArrayInputStream(byteArrayOf(0x11, 0x12, 0x13)))
         }
         val blob = orientDb.withSession {
-            issue.asVertex.reload<OVertex>()
-            issue.asVertex.getLinkProperty(linkName)!!
+            issue.vertex.reload<OVertex>()
+            issue.vertex.getLinkProperty(linkName)!!
         }
 
         orientDb.withTxSession {
