@@ -16,7 +16,6 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -263,20 +262,18 @@ internal fun ODatabaseSession.createVertexAndSetLocalEntityId(className: String)
 
 internal fun OVertex.addIndexedEdge(linkName: String, target: OVertex) {
     val edgeClassName = OVertexEntity.edgeClassName(linkName)
-    val linkTargetLocalEntityIdName = OVertexEntity.linkTargetEntityIdPropertyName(linkName)
 
-    val bag1 = getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
+    val bag = getTargetLocalEntityIds(linkName)
     addEdge(target, edgeClassName)
-    bag1.add(target)
-    setProperty(linkTargetLocalEntityIdName, bag1)
+    bag.add(target)
+    setTargetLocalEntityIds(linkName, bag)
 }
 
 internal fun OVertex.deleteIndexedEdge(linkName: String, target: OVertex) {
     val edgeClassName = OVertexEntity.edgeClassName(linkName)
-    val linkTargetLocalEntityIdName = OVertexEntity.linkTargetEntityIdPropertyName(linkName)
 
-    val bag1 = getProperty<ORidBag>(linkTargetLocalEntityIdName) ?: ORidBag()
+    val bag = getTargetLocalEntityIds(linkName)
     deleteEdge(target, edgeClassName)
-    bag1.remove(target)
-    setProperty(linkTargetLocalEntityIdName, bag1)
+    bag.remove(target)
+    setTargetLocalEntityIds(linkName, bag)
 }
