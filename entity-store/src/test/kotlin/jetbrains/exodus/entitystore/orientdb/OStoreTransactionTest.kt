@@ -83,7 +83,7 @@ class OStoreTransactionTest : OTestMixin {
             Assert.assertEquals(1, it.findLinks(Boards.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size())
             Assert.assertEquals(1, it.findLinks(Projects.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size())
             Assert.assertEquals(2,
-                test.issue1.asVertex.getEdges(ODirection.IN, OVertexEntity.edgeClassName(Boards.Links.HAS_ISSUE))
+                test.issue1.vertex.getEdges(ODirection.IN, OVertexEntity.edgeClassName(Boards.Links.HAS_ISSUE))
                     .toList().size
             )
         }
