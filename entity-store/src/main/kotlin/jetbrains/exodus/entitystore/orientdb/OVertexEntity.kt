@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.db.record.OTrackedSet
+import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
@@ -31,6 +32,7 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
 import jetbrains.exodus.util.UTFUtil
 import mu.KLogging
@@ -46,6 +48,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
         const val DATA_PROPERTY_NAME = "data"
         const val EDGE_CLASS_SUFFIX = "_link"
+        private const val LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX = "_targetEntityId"
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
         private const val STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX = "_string_blob_hash"
         fun blobSizeProperty(propertyName: String) = "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
@@ -60,11 +63,16 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
 
         const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
+
         fun edgeClassName(className: String): String {
             // YouTrack has fancy link names like '__CUSTOM_FIELD__Country/Region_227'. OrientDB does not like symbols
             // like '/' in class names. So we have to get rid of them.
             val sanitizedClassName = className.replace('/', '_')
             return "$sanitizedClassName$EDGE_CLASS_SUFFIX"
+        }
+
+        fun linkTargetEntityIdPropertyName(linkName: String): String {
+            return "$linkName$LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX"
         }
     }
 
@@ -264,6 +272,13 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
 
         if (currentEdge == null) {
             vertex.addEdge(target.vertex, edgeClassName)
+            // If the link is indexed, we have to update the complementary internal property.
+            val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
+            if (vertex.requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
+                val bag = vertex.getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
+                bag.add(target.vertex)
+                vertex.setProperty(linkTargetEntityIdPropertyName, bag)
+            }
             vertex.save<OVertex>()
             return true
         } else {
@@ -335,6 +350,15 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         val edgeClassName = edgeClassName(linkName)
         vertex.deleteEdge(target.vertex, edgeClassName)
         val result = vertex.isDirty
+
+        // if the link in a composite index, we have to update the complementary internal property.
+        val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
+        if (vertex.requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
+            val bag = vertex.getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
+            bag.remove(target.vertex)
+            vertex.setProperty(linkTargetEntityIdPropertyName, bag)
+        }
+
         vertex.save<OVertex>()
         return result
     }
@@ -396,6 +420,14 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
 fun OClass.requireClassId(): Int {
     return getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt()
         ?: throw IllegalStateException("classId not found for ${this.name}")
+}
+
+fun OVertex.getTargetLocalEntityIds(linkName: String): ORidBag {
+    return getProperty<ORidBag>(linkTargetEntityIdPropertyName(linkName)) ?: ORidBag()
+}
+
+fun OVertex.setTargetLocalEntityIds(linkName: String, ids: ORidBag) {
+    setProperty(linkTargetEntityIdPropertyName(linkName), ids)
 }
 
 fun OVertex.requireSchemaClass(): OClass {

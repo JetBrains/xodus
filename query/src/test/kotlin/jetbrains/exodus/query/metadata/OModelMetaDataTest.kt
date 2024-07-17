@@ -15,10 +15,13 @@
  */
 package jetbrains.exodus.query.metadata
 
+import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.ORIDEntityId
 import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.createVertexClassWithClassId
+import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createNamedEntity
 import org.junit.Assert
@@ -26,6 +29,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class OModelMetaDataTest {
     @Rule
@@ -188,6 +193,71 @@ class OModelMetaDataTest {
 
         orientDb.withSession { session ->
             assertEquals(entityId, model.getOEntityId(oldSchoolEntityId))
+        }
+    }
+
+    @Test
+    fun `addAssociation() initializes complementary properties for indexed links`() {
+        oModel(orientDb.provider, OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)) {
+            entity("type2")
+            entity("type1")
+            association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
+            association("type2", "ass2", "type1", AssociationEndCardinality._0_n)
+        }
+
+        // the schema is already initialized because addAssociation implicitly calls prepare()
+
+        val (id11, id12, id21) = orientDb.withTxSession { oSession ->
+            val v11 = oSession.createVertexAndSetLocalEntityId("type1")
+            val v12 = oSession.createVertexAndSetLocalEntityId("type1")
+            val v21 = oSession.createVertexAndSetLocalEntityId("type2")
+
+            v11.addEdge("ass1", v21)
+            v21.addEdge("ass2", v11)
+            v21.addEdge("ass2", v12)
+
+            v11.save<OVertex>()
+            v12.save<OVertex>()
+            v21.save<OVertex>()
+            Triple(v11.identity, v12.identity, v21.identity)
+        }
+
+        // links are not indexes, so there are no complementary properties
+        orientDb.withTxSession { session ->
+            val type1 = session.getClass("type1")
+            val type2 = session.getClass("type2")
+            assertFalse(type1.existsProperty(linkTargetEntityIdPropertyName("ass1")))
+            assertFalse(type2.existsProperty(linkTargetEntityIdPropertyName("ass2")))
+        }
+
+        oModel(orientDb.provider, OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)) {
+            entity("type2") {
+                index(IndexedField("ass2", isProperty = false))
+            }
+            entity("type1") {
+                index(IndexedField("ass1", isProperty = false))
+            }
+            association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
+            association("type2", "ass2", "type1", AssociationEndCardinality._0_n)
+        }
+
+        // prepare() must have called initializeComplementaryPropertiesForNewIndexedLinks
+        orientDb.withTxSession { session ->
+            val v11 = session.getRecord<OVertex>(id11)
+            val v12 = session.getRecord<OVertex>(id12)
+            val v21 = session.getRecord<OVertex>(id21)
+
+            val bag11 = v11.getTargetLocalEntityIds("ass1")
+            val bag21 = v21.getTargetLocalEntityIds("ass2")
+
+            assertTrue(bag11.size() == 1)
+            assertTrue(bag11.contains(v21))
+            assertTrue(bag21.size() == 2)
+            assertTrue(bag21.contains(v11))
+            assertTrue(bag21.contains(v12))
+
+            session.checkIndex("type1", true, linkTargetEntityIdPropertyName("ass1"))
+            session.checkIndex("type2", true, linkTargetEntityIdPropertyName("ass2"))
         }
     }
 }
