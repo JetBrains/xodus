@@ -71,6 +71,15 @@ object OQueryFunctions {
 
     fun difference(left: OSelect, right: OSelect): OSelect {
         return when {
+            left is ORecordIdSelect && right is ORecordIdSelect -> {
+                ensureLimitIsNotUsed(left, right)
+                ensureSkipIsNotUsed(left, right)
+
+                val newOrder = left.order.merge(right.order)
+                val ids = left.recordIds - right.recordIds.toSet()
+                ORecordIdSelect(ids, newOrder)
+            }
+
             left is OClassSelect && right is OClassSelect -> {
                 ensureInvariants(left, right)
 
