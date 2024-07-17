@@ -17,6 +17,11 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
+import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
+import jetbrains.exodus.entitystore.orientdb.setTargetLocalEntityIds
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -62,15 +67,46 @@ internal class IndicesCreator(
     }
 }
 
+fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks(
+    newIndexedLinks: Map<String, Set<String>>, // ClassName -> set of link names
+    commitEvery: Int = 50
+) {
+    if (newIndexedLinks.isEmpty()) return
+
+    var counter = 0
+    withTx {
+        for ((className, indexedLinks) in newIndexedLinks) {
+            for (vertex in browseClass(className).map { it as OVertex }) {
+                for (indexedLink in indexedLinks) {
+                    val edgeClassName = edgeClassName(indexedLink)
+                    val targetLocalEntityIds = vertex.getTargetLocalEntityIds(indexedLink)
+                    for (target in vertex.getVertices(ODirection.OUT, edgeClassName)) {
+                        targetLocalEntityIds.add(target)
+                    }
+                    vertex.setTargetLocalEntityIds(indexedLink, targetLocalEntityIds)
+                    vertex.save<OVertex>()
+
+                    counter++
+                    if (counter == commitEvery) {
+                        counter = 0
+                        commit()
+                        begin()
+                    }
+                }
+            }
+        }
+    }
+}
+
 data class DeferredIndex(
     val ownerVertexName: String,
     val indexName: String,
-    val properties: List<String>,
+    val properties: Set<String>,
     val unique: Boolean
 ) {
-    constructor(ownerVertexName: String, properties: List<String>, unique: Boolean): this(
+    constructor(ownerVertexName: String, properties: Set<String>, unique: Boolean): this(
         ownerVertexName,
-        indexName = "${ownerVertexName}_${properties.joinToString("_")}${if (unique) "_unique" else ""}",
+        indexName = "${ownerVertexName}_${properties.sorted().joinToString("_")}${if (unique) "_unique" else ""}",
         properties,
         unique = unique
     )
@@ -79,7 +115,7 @@ data class DeferredIndex(
 fun OClass.makeDeferredIndexForEmbeddedSet(propertyName: String): DeferredIndex {
     return DeferredIndex(
         ownerVertexName = this.name,
-        listOf(propertyName),
+        setOf(propertyName),
         unique = false
     )
 }

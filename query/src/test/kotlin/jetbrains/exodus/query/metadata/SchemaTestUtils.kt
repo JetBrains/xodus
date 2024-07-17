@@ -260,6 +260,11 @@ internal fun ODatabaseSession.createVertexAndSetLocalEntityId(className: String)
     return v
 }
 
+internal fun OVertex.addEdge(linkName: String, target: OVertex) {
+    val edgeClassName = OVertexEntity.edgeClassName(linkName)
+    addEdge(target, edgeClassName)
+}
+
 internal fun OVertex.addIndexedEdge(linkName: String, target: OVertex) {
     val edgeClassName = OVertexEntity.edgeClassName(linkName)
 

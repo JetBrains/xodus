@@ -56,24 +56,25 @@ fun ODatabaseSession.applySchema(
 }
 
 fun ODatabaseSession.addAssociation(
-    className: String,
+    outEntityMetadata: EntityMetaData,
     association: AssociationEndMetaData,
     applyLinkCardinality: Boolean = true
-) {
-    addAssociation(association.toOMetadata(className), applyLinkCardinality)
+): SchemaApplicationResult {
+    return addAssociation(outEntityMetadata, association.toOMetadata(outEntityMetadata.type), applyLinkCardinality)
 }
 
 fun ODatabaseSession.addAssociation(
+    outEntityMetadata: EntityMetaData,
     association: OAssociationMetadata,
     applyLinkCardinality: Boolean = true
-) {
+): SchemaApplicationResult {
     val initializer = OrientDbSchemaInitializer(
         listOf(),
         this,
         indexForEverySimpleProperty = false,
         applyLinkCardinality = applyLinkCardinality
     )
-    initializer.addAssociation(association)
+    return initializer.addAssociation(outEntityMetadata, association)
 }
 
 fun ODatabaseSession.removeAssociation(
@@ -131,8 +132,6 @@ internal class OrientDbSchemaInitializer(
 
     private val indices = HashMap<String, MutableSet<DeferredIndex>>()
 
-    private val linksInUniqueIndicesByClassName = HashMap<String, Set<String>>()
-
     private val newIndexedLinks = HashMap<String, MutableSet<String>>()
 
     private fun addIndex(index: DeferredIndex) {
@@ -140,11 +139,11 @@ internal class OrientDbSchemaInitializer(
     }
 
     private fun simplePropertyIndex(entityName: String, propertyName: String): DeferredIndex {
-        return DeferredIndex(entityName, listOf(propertyName), unique = false)
+        return DeferredIndex(entityName, setOf(propertyName), unique = false)
     }
 
     private fun linkUniqueIndex(edgeClassName: String): DeferredIndex {
-        return DeferredIndex(edgeClassName, listOf(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT), unique = true)
+        return DeferredIndex(edgeClassName, setOf(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT), unique = true)
     }
 
     fun apply(): SchemaApplicationResult {
@@ -188,7 +187,7 @@ internal class OrientDbSchemaInitializer(
                     appendLine(dnqEntity.type)
                     withPadding {
                         for (associationEnd in dnqEntity.associationEndsMetaData) {
-                            this.applyAssociation(associationEnd.toOMetadata(dnqEntity.type))
+                            this.applyAssociation(dnqEntity, associationEnd.toOMetadata(dnqEntity.type))
                         }
                     }
                 }
@@ -201,8 +200,8 @@ internal class OrientDbSchemaInitializer(
                 for ((indexOwner, indices) in indices) {
                     appendLine("$indexOwner:")
                     withPadding {
-                        for ((indexName, _) in indices) {
-                            appendLine(indexName)
+                        for (index in indices) {
+                            appendLine(index.indexName)
                         }
                     }
                 }
@@ -217,10 +216,14 @@ internal class OrientDbSchemaInitializer(
         }
     }
 
-    fun addAssociation(association: OAssociationMetadata) {
+    fun addAssociation(outEntityMetadata: EntityMetaData, association: OAssociationMetadata): SchemaApplicationResult {
         try {
             appendLine("create association [${association.outClassName} -> ${association.name} -> ${association.inClassName}] if absent:")
-            this.applyAssociation(association)
+            this.applyAssociation(outEntityMetadata, association)
+            return SchemaApplicationResult(
+                indices = indices,
+                newIndexedLinks = newIndexedLinks
+            )
         } finally {
             paddedLogger.flush()
         }
@@ -254,25 +257,20 @@ internal class OrientDbSchemaInitializer(
         /*
         * It is more efficient to create indices after the data migration.
         * So, we only remember indices here and let the user create them later.
+        *
+        * We ignore here any indices that contain links. It is because Xodus adds links
+        * when the schema is already initialized. So, having here an index that contains
+        * a link that has not yet been added to the schema is a valid case.
+        *
+        * We add indices containing links when we add a link from the index.
         * */
-        for (index in dnqEntity.ownIndexes) {
-            val properties = index.fields.filter { it.isProperty }.map { it.name }
-            val links = index.fields.filter { !it.isProperty }.map { it.name }
+        for (index in dnqEntity.ownIndexes.filter { it.fields.none { !it.isProperty } }) {
+            val properties = index.fields.map { it.name }.toSet()
 
-            /**
-             * These links take part in unique indices.
-             * OrientDB does not support links in unique indices (due to how links are implemented).
-             * So, we do the following workaround for this case.
-             * We create an internal property for such links that contains the target entity ids, and use this property in the index.
-             */
-            for (link in links) {
-                val linkSet = linksInUniqueIndicesByClassName.getOrPut(dnqEntity.type) { HashSet() } as MutableSet<String>
-                linkSet.add(link)
-            }
             addIndex(
                 DeferredIndex(
                     dnqEntity.type,
-                    properties + links.map { linkTargetEntityIdPropertyName(it) },
+                    properties,
                     unique = true
                 )
             )
@@ -329,7 +327,10 @@ internal class OrientDbSchemaInitializer(
 
     // Associations
 
-    private fun applyAssociation(association: OAssociationMetadata) {
+    private fun applyAssociation(
+        outEntityMetadata: EntityMetaData,
+        association: OAssociationMetadata
+    ) {
         append(association.name)
 
         val class1 = oSession.getClass(association.outClassName)
@@ -343,6 +344,7 @@ internal class OrientDbSchemaInitializer(
         withPadding {
             // class1.prop1 -> edgeClass -> class2
             applyAssociation(
+                outEntityMetadata,
                 association.name,
                 edgeClass,
                 outClass = class1,
@@ -353,6 +355,7 @@ internal class OrientDbSchemaInitializer(
     }
 
     private fun applyAssociation(
+        outEntityMetadata: EntityMetaData,
         associationName: String,
         edgeClass: OClass,
         outClass: OClass,
@@ -373,13 +376,15 @@ internal class OrientDbSchemaInitializer(
         inClass.createLinkPropertyIfAbsent(linkInPropName, null)
         appendLine()
 
-        addIndex(linkUniqueIndex(edgeClass.name))
         /*
         * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
         * Because AssociationEndCardinality describes the cardinality of a single end.
         * */
 
-        if (associationName in linksInUniqueIndicesByClassName.getOrDefault(outClass.name, emptySet())) {
+        addIndex(linkUniqueIndex(edgeClass.name))
+
+        val indicesContainingLink = outEntityMetadata.indexes.filter { index -> index.fields.any { field -> field.name == associationName } }
+        if (indicesContainingLink.isNotEmpty()) {
             val indexedPropName = linkTargetEntityIdPropertyName(associationName)
             append("prop for composite indices: ${outClass.name}.$indexedPropName")
 
@@ -387,6 +392,22 @@ internal class OrientDbSchemaInitializer(
                 newIndexedLinks.getOrPut(outClass.name) { HashSet() }.add(associationName)
             }
             outClass.createPropertyIfAbsent(indexedPropName, OType.LINKBAG)
+        }
+
+        for (index in indicesContainingLink) {
+            val simpleProperties = index.fields.filter { it.isProperty }.map { it.name }.toSet()
+            val linkComplementaryProperties = index.fields.filter { !it.isProperty }.map { linkTargetEntityIdPropertyName(it.name) }.toSet()
+            val allIndexedProperties = simpleProperties + linkComplementaryProperties
+            // create the index only if all the containing properties are already initialized
+            if (allIndexedProperties.all { outClass.existsProperty(it) }) {
+                addIndex(
+                    DeferredIndex(
+                        outClass.name,
+                        allIndexedProperties,
+                        unique = true
+                    )
+                )
+            }
         }
 
         appendLine()
@@ -490,6 +511,8 @@ internal class OrientDbSchemaInitializer(
             val prop = SimplePropertyMetaDataImpl(LOCAL_ENTITY_ID_PROPERTY_NAME, "long")
             oClass.applySimpleProperty(prop, true)
             // we need this index regardless what we have in indexForEverySimpleProperty
+            // the index for localEntityId must not be unique, otherwise it will not let the same localEntityId
+            // for subtypes of a supertype
             addIndex(simplePropertyIndex(dnqEntity.type, LOCAL_ENTITY_ID_PROPERTY_NAME))
         }
     }
