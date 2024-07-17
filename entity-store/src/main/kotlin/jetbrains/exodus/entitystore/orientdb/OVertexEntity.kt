@@ -272,8 +272,6 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
 
         if (currentEdge == null) {
             vertex.addEdge(target.vertex, edgeClassName)
-            vertex.save<OVertex>()
-            vertex.addEdge(target.vertex, edgeClassName)
             // If the link is indexed, we have to update the complementary internal property.
             val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
             if (vertex.requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
