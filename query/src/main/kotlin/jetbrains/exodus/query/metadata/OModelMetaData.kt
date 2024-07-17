@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
+import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.*
@@ -26,16 +27,27 @@ class OModelMetaData(
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-            val indices = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
-            session.applyIndices(indices)
+            val result = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
+            session.initializeIndices(result)
             initialize()
         }
     }
 
-    override fun onAddAssociation(typeName: String, association: AssociationEndMetaData) {
+    override fun onAddAssociation(entityMetaData: EntityMetaData, association: AssociationEndMetaData) {
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-            session.addAssociation(typeName, association)
+            val result = session.addAssociation(entityMetaData, association)
+            session.initializeIndices(result)
         }
+    }
+
+    private fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
+        /*
+        * The order of operations matter.
+        * We want to initialize complementary properties before creating indices,
+        * it is more efficient from the performance point of view.
+        * */
+        initializeComplementaryPropertiesForNewIndexedLinks(schemaApplicationResult.newIndexedLinks)
+        applyIndices(schemaApplicationResult.indices)
     }
 
     override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {

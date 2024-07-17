@@ -19,13 +19,15 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.orientdb.OEntity
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
+import jetbrains.exodus.entitystore.orientdb.setLocalEntityIdIfAbsent
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Props.PRIORITY
 import jetbrains.exodus.entitystore.orientdb.testutil.Projects.Links.HAS_ISSUE
-import kotlin.let
 
 object Issues {
     const val CLASS = "Issue"
@@ -72,7 +74,7 @@ fun InMemoryOrientDB.createProject(name: String): OVertexEntity {
     provider.acquireSession().use { session ->
         session.getOrCreateVertexClass(Projects.CLASS)
     }
-    return withSession { session ->
+    return withTxSession { session ->
         session.createNamedEntity(Projects.CLASS, name, store)
     }
 }
@@ -81,7 +83,7 @@ fun InMemoryOrientDB.createBoard(name: String): OVertexEntity {
     provider.acquireSession().use { session ->
         session.getOrCreateVertexClass(Boards.CLASS)
     }
-    return withSession { session ->
+    return withTxSession { session ->
         session.createNamedEntity(Boards.CLASS, name, store)
     }
 }
@@ -92,7 +94,7 @@ fun InMemoryOrientDB.addIssueToProject(issue: OEntity, project: OEntity) {
         session.getOrCreateEdgeClass(HAS_ISSUE)
     }
 
-    withSession {
+    withTxSession {
         issue.addLink(IN_PROJECT, project)
         project.addLink(HAS_ISSUE, issue)
     }
@@ -103,7 +105,7 @@ fun InMemoryOrientDB.addIssueToBoard(issue: OEntity, board: OEntity) {
         session.getOrCreateEdgeClass(ON_BOARD)
         session.getOrCreateEdgeClass(HAS_ISSUE)
     }
-    withSession {
+    withTxSession {
         issue.addLink(ON_BOARD, board)
         board.addLink(Boards.Links.HAS_ISSUE, issue)
     }

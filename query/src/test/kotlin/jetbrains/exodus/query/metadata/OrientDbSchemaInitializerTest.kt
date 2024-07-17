@@ -17,14 +17,12 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.requireLocalEntityId
@@ -167,7 +165,7 @@ class OrientDbSchemaInitializerTest {
                 }
             }
 
-            val indices = oSession.applySchema(model)
+            val (indices, _) = oSession.applySchema(model)
 
             val oClass = oSession.getClass("type1")!!
             for (type in supportedSimplePropertyTypes) {
@@ -282,6 +280,7 @@ class OrientDbSchemaInitializerTest {
         }
     }
 
+
     @Test
     fun `own indices`() {
         val indices = orientDb.provider.acquireSession().use  { oSession ->
@@ -297,7 +296,7 @@ class OrientDbSchemaInitializerTest {
                 }
             }
 
-            val indices = oSession.applySchema(model)
+            val (indices, _) = oSession.applySchema(model)
 
             indices.checkIndex("type1", unique = true, "prop1", "prop2")
             indices.checkIndex("type1", unique = true, "prop3")
@@ -334,7 +333,7 @@ class OrientDbSchemaInitializerTest {
         }
 
         orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model, indexForEverySimpleProperty = false)
+            val (indices, _) = oSession.applySchema(model, indexForEverySimpleProperty = false)
             oSession.applyIndices(indices)
         }
 
@@ -358,96 +357,6 @@ class OrientDbSchemaInitializerTest {
     }
 
     @Test
-    fun `link duplicates are allowed if there is no indices`() {
-        val model = model {
-            entity("type1") {
-                property("prop1", "int")
-            }
-            association("type1", "ass1", "type1", AssociationEndCardinality._0_n)
-        }
-
-        orientDb.withSession { oSession ->
-            oSession.applySchema(model, indexForEverySimpleProperty = false)
-        }
-
-        val edgeClassName = edgeClassName("ass1")
-        orientDb.withTxSession { oSession ->
-            val oClass = oSession.getClass("type1")!!
-            val v1 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v1)
-            v1.setProperty("prop1", 1)
-            v1.save<OVertex>()
-
-            val v2 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v2)
-            v2.setProperty("prop1", 2)
-            v2.save<OVertex>()
-
-            val entity1 = OVertexEntity(v1, orientDb.store)
-            val entity2 = OVertexEntity(v2, orientDb.store)
-            entity1.addLink("ass1", entity2)
-            entity1.addLink("ass1", entity2)
-        }
-
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.browseClass("type1").map { it.toVertex()!! }.first { it.getProperty<Int>("prop1") == 1 }
-            val links: MutableIterable<OVertex> = v1.getVertices(ODirection.OUT, edgeClassName)
-            assertEquals(2, links.count())
-        }
-    }
-
-    @Test
-    fun `link duplicates are forbidden if indices are created`() {
-        val model = model {
-            entity("type1") {
-                property("prop1", "int")
-            }
-            association("type1", "ass1", "type1", AssociationEndCardinality._0_n)
-        }
-
-        orientDb.withSession { oSession ->
-            val indices = oSession.applySchema(model, indexForEverySimpleProperty = false)
-            oSession.applyIndices(indices)
-        }
-
-        val edgeClassName = edgeClassName("ass1")
-        // trying to add the same edge in a single transaction
-        val (id1, id2) = orientDb.withTxSession { oSession ->
-            val oClass = oSession.getClass("type1")!!
-            val v1 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v1)
-            v1.setProperty("prop1", 1)
-            v1.save<OVertex>()
-
-            val v2 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v2)
-            v2.setProperty("prop1", 2)
-            v2.save<OVertex>()
-
-            val entity1 = OVertexEntity(v1, orientDb.store)
-            val entity2 = OVertexEntity(v2, orientDb.store)
-            entity1.addLink("ass1", entity2)
-            entity1.addLink("ass1", entity2)
-            Pair(v1.identity, v2.identity)
-        }
-
-        // trying to add the same edge in another transaction
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.getRecord<OVertex>(id1)
-            val v2 = oSession.getRecord<OVertex>(id2)
-            val entity1 = OVertexEntity(v1, orientDb.store)
-            val entity2 = OVertexEntity(v2, orientDb.store)
-            entity1.addLink("ass1", entity2)
-        }
-
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.browseClass("type1").map { it.toVertex()!! }.first { it.getProperty<Int>("prop1") == 1 }
-            val links: MutableIterable<OVertex> = v1.getVertices(ODirection.OUT, edgeClassName)
-            assertEquals(1, links.count())
-        }
-    }
-
-    @Test
     fun `index for every simple property if required`() = orientDb.provider.acquireSession().use { oSession ->
         val model = model {
             entity("type1") {
@@ -458,7 +367,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        val indices = oSession.applySchema(model, indexForEverySimpleProperty = true)
+        val (indices, _) = oSession.applySchema(model, indexForEverySimpleProperty = true)
 
         indices.checkIndex("type1", unique = false, "prop1")
         indices.checkIndex("type1", unique = false, "prop2")
@@ -481,7 +390,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        val indices = oSession.applySchema(model)
+        val (indices, _) = oSession.applySchema(model)
         assertTrue(indices.none { (indexName, _) -> indexName.contains("prop")})
     }
 
@@ -495,12 +404,15 @@ class OrientDbSchemaInitializerTest {
         session.applySchema(model)
 
         for (cardinality in AssociationEndCardinality.entries) {
-            session.addAssociation(OAssociationMetadata(
-                name = "ass1${cardinality.name}",
-                outClassName = "type1",
-                inClassName = "type2",
-                cardinality = cardinality
-            ))
+            session.addAssociation(
+                model.getEntityMetaData("type1")!!,
+                OAssociationMetadata(
+                    name = "ass1${cardinality.name}",
+                    outClassName = "type1",
+                    inClassName = "type2",
+                    cardinality = cardinality
+                )
+            )
         }
 
         for (cardinality in AssociationEndCardinality.entries) {
@@ -583,7 +495,7 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        val indices = oSession.applySchema(model)
+        val (indices, _) = oSession.applySchema(model)
 
         val sequences = oSession.metadata.sequenceLibrary
         for (type in types) {

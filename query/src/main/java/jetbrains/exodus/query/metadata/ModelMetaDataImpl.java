@@ -236,20 +236,20 @@ public class ModelMetaDataImpl implements ModelMetaData {
             amd, sourceName, target, sourceCardinality, sourceType,
             sourceCascadeDelete, sourceClearOnDelete, sourceTargetCascadeDelete, sourceTargetClearOnDelete);
         addAssociationEndMetaDataToEntityTypeSubtree(prepare(), source, sourceEnd);
-        onAddAssociation(sourceEntityName, sourceEnd);
+        onAddAssociation(source, sourceEnd);
 
         if (type != AssociationType.Directed) {
             AssociationEndMetaDataImpl targetEnd = new AssociationEndMetaDataImpl(
                 amd, targetName, source, targetCardinality, targetType,
                 targetCascadeDelete, targetClearOnDelete, targetTargetCascadeDelete, targetTargetClearOnDelete);
             addAssociationEndMetaDataToEntityTypeSubtree(prepare(), target, targetEnd);
-            onAddAssociation(targetEntityName, targetEnd);
+            onAddAssociation(target, targetEnd);
         }
 
         return amd;
     }
 
-    protected void onAddAssociation(@NotNull String typeName, @NotNull AssociationEndMetaData association) {
+    protected void onAddAssociation(@NotNull EntityMetaData entityMetaData, @NotNull AssociationEndMetaData association) {
 
     }
 
