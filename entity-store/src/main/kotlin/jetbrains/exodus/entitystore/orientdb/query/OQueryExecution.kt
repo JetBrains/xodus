@@ -35,8 +35,8 @@ object OQueryExecution : KLogging() {
 
         // Log execution plan
         // ToDo: add System param to enable/disable logging of execution plan
-//        val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
-//        logger.info { "Query: $builder, params: ${query.params()}, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}" }
+        val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
+        logger.debug { "Query: $builder, params: ${query.params()}, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}" }
 
         return resultSet
     }
