@@ -40,7 +40,7 @@ class OModelMetaData(
                 for ((className, complementaryProperties) in newIndexedLinkComplementaryProperties) {
                     for (vertex in session.browseClass(className).map { it as OVertex }) {
                         for (complementaryProperty in complementaryProperties) {
-                            val tmp = vertex.getTargetLocalEntityIds()
+//                            val tmp = vertex.getTargetLocalEntityIds()
                         }
                     }
                 }

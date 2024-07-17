@@ -3,7 +3,6 @@ package jetbrains.exodus.query.metadata
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.setLocalEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import org.junit.Assert.assertEquals
@@ -34,23 +33,23 @@ class OrientDbSchemaInitializerCompositeIndicesTest {
             association("type2", "ass1", "type1", AssociationEndCardinality._0_n)
         }
 
-        val newIndexedLinkComplementaryProperties = orientDb.withSession { oSession ->
-            oSession.applySchema(model).newIndexedLinkComplementaryProperties
+        val newIndexedLinks = orientDb.withSession { oSession ->
+            oSession.applySchema(model).newIndexedLinks
         }
 
         assertEquals(
-            setOf(linkTargetEntityIdPropertyName("indexedAss1"), linkTargetEntityIdPropertyName("indexedAss2")),
-            newIndexedLinkComplementaryProperties.getValue("type1")
+            setOf("indexedAss1", "indexedAss2"),
+            newIndexedLinks.getValue("type1")
         )
         assertEquals(
-            setOf(linkTargetEntityIdPropertyName("indexedAss3")),
-            newIndexedLinkComplementaryProperties.getValue("type2")
+            setOf("indexedAss3"),
+            newIndexedLinks.getValue("type2")
         )
 
-        val newIndexedLinkComplementaryPropertiesAgain = orientDb.withSession { oSession ->
-            oSession.applySchema(model).newIndexedLinkComplementaryProperties
+        val newIndexedLinksAgain = orientDb.withSession { oSession ->
+            oSession.applySchema(model).newIndexedLinks
         }
-        assertTrue(newIndexedLinkComplementaryPropertiesAgain.isEmpty())
+        assertTrue(newIndexedLinksAgain.isEmpty())
     }
 
     @Test

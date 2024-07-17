@@ -35,7 +35,7 @@ private val log = KotlinLogging.logger {}
 
 data class SchemaApplicationResult(
     val indices: Map<String, Set<DeferredIndex>>,
-    val newIndexedLinkComplementaryProperties: Map<String, Set<String>> // ClassName -> set of property names
+    val newIndexedLinks: Map<String, Set<String>> // ClassName -> set of link names
 )
 
 fun ODatabaseSession.applySchema(
@@ -133,7 +133,7 @@ internal class OrientDbSchemaInitializer(
 
     private val linksInUniqueIndicesByClassName = HashMap<String, Set<String>>()
 
-    private val newIndexedLinkComplementaryProperties = HashMap<String, MutableSet<String>>()
+    private val newIndexedLinks = HashMap<String, MutableSet<String>>()
 
     private fun addIndex(index: DeferredIndex) {
         indices.getOrPut(index.ownerVertexName) { HashSet() }.add(index)
@@ -210,7 +210,7 @@ internal class OrientDbSchemaInitializer(
 
             return SchemaApplicationResult(
                 indices = indices,
-                newIndexedLinkComplementaryProperties
+                newIndexedLinks
             )
         } finally {
             paddedLogger.flush()
@@ -384,7 +384,7 @@ internal class OrientDbSchemaInitializer(
             append("prop for composite indices: ${outClass.name}.$indexedPropName")
 
             if (!outClass.existsProperty(indexedPropName)) {
-                newIndexedLinkComplementaryProperties.getOrPut(outClass.name) { HashSet() }.add(indexedPropName)
+                newIndexedLinks.getOrPut(outClass.name) { HashSet() }.add(associationName)
             }
             outClass.createPropertyIfAbsent(indexedPropName, OType.LINKBAG)
         }
