@@ -26,7 +26,10 @@ import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityId
+import jetbrains.exodus.entitystore.EntityIterable
+import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
@@ -39,7 +42,7 @@ import java.io.File
 import java.io.InputStream
 import kotlin.jvm.optionals.getOrNull
 
-open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store: PersistentEntityStore) : OEntity {
+open class OVertexEntity(internal val vertex: OVertex, private val store: PersistentEntityStore) : OEntity {
 
     companion object : KLogging() {
         const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
@@ -73,22 +76,9 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
         }
     }
 
-    constructor(vertex: OVertex, store: PersistentEntityStore) : this(ORIDEntityId.fromVertex(vertex), store) {
-        this._vertex = vertex
-    }
-
     private val activeSession get() = ODatabaseSession.getActiveSession()
 
-    private var _vertex: OVertex? = null
-
-    internal val vertex: OVertex
-        get() {
-            if (_vertex == null) {
-                _vertex = activeSession.getRecord(oEntityId.asOId()) ?: throw EntityRemovedInDatabaseException("Vertex not found for $oEntityId")
-            }
-
-            return _vertex!!
-        }
+    private var oEntityId = ORIDEntityId.fromVertex(vertex)
 
     override fun getStore() = store
 
@@ -116,7 +106,6 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
 
     override fun setProperty(propertyName: String, value: Comparable<*>): Boolean {
         assertWritable()
-
         val oldProperty = vertex.getProperty<Any>(propertyName)
 
         if (value is OComparableSet<*> || oldProperty is MutableSet<*>) {
@@ -140,7 +129,6 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
 
     override fun deleteProperty(propertyName: String): Boolean {
         assertWritable()
-
         if (vertex.hasProperty(propertyName)) {
             vertex.removeProperty<Any>(propertyName)
             vertex.save<OVertex>()
@@ -167,7 +155,7 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
         val sizePropertyName = blobSizeProperty(blobName)
         val ref = vertex.getLinkProperty(blobName)
         return ref?.let {
-            vertex.getProperty(sizePropertyName)
+            vertex.getProperty<Long>(sizePropertyName)
         } ?: -1
     }
 
@@ -184,7 +172,6 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
 
     override fun setBlob(blobName: String, blob: InputStream) {
         assertWritable()
-
         val ref = vertex.getLinkProperty(blobName)
         val blobContainer: OElement
 
@@ -211,7 +198,6 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
 
     override fun setBlobString(blobName: String, blobString: String): Boolean {
         assertWritable()
-
         val ref = vertex.getLinkProperty(blobName)
         val update: Boolean
         var record: OElement? = null
@@ -240,7 +226,6 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
 
     override fun deleteBlob(blobName: String): Boolean {
         assertWritable()
-
         val ref = vertex.getLinkProperty(blobName)
         return if (ref != null) {
             val record = ref.getRecord<OElement>()
@@ -264,12 +249,10 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
 
     override fun addLink(linkName: String, target: Entity): Boolean {
         assertWritable()
-
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
         // Optimization?
         val edgeClassName = edgeClassName(linkName)
-        val edgeClass = ODatabaseSession.getActiveSession().getClass(edgeClassName)
-            ?: throw IllegalStateException("$edgeClassName edge class not found in the database. Sorry, pal, it is required for adding a link.")
+        val edgeClass = ODatabaseSession.getActiveSession().getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName edge class not found in the database. Sorry, pal, it is required for adding a link.")
 
         /*
         We check for duplicates only if there is an appropriate index for it.
@@ -288,6 +271,8 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
         } else null
 
         if (currentEdge == null) {
+            vertex.addEdge(target.vertex, edgeClassName)
+            vertex.save<OVertex>()
             vertex.addEdge(target.vertex, edgeClassName)
             // If the link is indexed, we have to update the complementary internal property.
             val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
@@ -329,7 +314,6 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
         if (currentLink == target) {
             return false
         }
-
         if (currentLink != null) {
             findEdge(edgeClassName, currentLink.id)?.delete()
             currentLink.vertex.save<OVertex>()
@@ -366,7 +350,6 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
         assertWritable()
         target as OVertexEntity
         val edgeClassName = edgeClassName(linkName)
-
         vertex.deleteEdge(target.vertex, edgeClassName)
         val result = vertex.isDirty
 
@@ -392,7 +375,6 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
     override fun deleteLinks(linkName: String) {
         assertWritable()
         val edgeClassName = edgeClassName(linkName)
-
         vertex.getEdges(ODirection.OUT, edgeClassName).forEach {
             it.delete()
         }
@@ -409,8 +391,7 @@ open class OVertexEntity(private var oEntityId: ORIDEntityId, private val store:
 
     private fun findEdge(edgeClassName: String, targetId: OEntityId): OEdge? {
         val query = "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
-        val result = ODatabaseSession.getActiveSession()
-            .query(query, mapOf("outId" to vertex.identity, "inId" to targetId.asOId()))
+        val result = ODatabaseSession.getActiveSession().query(query, mapOf("outId" to vertex.identity, "inId" to targetId.asOId()))
         val foundEdge = result.edgeStream().findFirst()
         return foundEdge.getOrNull()
     }
