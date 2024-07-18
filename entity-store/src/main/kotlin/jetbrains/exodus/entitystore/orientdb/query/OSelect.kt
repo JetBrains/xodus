@@ -250,10 +250,16 @@ class ODifferenceSelect(
     override fun params() = left.params() + right.params()
 }
 
-class OSingleSelect(private val orid: ORID) : OSelectBase() {
+class ORecordIdSelect(
+    val recordIds: Collection<ORID>,
+    order: OOrder? = null
+) : OSelectBase(order) {
 
     override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT FROM ").append(orid)
+        builder.append("SELECT FROM ")
+            .append("[")
+            .append(recordIds.joinToString(", ") { it.toString() })
+            .append("]")
     }
 }
 

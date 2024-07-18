@@ -336,7 +336,7 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
-    fun `should iterable skip and take while intersect`() {
+    fun `should throw exception for iterable with skip and take while intersect`() {
         // Given
         givenTestCase()
 
@@ -353,7 +353,7 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
-    fun `should iterable skip and take while union`() {
+    fun `should throw exception for iterable with skip and take while union`() {
         // Given
         givenTestCase()
 
