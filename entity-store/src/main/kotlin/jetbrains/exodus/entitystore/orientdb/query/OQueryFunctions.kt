@@ -21,10 +21,17 @@ object OQueryFunctions {
 
     fun intersect(left: OSelect, right: OSelect): OSelect {
         return when {
+            left is ORecordIdSelect && right is ORecordIdSelect -> {
+                ensureLimitIsNotUsed(left, right)
+                ensureSkipIsNotUsed(left, right)
+
+                val newOrder = left.order.merge(right.order)
+                val ids = left.recordIds.intersect(right.recordIds.toSet())
+                ORecordIdSelect(ids, newOrder)
+            }
+
             left is OClassSelect && right is OClassSelect -> {
-                ensureSameClassName(left, right)
-                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when intersect" }
-                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when intersect" }
+                ensureInvariants(left, right)
 
                 val newCondition = left.condition.and(right.condition)
                 val newOrder = left.order.merge(right.order)
@@ -39,10 +46,17 @@ object OQueryFunctions {
 
     fun union(left: OSelect, right: OSelect): OSelect {
         return when {
+            left is ORecordIdSelect && right is ORecordIdSelect -> {
+                ensureLimitIsNotUsed(left, right)
+                ensureSkipIsNotUsed(left, right)
+
+                val newOrder = left.order.merge(right.order)
+                val ids = left.recordIds + right.recordIds
+                ORecordIdSelect(ids, newOrder)
+            }
+
             left is OClassSelect && right is OClassSelect -> {
-                ensureSameClassName(left, right)
-                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when union" }
-                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when union" }
+                ensureInvariants(left, right)
 
                 val newCondition = left.condition.or(right.condition)
                 val newOrder = left.order.merge(right.order)
@@ -57,10 +71,17 @@ object OQueryFunctions {
 
     fun difference(left: OSelect, right: OSelect): OSelect {
         return when {
+            left is ORecordIdSelect && right is ORecordIdSelect -> {
+                ensureLimitIsNotUsed(left, right)
+                ensureSkipIsNotUsed(left, right)
+
+                val newOrder = left.order.merge(right.order)
+                val ids = left.recordIds - right.recordIds.toSet()
+                ORecordIdSelect(ids, newOrder)
+            }
+
             left is OClassSelect && right is OClassSelect -> {
-                ensureSameClassName(left, right)
-                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when minus" }
-                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when minus" }
+                ensureInvariants(left, right)
 
                 val newCondition = left.condition.andNot(right.condition)
                 val newOrder = left.order.merge(right.order)
@@ -80,6 +101,24 @@ object OQueryFunctions {
     fun reverse(query: OSelect): OSelect {
         val order = query.order?.reverse() ?: return query
         return query.withOrder(order)
+    }
+
+    private fun ensureInvariants(left: OClassSelect, right: OClassSelect) {
+        ensureSameClassName(left, right)
+        ensureSkipIsNotUsed(left, right)
+        ensureLimitIsNotUsed(left, right)
+    }
+
+    private fun ensureSkipIsNotUsed(left: OSelect, right: OSelect) {
+        val lazyMessage = { "Skip can not be used for sub-query" }
+        check(left.skip == null, lazyMessage)
+        check(right.skip == null, lazyMessage)
+    }
+
+    private fun ensureLimitIsNotUsed(left: OSelect, right: OSelect) {
+        val lazyMessage = { "Take can not be used for sub-query" }
+        check(left.limit == null, lazyMessage)
+        check(right.limit == null, lazyMessage)
     }
 
     private fun ensureSameClassName(left: OClassSelect, right: OClassSelect) {
