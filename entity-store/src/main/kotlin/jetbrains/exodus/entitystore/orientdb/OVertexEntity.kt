@@ -340,6 +340,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
             edge.save<OEdge>()
             // if the link in a composite index, we have to update the complementary internal property.
             vertex.deleteTargetEntityIdIfLinkIndexed(linkName, targetId)
+            vertex.save<OVertex>()
             return true
         }
 
