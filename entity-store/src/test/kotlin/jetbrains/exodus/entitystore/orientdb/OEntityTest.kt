@@ -115,6 +115,50 @@ class OEntityTest {
     }
 
     @Test
+    fun `set links`() {
+        val linkName = "link"
+        orientDb.provider.acquireSession().use { session ->
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
+            val oClass = session.getClass(Issues.CLASS)!!
+            // pretend that the link is indexed
+            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
+        }
+
+        val issueA = orientDb.createIssue("A")
+        val issueB = orientDb.createIssue("B")
+        val issueC = orientDb.createIssue("C")
+
+        orientDb.withTxSession {
+            assertTrue(issueA.setLink(linkName, issueB))
+            assertFalse(issueA.setLink(linkName, issueB))
+
+            assertEquals(issueB, issueA.getLink(linkName))
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(1, bag.size())
+            assertTrue(bag.contains(issueB.vertex.identity))
+        }
+
+        orientDb.withTxSession {
+            assertTrue(issueA.setLink(linkName, issueC))
+
+            assertEquals(issueC, issueA.getLink(linkName))
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(1, bag.size())
+            assertTrue(bag.contains(issueC.vertex.identity))
+        }
+
+        orientDb.withTxSession {
+            assertTrue(issueA.setLink(linkName, issueB.id))
+            assertFalse(issueA.setLink(linkName, issueB.id))
+
+            assertEquals(issueB, issueA.getLink(linkName))
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(1, bag.size())
+            assertTrue(bag.contains(issueB.vertex.identity))
+        }
+    }
+
+    @Test
     fun `should delete all links`() {
         val linkName = "link"
         orientDb.provider.acquireSession().use { session ->
