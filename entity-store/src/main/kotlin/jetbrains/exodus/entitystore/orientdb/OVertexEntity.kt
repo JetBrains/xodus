@@ -310,12 +310,12 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         assertWritable()
         target as OVertexEntity
         val edgeClassName = edgeClassName(linkName)
-        vertex.deleteEdge(target.vertex, edgeClassName)
+//        vertex.deleteEdge(target.vertex, edgeClassName)
         val result = vertex.isDirty
 
-        val edge = findEdge(edgeClassName, target.vertex.identity)
-        edge?.delete()
-        edge?.save<OEdge>()
+//        val edge = findEdge(edgeClassName, target.vertex.identity)
+//        edge?.delete()
+//        edge?.save<OEdge>()
 
         // if the link in a composite index, we have to update the complementary internal property.
         vertex.deleteTargetEntityIdIfLinkIndexed(linkName, target.vertex.identity)
