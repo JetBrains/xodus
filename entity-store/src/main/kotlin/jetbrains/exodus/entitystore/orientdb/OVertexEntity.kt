@@ -19,6 +19,7 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.db.record.OTrackedSet
 import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
+import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
@@ -247,6 +248,8 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
             .map { it.substring(1).substringBefore(BLOB_SIZE_PROPERTY_NAME_SUFFIX) }
     }
 
+    // Add links
+
     override fun addLink(linkName: String, target: Entity): Boolean {
         assertWritable()
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
@@ -267,18 +270,13 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         skipping this findEdge(...) call is exactly what we need.
          */
         val currentEdge: OEdge? = if (edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT)) {
-            findEdge(edgeClassName, target.id)
+            findEdge(edgeClassName, target.vertex.identity)
         } else null
 
         if (currentEdge == null) {
             vertex.addEdge(target.vertex, edgeClassName)
             // If the link is indexed, we have to update the complementary internal property.
-            val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
-            if (vertex.requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
-                val bag = vertex.getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
-                bag.add(target.vertex)
-                vertex.setProperty(linkTargetEntityIdPropertyName, bag)
-            }
+            vertex.addTargetEntityIdIfLinkIndexed(linkName, target.vertex.identity)
             vertex.save<OVertex>()
             return true
         } else {
@@ -296,53 +294,17 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         return addLink(linkName, OVertexEntity(target, store))
     }
 
-    override fun getLink(linkName: String): Entity? {
-        val edgeClassName = edgeClassName(linkName)
-        val target = vertex.getVertices(ODirection.OUT, edgeClassName).firstOrNull()
-        return target.toOEntityOrNull()
-    }
-
-    override fun setLink(linkName: String, target: Entity?): Boolean {
-        assertWritable()
-        require(target is OVertexEntity?) { "Only OVertexEntity is supported, but was ${target?.javaClass?.simpleName}" }
-
-        val currentLink = getLink(linkName) as OVertexEntity?
-        val edgeClassName = edgeClassName(linkName)
-
-        if (currentLink == target) {
-            return false
+    private fun OVertex.addTargetEntityIdIfLinkIndexed(linkName: String, targetId: ORID) {
+        val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
+        if (requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
+            val bag = getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
+            bag.add(targetId)
+            setProperty(linkTargetEntityIdPropertyName, bag)
         }
-        if (currentLink != null) {
-            findEdge(edgeClassName, currentLink.id)?.delete()
-            currentLink.vertex.save<OVertex>()
-        }
-        if (target != null) {
-            vertex.addEdge(target.vertex, edgeClassName)
-            vertex.save<OVertex>()
-        }
-        return true
     }
 
-    override fun setLink(linkName: String, targetId: EntityId): Boolean {
-        assertWritable()
-        val targetOId = store.requireOEntityId(targetId)
-        if (targetOId == ORIDEntityId.EMPTY_ID) {
-            return false
-        }
-        val target = activeSession.getRecord<OVertex>(targetOId.asOId()) ?: return false
-        return setLink(linkName, OVertexEntity(target, store))
-    }
 
-    override fun getLinks(linkName: String): EntityIterable {
-        val edgeClassName = edgeClassName(linkName)
-        val links = vertex.getVertices(ODirection.OUT, edgeClassName)
-        return OVertexEntityIterable(links, store)
-    }
-
-    override fun getLinks(linkNames: Collection<String>): EntityIterable {
-        val edgeClassNames = linkNames.map { edgeClassName(it) }
-        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *edgeClassNames.toTypedArray()), store)
-    }
+    // Delete links
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         assertWritable()
@@ -351,13 +313,12 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         vertex.deleteEdge(target.vertex, edgeClassName)
         val result = vertex.isDirty
 
+        val edge = findEdge(edgeClassName, target.vertex.identity)
+        edge?.delete()
+        edge?.save<OEdge>()
+
         // if the link in a composite index, we have to update the complementary internal property.
-        val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
-        if (vertex.requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
-            val bag = vertex.getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
-            bag.remove(target.vertex)
-            vertex.setProperty(linkTargetEntityIdPropertyName, bag)
-        }
+        vertex.deleteTargetEntityIdIfLinkIndexed(linkName, target.vertex.identity)
 
         vertex.save<OVertex>()
         return result
@@ -379,20 +340,82 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         vertex.save<OVertex>()
     }
 
+    private fun OVertex.deleteTargetEntityIdIfLinkIndexed(linkName: String, targetId: ORID) {
+        val linkTargetEntityIdPropertyName = linkTargetEntityIdPropertyName(linkName)
+        if (requireSchemaClass().existsProperty(linkTargetEntityIdPropertyName)) {
+            val bag = getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
+            bag.remove(targetId)
+            setProperty(linkTargetEntityIdPropertyName, bag)
+        }
+    }
+
+
+    // Set links
+
+    override fun setLink(linkName: String, target: Entity?): Boolean {
+        assertWritable()
+        require(target is OVertexEntity?) { "Only OVertexEntity is supported, but was ${target?.javaClass?.simpleName}" }
+
+        val currentLink = getLink(linkName) as OVertexEntity?
+        val edgeClassName = edgeClassName(linkName)
+
+        if (currentLink == target) {
+            return false
+        }
+        if (currentLink != null) {
+            findEdge(edgeClassName, currentLink.vertex.identity)?.delete()
+            currentLink.vertex.save<OVertex>()
+        }
+        if (target != null) {
+            vertex.addEdge(target.vertex, edgeClassName)
+            vertex.save<OVertex>()
+        }
+        return true
+    }
+
+    override fun setLink(linkName: String, targetId: EntityId): Boolean {
+        assertWritable()
+        val targetOId = store.requireOEntityId(targetId)
+        if (targetOId == ORIDEntityId.EMPTY_ID) {
+            return false
+        }
+        val target = activeSession.getRecord<OVertex>(targetOId.asOId()) ?: return false
+        return setLink(linkName, OVertexEntity(target, store))
+    }
+
+
+    // Get links
+
+    override fun getLink(linkName: String): Entity? {
+        val edgeClassName = edgeClassName(linkName)
+        val target = vertex.getVertices(ODirection.OUT, edgeClassName).firstOrNull()
+        return target.toOEntityOrNull()
+    }
+    override fun getLinks(linkName: String): EntityIterable {
+        val edgeClassName = edgeClassName(linkName)
+        val links = vertex.getVertices(ODirection.OUT, edgeClassName)
+        return OVertexEntityIterable(links, store)
+    }
+
+    override fun getLinks(linkNames: Collection<String>): EntityIterable {
+        val edgeClassNames = linkNames.map { edgeClassName(it) }
+        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *edgeClassNames.toTypedArray()), store)
+    }
+
     override fun getLinkNames(): List<String> {
         return ArrayList(vertex.getEdgeNames(ODirection.OUT)
             .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
             .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
     }
 
-    override fun compareTo(other: Entity) = id.compareTo(other.id)
-
-    private fun findEdge(edgeClassName: String, targetId: OEntityId): OEdge? {
+    private fun findEdge(edgeClassName: String, targetId: ORID): OEdge? {
         val query = "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
-        val result = ODatabaseSession.getActiveSession().query(query, mapOf("outId" to vertex.identity, "inId" to targetId.asOId()))
+        val result = ODatabaseSession.getActiveSession().query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
         val foundEdge = result.edgeStream().findFirst()
         return foundEdge.getOrNull()
     }
+
+    override fun compareTo(other: Entity) = id.compareTo(other.id)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

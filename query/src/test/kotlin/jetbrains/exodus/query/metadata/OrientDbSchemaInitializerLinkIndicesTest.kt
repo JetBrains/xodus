@@ -22,7 +22,6 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
-import jetbrains.exodus.entitystore.orientdb.setLocalEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -40,7 +39,7 @@ class OrientDbSchemaInitializerLinkIndicesTest {
     fun `the same DeferredIndices are equal`() {
         val index1 = DeferredIndex("trista", setOf("prop1", "prop2"), true)
         val index2 = DeferredIndex("trista", setOf("prop1", "prop2"), true)
-        assertTrue(index1.equals(index2))
+        assertEquals(index1, index2)
     }
 
     @Test
@@ -100,10 +99,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             v11.addEdge("ass1", v21)
             v21.addEdge("ass2", v11)
             v21.addEdge("ass2", v12)
-
-            v11.save<OVertex>()
-            v12.save<OVertex>()
-            v21.save<OVertex>()
             Triple(v11.identity, v12.identity, v21.identity)
         }
 
@@ -167,11 +162,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         // (no links) == (no links)
         assertFailsWith<ORecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
-                val v1 = oSession.createVertexAndSetLocalEntityId("type1")
-                val v2 = oSession.createVertexAndSetLocalEntityId("type1")
-
-                v1.save<OVertex>()
-                v2.save<OVertex>()
+                oSession.createVertexAndSetLocalEntityId("type1")
+                oSession.createVertexAndSetLocalEntityId("type1")
             }
         }
 
@@ -183,9 +175,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
             v1.addIndexedEdge("ass1", v3)
 
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-            v3.save<OVertex>()
             Triple(v1.identity, v2.identity, v3.identity)
         }
 
@@ -196,9 +185,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
                 val v3 = oSession.getRecord<OVertex>(id3)
 
                 v1.addIndexedEdge("ass1", v3)
-
-                v1.save<OVertex>()
-                v3.save<OVertex>()
             }
         }
 
@@ -211,10 +197,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
                 v1.addIndexedEdge("ass1", v2)
                 v2.addIndexedEdge("ass1", v3)
-
-                v1.save<OVertex>()
-                v2.save<OVertex>()
-                v3.save<OVertex>()
             }
         }
 
@@ -226,10 +208,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
             v1.deleteIndexedEdge("ass1", v3)
             v2.addIndexedEdge("ass1", v3)
-
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-            v3.save<OVertex>()
         }
     }
 
@@ -255,11 +233,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
                 val v1 = oSession.createVertexAndSetLocalEntityId("type1")
                 val v2 = oSession.createVertexAndSetLocalEntityId("type1")
 
-                v1.setProperty("prop1", 1)
-                v2.setProperty("prop1", 1)
-
-                v1.save<OVertex>()
-                v2.save<OVertex>()
+                v1.setPropertyAndSave("prop1", 1)
+                v2.setPropertyAndSave("prop1", 1)
             }
         }
 
@@ -270,15 +245,11 @@ class OrientDbSchemaInitializerLinkIndicesTest {
                 val v2 = oSession.createVertexAndSetLocalEntityId("type1")
                 val v3 = oSession.createVertexAndSetLocalEntityId("type2")
 
-                v1.setProperty("prop1", 1)
-                v2.setProperty("prop1", 1)
+                v1.setPropertyAndSave("prop1", 1)
+                v2.setPropertyAndSave("prop1", 1)
 
                 v1.addIndexedEdge("ass1", v3)
                 v2.addIndexedEdge("ass1", v3)
-
-                v1.save<OVertex>()
-                v2.save<OVertex>()
-                v3.save<OVertex>()
                 Triple(v1.identity, v2.identity, v3.identity)
             }
         }
@@ -289,14 +260,10 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             val v2 = oSession.createVertexAndSetLocalEntityId("type1")
             val v3 = oSession.createVertexAndSetLocalEntityId("type2")
 
-            v1.setProperty("prop1", 1)
-            v2.setProperty("prop1", 1)
+            v1.setPropertyAndSave("prop1", 1)
+            v2.setPropertyAndSave("prop1", 1)
 
             v1.addIndexedEdge("ass1", v3)
-
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-            v3.save<OVertex>()
             Triple(v1.identity, v2.identity, v3.identity)
         }
 
@@ -307,9 +274,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
                 val v3 = oSession.getRecord<OVertex>(id3)
 
                 v2.addIndexedEdge("ass1", v3)
-
-                v2.save<OVertex>()
-                v3.save<OVertex>()
             }
         }
 
@@ -319,9 +283,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             val v2 = oSession.getRecord<OVertex>(id2)
 
             v1.addIndexedEdge("ass1", v2)
-
-            v1.save<OVertex>()
-            v2.save<OVertex>()
         }
 
         // (1, { v2, v3 } ) == (1, { v3 } ), who could think...
@@ -331,9 +292,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
                 val v3 = oSession.getRecord<OVertex>(id3)
 
                 v2.addIndexedEdge("ass1", v3)
-
-                v2.save<OVertex>()
-                v3.save<OVertex>()
             }
         }
     }
@@ -360,14 +318,10 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             val v2 = oSession.createVertexAndSetLocalEntityId("type1")
             val v3 = oSession.createVertexAndSetLocalEntityId("type2")
 
-            v1.setProperty("prop1", 1)
-            v2.setProperty("prop1", 1)
+            v1.setPropertyAndSave("prop1", 1)
+            v2.setPropertyAndSave("prop1", 1)
 
             v1.addIndexedEdge("ass1", v3)
-
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-            v3.save<OVertex>()
             Triple(v1.identity, v2.identity, v3.identity)
         }
 
@@ -379,10 +333,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
             v1.deleteIndexedEdge("ass1", v3)
             v2.addIndexedEdge("ass1", v3)
-
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-            v3.save<OVertex>()
         }
     }
 
@@ -404,13 +354,9 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
         // (1, { v3 } ) != (1, no links)
         val (id1, id2, id3) = orientDb.withTxSession { oSession ->
-            val v1 = oSession.newVertex("type1")
-            val v2 = oSession.newVertex("type1")
-            val v3 = oSession.newVertex("type2")
-
-            oSession.setLocalEntityId("type1", v1)
-            oSession.setLocalEntityId("type1", v2)
-            oSession.setLocalEntityId("type2", v3)
+            val v1 = oSession.createVertexAndSetLocalEntityId("type1")
+            val v2 = oSession.createVertexAndSetLocalEntityId("type1")
+            val v3 = oSession.createVertexAndSetLocalEntityId("type2")
 
             val e1 = OVertexEntity(v1, orientDb.store)
             val e2 = OVertexEntity(v2, orientDb.store)
@@ -419,10 +365,6 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             e2.setProperty("prop1", 1)
 
             e1.addLink("ass1", e3)
-
-            v1.save<OVertex>()
-            v2.save<OVertex>()
-            v3.save<OVertex>()
             Triple(v1.identity, v2.identity, v3.identity)
         }
 
@@ -469,16 +411,11 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
         val edgeClassName = edgeClassName("ass1")
         orientDb.withTxSession { oSession ->
-            val oClass = oSession.getClass("type1")!!
-            val v1 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v1)
-            v1.setProperty("prop1", 1)
-            v1.save<OVertex>()
+            val v1 = oSession.createVertexAndSetLocalEntityId("type1")
+            v1.setPropertyAndSave("prop1", 1)
 
-            val v2 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v2)
-            v2.setProperty("prop1", 2)
-            v2.save<OVertex>()
+            val v2 = oSession.createVertexAndSetLocalEntityId("type1")
+            v2.setPropertyAndSave("prop1", 2)
 
             val entity1 = OVertexEntity(v1, orientDb.store)
             val entity2 = OVertexEntity(v2, orientDb.store)
@@ -510,16 +447,11 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         val edgeClassName = edgeClassName("ass1")
         // trying to add the same edge in a single transaction
         val (id1, id2) = orientDb.withTxSession { oSession ->
-            val oClass = oSession.getClass("type1")!!
-            val v1 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v1)
-            v1.setProperty("prop1", 1)
-            v1.save<OVertex>()
+            val v1 = oSession.createVertexAndSetLocalEntityId("type1")
+            v1.setPropertyAndSave("prop1", 1)
 
-            val v2 = oSession.newVertex(oClass)
-            oSession.setLocalEntityId("type1", v2)
-            v2.setProperty("prop1", 2)
-            v2.save<OVertex>()
+            val v2 = oSession.createVertexAndSetLocalEntityId("type1")
+            v2.setPropertyAndSave("prop1", 2)
 
             val entity1 = OVertexEntity(v1, orientDb.store)
             val entity2 = OVertexEntity(v2, orientDb.store)

@@ -257,28 +257,36 @@ internal fun ModelMetaData.twoDirectionalAssociation(
 internal fun ODatabaseSession.createVertexAndSetLocalEntityId(className: String): OVertex {
     val v = newVertex(className)
     setLocalEntityId(className, v)
+    v.save<OVertex>()
     return v
+}
+
+internal fun OVertex.setPropertyAndSave(propName: String, value: Any) {
+    setProperty(propName, value)
+    save<OVertex>()
 }
 
 internal fun OVertex.addEdge(linkName: String, target: OVertex) {
     val edgeClassName = OVertexEntity.edgeClassName(linkName)
     addEdge(target, edgeClassName)
+    save<OVertex>()
+    target.save<OVertex>()
 }
 
 internal fun OVertex.addIndexedEdge(linkName: String, target: OVertex) {
-    val edgeClassName = OVertexEntity.edgeClassName(linkName)
-
     val bag = getTargetLocalEntityIds(linkName)
-    addEdge(target, edgeClassName)
-    bag.add(target)
+    addEdge(target, OVertexEntity.edgeClassName(linkName))
+    bag.add(target.identity)
     setTargetLocalEntityIds(linkName, bag)
+    save<OVertex>()
+    target.save<OVertex>()
 }
 
 internal fun OVertex.deleteIndexedEdge(linkName: String, target: OVertex) {
-    val edgeClassName = OVertexEntity.edgeClassName(linkName)
-
     val bag = getTargetLocalEntityIds(linkName)
-    deleteEdge(target, edgeClassName)
-    bag.remove(target)
+    deleteEdge(target, OVertexEntity.edgeClassName(linkName))
+    bag.remove(target.identity)
     setTargetLocalEntityIds(linkName, bag)
+    save<OVertex>()
+    target.save<OVertex>()
 }
