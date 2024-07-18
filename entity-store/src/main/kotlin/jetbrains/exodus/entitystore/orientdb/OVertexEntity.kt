@@ -20,7 +20,6 @@ import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.db.record.OTrackedSet
 import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OEdge
@@ -309,26 +308,14 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     override fun deleteLink(linkName: String, target: Entity): Boolean {
         assertWritable()
         target as OVertexEntity
-        val edgeClassName = edgeClassName(linkName)
-//        vertex.deleteEdge(target.vertex, edgeClassName)
-        val result = vertex.isDirty
-
-//        val edge = findEdge(edgeClassName, target.vertex.identity)
-//        edge?.delete()
-//        edge?.save<OEdge>()
-
-        // if the link in a composite index, we have to update the complementary internal property.
-        vertex.deleteTargetEntityIdIfLinkIndexed(linkName, target.vertex.identity)
-
-        vertex.save<OVertex>()
-        return result
+        val targetOId = target.oEntityId.asOId()
+        return deleteLinkImpl(linkName, targetOId)
     }
 
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
         assertWritable()
-        val recordId = ORecordId(targetId.typeId, targetId.localId)
-        val target = activeSession.getRecord<OVertex>(recordId)
-        return deleteLink(linkName, OVertexEntity(target, store))
+        val targetOId = store.requireOEntityId(targetId).asOId()
+        return deleteLinkImpl(linkName, targetOId)
     }
 
     override fun deleteLinks(linkName: String) {
@@ -337,7 +324,23 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         vertex.getEdges(ODirection.OUT, edgeClassName).forEach {
             it.delete()
         }
+        vertex.deleteAllTargetEntityIdsIfLinkIndexed(linkName)
         vertex.save<OVertex>()
+    }
+
+    private fun deleteLinkImpl(linkName: String, targetId: ORID): Boolean {
+        val edgeClassName = edgeClassName(linkName)
+
+        val edge = findEdge(edgeClassName, targetId)
+        if (edge != null) {
+            edge.delete()
+            edge.save<OEdge>()
+            // if the link in a composite index, we have to update the complementary internal property.
+            vertex.deleteTargetEntityIdIfLinkIndexed(linkName, targetId)
+            return true
+        }
+
+        return false
     }
 
     private fun OVertex.deleteTargetEntityIdIfLinkIndexed(linkName: String, targetId: ORID) {
@@ -346,6 +349,13 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
             val bag = getProperty<ORidBag>(linkTargetEntityIdPropertyName) ?: ORidBag()
             bag.remove(targetId)
             setProperty(linkTargetEntityIdPropertyName, bag)
+        }
+    }
+
+    private fun OVertex.deleteAllTargetEntityIdsIfLinkIndexed(linkName: String) {
+        val propName = linkTargetEntityIdPropertyName(linkName)
+        if (requireSchemaClass().existsProperty(propName)) {
+            setProperty(propName, ORidBag())
         }
     }
 

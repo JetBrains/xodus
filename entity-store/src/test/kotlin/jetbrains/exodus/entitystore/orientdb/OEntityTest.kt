@@ -15,16 +15,21 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
 import junit.framework.TestCase.assertFalse
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class OEntityTest {
 
@@ -75,29 +80,66 @@ class OEntityTest {
     }
 
     @Test
+    fun `delete links`() {
+        val linkName = "link"
+        orientDb.provider.acquireSession().use { session ->
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
+            val oClass = session.getClass(Issues.CLASS)!!
+            // pretend that the link is indexed
+            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
+        }
+
+        val issueA = orientDb.createIssue("A")
+        val issueB = orientDb.createIssue("B")
+        val issueC = orientDb.createIssue("C")
+        val issueD = orientDb.createIssue("D")
+
+        orientDb.withTxSession {
+            issueA.addLink(linkName, issueB)
+            issueA.addLink(linkName, issueC)
+            issueA.addLink(linkName, issueD)
+        }
+
+        orientDb.withTxSession {
+            issueA.deleteLink(linkName, issueB)
+            issueA.deleteLink(linkName, issueC.id)
+
+            val links = issueA.getLinks(linkName)
+            assertEquals(1, links.size())
+            assertTrue(links.any { it.id == issueD.id })
+
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(1, bag.size())
+            assertTrue(bag.contains(issueD.vertex.identity))
+        }
+    }
+
+    @Test
     fun `should delete all links`() {
         val linkName = "link"
         orientDb.provider.acquireSession().use { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
+            val oClass = session.getClass(Issues.CLASS)!!
+            // pretend that the link is indexed
+            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
         }
 
         val issueA = orientDb.createIssue("A")
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
 
-        val (entityA, entB, entC) = orientDb.withTxSession {
-            Triple(issueA, issueB, issueC)
+        orientDb.withTxSession {
+            issueA.addLink(linkName, issueB)
+            issueA.addLink(linkName, issueC)
         }
 
         orientDb.withTxSession {
-            entityA.addLink(linkName, entB)
-            entityA.addLink(linkName, entC)
-        }
-
-        orientDb.withTxSession {
-            entityA.deleteLinks(linkName)
-            val links = entityA.getLinks(linkName)
-            Assert.assertEquals(0, links.size())
+            issueA.deleteLinks(linkName)
+            val links = issueA.getLinks(linkName)
+            assertEquals(0, links.size())
+            // the complementary property must also be cleared
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(0, bag.size())
         }
     }
 
