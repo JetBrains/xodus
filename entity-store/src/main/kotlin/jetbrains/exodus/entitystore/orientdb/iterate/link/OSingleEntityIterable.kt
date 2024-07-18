@@ -19,14 +19,13 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.query.ORecordIdSelect
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
-import jetbrains.exodus.entitystore.orientdb.query.OSingleSelect
 
 
 open class OSingleEntityIterable(tx: StoreTransaction?, val entity: Entity) : OQueryEntityIterableBase(tx) {
     override fun query(): OSelect {
-        return OSingleSelect(
-            (entity.id as OEntityId).asOId()
-        )
+        val recordId = (entity.id as OEntityId).asOId()
+        return ORecordIdSelect(listOf(recordId))
     }
 }
