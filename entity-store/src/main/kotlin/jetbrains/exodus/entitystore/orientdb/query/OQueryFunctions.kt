@@ -30,9 +30,8 @@ object OQueryFunctions {
                 ORecordIdSelect(ids, newOrder)
             }
 
-            left is OClassSelect && right is OClassSelect -> {
+            left is OClassSelect && right is OClassSelect && isSameClassName(left, right) -> {
                 ensureInvariants(left, right)
-
                 val newCondition = left.condition.and(right.condition)
                 val newOrder = left.order.merge(right.order)
                 OClassSelect(left.className, newCondition, newOrder)
@@ -55,9 +54,8 @@ object OQueryFunctions {
                 ORecordIdSelect(ids, newOrder)
             }
 
-            left is OClassSelect && right is OClassSelect -> {
+            left is OClassSelect && right is OClassSelect && isSameClassName(left, right) -> {
                 ensureInvariants(left, right)
-
                 val newCondition = left.condition.or(right.condition)
                 val newOrder = left.order.merge(right.order)
                 OClassSelect(left.className, newCondition, newOrder)
@@ -80,9 +78,8 @@ object OQueryFunctions {
                 ORecordIdSelect(ids, newOrder)
             }
 
-            left is OClassSelect && right is OClassSelect -> {
+            left is OClassSelect && right is OClassSelect && isSameClassName(left, right) -> {
                 ensureInvariants(left, right)
-
                 val newCondition = left.condition.andNot(right.condition)
                 val newOrder = left.order.merge(right.order)
                 OClassSelect(left.className, newCondition, newOrder)
@@ -104,7 +101,6 @@ object OQueryFunctions {
     }
 
     private fun ensureInvariants(left: OClassSelect, right: OClassSelect) {
-        ensureSameClassName(left, right)
         ensureSkipIsNotUsed(left, right)
         ensureLimitIsNotUsed(left, right)
     }
@@ -121,8 +117,8 @@ object OQueryFunctions {
         check(right.limit == null, lazyMessage)
     }
 
-    private fun ensureSameClassName(left: OClassSelect, right: OClassSelect) {
-        require(left.className == right.className) { "Cannot intersect different DB classes: ${left.className} and ${right.className}" }
+    private fun isSameClassName(left: OClassSelect, right: OClassSelect): Boolean {
+        return left.className == right.className
     }
 }
 
