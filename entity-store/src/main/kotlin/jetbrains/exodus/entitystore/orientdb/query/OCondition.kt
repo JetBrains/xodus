@@ -26,10 +26,9 @@ class OEqualCondition(
 ) : OCondition {
 
     override fun sql(builder: SqlBuilder) {
-        builder.append(field).append(" = ?")
+        val param = builder.addParam(field, value)
+        builder.append(field).append(" = :$param")
     }
-
-    override fun params() = listOf(value)
 }
 
 class OContainsCondition(
@@ -38,10 +37,9 @@ class OContainsCondition(
 ) : OCondition {
 
     override fun sql(builder: SqlBuilder) {
-        builder.append(field).append(" containsText ?")
+        val param = builder.addParam(field, value)
+        builder.append(field).append(" containsText :$param")
     }
-
-    override fun params() = listOf(value)
 }
 
 class OStartsWithCondition(
@@ -50,10 +48,9 @@ class OStartsWithCondition(
 ) : OCondition {
 
     override fun sql(builder: SqlBuilder) {
-        builder.append(field).append(" like ?")
+        val param = builder.addParam(field, "${value}%")
+        builder.append(field).append(" like :$param")
     }
-
-    override fun params() = listOf("${value}%")
 }
 
 class OFieldExistsCondition(
@@ -102,13 +99,11 @@ sealed class OBiCondition(
 
     override fun sql(builder: SqlBuilder) {
         builder.append("(")
-        left.sql(builder.deepen())
+        left.sql(builder)
         builder.append(" ").append(operation).append(" ")
-        right.sql(builder.deepen())
+        right.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = left.params() + right.params()
 }
 
 class OAndCondition(left: OCondition, right: OCondition) : OBiCondition("AND", left, right)
@@ -121,11 +116,9 @@ class NotCondition(
 
     override fun sql(builder: SqlBuilder) {
         builder.append("NOT (")
-        condition.sql(builder.deepen())
+        condition.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = condition.params()
 }
 
 class OAndNotCondition(
@@ -135,13 +128,11 @@ class OAndNotCondition(
 
     override fun sql(builder: SqlBuilder) {
         builder.append("(")
-        left.sql(builder.deepen())
+        left.sql(builder)
         builder.append(" AND NOT (")
-        right.sql(builder.deepen())
+        right.sql(builder)
         builder.append("))")
     }
-
-    override fun params() = left.params() + right.params()
 }
 
 // Others
@@ -153,10 +144,10 @@ class ORangeCondition(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Where.html#between
     override fun sql(builder: SqlBuilder) {
-        builder.append("(").append(field).append(" between ? and ?)")
+        val left = builder.addParam("min", minInclusive)
+        val right = builder.addParam("max", maxInclusive)
+        builder.append("(").append(field).append(" between :$left and :$right)")
     }
-
-    override fun params() = listOf(minInclusive, maxInclusive)
 }
 
 class OInstanceOfCondition(

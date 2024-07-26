@@ -18,7 +18,4 @@ package jetbrains.exodus.entitystore.orientdb.query
 /**
  * Implementations must be immutable.
  */
-interface OQuery : OSql {
-
-    fun params(): List<Any> = emptyList()
-}
+interface OQuery : OSql
