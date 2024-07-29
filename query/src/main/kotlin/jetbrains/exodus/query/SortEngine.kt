@@ -41,7 +41,7 @@ open class SortEngine {
     fun sort(enumType: String, propName: String, entityType: String, linkName: String, source: Iterable<Entity>, asc: Boolean): Iterable<Entity> {
         if (source is EntityIterable) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            return txn.sort(entityType, "$linkName.$propName", source, asc)
+            return txn.sort(entityType, "$linkName.$propName", source.unwrap(), asc)
         } else {
             return if (asc) source.sortedBy { it.getLink(linkName)?.getProperty(propName) } else source.sortedByDescending { it.getLink(linkName)?.getProperty(propName) }
         }
