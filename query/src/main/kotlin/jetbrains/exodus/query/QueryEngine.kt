@@ -19,9 +19,12 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase.EMPTY
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
+import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.metadata.ModelMetaData
 import mu.KLogging
@@ -43,6 +46,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     open fun query(instance: Iterable<Entity>?, entityType: String, tree: NodeBase): EntityIterable {
         return if (instance != null) {
+            //TODO and here is the worst thing
             (instance as EntityIterable).intersect(tree.instantiate(entityType, this, modelMetaData, NodeBase.InstantiateContext()) as EntityIterable)
         } else {
             tree.instantiate(entityType, this, modelMetaData, NodeBase.InstantiateContext()) as EntityIterable
@@ -56,7 +60,11 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         if (left.isEmpty || right.isEmpty) {
             return EMPTY
         }
-        return (left as EntityIterable).intersect(right as EntityIterable)
+        return if (left is EntityIterable || right is EntityIterable) {
+            (left as EntityIterable).intersect(right as EntityIterable)
+        } else {
+            inMemoryIntersect(left, right)
+        }
     }
 
     open fun union(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
@@ -69,7 +77,11 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         if (right.isEmpty) {
             return left
         }
-        return (left as EntityIterable).union(right as EntityIterable)
+        return if (left is EntityIterable || right is EntityIterable) {
+            (left as EntityIterable).union(right as EntityIterable)
+        } else {
+            inMemoryUnion(left, right)
+        }
     }
 
     open fun concat(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
@@ -79,7 +91,12 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         if (right.isEmpty) {
             return left
         }
-        return (left as EntityIterable).concat(right as EntityIterable)
+
+        return if (left is EntityIterable || right is EntityIterable) {
+            (left as EntityIterable).concat(right as EntityIterable)
+        } else {
+            inMemoryConcat(left, right)
+        }
     }
 
     open fun exclude(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
@@ -89,15 +106,28 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         if (right.isEmpty) {
             return left
         }
-        return (left as EntityIterable).minus(right as EntityIterable)
+        return if (left is EntityIterable || right is EntityIterable) {
+            (left as EntityIterable).minus(right as EntityIterable)
+        } else {
+            inMemoryExclude(left, right)
+        }
     }
 
     open fun selectDistinct(it: Iterable<Entity>?, linkName: String): Iterable<Entity> {
-        return (it as EntityIterable).selectDistinct(linkName)
+        return if (it is EntityIterable){
+            it.selectDistinct(linkName)
+        } else {
+            it?.let { inMemorySelectDistinct(it, linkName) } ?: OQueryEntityIterableBase.EMPTY
+        }
+
     }
 
     open fun selectManyDistinct(it: Iterable<Entity>?, linkName: String): Iterable<Entity> {
-        return (it as EntityIterable).selectDistinct(linkName)
+        return if (it is EntityIterable){
+            it.selectDistinct(linkName)
+        } else {
+            return it?.let {  inMemorySelectManyDistinct(it, linkName) } ?: OQueryEntityIterableBase.EMPTY
+        }
     }
 
     open fun toEntityIterable(it: Iterable<Entity>): Iterable<Entity> {
@@ -121,6 +151,33 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
     open fun wrap(entity: Entity): Iterable<Entity> {
         return SingleEntityIterable(persistentStore.andCheckCurrentTransaction, entity.id)
     }
+
+    protected open fun inMemorySelectDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
+        return it.toList().mapNotNull { it.getLink(linkName) }.distinct()
+    }
+
+    protected open fun inMemorySelectManyDistinct(it: Iterable<Entity>, linkName: String): Iterable<Entity> {
+        return it.toList().flatMap { it.getLinks(linkName) }.filterNotNull().distinct()
+    }
+
+    protected open fun inMemoryIntersect(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
+        val ids = right.asEntityIdSet
+        return if (ids.isEmpty) right else left.filter { it.id in ids }
+    }
+
+    protected open fun inMemoryUnion(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
+        return left.union(right)
+    }
+
+    protected open fun inMemoryConcat(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
+        return left.toMutableList().apply { addAll(right) }
+    }
+
+    protected open fun inMemoryExclude(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
+        val ids = right.asEntityIdSet
+        return if (ids.isEmpty) left else left.filter { it.id !in ids }
+    }
+
 }
 
 private val Iterable<Entity>?.isEmpty: Boolean
@@ -129,4 +186,11 @@ private val Iterable<Entity>?.isEmpty: Boolean
     }
 
 private val Iterable<Entity>?.isPersistent: Boolean get() = this is EntityIterableBase
+
+private val Iterable<Entity>.asEntityIdSet: EntityIdSet
+    get() {
+        var ids = EntityIdSetFactory.newSet()
+        forEach { ids = ids.add(it.id) }
+        return ids
+    }
 

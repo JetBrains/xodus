@@ -363,7 +363,6 @@ class OQueryEngineTest {
         }
     }
 
-    @Ignore
     @Test
     fun `should query by links sorted`() {
         // Given
@@ -403,7 +402,6 @@ class OQueryEngineTest {
         }
     }
 
-    @Ignore
     @Test
     fun `should query by links sorted distinct`() {
         // Given
