@@ -52,7 +52,7 @@ fun <R> ODatabaseProvider.withCurrentOrNewSession(
 }
 
 fun ODatabaseDocument.hasActiveTransaction(): Boolean {
-    return isActiveOnCurrentThread && transaction.let { tx -> tx != null && tx.isActive }
+    return isActiveOnCurrentThread && transaction.let { tx -> tx != null && tx.status == OTransaction.TXSTATUS.BEGUN }
 }
 
 fun ODatabaseDocument.requireActiveTransaction(): OTransaction {
