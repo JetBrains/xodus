@@ -5,7 +5,6 @@ import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.orientechnologies.orient.core.tx.ORollbackException
 import com.orientechnologies.orient.core.tx.OTransaction
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
@@ -28,7 +27,6 @@ class OTransactionLifecycleTest : OTestMixin {
         val session = orientDb.openSession()
 
         TestCase.assertFalse(session.transaction == null)
-
         session.begin()
 
         TestCase.assertTrue(session.transaction.status == OTransaction.TXSTATUS.BEGUN)
@@ -212,9 +210,11 @@ class OTransactionLifecycleTest : OTestMixin {
     fun `embedded transactions successful case`() {
         val session = orientDb.openSession()
         session.getOrCreateVertexClass("trista")
+        assertEquals(0, session.transaction.amountOfNestedTxs())
 
         session.begin() // tx1
         assertEquals(OTransaction.TXSTATUS.BEGUN, session.transaction.status)
+        assertEquals(1, session.transaction.amountOfNestedTxs())
         TestCase.assertTrue(session.hasActiveTransaction())
 
         val trista1 = session.newVertex("trista")
@@ -223,6 +223,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
         session.begin() // tx2
         assertEquals(OTransaction.TXSTATUS.BEGUN, session.transaction.status)
+        assertEquals(2, session.transaction.amountOfNestedTxs())
         TestCase.assertTrue(session.hasActiveTransaction())
 
         val trista2 = session.newVertex("trista")
@@ -232,11 +233,13 @@ class OTransactionLifecycleTest : OTestMixin {
         session.commit()
 
         assertEquals(OTransaction.TXSTATUS.BEGUN, session.transaction.status)
+        assertEquals(1, session.transaction.amountOfNestedTxs())
         TestCase.assertTrue(session.hasActiveTransaction())
 
         session.commit()
 
         assertEquals(OTransaction.TXSTATUS.INVALID, session.transaction.status)
+        assertEquals(0, session.transaction.amountOfNestedTxs())
         TestCase.assertFalse(session.hasActiveTransaction())
 
         session.begin()
@@ -253,6 +256,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
         session.begin() // tx1
         assertEquals(OTransaction.TXSTATUS.BEGUN, session.transaction.status)
+        assertEquals(1, session.transaction.amountOfNestedTxs())
         TestCase.assertTrue(session.hasActiveTransaction())
 
         val trista1 = session.newVertex("trista")
@@ -261,6 +265,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
         session.begin() // tx2
         assertEquals(OTransaction.TXSTATUS.BEGUN, session.transaction.status)
+        assertEquals(2, session.transaction.amountOfNestedTxs())
         TestCase.assertTrue(session.hasActiveTransaction())
 
         val trista2 = session.newVertex("trista")
@@ -270,6 +275,7 @@ class OTransactionLifecycleTest : OTestMixin {
         session.rollback(true)
 
         assertEquals(OTransaction.TXSTATUS.INVALID, session.transaction.status)
+        assertEquals(0, session.transaction.amountOfNestedTxs())
 
         session.begin()
         TestCase.assertNull(session.getRecord<OVertex>(trista1.identity))
@@ -279,12 +285,13 @@ class OTransactionLifecycleTest : OTestMixin {
     }
 
     @Test
-    fun `rollback(force = false) on an embedded transaction leaves the session in a broken state`() {
+    fun `rollback() on an embedded transaction decreases amountOfNestedTxs by 1`() {
         val session = orientDb.openSession()
         session.getOrCreateVertexClass("trista")
 
         session.begin() // tx1
         assertEquals(OTransaction.TXSTATUS.BEGUN, session.transaction.status)
+        assertEquals(1, session.transaction.amountOfNestedTxs())
         TestCase.assertTrue(session.hasActiveTransaction())
 
         val trista1 = session.newVertex("trista")
@@ -293,6 +300,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
         session.begin() // tx2
         assertEquals(OTransaction.TXSTATUS.BEGUN, session.transaction.status)
+        assertEquals(2, session.transaction.amountOfNestedTxs())
         TestCase.assertTrue(session.hasActiveTransaction())
 
         val trista2 = session.newVertex("trista")
@@ -302,8 +310,17 @@ class OTransactionLifecycleTest : OTestMixin {
         session.rollback()
 
         assertEquals(OTransaction.TXSTATUS.ROLLBACKING, session.transaction.status)
+        assertEquals(1, session.transaction.amountOfNestedTxs())
 
-        assertFailsWith<ORollbackException> { session.begin() }
+        session.rollback()
+
+        assertEquals(OTransaction.TXSTATUS.INVALID, session.transaction.status)
+        assertEquals(0, session.transaction.amountOfNestedTxs())
+
+        session.begin()
+        TestCase.assertNull(session.getRecord<OVertex>(trista1.identity))
+        TestCase.assertNull(session.getRecord<OVertex>(trista2.identity))
+        session.commit()
         session.close()
     }
 
