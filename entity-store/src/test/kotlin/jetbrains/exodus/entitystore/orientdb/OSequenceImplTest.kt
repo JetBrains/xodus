@@ -10,8 +10,9 @@ import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 
-class OSequenceImplTest: OTestMixin {
+class OSequenceImplTest : OTestMixin {
     @Rule
     @JvmField
     val orientDbRule = InMemoryOrientDB()
@@ -21,12 +22,16 @@ class OSequenceImplTest: OTestMixin {
     @Test
     fun `if session has no active transaction, create the sequence on the current session`() {
         orientDb.withSession { session ->
-            val seq = session.getOrCreateSequence("s1", sessionCreator = { throw IllegalStateException() }, initialValue = 300)
+            val seq = session.getOrCreateSequence(
+                "s1",
+                executeInASeparateSession = { throw IllegalStateException() },
+                initialValue = 300
+            )
             Assert.assertEquals(300, seq.get())
             Assert.assertEquals(301, seq.increment())
         }
         orientDb.withSession { session ->
-            val seq = session.getOrCreateSequence("s1", sessionCreator = { throw IllegalStateException() })
+            val seq = session.getOrCreateSequence("s1", executeInASeparateSession = { throw IllegalStateException() })
             Assert.assertEquals(301, seq.get())
         }
     }
@@ -34,7 +39,11 @@ class OSequenceImplTest: OTestMixin {
     @Test
     fun `sequence may be created in one session and used in another`() {
         val seq: Sequence = orientDb.withSession { session ->
-            session.getOrCreateSequence("s1", sessionCreator = { throw IllegalStateException() }, initialValue = 300)
+            session.getOrCreateSequence(
+                "s1",
+                executeInASeparateSession = { throw IllegalStateException() },
+                initialValue = 300
+            )
         }
         orientDb.withSession { session ->
             Assert.assertEquals(300, seq.get())
@@ -49,7 +58,17 @@ class OSequenceImplTest: OTestMixin {
     @Test
     fun `if the session has an active transaction, another session gets created specially for the sequence creation`() {
         val seq = orientDb.withTxSession { session ->
-            val seq = session.getOrCreateSequence("s1", sessionCreator = { orientDb.openSession() }, initialValue = 200)
+            val seq = session.getOrCreateSequence(
+                "s1",
+                executeInASeparateSession = { action ->
+                    orientDb.openSession().use { newSession ->
+                        newSession.action()
+                    }
+                    assertFalse(session.isActiveOnCurrentThread)
+                    session.activateOnCurrentThread()
+                },
+                initialValue = 200
+            )
             Assert.assertEquals(200, seq.get())
             Assert.assertEquals(201, seq.increment())
             seq
@@ -59,7 +78,11 @@ class OSequenceImplTest: OTestMixin {
             Assert.assertEquals(202, seq.increment())
         }
         orientDb.withTxSession { session ->
-            val localSeq = session.getOrCreateSequence("s1", sessionCreator = { throw IllegalStateException() }, initialValue = 200)
+            val localSeq = session.getOrCreateSequence(
+                "s1",
+                executeInASeparateSession = { throw IllegalStateException() },
+                initialValue = 200
+            )
             Assert.assertEquals(202, localSeq.get())
             Assert.assertEquals(203, localSeq.increment())
         }
@@ -68,7 +91,11 @@ class OSequenceImplTest: OTestMixin {
     @Test
     fun `sequence_set() resets the current value`() {
         val seq = orientDb.withSession { session ->
-            val seq = session.getOrCreateSequence("s1", sessionCreator = { throw IllegalStateException() }, initialValue = 300)
+            val seq = session.getOrCreateSequence(
+                "s1",
+                executeInASeparateSession = { throw IllegalStateException() },
+                initialValue = 300
+            )
             Assert.assertEquals(300, seq.get())
             Assert.assertEquals(301, seq.increment())
             seq
@@ -83,8 +110,10 @@ class OSequenceImplTest: OTestMixin {
     @Test
     fun `if you create a sequence in a transaction, nothing works`() {
         orientDb.withTxSession { session ->
-            val seq = session.metadata.sequenceLibrary.createSequence("s1",
-                OSequence.SEQUENCE_TYPE.ORDERED, OSequence.CreateParams().setStart(300).setIncrement(1))
+            val seq = session.metadata.sequenceLibrary.createSequence(
+                "s1",
+                OSequence.SEQUENCE_TYPE.ORDERED, OSequence.CreateParams().setStart(300).setIncrement(1)
+            )
             assertFailsWith<ORecordNotFoundException> { seq.current() }
         }
     }

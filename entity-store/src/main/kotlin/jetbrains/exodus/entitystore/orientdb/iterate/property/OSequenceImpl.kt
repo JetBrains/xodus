@@ -16,11 +16,11 @@
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 import jetbrains.exodus.entitystore.Sequence
+import jetbrains.exodus.entitystore.orientdb.InSessionExecutor
 import jetbrains.exodus.entitystore.orientdb.hasActiveTransaction
 
 fun ODatabaseSession.getOrCreateSequence(
@@ -30,16 +30,16 @@ fun ODatabaseSession.getOrCreateSequence(
      * we will have to create a separate session specially for the sequence creation.
      * Orient goes crazy if you create a sequence in a transaction and use it right away.
      * */
-    sessionCreator: () -> ODatabaseDocument,
+    executeInASeparateSession: InSessionExecutor,
     initialValue: Long = 0
 ): Sequence {
-    makeSureOSequenceHasBeenCreated(sequenceName, sessionCreator, initialValue)
+    makeSureOSequenceHasBeenCreated(sequenceName, executeInASeparateSession, initialValue)
     return OSequenceImpl(sequenceName)
 }
 
 private fun ODatabaseSession.makeSureOSequenceHasBeenCreated(
     sequenceName: String,
-    sessionCreator: () -> ODatabaseDocument,
+    executeInASeparateSession: InSessionExecutor,
     initialValue: Long
 ): OSequence {
     var oSequence = this.metadata.sequenceLibrary.getSequence(sequenceName)
@@ -49,15 +49,9 @@ private fun ODatabaseSession.makeSureOSequenceHasBeenCreated(
     val params = CreateParams().setStart(initialValue).setIncrement(1)
     if (this.hasActiveTransaction()) {
         // sequences do not like to be created in a transaction, so we create a separate session specially for the sequence creation
-        try {
-            sessionCreator().use { session ->
-                assert(session.isActiveOnCurrentThread) // the session gets activated on the current thread by default
-                oSequence = session.metadata.sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
-            }
-        } finally {
-            // the previous session does not get activated on the current thread by default
-            assert(!this.isActiveOnCurrentThread)
-            this.activateOnCurrentThread()
+        executeInASeparateSession {
+            assert(this.isActiveOnCurrentThread) // the session gets activated on the current thread by default
+            oSequence = this.metadata.sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
         }
     } else {
         // the current session has no transactions, so we can create the sequence right away

@@ -77,12 +77,26 @@ class OPersistentEntityStore(
 
         val session = databaseProvider.acquireSession()
         session.begin()
-        session.activateOnCurrentThread()
 
-        currentTx = OStoreTransactionImpl(session, this, schemaBuddy, databaseProvider::acquireSession)
+        currentTx = OStoreTransactionImpl(session, this, schemaBuddy, ::executeInASeparateSession)
         currentTransaction.set(currentTx)
 
         return currentTx
+    }
+
+    private fun executeInASeparateSession(action: ODatabaseSession.() -> Unit) {
+        val currentSession = ODatabaseSession.getActiveSession() as ODatabaseSession?
+        try {
+            databaseProvider.acquireSession().use { session ->
+                session.action()
+            }
+        } finally {
+            if (currentSession != null) {
+                // the previous session does not get activated on the current thread by default
+                assert(!currentSession.isActiveOnCurrentThread)
+                currentSession.activateOnCurrentThread()
+            }
+        }
     }
 
     fun completeTx() {

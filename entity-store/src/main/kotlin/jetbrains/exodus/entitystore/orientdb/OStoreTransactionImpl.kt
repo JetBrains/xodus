@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
 import jetbrains.exodus.entitystore.*
@@ -28,13 +27,18 @@ import jetbrains.exodus.entitystore.orientdb.iterate.property.getOrCreateSequenc
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.env.Transaction
 
+typealias InSessionExecutor = (ODatabaseSession.() -> Unit) -> Unit
+
 class OStoreTransactionImpl(
     override val activeSession: ODatabaseSession,
     private val store: PersistentEntityStore,
     private val schemaBuddy: OSchemaBuddy,
-    private val sessionCreator: () -> ODatabaseDocument
+    private val executeInASeparateSession: InSessionExecutor
 ) : OStoreTransaction {
 
+    init {
+        activeSession.transaction.amountOfNestedTxs()
+    }
     private var queryCancellingPolicy: OQueryCancellingPolicy? = null
 
     private var hasWriteOperations = false
@@ -272,11 +276,11 @@ class OStoreTransactionImpl(
     }
 
     override fun getSequence(sequenceName: String): Sequence {
-        return activeSession.getOrCreateSequence(sequenceName, sessionCreator, -1)
+        return activeSession.getOrCreateSequence(sequenceName, executeInASeparateSession, -1)
     }
 
     override fun getSequence(sequenceName: String, initialValue: Long): Sequence {
-        return activeSession.getOrCreateSequence(sequenceName, sessionCreator, initialValue)
+        return activeSession.getOrCreateSequence(sequenceName, executeInASeparateSession, initialValue)
     }
 
     override fun getEnvironmentTransaction(): Transaction {
