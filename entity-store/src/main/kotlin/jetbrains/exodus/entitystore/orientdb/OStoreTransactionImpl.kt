@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.tx.OTransaction
@@ -23,12 +24,12 @@ import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.*
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyEqualIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
+import jetbrains.exodus.entitystore.orientdb.iterate.property.getOrCreateSequence
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.env.Transaction
 
 class OStoreTransactionImpl(
-    private val session: ODatabaseDocument,
+    override val activeSession: ODatabaseSession,
     private val store: PersistentEntityStore,
     private val schemaBuddy: OSchemaBuddy,
     private val sessionCreator: () -> ODatabaseDocument
@@ -36,11 +37,9 @@ class OStoreTransactionImpl(
 
     private var queryCancellingPolicy: OQueryCancellingPolicy? = null
 
-    override val activeSession = session
-
     private var hasWriteOperations = false
 
-    private fun getCurrentTx(): OTransaction? = session.transaction
+    private fun getCurrentTx(): OTransaction? = activeSession.transaction
 
     override fun getStore(): EntityStore {
         return store
@@ -53,18 +52,18 @@ class OStoreTransactionImpl(
 
     override fun isReadonly(): Boolean {
         if (!hasWriteOperations) {
-            hasWriteOperations = !isIdempotent
+            hasWriteOperations = !isIdempotent()
         }
         return !hasWriteOperations
     }
 
     override fun isFinished(): Boolean {
-        return !session.hasActiveTransaction()
+        return !activeSession.hasActiveTransaction()
     }
 
     override fun commit(): Boolean {
         try {
-            session.commit()
+            activeSession.commit()
         } finally {
             cleanUpTxIfNeeded()
         }
@@ -78,7 +77,7 @@ class OStoreTransactionImpl(
 
     override fun abort() {
         try {
-            session.rollback()
+            activeSession.rollback()
         } finally {
             cleanUpTxIfNeeded()
         }
@@ -86,8 +85,8 @@ class OStoreTransactionImpl(
 
     override fun flush(): Boolean {
         try {
-            session.commit()
-            session.begin()
+            activeSession.commit()
+            activeSession.begin()
         } finally {
             cleanUpTxIfNeeded()
         }
@@ -96,16 +95,16 @@ class OStoreTransactionImpl(
     }
 
     private fun cleanUpTxIfNeeded() {
-        if (!session.hasActiveTransaction()) {
+        if (!activeSession.hasActiveTransaction()) {
             (store as OPersistentEntityStore).completeTx()
-            session.close()
+            activeSession.close()
         }
     }
 
     override fun revert() {
         try {
-            session.rollback()
-            session.begin()
+            activeSession.rollback()
+            activeSession.begin()
         } finally {
             cleanUpTxIfNeeded()
         }
@@ -116,9 +115,9 @@ class OStoreTransactionImpl(
     }
 
     override fun newEntity(entityType: String): Entity {
-        schemaBuddy.makeSureTypeExists(session, entityType)
-        val vertex = session.newVertex(entityType)
-        session.setLocalEntityId(entityType, vertex)
+        schemaBuddy.makeSureTypeExists(activeSession, entityType)
+        val vertex = activeSession.newVertex(entityType)
+        activeSession.setLocalEntityId(entityType, vertex)
         vertex.save<OVertex>()
         return OVertexEntity(vertex, store)
     }
@@ -133,12 +132,12 @@ class OStoreTransactionImpl(
         if (oId == ORIDEntityId.EMPTY_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
-        val vertex: OVertex = session.load(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
+        val vertex: OVertex = activeSession.load(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         return OVertexEntity(vertex, store)
     }
 
     override fun getEntityTypes(): MutableList<String> {
-        return session.metadata.schema.classes.map { it.name }.toMutableList()
+        return activeSession.metadata.schema.classes.map { it.name }.toMutableList()
     }
 
     override fun getAll(entityType: String): EntityIterable {
@@ -273,11 +272,11 @@ class OStoreTransactionImpl(
     }
 
     override fun getSequence(sequenceName: String): Sequence {
-        return OSequenceImpl(sequenceName, sessionCreator, -1)
+        return activeSession.getOrCreateSequence(sequenceName, sessionCreator, -1)
     }
 
     override fun getSequence(sequenceName: String, initialValue: Long): Sequence {
-        return OSequenceImpl(sequenceName, sessionCreator, initialValue)
+        return activeSession.getOrCreateSequence(sequenceName, sessionCreator, initialValue)
     }
 
     override fun getEnvironmentTransaction(): Transaction {

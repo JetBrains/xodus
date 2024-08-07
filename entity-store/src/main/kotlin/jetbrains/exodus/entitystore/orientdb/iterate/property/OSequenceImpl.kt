@@ -20,54 +20,69 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import com.orientechnologies.orient.core.metadata.sequence.OSequenceLibrary
 import jetbrains.exodus.entitystore.Sequence
+import jetbrains.exodus.entitystore.orientdb.hasActiveTransaction
 
-class OSequenceImpl(
-    private val sequenceName: String,
-    private val sessionCreator: () -> ODatabaseDocument,
-    private val initialValue: Long = 0
-) : Sequence {
+fun ODatabaseSession.getOrCreateSequence(
+    sequenceName: String,
+    /**
+     * If the sequence has not yet been created and the current session has an active transaction,
+     * we will have to create a separate session specially for the sequence creation.
+     * Orient goes crazy if you create a sequence in a transaction and use it right away.
+     * */
+    sessionCreator: () -> ODatabaseDocument,
+    initialValue: Long = 0
+): Sequence {
+    makeSureOSequenceHasBeenCreated(sequenceName, sessionCreator, initialValue)
+    return OSequenceImpl(sequenceName)
+}
 
+private fun ODatabaseSession.makeSureOSequenceHasBeenCreated(
+    sequenceName: String,
+    sessionCreator: () -> ODatabaseDocument,
+    initialValue: Long
+): OSequence {
+    var oSequence = this.metadata.sequenceLibrary.getSequence(sequenceName)
 
-    override fun increment(): Long {
-        return withSequenceInSession {
-            it.next()
+    if (oSequence != null) return oSequence
+
+    val params = CreateParams().setStart(initialValue).setIncrement(1)
+    if (this.hasActiveTransaction()) {
+        // sequences do not like to be created in a transaction, so we create a separate session specially for the sequence creation
+        try {
+            sessionCreator().use { session ->
+                assert(session.isActiveOnCurrentThread) // the session gets activated on the current thread by default
+                oSequence = session.metadata.sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
+            }
+        } finally {
+            // the previous session does not get activated on the current thread by default
+            assert(!this.isActiveOnCurrentThread)
+            this.activateOnCurrentThread()
         }
+    } else {
+        // the current session has no transactions, so we can create the sequence right away
+        oSequence = this.metadata.sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
+    }
+    return oSequence
+}
+
+private class OSequenceImpl(
+    private val sequenceName: String,
+) : Sequence {
+    override fun increment(): Long {
+        return getOSequence().next()
     }
 
     override fun get(): Long {
-        return withSequenceInSession {
-            it.current()
-        }
+        return getOSequence().current()
     }
 
     override fun set(l: Long) {
-        withSequenceInSession {
-            it.updateParams(CreateParams().setCurrentValue(l))
-        }
+        getOSequence().updateParams(CreateParams().setCurrentValue(l))
     }
 
-    private fun <T> withSequenceInSession(action: (OSequence) -> T): T {
+    private fun getOSequence(): OSequence {
         val currentSession = ODatabaseSession.getActiveSession()
-        try {
-            val result = sessionCreator().use { session ->
-                session.activateOnCurrentThread().begin()
-                val sequenceLibrary: OSequenceLibrary = session.metadata.sequenceLibrary
-                var oSequence = sequenceLibrary.getSequence(sequenceName)
-                if (oSequence == null) {
-                    val params = CreateParams().setStart(initialValue).setIncrement(1)
-                    oSequence = sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
-                    session.commit()
-                    session.begin()
-                }
-                val actionResult = action(oSequence)
-                session.commit()
-                actionResult
-            }
-            return result
-        } finally {
-            currentSession?.activateOnCurrentThread()
-        }
+        return currentSession.metadata.sequenceLibrary.getSequence(sequenceName)
     }
 }
