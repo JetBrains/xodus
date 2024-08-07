@@ -41,24 +41,23 @@ class OStoreTransactionImpl(
     }
     private var queryCancellingPolicy: OQueryCancellingPolicy? = null
 
-    private var hasWriteOperations = false
+    private var _isIdempotent = true
 
-    private fun getCurrentTx(): OTransaction? = activeSession.transaction
+    private val oTx: OTransaction = activeSession.transaction
 
     override fun getStore(): EntityStore {
         return store
     }
 
     override fun isIdempotent(): Boolean {
-        val operations = getCurrentTx()?.recordOperations ?: listOf()
-        return operations.firstOrNull() == null
+        if (_isIdempotent) {
+            _isIdempotent = oTx.recordOperations.none()
+        }
+        return _isIdempotent
     }
 
     override fun isReadonly(): Boolean {
-        if (!hasWriteOperations) {
-            hasWriteOperations = !isIdempotent()
-        }
-        return !hasWriteOperations
+        return isIdempotent()
     }
 
     override fun isFinished(): Boolean {
