@@ -271,10 +271,10 @@ fun OCondition?.where(builder: SqlBuilder) {
 }
 
 fun OOrder?.orderBy(builder: SqlBuilder) {
-    this?.let {
+    if (this != null && this != EmptyOrder){
         builder.append(" ORDER BY ")
-        it.sql(builder)
-    } ?: builder.append("")
+        this.sql(builder)
+    }
 }
 
 fun OSkip?.skip(builder: SqlBuilder) {

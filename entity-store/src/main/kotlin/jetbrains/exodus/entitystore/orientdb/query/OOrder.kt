@@ -55,11 +55,26 @@ class OOrderByFields(
                     .reversed() // reverse to keep the original order of fields
                 OOrderByFields(newFields)
             }
+            is EmptyOrder -> newOrder
         }
     }
 
     override fun reverse(): OOrder {
         return OOrderByFields(fields.map { FieldOrder(it.field, !it.ascending) })
+    }
+}
+
+data object EmptyOrder : OOrder {
+    override fun merge(newOrder: OOrder): OOrder {
+        return this
+    }
+
+    override fun reverse(): OOrder {
+        return this
+    }
+
+    override fun sql(builder: SqlBuilder) {
+
     }
 }
 

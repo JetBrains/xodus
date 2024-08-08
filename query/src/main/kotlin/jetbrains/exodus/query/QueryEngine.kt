@@ -29,8 +29,7 @@ import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.metadata.ModelMetaData
 import mu.KLogging
 
-open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStore) : KLogging(),
-    IQueryEngine {
+open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStore) : KLogging() {
 
     private var _sortEngine: SortEngine? = null
 
@@ -177,7 +176,6 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         val ids = right.asEntityIdSet
         return if (ids.isEmpty) left else left.filter { it.id !in ids }
     }
-
 }
 
 private val Iterable<Entity>?.isEmpty: Boolean
