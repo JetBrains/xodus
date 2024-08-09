@@ -51,20 +51,35 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
     open fun query(instance: Iterable<Entity>?, entityType: String, tree: NodeBase): EntityIterable {
         return when (instance) {
             null -> tree.instantiate(entityType, this, modelMetaData, NodeBase.InstantiateContext()) as EntityIterable
-            is EntityIterable -> instance.intersect(
-                tree.instantiate(
-                    entityType,
-                    this,
-                    modelMetaData,
-                    NodeBase.InstantiateContext()
-                ) as EntityIterable
-            )
-
+            is EntityIterable -> {
+                if (tree is Sort){
+                    val sorted = tree.applySort(entityType, instance, sortEngine!!)
+                    if (sorted !is EntityIterable){
+                        InMemoryEntityIterable(sorted, txn = persistentStore.andCheckCurrentTransaction, this)
+                    } else {
+                        sorted
+                    }
+                } else {
+                    instance.intersect(
+                        tree.instantiate(
+                            entityType,
+                            this,
+                            modelMetaData,
+                            NodeBase.InstantiateContext()
+                        ) as EntityIterable
+                    )
+                }
+            }
             else -> {
-                intersect(
-                    instance,
-                    tree.instantiate(entityType, this, modelMetaData, NodeBase.InstantiateContext())
-                ) as EntityIterable
+                if (tree is Sort) {
+                    val sorted = tree.applySort(entityType, instance, sortEngine!!)
+                    InMemoryEntityIterable(sorted, txn = persistentStore.andCheckCurrentTransaction, this)
+                } else {
+                    intersect(
+                        instance,
+                        tree.instantiate(entityType, this, modelMetaData, NodeBase.InstantiateContext())
+                    ) as EntityIterable
+                }
             }
         }
     }
