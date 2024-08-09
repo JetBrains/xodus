@@ -458,7 +458,7 @@ public abstract class EntityIterableBase implements EntityIterable {
 
     @Override
     public @NotNull EntityIterable unwrap() {
-        return this;
+        return getSource();
     }
 
     public boolean isSortedById() {

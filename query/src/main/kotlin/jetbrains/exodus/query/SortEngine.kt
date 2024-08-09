@@ -17,6 +17,7 @@ package jetbrains.exodus.query
 
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
 
@@ -67,7 +68,7 @@ open class SortEngine {
     ): Iterable<Entity> {
         if (source is EntityIterable) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
-            return txn.sort(entityType, "$linkName.$propName", source.unwrap(), asc)
+            return txn.sort(entityType, "${OVertexEntity.edgeClassName(linkName)}.$propName", source.unwrap(), asc)
         } else {
             val mmd = queryEngine.modelMetaData!!
             val emd = mmd.getEntityMetaData(entityType)!!
