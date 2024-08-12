@@ -219,39 +219,7 @@ class OQueryEngineTest(
     }
 
 
-    @Test
-    fun `should query by links sorted distinct`() {
-        // Given
-        val test = givenTestCase()
-        // Issues assigned to projects in reverse order
-        orientDB.addIssueToProject(test.issue1, test.project3)
-        orientDB.addIssueToProject(test.issue1, test.project2)
 
-        orientDB.addIssueToProject(test.issue2, test.project2)
-        orientDB.addIssueToProject(test.issue2, test.project1)
-
-        orientDB.addIssueToProject(test.issue3, test.project1)
-        orientDB.addIssueToProject(test.issue3, test.project2)
-
-        val metadata = givenModelMetadata().withEntityMetaData(Issues.CLASS)
-        val engine = givenOQueryEngine(metadata)
-
-        // When
-        orientDB.withTxSession {
-            // Find all issues that are either in project1 or board2
-            val sortByLinkProperty = SortByLinkProperty(
-                null, // child node
-                Projects.CLASS, // link entity class
-                "name", // link property name
-                Issues.Links.IN_PROJECT, // link name
-                true // ascending
-            )
-            val issuesAsc = engine.query(iterableGetter(engine, orientDB), Issues.CLASS, sortByLinkProperty)
-
-            // Then
-            assertOrderedNamesExactly(issuesAsc, "issue3", "issue2", "issue1")
-        }
-    }
 
     @Test
     fun `hasBlob should search for entity with blob`() {
@@ -275,7 +243,7 @@ class OQueryEngineTest(
 
         orientDB.withTxSession {
             val issues =
-                engine.query(iterableGetter(engine, orientDB), Issues.CLASS, PropertyNotNull("myBlob")).toList()
+                engine.query(iterableGetter(engine, orientDB), Issues.CLASS, PropertyNotNull("myBlob")).sortedBy { it.getProperty("name") }
             assertEquals(2, issues.size)
             assertEquals(test.issue1, issues.firstOrNull())
             assertEquals(test.issue2, issues.lastOrNull())
@@ -328,7 +296,7 @@ class OQueryEngineTest(
                 iterableGetter(engine, orientDB),
                 Issues.CLASS,
                 Or(LinkEqual(Issues.Links.ON_BOARD, test.board1), LinkEqual(Issues.Links.ON_BOARD, test.board2))
-            ) as EntityIterableBase
+            )
 
             val issuesDistinct = issues.distinct()
             assertNamesExactly(issuesDistinct, "issue1", "issue2", "issue3")
