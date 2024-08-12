@@ -19,25 +19,30 @@ interface OSql {
     fun sql(builder: SqlBuilder)
 }
 
-class SqlBuilder(
-    private val stringBuilder: StringBuilder = StringBuilder(),
-    val depth: Int = 0
-) {
+class SqlBuilder {
+
+    private val stringBuilder: StringBuilder = StringBuilder()
+    private var varCounter = 0
+    private var params: MutableMap<String, Any> = mutableMapOf()
+
+    fun nextVarIndex(): Int {
+        return varCounter++
+    }
 
     fun append(value: Any): SqlBuilder {
         stringBuilder.append(value)
         return this
     }
 
-    fun deepen(): SqlBuilder {
-        return SqlBuilder(stringBuilder, depth + 1)
+    fun addParam(name: String, value: Any): String {
+        val indexedName = "$name${nextVarIndex()}"
+        params[indexedName] = value
+        return indexedName
     }
 
-    fun build(): String {
-        return stringBuilder.toString()
-    }
-
-    override fun toString(): String {
-        return stringBuilder.toString()
+    fun build(): SqlQuery {
+        return SqlQuery(stringBuilder.toString(), params)
     }
 }
+
+data class SqlQuery(val sql: String, val params: Map<String, Any>)

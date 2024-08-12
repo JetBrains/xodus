@@ -128,11 +128,9 @@ class OCountSelect(
 
     override fun sql(builder: SqlBuilder) {
         builder.append("SELECT count(*) as count FROM (")
-        source.sql(builder.deepen())
+        source.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = source.params()
 
     fun count(tx: OStoreTransaction): Long = OQueryExecution.execute(this, tx).next().getProperty("count")
 }
@@ -142,13 +140,11 @@ class OFirstSelect(
 ) : OQuery {
 
     override fun sql(builder: SqlBuilder) {
-        val depth = builder.depth
-        builder.append("SELECT expand(first(\$a${depth})) LET \$a${depth} = (")
-        source.sql(builder.deepen())
+        val index = builder.nextVarIndex()
+        builder.append("SELECT expand(first(\$a${index})) LET \$a${index} = (")
+        source.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = source.params()
 }
 
 
@@ -157,11 +153,9 @@ class OLastSelect(
 ) : OQuery {
 
     override fun sql(builder: SqlBuilder) {
-        val depth = builder.depth
-        builder.append("SELECT expand(last(\$a${depth})) LET \$a${depth} = (")
-        source.sql(builder.deepen())
+        val index = builder.nextVarIndex()
+        builder.append("SELECT expand(last(\$a${index})) LET \$a${index} = (")
+        source.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = source.params()
 }
