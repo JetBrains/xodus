@@ -396,7 +396,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                     try {
                         store.reclaim(txn, loggable, loggables)
                     } catch (e: UnexpectedLoggableException) {
-                        logger.warn(
+                        logger.debug(
                             "Unexpected loggable (address: ${loggable.address})  was found " +
                                     "checking its presence in store ${store.name}."
                         )
@@ -411,17 +411,17 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                             }
                         }
 
-                        logger.warn(
+                        logger.debug(
                             "Loggable (address: ${loggable.address})  " +
                                     "not found in store ${store.name}, skipping as a garbage"
                         )
                         //if address not found in tree,
                         //then loggable is a garbage left after the restore of DB crash,
                         //start from the last valid loggable
-                        if(e.lastValidLoggableAddress >= 0) {
+                        if (e.lastValidLoggableAddress >= 0) {
                             loggables = log.getLoggableIterator(e.lastValidLoggableAddress)
                         } else {
-                            logger.warn("Last valid loggable address is not found, skipping the rest of the file")
+                            logger.debug("Last valid loggable address is not found, skipping the rest of the file")
                             break
                         }
                     }
