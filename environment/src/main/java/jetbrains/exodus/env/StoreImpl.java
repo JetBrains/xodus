@@ -205,7 +205,13 @@ public class StoreImpl implements Store {
         var tree = txn.getMutableTree(this);
 
         if (tree instanceof PatriciaTreeMutable patriciaTree) {
-            patriciaTree.reclaimWholeTree();
+            if (!patriciaTree.reclaimWholeTree()) {
+                txn.removeTreeMutable(this);
+            }
+        } else if (tree instanceof PatriciaTreeWithDuplicatesMutable patriciaTreeWithDuplicates) {
+            if (!patriciaTreeWithDuplicates.reclaimWholeTree()) {
+                txn.removeTreeMutable(this);
+            }
         } else {
             throw new IllegalStateException("Can't reclaim whole tree of non-Patricia tree");
         }
@@ -239,7 +245,7 @@ public class StoreImpl implements Store {
         return result;
     }
 
-    int getStructureId() {
+    public int getStructureId() {
         return metaInfo.getStructureId();
     }
 }

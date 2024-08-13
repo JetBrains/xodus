@@ -240,7 +240,7 @@ public class ReadWriteTransaction extends TransactionBase {
         final ITreeMutable metaTreeMutable = getMetaTree().tree.getMutableCopy();
         for (final Map.Entry<Long, Pair<String, ITree>> entry : removedEntries) {
             final Pair<String, ITree> value = entry.getValue();
-            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey().longValue());
+            MetaTreeImpl.removeStore(metaTreeMutable, value.getFirst(), entry.getKey());
             expiredLoggables = expiredLoggables.mergeWith(TreeMetaInfo.getTreeLoggables(value.getSecond()).trimToSize());
         }
         removedStores.clear();
@@ -269,7 +269,7 @@ public class ReadWriteTransaction extends TransactionBase {
     }
 
     @NotNull
-    ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
+    public ITreeMutable getMutableTree(@NotNull final StoreImpl store) {
         checkIsFinished();
         if (getEnvironment().getEnvironmentConfig().getEnvTxnSingleThreadWrites()) {
             final Thread creatingThread = getCreatingThread();

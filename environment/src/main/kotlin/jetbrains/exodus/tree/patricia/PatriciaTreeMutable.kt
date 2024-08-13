@@ -332,12 +332,18 @@ internal class PatriciaTreeMutable(
         return actual.wasReclaim || sourceRoot.address == root.sourceAddress
     }
 
-    fun reclaimWholeTree() {
+    fun reclaimWholeTree() : Boolean {
+        if (root.sourceAddress == Loggable.NULL_ADDRESS) {
+            //empty tree
+            return false
+        }
+
         val sourceTree = PatriciaTreeForReclaim(log, root.sourceAddress, structureId, maxEntrySize)
         val sourceRoot = sourceTree.root
         val actual = PatriciaReclaimActualTraverser(this)
 
-        reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, root.sourceAddress), actual)
+        reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, 0), actual)
+        return true
     }
 
 

@@ -390,6 +390,12 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                     var store = openStoresCache.get(structureId)
                     if (store == null) {
                         store = txn.openStoreByStructureId(structureId)
+
+                        if (store.structureId < 0) {
+                            logger.debug("Skipping loggable with structureId $structureId")
+                            continue
+                        }
+
                         openStoresCache[structureId] = store
                     }
 
@@ -407,8 +413,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                         while (addressIter.hasNext()) {
                             val address = addressIter.next()
                             if (address == loggable.address) {
-                                logger.warn("Error during reclamation of portion of the store ${store.name}. " +
-                                        "Will try to reclaim whole store.", e)
+                                logger.warn(
+                                    "Error during reclamation of portion of the store ${store.name}. " +
+                                            "Will try to reclaim whole store.", e
+                                )
                                 store.reclaimWholeTree(txn)
                             }
                         }
