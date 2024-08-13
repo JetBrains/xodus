@@ -39,7 +39,7 @@ import mu.KLogging
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.util.TreeSet
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
 
@@ -407,7 +407,9 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                         while (addressIter.hasNext()) {
                             val address = addressIter.next()
                             if (address == loggable.address) {
-                                throw e
+                                logger.warn("Error during reclamation of portion of the store ${store.name}. " +
+                                        "Will try to reclaim whole store.", e)
+                                store.reclaimWholeTree(txn)
                             }
                         }
 

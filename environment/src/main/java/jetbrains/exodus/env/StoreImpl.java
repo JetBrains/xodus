@@ -27,9 +27,7 @@ import jetbrains.exodus.tree.TreeMetaInfo;
 import jetbrains.exodus.tree.btree.BTree;
 import jetbrains.exodus.tree.btree.BTreeBalancePolicy;
 import jetbrains.exodus.tree.btree.BTreeEmpty;
-import jetbrains.exodus.tree.patricia.PatriciaTree;
-import jetbrains.exodus.tree.patricia.PatriciaTreeEmpty;
-import jetbrains.exodus.tree.patricia.PatriciaTreeWithDuplicates;
+import jetbrains.exodus.tree.patricia.*;
 import jetbrains.exodus.util.StringInterner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -199,6 +197,17 @@ public class StoreImpl implements Store {
         final boolean hadTreeMutated = txn.hasTreeMutable(this);
         if (!txn.getMutableTree(this).reclaim(loggable, loggables) && !hadTreeMutated) {
             txn.removeTreeMutable(this);
+        }
+    }
+
+    public void reclaimWholeTree(@NotNull final Transaction transaction) {
+        final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
+        var tree = txn.getMutableTree(this);
+
+        if (tree instanceof PatriciaTreeMutable patriciaTree) {
+            patriciaTree.reclaimWholeTree();
+        } else {
+            throw new IllegalStateException("Can't reclaim whole tree of non-Patricia tree");
         }
     }
 

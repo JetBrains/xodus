@@ -332,6 +332,15 @@ internal class PatriciaTreeMutable(
         return actual.wasReclaim || sourceRoot.address == root.sourceAddress
     }
 
+    fun reclaimWholeTree() {
+        val sourceTree = PatriciaTreeForReclaim(log, root.sourceAddress, structureId, maxEntrySize)
+        val sourceRoot = sourceTree.root
+        val actual = PatriciaReclaimActualTraverser(this)
+
+        reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, root.sourceAddress), actual)
+    }
+
+
     override fun getRoot() = root
 
     override fun isAllowingDuplicates() = false
