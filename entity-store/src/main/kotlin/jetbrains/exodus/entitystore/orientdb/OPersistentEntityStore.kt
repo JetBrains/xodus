@@ -54,34 +54,42 @@ class OPersistentEntityStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
-        var currentTx: OStoreTransactionImpl? = currentTransaction.get()
+        return beginTransactionImpl(readOnly = false)
+    }
 
-        /**
-         * Meet nested transactions!
-         *
-         * The fact that we return the same tx object for all the nested transactions is,
-         * to say the least, questionable.
-         *
-         * Consider the following snippet
-         * tx1 = store.beginTransaction()
-         * tx2 = store.beginTransaction()
-         * tx2.commit() - commits the second transaction as expected
-         * tx2.commit() - commits the first transaction as nobody would expect
-         *
-         * So this approach definitely requires fixing.
-         */
-        if (currentTx != null) {
-            currentTx.activeSession.begin()
-            return currentTx
-        }
+    override fun beginExclusiveTransaction(): StoreTransaction {
+        return beginTransactionImpl(readOnly = false)
+    }
+
+    override fun beginReadonlyTransaction(): StoreTransaction {
+        return beginTransactionImpl(readOnly = true)
+    }
+
+    private fun beginTransactionImpl(readOnly: Boolean): StoreTransaction {
+        var currentTx: OStoreTransactionImpl? = currentTransaction.get()
+        check(currentTx == null) { "EntityStore has a transaction on the current thread. Finish it before starting a new one." }
 
         val session = databaseProvider.acquireSession()
-        session.begin()
 
-        currentTx = OStoreTransactionImpl(session, this, schemaBuddy, ::executeInASeparateSession)
+        currentTx = OStoreTransactionImpl(
+            session,
+            store = this,
+            schemaBuddy,
+            executeInASeparateSession = ::executeInASeparateSession,
+            onFinished = ::onTransactionFinished,
+            readOnly = readOnly
+        )
         currentTransaction.set(currentTx)
+        currentTx.begin()
 
         return currentTx
+    }
+
+    private fun onTransactionFinished(session: ODatabaseSession, tx: OStoreTransaction) {
+        check(currentTransaction.get() == tx) { "The current transaction at EntityStore is different for one that just has finished. It must not happen." }
+        check(!session.isClosed) { "The session should not be closed at this point." }
+        currentTransaction.remove()
+        session.close()
     }
 
     private fun executeInASeparateSession(action: ODatabaseSession.() -> Unit) {
@@ -97,18 +105,6 @@ class OPersistentEntityStore(
                 currentSession.activateOnCurrentThread()
             }
         }
-    }
-
-    fun completeTx() {
-        currentTransaction.remove()
-    }
-
-    override fun beginExclusiveTransaction(): StoreTransaction {
-        return beginTransaction()
-    }
-
-    override fun beginReadonlyTransaction(): StoreTransaction {
-        return beginTransaction()
     }
 
     override fun getCurrentTransaction(): StoreTransaction? {

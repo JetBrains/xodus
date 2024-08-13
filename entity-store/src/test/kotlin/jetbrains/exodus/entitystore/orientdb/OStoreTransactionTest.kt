@@ -640,27 +640,11 @@ class OStoreTransactionTest : OTestMixin {
     }
 
     @Test
-    fun `isReadOnly by default is true`() {
-        orientDb.store.executeInTransaction { tx ->
-            Assert.assertTrue(tx.isReadonly)
-        }
-    }
-
-    @Test
-    fun `isReadOnly is switched to false after modification operation`() {
-        val issue = orientDb.store.computeInTransaction { tx ->
-            val issue = tx.newEntity(Issues.CLASS)
-            Assert.assertFalse(tx.isReadonly)
-            issue
-        }
-        orientDb.store.computeInTransaction { tx ->
-            issue.setProperty("priority", "Normal2")
-            Assert.assertFalse(tx.isReadonly)
-        }
-        orientDb.store.computeInTransaction { tx ->
-            issue.delete()
-            Assert.assertFalse(tx.isReadonly)
-        }
+    fun `read-only transaction forbids changing data in it`() {
+        val issue = orientDb.createIssue("trista")
+        val tx = orientDb.store.beginReadonlyTransaction()
+        assertFailsWith<IllegalStateException> { tx.newEntity(Issues.CLASS) }
+        assertFailsWith<IllegalStateException> { tx.saveEntity(issue) }
     }
 
     @Test
