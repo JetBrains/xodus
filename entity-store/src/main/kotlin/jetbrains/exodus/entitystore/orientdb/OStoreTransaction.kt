@@ -16,8 +16,16 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.record.OVertex
+import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.StoreTransaction
 
 interface OStoreTransaction : StoreTransaction {
     val activeSession: ODatabaseDocument
+
+    fun getTransactionId(): Long
+
+    fun load(id: OEntityId): OVertex?
+
+    fun query(sql: String, params: List<Any>): OResultSet
 }

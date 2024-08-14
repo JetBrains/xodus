@@ -15,11 +15,10 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityStore
 
-class OReadonlyVertexEntity(val txn: OStoreTransaction, id: OEntityId) : OVertexEntity(
-    txn.activeSession.load(id.asOId()), txn.store as PersistentEntityStore
-) {
+class OReadonlyVertexEntity(vertex: OVertex, store: PersistentEntityStore) : OVertexEntity(vertex, store) {
     override fun assertWritable() {
         throw IllegalArgumentException("Can't update readonly entity (id=${id})")
     }

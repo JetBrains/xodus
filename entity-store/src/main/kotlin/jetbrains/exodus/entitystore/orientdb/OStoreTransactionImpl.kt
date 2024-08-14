@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabase
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.record.OVertex
+import com.orientechnologies.orient.core.sql.executor.OResultSet
 import com.orientechnologies.orient.core.tx.OTransaction.TXSTATUS
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
@@ -41,6 +42,23 @@ class OStoreTransactionImpl(
     private val readOnly: Boolean = false
 ) : OStoreTransaction {
     private var queryCancellingPolicy: OQueryCancellingPolicy? = null
+
+    // todo test
+    override fun getTransactionId(): Long {
+        return activeSession.transaction.id.toLong()
+    }
+
+    // todo test
+    override fun load(id: OEntityId): OVertex? {
+        requireActiveTx()
+        return activeSession.load(id.asOId())
+    }
+
+    // todo test
+    override fun query(sql: String, params: List<Any>): OResultSet {
+        requireActiveTx()
+        return activeSession.query(sql, *params.toTypedArray())
+    }
 
     override fun getStore(): EntityStore {
         return store

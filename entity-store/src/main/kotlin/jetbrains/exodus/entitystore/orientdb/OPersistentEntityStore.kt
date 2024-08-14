@@ -171,12 +171,12 @@ class OPersistentEntityStore(
     }
 
     override fun getEntity(id: EntityId): Entity {
+        val currentTx = requireCurrentTransaction()
         val oId = requireOEntityId(id)
         if (oId == ORIDEntityId.EMPTY_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         }
-        val txn = currentOTransaction.activeSession.requireActiveTransaction()
-        val vertex = txn.database.load<OVertex>(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
+        val vertex = currentTx.load(oId) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
         return OVertexEntity(vertex, this)
     }
 
@@ -200,7 +200,6 @@ class OPersistentEntityStore(
         databaseProvider.acquireSession().apply {
             activateOnCurrentThread()
             oldClass.setName(newEntityTypeName)
-            close()
         }
     }
 
@@ -222,7 +221,11 @@ class OPersistentEntityStore(
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 
-    private val currentOTransaction get() = currentTransaction.get() as OStoreTransaction
+    private fun requireCurrentTransaction(): OStoreTransaction {
+        val tx = currentTransaction.get()
+        check(tx != null) { "No active transaction on the current thread" }
+        return tx
+    }
 
     fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
         return schemaBuddy.getOEntityId(entityId)

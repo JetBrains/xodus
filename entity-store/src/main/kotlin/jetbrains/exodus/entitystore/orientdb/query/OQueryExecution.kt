@@ -30,13 +30,14 @@ object OQueryExecution : KLogging() {
             timeoutQuery.sql(builder)
         }
 
-        val session = tx.activeSession
-        val resultSet = session.query(builder.toString(), *query.params().toTypedArray())
+        val resultSet = tx.query(builder.toString(), query.params())
 
         // Log execution plan
         // ToDo: add System param to enable/disable logging of execution plan
-        val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
-        logger.debug { "Query: $builder, params: ${query.params()}, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}" }
+        logger.debug {
+            val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
+            "Query: $builder, params: ${query.params()}, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}"
+        }
 
         return resultSet
     }
