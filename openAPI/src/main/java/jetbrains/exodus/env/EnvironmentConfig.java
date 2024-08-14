@@ -765,6 +765,8 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String GC_TRANSACTION_TIMEOUT = "exodus.gc.transactionTimeout";
 
+    public static final String LOG_GC_CANCELATIONS = "exodus.gc.logGCCancelations";
+
     /**
      * Defines the number of milliseconds which deletion of any successfully cleaned {@code Log} file
      * (.xd file) is postponed for. Default value is {@code 5000}.
@@ -885,6 +887,7 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_USE_EXCLUSIVE_TRANSACTION, true),
                 new Pair(GC_TRANSACTION_ACQUIRE_TIMEOUT, 1000),
                 new Pair(GC_TRANSACTION_TIMEOUT, 500),
+                new Pair(LOG_GC_CANCELATIONS, true),
                 new Pair(MANAGEMENT_ENABLED, !JVMConstants.getIS_ANDROID()),
                 new Pair(MANAGEMENT_OPERATIONS_RESTRICTED, true),
                 new Pair(META_SERVER, null),
@@ -2888,6 +2891,14 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setGcTransactionTimeout(final int txnTimeout) {
         return setSetting(GC_TRANSACTION_TIMEOUT, txnTimeout);
+    }
+
+    public boolean getLogGcCancelations() {
+        return (Boolean) getSetting(LOG_GC_CANCELATIONS);
+    }
+
+    public EnvironmentConfig setGcCancelations(boolean logGcCancelations) {
+        return setSetting(LOG_GC_CANCELATIONS, logGcCancelations);
     }
 
     /**

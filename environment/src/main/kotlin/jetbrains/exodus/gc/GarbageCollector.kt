@@ -283,10 +283,33 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                 if (!isTxnExclusive) {
                     break // do not process more than one file in a non-exclusive txn
                 }
+
                 if (started + ec.gcTransactionTimeout <= System.currentTimeMillis()) {
+                    val logCancelation = environment.environmentConfig.logGcCancelations
+                    if (logCancelation) {
+                        logger.warn(
+                            "GC for database ${environment.log.location}" +
+                                    " was interrupted because of timeout (${
+                                        ec.gcTransactionTimeout
+                                    } ms) while cleaning file ${LogUtil.getLogFilename(file)}"
+                        )
+                    }
                     break // break by timeout
                 }
+
                 if (guard.isItCloseToOOM()) {
+                    val logCancelation = environment.environmentConfig.logGcCancelations
+                    if (logCancelation) {
+                        logger.warn(
+                            "GC for database ${environment.log.location}" +
+                                    " was interrupted because of risk of OutOfMemoryError while cleaning file ${
+                                        LogUtil.getLogFilename(
+                                            file
+                                        )
+                                    }"
+                        )
+
+                    }
                     break // break because of the risk of OutOfMemoryError
                 }
             }

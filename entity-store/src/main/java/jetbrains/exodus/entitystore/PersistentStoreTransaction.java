@@ -104,8 +104,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         blobStringsCache = createObjectCache(config.getTransactionBlobStringsCacheSize());
         localCache = source.localCache;
 
-        assert localCache == store.getEntityIterableCache().getCacheAdapter();
-
         localCacheAttempts = localCacheHits = 0;
         switch (txnType) {
             case Regular:
