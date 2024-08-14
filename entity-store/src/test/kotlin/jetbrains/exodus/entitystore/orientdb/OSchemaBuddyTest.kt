@@ -19,10 +19,9 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
-import org.junit.Test
-
 import org.junit.Assert.*
 import org.junit.Rule
+import org.junit.Test
 
 class OSchemaBuddyTest {
 
@@ -37,13 +36,15 @@ class OSchemaBuddyTest {
 
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
         orientDb.withSession {
-            assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(totallyExistingEntityId))
+            assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(it, totallyExistingEntityId))
         }
 
-        buddy.initialize()
+        orientDb.withSession {
+            buddy.initialize(it)
+        }
 
         orientDb.withSession {
-            assertEquals(issueId, buddy.getOEntityId(totallyExistingEntityId))
+            assertEquals(issueId, buddy.getOEntityId(it, totallyExistingEntityId))
         }
     }
 
@@ -71,10 +72,10 @@ class OSchemaBuddyTest {
         val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
         orientDb.withSession {
-            assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(notExistingEntityId))
-            assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(partiallyExistingEntityId1))
-            assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(partiallyExistingEntityId2))
-            assertEquals(issueId, buddy.getOEntityId(totallyExistingEntityId))
+            assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(it, notExistingEntityId))
+            assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(it, partiallyExistingEntityId1))
+            assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(it, partiallyExistingEntityId2))
+            assertEquals(issueId, buddy.getOEntityId(it, totallyExistingEntityId))
         }
     }
 
@@ -98,7 +99,6 @@ class OSchemaBuddyTest {
         orientDb.withTxSession { session ->
             val res = session.metadata.sequenceLibrary.getSequence("seq").next()
             assertEquals(2, res)
-            session.rollback()
         }
     }
 

@@ -31,9 +31,9 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntity
 import java.util.concurrent.ConcurrentHashMap
 
 interface OSchemaBuddy {
-    fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId
-    fun makeSureTypeExists(session: ODatabaseDocument, entityType: String)
-    fun initialize()
+    fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId
+    fun makeSureTypeExists(session: ODatabaseSession, entityType: String)
+    fun initialize(session: ODatabaseSession)
 }
 
 class OSchemaBuddyImpl(
@@ -48,22 +48,22 @@ class OSchemaBuddyImpl(
 
     init {
         if (autoInitialize) {
-            initialize()
-        }
-    }
-
-    override fun initialize() {
-        dbProvider.withCurrentOrNewSession { session ->
-            session.createClassIdSequenceIfAbsent()
-            for (oClass in session.metadata.schema.classes) {
-                if (oClass.isVertexType && !INTERNAL_CLASS_NAMES.contains(oClass.name)) {
-                    classIdToOClassId[oClass.requireClassId()] = oClass.defaultClusterId
-                }
+            dbProvider.withCurrentOrNewSession { session ->
+                initialize(session)
             }
         }
     }
 
-    override fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
+    override fun initialize(session: ODatabaseSession) {
+        session.createClassIdSequenceIfAbsent()
+        for (oClass in session.metadata.schema.classes) {
+            if (oClass.isVertexType && !INTERNAL_CLASS_NAMES.contains(oClass.name)) {
+                classIdToOClassId[oClass.requireClassId()] = oClass.defaultClusterId
+            }
+        }
+    }
+
+    override fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId {
         // Keep in mind that it is possible that we are given an entityId that is not in the database.
         // It is a valid case.
 
@@ -85,7 +85,7 @@ class OSchemaBuddyImpl(
         return ORIDEntityId(classId, localEntityId, oid, oClass)
     }
 
-    override fun makeSureTypeExists(session: ODatabaseDocument, entityType: String) {
+    override fun makeSureTypeExists(session: ODatabaseSession, entityType: String) {
         val existingClass = session.getClass(entityType)
         if (existingClass != null) return
 

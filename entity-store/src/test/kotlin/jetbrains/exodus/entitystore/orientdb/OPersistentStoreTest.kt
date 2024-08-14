@@ -171,7 +171,7 @@ class OPersistentStoreTest: OTestMixin {
         val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
         val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
-        orientDb.withSession {
+        orientDb.store.executeInTransaction {
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(notExistingEntityId))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId1))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId2))
@@ -183,7 +183,7 @@ class OPersistentStoreTest: OTestMixin {
     fun `requireOEntityId works correctly with different types of EntityId`() {
         val issueId = orientDb.createIssue("trista").id
 
-        orientDb.withSession {
+        orientDb.store.executeInTransaction {
             assertEquals(issueId, orientDb.store.requireOEntityId(issueId))
             assertEquals(issueId, orientDb.store.requireOEntityId(PersistentEntityId(issueId.typeId, issueId.localId)))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.requireOEntityId(PersistentEntityId.EMPTY_ID))

@@ -75,7 +75,7 @@ class OPersistentEntityStore(
             session,
             store = this,
             schemaBuddy,
-            executeInASeparateSession = ::executeInASeparateSession,
+            executeInASeparateSession = databaseProvider::executeInASeparateSession,
             onFinished = ::onTransactionFinished,
             readOnly = readOnly
         )
@@ -90,21 +90,6 @@ class OPersistentEntityStore(
         check(!session.isClosed) { "The session should not be closed at this point." }
         currentTransaction.remove()
         session.close()
-    }
-
-    private fun executeInASeparateSession(action: ODatabaseSession.() -> Unit) {
-        val currentSession = ODatabaseSession.getActiveSession() as ODatabaseSession?
-        try {
-            databaseProvider.acquireSession().use { session ->
-                session.action()
-            }
-        } finally {
-            if (currentSession != null) {
-                // the previous session does not get activated on the current thread by default
-                assert(!currentSession.isActiveOnCurrentThread)
-                currentSession.activateOnCurrentThread()
-            }
-        }
     }
 
     override fun getCurrentTransaction(): StoreTransaction? {
@@ -192,13 +177,11 @@ class OPersistentEntityStore(
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
-        val oldClass = computeInTransaction {
-            val txn = it as OStoreTransaction
-            txn.activeSession.metadata.schema.getClass(oldEntityTypeName)
-                ?: throw IllegalArgumentException("Class $oldEntityTypeName not found")
-        }
-        databaseProvider.acquireSession().apply {
-            activateOnCurrentThread()
+        // there may be an active session with a transaction on the current thread,
+        // we cannot change the schema in a transaction, so we have to run this code in a
+        // separate session
+        databaseProvider.executeInASeparateSession {
+            val oldClass = this.metadata.schema.getClass(oldEntityTypeName) ?: throw IllegalArgumentException("Class $oldEntityTypeName not found")
             oldClass.setName(newEntityTypeName)
         }
     }
@@ -214,21 +197,20 @@ class OPersistentEntityStore(
     override fun getStatistics() = dummyStatistics
 
     override fun getAndCheckCurrentTransaction(): StoreTransaction {
-        val transaction = getCurrentTransaction()
-            ?: throw java.lang.IllegalStateException("EntityStore: current transaction is not set.")
-        return transaction
+        return requireCurrentTransaction()
     }
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 
-    private fun requireCurrentTransaction(): OStoreTransaction {
+    private fun requireCurrentTransaction(): OStoreTransactionImpl {
         val tx = currentTransaction.get()
         check(tx != null) { "No active transaction on the current thread" }
+        check(!tx.isFinished) { "Current transaction is finished. You better figure out how it happened." }
         return tx
     }
 
     fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
-        return schemaBuddy.getOEntityId(entityId)
+        return requireCurrentTransaction().getOEntityId(entityId)
     }
 }
 

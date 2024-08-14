@@ -355,4 +355,8 @@ class OStoreTransactionImpl(
     }
 
     override fun getQueryCancellingPolicy() = this.queryCancellingPolicy
+
+    internal fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
+        return schemaBuddy.getOEntityId(activeSession, entityId)
+    }
 }

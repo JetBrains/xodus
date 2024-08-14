@@ -28,6 +28,28 @@ interface ODatabaseProvider {
     fun close()
 }
 
+/**
+ * If there is a session on the current thread, create a new session, executes the action in it,
+ * and returns the previous session back to the current thread.
+ *
+ * Never use this method. If you use this method, make sure you 100% understand what happens,
+ * and do not hesitate to invite people to review your code.
+ */
+internal fun ODatabaseProvider.executeInASeparateSession(action: ODatabaseSession.() -> Unit) {
+    val currentSession = getCurrentSessionOrNull()
+    try {
+        this.acquireSession().use { session ->
+            session.action()
+        }
+    } finally {
+        if (currentSession != null) {
+            // the previous session does not get activated on the current thread by default
+            assert(!currentSession.isActiveOnCurrentThread)
+            currentSession.activateOnCurrentThread()
+        }
+    }
+}
+
 fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
     acquireSession().use { session ->
         return block(session)
@@ -62,6 +84,10 @@ fun ODatabaseDocument.requireActiveTransaction(): OTransaction {
 
 fun ODatabaseDocument.requireNoActiveTransaction() {
     assert(transaction == null || !transaction.isActive) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
+}
+
+private fun getCurrentSessionOrNull(): ODatabaseSession? {
+    return ODatabaseRecordThreadLocal.instance().getIfDefined()
 }
 
 private fun hasActiveSession(): Boolean {
