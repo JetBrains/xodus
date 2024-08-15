@@ -16,7 +16,6 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
@@ -194,7 +193,7 @@ internal class XodusToOrientDataMigrator(
         val edgeClassesToCreate = HashSet<String>()
         val sequencesToCreate = mutableListOf<Pair<String, Long>>() // sequenceName, largestExistingId
         xodus.withReadonlyTx { xTx ->
-            orient.withCountingTx(entitiesPerTransaction) { countingTx ->
+            orientProvider.withCountingSession(entitiesPerTransaction) { countingSession ->
                 val entityTypes = xTx.entityTypes.toSet()
                 entityTypes.forEachIndexed { typeIdx, type ->
                     var largestEntityId = 0L
@@ -205,13 +204,10 @@ internal class XodusToOrientDataMigrator(
                     var lastProgressPrintedAt = System.currentTimeMillis()
                     xEntities.forEachIndexed { xEntityIdx, xEntity ->
                         val (oEntity, createVertexDuration) = measureTimedValue {
-                            val vertex = countingTx.session.newVertex(type)
-
-                            // copy localEntityId
                             val localEntityId = xEntity.id.localId
-                            vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
                             largestEntityId = maxOf(largestEntityId, localEntityId)
-                            vertex.save<OVertex>()
+
+                            val vertex = countingSession.newVertex(type, localEntityId)
                             OVertexEntity(vertex, orient)
                         }
                         createEntitiesDuration += createVertexDuration
@@ -240,7 +236,7 @@ internal class XodusToOrientDataMigrator(
 
                         xEntityIdToOEntityId[xEntity.id] = oEntity.id
                         commitEntitiesDuration += measureTime {
-                            countingTx.increment()
+                            countingSession.increment()
                         }
 
                         if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
@@ -259,8 +255,8 @@ internal class XodusToOrientDataMigrator(
                     totalProperties += properties
                     totalBlobs += blobs
                 }
-                countingTx.commit()
-                copyEntitiesPropertiesAndBlobsTransactions = countingTx.transactionsCommited
+                countingSession.commit()
+                copyEntitiesPropertiesAndBlobsTransactions = countingSession.transactionsCommited
                 log.info { "Entities have been copied. Entity types: ${entityTypes.size}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
             }
         }
