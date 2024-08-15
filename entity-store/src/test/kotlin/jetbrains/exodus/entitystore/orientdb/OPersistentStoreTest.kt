@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
@@ -38,19 +37,31 @@ class OPersistentStoreTest: OTestMixin {
     override val orientDb = orientDbRule
 
     @Test
+    fun `renameEntityType() works only inside a transaction`() {
+        // make sure the schema class is created
+        orientDb.createIssue("trista")
+
+        assertFailsWith<IllegalStateException> { orientDb.store.renameEntityType(CLASS, "NewName") }
+
+        orientDb.store.executeInTransaction {
+            orientDb.store.renameEntityType(CLASS, "NewName")
+        }
+    }
+
+    @Test
     fun renameClassTest() {
         val summary = "Hello, your product does not work"
         orientDb.createIssue(summary)
         val store = orientDb.store
 
         val newClassName = "Other${CLASS}"
-        store.renameEntityType(CLASS, newClassName)
-        val issueByNewName = store.computeInExclusiveTransaction {
-            it as OStoreTransaction
-            (it.activeSession as ODatabaseSession).queryEntities("select from $newClassName", store).firstOrNull()
+        store.executeInTransaction {
+            store.renameEntityType(CLASS, newClassName)
+        }
+        val issueByNewName = store.computeInExclusiveTransaction { tx ->
+            tx.getAll(newClassName).first()
         }
         Assert.assertNotNull(issueByNewName)
-        issueByNewName!!
         store.executeInTransaction {
             assertEquals(summary, issueByNewName.getProperty("name"))
         }
