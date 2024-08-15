@@ -21,4 +21,6 @@ import jetbrains.exodus.entitystore.EntityId
 interface OEntityId : EntityId {
 
     fun asOId(): ORID
+
+    fun getTypeName(): String
 }

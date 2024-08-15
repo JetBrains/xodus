@@ -15,53 +15,13 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 import jetbrains.exodus.entitystore.Sequence
-import jetbrains.exodus.entitystore.orientdb.InSessionExecutor
-import jetbrains.exodus.entitystore.orientdb.hasActiveTransaction
+import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 
-fun ODatabaseSession.getOrCreateSequence(
-    sequenceName: String,
-    /**
-     * If the sequence has not yet been created and the current session has an active transaction,
-     * we will have to create a separate session specially for the sequence creation.
-     * Orient goes crazy if you create a sequence in a transaction and use it right away.
-     * */
-    executeInASeparateSession: InSessionExecutor,
-    initialValue: Long = 0
-): Sequence {
-    makeSureOSequenceHasBeenCreated(sequenceName, executeInASeparateSession, initialValue)
-    return OSequenceImpl(sequenceName)
-}
-
-private fun ODatabaseSession.makeSureOSequenceHasBeenCreated(
-    sequenceName: String,
-    executeInASeparateSession: InSessionExecutor,
-    initialValue: Long
-): OSequence {
-    var oSequence = this.metadata.sequenceLibrary.getSequence(sequenceName)
-
-    if (oSequence != null) return oSequence
-
-    val params = CreateParams().setStart(initialValue).setIncrement(1)
-    if (this.hasActiveTransaction()) {
-        // sequences do not like to be created in a transaction, so we create a separate session specially for the sequence creation
-        executeInASeparateSession {
-            assert(this.isActiveOnCurrentThread) // the session gets activated on the current thread by default
-            oSequence = this.metadata.sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
-        }
-    } else {
-        // the current session has no transactions, so we can create the sequence right away
-        oSequence = this.metadata.sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
-    }
-    return oSequence
-}
-
-private class OSequenceImpl(
+internal class OSequenceImpl(
     private val sequenceName: String,
+    private val store: OPersistentEntityStore
 ) : Sequence {
     override fun increment(): Long {
         return getOSequence().next()
@@ -72,11 +32,12 @@ private class OSequenceImpl(
     }
 
     override fun set(l: Long) {
-        getOSequence().updateParams(CreateParams().setCurrentValue(l))
+        val currentTx = store.requireCurrentTransaction()
+        currentTx.updateOSequence(sequenceName, l)
     }
 
     private fun getOSequence(): OSequence {
-        val currentSession = ODatabaseSession.getActiveSession()
-        return currentSession.metadata.sequenceLibrary.getSequence(sequenceName)
+        val currentTx = store.requireCurrentTransaction()
+        return currentTx.getOSequence(sequenceName)
     }
 }

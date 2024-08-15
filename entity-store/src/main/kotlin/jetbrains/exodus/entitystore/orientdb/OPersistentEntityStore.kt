@@ -74,7 +74,6 @@ class OPersistentEntityStore(
             session,
             store = this,
             schemaBuddy,
-            executeInASeparateSession = databaseProvider::executeInASeparateSession,
             onFinished = ::onTransactionFinished,
             readOnly = readOnly
         )
@@ -176,13 +175,8 @@ class OPersistentEntityStore(
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
-        // there may be an active session with a transaction on the current thread,
-        // we cannot change the schema in a transaction, so we have to run this code in a
-        // separate session
-        databaseProvider.executeInASeparateSession {
-            val oldClass = this.metadata.schema.getClass(oldEntityTypeName) ?: throw IllegalArgumentException("Class $oldEntityTypeName not found")
-            oldClass.setName(newEntityTypeName)
-        }
+        val currentTx = requireCurrentTransaction()
+        currentTx.renameOClass(oldEntityTypeName, newEntityTypeName)
     }
 
     override fun getUsableSpace(): Long {
@@ -201,19 +195,19 @@ class OPersistentEntityStore(
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 
-    private fun requireCurrentTransaction(): OStoreTransactionImpl {
+    override fun requireCurrentTransaction(): OStoreTransaction {
         val tx = currentTransaction.get()
         check(tx != null) { "No active transaction on the current thread" }
         check(!tx.isFinished) { "Current transaction is finished. You better figure out how it happened." }
         return tx
     }
 
-    fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
+    internal fun getOEntityId(entityId: PersistentEntityId): OEntityId {
         return requireCurrentTransaction().getOEntityId(entityId)
     }
 }
 
-internal fun PersistentEntityStore.requireOEntityId(id: EntityId): ORIDEntityId {
+internal fun PersistentEntityStore.requireOEntityId(id: EntityId): OEntityId {
     return when (id) {
         is ORIDEntityId -> id
         PersistentEntityId.EMPTY_ID -> ORIDEntityId.EMPTY_ID

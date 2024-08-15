@@ -35,19 +35,17 @@ interface ODatabaseProvider {
  * Never use this method. If you use this method, make sure you 100% understand what happens,
  * and do not hesitate to invite people to review your code.
  */
-internal fun ODatabaseProvider.executeInASeparateSession(action: ODatabaseSession.() -> Unit) {
-    val currentSession = getCurrentSessionOrNull()
-    try {
+internal inline fun <T> ODatabaseProvider.executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T {
+    val result = try {
         this.acquireSession().use { session ->
-            session.action()
+            action(session)
         }
     } finally {
-        if (currentSession != null) {
-            // the previous session does not get activated on the current thread by default
-            assert(!currentSession.isActiveOnCurrentThread)
-            currentSession.activateOnCurrentThread()
-        }
+        // the previous session does not get activated on the current thread by default
+        assert(!currentSession.isActiveOnCurrentThread)
+        currentSession.activateOnCurrentThread()
     }
+    return result
 }
 
 fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
@@ -76,7 +74,7 @@ fun <R> ODatabaseProvider.withCurrentOrNewSession(
 fun ODatabaseDocument.hasActiveTransaction(): Boolean {
     return isActiveOnCurrentThread && transaction.let { tx -> tx != null && tx.status == OTransaction.TXSTATUS.BEGUN }
 }
-
+// todo make them all ODatabaseSession
 fun ODatabaseDocument.requireActiveTransaction(): OTransaction {
     require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
     return transaction

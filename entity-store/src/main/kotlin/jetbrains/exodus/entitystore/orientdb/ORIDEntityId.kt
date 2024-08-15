@@ -49,7 +49,7 @@ class ORIDEntityId(
         return classId
     }
 
-    fun getTypeName(): String {
+    override fun getTypeName(): String {
         return schemaClass?.name ?: "typeNotFound"
     }
 

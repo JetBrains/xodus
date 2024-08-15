@@ -19,6 +19,8 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.PersistentEntityId
@@ -31,13 +33,23 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntity
 import java.util.concurrent.ConcurrentHashMap
 
 interface OSchemaBuddy {
-    fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId
-    fun makeSureTypeExists(session: ODatabaseSession, entityType: String)
     fun initialize(session: ODatabaseSession)
+
+    fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId
+
+    fun makeSureTypeExists(session: ODatabaseSession, entityType: String)
+
+    fun getOrCreateSequence(session: ODatabaseSession, sequenceName: String, initialValue: Long): OSequence
+
+    fun getSequence(session: ODatabaseSession, sequenceName: String): OSequence
+
+    fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long)
+
+    fun renameOClass(session: ODatabaseSession, oldName: String, newName: String)
 }
 
 class OSchemaBuddyImpl(
-    dbProvider: ODatabaseProvider,
+    private val dbProvider: ODatabaseProvider,
     autoInitialize: Boolean = true,
 ): OSchemaBuddy {
     companion object {
@@ -63,18 +75,54 @@ class OSchemaBuddyImpl(
         }
     }
 
+    override fun getOrCreateSequence(session: ODatabaseSession, sequenceName: String, initialValue: Long): OSequence {
+        val oSequence = session.metadata.sequenceLibrary.getSequence(sequenceName)
+        if (oSequence != null) return oSequence
+
+        return executeInASeparateSessionIfCurrentHasTransaction(session) { sessionToWork ->
+            val params = CreateParams().setStart(initialValue).setIncrement(1)
+            sessionToWork.metadata.sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
+        }
+    }
+
+    override fun renameOClass(session: ODatabaseSession, oldName: String, newName: String) {
+        executeInASeparateSessionIfCurrentHasTransaction(session) { sessionToWork ->
+            val oldClass = sessionToWork.metadata.schema.getClass(oldName) ?: throw IllegalArgumentException("Class $oldName not found")
+            oldClass.setName(newName)
+        }
+    }
+
+    private inline fun <T> executeInASeparateSessionIfCurrentHasTransaction(session: ODatabaseSession, action: (ODatabaseSession) -> T): T {
+        return if (session.hasActiveTransaction()) {
+            dbProvider.executeInASeparateSession(session) { newSession ->
+                action(newSession)
+            }
+        } else {
+            action(session)
+        }
+    }
+
+    override fun getSequence(session: ODatabaseSession, sequenceName: String): OSequence {
+        return session.metadata.sequenceLibrary.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName sequence not found")
+    }
+
+    override fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long) {
+        executeInASeparateSessionIfCurrentHasTransaction(session) { sessionToWork ->
+            getSequence(sessionToWork, sequenceName).updateParams(CreateParams().setCurrentValue(currentValue))
+        }
+    }
+
     override fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId {
         // Keep in mind that it is possible that we are given an entityId that is not in the database.
         // It is a valid case.
 
-        val oSession = ODatabaseSession.getActiveSession() ?: throw IllegalStateException("no active database session found")
         val classId = entityId.typeId
         val localEntityId = entityId.localId
         val oClassId = classIdToOClassId[classId] ?: return ORIDEntityId.EMPTY_ID
-        val className = oSession.getClusterNameById(oClassId) ?: return ORIDEntityId.EMPTY_ID
-        val oClass = oSession.getClass(className) ?: return ORIDEntityId.EMPTY_ID
+        val className = session.getClusterNameById(oClassId) ?: return ORIDEntityId.EMPTY_ID
+        val oClass = session.getClass(className) ?: return ORIDEntityId.EMPTY_ID
 
-        val resultSet: OResultSet = oSession.query("SELECT FROM $className WHERE $LOCAL_ENTITY_ID_PROPERTY_NAME = ?", localEntityId)
+        val resultSet: OResultSet = session.query("SELECT FROM $className WHERE $LOCAL_ENTITY_ID_PROPERTY_NAME = ?", localEntityId)
         val oid = if (resultSet.hasNext()) {
             val result = resultSet.next()
             result.toVertex()?.identity ?: return ORIDEntityId.EMPTY_ID

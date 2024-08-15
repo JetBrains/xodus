@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabase
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import com.orientechnologies.orient.core.tx.OTransaction.TXSTATUS
@@ -26,18 +27,16 @@ import jetbrains.exodus.entitystore.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.*
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyEqualIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.property.getOrCreateSequence
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OSequenceImpl
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.env.Transaction
 
-typealias InSessionExecutor = (ODatabaseSession.() -> Unit) -> Unit
 typealias OnTransactionFinishedHandler = (ODatabaseSession, OStoreTransaction) -> Unit
 
 class OStoreTransactionImpl(
     override val activeSession: ODatabaseSession,
     private val store: OPersistentEntityStore,
     private val schemaBuddy: OSchemaBuddy,
-    private val executeInASeparateSession: InSessionExecutor,
     private val onFinished: OnTransactionFinishedHandler,
     private val readOnly: Boolean = false
 ) : OStoreTransaction {
@@ -335,13 +334,29 @@ class OStoreTransactionImpl(
     }
 
     override fun getSequence(sequenceName: String): Sequence {
-        requireActiveTx()
-        return activeSession.getOrCreateSequence(sequenceName, executeInASeparateSession, -1)
+        return getSequence(sequenceName, -1)
     }
 
     override fun getSequence(sequenceName: String, initialValue: Long): Sequence {
         requireActiveTx()
-        return activeSession.getOrCreateSequence(sequenceName, executeInASeparateSession, initialValue)
+        // make sure the OSequence created
+        schemaBuddy.getOrCreateSequence(activeSession, sequenceName, initialValue)
+        return OSequenceImpl(sequenceName, store)
+    }
+
+    override fun getOSequence(sequenceName: String): OSequence {
+        requireActiveTx()
+        return schemaBuddy.getSequence(activeSession, sequenceName)
+    }
+
+    override fun updateOSequence(sequenceName: String, currentValue: Long) {
+        requireActiveTx()
+        return schemaBuddy.updateSequence(activeSession, sequenceName, currentValue)
+    }
+
+    override fun renameOClass(oldName: String, newName: String) {
+        requireActiveTx()
+        schemaBuddy.renameOClass(activeSession, oldName, newName)
     }
 
     override fun getEnvironmentTransaction(): Transaction {
@@ -356,7 +371,7 @@ class OStoreTransactionImpl(
 
     override fun getQueryCancellingPolicy() = this.queryCancellingPolicy
 
-    internal fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
+    override fun getOEntityId(entityId: PersistentEntityId): OEntityId {
         return schemaBuddy.getOEntityId(activeSession, entityId)
     }
 }

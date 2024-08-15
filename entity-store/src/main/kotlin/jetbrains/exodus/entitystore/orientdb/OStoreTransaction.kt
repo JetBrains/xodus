@@ -16,8 +16,10 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
+import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.StoreTransaction
 
 interface OStoreTransaction : StoreTransaction {
@@ -28,4 +30,12 @@ interface OStoreTransaction : StoreTransaction {
     fun load(id: OEntityId): OVertex?
 
     fun query(sql: String, params: List<Any>): OResultSet
+
+    fun getOEntityId(entityId: PersistentEntityId): OEntityId
+
+    fun getOSequence(sequenceName: String): OSequence
+
+    fun updateOSequence(sequenceName: String, currentValue: Long)
+
+    fun renameOClass(oldName: String, newName: String)
 }
