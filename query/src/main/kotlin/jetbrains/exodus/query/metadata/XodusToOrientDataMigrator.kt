@@ -195,6 +195,7 @@ internal class XodusToOrientDataMigrator(
     private fun copyPropertiesAndBlobs(): Set<String> {
         log.info { "2. Copy entities, their simple properties and blobs" }
         val edgeClassesToCreate = HashSet<String>()
+        val sequencesToCreate = mutableListOf<Pair<String, Long>>() // sequenceName, largestExistingId
         xodus.withReadonlyTx { xTx ->
             orient.withCountingTx(entitiesPerTransaction) { countingTx ->
                 val entityTypes = xTx.entityTypes.toSet()
@@ -253,9 +254,9 @@ internal class XodusToOrientDataMigrator(
                         edgeClassesToCreate.addAll(xEntity.linkNames)
                     }
 
-                    // create a sequence to generate localEntityIds for the class
-                    // todo use schema buddy for it
-                    countingTx.session.createSequenceIfAbsent(localEntityIdSequenceName(type), largestEntityId)
+                    // plan to create a sequence to generate localEntityIds for the class
+                    sequencesToCreate.add(Pair(localEntityIdSequenceName(type), largestEntityId))
+
                     log.info { "$typeIdx $type entities copied: ${xEntities.size()}, properties copied: $properties, blobs copied: $blobs" }
                     totalEntities += xEntities.size()
                     totalProperties += properties
@@ -264,6 +265,11 @@ internal class XodusToOrientDataMigrator(
                 countingTx.commit()
                 copyEntitiesPropertiesAndBlobsTransactions = countingTx.transactionsCommited
                 log.info { "Entities have been copied. Entity types: ${entityTypes.size}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
+            }
+        }
+        orientProvider.withSession { session ->
+            sequencesToCreate.forEach { (name, largestExistingId) ->
+                schemaBuddy.getOrCreateSequence(session, name, largestExistingId)
             }
         }
         return edgeClassesToCreate
