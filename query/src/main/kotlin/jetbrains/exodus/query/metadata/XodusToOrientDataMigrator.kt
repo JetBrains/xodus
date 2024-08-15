@@ -15,9 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.entitystore.EntityId
@@ -183,9 +181,8 @@ internal class XodusToOrientDataMigrator(
             }
 
             // create a sequence to generate classIds
-            val sequences = oSession.metadata.sequenceLibrary
-            require(sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
-            oSession.createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, maxClassId.toLong())
+            check(schemaBuddy.getSequenceOrNull(oSession, CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
+            schemaBuddy.getOrCreateSequence(oSession, CLASS_ID_SEQUENCE_NAME, maxClassId.toLong())
 
             oSession.getClass(BINARY_BLOB_CLASS_NAME) ?: oSession.createClass(BINARY_BLOB_CLASS_NAME)
             log.info { "All the types have been copied" }
@@ -346,15 +343,6 @@ internal class XodusToOrientDataMigrator(
                 copyLinksTransactions = countingTx.transactionsCommited
                 log.info { "Links have been copied. Entity types: ${entityTypes.size}, entities processed: $totalEntities, links processed: $totalLinksProcessed, links copied: $totalLinksCopied" }
             }
-        }
-    }
-
-    private fun ODatabaseSession.createSequenceIfAbsent(sequenceName: String, startingFrom: Long) {
-        val sequences = metadata.sequenceLibrary
-        if (sequences.getSequence(sequenceName) == null) {
-            val params = OSequence.CreateParams()
-            params.start = startingFrom
-            sequences.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, params)
         }
     }
 

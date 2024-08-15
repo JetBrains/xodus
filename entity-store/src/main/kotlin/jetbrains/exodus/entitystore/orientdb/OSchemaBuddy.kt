@@ -43,6 +43,8 @@ interface OSchemaBuddy {
 
     fun getSequence(session: ODatabaseSession, sequenceName: String): OSequence
 
+    fun getSequenceOrNull(session: ODatabaseSession, sequenceName: String): OSequence?
+
     fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long)
 
     fun renameOClass(session: ODatabaseSession, oldName: String, newName: String)
@@ -104,6 +106,10 @@ class OSchemaBuddyImpl(
 
     override fun getSequence(session: ODatabaseSession, sequenceName: String): OSequence {
         return session.metadata.sequenceLibrary.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName sequence not found")
+    }
+
+    override fun getSequenceOrNull(session: ODatabaseSession, sequenceName: String): OSequence? {
+        return session.metadata.sequenceLibrary.getSequence(sequenceName)
     }
 
     override fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long) {
