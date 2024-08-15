@@ -22,13 +22,10 @@ import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.management.Statistics
 import java.io.File
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 
 class OPersistentEntityStore(
     private val databaseProvider: ODatabaseProvider,
     private val name: String,
-    override val countExecutor: Executor = Executors.newFixedThreadPool(1),
     private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider)
 ) : PersistentEntityStore, OEntityStore {
 

@@ -30,12 +30,10 @@ import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkSelectEntityItera
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OSingleEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.*
 import jetbrains.exodus.entitystore.util.unsupported
-import java.util.concurrent.Executor
 
 abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(tx), OQueryEntityIterable {
 
     private val otx: OStoreTransaction? = tx?.asOStoreTransaction()
-    private val countExecutor: Executor? = tx?.store?.asOStore()?.countExecutor
 
     companion object {
 
@@ -212,18 +210,11 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun count(): Long {
-        val size = cachedSize
-        if (size == -1L) {
-            countExecutor?.execute {
-                otx?.activeSession?.activateOnCurrentThread()
-                size()
-            }
-        }
-        return size
+        return size()
     }
 
     override fun getRoughCount(): Long {
-        return cachedSize
+        return getRoughSize()
     }
 
     override fun isSortedById(): Boolean {
