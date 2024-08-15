@@ -26,7 +26,7 @@ interface OStoreTransaction : StoreTransaction {
 
     fun load(id: OEntityId): OVertex?
 
-    fun query(sql: String, params: List<Any>): OResultSet
+    fun query(sql: String, params: Map<String, Any>): OResultSet
 
     fun getOEntityId(entityId: PersistentEntityId): OEntityId
 

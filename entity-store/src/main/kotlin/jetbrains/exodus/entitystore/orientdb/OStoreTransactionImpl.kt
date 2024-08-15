@@ -54,9 +54,9 @@ class OStoreTransactionImpl(
     }
 
     // todo test
-    override fun query(sql: String, params: List<Any>): OResultSet {
+    override fun query(sql: String, params: Map<String, Any>): OResultSet {
         requireActiveTx()
-        return session.query(sql, *params.toTypedArray())
+        return session.query(sql, params)
     }
 
     override fun getStore(): EntityStore {
