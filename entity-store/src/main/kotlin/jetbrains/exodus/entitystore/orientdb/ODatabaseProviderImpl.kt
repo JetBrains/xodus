@@ -16,11 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
+import com.orientechnologies.orient.core.db.*
 import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
 
 //todo this params also should be collected in some config entity
@@ -55,6 +51,7 @@ class ODatabaseProviderImpl(
         get() = database.accessInternal.basePath
 
     override fun acquireSession(): ODatabaseSession {
+        requireNoActiveSession()
         return database.cachedPool(databaseName, userName, password).acquire()
     }
 

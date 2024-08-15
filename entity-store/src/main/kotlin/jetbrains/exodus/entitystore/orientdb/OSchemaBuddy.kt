@@ -161,11 +161,11 @@ private fun ODatabaseSession.createSequenceIfAbsent(sequenceName: String, startF
     if (sequences.getSequence(sequenceName) == null) {
         val params = CreateParams()
         params.start = startFrom
-        sequences.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, params)
+        sequences.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
     }
 }
 
-public fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
+fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
     if (oClass.getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME) == null) {
         val sequences = metadata.sequenceLibrary
         val sequence: OSequence = sequences.getSequence(CLASS_ID_SEQUENCE_NAME) ?: throw IllegalStateException("$CLASS_ID_SEQUENCE_NAME not found")
