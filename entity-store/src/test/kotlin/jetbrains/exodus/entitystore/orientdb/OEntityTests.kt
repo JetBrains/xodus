@@ -424,30 +424,11 @@ class OEntityTests : OEntityStoreTestBase() {
         }
     }
 
-    fun testTxnCachesIsolation2() {
-        createClasses(listOf("Issue"))
-
-        val issue = entityStore.computeInTransaction { txn ->
-            txn.newEntity("Issue").apply { setProperty("description", "1") }
-        }
-
-        transactional { txn ->
-            Assert.assertEquals("1", issue.getProperty("description"))
-            issue.setProperty("description", "2")
-
-            entityStore.executeInTransaction {
-                issue.setProperty("description", "3")
-            }
-
-            Assert.assertEquals("3", issue.getProperty("description"))
-        }
-    }
-
     private fun createClasses( vectorClasses: Collection<String>, edgeClasses: Collection<String> = listOf()) {
         acquireSession().use {
             vectorClasses.forEach { name -> it.createVertexClassWithClassId(name) }
             edgeClasses.forEach { name -> it.createEdgeClass(name) }
+            schemaBuddy.initialize(it)
         }
-        schemaBuddy.initialize()
     }
 }

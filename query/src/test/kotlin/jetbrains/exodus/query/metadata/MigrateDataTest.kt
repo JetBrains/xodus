@@ -15,12 +15,10 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.record.impl.OVertexDocument
+import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
@@ -59,10 +57,10 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb)
 
-        orientDb.withSession { oSession ->
-            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
+        orientDb.store.executeInTransaction { tx ->
+            tx.assertOrientContainsAllTheEntities(entities)
         }
     }
 
@@ -72,10 +70,12 @@ class MigrateDataTest {
             tx.newEntity("type1").id
         }
 
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
-        orientDb.schemaBuddy.initialize()
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb)
+        orientDb.withSession {
+            orientDb.schemaBuddy.initialize(it)
+        }
 
-        orientDb.withTxSession {
+        orientDb.store.executeInTransaction {
             orientDb.store.getEntity(entityId)
         }
     }
@@ -98,10 +98,10 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb)
 
-        orientDb.withSession { oSession ->
-            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
+        orientDb.store.executeInTransaction { tx ->
+            tx.assertOrientContainsAllTheEntities(entities)
         }
     }
 
@@ -133,10 +133,10 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb)
 
-        orientDb.withSession { oSession ->
-            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
+        orientDb.store.executeInTransaction { tx ->
+            tx.assertOrientContainsAllTheEntities(entities)
         }
     }
 
@@ -153,10 +153,10 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb)
 
-        orientDb.withSession { oSession ->
-            oSession.assertOrientContainsAllTheEntities(entities, orientDb.store)
+        orientDb.store.executeInTransaction { tx ->
+            tx.assertOrientContainsAllTheEntities(entities)
         }
     }
 
@@ -175,7 +175,7 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb)
 
         var maxClassId = 0
         xodus.withTx { xTx ->
@@ -208,7 +208,7 @@ class MigrateDataTest {
             tx.createEntities(entities)
         }
 
-        migrateDataFromXodusToOrientDb(xodus.store, orientDb.store)
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb)
 
         xodus.withTx { xTx ->
             orientDb.withSession { oSession ->
@@ -241,18 +241,25 @@ class MigrateDataTest {
 
 }
 
-internal fun ODatabaseSession.assertOrientContainsAllTheEntities(pile: PileOfEntities, entityStore: OPersistentEntityStore) {
+internal fun migrateDataFromXodusToOrientDb(xodus: PersistentEntityStore, orient: InMemoryOrientDB) = migrateDataFromXodusToOrientDb(
+    xodus,
+    orient.store,
+    orient.provider,
+    orient.schemaBuddy
+)
+
+internal fun StoreTransaction.assertOrientContainsAllTheEntities(pile: PileOfEntities) {
     for (type in pile.types) {
-        for (record in this.browseClass(type)) {
+        for (record in this.getAll(type).map { it as OVertexEntity }) {
             val entity = pile.getEntity(type, record.getTestId())
-            record.assertEquals(entity, entityStore)
+            record.assertEquals(entity)
         }
     }
 }
 
-internal fun ODocument.assertEquals(expected: Entity, entityStore: OPersistentEntityStore) {
+internal fun OVertexEntity.assertEquals(expected: Entity) {
     val actualDocument = this
-    val actual = OVertexEntity(actualDocument as OVertexDocument, entityStore)
+    val actual = this
 
     Assert.assertEquals(expected.id, actualDocument.getTestId())
     for ((propName, propValue) in expected.props) {
@@ -274,7 +281,9 @@ internal fun ODocument.assertEquals(expected: Entity, entityStore: OPersistentEn
     }
 }
 
-internal fun ODocument.getTestId(): Int = getProperty("id")
+internal fun OVertexEntity.getTestId(): Int = getProperty("id") as Int
+
+internal fun OVertexDocument.getTestId(): Int = getProperty("id") as Int
 
 internal fun StoreTransaction.createEntities(pile: PileOfEntities) {
     for (type in pile.types) {

@@ -16,7 +16,6 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.*
 
@@ -29,7 +28,7 @@ class OModelMetaData(
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             val result = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
             session.initializeIndices(result)
-            initialize()
+            initialize(session)
         }
     }
 
@@ -56,15 +55,15 @@ class OModelMetaData(
         }
     }
 
-    override fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
-        return schemaBuddy.getOEntityId(entityId)
+    override fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId {
+        return schemaBuddy.getOEntityId(session, entityId)
     }
 
-    override fun makeSureTypeExists(session: ODatabaseDocument, entityType: String) {
+    override fun makeSureTypeExists(session: ODatabaseSession, entityType: String) {
         schemaBuddy.makeSureTypeExists(session, entityType)
     }
 
-    override fun initialize() {
-        schemaBuddy.initialize()
+    override fun initialize(session: ODatabaseSession) {
+        schemaBuddy.initialize(session)
     }
 }

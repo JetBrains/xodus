@@ -117,7 +117,9 @@ class OrientDbSchemaInitializerTest {
         orientDb.provider.acquireSession().use  {
             it.applySchema(model)
         }
-        orientDb.schemaBuddy.initialize()
+        orientDb.provider.acquireSession().use {
+            orientDb.schemaBuddy.initialize(it)
+        }
 
         orientDb.provider.acquireSession().use  {
             assertEquals(null, it.metadata.schema.getClass(STRING_BLOB_CLASS_NAME).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME))

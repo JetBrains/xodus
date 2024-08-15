@@ -16,7 +16,6 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
@@ -27,9 +26,9 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
 class OPersistentEntityStore(
-    val databaseProvider: ODatabaseProvider,
+    private val databaseProvider: ODatabaseProvider,
     private val name: String,
-    override val countExecutor: Executor = Executors.newSingleThreadExecutor(),
+    override val countExecutor: Executor = Executors.newFixedThreadPool(1),
     private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider)
 ) : PersistentEntityStore, OEntityStore {
 

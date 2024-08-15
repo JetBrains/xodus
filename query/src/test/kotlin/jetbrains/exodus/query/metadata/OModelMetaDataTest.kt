@@ -185,14 +185,14 @@ class OModelMetaDataTest {
 
         // model does not find the id because internal data structures are not initialized yet
         orientDb.withSession {
-            assertEquals(ORIDEntityId.EMPTY_ID, model.getOEntityId(oldSchoolEntityId))
+            assertEquals(ORIDEntityId.EMPTY_ID, model.getOEntityId(it, oldSchoolEntityId))
         }
 
         // prepare() must initialize internal data structures in the end
         model.prepare()
 
         orientDb.withSession { session ->
-            assertEquals(entityId, model.getOEntityId(oldSchoolEntityId))
+            assertEquals(entityId, model.getOEntityId(session, oldSchoolEntityId))
         }
     }
 

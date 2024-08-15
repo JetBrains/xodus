@@ -37,7 +37,7 @@ interface OSchemaBuddy {
 }
 
 class OSchemaBuddyImpl(
-    private val dbProvider: ODatabaseProvider,
+    dbProvider: ODatabaseProvider,
     autoInitialize: Boolean = true,
 ): OSchemaBuddy {
     companion object {

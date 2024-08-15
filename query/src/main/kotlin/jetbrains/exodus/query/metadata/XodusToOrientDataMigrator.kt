@@ -39,12 +39,14 @@ private val log = KotlinLogging.logger { }
 fun migrateDataFromXodusToOrientDb(
     xodus: PersistentEntityStore,
     orient: OPersistentEntityStore,
+    orientProvider: ODatabaseProvider,
+    schemaBuddy: OSchemaBuddy,
     /*
     * How many entities should be copied in a single transaction
     * */
     entitiesPerTransaction: Int = 10
 ): XodusToOrientMigrationStats {
-    val migrator = XodusToOrientDataMigrator(xodus, orient, entitiesPerTransaction)
+    val migrator = XodusToOrientDataMigrator(xodus, orient, orientProvider, schemaBuddy, entitiesPerTransaction)
     return migrator.migrate()
 }
 
@@ -83,6 +85,8 @@ data class XodusToOrientMigrationStats(
 internal class XodusToOrientDataMigrator(
     private val xodus: PersistentEntityStore,
     private val orient: OPersistentEntityStore,
+    private val orientProvider: ODatabaseProvider,
+    private val schemaBuddy: OSchemaBuddy,
     /*
     * How many entities should be copied in a single transaction
     * */
@@ -158,7 +162,7 @@ internal class XodusToOrientDataMigrator(
         // classes can not be created in a transaction, so we have to create them before copying the data
         log.info { "1. Copy entity types" }
         var maxClassId = 0
-        orient.databaseProvider.withSession { oSession ->
+        orientProvider.withSession { oSession ->
             xodus.withReadonlyTx { xTx ->
                 val entityTypes = xTx.entityTypes.toSet()
                 log.info { "${entityTypes.size} entity types to copy" }
@@ -250,6 +254,7 @@ internal class XodusToOrientDataMigrator(
                     }
 
                     // create a sequence to generate localEntityIds for the class
+                    // todo use schema buddy for it
                     countingTx.session.createSequenceIfAbsent(localEntityIdSequenceName(type), largestEntityId)
                     log.info { "$typeIdx $type entities copied: ${xEntities.size()}, properties copied: $properties, blobs copied: $blobs" }
                     totalEntities += xEntities.size()
@@ -267,7 +272,7 @@ internal class XodusToOrientDataMigrator(
     private fun createEdgeClassesIfAbsent(edgeClassesToCreate: Set<String>) {
         log.info { "3. Create edge classes" }
         log.info { "${edgeClassesToCreate.size} edge classes to create" }
-        orient.databaseProvider.withSession { oSession ->
+        orientProvider.withSession { oSession ->
             edgeClassesToCreate.forEachIndexed { i, edgeClassName ->
                 log.info { "$i $edgeClassName ${edgeClassName.asEdgeClass} is being copied" }
                 oSession.getClass(edgeClassName.asEdgeClass)
