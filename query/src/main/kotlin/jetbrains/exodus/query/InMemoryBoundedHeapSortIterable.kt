@@ -13,9 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.orientdb.query
+package jetbrains.exodus.query
 
-/**
- * Implementations must be immutable.
- */
-interface OQuery : OSql
+import jetbrains.exodus.entitystore.Entity
+import java.util.*
+
+class InMemoryBoundedHeapSortIterable(val capacity: Int, source: Iterable<Entity>, comparator: Comparator<Entity>) : InMemoryQueueSortIterable(source, comparator) {
+
+    override fun createQueue(unsorted: Collection<Entity>): Queue<Entity> {
+        val result = BoundedPriorityQueue(capacity, comparator)
+        unsorted.forEach { result.offer(it) }
+        return result
+    }
+}

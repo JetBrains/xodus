@@ -201,7 +201,7 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
             return 0
         }
         val sourceQuery = query()
-        val countQuery = OCountSelect(sourceQuery)
+        val countQuery = OCountSelect(sourceQuery.withOrder(EmptyOrder))
         cachedSize = countQuery.count(otx)
         return cachedSize
     }

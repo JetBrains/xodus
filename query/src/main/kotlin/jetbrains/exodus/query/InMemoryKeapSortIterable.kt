@@ -13,9 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.orientdb.query
+package jetbrains.exodus.query
 
-/**
- * Implementations must be immutable.
- */
-interface OQuery : OSql
+import com.github.penemue.keap.keapify
+import jetbrains.exodus.entitystore.Entity
+import java.util.*
+
+class InMemoryKeapSortIterable(source: Iterable<Entity>, comparator: Comparator<Entity>) : InMemoryQueueSortIterable(source, comparator) {
+
+    override fun createQueue(unsorted: Collection<Entity>): Queue<Entity> {
+        return unsorted.keapify(comparator)
+    }
+}
