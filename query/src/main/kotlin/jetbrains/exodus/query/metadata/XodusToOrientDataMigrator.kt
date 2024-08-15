@@ -181,7 +181,7 @@ internal class XodusToOrientDataMigrator(
 
             // create a sequence to generate classIds
             check(schemaBuddy.getSequenceOrNull(oSession, CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
-            schemaBuddy.getOrCreateSequence(oSession, CLASS_ID_SEQUENCE_NAME, maxClassId.toLong())
+            oSession.createClassIdSequenceIfAbsent(maxClassId.toLong())
 
             oSession.getClass(BINARY_BLOB_CLASS_NAME) ?: oSession.createClass(BINARY_BLOB_CLASS_NAME)
             log.info { "All the types have been copied" }

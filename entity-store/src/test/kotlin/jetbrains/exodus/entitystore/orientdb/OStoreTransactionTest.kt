@@ -700,9 +700,9 @@ class OStoreTransactionTest : OTestMixin {
     fun `active session still has an active transaction after flush`() {
         assertFailsWith<ODatabaseException> { ODatabaseSession.getActiveSession() }
         oTransactional { tx ->
-            ODatabaseSession.getActiveSession().requireActiveTransaction()
+            (ODatabaseSession.getActiveSession() as ODatabaseSession).requireActiveTransaction()
             tx.flush()
-            ODatabaseSession.getActiveSession().requireActiveTransaction()
+            (ODatabaseSession.getActiveSession() as ODatabaseSession).requireActiveTransaction()
         }
     }
 }
