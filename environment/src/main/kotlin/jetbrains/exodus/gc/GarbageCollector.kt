@@ -28,6 +28,7 @@ import jetbrains.exodus.env.*
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
 import jetbrains.exodus.log.AbstractBlockListener
+import jetbrains.exodus.log.DataCorruptionException
 import jetbrains.exodus.log.Log
 import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.Loggable
@@ -276,7 +277,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
             while (sortedFilesIterator.hasNext()) {
                 val file = sortedFilesIterator.next()
-                cleanSingleFile(file, txn)
+
+                DataCorruptionException.executeUnsafe {
+                    cleanSingleFile(file, txn)
+                }
 
                 cleanedFiles.add(file)
 
