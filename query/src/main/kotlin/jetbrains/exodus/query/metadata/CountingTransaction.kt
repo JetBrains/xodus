@@ -15,12 +15,9 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.StoreTransaction
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 
 
 /**
@@ -39,7 +36,7 @@ internal class CountingTransaction(
     private val commitEvery: Int
 ) {
     private var counter = 0
-    private lateinit var txn : StoreTransaction
+    private lateinit var txn : OStoreTransaction
 
     var transactionsCommited: Long = 0
         private set
@@ -54,7 +51,7 @@ internal class CountingTransaction(
     }
 
     fun begin() {
-        txn = store.beginTransaction()
+        txn = store.beginTransaction() as OStoreTransaction
     }
 
     fun commit() {
@@ -67,66 +64,9 @@ internal class CountingTransaction(
     fun rollback() {
         txn.abort()
     }
-}
 
-internal class CountingSession(
-    private val dbProvider: ODatabaseProvider,
-    private val commitEvery: Int
-) {
-    private var counter = 0
-    private lateinit var session : ODatabaseSession
-
-    var transactionsCommited: Long = 0
-        private set
-
-    fun increment() {
-        counter++
-        if (counter == commitEvery) {
-            session.commit()
-            session.begin()
-            transactionsCommited++
-            counter = 0
-        }
-    }
-
-    fun begin() {
-        session = dbProvider.acquireSession()
-        session.begin()
-    }
-
-    fun commit() {
-        if (!session.isClosed) {
-            session.commit()
-            session.close()
-            transactionsCommited++
-        }
-    }
-
-    fun rollback() {
-        if (!session.isClosed) {
-            session.rollback()
-            session.close()
-        }
-    }
-
-    fun newVertex(type: String, localEntityId: Long): OVertex {
-        val vertex = session.newVertex(type)
-        vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
-        vertex.save<OVertex>()
-        return vertex
-    }
-}
-
-internal fun <R> ODatabaseProvider.withCountingSession(commitEvery: Int, block: (CountingSession) -> R): R {
-    val tx = CountingSession(this, commitEvery)
-    tx.begin()
-    try {
-        val result = block(tx)
-        tx.commit()
-        return result
-    } catch(e: Throwable) {
-        tx.rollback()
-        throw e
+    fun newVertex(type: String, localEntityId: Long): OVertexEntity {
+        return txn.newEntityNoSchema(type, localEntityId)
     }
 }
 

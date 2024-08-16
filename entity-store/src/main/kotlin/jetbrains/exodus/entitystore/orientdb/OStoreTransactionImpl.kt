@@ -27,6 +27,7 @@ import com.orientechnologies.orient.core.tx.OTransaction.TXSTATUS
 import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.property.*
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.*
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyBlobExistsEntityIterable
@@ -182,6 +183,14 @@ class OStoreTransactionImpl(
         schemaBuddy.makeSureTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
+        vertex.save<OVertex>()
+        return OVertexEntity(vertex, store)
+    }
+
+    override fun newEntityNoSchema(entityType: String, localEntityId: Long): OVertexEntity {
+        requireActiveWritableTransaction()
+        val vertex = session.newVertex(entityType)
+        vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
         vertex.save<OVertex>()
         return OVertexEntity(vertex, store)
     }

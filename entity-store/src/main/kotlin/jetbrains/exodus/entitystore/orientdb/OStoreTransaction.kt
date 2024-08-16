@@ -41,6 +41,8 @@ interface OStoreTransaction : StoreTransaction {
 
     fun newElement(typeName: String): OElement
 
+    fun newEntityNoSchema(entityType: String, localEntityId: Long): OVertexEntity
+
     fun delete(id: ORID)
 
     fun query(sql: String, params: Map<String, Any>): OResultSet
