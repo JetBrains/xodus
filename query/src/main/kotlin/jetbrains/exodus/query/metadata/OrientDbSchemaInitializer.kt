@@ -604,47 +604,16 @@ internal class OrientDbSchemaInitializer(
             }
 
             PropertyType.TEXT -> {
-                val oProperty = createStringBlobPropertyIfAbsent(propertyName)
+                val oProperty = createPropertyIfAbsent(propertyName, OType.BINARY)
                 oProperty.setRequirement(required)
             }
 
             PropertyType.BLOB -> {
-                val oProperty = createBinaryBlobPropertyIfAbsent(propertyName)
+                val oProperty = createPropertyIfAbsent(propertyName, OType.BINARY)
                 oProperty.setRequirement(required)
             }
         }
         appendLine()
-    }
-
-    private fun OClass.createBinaryBlobPropertyIfAbsent(propertyName: String): OProperty =
-        createBlobPropertyIfAbsent(propertyName, OVertexEntity.BINARY_BLOB_CLASS_NAME)
-
-    private fun OClass.createStringBlobPropertyIfAbsent(propertyName: String): OProperty =
-        createBlobPropertyIfAbsent(propertyName, OVertexEntity.STRING_BLOB_CLASS_NAME)
-
-    private fun OClass.createBlobPropertyIfAbsent(propertyName: String, blobClassName: String): OProperty {
-        val blobClass = oSession.createBlobClassIfAbsent(blobClassName)
-
-        val oProperty = createPropertyIfAbsent(propertyName, OType.LINK)
-        if (oProperty.linkedClass != blobClass) {
-            oProperty.setLinkedClass(blobClass)
-        }
-        require(oProperty.linkedClass == blobClass) { "Property linked class is ${oProperty.linkedClass}, but $blobClass was expected" }
-        return oProperty
-    }
-
-    private fun ODatabaseSession.createBlobClassIfAbsent(className: String): OClass {
-        var oClass: OClass? = getClass(className)
-        if (oClass == null) {
-            oClass = oSession.createVertexClass(className)!!
-            append(", $className class created")
-            oClass.createProperty(OVertexEntity.DATA_PROPERTY_NAME, OType.BINARY)
-            append(", ${OVertexEntity.DATA_PROPERTY_NAME} property created")
-        } else {
-            append(", $className class already created")
-            require(oClass.existsProperty(OVertexEntity.DATA_PROPERTY_NAME)) { "${OVertexEntity.DATA_PROPERTY_NAME} is missing in $className, something went dramatically wrong. Happy debugging!" }
-        }
-        return oClass
     }
 
     private fun OProperty.setRequirement(required: Boolean) {

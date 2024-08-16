@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.iterate.property
+package jetbrains.exodus.entitystore.orientdb.iterate.property
 
 import jetbrains.exodus.entitystore.StoreTransaction
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.DATA_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition
@@ -29,7 +28,7 @@ class OPropertyBlobExistsEntityIterable(
 ) : OQueryEntityIterableBase(txn) {
 
     override fun query(): OSelect {
-        return OClassSelect(className, OFieldExistsCondition("$blobName.${DATA_PROPERTY_NAME}"))
+        return OClassSelect(className, OFieldExistsCondition(blobName))
     }
 }
 

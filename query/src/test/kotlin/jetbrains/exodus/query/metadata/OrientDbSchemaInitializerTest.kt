@@ -19,10 +19,7 @@ import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntityIdSequenceName
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.requireLocalEntityId
@@ -114,46 +111,20 @@ class OrientDbSchemaInitializerTest {
                 stringBlobProperty("strBlob1")
             }
         }
-        orientDb.provider.acquireSession().use  {
+        orientDb.withSession {
             it.applySchema(model)
         }
-        orientDb.provider.acquireSession().use {
+        orientDb.withSession {
             orientDb.schemaBuddy.initialize(it)
         }
 
-        orientDb.provider.acquireSession().use  {
-            assertEquals(null, it.metadata.schema.getClass(STRING_BLOB_CLASS_NAME).getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME))
+        orientDb.withSession { session ->
+            val type = session.getClass("type1")!!
+            val prop1 = type.getProperty("blob1")
+            val prop2 = type.getProperty("strBlob1")
+            assertEquals(OType.BINARY, prop1.type)
+            assertEquals(OType.BINARY, prop2.type)
         }
-    }
-
-    @Test
-    fun `create blob and string-blob properties`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
-        val model = model {
-            entity("type1") {
-                blobProperty("blob1")
-                stringBlobProperty("strBlob1")
-            }
-        }
-
-        oSession.applySchema(model)
-
-        val blobClass = oSession.getClass(OVertexEntity.BINARY_BLOB_CLASS_NAME)!!
-        val blobDataProp = blobClass.getProperty(OVertexEntity.DATA_PROPERTY_NAME)!!
-        assertEquals(OType.BINARY, blobDataProp.type)
-
-        val strBlobClass = oSession.getClass(STRING_BLOB_CLASS_NAME)!!
-        val strBlobDataProp = strBlobClass.getProperty(OVertexEntity.DATA_PROPERTY_NAME)!!
-        assertEquals(OType.BINARY, strBlobDataProp.type)
-
-        val entity = oSession.getClass("type1")
-
-        val blobProp = entity.getProperty("blob1")!!
-        assertEquals(OType.LINK, blobProp.type)
-        assertEquals(OVertexEntity.BINARY_BLOB_CLASS_NAME, blobProp.linkedClass!!.name)
-
-        val strBlobProp = entity.getProperty("strBlob1")!!
-        assertEquals(OType.LINK, strBlobProp.type)
-        assertEquals(STRING_BLOB_CLASS_NAME, strBlobProp.linkedClass!!.name)
     }
 
     @Test

@@ -19,8 +19,6 @@ import com.google.common.truth.Truth.assertThat
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.exception.ODatabaseException
 import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OElement
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
@@ -169,7 +167,7 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.withSession {
+        orientDb.withStoreTx {
             //correct blob (can be found)
             test.issue1.setBlob("myBlob", "Hello".toByteArray().inputStream())
 
@@ -178,19 +176,14 @@ class OStoreTransactionTest : OTestMixin {
 
             //blob with removed content (cannot be found)
             test.issue3.setBlob("myBlob", "World".toByteArray().inputStream())
-            val id = test.issue3.id.asOId()
-            val vertex = it.load<OVertex>(id)
-            val blobContainer = vertex.getProperty<OElement>("myBlob")
-            blobContainer.removeProperty<ByteArray>(OVertexEntity.DATA_PROPERTY_NAME)
-            blobContainer.save<OElement>()
         }
 
         // When
-        oTransactional { tx ->
+        orientDb.withStoreTx { tx ->
             val issues = tx.findWithBlob(Issues.CLASS, "myBlob")
 
             // Then
-            assertNamesExactlyInOrder(issues, "issue1", "issue2")
+            assertNamesExactlyInOrder(issues, "issue1", "issue2", "issue3")
         }
     }
 

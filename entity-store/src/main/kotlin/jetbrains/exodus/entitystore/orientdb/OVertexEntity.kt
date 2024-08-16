@@ -43,8 +43,6 @@ import kotlin.jvm.optionals.getOrNull
 open class OVertexEntity(internal val vertex: OVertex, private val store: OEntityStore) : OEntity {
 
     companion object : KLogging() {
-        const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
-        const val DATA_PROPERTY_NAME = "data"
         const val EDGE_CLASS_SUFFIX = "_link"
         private const val LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX = "_targetEntityId"
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
@@ -52,8 +50,6 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         // todo initialize the blob properties in schema
         fun blobSizeProperty(propertyName: String) = "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
         fun blobHashProperty(propertyName: String) = "\$$propertyName$STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX"
-
-        const val STRING_BLOB_CLASS_NAME: String = "StringBlob"
 
         // Backward compatible EntityId
 

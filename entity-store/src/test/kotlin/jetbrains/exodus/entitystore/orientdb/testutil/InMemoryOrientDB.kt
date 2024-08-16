@@ -24,8 +24,6 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.*
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import org.junit.rules.ExternalResource
 
 class InMemoryOrientDB(
@@ -54,8 +52,6 @@ class InMemoryOrientDB(
                 session.getOrCreateVertexClass(Issues.CLASS)
                 session.getOrCreateVertexClass(Boards.CLASS)
                 session.getOrCreateVertexClass(Projects.CLASS)
-                session.createClass(STRING_BLOB_CLASS_NAME)
-                session.createClass(BINARY_BLOB_CLASS_NAME)
             }
         }
 
