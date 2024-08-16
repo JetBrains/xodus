@@ -821,13 +821,17 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
 
                 try {
                     blockSetMutable.clear()
-                    for(block in blocks.headMap(blocksToCheck.firstKey(), false)) {
+                    for (block in blocks.headMap(blocksToCheck.firstKey(), false)) {
                         blockSetMutable.add(block.key, block.value)
                     }
-                    val triple = extractRestoreInformation(
-                        blocksToCheck.values.iterator(),
-                        blockSetMutable
-                    )
+
+                    val triple = DataCorruptionException.computeUnsafe {
+                        extractRestoreInformation(
+                            blocksToCheck.values.iterator(),
+                            blockSetMutable
+                        )
+                    }
+
 
                     dbRootAddress = triple.first
                     dbRootEndAddress = triple.second

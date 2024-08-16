@@ -18,6 +18,8 @@ package jetbrains.exodus.log;
 import jetbrains.exodus.ExodusException;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.function.Supplier;
+
 public class DataCorruptionException extends ExodusException {
     private static final ThreadLocal<Boolean> unsafeMode = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
@@ -25,6 +27,15 @@ public class DataCorruptionException extends ExodusException {
         unsafeMode.set(Boolean.TRUE);
         try {
             route.run();
+        } finally {
+            unsafeMode.set(Boolean.FALSE);
+        }
+    }
+
+    public static  <T> T computeUnsafe(Supplier<T> supplier) {
+        unsafeMode.set(Boolean.TRUE);
+        try {
+            return supplier.get();
         } finally {
             unsafeMode.set(Boolean.FALSE);
         }
