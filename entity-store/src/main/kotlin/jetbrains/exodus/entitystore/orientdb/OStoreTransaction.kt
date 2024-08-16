@@ -15,16 +15,33 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
+import com.orientechnologies.orient.core.record.OElement
+import com.orientechnologies.orient.core.record.ORecord
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.StoreTransaction
 
 interface OStoreTransaction : StoreTransaction {
+
+    fun getOEntityStore(): OEntityStore
+
+    fun requireActiveTransaction()
+
+    fun requireActiveWritableTransaction()
+
     fun getTransactionId(): Long
 
     fun load(id: OEntityId): OVertex?
+
+    fun <T> getRecord(id: ORID): T?
+        where T: ORecord
+
+    fun newElement(typeName: String): OElement
+
+    fun delete(id: ORID)
 
     fun query(sql: String, params: Map<String, Any>): OResultSet
 

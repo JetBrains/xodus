@@ -18,7 +18,6 @@ package jetbrains.exodus.entitystore.orientdb.iterate
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterator
-import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.query.OQuery
 import jetbrains.exodus.entitystore.orientdb.query.OQueryExecution
@@ -34,7 +33,7 @@ class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterato
 
         fun executeAndCreate(query: OQuery, txn: OStoreTransaction): OQueryEntityIterator {
             val resultSet = OQueryExecution.execute(query, txn)
-            val iterator = resultSet.toEntityIterator(txn.store as PersistentEntityStore)
+            val iterator = resultSet.toEntityIterator(txn.getOEntityStore())
             return OQueryEntityIterator(iterator)
         }
     }

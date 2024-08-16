@@ -32,12 +32,12 @@ internal class OSequenceImpl(
     }
 
     override fun set(l: Long) {
-        val currentTx = store.requireCurrentTransaction()
+        val currentTx = store.requireActiveTransaction()
         currentTx.updateOSequence(sequenceName, l)
     }
 
     private fun getOSequence(): OSequence {
-        val currentTx = store.requireCurrentTransaction()
+        val currentTx = store.requireActiveTransaction()
         return currentTx.getOSequence(sequenceName)
     }
 }

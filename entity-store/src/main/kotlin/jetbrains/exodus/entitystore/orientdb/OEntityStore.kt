@@ -16,9 +16,13 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import jetbrains.exodus.entitystore.EntityStore
+import jetbrains.exodus.entitystore.PersistentEntityId
 
 interface OEntityStore : EntityStore {
 
-    fun requireCurrentTransaction(): OStoreTransaction
+    fun requireActiveTransaction(): OStoreTransaction
 
+    fun requireActiveWritableTransaction(): OStoreTransaction
+
+    fun getOEntityId(entityId: PersistentEntityId): OEntityId
 }

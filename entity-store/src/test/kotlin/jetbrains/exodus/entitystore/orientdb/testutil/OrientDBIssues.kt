@@ -18,11 +18,7 @@ package jetbrains.exodus.entitystore.orientdb.testutil
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.PersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
-import jetbrains.exodus.entitystore.orientdb.setLocalEntityIdIfAbsent
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
@@ -59,13 +55,13 @@ object Boards {
 }
 
 fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVertexEntity {
-    provider.acquireSession().use { session ->
+    withSession { session ->
         session.getOrCreateVertexClass(CLASS)
     }
-    return withTxSession { session ->
-        val issue = session.createNamedEntity(CLASS, name, store)
+    return store.computeInTransaction { tx ->
+        val issue = tx.newEntity(CLASS) as OVertexEntity
+        issue.setProperty("name", name)
         priority?.let { issue.setProperty(PRIORITY, it) }
-        issue.save()
         issue
     }
 }
@@ -114,7 +110,7 @@ fun InMemoryOrientDB.addIssueToBoard(issue: OEntity, board: OEntity) {
 fun ODatabaseSession.createNamedEntity(
     className: String,
     name: String,
-    store: PersistentEntityStore
+    store: OEntityStore
 ): OVertexEntity {
     val oClass = this.getClass(className) ?: throw IllegalStateException("Create class $className before using it")
     val entity = this.newVertex(oClass)

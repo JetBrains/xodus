@@ -71,10 +71,10 @@ class InMemoryOrientDB(
 
     val database get() = db
 
-    fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
-        val tx = store.beginTransaction()
+    fun <R> withStoreTx(block: (OStoreTransaction) -> R): R {
+        val tx = store.beginTransaction() as OStoreTransaction
         try {
-            val result = block(ODatabaseSession.getActiveSession() as ODatabaseSession)
+            val result = block(tx)
             if (!tx.isFinished) {
                 tx.commit()
             }
@@ -86,12 +86,33 @@ class InMemoryOrientDB(
         }
     }
 
+    fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
+        val session = provider.acquireSession()
+        try {
+            session.begin()
+            val result = block(session)
+            if (session.hasActiveTransaction()) {
+                session.commit()
+            }
+            return result
+        } finally {
+            if (!session.hasActiveTransaction()) {
+                session.rollback()
+            }
+            if (!session.isClosed) {
+                session.close()
+            }
+        }
+    }
+
     fun <R> withSession(block: (ODatabaseSession) -> R): R {
-        val session = openSession()
+        val session = provider.acquireSession()
         try {
             return block(session)
         } finally {
-            session.close()
+            if (!session.isClosed) {
+                session.close()
+            }
         }
     }
 

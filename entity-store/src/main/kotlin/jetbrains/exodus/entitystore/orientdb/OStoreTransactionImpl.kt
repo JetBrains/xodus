@@ -17,7 +17,10 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabase
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
+import com.orientechnologies.orient.core.record.OElement
+import com.orientechnologies.orient.core.record.ORecord
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import com.orientechnologies.orient.core.tx.OTransaction.TXSTATUS
@@ -41,7 +44,6 @@ class OStoreTransactionImpl(
     private val readOnly: Boolean = false
 ) : OStoreTransaction {
     private var queryCancellingPolicy: OQueryCancellingPolicy? = null
-
     // todo test
     override fun getTransactionId(): Long {
         return session.transaction.id.toLong()
@@ -49,13 +51,30 @@ class OStoreTransactionImpl(
 
     // todo test
     override fun load(id: OEntityId): OVertex? {
-        requireActiveTx()
+        requireActiveTransaction()
         return session.load(id.asOId())
+    }
+
+    override fun <T> getRecord(id: ORID): T?
+    where T: ORecord {
+        requireActiveTransaction()
+        return session.getRecord(id)
+    }
+
+    override fun newElement(typeName: String): OElement {
+        requireActiveWritableTransaction()
+        schemaBuddy.makeSureTypeExists(session, typeName)
+        return session.newElement(typeName)
+    }
+
+    override fun delete(id: ORID) {
+        requireActiveWritableTransaction()
+        session.delete(id)
     }
 
     // todo test
     override fun query(sql: String, params: Map<String, Any>): OResultSet {
-        requireActiveTx()
+        requireActiveTransaction()
         return session.query(sql, params)
     }
 
@@ -79,15 +98,19 @@ class OStoreTransactionImpl(
         return !isFinished && session.isActiveOnCurrentThread
     }
 
-    private fun requireActiveTx() {
-        check(!isFinished) { "The transaction is finished, the internal session state: ${session.status}" }
+    override fun getOEntityStore(): OEntityStore {
+        return store
+    }
+
+    override fun requireActiveTransaction() {
+        check(session.status != ODatabase.STATUS.CLOSED) { "The transaction is finished, the internal session state: ${session.status}" }
         check(session.isActiveOnCurrentThread) { "The active session is no the session the transaction was started in" }
         check(session.transaction.status == TXSTATUS.BEGUN) { "The current OTransaction status is ${session.transaction.status}, but the status ${TXSTATUS.BEGUN} was expected." }
     }
 
-    private fun requireWritableAndActiveTx() {
-        check(!readOnly) { "Can't modify temporary empty store" }
-        requireActiveTx()
+    override fun requireActiveWritableTransaction() {
+        check(!readOnly) { "Cannot modify read-only transaction" }
+        requireActiveTransaction()
     }
 
     fun begin() {
@@ -102,7 +125,7 @@ class OStoreTransactionImpl(
     }
 
     override fun commit(): Boolean {
-        requireActiveTx()
+        requireActiveTransaction()
         try {
             session.commit()
         } finally {
@@ -113,7 +136,7 @@ class OStoreTransactionImpl(
     }
 
     override fun flush(): Boolean {
-        requireActiveTx()
+        requireActiveTransaction()
         try {
             session.commit()
             session.begin()
@@ -125,7 +148,7 @@ class OStoreTransactionImpl(
     }
 
     override fun abort() {
-        requireActiveTx()
+        requireActiveTransaction()
         try {
             session.rollback()
         } finally {
@@ -134,7 +157,7 @@ class OStoreTransactionImpl(
     }
 
     override fun revert() {
-        requireActiveTx()
+        requireActiveTransaction()
         try {
             session.rollback()
             session.begin()
@@ -154,7 +177,7 @@ class OStoreTransactionImpl(
     }
 
     override fun newEntity(entityType: String): Entity {
-        requireWritableAndActiveTx()
+        requireActiveWritableTransaction()
         schemaBuddy.makeSureTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
@@ -164,12 +187,12 @@ class OStoreTransactionImpl(
 
     override fun saveEntity(entity: Entity) {
         require(entity is OVertexEntity) { "Only OVertexEntity is supported, but was ${entity.javaClass.simpleName}" }
-        requireWritableAndActiveTx()
+        requireActiveWritableTransaction()
         entity.save()
     }
 
     override fun getEntity(id: EntityId): Entity {
-        requireActiveTx()
+        requireActiveTransaction()
         val oId = store.requireOEntityId(id)
         if (oId == ORIDEntityId.EMPTY_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
@@ -179,22 +202,22 @@ class OStoreTransactionImpl(
     }
 
     override fun getEntityTypes(): MutableList<String> {
-        requireActiveTx()
+        requireActiveTransaction()
         return session.metadata.schema.classes.map { it.name }.toMutableList()
     }
 
     override fun getAll(entityType: String): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OEntityOfTypeIterable(this, entityType)
     }
 
     override fun getSingletonIterable(entity: Entity): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OSingleEntityIterable(this, entity)
     }
 
     override fun find(entityType: String, propertyName: String, value: Comparable<Nothing>): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertyEqualIterable(this, entityType, propertyName, value)
     }
 
@@ -204,7 +227,7 @@ class OStoreTransactionImpl(
         minValue: Comparable<Nothing>,
         maxValue: Comparable<Nothing>
     ): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertyRangeIterable(this, entityType, propertyName, minValue, maxValue)
     }
 
@@ -214,17 +237,17 @@ class OStoreTransactionImpl(
         value: String,
         ignoreCase: Boolean
     ): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertyContainsIterable(this, entityType, propertyName, value)
     }
 
     override fun findStartingWith(entityType: String, propertyName: String, value: String): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertyStartsWithIterable(this, entityType, propertyName, value)
     }
 
     override fun findIds(entityType: String, minValue: Long, maxValue: Long): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertyRangeIterable(
             this,
             entityType,
@@ -235,32 +258,32 @@ class OStoreTransactionImpl(
     }
 
     override fun findWithProp(entityType: String, propertyName: String): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertyExistsIterable(this, entityType, propertyName)
     }
 
     override fun findWithPropSortedByValue(entityType: String, propertyName: String): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertyExistsSortedIterable(this, entityType, propertyName)
     }
 
     override fun findWithBlob(entityType: String, blobName: String): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertyBlobExistsEntityIterable(this, entityType, blobName)
     }
 
     override fun findLinks(entityType: String, entity: Entity, linkName: String): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OLinkOfTypeToEntityIterable(this, linkName, entity.id as OEntityId, entityType)
     }
 
     override fun findLinks(entityType: String, entities: EntityIterable, linkName: String): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OLinkIterableToEntityIterable(this, entities.asOQueryIterable(), linkName)
     }
 
     override fun findWithLinks(entityType: String, linkName: String): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OLinkExistsEntityIterable(this, entityType, linkName)
     }
 
@@ -270,12 +293,12 @@ class OStoreTransactionImpl(
         oppositeEntityType: String,
         oppositeLinkName: String
     ): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OLinkExistsEntityIterable(this, entityType, linkName)
     }
 
     override fun sort(entityType: String, propertyName: String, ascending: Boolean): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertySortedIterable(this, entityType, propertyName, null, ascending)
     }
 
@@ -285,7 +308,7 @@ class OStoreTransactionImpl(
         rightOrder: EntityIterable,
         ascending: Boolean
     ): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OPropertySortedIterable(this, entityType, propertyName, rightOrder.asOQueryIterable(), ascending)
     }
 
@@ -296,7 +319,7 @@ class OStoreTransactionImpl(
         linkName: String,
         rightOrder: EntityIterable
     ): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         return OLinkSortEntityIterable(this, sortedLinks.asOQueryIterable(), linkName, rightOrder.asOQueryIterable())
     }
 
@@ -309,7 +332,7 @@ class OStoreTransactionImpl(
         oppositeEntityType: String,
         oppositeLinkName: String
     ): EntityIterable {
-        requireActiveTx()
+        requireActiveTransaction()
         // Not sure about skipping oppositeEntityType and oppositeLinkName values
         return OLinkSortEntityIterable(this, sortedLinks.asOQueryIterable(), linkName, rightOrder.asOQueryIterable())
     }
@@ -328,7 +351,7 @@ class OStoreTransactionImpl(
     }
 
     override fun toEntityId(representation: String): EntityId {
-        requireActiveTx()
+        requireActiveTransaction()
         val legacyId = PersistentEntityId.toEntityId(representation)
         return store.requireOEntityId(legacyId)
     }
@@ -338,29 +361,29 @@ class OStoreTransactionImpl(
     }
 
     override fun getSequence(sequenceName: String, initialValue: Long): Sequence {
-        requireActiveTx()
+        requireActiveTransaction()
         // make sure the OSequence created
         schemaBuddy.getOrCreateSequence(session, sequenceName, initialValue)
         return OSequenceImpl(sequenceName, store)
     }
 
     override fun getOSequence(sequenceName: String): OSequence {
-        requireActiveTx()
+        requireActiveTransaction()
         return schemaBuddy.getSequence(session, sequenceName)
     }
 
     override fun updateOSequence(sequenceName: String, currentValue: Long) {
-        requireActiveTx()
+        requireActiveTransaction()
         return schemaBuddy.updateSequence(session, sequenceName, currentValue)
     }
 
     override fun renameOClass(oldName: String, newName: String) {
-        requireActiveTx()
+        requireActiveTransaction()
         schemaBuddy.renameOClass(session, oldName, newName)
     }
 
     override fun getEnvironmentTransaction(): Transaction {
-        requireActiveTx()
+        requireActiveTransaction()
         return OEnvironmentTransaction(store.environment, this)
     }
 
@@ -372,6 +395,7 @@ class OStoreTransactionImpl(
     override fun getQueryCancellingPolicy() = this.queryCancellingPolicy
 
     override fun getOEntityId(entityId: PersistentEntityId): OEntityId {
+        requireActiveTransaction()
         return schemaBuddy.getOEntityId(session, entityId)
     }
 }

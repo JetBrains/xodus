@@ -151,7 +151,7 @@ class OPersistentEntityStore(
     }
 
     override fun getEntity(id: EntityId): Entity {
-        val currentTx = requireCurrentTransaction()
+        val currentTx = requireActiveTransaction()
         val oId = requireOEntityId(id)
         if (oId == ORIDEntityId.EMPTY_ID) {
             throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
@@ -172,7 +172,7 @@ class OPersistentEntityStore(
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
-        val currentTx = requireCurrentTransaction()
+        val currentTx = requireActiveTransaction()
         currentTx.renameOClass(oldEntityTypeName, newEntityTypeName)
     }
 
@@ -187,24 +187,31 @@ class OPersistentEntityStore(
     override fun getStatistics() = dummyStatistics
 
     override fun getAndCheckCurrentTransaction(): StoreTransaction {
-        return requireCurrentTransaction()
+        return requireActiveTransaction()
     }
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 
-    override fun requireCurrentTransaction(): OStoreTransaction {
+    override fun requireActiveTransaction(): OStoreTransaction {
         val tx = currentTransaction.get()
-        check(tx != null) { "No active transaction on the current thread" }
-        check(!tx.isFinished) { "Current transaction is finished. You better figure out how it happened." }
+        check(tx != null) { "No active transactions on the current thread" }
+        tx.requireActiveTransaction()
         return tx
     }
 
-    internal fun getOEntityId(entityId: PersistentEntityId): OEntityId {
-        return requireCurrentTransaction().getOEntityId(entityId)
+    override fun requireActiveWritableTransaction(): OStoreTransaction {
+        val tx = currentTransaction.get()
+        check(tx != null) { "No active transactions on the current thread" }
+        tx.requireActiveWritableTransaction()
+        return tx
+    }
+
+    override fun getOEntityId(entityId: PersistentEntityId): OEntityId {
+        return requireActiveTransaction().getOEntityId(entityId)
     }
 }
 
-internal fun PersistentEntityStore.requireOEntityId(id: EntityId): OEntityId {
+internal fun OEntityStore.requireOEntityId(id: EntityId): OEntityId {
     return when (id) {
         is ORIDEntityId -> id
         PersistentEntityId.EMPTY_ID -> ORIDEntityId.EMPTY_ID
