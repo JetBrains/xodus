@@ -81,6 +81,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     override fun getType(): String = oEntityId.getTypeName()
 
     override fun delete(): Boolean {
+        requireActiveWritableTransaction()
         vertex.delete()
         return true
     }
@@ -89,7 +90,10 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         return store.requireActiveTransaction()
     }
 
-    override fun getRawProperty(propertyName: String): ByteIterable? = null
+    override fun getRawProperty(propertyName: String): ByteIterable? {
+        requireActiveTx()
+        TODO()
+    }
 
     override fun getProperty(propertyName: String): Comparable<*>? {
         requireActiveTx()
@@ -373,6 +377,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     // Get links
 
     override fun getLink(linkName: String): Entity? {
+        requireActiveTx()
         return getLinkImpl(linkName).toOEntityOrNull()
     }
 
@@ -382,17 +387,20 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     }
 
     override fun getLinks(linkName: String): EntityIterable {
+        requireActiveTx()
         val edgeClassName = edgeClassName(linkName)
         val links = vertex.getVertices(ODirection.OUT, edgeClassName)
         return OVertexEntityIterable(links, store)
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
+        requireActiveTx()
         val edgeClassNames = linkNames.map { edgeClassName(it) }
         return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *edgeClassNames.toTypedArray()), store)
     }
 
     override fun getLinkNames(): List<String> {
+        requireActiveTx()
         return ArrayList(vertex.getEdgeNames(ODirection.OUT)
             .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
             .map { it.substringBefore(EDGE_CLASS_SUFFIX) })

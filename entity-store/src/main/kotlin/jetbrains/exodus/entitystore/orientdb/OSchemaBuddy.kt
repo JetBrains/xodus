@@ -96,7 +96,7 @@ class OSchemaBuddyImpl(
         }
     }
 
-    private inline fun <T> executeInASeparateSessionIfCurrentHasTransaction(session: ODatabaseSession, action: (ODatabaseSession) -> T): T {
+    private fun <T> executeInASeparateSessionIfCurrentHasTransaction(session: ODatabaseSession, action: (ODatabaseSession) -> T): T {
         return if (session.hasActiveTransaction()) {
             dbProvider.executeInASeparateSession(session) { newSession ->
                 action(newSession)

@@ -85,12 +85,12 @@ fun InMemoryOrientDB.createBoard(name: String): OVertexEntity {
 }
 
 fun InMemoryOrientDB.addIssueToProject(issue: OEntity, project: OEntity) {
-    provider.acquireSession().use { session ->
+    withSession { session ->
         session.getOrCreateEdgeClass(IN_PROJECT)
         session.getOrCreateEdgeClass(HAS_ISSUE)
     }
 
-    withTxSession {
+    withStoreTx {
         issue.addLink(IN_PROJECT, project)
         project.addLink(HAS_ISSUE, issue)
     }

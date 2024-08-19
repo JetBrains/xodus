@@ -25,27 +25,17 @@ interface ODatabaseProvider {
     val databaseLocation: String
     val database: OrientDB
     fun acquireSession(): ODatabaseSession
-    fun close()
-}
 
-/**
- * If there is a session on the current thread, create a new session, executes the action in it,
- * and returns the previous session back to the current thread.
- *
- * Never use this method. If you use this method, make sure you 100% understand what happens,
- * and do not hesitate to invite people to review your code.
- */
-internal inline fun <T> ODatabaseProvider.executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T {
-    val result = try {
-        this.acquireSession().use { session ->
-            action(session)
-        }
-    } finally {
-        // the previous session does not get activated on the current thread by default
-        assert(!currentSession.isActiveOnCurrentThread)
-        currentSession.activateOnCurrentThread()
-    }
-    return result
+    /**
+     * If there is a session on the current thread, create a new session, executes the action in it,
+     * and returns the previous session back to the current thread.
+     *
+     * Never use this method. If you use this method, make sure you 100% understand what happens,
+     * and do not hesitate to invite people to review your code.
+     */
+    fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T
+
+    fun close()
 }
 
 fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {

@@ -51,7 +51,26 @@ class ODatabaseProviderImpl(
         get() = database.accessInternal.basePath
 
     override fun acquireSession(): ODatabaseSession {
-        requireNoActiveSession()
+        return acquireSessionImpl(true)
+    }
+
+    override fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T {
+        val result = try {
+            acquireSessionImpl(checkNoActiveSession = false).use { session ->
+                action(session)
+            }
+        } finally {
+            // the previous session does not get activated on the current thread by default
+            assert(!currentSession.isActiveOnCurrentThread)
+            currentSession.activateOnCurrentThread()
+        }
+        return result
+    }
+
+    private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): ODatabaseSession {
+        if (checkNoActiveSession) {
+            requireNoActiveSession()
+        }
         return database.cachedPool(databaseName, userName, password).acquire()
     }
 
