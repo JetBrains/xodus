@@ -43,7 +43,7 @@ import java.util.function.BiFunction;
 public class PersistentStoreTransaction implements StoreTransaction, TxnGetterStrategy, TxnProvider {
     private static final Logger logger = LoggerFactory.getLogger(PersistentStoreTransaction.class);
 
-    enum TransactionType {
+    public enum TransactionType {
         Regular,
         Exclusive,
         Readonly
@@ -218,6 +218,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     // exposed only for tests
     boolean doFlush() {
+        if(txn.isIdempotent()) {
+            localCache.release();
+
+            final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
+            localCache = (EntityIterableCacheAdapter) entityIterableCache.getCacheAdapter();
+        }
+
         if (txn.flush()) {
             flushNonTransactionalBlobs();
             flushCaches(false); // do not clear props & links caches
@@ -295,7 +302,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     }
 
     // TODO: remove ASAP
-    private static final int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1).intValue();
+    private static final int traceGetAllForEntityType = Integer.getInteger("jetbrains.exodus.entitystore.traceGetAllForEntityType", -1);
 
     @Override
     @NotNull
@@ -325,13 +332,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                                @NotNull final Comparable value) {
         if (value instanceof Boolean) {
             final EntityIterableBase withProp = findWithProp(entityType, propertyName);
-            if (((Boolean) value).booleanValue()) {
+            if ((Boolean) value) {
                 return withProp;
             }
             return getAll(entityType).minus(withProp);
         }
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyValueIterable(this, entityTypeId.intValue(), propertyId.intValue(), value));
+                new PropertyValueIterable(this, entityTypeId, propertyId, value));
     }
 
     @Override
@@ -339,8 +346,8 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     public EntityIterable find(@NotNull final String entityType, @NotNull final String propertyName,
                                @NotNull final Comparable minValue, @NotNull final Comparable maxValue) {
         if (minValue instanceof Boolean) {
-            final boolean min = ((Boolean) minValue).booleanValue();
-            final boolean max = ((Boolean) maxValue).booleanValue();
+            final boolean min = (Boolean) minValue;
+            final boolean max = (Boolean) maxValue;
             if (min == max) {
                 if (min) {
                     return findWithProp(entityType, propertyName);
@@ -353,7 +360,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return EntityIterableBase.EMPTY;
         }
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyRangeIterable(this, entityTypeId.intValue(), propertyId.intValue(), minValue, maxValue));
+                new PropertyRangeIterable(this, entityTypeId, propertyId, minValue, maxValue));
     }
 
     @Override
@@ -363,7 +370,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return findWithPropSortedByValue(entityType, propertyName);
         }
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertyContainsValueEntityIterable(this, entityTypeId.intValue(), propertyId.intValue(), value, ignoreCase));
+                new PropertyContainsValueEntityIterable(this, entityTypeId, propertyId, value, ignoreCase));
     }
 
     @Override
@@ -380,12 +387,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public EntityIterableBase findWithProp(@NotNull final String entityType, @NotNull final String propertyName) {
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new EntitiesWithPropertyIterable(this, entityTypeId.intValue(), propertyId.intValue()));
+                new EntitiesWithPropertyIterable(this, entityTypeId, propertyId));
     }
 
     public EntityIterableBase findWithPropSortedByValue(@NotNull final String entityType, @NotNull final String propertyName) {
         return getPropertyIterable(entityType, propertyName, (entityTypeId, propertyId) ->
-                new PropertiesIterable(this, entityTypeId.intValue(), propertyId.intValue()));
+                new PropertiesIterable(this, entityTypeId, propertyId));
     }
 
     @Override
@@ -404,7 +411,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
     @Override
     public EntityIterable findWithBlob(@NotNull final String entityType, @NotNull final String blobName) {
         return getPropertyIterable(entityType, blobName, (entityTypeId, blobId) ->
-                new EntitiesWithBlobIterable(this, entityTypeId.intValue(), blobId.intValue()));
+                new EntitiesWithBlobIterable(this, entityTypeId, blobId));
     }
 
     @Override
@@ -787,7 +794,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             this.blobStreams = blobStreams;
         }
 
-        blobStreams.put(blobHandle, new Triple<>(tmpFilePath, Boolean.valueOf(invalidateOnRollback), tmpHandle));
+        blobStreams.put(blobHandle, new Triple<>(tmpFilePath, invalidateOnRollback, tmpHandle));
     }
 
     void addBlobFile(final long blobHandle, @NotNull final Path file) {
@@ -984,7 +991,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             if (blobStreams != null && !blobStreams.isEmpty()) {
                 for (final Triple<Path, Boolean, Long> streamTriple : blobStreams.values()) {
                     try {
-                        if (!checkInvalidateBlobsFlag || streamTriple.second.booleanValue()) {
+                        if (!checkInvalidateBlobsFlag || streamTriple.second) {
                             final Path path = streamTriple.first;
                             Files.deleteIfExists(path);
                         }
@@ -1196,7 +1203,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             return EntityIterableBase.EMPTY;
         }
 
-        return instantiator.apply(Integer.valueOf(entityTypeId), Integer.valueOf(propertyId));
+        return instantiator.apply(entityTypeId, propertyId);
     }
 
     @SuppressWarnings("unchecked")
