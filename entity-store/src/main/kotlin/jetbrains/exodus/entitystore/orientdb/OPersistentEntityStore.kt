@@ -161,8 +161,8 @@ class OPersistentEntityStore(
     }
 
     override fun getEntityTypeId(entityType: String): Int {
-        val oClass = ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
-        return oClass?.defaultClusterId ?: -1
+        val currentTx = requireActiveTransaction()
+        return currentTx.getTypeId(entityType)
     }
 
     override fun getEntityType(entityTypeId: Int): String {

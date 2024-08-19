@@ -34,6 +34,11 @@ interface OSchemaBuddy {
 
     fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId
 
+    /**
+     * If the class has not been found, returns -1. It is how it was in the Classic Xodus.
+     */
+    fun getTypeId(session: ODatabaseSession, entityType: String): Int
+
     fun makeSureTypeExists(session: ODatabaseSession, entityType: String)
 
     fun getOrCreateSequence(session: ODatabaseSession, sequenceName: String, initialValue: Long): OSequence
@@ -134,6 +139,10 @@ class OSchemaBuddyImpl(
         }
 
         return ORIDEntityId(classId, localEntityId, oid, oClass)
+    }
+
+    override fun getTypeId(session: ODatabaseSession, entityType: String): Int {
+        return session.getClass(entityType)?.requireClassId() ?: -1
     }
 
     override fun makeSureTypeExists(session: ODatabaseSession, entityType: String) {

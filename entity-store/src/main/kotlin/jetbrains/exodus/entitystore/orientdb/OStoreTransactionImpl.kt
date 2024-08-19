@@ -261,7 +261,7 @@ class OStoreTransactionImpl(
         return OPropertyRangeIterable(
             this,
             entityType,
-            OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME,
+            LOCAL_ENTITY_ID_PROPERTY_NAME,
             minValue,
             maxValue
         )
@@ -407,5 +407,10 @@ class OStoreTransactionImpl(
     override fun getOEntityId(entityId: PersistentEntityId): OEntityId {
         requireActiveTransaction()
         return schemaBuddy.getOEntityId(session, entityId)
+    }
+
+    override fun getTypeId(entityType: String): Int {
+        requireActiveTransaction()
+        return schemaBuddy.getTypeId(session, entityType)
     }
 }

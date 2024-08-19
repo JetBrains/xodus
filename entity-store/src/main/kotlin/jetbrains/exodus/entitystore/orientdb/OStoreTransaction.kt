@@ -49,6 +49,11 @@ interface OStoreTransaction : StoreTransaction {
 
     fun getOEntityId(entityId: PersistentEntityId): OEntityId
 
+    /**
+     * If the class has not been found, returns -1. It is how it was in the Classic Xodus.
+     */
+    fun getTypeId(entityType: String): Int
+
     fun getOSequence(sequenceName: String): OSequence
 
     fun updateOSequence(sequenceName: String, currentValue: Long)

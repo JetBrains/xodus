@@ -17,13 +17,11 @@ package jetbrains.exodus.entitystore;
 
 import jetbrains.exodus.backup.Backupable;
 import jetbrains.exodus.bindings.ComparableBinding;
-import jetbrains.exodus.bindings.ComparableValueType;
 import jetbrains.exodus.core.execution.JobProcessor;
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.management.Statistics;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * {@code PersistentEntityStore} is an {@linkplain EntityStore} operating above {@linkplain Environment} instance.
@@ -155,7 +153,7 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
      * Returns integer id of specified entity type.
      *
      * @param entityType entity type
-     * @return integer id of entity type
+     * @return integer id of entity type or -1 if the type not found
      * @see EntityId#getTypeId()
      */
     int getEntityTypeId(@NotNull final String entityType);
