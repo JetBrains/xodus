@@ -29,7 +29,7 @@ class LinksEqualDecorator(val linkName: String, var decorated: NodeBase, val lin
         metaData: ModelMetaData,
         context: InstantiateContext
     ): Iterable<Entity> {
-        val txn = queryEngine.persistentStore.andCheckCurrentTransaction
+        val txn = queryEngine.oStore.requireActiveTransaction()
         return OEntityOfTypeIterable(txn, entityType).findLinks(
             decorated.instantiate(linkEntityType, queryEngine, metaData, context), linkName
         )

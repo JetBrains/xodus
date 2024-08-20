@@ -29,7 +29,7 @@ public class UnaryNot extends UnaryNode {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        var txn = queryEngine.getOStore().requireActiveTransaction();
         var all = new OEntityOfTypeIterable(txn, entityType);
         var minus = (OQueryEntityIterable) child.instantiate(entityType, queryEngine, metaData, context);
         return new OMinusEntityIterable(txn, all, minus);

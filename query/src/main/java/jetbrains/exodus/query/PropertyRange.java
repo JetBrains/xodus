@@ -17,6 +17,7 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyRangeIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.NotNull;
 
@@ -40,8 +41,8 @@ public class PropertyRange extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        queryEngine.assertOperational();
-        return queryEngine.getPersistentStore().getAndCheckCurrentTransaction().find(entityType, name, min, max);
+        var txn = queryEngine.getOStore().requireActiveTransaction();
+        return new OPropertyRangeIterable(txn, entityType, name, min, max);
     }
 
     PropertyRange merge(PropertyRange range) {

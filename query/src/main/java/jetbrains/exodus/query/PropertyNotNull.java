@@ -17,11 +17,8 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.PersistentStoreTransaction;
-import jetbrains.exodus.query.metadata.EntityMetaData;
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyExistsIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
-import jetbrains.exodus.query.metadata.PropertyMetaData;
-import jetbrains.exodus.query.metadata.PropertyType;
 
 import static jetbrains.exodus.query.Utils.safe_equals;
 
@@ -34,15 +31,8 @@ public class PropertyNotNull extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        final EntityMetaData emd = metaData == null ? null : metaData.getEntityMetaData(entityType);
-        final PropertyMetaData pmd = emd == null ? null : emd.getPropertyMetaData(name);
-        queryEngine.assertOperational();
-        final PersistentStoreTransaction txn = (PersistentStoreTransaction) queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
-        if (pmd != null && pmd.getType() == PropertyType.BLOB) {
-            return txn.findWithBlob(entityType, name);
-        } else {
-            return txn.findWithProp(entityType, name);
-        }
+        var txn = queryEngine.getOStore().requireActiveTransaction();
+        return new OPropertyExistsIterable(txn, entityType, name);
     }
 
     @Override

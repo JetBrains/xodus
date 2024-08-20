@@ -23,12 +23,12 @@ import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase.EMPTY
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OEntityStore
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterator
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OMultipleEntitiesIterable
-import jetbrains.exodus.entitystore.orientdb.query.OQuery
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory
 import jetbrains.exodus.kotlin.notNull
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -37,6 +37,8 @@ import mu.KLogging
 open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: PersistentEntityStore) : KLogging() {
 
     private var _sortEngine: SortEngine? = null
+
+    val oStore: OEntityStore = persistentStore as OEntityStore
 
     open var sortEngine: SortEngine?
         get() = _sortEngine
@@ -210,7 +212,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             val rightValues = right.take(20)
             if (rightValues.size < 20) {
                 return OIntersectionEntityIterable(
-                    txn,
+                    txn as OStoreTransaction,
                     left,
                     OMultipleEntitiesIterable(txn, rightValues.toList())
                 )
@@ -222,7 +224,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             val leftValues = left.take(20)
             if (leftValues.size < 20) {
                 return OIntersectionEntityIterable(
-                    txn,
+                    txn as OStoreTransaction,
                     right,
                     OMultipleEntitiesIterable(txn, leftValues.toList())
                 )
@@ -263,8 +265,6 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         }
         return ids
     }
-
-
 }
 
 private val Iterable<Entity>?.isEmpty: Boolean
