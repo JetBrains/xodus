@@ -462,5 +462,9 @@ fun OVertex.requireLocalEntityId(): Long {
         ?: throw IllegalStateException("localEntityId not found for the vertex")
 }
 
+fun OVertexEntity.asReadonly():OReadonlyVertexEntity {
+    return OReadonlyVertexEntity(vertex, store as OPersistentEntityStore)
+}
+
 
 val String.asEdgeClass get() = OVertexEntity.edgeClassName(this)
