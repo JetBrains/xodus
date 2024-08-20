@@ -63,6 +63,32 @@ class OEntityTest {
     }
 
     @Test
+    fun `an entity sees changes made to it in another part of the application`() {
+        // your entity
+        val e1 = orientDb.withStoreTx { tx ->
+            val e1 = tx.newEntity(Issues.CLASS)
+            e1.setProperty("name", "Pumba")
+            e1
+        }
+
+        // this changes happen in another part of the application
+        val e1Again = orientDb.withStoreTx { tx ->
+            val e1Again = tx.getEntity(e1.id)
+            e1Again.setProperty("name", "Bampu")
+            e1Again
+        }
+
+        // make sure we do not deal with physically the same instance
+        assertNotSame(e1, e1Again)
+
+        // your entity sees changes made in another part of the application
+        orientDb.withStoreTx { tx ->
+            assertEquals("Bampu", e1.getProperty("name"))
+        }
+    }
+
+
+    @Test
     fun `rename entity type`() {
         orientDb.withStoreTx { tx ->
             for (i in 0..9) {

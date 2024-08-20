@@ -166,9 +166,7 @@ class OPersistentEntityStore(
     }
 
     override fun getEntityType(entityTypeId: Int): String {
-        val oClass =
-            ODatabaseSession.getActiveSession().metadata.schema.getClassByClusterId(entityTypeId)
-        return oClass.name
+       TODO()
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
