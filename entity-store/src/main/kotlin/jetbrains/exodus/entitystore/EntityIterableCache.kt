@@ -26,6 +26,7 @@ import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.env.ReadonlyTransactionException
 import mu.KLogging
 import java.lang.Long.max
+import java.util.concurrent.atomic.AtomicReference
 
 class EntityIterableCache internal constructor(private val store: PersistentEntityStoreImpl) {
 
@@ -51,8 +52,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     private val heavyIterablesCache =
         ConcurrentObjectCache<Any, Long>(config.entityIterableCacheHeavyIterablesCacheSize)
 
-    @Volatile
-    private var cacheAdapter = EntityIterableCacheAdapter.create(config)
+    private val cacheAdapter = AtomicReference(EntityIterableCacheAdapter.create(config))
 
     val stats = EntityIterableCacheStatistics()
 
@@ -79,18 +79,18 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     var cachingDisabled = config.isCachingDisabled
 
     fun getCacheAdapter(): Any {
-        return cacheAdapter
+        return cacheAdapter.get()
     }
 
     fun count(): Int {
-        return cacheAdapter.count().toInt()
+        return cacheAdapter.get().count().toInt()
     }
 
     // Exposed for backward compatibility with clients of v3.0
     fun hitRate() = stats.hitRate
 
     fun clear() {
-        cacheAdapter.clear()
+        cacheAdapter.get().clear()
         deferredIterablesCache = ConcurrentObjectCache(config.entityIterableCacheDeferredSize)
         iterableCountsCache = ConcurrentObjectCache(config.entityIterableCacheCountsCacheSize)
     }
@@ -176,11 +176,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
     }
 
     fun compareAndSetCacheAdapter(old: Any, new: Any): Boolean {
-        if (cacheAdapter === old) {
-            cacheAdapter = new as EntityIterableCacheAdapter
-            return true
-        }
-        return false
+        return cacheAdapter.compareAndSet(old as EntityIterableCacheAdapter, new as EntityIterableCacheAdapter)
     }
 
     private inner class EntityIterableAsyncInstantiation(
@@ -310,6 +306,7 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         private fun updateCacheSizeIfNecessary() {
             try {
                 val targetSize = config.entityIterableCacheSize.toLong()
+                val cacheAdapter = cacheAdapter.get()
                 val currentSize = cacheAdapter.size()
                 if (!cacheAdapter.isWeightedCache
                     && targetSize > 0
@@ -353,11 +350,11 @@ class EntityIterableCache internal constructor(private val store: PersistentEnti
         }
 
         override fun needToCancel(): Boolean {
-            return isConsistent && cacheAdapter !== localCache || System.currentTimeMillis() - startTime > cachingTimeout
+            return isConsistent && cacheAdapter.get() !== localCache || System.currentTimeMillis() - startTime > cachingTimeout
         }
 
         override fun doCancel() {
-            val reason = if (isConsistent && cacheAdapter !== localCache) {
+            val reason = if (isConsistent && cacheAdapter.get() !== localCache) {
                 CACHE_ADAPTER_OBSOLETE
             } else {
                 JOB_OVERDUE
