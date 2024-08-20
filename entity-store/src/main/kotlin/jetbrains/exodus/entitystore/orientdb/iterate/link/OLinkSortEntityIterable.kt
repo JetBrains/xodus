@@ -15,8 +15,8 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.link
 
-import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.asEdgeClass
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OLinkInFromSubQuerySelect
@@ -24,7 +24,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OQueryFunctions
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OLinkSortEntityIterable(
-    txn: StoreTransaction,
+    txn: OStoreTransaction,
     private val linkOrder: OQueryEntityIterable,
     private val linkName: String,
     private val sourceOrder: OQueryEntityIterable,

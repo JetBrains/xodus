@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
-import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OPropertyBlobExistsEntityIterable(
-    txn: StoreTransaction,
+    txn: OStoreTransaction,
     private val className: String,
     private val blobName: String,
 ) : OQueryEntityIterableBase(txn) {

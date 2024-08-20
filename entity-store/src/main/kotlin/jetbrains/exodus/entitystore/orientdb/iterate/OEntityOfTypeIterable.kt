@@ -15,12 +15,12 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate
 
-import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OEntityOfTypeIterable(
-    txn: StoreTransaction,
+    txn: OStoreTransaction,
     private val entityType: String,
 ) : OQueryEntityIterableBase(txn) {
 

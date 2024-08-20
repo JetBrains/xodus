@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.binop
 
-import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 import jetbrains.exodus.entitystore.orientdb.query.OUnionSelect
 
 class OConcatEntityIterable(
-    txn: StoreTransaction?,
+    txn: OStoreTransaction,
     private val iterable1: OQueryEntityIterable,
     private val iterable2: OQueryEntityIterable
 ) : OQueryEntityIterableBase(txn) {

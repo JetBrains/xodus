@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OInstanceOfCondition
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OInstanceOfIterable(
-    txn: StoreTransaction,
+    txn: OStoreTransaction,
     private val entityType: String,
     private val instanceOf: String,
     private val invert: Boolean

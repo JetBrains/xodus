@@ -15,14 +15,14 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OEqualCondition
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OPropertyEqualIterable(
-    txn: StoreTransaction,
+    txn: OStoreTransaction,
     private val entityType: String,
     private val propertyName: String,
     private val value: Comparable<*>

@@ -19,13 +19,14 @@ import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.NonDisposableEntityIterator
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 import jetbrains.exodus.entitystore.orientdb.query.OUnionSelect
 import java.util.*
 
 class OMergeSortedEntityIterable(
-    tx: StoreTransaction,
+    tx: OStoreTransaction,
     private val sorted: List<EntityIterable>,
     private val valueGetter: (Entity) -> Comparable<Any?>,
     private val comparator: Comparator<Comparable<Any>?>

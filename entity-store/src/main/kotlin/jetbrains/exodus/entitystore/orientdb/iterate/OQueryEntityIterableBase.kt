@@ -19,6 +19,7 @@ import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterableHandle
+import jetbrains.exodus.entitystore.orientdb.OEntityStore
 import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
@@ -31,9 +32,9 @@ import jetbrains.exodus.entitystore.orientdb.iterate.link.OSingleEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.*
 import jetbrains.exodus.entitystore.util.unsupported
 
-abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableBase(tx), OQueryEntityIterable {
+abstract class OQueryEntityIterableBase(tx: OStoreTransaction?) : EntityIterableBase(tx), OQueryEntityIterable {
 
-    private val otx: OStoreTransaction? = tx?.asOStoreTransaction()
+    private val oStore: OEntityStore? = tx?.getOEntityStore()
 
     companion object {
 
@@ -63,11 +64,12 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun iterator(): EntityIterator {
-        if (otx == null) {
+        val currentTx = oStore?.requireActiveTransaction()
+        if (currentTx == null) {
             return EMPTY.iterator()
         } else {
             val query = query()
-            return OQueryEntityIterator.executeAndCreate(query, otx)
+            return OQueryEntityIterator.executeAndCreate(query, currentTx)
         }
     }
 
@@ -85,7 +87,7 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         if (right == EMPTY) {
             return this
         }
-        return OUnionEntityIterable(transaction, this, right.asOQueryIterable())
+        return OUnionEntityIterable(transaction as OStoreTransaction, this, right.asOQueryIterable())
     }
 
     override fun intersectSavingOrder(right: EntityIterable): EntityIterable {
@@ -99,33 +101,33 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         if (right == EMPTY) {
             return this
         }
-        return OIntersectionEntityIterable(transaction, this, right.asOQueryIterable())
+        return OIntersectionEntityIterable(transaction as OStoreTransaction, this, right.asOQueryIterable())
     }
 
     override fun concat(right: EntityIterable): EntityIterable {
         if (right == EMPTY) {
             return this
         }
-        return OConcatEntityIterable(transaction, this, right.asOQueryIterable())
+        return OConcatEntityIterable(transaction as OStoreTransaction, this, right.asOQueryIterable())
     }
 
     override fun distinct(): EntityIterable {
-        return ODistinctEntityIterable(transaction, this)
+        return ODistinctEntityIterable(transaction as OStoreTransaction, this)
     }
 
     override fun minus(right: EntityIterable): EntityIterable {
         if (right == EMPTY) {
             return this
         }
-        return OMinusEntityIterable(transaction, this, right.asOQueryIterable())
+        return OMinusEntityIterable(transaction as OStoreTransaction, this, right.asOQueryIterable())
     }
 
     override fun take(number: Int): EntityIterable {
-        return OTakeEntityIterable(transaction, this, number)
+        return OTakeEntityIterable(transaction as OStoreTransaction, this, number)
     }
 
     override fun skip(number: Int): EntityIterable {
-        return OSkipEntityIterable(transaction, this, number)
+        return OSkipEntityIterable(transaction as OStoreTransaction, this, number)
     }
 
     override fun getFirst(): Entity? {
@@ -139,10 +141,8 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     private fun querySingleEntity(query: OQuery): Entity? {
-        if (otx == null) {
-            return null
-        }
-        val iterator = OQueryEntityIterator.executeAndCreate(query, otx)
+        val currentTx = oStore?.requireActiveTransaction() ?: return null
+        val iterator = OQueryEntityIterator.executeAndCreate(query, currentTx)
         return if (iterator.hasNext()) {
             iterator.next()
         } else {
@@ -154,11 +154,11 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
      * **Note:** Takes effect only if the iterable is sorted.
      */
     override fun reverse(): EntityIterable {
-        return OReversedEntityIterable(transaction, this)
+        return OReversedEntityIterable(transaction as OStoreTransaction, this)
     }
 
     override fun selectMany(linkName: String): EntityIterable {
-        return OLinkSelectEntityIterable(transaction, this, linkName)
+        return OLinkSelectEntityIterable(transaction as OStoreTransaction, this, linkName)
     }
 
     override fun selectManyDistinct(linkName: String): EntityIterable {
@@ -173,7 +173,7 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
         if (entities == EMPTY) {
             return EMPTY
         }
-        return OLinkIterableToEntityIterableFiltered(transaction, entities.asOQueryIterable(), linkName, this)
+        return OLinkIterableToEntityIterableFiltered(transaction as OStoreTransaction, entities.asOQueryIterable(), linkName, this)
     }
 
     override fun findLinks(entities: Iterable<Entity?>, linkName: String): EntityIterable {
@@ -195,12 +195,10 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     private var cachedSize: Long = -1
 
     override fun size(): Long {
-        if (otx == null) {
-            return 0
-        }
+        val currentTx = oStore?.requireActiveTransaction() ?: return 0
         val sourceQuery = query()
         val countQuery = OCountSelect(sourceQuery.withOrder(EmptyOrder))
-        cachedSize = countQuery.count(otx)
+        cachedSize = countQuery.count(currentTx)
         return cachedSize
     }
 
@@ -230,11 +228,11 @@ abstract class OQueryEntityIterableBase(tx: StoreTransaction?) : EntityIterableB
     }
 
     override fun contains(entity: Entity): Boolean {
-        return OIntersectionEntityIterable(otx, this, OSingleEntityIterable(otx, entity)).iterator().hasNext()
+        val currentTx = oStore?.requireActiveTransaction() ?: return false
+        return OIntersectionEntityIterable(currentTx, this, OSingleEntityIterable(currentTx, entity)).iterator().hasNext()
     }
 
     override fun unwrap() = this
-
 
     override fun isEmpty(): Boolean {
         val iter = iterator()

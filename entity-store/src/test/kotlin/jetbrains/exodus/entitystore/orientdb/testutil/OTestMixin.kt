@@ -18,7 +18,7 @@ package jetbrains.exodus.entitystore.orientdb.testutil
 import com.google.common.truth.Ordered
 import com.google.common.truth.Truth.assertThat
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OStoreTransactionImpl
 
 interface OTestMixin {
@@ -38,10 +38,8 @@ interface OTestMixin {
         return store.beginTransaction() as OStoreTransactionImpl
     }
 
-    fun oTransactional(block: (StoreTransaction) -> Unit) {
-        orientDb.store.executeInTransaction {
-            block(it)
-        }
+    fun <R> withStoreTx(block: (OStoreTransaction) -> R): R {
+        return orientDb.withStoreTx(block)
     }
 
     fun givenTestCase() = OTaskTrackerTestCase(orientDb)

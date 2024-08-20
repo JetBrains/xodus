@@ -16,13 +16,13 @@
 package jetbrains.exodus.entitystore.orientdb.iterate.link
 
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OEntityId
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.ORecordIdSelect
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
-class OMultipleEntitiesIterable(tx: StoreTransaction?, val entities: List<Entity>) : OQueryEntityIterableBase(tx) {
+class OMultipleEntitiesIterable(tx: OStoreTransaction, val entities: List<Entity>) : OQueryEntityIterableBase(tx) {
     override fun query(): OSelect {
         return ORecordIdSelect(entities.map { (it.id as OEntityId).asOId() })
     }
