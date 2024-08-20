@@ -16,13 +16,11 @@
 package jetbrains.exodus.query
 
 import com.google.common.truth.Truth.assertThat
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import io.mockk.every
 import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OStoreTransactionImpl
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -50,12 +48,11 @@ class OQueryEngineTest(
             return listOf(
                 arrayOf({ _: QueryEngine, _: InMemoryOrientDB -> null }, "Query"),
                 arrayOf({ engine: QueryEngine, db: InMemoryOrientDB ->
-                    val session = ODatabaseSession.getActiveSession() as ODatabaseSession
-                    val txn = OStoreTransactionImpl(session, db.store, db.schemaBuddy, { db.openSession() })
+                    val currentTx = db.store.requireActiveTransaction()
                     val filteringSequence = engine.instantiateGetAll(Issues.CLASS).asSequence().filter {
                         it.id.typeId >= 0
                     }
-                    InMemoryEntityIterable(filteringSequence.asIterable(), txn, engine)
+                    InMemoryEntityIterable(filteringSequence.asIterable(), currentTx, engine)
                 }, "InMemory")
             )
         }
@@ -73,7 +70,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues = engine.queryGetAll("Issue")
 
             // Then
@@ -88,7 +85,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val node = PropertyEqual("name", "issue2")
             val result = engine.query(iterableGetter(engine, orientDB), "Issue", node).toList()
 
@@ -102,10 +99,10 @@ class OQueryEngineTest(
         // Given
         val test = givenTestCase()
         val engine = givenOQueryEngine()
-        orientDB.withTxSession { test.issue1.setProperty("none", "n1") }
+        orientDB.withStoreTx { test.issue1.setProperty("none", "n1") }
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val node = PropertyEqual("none", null)
             val result = engine.query(iterableGetter(engine, orientDB), "Issue", node).toList()
 
@@ -119,10 +116,10 @@ class OQueryEngineTest(
         // Given
         val test = givenTestCase()
         val engine = givenOQueryEngine()
-        orientDB.withTxSession { test.issue2.setProperty("case", "Find me if YOU can") }
+        orientDB.withStoreTx { test.issue2.setProperty("case", "Find me if YOU can") }
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues = engine.query(iterableGetter(engine, orientDB), "Issue", PropertyContains("case", "YOU", true))
             val empty = engine.query(iterableGetter(engine, orientDB), "Issue", PropertyContains("case", "not", true))
 
@@ -137,10 +134,10 @@ class OQueryEngineTest(
         // Given
         val test = givenTestCase()
         val engine = givenOQueryEngine()
-        orientDB.withTxSession { test.issue2.setProperty("case", "Find me if YOU can") }
+        orientDB.withStoreTx { test.issue2.setProperty("case", "Find me if YOU can") }
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues = engine.query(iterableGetter(engine, orientDB), "Issue", PropertyStartsWith("case", "Find"))
             val empty = engine.query(iterableGetter(engine, orientDB), "Issue", PropertyStartsWith("case", "you"))
 
@@ -155,10 +152,10 @@ class OQueryEngineTest(
         // Given
         val test = givenTestCase()
         val engine = givenOQueryEngine()
-        orientDB.withTxSession { test.issue2.setProperty("prop", "test") }
+        orientDB.withStoreTx { test.issue2.setProperty("prop", "test") }
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues = engine.query(iterableGetter(engine, orientDB), "Issue", PropertyNotNull("prop"))
             val empty = engine.query(iterableGetter(engine, orientDB), "Issue", PropertyNotNull("no_prop"))
 
@@ -175,14 +172,14 @@ class OQueryEngineTest(
         val test = givenTestCase()
         val engine = givenOQueryEngine()
 
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             test.issue1.setProperty("order", "1")
             test.issue2.setProperty("order", "2")
             test.issue3.setProperty("order", "3")
         }
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issuesAscending = engine.query(
                 iterableGetter(engine, orientDB),
                 Issues.CLASS,
@@ -208,7 +205,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val equal1 = PropertyEqual("name", test.issue1.name())
             val equal2 = PropertyEqual("name", test.issue2.name())
             val issues = engine.query(iterableGetter(engine, orientDB), Issues.CLASS, Or(equal1, equal2))
@@ -234,14 +231,14 @@ class OQueryEngineTest(
         }
         val engine = givenOQueryEngine(metadata)
 
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             //correct blob (can be found)
             test.issue1.setBlob("myBlob", "Hello".toByteArray().inputStream())
             //blob with content of size 0 (can be found)
             test.issue2.setBlob("myBlob", ByteArray(0).inputStream())
         }
 
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues =
                 engine.query(iterableGetter(engine, orientDB), Issues.CLASS, PropertyNotNull("myBlob")).sortedBy { it.getProperty("name") }
             assertEquals(2, issues.size)
@@ -260,7 +257,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issuesOnBoard1 = engine.query(
                 iterableGetter(engine, orientDB),
                 Issues.CLASS,
@@ -291,7 +288,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.store.executeInTransaction {
             val issues = engine.query(
                 iterableGetter(engine, orientDB),
                 Issues.CLASS,
@@ -315,7 +312,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues = engine.query(
                 iterableGetter(engine, orientDB),
                 Issues.CLASS,
@@ -338,7 +335,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues = engine.queryGetAll(Issues.CLASS) as EntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
@@ -354,7 +351,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues = iterableGetter(engine, orientDB)
             if (issues != null) {
                 Assert.assertEquals(3, issues.count())
@@ -374,7 +371,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issues = iterableGetter(engine, orientDB) ?: engine.queryGetAll(Issues.CLASS)
             val boardsDistinct = engine.selectManyDistinct(issues, Issues.Links.ON_BOARD)
 
@@ -393,7 +390,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             // Find all issues that are either in project1 or board2
             val issuesOnBoard1 = LinkEqual(Issues.Links.IN_PROJECT, test.project1)
             val issuesOnBoard2 = LinkEqual(Issues.Links.ON_BOARD, test.board2)
@@ -416,7 +413,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             // Find all issues that in project1 or project2
             val issuesInProject1 = LinkEqual(Issues.Links.IN_PROJECT, testCase.project1)
             val issuesInProject2 = LinkEqual(Issues.Links.IN_PROJECT, testCase.project2)
@@ -439,7 +436,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             // Find all issues that are on board1 and board2 at the same time
             val issuesOnBoard1 = LinkEqual(Issues.Links.ON_BOARD, test.board1)
             val issuesOnBoard2 = LinkEqual(Issues.Links.ON_BOARD, test.board2)
@@ -462,7 +459,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issuesInProject = LinkEqual(Issues.Links.IN_PROJECT, testCase.project1)
             val issues = engine.query(iterableGetter(engine, orientDB), Issues.CLASS, issuesInProject)
 
@@ -480,7 +477,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issuesNotInProject = LinkEqual(Issues.Links.IN_PROJECT, null)
             val issues = engine.query(iterableGetter(engine, orientDB), Issues.CLASS, issuesNotInProject)
 
@@ -499,7 +496,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issuesOnBoard =
                 engine.query(iterableGetter(engine, orientDB), Issues.CLASS, LinkNotNull(Issues.Links.ON_BOARD))
             val issuesInProject =
@@ -520,7 +517,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val issuesInProject = UnaryNot(LinkEqual(Issues.Links.IN_PROJECT, null))
             val issues = engine.query(iterableGetter(engine, orientDB), Issues.CLASS, issuesInProject)
 
@@ -536,7 +533,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine()
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             test.issue2.setProperty(Issues.Props.PRIORITY, "normal")
 
             val nameEqual = PropertyEqual("name", "issue2")
@@ -555,10 +552,10 @@ class OQueryEngineTest(
         // Given
         val test = givenTestCase()
         val engine = givenOQueryEngine()
-        orientDB.withTxSession { test.issue2.setProperty("value", 3) }
+        orientDB.withStoreTx { test.issue2.setProperty("value", 3) }
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val exclusive = engine.query("Issue", PropertyRange("value", 1, 5))
             val inclusiveMin = engine.query("Issue", PropertyRange("value", 3, 5))
             val inclusiveMax = engine.query("Issue", PropertyRange("value", 1, 3))
@@ -593,7 +590,7 @@ class OQueryEngineTest(
         val engine = givenOQueryEngine(metadata)
 
         // When
-        orientDB.withTxSession {
+        orientDB.withStoreTx {
             val sortByLinkPropertyAsc = SortByLinkProperty(
                 null, // child node
                 Projects.CLASS, // link entity class
