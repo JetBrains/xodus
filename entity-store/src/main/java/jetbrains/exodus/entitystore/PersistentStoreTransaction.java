@@ -221,11 +221,13 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
         entityIterableCache.lockCacheAdapter();
         try {
-            var currentCache = entityIterableCache.getCacheAdapter();
-            //local cache out of sync so we need to revert tx
-            if (currentCache != localCache) {
-                revert();
-                return false;
+            if (!txn.isIdempotent()) {
+                var currentCache = entityIterableCache.getCacheAdapter();
+                //local cache out of sync so we need to revert tx
+                if (currentCache != localCache) {
+                    revert();
+                    return false;
+                }
             }
 
             if (txn.flush()) {
