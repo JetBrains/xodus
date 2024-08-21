@@ -91,7 +91,7 @@ class OStoreTransactionTest : OTestMixin {
     fun `should find property contains`() {
         // Given
         val test = givenTestCase()
-        orientDb.withSession {
+        withStoreTx {
             test.issue2.setProperty("case", "Find me if YOU can")
         }
 
@@ -110,7 +110,7 @@ class OStoreTransactionTest : OTestMixin {
     fun `should find property starts with`() {
         // Given
         val test = givenTestCase()
-        orientDb.withSession { test.issue2.setProperty("case", "Find me if YOU can") }
+        withStoreTx { test.issue2.setProperty("case", "Find me if YOU can") }
 
         // When
         withStoreTx { tx ->
@@ -127,7 +127,9 @@ class OStoreTransactionTest : OTestMixin {
     fun `should find property in range`() {
         // Given
         val test = givenTestCase()
-        orientDb.withSession { test.issue2.setProperty("value", 3) }
+        withStoreTx {
+            test.issue2.setProperty("value", 3)
+        }
 
         // When
         withStoreTx { tx ->
@@ -149,7 +151,7 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.withSession { test.issue2.setProperty("prop", "test") }
+        withStoreTx { test.issue2.setProperty("prop", "test") }
 
         // When
         withStoreTx { tx ->
@@ -192,7 +194,7 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.withSession {
+        withStoreTx {
             test.issue1.setProperty("order", "1")
             test.issue2.setProperty("order", "2")
             test.issue3.setProperty("order", "3")
@@ -223,7 +225,7 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.withSession {
+        withStoreTx {
             test.issue1.setProperty("order", "1")
             test.issue3.setProperty("order", "3")
         }
@@ -245,7 +247,7 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.withSession {
+        withStoreTx {
             // Apple -> Appointment -> 3
             test.issue3.setProperty("project", "Apple")
             test.issue3.setProperty("type", "Appointment")

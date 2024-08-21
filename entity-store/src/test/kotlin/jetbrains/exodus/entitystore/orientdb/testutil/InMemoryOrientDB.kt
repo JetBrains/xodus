@@ -19,11 +19,10 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
+import jetbrains.exodus.entitystore.orientdb.testutil.Projects.Links.HAS_ISSUE
 import org.junit.rules.ExternalResource
 
 class InMemoryOrientDB(
@@ -52,6 +51,10 @@ class InMemoryOrientDB(
                 session.getOrCreateVertexClass(Issues.CLASS)
                 session.getOrCreateVertexClass(Boards.CLASS)
                 session.getOrCreateVertexClass(Projects.CLASS)
+                session.addAssociation(Issues.CLASS, Boards.CLASS, ON_BOARD, HAS_ISSUE)
+                session.addAssociation(Boards.CLASS, Issues.CLASS, HAS_ISSUE, ON_BOARD)
+                session.addAssociation(Issues.CLASS, Projects.CLASS, IN_PROJECT, HAS_ISSUE)
+                session.addAssociation(Projects.CLASS, Issues.CLASS, HAS_ISSUE, IN_PROJECT)
             }
         }
 
@@ -114,12 +117,5 @@ class InMemoryOrientDB(
 
     fun openSession(): ODatabaseSession {
         return db.cachedPool(dbName, username, password).acquire()
-    }
-
-    fun addAssociation(fromClass: OClass, toClass: OClass, outName: String, inName: String) {
-        val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, OVertexEntity.edgeClassName(inName))
-        val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, OVertexEntity.edgeClassName(outName))
-        fromClass.createProperty(linkOutPropName, OType.LINKBAG, null as? OClass)
-        toClass.createProperty(linkInPropName, OType.LINKBAG, null as? OClass)
     }
 }

@@ -23,7 +23,6 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetE
 import jetbrains.exodus.entitystore.orientdb.createVertexClassWithClassId
 import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import jetbrains.exodus.entitystore.orientdb.testutil.createNamedEntity
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -177,8 +176,8 @@ class OModelMetaDataTest {
         orientDb.provider.acquireSession().use {
             it.createVertexClassWithClassId("type1")
         }
-        val entityId = orientDb.withSession { session ->
-            session.createNamedEntity("type1", "trista", orientDb.store).id
+        val entityId = orientDb.withStoreTx { tx ->
+            tx.newEntity("type1").id
         }
 
         val oldSchoolEntityId = PersistentEntityId(entityId.typeId, entityId.localId)

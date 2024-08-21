@@ -39,7 +39,7 @@ interface OSchemaBuddy {
      */
     fun getTypeId(session: ODatabaseSession, entityType: String): Int
 
-    fun makeSureTypeExists(session: ODatabaseSession, entityType: String)
+    fun requireTypeExists(session: ODatabaseSession, entityType: String)
 
     fun getOrCreateSequence(session: ODatabaseSession, sequenceName: String, initialValue: Long): OSequence
 
@@ -145,12 +145,9 @@ class OSchemaBuddyImpl(
         return session.getClass(entityType)?.requireClassId() ?: -1
     }
 
-    override fun makeSureTypeExists(session: ODatabaseSession, entityType: String) {
-        val existingClass = session.getClass(entityType)
-        if (existingClass != null) return
-
-        val oClass = session.createVertexClassWithClassId(entityType)
-        classIdToOClassId[oClass.requireClassId()] = oClass.defaultClusterId
+    override fun requireTypeExists(session: ODatabaseSession, entityType: String) {
+        val oClass = session.getClass(entityType)
+        check(oClass != null) { "$entityType has not been found" }
     }
 
 }
@@ -178,13 +175,6 @@ fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
         val sequence: OSequence = sequences.getSequence(CLASS_ID_SEQUENCE_NAME) ?: throw IllegalStateException("$CLASS_ID_SEQUENCE_NAME not found")
 
         oClass.setCustom(CLASS_ID_CUSTOM_PROPERTY_NAME, sequence.next().toString())
-    }
-}
-
-internal fun ODatabaseSession.setLocalEntityIdIfAbsent(vertex: OVertex) {
-    if (vertex.getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME) == null) {
-        val oClass = vertex.requireSchemaClass()
-        setLocalEntityId(oClass.name, vertex)
     }
 }
 

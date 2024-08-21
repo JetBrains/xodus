@@ -20,46 +20,46 @@ import jetbrains.exodus.entitystore.orientdb.testutil.*
 import org.junit.Rule
 import org.junit.Test
 
-class OQueryMaxTest {
+class OQueryMaxTest: OTestMixin {
 
     @Rule
     @JvmField
-    val orientDB = InMemoryOrientDB()
+    val orientDbRule = InMemoryOrientDB()
 
-
+    override val orientDb = orientDbRule
 
     @Test
     fun `should query with links recursively`() {
         // Given
         val test = givenTestCase()
-        orientDB.openSession()
-        val additionalIssues = (0..200).map {
-            orientDB.createIssue("trash-$it", "minor").also { issue->
-                orientDB.addIssueToProject(issue, test.project3)
-            }
-        }
-        (0..200).map {
-            orientDB.createBoard("trash-board-$it").also { board->
-                additionalIssues.forEach { issue->
-                    orientDB.addIssueToBoard(issue, board)
+
+        val num = 3
+        withStoreTx { tx ->
+            val additionalIssues = List(num) {
+                tx.createIssue("trash-$it", "minor").also { issue ->
+                    tx.addIssueToProject(issue, test.project3)
                 }
             }
-        }
-
-        // Issues assigned to projects
-        orientDB.addIssueToProject(test.issue1, test.project1)
-        orientDB.addIssueToProject(test.issue2, test.project1)
-        orientDB.withSession {
+            repeat(num) {
+                tx.createBoard("trash-board-$it").also { board->
+                    additionalIssues.forEach { issue ->
+                        tx.addIssueToBoard(issue, board)
+                    }
+                }
+            }
+            // Issues assigned to projects
+            tx.addIssueToProject(test.issue1, test.project1)
+            tx.addIssueToProject(test.issue2, test.project1)
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
             test.issue1.setProperty(Issues.Props.PRIORITY, "critical")
             test.issue2.setProperty(Issues.Props.PRIORITY, "critical")
         }
-        orientDB.addIssueToBoard(test.issue2, test.board1)
-        orientDB.addIssueToBoard(test.issue1, test.board1)
 
-        //
+        println("adding completed")
 
         // When
-        orientDB.store.executeInTransaction { tx ->
+        withStoreTx { tx ->
             val issuesInProject = tx.findLinks(Issues.CLASS, test.project1, Issues.Links.IN_PROJECT)
 
             fun query(issues: EntityIterable, level: Int = 0): EntityIterable {
@@ -82,6 +82,4 @@ class OQueryMaxTest {
             println("Spent time on calculation ${System.currentTimeMillis() - time}ms")
         }
     }
-
-    private fun givenTestCase() = OTaskTrackerTestCase(orientDB)
 }

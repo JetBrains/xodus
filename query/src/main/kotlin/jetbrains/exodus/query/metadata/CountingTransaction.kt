@@ -66,7 +66,7 @@ internal class CountingTransaction(
     }
 
     fun newVertex(type: String, localEntityId: Long): OVertexEntity {
-        return txn.newEntityNoSchema(type, localEntityId)
+        return txn.newEntity(type, localEntityId)
     }
 }
 

@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues
-import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
+import jetbrains.exodus.entitystore.orientdb.testutil.createIssueImpl
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -30,11 +30,13 @@ class DBCompactTest {
 
     @Test
     fun `database compacter should work`() {
-        (0..99).forEach {
-            orientDb.createIssue("Test issue ${it}")
+        orientDb.withStoreTx { tx ->
+            (0..99).forEach {
+                tx.createIssueImpl("Test issue $it")
+            }
         }
         orientDb.provider.compact()
-        orientDb.store.executeInTransaction {
+        orientDb.withStoreTx {
             val size = it.getAll(Issues.CLASS).size()
             Assert.assertEquals(100, size)
         }

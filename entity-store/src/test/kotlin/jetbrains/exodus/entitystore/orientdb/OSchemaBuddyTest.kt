@@ -19,9 +19,11 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertFailsWith
 
 class OSchemaBuddyTest {
 
@@ -49,16 +51,12 @@ class OSchemaBuddyTest {
     }
 
     @Test
-    fun `buddy properly creates a class if absent`() {
+    fun `requireTypeExists() fails if the class is absent`() {
         val buddy = OSchemaBuddyImpl(orientDb.provider)
         val className = "trista"
-        orientDb.provider.acquireSession().use { session ->
+        orientDb.withSession { session ->
             assertNull(session.getClass(className))
-            buddy.makeSureTypeExists(session, className)
-            val oClass = session.getClass(className)
-            assertNotNull(oClass)
-            assertNotNull(oClass.getCustom(OVertexEntity.CLASS_ID_CUSTOM_PROPERTY_NAME))
-            assertNotNull(session.metadata.sequenceLibrary.getSequence(OVertexEntity.localEntityIdSequenceName(className)))
+            assertFailsWith<IllegalStateException> { buddy.requireTypeExists(session, className) }
         }
     }
 

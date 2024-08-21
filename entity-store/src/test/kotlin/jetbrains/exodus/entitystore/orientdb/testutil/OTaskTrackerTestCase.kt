@@ -15,20 +15,33 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
+
 class OTaskTrackerTestCase(val orientDB: InMemoryOrientDB) {
 
-    val project1 = orientDB.createProject("project1")
-    val project2 = orientDB.createProject("project2")
-    val project3 = orientDB.createProject("project3")
+    val project1: OVertexEntity
+    val project2: OVertexEntity
+    val project3: OVertexEntity
 
-    val issue1 = orientDB.createIssue("issue1")
-    val issue2 = orientDB.createIssue("issue2")
-    val issue3 = orientDB.createIssue("issue3")
+    val issue1: OVertexEntity = orientDB.createIssue("issue1")
+    val issue2: OVertexEntity = orientDB.createIssue("issue2")
+    val issue3: OVertexEntity = orientDB.createIssue("issue3")
 
-    val board1 = orientDB.createBoard("board1")
-    val board2 = orientDB.createBoard("board2")
-    val board3 = orientDB.createBoard("board3")
+    val board1: OVertexEntity
+    val board2: OVertexEntity
+    val board3: OVertexEntity
 
+    init {
+        val tx = orientDB.store.beginTransaction() as OStoreTransaction
+        project1 = tx.createProjectImpl("project1")
+        project2 = tx.createProjectImpl("project2")
+        project3 = tx.createProjectImpl("project3")
+        board1 = tx.createBoardImpl("board1")
+        board2 = tx.createBoardImpl("board2")
+        board3 = tx.createBoardImpl("board3")
+        tx.commit()
+    }
 
     fun createManyIssues(count: Int) {
         for (i in 1..count) {

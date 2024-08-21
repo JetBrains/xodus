@@ -62,7 +62,7 @@ class OStoreTransactionImpl(
 
     override fun newElement(typeName: String): OElement {
         requireActiveWritableTransaction()
-        schemaBuddy.makeSureTypeExists(session, typeName)
+        schemaBuddy.requireTypeExists(session, typeName)
         return session.newElement(typeName)
     }
 
@@ -177,14 +177,14 @@ class OStoreTransactionImpl(
 
     override fun newEntity(entityType: String): Entity {
         requireActiveWritableTransaction()
-        schemaBuddy.makeSureTypeExists(session, entityType)
+        schemaBuddy.requireTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         session.setLocalEntityId(entityType, vertex)
         vertex.save<OVertex>()
         return OVertexEntity(vertex, store)
     }
 
-    override fun newEntityNoSchema(entityType: String, localEntityId: Long): OVertexEntity {
+    override fun newEntity(entityType: String, localEntityId: Long): OVertexEntity {
         requireActiveWritableTransaction()
         val vertex = session.newVertex(entityType)
         vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
