@@ -55,7 +55,9 @@ class OEntityIterableBaseTest : OTestMixin {
     fun `should iterable link is null`() {
         // Given
         val test = givenTestCase()
-        orientDb.addIssueToProject(test.issue1, test.project1)
+        withStoreTx { tx ->
+            tx.addIssueToProject(test.issue1, test.project1)
+        }
 
         // When
         withStoreTx { tx ->
@@ -126,9 +128,11 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+        }
 
         // When
         withStoreTx { tx ->
@@ -146,9 +150,11 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+        }
 
         // When
         withStoreTx { tx ->
@@ -166,10 +172,12 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue3, test.board1)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
 
         // When
         withStoreTx { tx ->
@@ -236,10 +244,12 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue3, test.board1)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
 
         // When
         withStoreTx { tx ->
@@ -314,10 +324,12 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue3, test.board3)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board3)
+        }
 
         // When
         withStoreTx { tx ->

@@ -18,34 +18,42 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues
+import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
 
-class OSchemaBuddyTest {
+class OSchemaBuddyTest: OTestMixin {
 
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB(initializeIssueSchema = false)
+    val orientDbRule = InMemoryOrientDB(initializeIssueSchema = false)
+
+    override val orientDb = orientDbRule
 
     @Test
     fun `if autoInitialize is false, explicit initialization is required`() {
-        val issueId = orientDb.createIssue("trista").id
+        withSession { session ->
+            session.getOrCreateVertexClass(Issues.CLASS)
+        }
+        val issueId = withStoreTx { tx ->
+            tx.createIssue("trista").id
+        }
         val buddy = OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)
 
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
-        orientDb.withSession {
+        withSession {
             assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(it, totallyExistingEntityId))
         }
 
-        orientDb.withSession {
+        withSession {
             buddy.initialize(it)
         }
 
-        orientDb.withSession {
+        withSession {
             assertEquals(issueId, buddy.getOEntityId(it, totallyExistingEntityId))
         }
     }
@@ -54,7 +62,7 @@ class OSchemaBuddyTest {
     fun `requireTypeExists() fails if the class is absent`() {
         val buddy = OSchemaBuddyImpl(orientDb.provider)
         val className = "trista"
-        orientDb.withSession { session ->
+        withSession { session ->
             assertNull(session.getClass(className))
             assertFailsWith<IllegalStateException> { buddy.requireTypeExists(session, className) }
         }
@@ -62,14 +70,19 @@ class OSchemaBuddyTest {
 
     @Test
     fun `getOEntityId() works with both existing and not existing EntityId`() {
-        val issueId = orientDb.createIssue("trista").id
+        withSession { session ->
+            session.getOrCreateVertexClass(Issues.CLASS)
+        }
+        val issueId = withStoreTx { tx ->
+            tx.createIssue("trista").id
+        }
         val buddy = OSchemaBuddyImpl(orientDb.provider, autoInitialize = true)
 
         val notExistingEntityId = PersistentEntityId(300, 301)
         val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
         val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
-        orientDb.withSession {
+        withSession {
             assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(it, notExistingEntityId))
             assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(it, partiallyExistingEntityId1))
             assertEquals(ORIDEntityId.EMPTY_ID, buddy.getOEntityId(it, partiallyExistingEntityId2))
@@ -82,7 +95,7 @@ class OSchemaBuddyTest {
     * */
     @Test
     fun `sequence does not roll back already generated values if the transaction is rolled back`() {
-        orientDb.withSession { session ->
+        withSession { session ->
             val params = OSequence.CreateParams()
             params.start = 0
             session.metadata.sequenceLibrary.createSequence("seq", OSequence.SEQUENCE_TYPE.ORDERED, params)

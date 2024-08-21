@@ -74,8 +74,10 @@ class OStoreTransactionTest : OTestMixin {
     fun `findLinks should return correct entityType`() {
         val test = givenTestCase()
 
-        orientDb.addIssueToProject(test.issue1, test.project1)
-        orientDb.addIssueToBoard(test.issue1, test.board1)
+        withStoreTx { tx ->
+            tx.addIssueToProject(test.issue1, test.project1)
+            tx.addIssueToBoard(test.issue1, test.board1)
+        }
 
         withStoreTx {
             Assert.assertEquals(1, it.findLinks(Boards.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size())
@@ -280,9 +282,11 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val testCase = givenTestCase()
 
-        orientDb.addIssueToProject(testCase.issue1, testCase.project1)
-        orientDb.addIssueToProject(testCase.issue2, testCase.project1)
-        orientDb.addIssueToProject(testCase.issue3, testCase.project2)
+        withStoreTx { tx ->
+            tx.addIssueToProject(testCase.issue1, testCase.project1)
+            tx.addIssueToProject(testCase.issue2, testCase.project1)
+            tx.addIssueToProject(testCase.issue3, testCase.project2)
+        }
 
         // When
         withStoreTx { tx ->
@@ -298,9 +302,11 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val testCase = givenTestCase()
 
-        orientDb.addIssueToProject(testCase.issue1, testCase.project1)
-        orientDb.addIssueToProject(testCase.issue2, testCase.project1)
-        orientDb.addIssueToProject(testCase.issue3, testCase.project2)
+        withStoreTx { tx ->
+            tx.addIssueToProject(testCase.issue1, testCase.project1)
+            tx.addIssueToProject(testCase.issue2, testCase.project1)
+            tx.addIssueToProject(testCase.issue3, testCase.project2)
+        }
 
         // When
         withStoreTx { tx ->
@@ -317,8 +323,10 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board2)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board2)
+        }
 
         // When
         withStoreTx { tx ->
@@ -336,9 +344,11 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val testCase = givenTestCase()
 
-        orientDb.addIssueToProject(testCase.issue1, testCase.project1)
-        orientDb.addIssueToProject(testCase.issue2, testCase.project1)
-        orientDb.addIssueToProject(testCase.issue3, testCase.project2)
+        withStoreTx { tx ->
+            tx.addIssueToProject(testCase.issue1, testCase.project1)
+            tx.addIssueToProject(testCase.issue2, testCase.project1)
+            tx.addIssueToProject(testCase.issue3, testCase.project2)
+        }
 
         // When
         withStoreTx { tx ->
@@ -357,10 +367,12 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board2)
-        orientDb.addIssueToBoard(test.issue3, test.board3)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board2)
+            tx.addIssueToBoard(test.issue3, test.board3)
+        }
 
         // When
         withStoreTx { tx ->
@@ -379,9 +391,11 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToProject(test.issue1, test.project1)
-        orientDb.addIssueToBoard(test.issue2, test.board2)
-        orientDb.addIssueToBoard(test.issue3, test.board3)
+        withStoreTx { tx ->
+            tx.addIssueToProject(test.issue1, test.project1)
+            tx.addIssueToBoard(test.issue2, test.board2)
+            tx.addIssueToBoard(test.issue3, test.board3)
+        }
 
         // When
         withStoreTx { tx ->
@@ -402,9 +416,11 @@ class OStoreTransactionTest : OTestMixin {
         val test = givenTestCase()
 
         // Issues assigned to projects ink reverse order
-        orientDb.addIssueToProject(test.issue1, test.project1)
-        orientDb.addIssueToProject(test.issue2, test.project2)
-        orientDb.addIssueToProject(test.issue3, test.project3)
+        withStoreTx { tx ->
+            tx.addIssueToProject(test.issue1, test.project1)
+            tx.addIssueToProject(test.issue2, test.project2)
+            tx.addIssueToProject(test.issue3, test.project3)
+        }
 
         // When
         withStoreTx { tx ->
@@ -443,14 +459,16 @@ class OStoreTransactionTest : OTestMixin {
         val test = givenTestCase()
 
         // Issues assigned to projects in reverse order
-        orientDb.addIssueToProject(test.issue1, test.project3)
-        orientDb.addIssueToProject(test.issue1, test.project2)
+        withStoreTx { tx ->
+            tx.addIssueToProject(test.issue1, test.project3)
+            tx.addIssueToProject(test.issue1, test.project2)
 
-        orientDb.addIssueToProject(test.issue2, test.project2)
-        orientDb.addIssueToProject(test.issue2, test.project1)
+            tx.addIssueToProject(test.issue2, test.project2)
+            tx.addIssueToProject(test.issue2, test.project1)
 
-        orientDb.addIssueToProject(test.issue3, test.project1)
-        orientDb.addIssueToProject(test.issue3, test.project2)
+            tx.addIssueToProject(test.issue3, test.project1)
+            tx.addIssueToProject(test.issue3, test.project2)
+        }
 
         // When
         withStoreTx { tx ->
@@ -475,10 +493,12 @@ class OStoreTransactionTest : OTestMixin {
     fun `should select many links`() {
         // Given
         val test = givenTestCase()
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue3, test.board1)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
 
         // When
         withStoreTx { tx ->
@@ -495,10 +515,12 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue3, test.board1)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
 
         // When
         withStoreTx { tx ->
@@ -627,8 +649,8 @@ class OStoreTransactionTest : OTestMixin {
     * */
     @Test
     fun `newEntity() throws exception if the type is not created`() {
-        orientDb.store.executeInTransaction { tx ->
-            assertFailsWith<AssertionError> {
+        withStoreTx { tx ->
+            assertFailsWith<IllegalStateException> {
                 tx.newEntity("opca")
             }
         }
@@ -664,8 +686,10 @@ class OStoreTransactionTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board2)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board2)
+        }
 
         withStoreTx { tx ->
             val boards = OEntityOfTypeIterable(tx, Issues.CLASS).selectManyDistinct(Issues.Links.ON_BOARD).toList()
@@ -679,7 +703,9 @@ class OStoreTransactionTest : OTestMixin {
     fun `contains should work `() {
         // Given
         val test = givenTestCase()
-        orientDb.addIssueToBoard(test.issue1, test.board1)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+        }
 
         withStoreTx { tx ->
             val issues = OEntityOfTypeIterable(tx, Issues.CLASS)
@@ -698,6 +724,16 @@ class OStoreTransactionTest : OTestMixin {
             (ODatabaseSession.getActiveSession() as ODatabaseSession).requireActiveTransaction()
             tx.flush()
             (ODatabaseSession.getActiveSession() as ODatabaseSession).requireActiveTransaction()
+        }
+    }
+
+    @Test
+    fun `transactionId does not get changed on flush()`() {
+        withStoreTx { tx ->
+            val oTransactionId = ODatabaseSession.getActiveSession().transaction.id.toLong()
+            assertEquals(oTransactionId, tx.getTransactionId())
+            tx.flush()
+            assertEquals(oTransactionId, tx.getTransactionId())
         }
     }
 }

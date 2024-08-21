@@ -43,9 +43,21 @@ class OStoreTransactionImpl(
     private val readOnly: Boolean = false
 ) : OStoreTransaction {
     private var queryCancellingPolicy: OQueryCancellingPolicy? = null
-    // todo test
+
+    /**
+     * The Orient transaction gets changed on flush(), so its id gets changed too.
+     * It would be strange if id of OStoreTransaction gets changed during its lifetime,
+     * so it was decided to remember the first Orient transaction id and use it as OStoreTransaction id.
+     *
+     * If you think that it should be implemented differently, come and let's discuss.
+     */
+    private val transactionIdImpl by lazy {
+        session.transaction.id.toLong()
+    }
+
     override fun getTransactionId(): Long {
-        return session.transaction.id.toLong()
+        requireActiveTransaction()
+        return transactionIdImpl
     }
 
     // todo test

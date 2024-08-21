@@ -64,23 +64,6 @@ fun InMemoryOrientDB.createIssue(name: String, priority: String? = null): OVerte
     }
 }
 
-fun InMemoryOrientDB.addIssueToProject(issue: OEntity, project: OEntity) {
-    withStoreTx { tx ->
-        tx.addIssueToProjectImpl(issue, project)
-    }
-}
-
-fun InMemoryOrientDB.addIssueToBoard(issue: OEntity, board: OEntity) {
-    withSession { session ->
-        session.addAssociation(Issues.CLASS, Boards.CLASS, ON_BOARD, HAS_ISSUE)
-        session.addAssociation(Boards.CLASS, Issues.CLASS, HAS_ISSUE, ON_BOARD)
-    }
-    withStoreTx {
-        issue.addLink(ON_BOARD, board)
-        board.addLink(Boards.Links.HAS_ISSUE, issue)
-    }
-}
-
 fun OEntity.name(): Comparable<*> {
     return getProperty("name") ?: throw IllegalStateException("Entity has no name property")
 }
