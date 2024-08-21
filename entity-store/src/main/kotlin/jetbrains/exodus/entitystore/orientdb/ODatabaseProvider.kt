@@ -78,7 +78,7 @@ internal fun requireNoActiveSession() {
     check(!hasActiveSession()) { "Active session is detected on the current thread" }
 }
 
-private fun hasActiveSession(): Boolean {
+internal fun hasActiveSession(): Boolean {
     val db = ODatabaseRecordThreadLocal.instance().getIfDefined()
     return db != null
 }

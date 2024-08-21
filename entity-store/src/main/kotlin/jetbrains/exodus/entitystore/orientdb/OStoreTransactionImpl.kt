@@ -33,13 +33,15 @@ import jetbrains.exodus.entitystore.orientdb.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.env.Transaction
 
-typealias OnTransactionFinishedHandler = (ODatabaseSession, OStoreTransaction) -> Unit
+internal typealias TransactionEventHandler = (ODatabaseSession, OStoreTransaction) -> Unit
 
 class OStoreTransactionImpl(
     private val session: ODatabaseSession,
     private val store: OPersistentEntityStore,
     private val schemaBuddy: OSchemaBuddy,
-    private val onFinished: OnTransactionFinishedHandler,
+    private val onFinished: TransactionEventHandler,
+    private val onDeactivated: TransactionEventHandler,
+    private val onActivated: TransactionEventHandler,
     private val readOnly: Boolean = false
 ) : OStoreTransaction {
     private var queryCancellingPolicy: OQueryCancellingPolicy? = null
@@ -52,11 +54,11 @@ class OStoreTransactionImpl(
      * If you think that it should be implemented differently, come and let's discuss.
      */
     private val transactionIdImpl by lazy {
+        requireActiveTransaction()
         session.transaction.id.toLong()
     }
 
     override fun getTransactionId(): Long {
-        requireActiveTransaction()
         return transactionIdImpl
     }
 
@@ -114,7 +116,7 @@ class OStoreTransactionImpl(
     }
 
     override fun requireActiveTransaction() {
-        check(session.status != ODatabase.STATUS.CLOSED) { "The transaction is finished, the internal session state: ${session.status}" }
+        check(session.status == ODatabase.STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
         check(session.isActiveOnCurrentThread) { "The active session is no the session the transaction was started in" }
         check(session.transaction.status == TXSTATUS.BEGUN) { "The current OTransaction status is ${session.transaction.status}, but the status ${TXSTATUS.BEGUN} was expected." }
     }
@@ -124,12 +126,25 @@ class OStoreTransactionImpl(
         requireActiveTransaction()
     }
 
+    override fun deactivateOnCurrentThread() {
+        requireActiveTransaction()
+        onDeactivated(session, this)
+    }
+
+    override fun activateOnCurrentThread() {
+        check(session.status == ODatabase.STATUS.OPEN) { "The transaction is finished, the internal session state: ${session.status}" }
+        check(!session.isActiveOnCurrentThread) { "The transaction is already active on the current thread" }
+        onActivated(session, this)
+    }
+
     fun begin() {
         check(session.status == ODatabase.STATUS.OPEN) { "The session status is ${session.status}. But ${ODatabase.STATUS.OPEN} is required." }
         check(session.isActiveOnCurrentThread) { "The session is not active on the current thread" }
         check(session.transaction is OTransactionNoTx) { "The session must not have a transaction" }
         try {
             session.begin()
+            // initialize transaction id
+            transactionIdImpl
         } finally {
             cleanUpTxIfNeeded()
         }

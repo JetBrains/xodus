@@ -28,11 +28,17 @@ interface OStoreTransaction : StoreTransaction {
 
     fun getOEntityStore(): OEntityStore
 
+    fun getTransactionId(): Long
+
+
     fun requireActiveTransaction()
 
     fun requireActiveWritableTransaction()
 
-    fun getTransactionId(): Long
+    fun deactivateOnCurrentThread()
+
+    fun activateOnCurrentThread()
+
 
     fun load(id: OEntityId): OVertex?
 

@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
@@ -33,7 +34,7 @@ class OPersistentEntityStore(
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
     private val env = OEnvironment(databaseProvider.database, this)
-    private val currentTransaction = ThreadLocal<OStoreTransactionImpl>()
+    private val currentTransaction = ThreadLocal<OStoreTransaction>()
 
     override fun close() {
         //or it should be closed independently
@@ -62,7 +63,7 @@ class OPersistentEntityStore(
     }
 
     private fun beginTransactionImpl(readOnly: Boolean): StoreTransaction {
-        var currentTx: OStoreTransactionImpl? = currentTransaction.get()
+        var currentTx: OStoreTransaction? = currentTransaction.get()
         check(currentTx == null) { "EntityStore has a transaction on the current thread. Finish it before starting a new one." }
 
         val session = databaseProvider.acquireSession()
@@ -72,6 +73,8 @@ class OPersistentEntityStore(
             store = this,
             schemaBuddy,
             onFinished = ::onTransactionFinished,
+            onDeactivated = ::onTransactionDeactivated,
+            onActivated = ::onTransactionActivated,
             readOnly = readOnly
         )
         currentTransaction.set(currentTx)
@@ -85,6 +88,23 @@ class OPersistentEntityStore(
         check(!session.isClosed) { "The session should not be closed at this point." }
         currentTransaction.remove()
         session.close()
+    }
+
+    private fun onTransactionDeactivated(session: ODatabaseSession, tx: OStoreTransaction) {
+        check(currentTransaction.get() == tx) { "Impossible to deactivate the transaction. The transaction on the current thread is different from one that wants to suspend. It must not ever happen." }
+        check(!tx.isFinished) { "Cannot deactivate a finished transaction" }
+        check(!session.isClosed) { "Cannot deactivate a closed session" }
+        currentTransaction.remove()
+        ODatabaseRecordThreadLocal.instance().remove()
+    }
+
+    private fun onTransactionActivated(session: ODatabaseSession, tx: OStoreTransaction) {
+        check(currentTransaction.get() == null) { "Impossible to activate the transaction. There is already an active transaction on the current thread." }
+        check(!hasActiveSession()) { "There is an active session on the current thread" }
+        check(!tx.isFinished) { "Cannot activate a finished transaction" }
+        check(!session.isClosed) { "Cannot activate a closed session" }
+        session.activateOnCurrentThread()
+        currentTransaction.set(tx)
     }
 
     override fun getCurrentTransaction(): StoreTransaction? {

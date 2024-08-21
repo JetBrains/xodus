@@ -736,4 +736,44 @@ class OStoreTransactionTest : OTestMixin {
             assertEquals(oTransactionId, tx.getTransactionId())
         }
     }
+
+    @Test
+    fun `deactivate, activate transactions`() {
+        // TX1
+        val tx1 = beginTransaction()
+        val e1 = tx1.createIssue("mamba1")
+        tx1.deactivateOnCurrentThread()
+        // you cannot suspend an already suspended transaction
+        assertFailsWith<IllegalStateException> { tx1.deactivateOnCurrentThread() }
+
+        // TX2
+        val tx2 = beginTransaction()
+        // there is an active transaction on the current thread, so you cannot activate one more
+        assertFailsWith<IllegalStateException> { tx1.activateOnCurrentThread() }
+        // tx1 has not been commited yet, se we do not see its changes
+        assertFailsWith<EntityRemovedInDatabaseException> { tx2.getEntity(e1.id) }
+
+        val e2 = tx2.createIssue("mamba2")
+        tx2.deactivateOnCurrentThread()
+
+        // TX1
+        tx1.activateOnCurrentThread()
+        // tx2 has not been commited yet, so you cannot see its changes
+        assertFailsWith<EntityRemovedInDatabaseException> { tx1.getEntity(e2.id) }
+        tx1.commit()
+
+        // you cannot activate a finished transaction
+        assertFailsWith<IllegalStateException> { tx1.activateOnCurrentThread() }
+
+        // TX2
+        tx2.activateOnCurrentThread()
+        // e1 is already visible, yeah, it is not Serializable isolation
+        tx2.getEntity(e1.id)
+        tx2.commit()
+
+        // TX3
+        val tx3 = beginTransaction()
+        tx3.getEntity(e2.id)
+        tx3.commit()
+    }
 }
