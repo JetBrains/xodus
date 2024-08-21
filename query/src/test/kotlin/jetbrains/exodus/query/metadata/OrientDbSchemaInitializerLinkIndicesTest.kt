@@ -18,7 +18,6 @@ package jetbrains.exodus.query.metadata
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
@@ -353,43 +352,33 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         // (1, { v3 } ) != (1, no links)
-        val (id1, id2, id3) = orientDb.withTxSession { oSession ->
-            val v1 = oSession.createVertexAndSetLocalEntityId("type1")
-            val v2 = oSession.createVertexAndSetLocalEntityId("type1")
-            val v3 = oSession.createVertexAndSetLocalEntityId("type2")
+        val (id1, id2, id3) = orientDb.withStoreTx { tx ->
+            val e1 = tx.newEntity("type1")
+            val e2 = tx.newEntity("type1")
+            val e3 = tx.newEntity("type2")
 
-            val e1 = OVertexEntity(v1, orientDb.store)
-            val e2 = OVertexEntity(v2, orientDb.store)
-            val e3 = OVertexEntity(v3, orientDb.store)
             e1.setProperty("prop1", 1)
             e2.setProperty("prop1", 1)
 
             e1.addLink("ass1", e3)
-            Triple(v1.identity, v2.identity, v3.identity)
+            Triple(e1.id, e2.id, e3.id)
         }
 
         // (1, { v3 } ) == (1, { v3 } )
         assertFailsWith<ORecordDuplicatedException> {
-            orientDb.withTxSession { oSession ->
-                val v2 = oSession.getRecord<OVertex>(id2)
-                val v3 = oSession.getRecord<OVertex>(id3)
-
-                val e2 = OVertexEntity(v2, orientDb.store)
-                val e3 = OVertexEntity(v3, orientDb.store)
+            orientDb.withStoreTx { tx ->
+                val e2 = tx.getEntity(id2)
+                val e3 = tx.getEntity(id3)
 
                 e2.addLink("ass1", e3)
             }
         }
 
         // (1, no links) != (1, { v3 } )
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.getRecord<OVertex>(id1)
-            val v2 = oSession.getRecord<OVertex>(id2)
-            val v3 = oSession.getRecord<OVertex>(id3)
-
-            val e1 = OVertexEntity(v1, orientDb.store)
-            val e2 = OVertexEntity(v2, orientDb.store)
-            val e3 = OVertexEntity(v3, orientDb.store)
+        orientDb.withStoreTx { tx ->
+            val e1 = tx.getEntity(id1)
+            val e2 = tx.getEntity(id1)
+            val e3 = tx.getEntity(id1)
 
             e1.deleteLink("ass1", e3)
             e2.addLink("ass1", e3)
@@ -410,17 +399,14 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         val edgeClassName = edgeClassName("ass1")
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.createVertexAndSetLocalEntityId("type1")
-            v1.setPropertyAndSave("prop1", 1)
+        orientDb.withStoreTx { tx ->
+            val e1 = tx.newEntity("type1")
+            e1.setProperty("prop1", 1)
+            val e2 = tx.newEntity("type1")
+            e2.setProperty("prop1", 2)
 
-            val v2 = oSession.createVertexAndSetLocalEntityId("type1")
-            v2.setPropertyAndSave("prop1", 2)
-
-            val entity1 = OVertexEntity(v1, orientDb.store)
-            val entity2 = OVertexEntity(v2, orientDb.store)
-            entity1.addLink("ass1", entity2)
-            entity1.addLink("ass1", entity2)
+            e1.addLink("ass1", e2)
+            e1.addLink("ass1", e2)
         }
 
         orientDb.withTxSession { oSession ->
@@ -446,27 +432,22 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
         val edgeClassName = edgeClassName("ass1")
         // trying to add the same edge in a single transaction
-        val (id1, id2) = orientDb.withTxSession { oSession ->
-            val v1 = oSession.createVertexAndSetLocalEntityId("type1")
-            v1.setPropertyAndSave("prop1", 1)
+        val (id1, id2) = orientDb.withStoreTx { tx ->
+            val e1 = tx.newEntity("type1")
+            val e2 = tx.newEntity("type1")
+            e1.setProperty("prop1", 1)
+            e2.setProperty("prop1", 2)
 
-            val v2 = oSession.createVertexAndSetLocalEntityId("type1")
-            v2.setPropertyAndSave("prop1", 2)
-
-            val entity1 = OVertexEntity(v1, orientDb.store)
-            val entity2 = OVertexEntity(v2, orientDb.store)
-            entity1.addLink("ass1", entity2)
-            entity1.addLink("ass1", entity2)
-            Pair(v1.identity, v2.identity)
+            e1.addLink("ass1", e2)
+            e1.addLink("ass1", e2)
+            Pair(e1.id, e2.id)
         }
 
         // trying to add the same edge in another transaction
-        orientDb.withTxSession { oSession ->
-            val v1 = oSession.getRecord<OVertex>(id1)
-            val v2 = oSession.getRecord<OVertex>(id2)
-            val entity1 = OVertexEntity(v1, orientDb.store)
-            val entity2 = OVertexEntity(v2, orientDb.store)
-            entity1.addLink("ass1", entity2)
+        orientDb.withStoreTx { tx ->
+            val e1 = tx.getEntity(id1)
+            val e2 = tx.getEntity(id2)
+            e1.addLink("ass1", e2)
         }
 
         orientDb.withTxSession { oSession ->

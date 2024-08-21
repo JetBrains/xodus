@@ -364,7 +364,7 @@ internal class OrientDbSchemaInitializer(
     ) {
         val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
         append("outProp: ${outClass.name}.$linkOutPropName")
-        val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName, null)
+        val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName)
         if (applyLinkCardinality) {
             // applying cardinality only to out direct property
             outProp.applyCardinality(outCardinality)
@@ -373,7 +373,7 @@ internal class OrientDbSchemaInitializer(
 
         val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
         append("inProp: ${inClass.name}.$linkInPropName")
-        inClass.createLinkPropertyIfAbsent(linkInPropName, null)
+        inClass.createLinkPropertyIfAbsent(linkInPropName)
         appendLine()
 
         /*
@@ -679,17 +679,15 @@ internal class OrientDbSchemaInitializer(
     *
     * But we still can set linkedClassType for direct link out-properties.
     * */
-    private fun OClass.createLinkPropertyIfAbsent(propertyName: String, linkedClass: OClass?): OProperty {
-        append(", linkedClassType class is ${linkedClass?.name}")
+    private fun OClass.createLinkPropertyIfAbsent(propertyName: String): OProperty {
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")
             getProperty(propertyName)
         } else {
             append(", created")
-            createProperty(propertyName, OType.LINKBAG, linkedClass)
+            createProperty(propertyName, OType.LINKBAG)
         }
         require(oProperty.type == OType.LINKBAG) { "$propertyName type is ${oProperty.type} but ${OType.LINKBAG} was expected instead. Types migration is not supported." }
-        require(oProperty.linkedClass == linkedClass) { "$propertyName type of the set is ${oProperty.linkedClass.name} but ${linkedClass?.name} was expected instead. Types migration is not supported." }
         return oProperty
     }
 
