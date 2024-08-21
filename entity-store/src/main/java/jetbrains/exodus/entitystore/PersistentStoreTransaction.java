@@ -218,18 +218,25 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
     // exposed only for tests
     boolean doFlush() {
-        if(txn.isIdempotent()) {
-            localCache.release();
+        final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
+        entityIterableCache.lockCacheAdapter();
+        try {
+            var currentCache = entityIterableCache.getCacheAdapter();
+            //local cache out of sync so we need to revert tx
+            if (currentCache != localCache) {
+                revert();
+                return false;
+            }
 
-            final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
-            localCache = (EntityIterableCacheAdapter) entityIterableCache.getCacheAdapter();
+            if (txn.flush()) {
+                flushNonTransactionalBlobs();
+                flushCaches(false); // do not clear props & links caches
+                return true;
+            }
+        } finally {
+            entityIterableCache.unlockCacheAdapter();
         }
 
-        if (txn.flush()) {
-            flushNonTransactionalBlobs();
-            flushCaches(false); // do not clear props & links caches
-            return true;
-        }
         revert();
         return false;
     }
