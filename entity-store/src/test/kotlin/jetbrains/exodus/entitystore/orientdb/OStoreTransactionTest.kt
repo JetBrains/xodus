@@ -19,6 +19,7 @@ import com.google.common.truth.Truth.assertThat
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.exception.ODatabaseException
 import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
@@ -33,6 +34,7 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 class OStoreTransactionTest : OTestMixin {
 
@@ -776,4 +778,47 @@ class OStoreTransactionTest : OTestMixin {
         tx3.getEntity(e2.id)
         tx3.commit()
     }
+
+    @Test
+    fun `entities understand when a transaction gets activated and deactivated`() {
+        val id = withStoreTx { tx ->
+            val e1 = tx.createIssue("trista")
+            tx.deactivateOnCurrentThread()
+            // no active transaction on the current thread
+            assertFailsWith<IllegalStateException> { e1.setProperty("mamba", "mamba") }
+            tx.activateOnCurrentThread()
+            e1.setProperty("mamba", "mamba")
+            e1.id
+        }
+
+        withStoreTx { tx ->
+            val e1 = tx.getEntity(id)
+            tx.deactivateOnCurrentThread()
+            // no active transaction on the current thread
+            assertFailsWith<IllegalStateException> { e1.setProperty("mamba", "caramba") }
+            tx.activateOnCurrentThread()
+            e1.setProperty("mamba", "caramba")
+        }
+    }
+
+    @Test
+    fun `getRecord()` () {
+        val id = withStoreTx { tx ->
+            val e1 = tx.createIssue("opca trista")
+            e1.setProperty("mamba", "caramba")
+            e1.id
+        }
+
+        withStoreTx { tx ->
+            val vertex: OVertex = tx.getRecord(id)!!
+            assertEquals("caramba", vertex.getProperty("mamba"))
+            val e1 = tx.getEntity(id)
+            e1.delete()
+        }
+
+        withStoreTx { tx ->
+            assertNull(tx.getRecord(id))
+        }
+    }
+
 }

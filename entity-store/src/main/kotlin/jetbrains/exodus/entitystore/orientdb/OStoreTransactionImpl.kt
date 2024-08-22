@@ -62,16 +62,10 @@ class OStoreTransactionImpl(
         return transactionIdImpl
     }
 
-    // todo test
-    override fun load(id: OEntityId): OVertex? {
-        requireActiveTransaction()
-        return session.load(id.asOId())
-    }
-
-    override fun <T> getRecord(id: ORID): T?
+    override fun <T> getRecord(id: OEntityId): T?
     where T: ORecord {
         requireActiveTransaction()
-        return session.getRecord(id)
+        return session.getRecord(id.asOId())
     }
 
     override fun newElement(typeName: String): OElement {

@@ -172,12 +172,7 @@ class OPersistentEntityStore(
 
     override fun getEntity(id: EntityId): Entity {
         val currentTx = requireActiveTransaction()
-        val oId = requireOEntityId(id)
-        if (oId == ORIDEntityId.EMPTY_ID) {
-            throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
-        }
-        val vertex = currentTx.load(oId) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
-        return OVertexEntity(vertex, this)
+        return currentTx.getEntity(id)
     }
 
     override fun getEntityTypeId(entityType: String): Int {

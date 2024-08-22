@@ -239,7 +239,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         if (targetOId == ORIDEntityId.EMPTY_ID) {
             return false
         }
-        val target = currentTx.getRecord<OVertex>(targetOId.asOId()) ?: return false
+        val target = currentTx.getRecord<OVertex>(targetOId) ?: return false
         return addLinkImpl(linkName, target)
     }
 
@@ -355,7 +355,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         if (targetOId == ORIDEntityId.EMPTY_ID) {
             return false
         }
-        val target = currentTx.getRecord<OVertex>(targetOId.asOId()) ?: return false
+        val target = currentTx.getRecord<OVertex>(targetOId) ?: return false
         return setLinkImpl(linkName, target)
     }
 
