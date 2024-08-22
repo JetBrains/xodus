@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.processRunners;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityStoreTestBase;
-import jetbrains.exodus.entitystore.PersistentEntityStore;
+import jetbrains.exodus.entitystore.PersistentEntityStoreImpl;
 import jetbrains.exodus.entitystore.StoreTransaction;
 import jetbrains.exodus.env.EnvironmentImpl;
 import jetbrains.exodus.util.ForkedLogic;
@@ -31,7 +31,7 @@ public class ProcessRunner extends ForkedLogic {
 
     private static final Logger logger = LoggerFactory.getLogger(ProcessRunner.class);
 
-    protected PersistentEntityStore store;
+    protected PersistentEntityStoreImpl store;
 
     protected StoreTransaction txn;
 

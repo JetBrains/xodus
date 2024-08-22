@@ -40,12 +40,6 @@ import org.jetbrains.annotations.NotNull;
 public interface PersistentEntityStore extends EntityStore, Backupable {
 
     /**
-     * @return underlying {@linkplain Environment} instance
-     */
-    @NotNull
-    Environment getEnvironment();
-
-    /**
      * Clears all the data in the {@code PersistentEntityStore}. It is safe to clear {@code PersistentEntityStore}
      * with lots of parallel transactions. Make sure all {@linkplain java.io.InputStream} instances got from
      * the {@linkplain #getBlobVault() blob vault} are closed.

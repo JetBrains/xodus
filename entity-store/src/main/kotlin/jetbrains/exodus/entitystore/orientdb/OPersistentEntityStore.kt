@@ -21,7 +21,6 @@ import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.env.Environment
 import jetbrains.exodus.management.Statistics
 import java.io.File
 
@@ -113,11 +112,6 @@ class OPersistentEntityStore(
 
     override fun getBackupStrategy(): BackupStrategy {
         return object : BackupStrategy() {}
-    }
-
-    override fun getEnvironment(): Environment {
-        // delete this method from here
-        TODO()
     }
 
     override fun clear() {
