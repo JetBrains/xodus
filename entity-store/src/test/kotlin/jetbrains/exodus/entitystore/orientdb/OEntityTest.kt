@@ -443,7 +443,7 @@ class OEntityTest {
         val issueB = orientDb.createIssue("A")
 
         orientDb.withStoreTx { tx ->
-            tx.delete(issueB.id.asOId())
+            issueB.delete()
         }
 
         orientDb.withStoreTx {

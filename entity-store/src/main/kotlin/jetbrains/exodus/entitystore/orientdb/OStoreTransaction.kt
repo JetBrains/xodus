@@ -15,9 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.ORecord
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 import jetbrains.exodus.entitystore.PersistentEntityId
@@ -42,11 +40,7 @@ interface OStoreTransaction : StoreTransaction {
     fun <T> getRecord(id: OEntityId): T?
         where T: ORecord
 
-    fun newElement(typeName: String): OElement
-
     fun newEntity(entityType: String, localEntityId: Long): OVertexEntity
-
-    fun delete(id: ORID)
 
     fun query(sql: String, params: Map<String, Any>): OResultSet
 

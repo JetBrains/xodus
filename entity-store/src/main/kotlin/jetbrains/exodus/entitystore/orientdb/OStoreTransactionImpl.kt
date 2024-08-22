@@ -17,9 +17,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabase
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.ORecord
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
@@ -68,18 +66,6 @@ class OStoreTransactionImpl(
         return session.getRecord(id.asOId())
     }
 
-    override fun newElement(typeName: String): OElement {
-        requireActiveWritableTransaction()
-        schemaBuddy.requireTypeExists(session, typeName)
-        return session.newElement(typeName)
-    }
-
-    override fun delete(id: ORID) {
-        requireActiveWritableTransaction()
-        session.delete(id)
-    }
-
-    // todo test
     override fun query(sql: String, params: Map<String, Any>): OResultSet {
         requireActiveTransaction()
         return session.query(sql, params)
