@@ -820,5 +820,4 @@ class OStoreTransactionTest : OTestMixin {
             assertNull(tx.getRecord(id))
         }
     }
-
 }

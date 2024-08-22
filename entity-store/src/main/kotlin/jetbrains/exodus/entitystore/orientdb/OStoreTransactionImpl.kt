@@ -397,8 +397,8 @@ class OStoreTransactionImpl(
     }
 
     override fun getEnvironmentTransaction(): Transaction {
-        requireActiveTransaction()
-        return OEnvironmentTransaction(store.environment, this)
+        // delete this method from here
+        TODO()
     }
 
     override fun setQueryCancellingPolicy(policy: QueryCancellingPolicy?) {

@@ -21,6 +21,7 @@ import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.env.Environment
 import jetbrains.exodus.management.Statistics
 import java.io.File
 
@@ -33,7 +34,6 @@ class OPersistentEntityStore(
     private val config = PersistentEntityStoreConfig()
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
-    private val env = OEnvironment(databaseProvider.database, this)
     private val currentTransaction = ThreadLocal<OStoreTransaction>()
 
     override fun close() {
@@ -115,8 +115,9 @@ class OPersistentEntityStore(
         return object : BackupStrategy() {}
     }
 
-    override fun getEnvironment(): OEnvironment {
-        return env
+    override fun getEnvironment(): Environment {
+        // delete this method from here
+        TODO()
     }
 
     override fun clear() {
