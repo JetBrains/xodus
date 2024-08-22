@@ -92,7 +92,7 @@ class EntitiesOfTypeRangeIterable(
                 result
             }
         } else {
-            storeImpl.getEntitiesBitmapTable(txn.asPersistent(), entityTypeId).count(txn.environmentTransaction, min, max)
+            storeImpl.getEntitiesBitmapTable(txn.asPersistent(), entityTypeId).count(txn.asPersistent().environmentTransaction, min, max)
         }
     }
 

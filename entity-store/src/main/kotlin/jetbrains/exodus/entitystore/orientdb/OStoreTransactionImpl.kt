@@ -29,7 +29,6 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.*
 import jetbrains.exodus.entitystore.orientdb.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
-import jetbrains.exodus.env.Transaction
 
 internal typealias TransactionEventHandler = (ODatabaseSession, OStoreTransaction) -> Unit
 
@@ -394,11 +393,6 @@ class OStoreTransactionImpl(
     override fun renameOClass(oldName: String, newName: String) {
         requireActiveTransaction()
         schemaBuddy.renameOClass(session, oldName, newName)
-    }
-
-    override fun getEnvironmentTransaction(): Transaction {
-        // delete this method from here
-        TODO()
     }
 
     override fun setQueryCancellingPolicy(policy: QueryCancellingPolicy?) {
