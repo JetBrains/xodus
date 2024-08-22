@@ -1023,7 +1023,7 @@ public class EnvironmentImpl implements Environment {
         }
     }
 
-    MetaTreeImpl getMetaTreeInternal() {
+    public MetaTreeImpl getMetaTreeInternal() {
         return metaTree;
     }
 

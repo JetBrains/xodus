@@ -13,30 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entityStore
+package jetbrains.exodus.env.imp
 
-import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.env.reflect.Reflect
-import java.io.File
+import jetbrains.exodus.env.EnvExportImport
+import jetbrains.exodus.env.EnvironmentConfig
+import java.nio.file.Paths
+import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
-    if (args.isEmpty()) {
+    if (args.size < 2) {
         printUsage()
-        return
     }
 
-    val dir = File(args[0])
-    val name = if (args.size > 1) {
-        args[1]
-    } else {
-        "teamsysstore"
-    }
-    PersistentEntityStoreImpl(Reflect.openEnvironment(dir, false), name).apply {
-        close()
-    }
+    val envPath = args[0]
+    val importPath = args[1]
+
+    EnvExportImport.importEnvironment(Paths.get(envPath), EnvironmentConfig(), Paths.get(importPath))
+
 }
 
-internal fun printUsage() {
-    println("Usage: Refactorings <environment path> [store name]")
-    println("       default store name is teamsysstore")
+private fun printUsage() {
+    println("Usage: import <database path> <import file path>")
+    exitProcess(1)
 }
