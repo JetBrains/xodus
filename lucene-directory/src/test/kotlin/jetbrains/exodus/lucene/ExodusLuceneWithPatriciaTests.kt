@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright 2010 - 2024 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -281,8 +281,8 @@ open class ExodusLuceneWithPatriciaTests : ExodusLuceneTestsBase() {
         assertMoreLikeThis("sukhoi superjet 100", ExodusLuceneTestsBase.SUMMARY, 1)
         assertMoreLikeThis("cooperation august sukhoi board aircraft", ExodusLuceneTestsBase.DESCRIPTION, 1)
         assertMoreLikeThis("cooperation august sukhoi board aircraft", ExodusLuceneTestsBase.SUMMARY, 1)
-        assertMoreLikeThis("ничего по-ру�?�?ки в индек�?е нет", ExodusLuceneTestsBase.DESCRIPTION, 0)
-        assertMoreLikeThis("ничего по-ру�?�?ки в индек�?е нет", ExodusLuceneTestsBase.SUMMARY, 0)
+        assertMoreLikeThis("ничего по-ру�?�?ки в индек�?е нет", ExodusLuceneTestsBase.DESCRIPTION, 0)
+        assertMoreLikeThis("ничего по-ру�?�?ки в индек�?е нет", ExodusLuceneTestsBase.SUMMARY, 0)
     }
 
     @Test

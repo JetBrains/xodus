@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 - 2023 JetBrains s.r.o.
+ * Copyright 2010 - 2024 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package jetbrains.exodus.gc
 
 import jetbrains.exodus.core.dataStructures.hash.LongHashMap
 import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.env.StoreImpl
 import jetbrains.exodus.env.TransactionBase
 
 internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc) {
@@ -42,7 +43,7 @@ internal class ComputeUtilizationFromScratchJob(gc: GarbageCollector) : GcJob(gc
                                 break
                             }
                             if (env.storeExists(storeName, txn)) {
-                                val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn)
+                                val store = env.openStore(storeName, StoreConfig.USE_EXISTING, txn) as StoreImpl
                                 val it = (txn as TransactionBase).getTree(store).addressIterator()
                                 while (it.hasNext()) {
                                     val address = it.next()
