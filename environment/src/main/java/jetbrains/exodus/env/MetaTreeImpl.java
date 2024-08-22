@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-final class MetaTreeImpl implements MetaTree {
+public final class MetaTreeImpl implements MetaTree {
 
     private static final int EMPTY_LOG_BOUND = 5;
 
@@ -158,7 +158,7 @@ final class MetaTreeImpl implements MetaTree {
         return root;
     }
 
-    LongIterator addressIterator() {
+    public LongIterator addressIterator() {
         return tree.addressIterator();
     }
 

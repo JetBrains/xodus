@@ -31,7 +31,9 @@ fun main(args: Array<String>) {
         printUsage()
     }
     when (args[0].lowercase()) {
-        "reflect" -> jetbrains.exodus.env.main(args.skipFirst)
+        "reflect" -> jetbrains.exodus.env.export.main(args.skipFirst)
+        "export" -> jetbrains.exodus.env.export.main(args.skipFirst)
+        "import" -> jetbrains.exodus.env.imp.main(args.skipFirst)
         "refactorings" -> jetbrains.exodus.entityStore.main(args.skipFirst)
         "scytale" -> jetbrains.exodus.crypto.main(args.skipFirst)
         "vfs" -> jetbrains.exodus.vfs.main(args.skipFirst)
@@ -52,7 +54,7 @@ fun main(args: Array<String>) {
 
 internal fun printUsage() {
     println("Usage: <tool name> [tool parameters]")
-    println("Available tools: Reflect | Refactorings | Scytale | Vfs | EnvironmentJSConsole | EntityStoreJSConsole")
+    println("Available tools: reflect | refactorings | scytale | Vws | environmentJSConsole | entityStoreJSConsole | import | export")
     exitProcess(1)
 }
 

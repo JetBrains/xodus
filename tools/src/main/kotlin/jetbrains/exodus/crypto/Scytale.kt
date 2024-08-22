@@ -19,7 +19,7 @@ import jetbrains.exodus.crypto.convert.*
 import jetbrains.exodus.crypto.streamciphers.CHACHA_CIPHER_ID
 import jetbrains.exodus.crypto.streamciphers.SALSA20_CIPHER_ID
 import jetbrains.exodus.entitystore.PersistentEntityStoreImpl
-import jetbrains.exodus.env.Reflect
+import jetbrains.exodus.env.reflect.Reflect
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import java.io.BufferedOutputStream
 import java.io.File

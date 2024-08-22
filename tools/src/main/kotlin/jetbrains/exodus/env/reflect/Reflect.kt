@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.env
+package jetbrains.exodus.env.reflect
 
 import jetbrains.exodus.ExodusException
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap
 import jetbrains.exodus.core.dataStructures.hash.LinkedHashSet
+import jetbrains.exodus.env.*
 import jetbrains.exodus.gc.GarbageCollector
 import jetbrains.exodus.io.FileDataReader
 import jetbrains.exodus.io.FileDataWriter
@@ -121,8 +122,8 @@ fun main(args: Array<String>) {
     exitProcess(0)
 }
 
-internal fun printUsage() {
-    println("Usage: Reflect [-options] <environment path> [environment path 2]")
+private fun printUsage() {
+    println("Usage: reflect [-options] <environment path> [environment path 2]")
     println("Options:")
     println("  -ls             collect Log Stats")
     println("  -r              validate Roots")
