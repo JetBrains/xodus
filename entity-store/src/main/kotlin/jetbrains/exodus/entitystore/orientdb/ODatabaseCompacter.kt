@@ -37,25 +37,30 @@ class ODatabaseCompacter(
         val backupFile = File(databaseLocation, "temp${System.currentTimeMillis()}")
         val listener = OCommandOutputListener { iText -> logger.info("Compacting database: $iText") }
 
-        val exporter = ODatabaseExport(
-            dbProvider.acquireSession() as ODatabaseDocumentInternal,
-            backupFile.outputStream(),
-            listener
-        )
-        logger.info("Dumping database...")
-        exporter.exportDatabase()
+        dbProvider.withSession { session ->
+            val exporter = ODatabaseExport(
+                session as ODatabaseDocumentInternal,
+                backupFile.outputStream(),
+                listener
+            )
+            logger.info("Dumping database...")
+            exporter.exportDatabase()
+        }
+
         logger.info("Dropping existing database...")
         dbProvider.database.drop(databaseName)
+
         dbProvider.database.create(databaseName, databaseType, userName, password, "admin")
-        logger.info("Closing database connections")
-        dbProvider.close()
-        logger.info("Importing database from dump")
-        val importer = ODatabaseImport(
-            dbProvider.acquireSession() as ODatabaseDocumentInternal,
-            backupFile.inputStream(),
-            listener
-        )
-        importer.importDatabase()
+
+        dbProvider.withSession { session ->
+            logger.info("Importing database from dump")
+            val importer = ODatabaseImport(
+                session as ODatabaseDocumentInternal,
+                backupFile.inputStream(),
+                listener
+            )
+            importer.importDatabase()
+        }
         backupFile.delete()
     }
 }

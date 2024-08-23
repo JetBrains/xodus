@@ -15,13 +15,14 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import jetbrains.exodus.entitystore.*
-import java.util.concurrent.Executor
+import jetbrains.exodus.entitystore.EntityStore
+import jetbrains.exodus.entitystore.PersistentEntityId
 
 interface OEntityStore : EntityStore {
 
-    /**
-     * Executor service used to compute count of entities in entity iterable asynchronously.
-     */
-    val countExecutor: Executor
+    fun requireActiveTransaction(): OStoreTransaction
+
+    fun requireActiveWritableTransaction(): OStoreTransaction
+
+    fun getOEntityId(entityId: PersistentEntityId): OEntityId
 }

@@ -68,7 +68,7 @@ open class EntitiesOfTypeIterable(txn: PersistentStoreTransaction, private val e
                 }
             }
         } else {
-            storeImpl.getEntitiesBitmapTable(txn.asPersistent(), entityTypeId).getLast(txn.environmentTransaction).let {
+            storeImpl.getEntitiesBitmapTable(txn.asPersistent(), entityTypeId).getLast(txn.asPersistent().environmentTransaction).let {
                 if (it < 0) null else it
             }
         }

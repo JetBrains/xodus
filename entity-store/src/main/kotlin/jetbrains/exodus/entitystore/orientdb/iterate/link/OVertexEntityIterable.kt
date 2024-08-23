@@ -17,7 +17,11 @@ package jetbrains.exodus.entitystore.orientdb.iterate.link
 
 import com.orientechnologies.common.util.OSizeable
 import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityIterable
+import jetbrains.exodus.entitystore.EntityIterator
+import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.OEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.util.unsupported
 import org.apache.commons.collections4.IterableUtils
@@ -26,7 +30,7 @@ import org.apache.commons.collections4.functors.EqualPredicate
 
 class OVertexEntityIterable(
     private val vertices: Iterable<OVertex>,
-    private val store: PersistentEntityStore
+    private val store: OEntityStore
 ) : EntityIterable {
 
     override fun iterator() = object : EntityIterator {

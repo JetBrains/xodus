@@ -364,7 +364,7 @@ internal class OrientDbSchemaInitializer(
     ) {
         val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
         append("outProp: ${outClass.name}.$linkOutPropName")
-        val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName, null)
+        val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName)
         if (applyLinkCardinality) {
             // applying cardinality only to out direct property
             outProp.applyCardinality(outCardinality)
@@ -373,7 +373,7 @@ internal class OrientDbSchemaInitializer(
 
         val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
         append("inProp: ${inClass.name}.$linkInPropName")
-        inClass.createLinkPropertyIfAbsent(linkInPropName, null)
+        inClass.createLinkPropertyIfAbsent(linkInPropName)
         appendLine()
 
         /*
@@ -604,47 +604,16 @@ internal class OrientDbSchemaInitializer(
             }
 
             PropertyType.TEXT -> {
-                val oProperty = createStringBlobPropertyIfAbsent(propertyName)
+                val oProperty = createPropertyIfAbsent(propertyName, OType.BINARY)
                 oProperty.setRequirement(required)
             }
 
             PropertyType.BLOB -> {
-                val oProperty = createBinaryBlobPropertyIfAbsent(propertyName)
+                val oProperty = createPropertyIfAbsent(propertyName, OType.BINARY)
                 oProperty.setRequirement(required)
             }
         }
         appendLine()
-    }
-
-    private fun OClass.createBinaryBlobPropertyIfAbsent(propertyName: String): OProperty =
-        createBlobPropertyIfAbsent(propertyName, OVertexEntity.BINARY_BLOB_CLASS_NAME)
-
-    private fun OClass.createStringBlobPropertyIfAbsent(propertyName: String): OProperty =
-        createBlobPropertyIfAbsent(propertyName, OVertexEntity.STRING_BLOB_CLASS_NAME)
-
-    private fun OClass.createBlobPropertyIfAbsent(propertyName: String, blobClassName: String): OProperty {
-        val blobClass = oSession.createBlobClassIfAbsent(blobClassName)
-
-        val oProperty = createPropertyIfAbsent(propertyName, OType.LINK)
-        if (oProperty.linkedClass != blobClass) {
-            oProperty.setLinkedClass(blobClass)
-        }
-        require(oProperty.linkedClass == blobClass) { "Property linked class is ${oProperty.linkedClass}, but $blobClass was expected" }
-        return oProperty
-    }
-
-    private fun ODatabaseSession.createBlobClassIfAbsent(className: String): OClass {
-        var oClass: OClass? = getClass(className)
-        if (oClass == null) {
-            oClass = oSession.createVertexClass(className)!!
-            append(", $className class created")
-            oClass.createProperty(OVertexEntity.DATA_PROPERTY_NAME, OType.BINARY)
-            append(", ${OVertexEntity.DATA_PROPERTY_NAME} property created")
-        } else {
-            append(", $className class already created")
-            require(oClass.existsProperty(OVertexEntity.DATA_PROPERTY_NAME)) { "${OVertexEntity.DATA_PROPERTY_NAME} is missing in $className, something went dramatically wrong. Happy debugging!" }
-        }
-        return oClass
     }
 
     private fun OProperty.setRequirement(required: Boolean) {
@@ -710,17 +679,15 @@ internal class OrientDbSchemaInitializer(
     *
     * But we still can set linkedClassType for direct link out-properties.
     * */
-    private fun OClass.createLinkPropertyIfAbsent(propertyName: String, linkedClass: OClass?): OProperty {
-        append(", linkedClassType class is ${linkedClass?.name}")
+    private fun OClass.createLinkPropertyIfAbsent(propertyName: String): OProperty {
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")
             getProperty(propertyName)
         } else {
             append(", created")
-            createProperty(propertyName, OType.LINKBAG, linkedClass)
+            createProperty(propertyName, OType.LINKBAG)
         }
         require(oProperty.type == OType.LINKBAG) { "$propertyName type is ${oProperty.type} but ${OType.LINKBAG} was expected instead. Types migration is not supported." }
-        require(oProperty.linkedClass == linkedClass) { "$propertyName type of the set is ${oProperty.linkedClass.name} but ${linkedClass?.name} was expected instead. Types migration is not supported." }
         return oProperty
     }
 

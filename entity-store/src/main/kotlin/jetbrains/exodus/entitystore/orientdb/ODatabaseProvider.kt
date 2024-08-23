@@ -18,13 +18,23 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.tx.OTransaction
+import com.orientechnologies.orient.core.tx.OTransactionNoTx
 
 interface ODatabaseProvider {
     val databaseLocation: String
     val database: OrientDB
     fun acquireSession(): ODatabaseSession
+
+    /**
+     * If there is a session on the current thread, create a new session, executes the action in it,
+     * and returns the previous session back to the current thread.
+     *
+     * Never use this method. If you use this method, make sure you 100% understand what happens,
+     * and do not hesitate to invite people to review your code.
+     */
+    fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T
+
     fun close()
 }
 
@@ -51,20 +61,24 @@ fun <R> ODatabaseProvider.withCurrentOrNewSession(
     }
 }
 
-fun ODatabaseDocument.hasActiveTransaction(): Boolean {
-    return isActiveOnCurrentThread && transaction.let { tx -> tx != null && tx.isActive }
+internal fun ODatabaseSession.hasActiveTransaction(): Boolean {
+    return isActiveOnCurrentThread && transaction !is OTransactionNoTx
 }
 
-fun ODatabaseDocument.requireActiveTransaction(): OTransaction {
+internal fun ODatabaseSession.requireActiveTransaction(): OTransaction {
     require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
     return transaction
 }
 
-fun ODatabaseDocument.requireNoActiveTransaction() {
-    assert(transaction == null || !transaction.isActive) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
+internal fun ODatabaseSession.requireNoActiveTransaction() {
+    assert(isActiveOnCurrentThread && transaction is OTransactionNoTx) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
 }
 
-private fun hasActiveSession(): Boolean {
+internal fun requireNoActiveSession() {
+    check(!hasActiveSession()) { "Active session is detected on the current thread" }
+}
+
+internal fun hasActiveSession(): Boolean {
     val db = ODatabaseRecordThreadLocal.instance().getIfDefined()
     return db != null
 }

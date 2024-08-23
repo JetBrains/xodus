@@ -16,45 +16,39 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.db.record.OTrackedSet
 import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OEdge
-import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.OVertex
+import com.orientechnologies.orient.core.record.impl.ORecordBytes
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
+import jetbrains.exodus.util.LightByteArrayOutputStream
 import jetbrains.exodus.util.UTFUtil
 import mu.KLogging
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import kotlin.jvm.optionals.getOrNull
 
-open class OVertexEntity(internal val vertex: OVertex, private val store: PersistentEntityStore) : OEntity {
+open class OVertexEntity(internal val vertex: OVertex, private val store: OEntityStore) : OEntity {
 
     companion object : KLogging() {
-        const val BINARY_BLOB_CLASS_NAME: String = "BinaryBlob"
-        const val DATA_PROPERTY_NAME = "data"
         const val EDGE_CLASS_SUFFIX = "_link"
         private const val LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX = "_targetEntityId"
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
         private const val STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX = "_string_blob_hash"
         fun blobSizeProperty(propertyName: String) = "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
         fun blobHashProperty(propertyName: String) = "\$$propertyName$STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX"
-
-        const val STRING_BLOB_CLASS_NAME: String = "StringBlob"
 
         // Backward compatible EntityId
 
@@ -76,9 +70,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         }
     }
 
-    private val activeSession get() = ODatabaseSession.getActiveSession()
-
-    private var oEntityId = ORIDEntityId.fromVertex(vertex)
+    private val oEntityId = ORIDEntityId.fromVertex(vertex)
 
     override fun getStore() = store
 
@@ -89,13 +81,22 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     override fun getType(): String = oEntityId.getTypeName()
 
     override fun delete(): Boolean {
+        requireActiveWritableTransaction()
         vertex.delete()
         return true
     }
 
-    override fun getRawProperty(propertyName: String): ByteIterable? = null
+    private fun requireActiveTx(): OStoreTransaction {
+        return store.requireActiveTransaction()
+    }
+
+    override fun getRawProperty(propertyName: String): ByteIterable? {
+        requireActiveTx()
+        TODO()
+    }
 
     override fun getProperty(propertyName: String): Comparable<*>? {
+        requireActiveTx()
         val value = vertex.getProperty<Any>(propertyName)
         return if (value == null || value !is MutableSet<*>) {
             value as Comparable<*>?
@@ -105,7 +106,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     }
 
     override fun setProperty(propertyName: String, value: Comparable<*>): Boolean {
-        assertWritable()
+        requireActiveWritableTransaction()
         val oldProperty = vertex.getProperty<Any>(propertyName)
 
         if (value is OComparableSet<*> || oldProperty is MutableSet<*>) {
@@ -128,7 +129,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     }
 
     override fun deleteProperty(propertyName: String): Boolean {
-        assertWritable()
+        requireActiveWritableTransaction()
         if (vertex.hasProperty(propertyName)) {
             vertex.removeProperty<Any>(propertyName)
             vertex.save<OVertex>()
@@ -136,60 +137,55 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
         } else {
             return false
         }
-
     }
 
     override fun getPropertyNames(): List<String> {
+        requireActiveTx()
         return ArrayList(vertex.propertyNames)
     }
 
     override fun getBlob(blobName: String): InputStream? {
-        val element = vertex.getLinkProperty(blobName)
-        return element?.let {
-            val record = activeSession.getRecord<OElement>(element)
-            return ByteArrayInputStream(record.getProperty(DATA_PROPERTY_NAME))
-        }
+        requireActiveTx()
+        val blob: ORecordBytes = vertex.getProperty(blobName) ?: return null
+        return ByteArrayInputStream(blob.toStream())
     }
 
     override fun getBlobSize(blobName: String): Long {
-        val sizePropertyName = blobSizeProperty(blobName)
-        val ref = vertex.getLinkProperty(blobName)
-        return ref?.let {
-            vertex.getProperty<Long>(sizePropertyName)
-        } ?: -1
+        requireActiveTx()
+
+        return vertex.getProperty(blobSizeProperty(blobName)) ?: -1
+    }
+
+    override fun setBlob(blobName: String, blob: InputStream) {
+        requireActiveWritableTransaction()
+
+        if (vertex.hasProperty(blobName)) {
+            vertex.removeProperty<Any>(blobName)
+        }
+
+        val oBlob = ORecordBytes()
+        val size = oBlob.fromInputStream(blob)
+        vertex.setProperty(blobName, oBlob)
+        vertex.setProperty(blobSizeProperty(blobName), size.toLong())
+        vertex.save<OVertex>()
+    }
+
+    override fun deleteBlob(blobName: String): Boolean {
+        requireActiveWritableTransaction()
+        if (vertex.hasProperty(blobName)) {
+            vertex.removeProperty<Any>(blobName)
+            vertex.removeProperty<Any>(blobSizeProperty(blobName))
+            vertex.removeProperty<Any>(blobHashProperty(blobName))
+            vertex.save<OVertex>()
+            return true
+        }
+        return false
     }
 
     override fun getBlobString(blobName: String): String? {
-        val ref = vertex.getLinkProperty(blobName)
-        return ref?.let {
-            val record = activeSession.getRecord<OElement>(ref)
-            record.getProperty<ByteArray>(DATA_PROPERTY_NAME)?.let {
-                UTFUtil.readUTF(ByteArrayInputStream(it))
-            }
-        }
-    }
-
-
-    override fun setBlob(blobName: String, blob: InputStream) {
-        assertWritable()
-        val ref = vertex.getLinkProperty(blobName)
-        val blobContainer: OElement
-
-        if (ref == null) {
-            blobContainer = activeSession.newElement(BINARY_BLOB_CLASS_NAME)
-            vertex.setProperty(blobName, blobContainer)
-        } else {
-            blobContainer = activeSession.getRecord(ref)
-            if (blobContainer.hasProperty(DATA_PROPERTY_NAME)) {
-                blobContainer.removeProperty<Any>(DATA_PROPERTY_NAME)
-            }
-        }
-
-        val data = blob.use { blob.readAllBytes() }
-        blobContainer.setProperty(DATA_PROPERTY_NAME, data)
-        vertex.setProperty(blobSizeProperty(blobName), data.size.toLong())
-        blobContainer.save<OElement>()
-        vertex.save<OVertex>()
+        requireActiveTx()
+        val blob: ORecordBytes = vertex.getProperty(blobName) ?: return null
+        return UTFUtil.readUTF(ByteArrayInputStream(blob.toStream()))
     }
 
     override fun setBlob(blobName: String, file: File) {
@@ -197,51 +193,33 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     }
 
     override fun setBlobString(blobName: String, blobString: String): Boolean {
-        assertWritable()
-        val ref = vertex.getLinkProperty(blobName)
-        val update: Boolean
-        var record: OElement? = null
+        requireActiveWritableTransaction()
 
-        if (ref == null) {
-            record = activeSession.newElement(STRING_BLOB_CLASS_NAME)
-            vertex.setProperty(blobName, record)
-            update = true
-        } else {
-            update = blobString.hashCode() != vertex.getProperty<Int>(blobHashProperty(blobName))
-                    || blobString.length.toLong() != vertex.getProperty<Long>(blobSizeProperty(blobName))
-        }
+        // toByteArray() will not copy data
+        val baos = LightByteArrayOutputStream(blobString.length)
+        UTFUtil.writeUTF(baos, blobString)
 
-        if (update) {
-            record = record ?: activeSession.getRecord(ref) as OElement
-            vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
-            vertex.setProperty(blobSizeProperty(blobName), blobString.length.toLong())
-            val baos = ByteArrayOutputStream(blobString.length)
-            UTFUtil.writeUTF(baos, blobString)
-            record.setProperty(DATA_PROPERTY_NAME, baos.toByteArray())
-            vertex.save<OVertex>()
-        }
-
-        return update
-    }
-
-    override fun deleteBlob(blobName: String): Boolean {
-        assertWritable()
-        val ref = vertex.getLinkProperty(blobName)
-        return if (ref != null) {
-            val record = ref.getRecord<OElement>()
-            vertex.removeProperty<Long>(blobSizeProperty(blobName))
-            if (record.schemaClass?.name == STRING_BLOB_CLASS_NAME) {
-                record.setProperty(DATA_PROPERTY_NAME, null)
-            } else {
-                vertex.removeProperty<OIdentifiable>(blobName)
-                vertex.save<OVertex>()
-                activeSession.delete(ref.identity)
+        // we know the exact size only when we encoded the string to UTF.
+        // so, here we can check if we already have the same one
+        if (vertex.hasProperty(blobName)) {
+            val oldHash = vertex.getProperty<Int>(blobHashProperty(blobName))
+            val oldLen = vertex.getProperty<Long>(blobSizeProperty(blobName))
+            if (oldHash == blobString.hashCode() && oldLen == baos.size().toLong()) {
+                return false
             }
-            true
-        } else false
+            vertex.removeProperty<Any>(blobName)
+        }
+
+        val oBlob = ORecordBytes(baos.toByteArray())
+        vertex.setProperty(blobName, oBlob)
+        vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
+        vertex.setProperty(blobSizeProperty(blobName), baos.size().toLong())
+        vertex.save<OVertex>()
+        return true
     }
 
     override fun getBlobNames(): List<String> {
+        requireActiveTx()
         return vertex.propertyNames
             .filter { it.endsWith(BLOB_SIZE_PROPERTY_NAME_SUFFIX) }
             .map { it.substring(1).substringBefore(BLOB_SIZE_PROPERTY_NAME_SUFFIX) }
@@ -250,18 +228,18 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     // Add links
 
     override fun addLink(linkName: String, target: Entity): Boolean {
-        assertWritable()
+        requireActiveWritableTransaction()
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
         return addLinkImpl(linkName, target.vertex)
     }
 
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
-        assertWritable()
+        val currentTx = requireActiveWritableTransaction()
         val targetOId = store.requireOEntityId(targetId)
         if (targetOId == ORIDEntityId.EMPTY_ID) {
             return false
         }
-        val target = activeSession.getRecord<OVertex>(targetOId.asOId()) ?: return false
+        val target = currentTx.getRecord<OVertex>(targetOId) ?: return false
         return addLinkImpl(linkName, target)
     }
 
@@ -309,20 +287,20 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     // Delete links
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
-        assertWritable()
+        requireActiveWritableTransaction()
         target as OVertexEntity
         val targetOId = target.oEntityId.asOId()
         return deleteLinkImpl(linkName, targetOId)
     }
 
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
-        assertWritable()
+        requireActiveWritableTransaction()
         val targetOId = store.requireOEntityId(targetId).asOId()
         return deleteLinkImpl(linkName, targetOId)
     }
 
     override fun deleteLinks(linkName: String) {
-        assertWritable()
+        requireActiveWritableTransaction()
         val edgeClassName = edgeClassName(linkName)
         vertex.getEdges(ODirection.OUT, edgeClassName).forEach {
             it.delete()
@@ -366,18 +344,18 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     // Set links
 
     override fun setLink(linkName: String, target: Entity?): Boolean {
-        assertWritable()
+        requireActiveWritableTransaction()
         require(target is OVertexEntity?) { "Only OVertexEntity is supported, but was ${target?.javaClass?.simpleName}" }
         return setLinkImpl(linkName, target?.vertex)
     }
 
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
-        assertWritable()
+        val currentTx = requireActiveWritableTransaction()
         val targetOId = store.requireOEntityId(targetId)
         if (targetOId == ORIDEntityId.EMPTY_ID) {
             return false
         }
-        val target = activeSession.getRecord<OVertex>(targetOId.asOId()) ?: return false
+        val target = currentTx.getRecord<OVertex>(targetOId) ?: return false
         return setLinkImpl(linkName, target)
     }
 
@@ -399,6 +377,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     // Get links
 
     override fun getLink(linkName: String): Entity? {
+        requireActiveTx()
         return getLinkImpl(linkName).toOEntityOrNull()
     }
 
@@ -408,17 +387,20 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     }
 
     override fun getLinks(linkName: String): EntityIterable {
+        requireActiveTx()
         val edgeClassName = edgeClassName(linkName)
         val links = vertex.getVertices(ODirection.OUT, edgeClassName)
         return OVertexEntityIterable(links, store)
     }
 
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
+        requireActiveTx()
         val edgeClassNames = linkNames.map { edgeClassName(it) }
         return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *edgeClassNames.toTypedArray()), store)
     }
 
     override fun getLinkNames(): List<String> {
+        requireActiveTx()
         return ArrayList(vertex.getEdgeNames(ODirection.OUT)
             .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
             .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
@@ -446,12 +428,14 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: Persis
     }
 
     override fun save(): OVertexEntity {
-        assertWritable()
+        requireActiveWritableTransaction()
         vertex.save<OVertex>()
         return this
     }
 
-    protected open fun assertWritable() {}
+    protected open fun requireActiveWritableTransaction(): OStoreTransaction {
+        return store.requireActiveWritableTransaction()
+    }
 
     private fun OVertex?.toOEntityOrNull(): OEntity? = this?.let { OVertexEntity(this, store) }
 }
@@ -476,6 +460,10 @@ fun OVertex.requireSchemaClass(): OClass {
 fun OVertex.requireLocalEntityId(): Long {
     return getProperty<Long>(LOCAL_ENTITY_ID_PROPERTY_NAME)
         ?: throw IllegalStateException("localEntityId not found for the vertex")
+}
+
+fun OVertexEntity.asReadonly():OReadonlyVertexEntity {
+    return OReadonlyVertexEntity(vertex, store as OPersistentEntityStore)
 }
 
 

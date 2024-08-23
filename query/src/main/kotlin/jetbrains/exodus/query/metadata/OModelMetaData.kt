@@ -16,20 +16,21 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import jetbrains.exodus.entitystore.PersistentEntityId
-import jetbrains.exodus.entitystore.orientdb.*
+import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.withCurrentOrNewSession
 
 class OModelMetaData(
     private val databaseProvider: ODatabaseProvider,
     private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider, autoInitialize = false)
-) : ModelMetaDataImpl(), OSchemaBuddy {
+) : ModelMetaDataImpl(), OSchemaBuddy by schemaBuddy {
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             val result = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
             session.initializeIndices(result)
-            initialize()
+            initialize(session)
         }
     }
 
@@ -54,17 +55,5 @@ class OModelMetaData(
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             session.removeAssociation(sourceTypeName, targetTypeName, associationName)
         }
-    }
-
-    override fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
-        return schemaBuddy.getOEntityId(entityId)
-    }
-
-    override fun makeSureTypeExists(session: ODatabaseDocument, entityType: String) {
-        schemaBuddy.makeSureTypeExists(session, entityType)
-    }
-
-    override fun initialize() {
-        schemaBuddy.initialize()
     }
 }

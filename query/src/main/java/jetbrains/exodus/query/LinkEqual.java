@@ -44,7 +44,7 @@ public class LinkEqual extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        var txn = queryEngine.getOStore().requireActiveTransaction();
         if (entity == null) {
             return new OLinkIsNullEntityIterable(txn, entityType, name);
         }

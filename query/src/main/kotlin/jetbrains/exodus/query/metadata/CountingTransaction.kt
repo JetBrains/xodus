@@ -15,13 +15,13 @@
  */
 package jetbrains.exodus.query.metadata
 
-import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 
 
 /**
- * A class that provides functionality for commiting a transaction every X changes.
+ * These classes provide functionality for commiting a transaction every X changes.
  *
  * For example, you copy 1B entities, you do not want to copy them in the scope of a single transaction,
  * because when the transaction fails at the last entity, you have to start copying from the beginning.
@@ -31,12 +31,12 @@ import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
  *
  * @property commitEvery The number of changes increments before a commit is triggered.
  */
-class CountingOTransaction(
+internal class CountingTransaction(
     private val store: OPersistentEntityStore,
     private val commitEvery: Int
 ) {
     private var counter = 0
-    private lateinit var txn : StoreTransaction
+    private lateinit var txn : OStoreTransaction
 
     var transactionsCommited: Long = 0
         private set
@@ -51,7 +51,7 @@ class CountingOTransaction(
     }
 
     fun begin() {
-        txn = store.beginTransaction()
+        txn = store.beginTransaction() as OStoreTransaction
     }
 
     fun commit() {
@@ -65,12 +65,13 @@ class CountingOTransaction(
         txn.abort()
     }
 
-    val session get() = (txn as OStoreTransaction).activeSession
-
+    fun newVertex(type: String, localEntityId: Long): OVertexEntity {
+        return txn.newEntity(type, localEntityId)
+    }
 }
 
-fun <R> OPersistentEntityStore.withCountingTx(commitEvery: Int, block: (CountingOTransaction) -> R): R {
-    val tx = CountingOTransaction(this, commitEvery)
+internal fun <R> OPersistentEntityStore.withCountingTx(commitEvery: Int, block: (CountingTransaction) -> R): R {
+    val tx = CountingTransaction(this, commitEvery)
     tx.begin()
     try {
         val result = block(tx)

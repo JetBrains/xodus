@@ -15,9 +15,45 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.metadata.sequence.OSequence
+import com.orientechnologies.orient.core.record.ORecord
+import com.orientechnologies.orient.core.sql.executor.OResultSet
+import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.StoreTransaction
 
 interface OStoreTransaction : StoreTransaction {
-    val activeSession: ODatabaseDocument
+
+    fun getOEntityStore(): OEntityStore
+
+    fun getTransactionId(): Long
+
+
+    fun requireActiveTransaction()
+
+    fun requireActiveWritableTransaction()
+
+    fun deactivateOnCurrentThread()
+
+    fun activateOnCurrentThread()
+
+
+    fun <T> getRecord(id: OEntityId): T?
+        where T: ORecord
+
+    fun newEntity(entityType: String, localEntityId: Long): OVertexEntity
+
+    fun query(sql: String, params: Map<String, Any>): OResultSet
+
+    fun getOEntityId(entityId: PersistentEntityId): OEntityId
+
+    /**
+     * If the class has not been found, returns -1. It is how it was in the Classic Xodus.
+     */
+    fun getTypeId(entityType: String): Int
+
+    fun getOSequence(sequenceName: String): OSequence
+
+    fun updateOSequence(sequenceName: String, currentValue: Long)
+
+    fun renameOClass(oldName: String, newName: String)
 }

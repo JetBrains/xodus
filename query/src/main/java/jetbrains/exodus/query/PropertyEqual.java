@@ -17,8 +17,8 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.iterate.property.OPropertyIsNullIterable;
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyEqualIterable;
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyIsNullIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 import org.jetbrains.annotations.Nullable;
 
@@ -45,7 +45,7 @@ public class PropertyEqual extends NodeBase {
 
     @Override
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-        var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+        var txn = queryEngine.getOStore().requireActiveTransaction();
         if (value == null) {
             return new OPropertyIsNullIterable(txn, entityType, name);
         }

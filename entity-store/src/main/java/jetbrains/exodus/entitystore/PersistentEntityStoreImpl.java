@@ -754,7 +754,9 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return location;
     }
 
-    @Override
+    /**
+     * @return underlying {@linkplain Environment} instance
+     */
     @NotNull
     public Environment getEnvironment() {
         return environment;
