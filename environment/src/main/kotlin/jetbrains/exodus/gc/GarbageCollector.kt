@@ -38,8 +38,8 @@ import jetbrains.exodus.tree.patricia.UnexpectedLoggableException
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
 import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.TreeSet
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -55,8 +55,6 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     internal val cleaner = BackgroundCleaner(this)
     private val openStoresCache = IntHashMap<StoreImpl>()
 
-    @Volatile
-    private var logExceptionMessage: String? = null
     private var lastBrokenMessage = 0L
 
     init {
@@ -234,14 +232,18 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     }
 
     private fun doCleanFiles(fragmentedFiles: Iterator<Long>): Boolean {
-        if (logExceptionMessage != null) {
+        val logPath = Paths.get(environment.location)
+
+        if (Files.exists(logPath.resolve(STOP_GC_FILE))) {
             val ts = System.currentTimeMillis()
 
             val printBrokenMessage = lastBrokenMessage + 15 * 60 * 1000 < ts
             if (printBrokenMessage) {
                 lastBrokenMessage = ts
+
                 logger.error {
-                    "GC is disabled on database ${log.location} because of error:\n $logExceptionMessage \n please contact support to fix broken database."
+                    "GC is disabled on database ${log.location} because of an GC error. " +
+                            "Please file the issue to resolve the problem."
                 }
             }
 
@@ -327,12 +329,18 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         } catch (_: ReadonlyTransactionException) {
             return false
         } catch (e: Throwable) {
-            val sw = StringWriter()
-            val pw = PrintWriter(sw)
+            loggingError(e) {
+                "Error during cleaning files: ${e.message}\n"
+            }
 
-            e.printStackTrace(pw)
+            try {
+                Files.createFile(logPath.resolve(STOP_GC_FILE))
+            } catch (e: Throwable) {
+                loggingError(e) {
+                    "Error creating stop file: ${e.message}\n"
+                }
+            }
 
-            logExceptionMessage = sw.toString()
             throw ExodusException.toExodusException(e)
         } finally {
             txn.abort()
@@ -463,6 +471,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
     companion object : KLogging() {
 
         const val UTILIZATION_PROFILE_STORE_NAME = "exodus.gc.up"
+        const val STOP_GC_FILE = "stop.gc"
 
         @JvmStatic
         fun isUtilizationProfile(storeName: String): Boolean {
