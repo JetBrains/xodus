@@ -91,6 +91,7 @@ internal class DataAfterMigrationChecker(
         }
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     private fun checkPropertiesBlobsAndLinks() {
         log.info { "2. Check properties, blobs and links" }
         xStore.withReadonlyTx { xTx ->
@@ -116,25 +117,43 @@ internal class DataAfterMigrationChecker(
 
                         checkPropertiesDuration += measureTime {
                             for (propName in e1.propertyNames) {
-                                val v1: Comparable<Any?>? = e1.getProperty(propName)
-                                val v2: Comparable<Any?>? = e2.getProperty(propName)
+                                val v1 = e1.getProperty(propName)
+                                val v2 = e2.getProperty(propName)
 
-                                if (v1 is ComparableSet<*>) {
-                                    val set1 = v1.toSet()
-                                    val set2 = (v2 as OComparableSet<*>).toSet()
-                                    require(set1.containsAll(set2) && set2.containsAll(set1)) {
-                                        "$type $entityIdx/$xSize ${e1.id} $propName content is different. " +
-                                                "xStore: ${set1.map { it.toString() }.sorted().joinToString(", ")}. " +
-                                                "oStore: ${set2.map { it.toString() }.sorted().joinToString(", ")}"
+                                when {
+                                    v1 is ComparableSet<*> -> {
+                                        val set1 = v1.toSet()
+                                        val set2 = (v2 as OComparableSet<*>).toSet()
+                                        require(set1.containsAll(set2) && set2.containsAll(set1)) {
+                                            """
+                                                $type $entityIdx/$xSize ${e1.id} $propName content is different.
+                                                xStore: ${set1.map { it.toString() }.sorted().joinToString(", ")}.
+                                                oStore: ${set2.map { it.toString() }.sorted().joinToString(", ")}
+                                            """.trimIndent()
+                                        }
                                     }
-                                } else {
-                                    require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) {
-                                        """
-                                            $type $entityIdx/$xSize ${e1.id} $propName is different. 
-                                            xStore type: ${v1?.javaClass}, oStore type: ${v2?.javaClass}
-                                            xStore value: '${v1}', oStore value: '${v2}'
-                                            comparison result ${v1?.compareTo(v2)}
-                                        """.trimIndent()
+                                    v1 is String -> {
+                                        require(v2 is String && v1.compareTo(v2) == 0) {
+                                            """
+                                                $type $entityIdx/$xSize ${e1.id} $propName is different. 
+                                                xStore type: ${v1.javaClass}, oStore type: ${v2?.javaClass}
+                                                xStore value: '${v1}', oStore value: '${v2}'
+                                                xStore bytes: '${v1.encodeToByteArray().toHexString()}'
+                                                oStore bytes: '${if (v2 is String) v2.encodeToByteArray().toHexString() else "not a string"}'
+                                                comparison result ${v1.compareTo(v2)}
+                                            """.trimIndent()
+                                        }
+
+                                    }
+                                    else -> {
+                                        require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) {
+                                            """
+                                                $type $entityIdx/$xSize ${e1.id} $propName is different. 
+                                                xStore type: ${v1?.javaClass}, oStore type: ${v2?.javaClass}
+                                                xStore value: '${v1}', oStore value: '${v2}'
+                                                comparison result ${v1?.compareTo(v2)}
+                                            """.trimIndent()
+                                        }
                                     }
                                 }
                             }
