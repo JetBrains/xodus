@@ -21,10 +21,7 @@ import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
-import jetbrains.exodus.entitystore.orientdb.asEdgeClass
+import jetbrains.exodus.entitystore.orientdb.*
 import org.junit.Assert.*
 
 // assertions
@@ -143,7 +140,7 @@ internal fun Map<String, Set<DeferredIndex>>.checkIndex(
     assertEquals(fieldNames.size, index.properties.size)
 
     for (fieldName in fieldNames) {
-        assertTrue(index.properties.any { it.name == fieldName })
+        assertTrue(index.properties.any { it == fieldName })
     }
 }
 
@@ -182,10 +179,16 @@ internal fun ModelMetaDataImpl.entity(
 }
 
 internal fun EntityMetaDataImpl.index(vararg fieldNames: String) {
+    index(*fieldNames.map { IndexedField(it, true) }.toTypedArray())
+}
+
+data class IndexedField(val name: String, val isProperty: Boolean)
+
+internal fun EntityMetaDataImpl.index(vararg fields: IndexedField) {
     val index = IndexImpl()
-    index.fields = fieldNames.map { fieldName ->
+    index.fields = fields.map { (fieldName, isProperty) ->
         val field = IndexFieldImpl()
-        field.isProperty = true
+        field.isProperty = isProperty
         field.name = fieldName
         field
     }
@@ -249,4 +252,41 @@ internal fun ModelMetaData.twoDirectionalAssociation(
         targetCardinality,
         false, false, false, false // ignored
     )
+}
+
+internal fun ODatabaseSession.createVertexAndSetLocalEntityId(className: String): OVertex {
+    val v = newVertex(className)
+    setLocalEntityId(className, v)
+    v.save<OVertex>()
+    return v
+}
+
+internal fun OVertex.setPropertyAndSave(propName: String, value: Any) {
+    setProperty(propName, value)
+    save<OVertex>()
+}
+
+internal fun OVertex.addEdge(linkName: String, target: OVertex) {
+    val edgeClassName = OVertexEntity.edgeClassName(linkName)
+    addEdge(target, edgeClassName)
+    save<OVertex>()
+    target.save<OVertex>()
+}
+
+internal fun OVertex.addIndexedEdge(linkName: String, target: OVertex) {
+    val bag = getTargetLocalEntityIds(linkName)
+    addEdge(target, OVertexEntity.edgeClassName(linkName))
+    bag.add(target.identity)
+    setTargetLocalEntityIds(linkName, bag)
+    save<OVertex>()
+    target.save<OVertex>()
+}
+
+internal fun OVertex.deleteIndexedEdge(linkName: String, target: OVertex) {
+    val bag = getTargetLocalEntityIds(linkName)
+    deleteEdge(target, OVertexEntity.edgeClassName(linkName))
+    bag.remove(target.identity)
+    setTargetLocalEntityIds(linkName, bag)
+    save<OVertex>()
+    target.save<OVertex>()
 }

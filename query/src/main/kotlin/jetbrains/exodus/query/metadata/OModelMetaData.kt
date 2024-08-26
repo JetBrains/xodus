@@ -15,44 +15,45 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import jetbrains.exodus.entitystore.PersistentEntityId
-import jetbrains.exodus.entitystore.orientdb.*
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
+import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.withCurrentOrNewSession
 
 class OModelMetaData(
     private val databaseProvider: ODatabaseProvider,
     private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider, autoInitialize = false)
-) : ModelMetaDataImpl(), OSchemaBuddy {
+) : ModelMetaDataImpl(), OSchemaBuddy by schemaBuddy {
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-            val indices = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
-            session.applyIndices(indices)
-            initialize()
+            val result = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
+            session.initializeIndices(result)
+            initialize(session)
         }
     }
 
-    override fun onAddAssociation(typeName: String, association: AssociationEndMetaData) {
+    override fun onAddAssociation(entityMetaData: EntityMetaData, association: AssociationEndMetaData) {
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-            session.addAssociation(typeName, association)
+            val result = session.addAssociation(entityMetaData, association)
+            session.initializeIndices(result)
         }
+    }
+
+    private fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
+        /*
+        * The order of operations matter.
+        * We want to initialize complementary properties before creating indices,
+        * it is more efficient from the performance point of view.
+        * */
+        initializeComplementaryPropertiesForNewIndexedLinks(schemaApplicationResult.newIndexedLinks)
+        applyIndices(schemaApplicationResult.indices)
     }
 
     override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
         databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             session.removeAssociation(sourceTypeName, targetTypeName, associationName)
         }
-    }
-
-    override fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
-        return schemaBuddy.getOEntityId(entityId)
-    }
-
-    override fun makeSureTypeExists(session: ODatabaseDocument, entityType: String) {
-        schemaBuddy.makeSureTypeExists(session, entityType)
-    }
-
-    override fun initialize() {
-        schemaBuddy.initialize()
     }
 }

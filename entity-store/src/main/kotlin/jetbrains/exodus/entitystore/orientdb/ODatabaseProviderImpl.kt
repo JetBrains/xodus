@@ -16,11 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
+import com.orientechnologies.orient.core.db.*
 import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
 
 //todo this params also should be collected in some config entity
@@ -55,6 +51,26 @@ class ODatabaseProviderImpl(
         get() = database.accessInternal.basePath
 
     override fun acquireSession(): ODatabaseSession {
+        return acquireSessionImpl(true)
+    }
+
+    override fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T {
+        val result = try {
+            acquireSessionImpl(checkNoActiveSession = false).use { session ->
+                action(session)
+            }
+        } finally {
+            // the previous session does not get activated on the current thread by default
+            assert(!currentSession.isActiveOnCurrentThread)
+            currentSession.activateOnCurrentThread()
+        }
+        return result
+    }
+
+    private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): ODatabaseSession {
+        if (checkNoActiveSession) {
+            requireNoActiveSession()
+        }
         return database.cachedPool(databaseName, userName, password).acquire()
     }
 

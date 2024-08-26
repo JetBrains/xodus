@@ -22,6 +22,7 @@ import jetbrains.exodus.entitystore.PersistentEntityStores
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.withSession
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
 import mu.KotlinLogging
@@ -112,9 +113,11 @@ class XodusToOrientDataMigratorLauncher(
 
             // 3. Migrate the data
             val (migrateDataStats, migrateDataDuration) = measureTimedValue {
-                migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore, entitiesPerTransaction)
+                migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore, dbProvider, oModelMetadata, entitiesPerTransaction)
             }
-            schemaBuddy.initialize()
+            dbProvider.withSession {
+                schemaBuddy.initialize(it)
+            }
 
             // 4. Check data is the same
             val (checkDataStats, validateDataDuration) = measureTimedValue {

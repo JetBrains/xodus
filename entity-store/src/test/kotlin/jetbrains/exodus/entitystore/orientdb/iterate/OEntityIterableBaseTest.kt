@@ -16,18 +16,15 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
 import com.google.common.truth.Truth.assertThat
-import com.orientechnologies.orient.core.record.OVertex
-import jetbrains.exodus.entitystore.iterate.property.OPropertyIsNullIterable
-import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkIsNullEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OInstanceOfIterable
-import jetbrains.exodus.entitystore.orientdb.setLocalEntityIdIfAbsent
+import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyIsNullIterable
 import jetbrains.exodus.entitystore.orientdb.testutil.*
-import jetbrains.exodus.testutil.eventually
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertEquals
 
 class OEntityIterableBaseTest : OTestMixin {
 
@@ -41,12 +38,12 @@ class OEntityIterableBaseTest : OTestMixin {
     fun `should iterable property is null`() {
         // Given
         val test = givenTestCase()
-        orientDb.withSession {
+        withStoreTx {
             test.issue1.setProperty("none", "n1")
         }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issues = OPropertyIsNullIterable(tx, Issues.CLASS, "none")
 
             // Then
@@ -58,10 +55,12 @@ class OEntityIterableBaseTest : OTestMixin {
     fun `should iterable link is null`() {
         // Given
         val test = givenTestCase()
-        orientDb.addIssueToProject(test.issue1, test.project1)
+        withStoreTx { tx ->
+            tx.addIssueToProject(test.issue1, test.project1)
+        }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issues = OLinkIsNullEntityIterable(tx, Issues.CLASS, Issues.Links.IN_PROJECT)
 
             // Then
@@ -75,7 +74,7 @@ class OEntityIterableBaseTest : OTestMixin {
         val test = givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val equal1 = tx.find(Issues.CLASS, "name", test.issue1.name())
             val equal2 = tx.find(Issues.CLASS, "name", test.issue2.name())
 
@@ -92,7 +91,7 @@ class OEntityIterableBaseTest : OTestMixin {
         val test = givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val equal1 = tx.find(Issues.CLASS, "name", test.issue1.name())
             val equal2 = tx.find(Issues.CLASS, "name", test.issue1.name())
 
@@ -108,12 +107,12 @@ class OEntityIterableBaseTest : OTestMixin {
     fun `should iterable intersect`() {
         // Given
         val test = givenTestCase()
-        orientDb.withSession {
+        withStoreTx {
             test.issue2.setProperty(Issues.Props.PRIORITY, "normal")
         }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val nameEqual = tx.find(Issues.CLASS, "name", test.issue2.name())
             val priorityEqual = tx.find(Issues.CLASS, Issues.Props.PRIORITY, "normal")
             val issues = nameEqual.intersect(priorityEqual)
@@ -129,12 +128,14 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+        }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issue1 = tx.find(Issues.CLASS, "name", "issue1")
             val issue2 = tx.find(Issues.CLASS, "name", "issue2")
             val concat = issue1.concat(issue2).concat(issue1)
@@ -149,12 +150,14 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+        }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
             val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
             val concat = issuesOnBoard1.concat(issuesOnBoard2)
@@ -169,13 +172,15 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue3, test.board1)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
             val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
             val issues = issuesOnBoard1.union(issuesOnBoard2)
@@ -191,13 +196,13 @@ class OEntityIterableBaseTest : OTestMixin {
     fun `should iterable minus with properties and all`() {
         // Given
         val test = givenTestCase()
-        orientDb.withSession {
+        withStoreTx {
             test.issue1.setProperty("complex", "true")
             test.issue2.setProperty("complex", "true")
         }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issues = tx.getAll(Issues.CLASS)
             val complexIssues = tx.find(Issues.CLASS, "complex", "true")
             val simpleIssues = issues.minus(complexIssues)
@@ -211,7 +216,7 @@ class OEntityIterableBaseTest : OTestMixin {
     fun `should iterable minus with properties`() {
         // Given
         val test = givenTestCase()
-        orientDb.withSession {
+        withStoreTx {
             test.issue1.setProperty("complex", "true")
             test.issue1.setProperty("blocked", "true")
 
@@ -224,7 +229,7 @@ class OEntityIterableBaseTest : OTestMixin {
         }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val complexIssues = tx.find(Issues.CLASS, "complex", "true")
             val blockedIssues = tx.find(Issues.CLASS, "blocked", "true")
             val complexUnblockedIssues = complexIssues.minus(blockedIssues)
@@ -239,13 +244,15 @@ class OEntityIterableBaseTest : OTestMixin {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue3, test.board1)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board1)
+        }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issuesOnBoard1 = tx.findLinks(Issues.CLASS, test.board1, Issues.Links.ON_BOARD)
             val issuesOnBoard2 = tx.findLinks(Issues.CLASS, test.board2, Issues.Links.ON_BOARD)
             val issues = issuesOnBoard1.minus(issuesOnBoard2)
@@ -262,7 +269,7 @@ class OEntityIterableBaseTest : OTestMixin {
         givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issues = tx.getAll(Issues.CLASS).skip(1)
 
             // Then
@@ -276,7 +283,7 @@ class OEntityIterableBaseTest : OTestMixin {
         givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issues = tx.getAll(Issues.CLASS).take(2)
 
             // Then
@@ -290,7 +297,7 @@ class OEntityIterableBaseTest : OTestMixin {
         givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issues = tx.getAll(Issues.CLASS).skip(1).take(1)
 
             // Then
@@ -299,17 +306,33 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
+    fun `should iterable reverse when with order`() {
+        // Given
+        givenTestCase()
+
+        // When
+        withStoreTx { tx ->
+            val reversedByName = tx.sort(Issues.CLASS, "name", true).reverse()
+
+            // Then
+            assertNamesExactlyInOrder(reversedByName, "issue3", "issue2", "issue1")
+        }
+    }
+
+    @Test
     fun `should iterable find links`() {
         // Given
         val test = givenTestCase()
 
-        orientDb.addIssueToBoard(test.issue1, test.board1)
-        orientDb.addIssueToBoard(test.issue1, test.board2)
-        orientDb.addIssueToBoard(test.issue2, test.board1)
-        orientDb.addIssueToBoard(test.issue3, test.board3)
+        withStoreTx { tx ->
+            tx.addIssueToBoard(test.issue1, test.board1)
+            tx.addIssueToBoard(test.issue1, test.board2)
+            tx.addIssueToBoard(test.issue2, test.board1)
+            tx.addIssueToBoard(test.issue3, test.board3)
+        }
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             // boards 1 and 2
             val boards = tx.find(Boards.CLASS, "name", test.board1.name())
                 .union(tx.find(Boards.CLASS, "name", test.board2.name()))
@@ -322,12 +345,12 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
-    fun `should iterable skip and take while intersect`() {
+    fun `should throw exception for iterable with skip and take while intersect`() {
         // Given
         givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val skippedIssues = tx.getAll(Issues.CLASS).skip(1).take(2)
             val limitIssues = tx.getAll(Issues.CLASS).take(1)
             val issues = skippedIssues.intersect(limitIssues)
@@ -339,12 +362,12 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
-    fun `should iterable skip and take while union`() {
+    fun `should throw exception for iterable with skip and take while union`() {
         // Given
         givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val skippedIssues = tx.getAll(Issues.CLASS).skip(1).take(1)
             val limitIssues = tx.getAll(Issues.CLASS).take(2)
             val issues = skippedIssues.union(limitIssues)
@@ -361,7 +384,7 @@ class OEntityIterableBaseTest : OTestMixin {
         givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issue = tx.sort(Issues.CLASS, "name", true).first
 
             // Then
@@ -375,7 +398,7 @@ class OEntityIterableBaseTest : OTestMixin {
         givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val issue = tx.sort(Issues.CLASS, "name", true).last
 
             // Then
@@ -384,65 +407,38 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     @Test
-    fun `should iterable size`() {
-        // Given
+    fun `an EntityIterable can be used in different transactions`() {
         givenTestCase()
-
-        // When
-        oTransactional { tx ->
-            // boards 1 and 2
-            val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-
-            // Then
-            assertThat(allIssues.size()).isEqualTo(3)
-        }
+        val allIssues = withStoreTx { it.getAll(Issues.CLASS) }
+        val result = withStoreTx { allIssues.toList() }
+        assertEquals(3, result.size)
     }
 
     @Test
-    fun `should iterable count`() {
+    fun `roughCount() = roughSize(), count() = size()`() {
         // Given
         givenTestCase()
 
         // When
-        oTransactional { tx ->
+        withStoreTx { tx ->
             val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
 
-            // Then
-            // Count is not calculated yet
-            assertThat(allIssues.count()).isEqualTo(-1)
-            // Wait until the count is updated asynchronously
-            eventually { assertThat(allIssues.count()).isEqualTo(3) }
-        }
-    }
+            assertEquals(3, allIssues.roughCount)
+            assertEquals(3, allIssues.roughSize)
+            assertEquals(3, allIssues.count())
+            assertEquals(3, allIssues.size())
 
-    @Test
-    fun `should iterable rough size sync`() {
-        // Given
-        givenTestCase()
+            // one more issue
+            tx.newEntity(Issues.CLASS)
 
-        // When
-        oTransactional { tx ->
-            val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-
-            // Then
-            assertThat(allIssues.roughSize).isEqualTo(3)
-        }
-    }
-
-    @Test
-    fun `should iterable rough count`() {
-        // Given
-        givenTestCase()
-
-        // When
-        oTransactional { tx ->
-            val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-
-            // Then
-            assertThat(allIssues.roughCount).isEqualTo(-1)
-            assertThat(allIssues.count()).isEqualTo(-1)
-            // Wait until the count is updated asynchronously
-            eventually { assertThat(allIssues.roughCount).isEqualTo(3) }
+            // uses previously calculated value
+            assertEquals(3, allIssues.roughCount)
+            assertEquals(3, allIssues.roughSize)
+            // calculates the actual one
+            assertEquals(4, allIssues.count())
+            assertEquals(4, allIssues.size())
+            assertEquals(4, allIssues.roughCount)
+            assertEquals(4, allIssues.roughSize)
         }
     }
 
@@ -457,19 +453,17 @@ class OEntityIterableBaseTest : OTestMixin {
         (1..10).forEach {
             orientDb.createIssue("issue$it")
         }
-        oTransactional {
-            val session = (it as OStoreTransaction).activeSession
-            val subIssue = session.getOrCreateVertexClass("ChildIssue")
-            session.newVertex(subIssue).apply {
-                session.setLocalEntityIdIfAbsent(this)
-            }.save<OVertex>()
+        withStoreTx { tx ->
+            tx.newEntity("ChildIssue")
         }
 
-        orientDb.store.executeInTransaction { txn ->
+        withStoreTx { txn ->
             val childIssues = OInstanceOfIterable(txn, "Issue", "ChildIssue", false)
             val notChildIssues = OInstanceOfIterable(txn, "Issue", "ChildIssue", true)
             Assert.assertEquals(10, notChildIssues.toList().size)
             Assert.assertEquals(1, childIssues.toList().size)
         }
     }
+
+
 }

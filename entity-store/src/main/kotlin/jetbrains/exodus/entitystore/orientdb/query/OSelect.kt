@@ -24,7 +24,7 @@ interface OConditional {
 interface OSortable {
     val order: OOrder?
 
-    fun withOrder(field: String, ascending: Boolean): OSelect
+    fun withOrder(order: OOrder): OSelect
 }
 
 interface OSizable {
@@ -52,9 +52,8 @@ abstract class OSelectBase(
 
     abstract fun selectSql(builder: SqlBuilder)
 
-    override fun withOrder(field: String, ascending: Boolean): OSelect {
-        val newOrder = OOrderByFields(field, ascending)
-        order = order?.merge(newOrder) ?: newOrder
+    override fun withOrder(order: OOrder): OSelect {
+        this.order = this.order?.merge(order) ?: order
         return this
     }
 
@@ -90,8 +89,6 @@ class OClassSelect(
         builder.append("SELECT FROM ")
         builder.append(className)
     }
-
-    override fun params() = condition?.params() ?: emptyList()
 }
 
 class OLinkInFromSubQuerySelect(
@@ -107,8 +104,6 @@ class OLinkInFromSubQuerySelect(
         subQuery.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = subQuery.params()
 }
 
 class OLinkInFromIdsSelect(
@@ -160,11 +155,9 @@ class OLinkOutFromSubQuerySelect(
 
     override fun selectSql(builder: SqlBuilder) {
         builder.append("SELECT expand(out('").append(linkName).append("')) FROM (")
-        subQuery.sql(builder.deepen())
+        subQuery.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = subQuery.params()
 }
 
 class OIntersectSelect(
@@ -178,16 +171,13 @@ class OIntersectSelect(
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
     // intersect returns projection thus need to expand it into collection
     override fun selectSql(builder: SqlBuilder) {
-        val depth = builder.depth
-        builder.append("SELECT expand(intersect(\$a${depth}, \$b${depth})) LET \$a${depth}=(")
-        left.sql(builder.deepen())
-        builder.append("), \$b${depth}=(")
-        right.sql(builder.deepen())
+        val index = builder.nextVarIndex()
+        builder.append("SELECT expand(intersect(\$a${index}, \$b${index})) LET \$a${index}=(")
+        left.sql(builder)
+        builder.append("), \$b${index}=(")
+        right.sql(builder)
         builder.append(")")
     }
-
-
-    override fun params() = left.params() + right.params()
 }
 
 class OUnionSelect(
@@ -202,17 +192,15 @@ class OUnionSelect(
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#unionall
     // intersect returns projection thus need to expand it into collection
     override fun selectSql(builder: SqlBuilder) {
-        val depth = builder.depth
-        builder.append("SELECT expand(unionall(\$a${depth}, \$b${depth})")
+        val index = builder.nextVarIndex()
+        builder.append("SELECT expand(unionall(\$a${index}, \$b${index})")
         if (distinct) builder.append(".asSet()")
-        builder.append(") LET \$a${depth}=(")
-        left.sql(builder.deepen())
-        builder.append("), \$b${depth}=(")
-        right.sql(builder.deepen())
+        builder.append(") LET \$a${index}=(")
+        left.sql(builder)
+        builder.append("), \$b${index}=(")
+        right.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = left.params() + right.params()
 }
 
 class ODistinctSelect(
@@ -224,11 +212,9 @@ class ODistinctSelect(
 
     override fun selectSql(builder: SqlBuilder) {
         builder.append("SELECT DISTINCT * FROM (")
-        subQuery.sql(builder.deepen())
+        subQuery.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = subQuery.params()
 }
 
 class ODifferenceSelect(
@@ -240,21 +226,25 @@ class ODifferenceSelect(
 ) : OSelectBase(order, skip, limit) {
 
     override fun selectSql(builder: SqlBuilder) {
-        val depth = builder.depth
-        builder.append("SELECT expand(difference(\$a${depth}, \$b${depth})) LET \$a${depth}=(")
-        left.sql(builder.deepen())
-        builder.append("), \$b${depth}=(")
-        right.sql(builder.deepen())
+        val index = builder.nextVarIndex()
+        builder.append("SELECT expand(difference(\$a${index}, \$b${index})) LET \$a${index}=(")
+        left.sql(builder)
+        builder.append("), \$b${index}=(")
+        right.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = left.params() + right.params()
 }
 
-class OSingleSelect(private val orid: ORID) : OSelectBase() {
+class ORecordIdSelect(
+    val recordIds: Collection<ORID>,
+    order: OOrder? = null
+) : OSelectBase(order) {
 
     override fun selectSql(builder: SqlBuilder) {
-        builder.append("SELECT FROM ").append(orid)
+        builder.append("SELECT FROM ")
+            .append("[")
+            .append(recordIds.joinToString(", ") { it.toString() })
+            .append("]")
     }
 }
 
@@ -266,10 +256,10 @@ fun OCondition?.where(builder: SqlBuilder) {
 }
 
 fun OOrder?.orderBy(builder: SqlBuilder) {
-    this?.let {
+    if (this != null && this != EmptyOrder){
         builder.append(" ORDER BY ")
-        it.sql(builder)
-    } ?: builder.append("")
+        this.sql(builder)
+    }
 }
 
 fun OSkip?.skip(builder: SqlBuilder) {

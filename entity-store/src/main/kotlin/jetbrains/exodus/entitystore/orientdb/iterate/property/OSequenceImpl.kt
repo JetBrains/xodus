@@ -15,59 +15,29 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParams
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import com.orientechnologies.orient.core.metadata.sequence.OSequenceLibrary
 import jetbrains.exodus.entitystore.Sequence
+import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 
-class OSequenceImpl(
+internal class OSequenceImpl(
     private val sequenceName: String,
-    private val sessionCreator: () -> ODatabaseDocument,
-    private val initialValue: Long = 0
+    private val store: OPersistentEntityStore
 ) : Sequence {
-
-
     override fun increment(): Long {
-        return withSequenceInSession {
-            it.next()
-        }
+        return getOSequence().next()
     }
 
     override fun get(): Long {
-        return withSequenceInSession {
-            it.current()
-        }
+        return getOSequence().current()
     }
 
     override fun set(l: Long) {
-        withSequenceInSession {
-            it.updateParams(CreateParams().setCurrentValue(l))
-        }
+        val currentTx = store.requireActiveTransaction()
+        currentTx.updateOSequence(sequenceName, l)
     }
 
-    private fun <T> withSequenceInSession(action: (OSequence) -> T): T {
-        val currentSession = ODatabaseSession.getActiveSession()
-        try {
-            val result = sessionCreator().use { session ->
-                session.activateOnCurrentThread().begin()
-                val sequenceLibrary: OSequenceLibrary = session.metadata.sequenceLibrary
-                var oSequence = sequenceLibrary.getSequence(sequenceName)
-                if (oSequence == null) {
-                    val params = CreateParams().setStart(initialValue).setIncrement(1)
-                    oSequence = sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
-                    session.commit()
-                    session.begin()
-                }
-                val actionResult = action(oSequence)
-                session.commit()
-                actionResult
-            }
-            return result
-        } finally {
-            currentSession?.activateOnCurrentThread()
-        }
+    private fun getOSequence(): OSequence {
+        val currentTx = store.requireActiveTransaction()
+        return currentTx.getOSequence(sequenceName)
     }
 }

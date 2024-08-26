@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.query
 
+import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class OQueryTest {
@@ -26,29 +27,39 @@ class OQueryTest {
         val builder = SqlBuilder()
         query.sql(builder)
         println(builder)
-        println(query.params())
     }
 
     @Test
     fun `should select by property OR property`() {
+        // Given
         val condition = OEqualCondition("name", "John").or(OEqualCondition("project", "Sample"))
-        val query = OClassSelect("Person", condition)
+        val oQuery = OClassSelect("Person", condition)
 
-        val builder = SqlBuilder()
-        query.sql(builder)
-        println(builder)
-        println(query.params())
+        // When
+        val query = buildSql(oQuery)
+
+        // Then
+        assertThat(query.sql)
+            .isEqualTo("SELECT FROM Person WHERE (name = :name0 OR project = :project1)")
     }
 
     @Test
     fun `should select by property AND property`() {
+        // Given
         val condition = OEqualCondition("name", "John").and(OEqualCondition("project", "Sample"))
-        val query = OClassSelect("Person", condition)
+        val oQuery = OClassSelect("Person", condition)
 
-        val builder = SqlBuilder()
-        query.sql(builder)
-        println(builder)
-        println(query.params())
+        // When
+        val query = buildSql(oQuery)
+
+        // Then
+        assertThat(query.sql)
+            .isEqualTo("SELECT FROM Person WHERE (name = :name0 AND project = :project1)")
+        assertThat(query.params)
+            .containsExactly(
+                "name0", "John",
+                "project1", "Sample"
+            )
     }
 
     @Test
@@ -60,12 +71,26 @@ class OQueryTest {
             ),
             equal("project", "Sample3")
         )
-        val query = OClassSelect("Person", condition)
+        val oQuery = OClassSelect("Person", condition)
 
+        // When
+        val query = buildSql(oQuery)
+
+        // Then
+        assertThat(query.sql)
+            .isEqualTo("SELECT FROM Person WHERE ((name = :name0 AND (project = :project1 OR project = :project2)) OR project = :project3)")
+        assertThat(query.params)
+            .containsExactly(
+                "name0", "John",
+                "project1", "Sample",
+                "project2", "Sample2",
+                "project3", "Sample3"
+            )
+    }
+
+    private fun buildSql(oSql: OSql): SqlQuery {
         val builder = SqlBuilder()
-        query.sql(builder)
-
-        println(builder)
-        println(query.params())
+        oSql.sql(builder)
+        return builder.build()
     }
 }

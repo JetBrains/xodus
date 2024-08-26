@@ -15,4 +15,14 @@
  */
 package jetbrains.exodus.query
 
-interface IQueryEngine
+import jetbrains.exodus.entitystore.Entity
+import java.util.*
+
+class InMemoryHeapSortIterable(source: Iterable<Entity>, comparator: Comparator<Entity>) : InMemoryQueueSortIterable(source, comparator) {
+
+    override fun createQueue(unsorted: Collection<Entity>): Queue<Entity> {
+        val result = PriorityQueue(unsorted.size, comparator)
+        unsorted.forEach { result.offer(it) }
+        return result
+    }
+}

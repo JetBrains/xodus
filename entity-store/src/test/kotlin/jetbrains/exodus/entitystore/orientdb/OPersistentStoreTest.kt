@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
@@ -38,19 +37,31 @@ class OPersistentStoreTest: OTestMixin {
     override val orientDb = orientDbRule
 
     @Test
+    fun `renameEntityType() works only inside a transaction`() {
+        // make sure the schema class is created
+        orientDb.createIssue("trista")
+
+        assertFailsWith<IllegalStateException> { orientDb.store.renameEntityType(CLASS, "NewName") }
+
+        orientDb.store.executeInTransaction {
+            orientDb.store.renameEntityType(CLASS, "NewName")
+        }
+    }
+
+    @Test
     fun renameClassTest() {
         val summary = "Hello, your product does not work"
         orientDb.createIssue(summary)
         val store = orientDb.store
 
         val newClassName = "Other${CLASS}"
-        store.renameEntityType(CLASS, newClassName)
-        val issueByNewName = store.computeInExclusiveTransaction {
-            it as OStoreTransaction
-            (it.activeSession as ODatabaseSession).queryEntities("select from $newClassName", store).firstOrNull()
+        store.executeInTransaction {
+            store.renameEntityType(CLASS, newClassName)
+        }
+        val issueByNewName = store.computeInExclusiveTransaction { tx ->
+            tx.getAll(newClassName).first()
         }
         Assert.assertNotNull(issueByNewName)
-        issueByNewName!!
         store.executeInTransaction {
             assertEquals(summary, issueByNewName.getProperty("name"))
         }
@@ -62,7 +73,7 @@ class OPersistentStoreTest: OTestMixin {
         val store = orientDb.store
         store.computeInTransaction {
             Assert.assertTrue(it.isIdempotent)
-            issue.asVertex.reload<OVertex>()
+            issue.vertex.reload<OVertex>()
             issue.setProperty("version", "22")
             Assert.assertFalse(it.isIdempotent)
         }
@@ -143,7 +154,7 @@ class OPersistentStoreTest: OTestMixin {
         val aId = orientDb.createIssue("A").id
 
         // delete the issue
-        orientDb.store.databaseProvider.withSession { oSession ->
+        orientDb.withSession { oSession ->
             oSession.delete(aId.asOId())
         }
 
@@ -171,7 +182,7 @@ class OPersistentStoreTest: OTestMixin {
         val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
         val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
         val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
-        orientDb.withSession {
+        orientDb.store.executeInTransaction {
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(notExistingEntityId))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId1))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId2))
@@ -183,7 +194,7 @@ class OPersistentStoreTest: OTestMixin {
     fun `requireOEntityId works correctly with different types of EntityId`() {
         val issueId = orientDb.createIssue("trista").id
 
-        orientDb.withSession {
+        orientDb.store.executeInTransaction {
             assertEquals(issueId, orientDb.store.requireOEntityId(issueId))
             assertEquals(issueId, orientDb.store.requireOEntityId(PersistentEntityId(issueId.typeId, issueId.localId)))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.requireOEntityId(PersistentEntityId.EMPTY_ID))

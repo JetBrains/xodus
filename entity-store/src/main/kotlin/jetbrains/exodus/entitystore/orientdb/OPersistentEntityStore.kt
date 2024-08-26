@@ -15,29 +15,25 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
 import jetbrains.exodus.management.Statistics
 import java.io.File
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 
 class OPersistentEntityStore(
-    val databaseProvider: ODatabaseProvider,
+    private val databaseProvider: ODatabaseProvider,
     private val name: String,
-    override val countExecutor: Executor = Executors.newSingleThreadExecutor(),
     private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider)
 ) : PersistentEntityStore, OEntityStore {
 
     private val config = PersistentEntityStoreConfig()
     private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
     private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
-    private val env = OEnvironment(databaseProvider.database, this)
-    private val currentTransaction = ThreadLocal<OStoreTransactionImpl>()
+    private val currentTransaction = ThreadLocal<OStoreTransaction>()
 
     override fun close() {
         //or it should be closed independently
@@ -54,47 +50,60 @@ class OPersistentEntityStore(
     }
 
     override fun beginTransaction(): StoreTransaction {
-        var currentTx: OStoreTransactionImpl? = currentTransaction.get()
+        return beginTransactionImpl(readOnly = false)
+    }
 
-        /**
-         * Meet nested transactions!
-         *
-         * The fact that we return the same tx object for all the nested transactions is,
-         * to say the least, questionable.
-         *
-         * Consider the following snippet
-         * tx1 = store.beginTransaction()
-         * tx2 = store.beginTransaction()
-         * tx2.commit() - commits the second transaction as expected
-         * tx2.commit() - commits the first transaction as nobody would expect
-         *
-         * So this approach definitely requires fixing.
-         */
-        if (currentTx != null) {
-            currentTx.activeSession.begin()
-            return currentTx
-        }
+    override fun beginExclusiveTransaction(): StoreTransaction {
+        return beginTransactionImpl(readOnly = false)
+    }
+
+    override fun beginReadonlyTransaction(): StoreTransaction {
+        return beginTransactionImpl(readOnly = true)
+    }
+
+    private fun beginTransactionImpl(readOnly: Boolean): StoreTransaction {
+        var currentTx: OStoreTransaction? = currentTransaction.get()
+        check(currentTx == null) { "EntityStore has a transaction on the current thread. Finish it before starting a new one." }
 
         val session = databaseProvider.acquireSession()
-        session.begin()
-        session.activateOnCurrentThread()
 
-        currentTx = OStoreTransactionImpl(session, this, schemaBuddy, databaseProvider::acquireSession)
+        currentTx = OStoreTransactionImpl(
+            session,
+            store = this,
+            schemaBuddy,
+            onFinished = ::onTransactionFinished,
+            onDeactivated = ::onTransactionDeactivated,
+            onActivated = ::onTransactionActivated,
+            readOnly = readOnly
+        )
         currentTransaction.set(currentTx)
+        currentTx.begin()
 
         return currentTx
     }
 
-    fun completeTx() {
+    private fun onTransactionFinished(session: ODatabaseSession, tx: OStoreTransaction) {
+        check(currentTransaction.get() == tx) { "The current transaction at EntityStore is different for one that just has finished. It must not happen." }
+        check(!session.isClosed) { "The session should not be closed at this point." }
         currentTransaction.remove()
+        session.close()
     }
 
-    override fun beginExclusiveTransaction(): StoreTransaction {
-        return beginTransaction()
+    private fun onTransactionDeactivated(session: ODatabaseSession, tx: OStoreTransaction) {
+        check(currentTransaction.get() == tx) { "Impossible to deactivate the transaction. The transaction on the current thread is different from one that wants to suspend. It must not ever happen." }
+        check(!tx.isFinished) { "Cannot deactivate a finished transaction" }
+        check(!session.isClosed) { "Cannot deactivate a closed session" }
+        currentTransaction.remove()
+        ODatabaseRecordThreadLocal.instance().remove()
     }
 
-    override fun beginReadonlyTransaction(): StoreTransaction {
-        return beginTransaction()
+    private fun onTransactionActivated(session: ODatabaseSession, tx: OStoreTransaction) {
+        check(currentTransaction.get() == null) { "Impossible to activate the transaction. There is already an active transaction on the current thread." }
+        check(!hasActiveSession()) { "There is an active session on the current thread" }
+        check(!tx.isFinished) { "Cannot activate a finished transaction" }
+        check(!session.isClosed) { "Cannot activate a closed session" }
+        session.activateOnCurrentThread()
+        currentTransaction.set(tx)
     }
 
     override fun getCurrentTransaction(): StoreTransaction? {
@@ -103,10 +112,6 @@ class OPersistentEntityStore(
 
     override fun getBackupStrategy(): BackupStrategy {
         return object : BackupStrategy() {}
-    }
-
-    override fun getEnvironment(): OEnvironment {
-        return env
     }
 
     override fun clear() {
@@ -161,37 +166,22 @@ class OPersistentEntityStore(
     }
 
     override fun getEntity(id: EntityId): Entity {
-        val oId = requireOEntityId(id)
-        if (oId == ORIDEntityId.EMPTY_ID) {
-            throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
-        }
-        val txn = currentOTransaction.activeSession.requireActiveTransaction()
-        val vertex = txn.database.load<OVertex>(oId.asOId()) ?: throw EntityRemovedInDatabaseException(oId.getTypeName(), id)
-        return OVertexEntity(vertex, this)
+        val currentTx = requireActiveTransaction()
+        return currentTx.getEntity(id)
     }
 
     override fun getEntityTypeId(entityType: String): Int {
-        val oClass = ODatabaseSession.getActiveSession().metadata.schema.getClass(entityType)
-        return oClass?.defaultClusterId ?: -1
+        val currentTx = requireActiveTransaction()
+        return currentTx.getTypeId(entityType)
     }
 
     override fun getEntityType(entityTypeId: Int): String {
-        val oClass =
-            ODatabaseSession.getActiveSession().metadata.schema.getClassByClusterId(entityTypeId)
-        return oClass.name
+       TODO()
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
-        val oldClass = computeInTransaction {
-            val txn = it as OStoreTransaction
-            txn.activeSession.metadata.schema.getClass(oldEntityTypeName)
-                ?: throw IllegalArgumentException("Class $oldEntityTypeName not found")
-        }
-        databaseProvider.acquireSession().apply {
-            activateOnCurrentThread()
-            oldClass.setName(newEntityTypeName)
-            close()
-        }
+        val currentTx = requireActiveTransaction()
+        currentTx.renameOClass(oldEntityTypeName, newEntityTypeName)
     }
 
     override fun getUsableSpace(): Long {
@@ -205,21 +195,31 @@ class OPersistentEntityStore(
     override fun getStatistics() = dummyStatistics
 
     override fun getAndCheckCurrentTransaction(): StoreTransaction {
-        val transaction = getCurrentTransaction()
-            ?: throw java.lang.IllegalStateException("EntityStore: current transaction is not set.")
-        return transaction
+        return requireActiveTransaction()
     }
 
     override fun getCountsAsyncProcessor() = dummyJobProcessor
 
-    private val currentOTransaction get() = currentTransaction.get() as OStoreTransaction
+    override fun requireActiveTransaction(): OStoreTransaction {
+        val tx = currentTransaction.get()
+        check(tx != null) { "No active transactions on the current thread" }
+        tx.requireActiveTransaction()
+        return tx
+    }
 
-    fun getOEntityId(entityId: PersistentEntityId): ORIDEntityId {
-        return schemaBuddy.getOEntityId(entityId)
+    override fun requireActiveWritableTransaction(): OStoreTransaction {
+        val tx = currentTransaction.get()
+        check(tx != null) { "No active transactions on the current thread" }
+        tx.requireActiveWritableTransaction()
+        return tx
+    }
+
+    override fun getOEntityId(entityId: PersistentEntityId): OEntityId {
+        return requireActiveTransaction().getOEntityId(entityId)
     }
 }
 
-internal fun PersistentEntityStore.requireOEntityId(id: EntityId): ORIDEntityId {
+internal fun OEntityStore.requireOEntityId(id: EntityId): OEntityId {
     return when (id) {
         is ORIDEntityId -> id
         PersistentEntityId.EMPTY_ID -> ORIDEntityId.EMPTY_ID

@@ -31,7 +31,7 @@ public class InstanceOf extends NodeBase {
 
   @Override
   public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
-    var txn = queryEngine.getPersistentStore().getAndCheckCurrentTransaction();
+    var txn = queryEngine.getOStore().requireActiveTransaction();
     return new OInstanceOfIterable(txn, entityType, className, invert);
   }
 

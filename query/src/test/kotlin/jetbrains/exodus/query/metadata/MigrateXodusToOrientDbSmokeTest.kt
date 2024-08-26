@@ -72,7 +72,7 @@ class MigrateXodusToOrientDbSmokeTest {
 
 
         // 3. Migrate the data
-        migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore)
+        migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore, dbProvider, oModelMetadata,)
 
 
         // 4. Initialize the schema
@@ -85,7 +85,7 @@ class MigrateXodusToOrientDbSmokeTest {
         // quick validations
         oEntityStore.checkContainsAllTheEntities(entities)
         oEntityStore.checkLinksWork()
-        oEntityStore.checkSchemaCreated()
+        dbProvider.checkSchemaCreated()
 
         // cleanup
         xEntityStore.close()
@@ -94,13 +94,13 @@ class MigrateXodusToOrientDbSmokeTest {
     }
 
     private fun OPersistentEntityStore.checkContainsAllTheEntities(entities: PileOfEntities) {
-        databaseProvider.withSession { session ->
-            session.assertOrientContainsAllTheEntities(entities, this)
+        executeInTransaction { tx ->
+            tx.assertOrientContainsAllTheEntities(entities)
         }
     }
 
-    private fun OPersistentEntityStore.checkSchemaCreated() {
-        databaseProvider.withSession { session ->
+    private fun ODatabaseProvider.checkSchemaCreated() {
+        withSession { session ->
             val type1 = session.getClass("type1")!!
             val type2 = session.getClass("type2")!!
 

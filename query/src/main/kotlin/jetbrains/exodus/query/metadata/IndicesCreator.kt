@@ -17,6 +17,11 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.edgeClassName
+import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
+import jetbrains.exodus.entitystore.orientdb.setTargetLocalEntityIds
 import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
@@ -44,8 +49,7 @@ internal class IndicesCreator(
                             append(indexName)
                             if (oClass.getClassIndex(indexName) == null) {
                                 val indexType = if (unique) OClass.INDEX_TYPE.UNIQUE else OClass.INDEX_TYPE.NOTUNIQUE
-                                val propertiesNames = properties.map { it.name }.toTypedArray()
-                                oClass.createIndex(indexName, indexType, *propertiesNames)
+                                oClass.createIndex(indexName, indexType, *properties.toTypedArray())
                                 appendLine(", created")
                             } else {
                                 appendLine(", already created")
@@ -63,29 +67,55 @@ internal class IndicesCreator(
     }
 }
 
+fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks(
+    newIndexedLinks: Map<String, Set<String>>, // ClassName -> set of link names
+    commitEvery: Int = 50
+) {
+    if (newIndexedLinks.isEmpty()) return
+
+    var counter = 0
+    withTx {
+        for ((className, indexedLinks) in newIndexedLinks) {
+            for (vertex in browseClass(className).map { it as OVertex }) {
+                for (indexedLink in indexedLinks) {
+                    val edgeClassName = edgeClassName(indexedLink)
+                    val targetLocalEntityIds = vertex.getTargetLocalEntityIds(indexedLink)
+                    for (target in vertex.getVertices(ODirection.OUT, edgeClassName)) {
+                        targetLocalEntityIds.add(target)
+                    }
+                    vertex.setTargetLocalEntityIds(indexedLink, targetLocalEntityIds)
+                    vertex.save<OVertex>()
+
+                    counter++
+                    if (counter == commitEvery) {
+                        counter = 0
+                        commit()
+                        begin()
+                    }
+                }
+            }
+        }
+    }
+}
+
 data class DeferredIndex(
     val ownerVertexName: String,
     val indexName: String,
-    val properties: List<IndexField>,
+    val properties: Set<String>,
     val unique: Boolean
 ) {
-    constructor(ownerVertexName: String, properties: List<IndexField>, unique: Boolean): this(
+    constructor(ownerVertexName: String, properties: Set<String>, unique: Boolean): this(
         ownerVertexName,
-        indexName = "${ownerVertexName}_${properties.joinToString("_") { it.name }}${if (unique) "_unique" else ""}",
+        indexName = "${ownerVertexName}_${properties.sorted().joinToString("_")}${if (unique) "_unique" else ""}",
         properties,
         unique = unique
     )
-
-    constructor(index: Index, unique: Boolean): this(index.ownerEntityType, index.fields, unique)
 }
 
 fun OClass.makeDeferredIndexForEmbeddedSet(propertyName: String): DeferredIndex {
-    val indexField = IndexFieldImpl()
-    indexField.isProperty = true
-    indexField.name = propertyName
     return DeferredIndex(
         ownerVertexName = this.name,
-        listOf(indexField),
+        setOf(propertyName),
         unique = false
     )
 }

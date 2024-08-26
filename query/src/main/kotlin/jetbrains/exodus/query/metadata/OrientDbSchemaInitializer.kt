@@ -25,6 +25,7 @@ import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.createClassIdSequenceIfAbsent
 import jetbrains.exodus.entitystore.orientdb.createLocalEntityIdSequenceIfAbsent
 import jetbrains.exodus.entitystore.orientdb.setClassIdIfAbsent
@@ -32,43 +33,48 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
+data class SchemaApplicationResult(
+    val indices: Map<String, Set<DeferredIndex>>,
+    val newIndexedLinks: Map<String, Set<String>> // ClassName -> set of link names
+)
+
 fun ODatabaseSession.applySchema(
     metaData: ModelMetaData,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
-): Map<String, Set<DeferredIndex>> =
+): SchemaApplicationResult =
     applySchema(metaData.entitiesMetaData, indexForEverySimpleProperty, applyLinkCardinality)
 
 fun ODatabaseSession.applySchema(
     entitiesMetaData: Iterable<EntityMetaData>,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
-): Map<String, Set<DeferredIndex>> {
+): SchemaApplicationResult {
     val initializer =
         OrientDbSchemaInitializer(entitiesMetaData, this, indexForEverySimpleProperty, applyLinkCardinality)
-    initializer.apply()
-    return initializer.getIndices()
+    return initializer.apply()
 }
 
 fun ODatabaseSession.addAssociation(
-    className: String,
+    outEntityMetadata: EntityMetaData,
     association: AssociationEndMetaData,
     applyLinkCardinality: Boolean = true
-) {
-    addAssociation(association.toOMetadata(className), applyLinkCardinality)
+): SchemaApplicationResult {
+    return addAssociation(outEntityMetadata, association.toOMetadata(outEntityMetadata.type), applyLinkCardinality)
 }
 
 fun ODatabaseSession.addAssociation(
+    outEntityMetadata: EntityMetaData,
     association: OAssociationMetadata,
     applyLinkCardinality: Boolean = true
-) {
+): SchemaApplicationResult {
     val initializer = OrientDbSchemaInitializer(
         listOf(),
         this,
         indexForEverySimpleProperty = false,
         applyLinkCardinality = applyLinkCardinality
     )
-    initializer.addAssociation(association)
+    return initializer.addAssociation(outEntityMetadata, association)
 }
 
 fun ODatabaseSession.removeAssociation(
@@ -124,32 +130,23 @@ internal class OrientDbSchemaInitializer(
     private fun appendLine(s: String = "") = paddedLogger.appendLine(s)
 
 
-    private val indices = HashMap<String, MutableMap<String, DeferredIndex>>()
+    private val indices = HashMap<String, MutableSet<DeferredIndex>>()
+
+    private val newIndexedLinks = HashMap<String, MutableSet<String>>()
 
     private fun addIndex(index: DeferredIndex) {
-        indices.getOrPut(index.ownerVertexName) { HashMap() }[index.indexName] = index
+        indices.getOrPut(index.ownerVertexName) { HashSet() }.add(index)
     }
 
     private fun simplePropertyIndex(entityName: String, propertyName: String): DeferredIndex {
-        val indexField = IndexFieldImpl()
-        indexField.isProperty = true
-        indexField.name = propertyName
-        return DeferredIndex(entityName, listOf(indexField), unique = false)
+        return DeferredIndex(entityName, setOf(propertyName), unique = false)
     }
 
-    private fun linkIndex(edgeClassName: String): DeferredIndex {
-        val inProperty = IndexFieldImpl()
-        inProperty.isProperty = false
-        inProperty.name = OEdge.DIRECTION_IN
-        val outProperty = IndexFieldImpl()
-        outProperty.isProperty = false
-        outProperty.name = OEdge.DIRECTION_OUT
-        return DeferredIndex(edgeClassName, listOf(inProperty, outProperty), unique = true)
+    private fun linkUniqueIndex(edgeClassName: String): DeferredIndex {
+        return DeferredIndex(edgeClassName, setOf(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT), unique = true)
     }
 
-    fun getIndices(): Map<String, Set<DeferredIndex>> = indices.map { it.key to it.value.values.toSet() }.toMap()
-
-    fun apply() {
+    fun apply(): SchemaApplicationResult {
         try {
             oSession.createClassIdSequenceIfAbsent()
 
@@ -190,7 +187,7 @@ internal class OrientDbSchemaInitializer(
                     appendLine(dnqEntity.type)
                     withPadding {
                         for (associationEnd in dnqEntity.associationEndsMetaData) {
-                            this.applyAssociation(associationEnd.toOMetadata(dnqEntity.type))
+                            this.applyAssociation(dnqEntity, associationEnd.toOMetadata(dnqEntity.type))
                         }
                     }
                 }
@@ -203,21 +200,30 @@ internal class OrientDbSchemaInitializer(
                 for ((indexOwner, indices) in indices) {
                     appendLine("$indexOwner:")
                     withPadding {
-                        for ((indexName, _) in indices) {
-                            appendLine(indexName)
+                        for (index in indices) {
+                            appendLine(index.indexName)
                         }
                     }
                 }
             }
+
+            return SchemaApplicationResult(
+                indices = indices,
+                newIndexedLinks
+            )
         } finally {
             paddedLogger.flush()
         }
     }
 
-    fun addAssociation(association: OAssociationMetadata) {
+    fun addAssociation(outEntityMetadata: EntityMetaData, association: OAssociationMetadata): SchemaApplicationResult {
         try {
             appendLine("create association [${association.outClassName} -> ${association.name} -> ${association.inClassName}] if absent:")
-            this.applyAssociation(association)
+            this.applyAssociation(outEntityMetadata, association)
+            return SchemaApplicationResult(
+                indices = indices,
+                newIndexedLinks = newIndexedLinks
+            )
         } finally {
             paddedLogger.flush()
         }
@@ -251,9 +257,23 @@ internal class OrientDbSchemaInitializer(
         /*
         * It is more efficient to create indices after the data migration.
         * So, we only remember indices here and let the user create them later.
+        *
+        * We ignore here any indices that contain links. It is because Xodus adds links
+        * when the schema is already initialized. So, having here an index that contains
+        * a link that has not yet been added to the schema is a valid case.
+        *
+        * We add indices containing links when we add a link from the index.
         * */
-        for (index in dnqEntity.ownIndexes.map { DeferredIndex(it, unique = true) }) {
-            addIndex(index)
+        for (index in dnqEntity.ownIndexes.filter { it.fields.none { !it.isProperty } }) {
+            val properties = index.fields.map { it.name }.toSet()
+
+            addIndex(
+                DeferredIndex(
+                    dnqEntity.type,
+                    properties,
+                    unique = true
+                )
+            )
         }
 
         /*
@@ -307,7 +327,10 @@ internal class OrientDbSchemaInitializer(
 
     // Associations
 
-    private fun applyAssociation(association: OAssociationMetadata) {
+    private fun applyAssociation(
+        outEntityMetadata: EntityMetaData,
+        association: OAssociationMetadata
+    ) {
         append(association.name)
 
         val class1 = oSession.getClass(association.outClassName)
@@ -321,6 +344,8 @@ internal class OrientDbSchemaInitializer(
         withPadding {
             // class1.prop1 -> edgeClass -> class2
             applyAssociation(
+                outEntityMetadata,
+                association.name,
                 edgeClass,
                 outClass = class1,
                 outCardinality = association.cardinality,
@@ -330,6 +355,8 @@ internal class OrientDbSchemaInitializer(
     }
 
     private fun applyAssociation(
+        outEntityMetadata: EntityMetaData,
+        associationName: String,
         edgeClass: OClass,
         outClass: OClass,
         outCardinality: AssociationEndCardinality,
@@ -337,7 +364,7 @@ internal class OrientDbSchemaInitializer(
     ) {
         val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
         append("outProp: ${outClass.name}.$linkOutPropName")
-        val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName, null)
+        val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName)
         if (applyLinkCardinality) {
             // applying cardinality only to out direct property
             outProp.applyCardinality(outCardinality)
@@ -346,13 +373,42 @@ internal class OrientDbSchemaInitializer(
 
         val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
         append("inProp: ${inClass.name}.$linkInPropName")
-        inClass.createLinkPropertyIfAbsent(linkInPropName, null)
+        inClass.createLinkPropertyIfAbsent(linkInPropName)
+        appendLine()
 
-        addIndex(linkIndex(edgeClass.name))
         /*
         * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
         * Because AssociationEndCardinality describes the cardinality of a single end.
         * */
+
+        addIndex(linkUniqueIndex(edgeClass.name))
+
+        val indicesContainingLink = outEntityMetadata.indexes.filter { index -> index.fields.any { field -> field.name == associationName } }
+        if (indicesContainingLink.isNotEmpty()) {
+            val indexedPropName = linkTargetEntityIdPropertyName(associationName)
+            append("prop for composite indices: ${outClass.name}.$indexedPropName")
+
+            if (!outClass.existsProperty(indexedPropName)) {
+                newIndexedLinks.getOrPut(outClass.name) { HashSet() }.add(associationName)
+            }
+            outClass.createPropertyIfAbsent(indexedPropName, OType.LINKBAG)
+        }
+
+        for (index in indicesContainingLink) {
+            val simpleProperties = index.fields.filter { it.isProperty }.map { it.name }.toSet()
+            val linkComplementaryProperties = index.fields.filter { !it.isProperty }.map { linkTargetEntityIdPropertyName(it.name) }.toSet()
+            val allIndexedProperties = simpleProperties + linkComplementaryProperties
+            // create the index only if all the containing properties are already initialized
+            if (allIndexedProperties.all { outClass.existsProperty(it) }) {
+                addIndex(
+                    DeferredIndex(
+                        outClass.name,
+                        allIndexedProperties,
+                        unique = true
+                    )
+                )
+            }
+        }
 
         appendLine()
     }
@@ -440,7 +496,12 @@ internal class OrientDbSchemaInitializer(
             for (propertyMetaData in dnqEntity.propertiesMetaData) {
                 if (propertyMetaData is PropertyMetaDataImpl) {
                     val required = propertyMetaData.name in dnqEntity.requiredProperties
-                    // Xodus does not let a property be null/empty if it is in an index
+                    /*
+                     Xodus does not let a property be null/empty if it is in an index.
+                     Check out TransientSessionImpl.checkBeforeSaveChangesConstraints() for details.
+                     Xodus explicitly prohibits empty values for indexed simple properties (it throws more or less understandable exception).
+                     Xodus implicitly prohibits empty values for indexed links (it crashes with null pointer exception).
+                     */
                     val requiredBecauseOfIndex =
                         dnqEntity.ownIndexes.any { index -> index.fields.any { it.name == propertyMetaData.name } }
                     oClass.applySimpleProperty(propertyMetaData, required || requiredBecauseOfIndex)
@@ -450,6 +511,8 @@ internal class OrientDbSchemaInitializer(
             val prop = SimplePropertyMetaDataImpl(LOCAL_ENTITY_ID_PROPERTY_NAME, "long")
             oClass.applySimpleProperty(prop, true)
             // we need this index regardless what we have in indexForEverySimpleProperty
+            // the index for localEntityId must not be unique, otherwise it will not let the same localEntityId
+            // for subtypes of a supertype
             addIndex(simplePropertyIndex(dnqEntity.type, LOCAL_ENTITY_ID_PROPERTY_NAME))
         }
     }
@@ -541,47 +604,16 @@ internal class OrientDbSchemaInitializer(
             }
 
             PropertyType.TEXT -> {
-                val oProperty = createStringBlobPropertyIfAbsent(propertyName)
+                val oProperty = createPropertyIfAbsent(propertyName, OType.BINARY)
                 oProperty.setRequirement(required)
             }
 
             PropertyType.BLOB -> {
-                val oProperty = createBinaryBlobPropertyIfAbsent(propertyName)
+                val oProperty = createPropertyIfAbsent(propertyName, OType.BINARY)
                 oProperty.setRequirement(required)
             }
         }
         appendLine()
-    }
-
-    private fun OClass.createBinaryBlobPropertyIfAbsent(propertyName: String): OProperty =
-        createBlobPropertyIfAbsent(propertyName, OVertexEntity.BINARY_BLOB_CLASS_NAME)
-
-    private fun OClass.createStringBlobPropertyIfAbsent(propertyName: String): OProperty =
-        createBlobPropertyIfAbsent(propertyName, OVertexEntity.STRING_BLOB_CLASS_NAME)
-
-    private fun OClass.createBlobPropertyIfAbsent(propertyName: String, blobClassName: String): OProperty {
-        val blobClass = oSession.createBlobClassIfAbsent(blobClassName)
-
-        val oProperty = createPropertyIfAbsent(propertyName, OType.LINK)
-        if (oProperty.linkedClass != blobClass) {
-            oProperty.setLinkedClass(blobClass)
-        }
-        require(oProperty.linkedClass == blobClass) { "Property linked class is ${oProperty.linkedClass}, but $blobClass was expected" }
-        return oProperty
-    }
-
-    private fun ODatabaseSession.createBlobClassIfAbsent(className: String): OClass {
-        var oClass: OClass? = getClass(className)
-        if (oClass == null) {
-            oClass = oSession.createVertexClass(className)!!
-            append(", $className class created")
-            oClass.createProperty(OVertexEntity.DATA_PROPERTY_NAME, OType.BINARY)
-            append(", ${OVertexEntity.DATA_PROPERTY_NAME} property created")
-        } else {
-            append(", $className class already created")
-            require(oClass.existsProperty(OVertexEntity.DATA_PROPERTY_NAME)) { "${OVertexEntity.DATA_PROPERTY_NAME} is missing in $className, something went dramatically wrong. Happy debugging!" }
-        }
-        return oClass
     }
 
     private fun OProperty.setRequirement(required: Boolean) {
@@ -647,17 +679,15 @@ internal class OrientDbSchemaInitializer(
     *
     * But we still can set linkedClassType for direct link out-properties.
     * */
-    private fun OClass.createLinkPropertyIfAbsent(propertyName: String, linkedClass: OClass?): OProperty {
-        append(", linkedClassType class is ${linkedClass?.name}")
+    private fun OClass.createLinkPropertyIfAbsent(propertyName: String): OProperty {
         val oProperty = if (existsProperty(propertyName)) {
             append(", already created")
             getProperty(propertyName)
         } else {
             append(", created")
-            createProperty(propertyName, OType.LINKBAG, linkedClass)
+            createProperty(propertyName, OType.LINKBAG)
         }
         require(oProperty.type == OType.LINKBAG) { "$propertyName type is ${oProperty.type} but ${OType.LINKBAG} was expected instead. Types migration is not supported." }
-        require(oProperty.linkedClass == linkedClass) { "$propertyName type of the set is ${oProperty.linkedClass.name} but ${linkedClass?.name} was expected instead. Types migration is not supported." }
         return oProperty
     }
 

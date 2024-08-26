@@ -17,9 +17,12 @@ package jetbrains.exodus.entitystore.orientdb.testutil
 
 import com.google.common.truth.Ordered
 import com.google.common.truth.Truth.assertThat
+import com.orientechnologies.orient.core.db.ODatabaseSession
 import jetbrains.exodus.entitystore.Entity
-import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OEntity
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OStoreTransactionImpl
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 
 interface OTestMixin {
 
@@ -38,11 +41,23 @@ interface OTestMixin {
         return store.beginTransaction() as OStoreTransactionImpl
     }
 
-    fun oTransactional(block: (StoreTransaction) -> Unit) {
-        orientDb.store.executeInTransaction {
-            block(it)
-        }
+    fun <R> withStoreTx(block: (OStoreTransaction) -> R): R {
+        return orientDb.withStoreTx(block)
+    }
+
+    fun <R> withSession(block: (ODatabaseSession) -> R): R {
+        return orientDb.withSession(block)
     }
 
     fun givenTestCase() = OTaskTrackerTestCase(orientDb)
+
+    fun OStoreTransaction.createIssue(name: String, priority: String? = null): OVertexEntity = createIssueImpl(name, priority)
+
+    fun OStoreTransaction.createProject(name: String): OVertexEntity = createProjectImpl(name)
+
+    fun OStoreTransaction.createBoard(name: String): OVertexEntity = createBoardImpl(name)
+
+    fun OStoreTransaction.addIssueToProject(issue: OEntity, project: OEntity) = addIssueToProjectImpl(issue, project)
+
+    fun OStoreTransaction.addIssueToBoard(issue: OEntity, board: OEntity) = addIssueToBoardImpl(issue, board)
 }

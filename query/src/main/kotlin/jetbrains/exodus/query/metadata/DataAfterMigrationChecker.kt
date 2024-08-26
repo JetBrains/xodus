@@ -22,11 +22,8 @@ import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OComparableSet
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.STRING_BLOB_CLASS_NAME
 import mu.KotlinLogging
 import java.io.InputStream
-import java.lang.IllegalStateException
 import kotlin.time.Duration
 import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
@@ -220,6 +217,4 @@ private val oEntityStoreExtraEntityTypes = setOf(
     "OSequence",
     "OSecurityPolicy",
     "OUser",
-    BINARY_BLOB_CLASS_NAME,
-    STRING_BLOB_CLASS_NAME
 )

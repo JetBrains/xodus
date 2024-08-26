@@ -15,16 +15,12 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.*
-import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.BINARY_BLOB_CLASS_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
@@ -39,12 +35,14 @@ private val log = KotlinLogging.logger { }
 fun migrateDataFromXodusToOrientDb(
     xodus: PersistentEntityStore,
     orient: OPersistentEntityStore,
+    orientProvider: ODatabaseProvider,
+    schemaBuddy: OSchemaBuddy,
     /*
     * How many entities should be copied in a single transaction
     * */
     entitiesPerTransaction: Int = 10
 ): XodusToOrientMigrationStats {
-    val migrator = XodusToOrientDataMigrator(xodus, orient, entitiesPerTransaction)
+    val migrator = XodusToOrientDataMigrator(xodus, orient, orientProvider, schemaBuddy, entitiesPerTransaction)
     return migrator.migrate()
 }
 
@@ -83,6 +81,8 @@ data class XodusToOrientMigrationStats(
 internal class XodusToOrientDataMigrator(
     private val xodus: PersistentEntityStore,
     private val orient: OPersistentEntityStore,
+    private val orientProvider: ODatabaseProvider,
+    private val schemaBuddy: OSchemaBuddy,
     /*
     * How many entities should be copied in a single transaction
     * */
@@ -158,7 +158,7 @@ internal class XodusToOrientDataMigrator(
         // classes can not be created in a transaction, so we have to create them before copying the data
         log.info { "1. Copy entity types" }
         var maxClassId = 0
-        orient.databaseProvider.withSession { oSession ->
+        orientProvider.withSession { oSession ->
             xodus.withReadonlyTx { xTx ->
                 val entityTypes = xTx.entityTypes.toSet()
                 log.info { "${entityTypes.size} entity types to copy" }
@@ -179,11 +179,9 @@ internal class XodusToOrientDataMigrator(
             }
 
             // create a sequence to generate classIds
-            val sequences = oSession.metadata.sequenceLibrary
-            require(sequences.getSequence(CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
-            oSession.createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, maxClassId.toLong())
+            check(schemaBuddy.getSequenceOrNull(oSession, CLASS_ID_SEQUENCE_NAME) == null) { "$CLASS_ID_SEQUENCE_NAME is already created. It means that some data migration has happened to the target database before. Such a scenario is not supported." }
+            oSession.createClassIdSequenceIfAbsent(maxClassId.toLong())
 
-            oSession.getClass(BINARY_BLOB_CLASS_NAME) ?: oSession.createClass(BINARY_BLOB_CLASS_NAME)
             log.info { "All the types have been copied" }
         }
     }
@@ -191,6 +189,7 @@ internal class XodusToOrientDataMigrator(
     private fun copyPropertiesAndBlobs(): Set<String> {
         log.info { "2. Copy entities, their simple properties and blobs" }
         val edgeClassesToCreate = HashSet<String>()
+        val sequencesToCreate = mutableListOf<Pair<String, Long>>() // sequenceName, largestExistingId
         xodus.withReadonlyTx { xTx ->
             orient.withCountingTx(entitiesPerTransaction) { countingTx ->
                 val entityTypes = xTx.entityTypes.toSet()
@@ -203,14 +202,10 @@ internal class XodusToOrientDataMigrator(
                     var lastProgressPrintedAt = System.currentTimeMillis()
                     xEntities.forEachIndexed { xEntityIdx, xEntity ->
                         val (oEntity, createVertexDuration) = measureTimedValue {
-                            val vertex = countingTx.session.newVertex(type)
-
-                            // copy localEntityId
                             val localEntityId = xEntity.id.localId
-                            vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
                             largestEntityId = maxOf(largestEntityId, localEntityId)
-                            vertex.save<OVertex>()
-                            OVertexEntity(vertex, orient)
+
+                            countingTx.newVertex(type, localEntityId)
                         }
                         createEntitiesDuration += createVertexDuration
 
@@ -249,8 +244,9 @@ internal class XodusToOrientDataMigrator(
                         edgeClassesToCreate.addAll(xEntity.linkNames)
                     }
 
-                    // create a sequence to generate localEntityIds for the class
-                    countingTx.session.createSequenceIfAbsent(localEntityIdSequenceName(type), largestEntityId)
+                    // plan to create a sequence to generate localEntityIds for the class
+                    sequencesToCreate.add(Pair(localEntityIdSequenceName(type), largestEntityId))
+
                     log.info { "$typeIdx $type entities copied: ${xEntities.size()}, properties copied: $properties, blobs copied: $blobs" }
                     totalEntities += xEntities.size()
                     totalProperties += properties
@@ -261,13 +257,18 @@ internal class XodusToOrientDataMigrator(
                 log.info { "Entities have been copied. Entity types: ${entityTypes.size}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
             }
         }
+        orientProvider.withSession { session ->
+            sequencesToCreate.forEach { (name, largestExistingId) ->
+                schemaBuddy.getOrCreateSequence(session, name, largestExistingId)
+            }
+        }
         return edgeClassesToCreate
     }
 
     private fun createEdgeClassesIfAbsent(edgeClassesToCreate: Set<String>) {
         log.info { "3. Create edge classes" }
         log.info { "${edgeClassesToCreate.size} edge classes to create" }
-        orient.databaseProvider.withSession { oSession ->
+        orientProvider.withSession { oSession ->
             edgeClassesToCreate.forEachIndexed { i, edgeClassName ->
                 log.info { "$i $edgeClassName ${edgeClassName.asEdgeClass} is being copied" }
                 oSession.getClass(edgeClassName.asEdgeClass)
@@ -335,15 +336,6 @@ internal class XodusToOrientDataMigrator(
                 copyLinksTransactions = countingTx.transactionsCommited
                 log.info { "Links have been copied. Entity types: ${entityTypes.size}, entities processed: $totalEntities, links processed: $totalLinksProcessed, links copied: $totalLinksCopied" }
             }
-        }
-    }
-
-    private fun ODatabaseSession.createSequenceIfAbsent(sequenceName: String, startingFrom: Long) {
-        val sequences = metadata.sequenceLibrary
-        if (sequences.getSequence(sequenceName) == null) {
-            val params = OSequence.CreateParams()
-            params.start = startingFrom
-            sequences.createSequence(sequenceName, OSequence.SEQUENCE_TYPE.ORDERED, params)
         }
     }
 

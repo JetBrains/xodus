@@ -21,11 +21,17 @@ object OQueryFunctions {
 
     fun intersect(left: OSelect, right: OSelect): OSelect {
         return when {
-            left is OClassSelect && right is OClassSelect -> {
-                ensureSameClassName(left, right)
-                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when intersect" }
-                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when intersect" }
+            left is ORecordIdSelect && right is ORecordIdSelect -> {
+                ensureLimitIsNotUsed(left, right)
+                ensureSkipIsNotUsed(left, right)
 
+                val newOrder = left.order.merge(right.order)
+                val ids = left.recordIds.intersect(right.recordIds.toSet())
+                ORecordIdSelect(ids, newOrder)
+            }
+
+            left is OClassSelect && right is OClassSelect && isSameClassName(left, right) -> {
+                ensureInvariants(left, right)
                 val newCondition = left.condition.and(right.condition)
                 val newOrder = left.order.merge(right.order)
                 OClassSelect(left.className, newCondition, newOrder)
@@ -39,11 +45,17 @@ object OQueryFunctions {
 
     fun union(left: OSelect, right: OSelect): OSelect {
         return when {
-            left is OClassSelect && right is OClassSelect -> {
-                ensureSameClassName(left, right)
-                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when union" }
-                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when union" }
+            left is ORecordIdSelect && right is ORecordIdSelect -> {
+                ensureLimitIsNotUsed(left, right)
+                ensureSkipIsNotUsed(left, right)
 
+                val newOrder = left.order.merge(right.order)
+                val ids = left.recordIds + right.recordIds
+                ORecordIdSelect(ids, newOrder)
+            }
+
+            left is OClassSelect && right is OClassSelect && isSameClassName(left, right) -> {
+                ensureInvariants(left, right)
                 val newCondition = left.condition.or(right.condition)
                 val newOrder = left.order.merge(right.order)
                 OClassSelect(left.className, newCondition, newOrder)
@@ -57,11 +69,17 @@ object OQueryFunctions {
 
     fun difference(left: OSelect, right: OSelect): OSelect {
         return when {
-            left is OClassSelect && right is OClassSelect -> {
-                ensureSameClassName(left, right)
-                check(left.skip == null && right.skip == null) { "Skip can not be used for sub-query when minus" }
-                check(left.limit == null && right.limit == null) { "Take can not be used for sub-query when minus" }
+            left is ORecordIdSelect && right is ORecordIdSelect -> {
+                ensureLimitIsNotUsed(left, right)
+                ensureSkipIsNotUsed(left, right)
 
+                val newOrder = left.order.merge(right.order)
+                val ids = left.recordIds - right.recordIds.toSet()
+                ORecordIdSelect(ids, newOrder)
+            }
+
+            left is OClassSelect && right is OClassSelect && isSameClassName(left, right) -> {
+                ensureInvariants(left, right)
                 val newCondition = left.condition.andNot(right.condition)
                 val newOrder = left.order.merge(right.order)
                 OClassSelect(left.className, newCondition, newOrder)
@@ -77,8 +95,30 @@ object OQueryFunctions {
         return ODistinctSelect(source)
     }
 
-    private fun ensureSameClassName(left: OClassSelect, right: OClassSelect) {
-        require(left.className == right.className) { "Cannot intersect different DB classes: ${left.className} and ${right.className}" }
+    fun reverse(query: OSelect): OSelect {
+        val order = query.order?.reverse() ?: return query
+        return query.withOrder(order)
+    }
+
+    private fun ensureInvariants(left: OClassSelect, right: OClassSelect) {
+        ensureSkipIsNotUsed(left, right)
+        ensureLimitIsNotUsed(left, right)
+    }
+
+    private fun ensureSkipIsNotUsed(left: OSelect, right: OSelect) {
+        val lazyMessage = { "Skip can not be used for sub-query" }
+        check(left.skip == null, lazyMessage)
+        check(right.skip == null, lazyMessage)
+    }
+
+    private fun ensureLimitIsNotUsed(left: OSelect, right: OSelect) {
+        val lazyMessage = { "Take can not be used for sub-query" }
+        check(left.limit == null, lazyMessage)
+        check(right.limit == null, lazyMessage)
+    }
+
+    private fun isSameClassName(left: OClassSelect, right: OClassSelect): Boolean {
+        return left.className == right.className
     }
 }
 
@@ -88,11 +128,9 @@ class OCountSelect(
 
     override fun sql(builder: SqlBuilder) {
         builder.append("SELECT count(*) as count FROM (")
-        source.sql(builder.deepen())
+        source.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = source.params()
 
     fun count(tx: OStoreTransaction): Long = OQueryExecution.execute(this, tx).next().getProperty("count")
 }
@@ -102,13 +140,11 @@ class OFirstSelect(
 ) : OQuery {
 
     override fun sql(builder: SqlBuilder) {
-        val depth = builder.depth
-        builder.append("SELECT expand(first(\$a${depth})) LET \$a${depth} = (")
-        source.sql(builder.deepen())
+        val index = builder.nextVarIndex()
+        builder.append("SELECT expand(first(\$a${index})) LET \$a${index} = (")
+        source.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = source.params()
 }
 
 
@@ -117,11 +153,9 @@ class OLastSelect(
 ) : OQuery {
 
     override fun sql(builder: SqlBuilder) {
-        val depth = builder.depth
-        builder.append("SELECT expand(last(\$a${depth})) LET \$a${depth} = (")
-        source.sql(builder.deepen())
+        val index = builder.nextVarIndex()
+        builder.append("SELECT expand(last(\$a${index})) LET \$a${index} = (")
+        source.sql(builder)
         builder.append(")")
     }
-
-    override fun params() = source.params()
 }

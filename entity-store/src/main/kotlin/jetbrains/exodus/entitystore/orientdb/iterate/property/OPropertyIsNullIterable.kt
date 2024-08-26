@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package jetbrains.exodus.entitystore.iterate.property
+package jetbrains.exodus.entitystore.orientdb.iterate.property
 
-import jetbrains.exodus.entitystore.StoreTransaction
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OFieldIsNullCondition
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OPropertyIsNullIterable(
-    txn: StoreTransaction,
+    txn: OStoreTransaction,
     private val entityType: String,
     private val propertyName: String,
 ) : OQueryEntityIterableBase(txn) {

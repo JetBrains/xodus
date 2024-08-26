@@ -15,16 +15,18 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.record.OElement
-import com.orientechnologies.orient.core.record.OVertex
+import com.orientechnologies.orient.core.metadata.schema.OType
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
-import junit.framework.TestCase.assertFalse
-import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
+import java.util.*
+import kotlin.test.*
 
 class OEntityTest {
 
@@ -33,103 +35,356 @@ class OEntityTest {
     val orientDb = InMemoryOrientDB()
 
     @Test
+    fun `create entities`() {
+        val (e1, e2) = orientDb.withStoreTx { tx ->
+            val e1 = tx.newEntity(Issues.CLASS)
+            val e2 = tx.newEntity(Issues.CLASS)
+            assertEquals(tx.getTypeId(Issues.CLASS), e1.id.typeId)
+            assertEquals(tx.getTypeId(Issues.CLASS), e2.id.typeId)
+            assertEquals(0, e1.id.localId)
+            assertEquals(1, e2.id.localId)
+            assertEquals(2, tx.getAll(Issues.CLASS).size())
+
+            assertEquals(e1, tx.getEntity(e1.id))
+            assertEquals(e2, tx.getEntity(e2.id))
+
+            Pair(e1, e2)
+        }
+
+        orientDb.withStoreTx { tx ->
+            assertTrue(e1.delete())
+        }
+
+        orientDb.withStoreTx { tx ->
+            tx.getEntity(e2.id)
+            assertFailsWith<EntityRemovedInDatabaseException> { tx.getEntity(e1.id) }
+            assertEquals(1, tx.getAll(Issues.CLASS).size())
+        }
+    }
+
+    @Test
+    fun `an entity sees changes made to it in another part of the application`() {
+        // your entity
+        val e1 = orientDb.withStoreTx { tx ->
+            val e1 = tx.newEntity(Issues.CLASS)
+            e1.setProperty("name", "Pumba")
+            e1
+        }
+
+        // this changes happen in another part of the application
+        val e1Again = orientDb.withStoreTx { tx ->
+            val e1Again = tx.getEntity(e1.id)
+            e1Again.setProperty("name", "Bampu")
+            e1Again
+        }
+
+        // make sure we do not deal with physically the same instance
+        assertNotSame(e1, e1Again)
+
+        // your entity sees changes made in another part of the application
+        orientDb.withStoreTx { tx ->
+            assertEquals("Bampu", e1.getProperty("name"))
+        }
+    }
+
+
+    @Test
+    fun `rename entity type`() {
+        orientDb.withStoreTx { tx ->
+            for (i in 0..9) {
+                tx.newEntity("Issue")
+            }
+            assertEquals(10, tx.getAll("Issue").size())
+        }
+        orientDb.withStoreTx {
+            orientDb.store.renameEntityType("Issue", "Comment")
+        }
+        orientDb.withStoreTx { tx ->
+            assertEquals(10, tx.getAll("Comment").size())
+        }
+    }
+
+    @Test
     fun `multiple links should work`() {
         val issueA = orientDb.createIssue("A")
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
         val linkName = "link"
-        orientDb.provider.acquireSession().use { session ->
+        orientDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             issueA.addLink(linkName, issueB)
             issueA.addLink(linkName, issueC)
         }
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             val links = issueA.getLinks(linkName)
-            Assert.assertTrue(links.contains(issueB))
-            Assert.assertTrue(links.contains(issueC))
+            assertTrue(links.contains(issueB))
+            assertTrue(links.contains(issueC))
         }
+    }
+
+    @Test
+    fun `set, change and delete blobs`() {
+        val issue = orientDb.createIssue("iss")
+
+        // set
+        val expectedBlob1 = byteArrayOf(0x01, 0x02)
+        val expectedBlob2 = byteArrayOf(0x04, 0x05, 0x06)
+        orientDb.withStoreTx {
+            issue.setBlob("blob1", ByteArrayInputStream(expectedBlob1))
+            issue.setBlob("blob2", ByteArrayInputStream(expectedBlob2))
+        }
+        orientDb.withStoreTx {
+            assertContentEquals(expectedBlob1, issue.getBlob("blob1")!!.readAllBytes())
+            assertContentEquals(expectedBlob2, issue.getBlob("blob2")!!.readAllBytes())
+            assertEquals(expectedBlob1.size.toLong(), issue.getBlobSize("blob1"))
+            assertEquals(expectedBlob2.size.toLong(), issue.getBlobSize("blob2"))
+        }
+
+        // change
+        val expectedResetBlob1 = byteArrayOf(0x01, 0x03, 0x04, 0x05)
+        orientDb.withStoreTx {
+            issue.setBlob("blob1", ByteArrayInputStream(expectedResetBlob1))
+        }
+        orientDb.withStoreTx {
+            val resetBlob1 = issue.getBlob("blob1")!!.readAllBytes()
+            assertContentEquals(expectedResetBlob1, resetBlob1)
+            assertEquals(expectedResetBlob1.size.toLong(), issue.getBlobSize("blob1"))
+        }
+
+        // delete
+        orientDb.withStoreTx {
+            issue.deleteBlob("blob1")
+        }
+        orientDb.withStoreTx {
+            assertNull(issue.getBlob("blob1"))
+            assertEquals(-1, issue.getBlobSize("blob1"))
+            // another blob is still here
+            assertContentEquals(expectedBlob2, issue.getBlob("blob2")!!.readAllBytes())
+            assertEquals(expectedBlob2.size.toLong(), issue.getBlobSize("blob2"))
+        }
+    }
+
+    @Test
+    fun `set, change and delete string blobs`() {
+        val issue = orientDb.createIssue("iss")
+
+        // set
+        val expectedBlob1 = "Abc"
+        val expectedBlob2 = "dxYz"
+        orientDb.withStoreTx {
+            issue.setBlobString("blob1", expectedBlob1)
+            issue.setBlobString("blob2", expectedBlob2)
+        }
+        orientDb.withStoreTx {
+            assertEquals(expectedBlob1, issue.getBlobString("blob1"))
+            assertEquals(expectedBlob2, issue.getBlobString("blob2"))
+            assertEquals(expectedBlob1.length.toLong() + 2, issue.getBlobSize("blob1"))
+            assertEquals(expectedBlob2.length.toLong() + 2, issue.getBlobSize("blob2"))
+        }
+
+        // change
+        val expectedResetBlob1 = "Caramba"
+        orientDb.withStoreTx {
+            issue.setBlobString("blob1", expectedResetBlob1)
+        }
+        orientDb.withStoreTx {
+            val resetBlob1 = issue.getBlobString("blob1")
+            assertEquals(expectedResetBlob1, resetBlob1)
+            assertEquals(expectedResetBlob1.length.toLong() + 2, issue.getBlobSize("blob1"))
+        }
+
+        // delete
+        orientDb.withStoreTx {
+            issue.deleteBlob("blob1")
+        }
+        orientDb.withStoreTx {
+            assertNull(issue.getBlobString("blob1"))
+            assertEquals(-1, issue.getBlobSize("blob1"))
+            // another blob is still here
+            assertEquals(expectedBlob2, issue.getBlobString("blob2"))
+            assertEquals(expectedBlob2.length.toLong() + 2, issue.getBlobSize("blob2"))
+        }
+    }
+
+    @Test
+    fun `string blobs size`() {
+        val issue = orientDb.createIssue("iss")
+
+        // set
+        val englishStr = "mamba, mamba, caramba"
+        val notEnglishStr = "вы хотите песен, их есть у меня"
+        val mixedStr = "magic пипл woodoo пипл"
+        orientDb.withStoreTx {
+            issue.setBlobString("blob1", englishStr)
+            issue.setBlobString("blob2", notEnglishStr)
+            issue.setBlobString("blob3", mixedStr)
+        }
+        orientDb.withStoreTx {
+            assertEquals(englishStr, issue.getBlobString("blob1"))
+            assertEquals(notEnglishStr, issue.getBlobString("blob2"))
+            assertEquals(mixedStr, issue.getBlobString("blob3"))
+
+            assertEquals(englishStr.length.toLong() + 2, issue.getBlobSize("blob1"))
+
+            assertNotEquals(notEnglishStr.length.toLong() + 2, issue.getBlobSize("blob2"))
+            assertNotEquals(notEnglishStr.length.toLong() * 2 + 2, issue.getBlobSize("blob2"))
+            assertEquals(57, issue.getBlobSize("blob2"))
+
+            assertEquals(32, issue.getBlobSize("blob3"))
+        }
+
     }
 
     @Test
     fun `add blob should be reflected in get blob names`() {
         val issue = orientDb.createIssue("TestBlobs")
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             issue.setBlob("blob1", ByteArrayInputStream(byteArrayOf(0x01, 0x02, 0x03)))
             issue.setBlob("blob2", ByteArrayInputStream(byteArrayOf(0x04, 0x05, 0x06)))
             issue.setBlob("blob3", ByteArrayInputStream(byteArrayOf(0x07, 0x08, 0x09)))
             issue.setProperty("version", 99)
         }
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             val blobNames = issue.getBlobNames()
-            Assert.assertTrue(blobNames.contains("blob1"))
-            Assert.assertTrue(blobNames.contains("blob2"))
-            Assert.assertTrue(blobNames.contains("blob3"))
-            Assert.assertEquals(3, blobNames.size)
+            assertTrue(blobNames.contains("blob1"))
+            assertTrue(blobNames.contains("blob2"))
+            assertTrue(blobNames.contains("blob3"))
+            assertEquals(3, blobNames.size)
+        }
+    }
+
+    @Test
+    fun `set the same string blob should return false`() {
+        val issue = orientDb.createIssue("GetPropertyTest")
+
+        val propertyName = "SampleProperty"
+        val propertyValue = "SampleValue"
+        orientDb.withStoreTx {
+            issue.setBlobString(propertyName, propertyValue)
+        }
+        orientDb.withStoreTx {
+            assertEquals(false, issue.setBlobString(propertyName, propertyValue))
+        }
+    }
+
+    @Test
+    fun `delete links`() {
+        val linkName = "link"
+        orientDb.withSession { session ->
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
+            val oClass = session.getClass(Issues.CLASS)!!
+            // pretend that the link is indexed
+            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
+        }
+
+        val issueA = orientDb.createIssue("A")
+        val issueB = orientDb.createIssue("B")
+        val issueC = orientDb.createIssue("C")
+        val issueD = orientDb.createIssue("D")
+
+        orientDb.withStoreTx {
+            issueA.addLink(linkName, issueB)
+            issueA.addLink(linkName, issueC)
+            issueA.addLink(linkName, issueD)
+        }
+
+        orientDb.withStoreTx {
+            issueA.deleteLink(linkName, issueB)
+            issueA.deleteLink(linkName, issueC.id)
+
+            val links = issueA.getLinks(linkName)
+            assertEquals(1, links.size())
+            assertTrue(links.any { it.id == issueD.id })
+
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(1, bag.size())
+            assertTrue(bag.contains(issueD.vertex.identity))
+        }
+    }
+
+    @Test
+    fun `set links`() {
+        val linkName = "link"
+        orientDb.withSession { session ->
+            session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
+            val oClass = session.getClass(Issues.CLASS)!!
+            // pretend that the link is indexed
+            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
+        }
+
+        val issueA = orientDb.createIssue("A")
+        val issueB = orientDb.createIssue("B")
+        val issueC = orientDb.createIssue("C")
+
+        orientDb.withStoreTx {
+            assertTrue(issueA.setLink(linkName, issueB))
+            assertFalse(issueA.setLink(linkName, issueB))
+
+            assertEquals(issueB, issueA.getLink(linkName))
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(1, bag.size())
+            assertTrue(bag.contains(issueB.vertex.identity))
+        }
+
+        orientDb.withStoreTx {
+            assertTrue(issueA.setLink(linkName, issueC))
+
+            assertEquals(issueC, issueA.getLink(linkName))
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(1, bag.size())
+            assertTrue(bag.contains(issueC.vertex.identity))
+        }
+
+        orientDb.withStoreTx {
+            assertTrue(issueA.setLink(linkName, issueB.id))
+            assertFalse(issueA.setLink(linkName, issueB.id))
+
+            assertEquals(issueB, issueA.getLink(linkName))
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(1, bag.size())
+            assertTrue(bag.contains(issueB.vertex.identity))
         }
     }
 
     @Test
     fun `should delete all links`() {
         val linkName = "link"
-        orientDb.provider.acquireSession().use { session ->
+        orientDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
+            val oClass = session.getClass(Issues.CLASS)!!
+            // pretend that the link is indexed
+            oClass.createProperty(linkTargetEntityIdPropertyName(linkName), OType.LINKBAG)
         }
 
         val issueA = orientDb.createIssue("A")
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
 
-        val (entityA, entB, entC) = orientDb.withTxSession {
-            Triple(issueA, issueB, issueC)
+        orientDb.withStoreTx {
+            issueA.addLink(linkName, issueB)
+            issueA.addLink(linkName, issueC)
         }
 
-        orientDb.withTxSession {
-            entityA.addLink(linkName, entB)
-            entityA.addLink(linkName, entC)
-        }
-
-        orientDb.withTxSession {
-            entityA.deleteLinks(linkName)
-            val links = entityA.getLinks(linkName)
-            Assert.assertEquals(0, links.size())
-        }
-    }
-
-    @Test
-    fun `should delete element holding blob after blob deleted from entity`() {
-        val issue = orientDb.createIssue("TestBlobDelete")
-
-        val linkName = "blobForDeletion"
-        orientDb.withTxSession {
-            issue.setBlob(linkName, ByteArrayInputStream(byteArrayOf(0x11, 0x12, 0x13)))
-        }
-        val blob = orientDb.withSession {
-            issue.asVertex.reload<OVertex>()
-            issue.asVertex.getLinkProperty(linkName)!!
-        }
-
-        orientDb.withTxSession {
-            Assert.assertNotNull(it.load<OElement>(blob.identity))
-            issue.deleteBlob(linkName)
-        }
-
-        orientDb.withTxSession {
-            val blobNames = issue.getBlobNames()
-            Assert.assertFalse(blobNames.contains(linkName))
-            Assert.assertEquals(null, it.load<OElement>(blob.identity))
+        orientDb.withStoreTx {
+            issueA.deleteLinks(linkName)
+            val links = issueA.getLinks(linkName)
+            assertEquals(0, links.size())
+            // the complementary property must also be cleared
+            val bag = issueA.vertex.getTargetLocalEntityIds(linkName)
+            assertEquals(0, bag.size())
         }
     }
 
     @Test
     fun `should replace a link correctly`() {
         val linkName = "link"
-        orientDb.provider.acquireSession().use { session ->
+        orientDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
@@ -137,24 +392,24 @@ class OEntityTest {
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             issueA.setLink(linkName, issueB.id)
         }
-        orientDb.withSession {
-            Assert.assertEquals(issueB, issueA.getLink(linkName))
+        orientDb.withStoreTx {
+            assertEquals(issueB, issueA.getLink(linkName))
         }
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             issueA.setLink(linkName, issueC.id)
         }
-        orientDb.withSession {
-            Assert.assertEquals(issueC, issueA.getLink(linkName))
+        orientDb.withStoreTx {
+            assertEquals(issueC, issueA.getLink(linkName))
         }
     }
 
     @Test
     fun `setLink() and addLink() should work correctly with PersistentEntityId`() {
         val linkName = "link"
-        orientDb.provider.acquireSession().use { session ->
+        orientDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
@@ -162,43 +417,43 @@ class OEntityTest {
         val issueB = orientDb.createIssue("B")
         val issueC = orientDb.createIssue("C")
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             val legacyId = PersistentEntityId(issueB.id.typeId, issueB.id.localId)
             issueA.setLink(linkName, legacyId)
         }
-        orientDb.withSession {
-            Assert.assertEquals(issueB, issueA.getLink(linkName))
+        orientDb.withStoreTx {
+            assertEquals(issueB, issueA.getLink(linkName))
         }
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             val legacyId = PersistentEntityId(issueC.id.typeId, issueC.id.localId)
             issueB.addLink(linkName, legacyId)
         }
-        orientDb.withSession {
-            Assert.assertEquals(issueB, issueA.getLink(linkName))
+        orientDb.withStoreTx {
+            assertEquals(issueB, issueA.getLink(linkName))
         }
     }
 
     @Test
     fun `setLink() and addLink() return false if the target entity is not found`() {
         val linkName = "link"
-        orientDb.provider.acquireSession().use { session ->
+        orientDb.withSession { session ->
             session.createEdgeClass(OVertexEntity.edgeClassName(linkName))
         }
 
         val issueB = orientDb.createIssue("A")
 
-        orientDb.withTxSession { tx ->
-            tx.delete(issueB.id.asOId())
+        orientDb.withStoreTx { tx ->
+            issueB.delete()
         }
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             assertFalse(issueB.addLink(linkName, issueB.id))
             assertFalse(issueB.addLink(linkName, ORIDEntityId.EMPTY_ID))
             assertFalse(issueB.addLink(linkName, PersistentEntityId.EMPTY_ID))
             assertFalse(issueB.addLink(linkName, PersistentEntityId(300, 300)))
         }
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             assertFalse(issueB.setLink(linkName, issueB.id))
             assertFalse(issueB.setLink(linkName, ORIDEntityId.EMPTY_ID))
             assertFalse(issueB.setLink(linkName, PersistentEntityId.EMPTY_ID))
@@ -212,12 +467,12 @@ class OEntityTest {
 
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             issue.setProperty(propertyName, propertyValue)
         }
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             val value = issue.getProperty(propertyName)
-            Assert.assertEquals(propertyValue, value)
+            assertEquals(propertyValue, value)
         }
     }
 
@@ -227,70 +482,117 @@ class OEntityTest {
 
         val propertyName = "SampleProperty"
         val propertyValue = "SampleValue"
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             issue.setProperty(propertyName, propertyValue)
         }
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             issue.deleteProperty(propertyName)
             val value = issue.getProperty(propertyName)
-            Assert.assertNull(value)
+            assertNull(value)
         }
     }
 
     @Test
-    fun `set the same string blob should return false`() {
-        val issue = orientDb.createIssue("GetPropertyTest")
-
-        val propertyName = "SampleProperty"
-        val propertyValue = "SampleValue"
-        orientDb.withSession {
-            issue.setBlobString(propertyName, propertyValue)
-        }
-        orientDb.withSession {
-            Assert.assertEquals(false, issue.setBlobString(propertyName, propertyValue))
-        }
-    }
-
-    @Test
-    fun `should work with properties`() {
+    fun `set, read, change and delete properties`() {
         val issue = orientDb.createIssue("Test1")
 
-        orientDb.withTxSession {
+        orientDb.withStoreTx {
             issue.setProperty("hello", "world")
             issue.setProperty("june", 6)
             issue.setProperty("year", 44L)
+            issue.setProperty("floatProp", 1.3f)
+            issue.setProperty("doubleProp", 2.3)
+            issue.setProperty("dateProp", Date(300))
+            issue.setProperty("boolProp", true)
         }
 
-        orientDb.withSession {
-            Assert.assertEquals("world", issue.getProperty("hello"))
-            Assert.assertEquals(6, issue.getProperty("june"))
-            Assert.assertEquals(44L, issue.getProperty("year"))
+        orientDb.withStoreTx {
+            assertEquals("world", issue.getProperty("hello"))
+            assertEquals(6, issue.getProperty("june"))
+            assertEquals(44L, issue.getProperty("year"))
+            assertEquals(1.3f, issue.getProperty("floatProp"))
+            assertEquals(2.3, issue.getProperty("doubleProp"))
+            assertEquals(Date(300), issue.getProperty("dateProp"))
+            assertEquals(true, issue.getProperty("boolProp"))
         }
 
-        orientDb.withTxSession {
-            Assert.assertEquals(false, issue.setProperty("hello", "world"))
-            Assert.assertEquals(false, issue.setProperty("june", 6))
-            Assert.assertEquals(false, issue.setProperty("year", 44L))
+        orientDb.withStoreTx {
+            assertEquals(false, issue.setProperty("hello", "world"))
+            assertEquals(false, issue.setProperty("june", 6))
+            assertEquals(false, issue.setProperty("year", 44L))
+            assertEquals(false, issue.setProperty("floatProp", 1.3f))
+            assertEquals(false, issue.setProperty("doubleProp", 2.3))
+            assertEquals(false, issue.setProperty("dateProp", Date(300)))
+            assertEquals(false, issue.setProperty("boolProp", true))
         }
 
-        orientDb.withSession {
-            Assert.assertEquals(listOf(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, "hello", "name", "june", "year").sorted(), issue.propertyNames.sorted())
+        orientDb.withStoreTx {
+            assertEquals(true, issue.setProperty("hello", "xodus"))
+            assertEquals(true, issue.setProperty("june", 8))
+            assertEquals(true, issue.setProperty("year", 34L))
+            assertEquals(true, issue.setProperty("floatProp", 2.3f))
+            assertEquals(true, issue.setProperty("doubleProp", 4.3))
+            assertEquals(true, issue.setProperty("dateProp", Date(303)))
+            assertEquals(true, issue.setProperty("boolProp", false))
+        }
+
+        orientDb.withStoreTx {
+            assertEquals("xodus", issue.getProperty("hello"))
+            assertEquals(8, issue.getProperty("june"))
+            assertEquals(34L, issue.getProperty("year"))
+            assertEquals(2.3f, issue.getProperty("floatProp"))
+            assertEquals(4.3, issue.getProperty("doubleProp"))
+            assertEquals(Date(303), issue.getProperty("dateProp"))
+            assertEquals(false, issue.getProperty("boolProp"))
+        }
+
+
+        orientDb.withStoreTx {
+            issue.deleteProperty("dateProp")
+            assertNull(issue.getProperty("dateProp"))
+            // check that other properties are still there
+            assertEquals("xodus", issue.getProperty("hello"))
+        }
+
+        orientDb.withStoreTx {
+            assertEquals(
+                listOf(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, "hello", "name", "june", "year", "floatProp", "doubleProp", "boolProp").sorted(),
+                issue.propertyNames.sorted()
+            )
         }
     }
 
     @Test
-    fun `should get blob size`() {
-        val issue = orientDb.createIssue("BlobSizeTest")
+    fun `it is forbidden to use entities outside transactions, except for id`() {
+        val iss = orientDb.createIssue("trista")
+        val anotherIss = orientDb.createIssue("sto")
 
-        val blobName = "SampleBlob"
-        val blobData = byteArrayOf(0x01, 0x02, 0x03)
-        orientDb.withTxSession {
-            issue.setBlob(blobName, ByteArrayInputStream(blobData))
-        }
-        orientDb.withTxSession {
-            val size = issue.getBlobSize(blobName)
-            Assert.assertEquals(blobData.size.toLong(), size)
-        }
+        // no properties
+        assertFailsWith<IllegalStateException> { iss.getProperty("name") }
+        assertFailsWith<IllegalStateException> { iss.setProperty("name", "dvesti") }
+        assertFailsWith<IllegalStateException> { iss.propertyNames }
+        assertFailsWith<IllegalStateException> { iss.deleteProperty("name") }
+        assertFailsWith<IllegalStateException> { iss.getRawProperty("name") }
+
+        // no blobs
+        assertFailsWith<IllegalStateException> { iss.getBlob("blob1") }
+        assertFailsWith<IllegalStateException> { iss.getBlobSize("blob1") }
+        assertFailsWith<IllegalStateException> { iss.getBlobString("blob1") }
+        assertFailsWith<IllegalStateException> { iss.setBlob("blob1", ByteArrayInputStream(byteArrayOf(100))) }
+        assertFailsWith<IllegalStateException> { iss.setBlobString("blob1", "opca") }
+        assertFailsWith<IllegalStateException> { iss.deleteBlob("blob1") }
+
+        // no links
+        assertFailsWith<IllegalStateException> { iss.getLink("link1") }
+        assertFailsWith<IllegalStateException> { iss.linkNames }
+        assertFailsWith<IllegalStateException> { iss.setLink("link1", anotherIss) }
+        assertFailsWith<IllegalStateException> { iss.deleteLink("link1",anotherIss) }
+        assertFailsWith<IllegalStateException> { iss.deleteLinks("link1") }
+        assertFailsWith<IllegalStateException> { iss.getLinks("link1") }
+        assertFailsWith<IllegalStateException> { iss.getLinks(listOf("link1")); }
+
+        // getting id is ok
+        iss.id
     }
 
     @Test
@@ -302,7 +604,7 @@ class OEntityTest {
             typeIdSet.add(issue.id.typeId)
             localIdSet.add(issue.id.localId)
         }
-        Assert.assertEquals(1001, localIdSet.size)
-        Assert.assertEquals(1, typeIdSet.size)
+        assertEquals(1001, localIdSet.size)
+        assertEquals(1, typeIdSet.size)
     }
 }

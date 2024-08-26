@@ -99,7 +99,7 @@ public class PropertiesIterable extends EntityIterableBase {
     @Override
     protected long countImpl(@NotNull final StoreTransaction txn) {
         final Store valueIndex = getStoreImpl().getPropertiesTable(asPersistent(txn), entityTypeId).getValueIndex(asPersistent(txn), propertyId, false);
-        return valueIndex == null ? 0 : valueIndex.count(txn.getEnvironmentTransaction());
+        return valueIndex == null ? 0 : valueIndex.count(asPersistent(txn).getEnvironmentTransaction());
     }
 
     @Override
