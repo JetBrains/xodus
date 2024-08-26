@@ -24,6 +24,7 @@ import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import mu.KotlinLogging
 import java.io.InputStream
+import java.nio.charset.Charset
 import kotlin.time.Duration
 import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
@@ -134,12 +135,26 @@ internal class DataAfterMigrationChecker(
                                     }
                                     v1 is String -> {
                                         require(v2 is String && v1.compareTo(v2) == 0) {
+                                            v2 as String
+                                            val b1 = v1.encodeToByteArray(throwOnInvalidSequence = true)
+                                            val b2 = v2.encodeToByteArray(throwOnInvalidSequence = true)
+                                            val hex1 = b1.toHexString()
+                                            val hex2 = b2.toHexString()
+                                            check(hex1 == hex2) { "hex is different, hex1: '$hex1', hex2: '$hex2'" }
+
+                                            check(b1.size == b2.size) { "size is different" }
+                                            for (i in b1.indices) {
+                                                check(b1[i] == b2[i]) { "${i} byte is different, b1: ${b1[i]}, b2: ${b2[i]}" }
+                                            }
+
                                             """
                                                 $type $entityIdx/$xSize ${e1.id} $propName is different. 
                                                 xStore type: ${v1.javaClass}, oStore type: ${v2?.javaClass}
                                                 xStore value: '${v1}', oStore value: '${v2}'
-                                                xStore bytes: '${v1.encodeToByteArray().toHexString()}'
-                                                oStore bytes: '${if (v2 is String) v2.encodeToByteArray().toHexString() else "not a string"}'
+                                                xStore hash: ${v1.hashCode()}, oStore hash: ${v2.hashCode()}
+                                                ==: ${v1 == v2}
+                                                xStore bytes: '${hex1}'
+                                                oStore bytes: '${hex2}'
                                                 comparison result ${v1.compareTo(v2)}
                                             """.trimIndent()
                                         }
