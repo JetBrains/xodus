@@ -136,16 +136,49 @@ internal class DataAfterMigrationChecker(
                                     v1 is String -> {
                                         require(v2 is String && v1.compareTo(v2) == 0) {
                                             v2 as String
-                                            val b1 = v1.encodeToByteArray(throwOnInvalidSequence = true)
-                                            val b2 = v2.encodeToByteArray(throwOnInvalidSequence = true)
+                                            val charsets = with(Charsets) {
+                                                listOf(US_ASCII, ISO_8859_1,
+                                                    UTF_16, UTF_32, UTF_8, UTF_16BE, UTF_16LE, UTF_32BE, UTF_32LE)
+                                            }
+                                            for (charset in charsets) {
+                                               try {
+                                                   log.info { "decoding with ${charset.name()}" }
+                                                   val b1 = try {
+                                                       v1.toByteArray(charset)
+                                                   } catch (e: Throwable) {
+                                                       log.error(e) { "error on encoding v1 to byte array with ${charset.name()}: ${e.message}" }
+                                                       null
+                                                   }
+                                                   val b2 = try {
+                                                       v2.encodeToByteArray(throwOnInvalidSequence = true)
+                                                   } catch (e: Throwable) {
+                                                       log.error(e) { "error on encoding v2 to byte array with ${charset.name()}: ${e.message}" }
+                                                       null
+                                                   }
+                                                   if (b1 == null || b2 == null) {
+                                                       log.info { "one of the strings failed to encode with ${charset.name()}, so go to the next one" }
+                                                       continue
+                                                   }
+                                                   val hex1 = b1.toHexString()
+                                                   val hex2 = b2.toHexString()
+                                                   if (hex1 != hex2) {
+                                                       log.info {
+                                                           """
+                                                               hex1 != hex2 for ${charset.name()}
+                                                               hex1: $hex1
+                                                               hex2: $hex2
+                                                           """.trimIndent()
+                                                       }
+                                                   }
+                                               } catch (e: Throwable) {
+                                                   log.error(e) { "error while decoding with ${charset.name()}: ${e.message}" }
+                                               }
+                                            }
+                                            val b1 = v1.encodeToByteArray(throwOnInvalidSequence = false)
+                                            val b2 = v2.encodeToByteArray(throwOnInvalidSequence = false)
                                             val hex1 = b1.toHexString()
                                             val hex2 = b2.toHexString()
                                             check(hex1 == hex2) { "hex is different, hex1: '$hex1', hex2: '$hex2'" }
-
-                                            check(b1.size == b2.size) { "size is different" }
-                                            for (i in b1.indices) {
-                                                check(b1[i] == b2[i]) { "${i} byte is different, b1: ${b1[i]}, b2: ${b2[i]}" }
-                                            }
 
                                             """
                                                 $type $entityIdx/$xSize ${e1.id} $propName is different. 
