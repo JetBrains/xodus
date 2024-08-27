@@ -150,7 +150,7 @@ internal class DataAfterMigrationChecker(
                                                        null
                                                    }
                                                    val b2 = try {
-                                                       v2.encodeToByteArray(throwOnInvalidSequence = true)
+                                                       v2.toByteArray(charset)
                                                    } catch (e: Throwable) {
                                                        log.error(e) { "error on encoding v2 to byte array with ${charset.name()}: ${e.message}" }
                                                        null
@@ -159,6 +159,7 @@ internal class DataAfterMigrationChecker(
                                                        log.info { "one of the strings failed to encode with ${charset.name()}, so go to the next one" }
                                                        continue
                                                    }
+
                                                    val hex1 = b1.toHexString()
                                                    val hex2 = b2.toHexString()
                                                    if (hex1 != hex2) {
@@ -182,7 +183,7 @@ internal class DataAfterMigrationChecker(
 
                                             """
                                                 $type $entityIdx/$xSize ${e1.id} $propName is different. 
-                                                xStore type: ${v1.javaClass}, oStore type: ${v2?.javaClass}
+                                                xStore type: ${v1.javaClass}, oStore type: ${v2.javaClass}
                                                 xStore value: '${v1}', oStore value: '${v2}'
                                                 xStore hash: ${v1.hashCode()}, oStore hash: ${v2.hashCode()}
                                                 ==: ${v1 == v2}
