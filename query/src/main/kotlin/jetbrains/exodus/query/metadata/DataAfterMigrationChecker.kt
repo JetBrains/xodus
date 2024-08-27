@@ -124,11 +124,30 @@ internal class DataAfterMigrationChecker(
                                     v1 is ComparableSet<*> -> {
                                         val set1 = v1.toSet()
                                         val set2 = (v2 as OComparableSet<*>).toSet()
-                                        require(set1.containsAll(set2) && set2.containsAll(set1)) {
+                                        if (set1.containsAll(set2) && set2.containsAll(set1)) {
+                                            continue
+                                        }
+
+                                        // set1 may contain some broken Classic Xodus strings
+                                        // let's fix them and try again
+                                        val fixedSet1= set1.map {
+                                            if (it is String) {
+                                                it.encodeToByteArray(throwOnInvalidSequence = false).decodeToString(throwOnInvalidSequence = true)
+                                            } else {
+                                                it
+                                            }
+                                        }.toSet()
+
+                                        val set1Remainder = fixedSet1 - set2
+                                        val set2Remainder = set2 - fixedSet1
+
+                                        require(set1Remainder.isEmpty() && set2Remainder.isEmpty()) {
                                             """
                                                 $type $entityIdx/$xSize ${e1.id} $propName content is different.
-                                                xStore: ${set1.map { it.toString() }.sorted().joinToString(", ")}.
+                                                xStore: ${set1.map { it.toString() }.sorted().joinToString(", ")}
                                                 oStore: ${set2.map { it.toString() }.sorted().joinToString(", ")}
+                                                xStore - oStore: ${set1Remainder.map { it.toString() }.sorted().joinToString(", ")}
+                                                oStore - xStore: ${set2Remainder.map { it.toString() }.sorted().joinToString(", ")}
                                             """.trimIndent()
                                         }
                                     }
