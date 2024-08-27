@@ -15,13 +15,17 @@
  */
 package jetbrains.exodus.gc
 
-import jetbrains.exodus.env.StoreConfig
+import jetbrains.exodus.env.EnvironmentConfig
+import jetbrains.exodus.log.LogConfig
 
-open class GarbageCollectorInterleavingTestPrefixing : GarbageCollectorInterleavingTest() {
+open class GarbageCollectorTreeScanTest : GarbageCollectorTest() {
+    override fun createEnvironment() {
+        val envConfig = EnvironmentConfig().apply {
+            isLogCacheShared = false
+            gcByTreeScan = true
+        }
 
-    override val storeConfig: StoreConfig
-        get() = StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
 
-    override val recordsNumber: Int
-        get() = 47
+        env = newEnvironmentInstance(LogConfig.create(reader, writer), envConfig)
+    }
 }

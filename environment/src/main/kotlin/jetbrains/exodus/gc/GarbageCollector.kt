@@ -409,6 +409,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
             )
         }
 
+        val useTreeScan = ec.gcByTreeScan
         try {
             val nextFileAddress = fileAddress + log.fileLengthBound
             val loggables = log.getLoggableIterator(fileAddress)
@@ -428,9 +429,25 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                     }
 
                     try {
-                        store.reclaim(txn, loggable, loggables)
+                        if (useTreeScan) {
+                            store.reclaimByTreeIteration(txn, fileAddress, nextFileAddress)
+                        } else {
+                            store.reclaim(txn, loggable, loggables)
+                        }
                     } catch (e: ExodusException) {
-                        logger.warn("Error during reclaiming loggable, trying to retry by iteration over the whole tree.", e)
+                        logger.warn(
+                            "Error during reclaiming loggable, trying to retry by iteration over the whole tree. Store: ${
+                                store.name
+                            }, loggable: ${
+                                loggable.address
+                            }, file name : ${
+                                LogUtil.getLogFilename(
+                                    fileAddress
+                                )
+                            }",
+                            e
+                        )
+
                         store.reclaimByTreeIteration(txn, fileAddress, nextFileAddress)
                     }
                 }

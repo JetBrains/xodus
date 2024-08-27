@@ -672,6 +672,8 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public static final String GC_RENAME_FILES = "exodus.gc.renameFiles";
 
+    public static final String GC_BY_TREE_SCAN = "exodus.gc.byTreeScan";
+
     /**
      * As of 1.0.2, is deprecated and has no effect.
      * <p>Mutable at runtime: no
@@ -877,6 +879,7 @@ public class EnvironmentConfig extends AbstractConfig {
                 new Pair(GC_START_IN, 10000),
                 new Pair(GC_MIN_UTILIZATION, 50),
                 new Pair(GC_RENAME_FILES, false),
+                new Pair(GC_BY_TREE_SCAN, false),
                 new Pair(GC_MIN_FILE_AGE, 2),
                 new Pair(GC_FILES_INTERVAL, 3),
                 new Pair(GC_RUN_PERIOD, 5000),
@@ -2612,6 +2615,14 @@ public class EnvironmentConfig extends AbstractConfig {
      */
     public EnvironmentConfig setGcRenameFiles(boolean rename) {
         return setSetting(GC_RENAME_FILES, rename);
+    }
+
+    public EnvironmentConfig setGcByTreeScan(boolean gcByTreeScan) {
+        return setSetting(GC_BY_TREE_SCAN, gcByTreeScan);
+    }
+
+    public boolean getGcByTreeScan() {
+        return (Boolean) getSetting(GC_BY_TREE_SCAN);
     }
 
     /**

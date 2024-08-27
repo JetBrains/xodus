@@ -17,11 +17,10 @@ package jetbrains.exodus.gc
 
 import jetbrains.exodus.env.StoreConfig
 
-open class GarbageCollectorInterleavingTestPrefixing : GarbageCollectorInterleavingTest() {
-
-    override val storeConfig: StoreConfig
-        get() = StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
-
-    override val recordsNumber: Int
-        get() = 47
+class GarbageCollectorPrefixingTreeScanTest : GarbageCollectorTreeScanTest() {
+    override fun getStoreConfig(hasDuplicates: Boolean) =
+            if (hasDuplicates)
+                StoreConfig.WITH_DUPLICATES_WITH_PREFIXING
+            else
+                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING
 }
