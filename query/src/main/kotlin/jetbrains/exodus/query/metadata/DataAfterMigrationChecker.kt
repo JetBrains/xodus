@@ -24,7 +24,6 @@ import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import mu.KotlinLogging
 import java.io.InputStream
-import java.nio.charset.Charset
 import kotlin.time.Duration
 import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
@@ -133,84 +132,29 @@ internal class DataAfterMigrationChecker(
                                             """.trimIndent()
                                         }
                                     }
-                                    v1 is String -> {
-                                        require(v2 is String && v1.compareTo(v2) == 0) {
-                                            v2 as String
-                                            val v1Raw1 = e1.getRawProperty(propName)!!.baseBytes.toHexString()
-                                            val v1Raw2 = e1.getRawProperty(propName)!!.bytesUnsafe.toHexString()
-                                            log.info {
-                                                """
-                                                    v1 raw hex: $v1Raw1
-                                                    v1 raw hex: $v1Raw2
-                                                """.trimIndent()
-                                            }
-                                            val charsets = with(Charsets) {
-                                                listOf(US_ASCII, ISO_8859_1,
-                                                    UTF_16, UTF_32, UTF_8, UTF_16BE, UTF_16LE, UTF_32BE, UTF_32LE)
-                                            }
-                                            try {
-                                                v1.encodeToByteArray(throwOnInvalidSequence = true)
-                                            } catch (e: Throwable) {
-                                                log.error(e) { "v1.encodeToByteArray() failed: ${e.message}" }
-                                            }
-                                            try {
-                                                v2.encodeToByteArray(throwOnInvalidSequence = true)
-                                            } catch (e: Throwable) {
-                                                log.error(e) { "v2.encodeToByteArray() failed: ${e.message}" }
-                                            }
-                                            for (charset in charsets) {
-                                               try {
-                                                   log.info { "decoding with ${charset.name()}" }
-                                                   val b1 = try {
-                                                       v1.toByteArray(charset)
-                                                   } catch (e: Throwable) {
-                                                       log.error(e) { "error on encoding v1 to byte array with ${charset.name()}: ${e.message}" }
-                                                       null
-                                                   }
-                                                   val b2 = try {
-                                                       v2.toByteArray(charset)
-                                                   } catch (e: Throwable) {
-                                                       log.error(e) { "error on encoding v2 to byte array with ${charset.name()}: ${e.message}" }
-                                                       null
-                                                   }
-                                                   if (b1 == null || b2 == null) {
-                                                       log.info { "one of the strings failed to encode with ${charset.name()}, so go to the next one" }
-                                                       continue
-                                                   }
-
-                                                   val hex1 = b1.toHexString()
-                                                   val hex2 = b2.toHexString()
-                                                   if (hex1 != hex2) {
-                                                       log.info {
-                                                           """
-                                                               hex1 != hex2 for ${charset.name()}
-                                                               hex1: $hex1
-                                                               hex2: $hex2
-                                                           """.trimIndent()
-                                                       }
-                                                   }
-                                               } catch (e: Throwable) {
-                                                   log.error(e) { "error while decoding with ${charset.name()}: ${e.message}" }
-                                               }
-                                            }
-                                            val b1 = v1.encodeToByteArray(throwOnInvalidSequence = false)
-                                            val b2 = v2.encodeToByteArray(throwOnInvalidSequence = false)
-                                            val hex1 = b1.toHexString()
-                                            val hex2 = b2.toHexString()
-                                            check(hex1 == hex2) { "hex is different, hex1: '$hex1', hex2: '$hex2'" }
-
-                                            """
-                                                $type $entityIdx/$xSize ${e1.id} $propName is different. 
-                                                xStore type: ${v1.javaClass}, oStore type: ${v2.javaClass}
-                                                xStore value: '${v1}', oStore value: '${v2}'
-                                                xStore hash: ${v1.hashCode()}, oStore hash: ${v2.hashCode()}
-                                                ==: ${v1 == v2}
-                                                xStore bytes: '${hex1}'
-                                                oStore bytes: '${hex2}'
-                                                comparison result ${v1.compareTo(v2)}
-                                            """.trimIndent()
+                                    v1 is String && v2 is String -> {
+                                        if (v1 == v2) {
+                                            continue
                                         }
 
+                                        // if they are not equal, it may be because of the broken Classic Xodus string
+                                        // let's try to fix it
+                                        val fixedV1 = v1.encodeToByteArray(throwOnInvalidSequence = false).decodeToString(throwOnInvalidSequence = true)
+
+                                        require(fixedV1 == v2) {
+                                            val rawBytes = e1.getRawProperty(propName)?.bytesUnsafe?.toHexString()
+                                            val hex1 = v1.encodeToByteArray(throwOnInvalidSequence = false).toHexString()
+                                            val fixedHex1 = fixedV1.encodeToByteArray(throwOnInvalidSequence = false).toHexString()
+                                            val hex2 = v2.encodeToByteArray(throwOnInvalidSequence = false).toHexString()
+                                            """
+                                                $type $entityIdx/$xSize ${e1.id} $propName strings are different. 
+                                                xStore value: '${v1}', xStore fixed value: '${fixedV1}', oStore value: '${v2}'
+                                                xStore bytes: '${hex1}'
+                                                xStore raw bytes: '${rawBytes}'
+                                                xStore fixed bytes: '${fixedHex1}'
+                                                oStore bytes: '${hex2}'
+                                            """.trimIndent()
+                                        }
                                     }
                                     else -> {
                                         require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) {

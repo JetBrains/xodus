@@ -16,6 +16,7 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.record.impl.OVertexDocument
+import jetbrains.exodus.bindings.BindingUtils
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.XodusTestDB
@@ -25,12 +26,14 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntity
 import jetbrains.exodus.entitystore.orientdb.requireClassId
 import jetbrains.exodus.entitystore.orientdb.requireLocalEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.util.ByteArraySizedInputStream
 import org.junit.Assert
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import java.nio.charset.MalformedInputException
+import kotlin.test.*
 
 class MigrateDataTest {
 
@@ -41,6 +44,58 @@ class MigrateDataTest {
     @Rule
     @JvmField
     val xodus = XodusTestDB()
+
+    @OptIn(ExperimentalStdlibApi::class)
+    @Test
+    fun `broken strings from Xodus`() {
+        // it is how the string is stored in Classic Xodus on the disk
+        // to be absolutely precise you should add a single byte (82) to the beginning (the type identifier)
+        val originalBytes = "e197b0cf83c4a7e2b1a2ceb1c59fc4a7ceb96d20e1b9a8c4a7ceb1e1b8adeda080c4a700".hexToByteArray()
+        // it is how Classic Xodus decodes strings
+        val originalStr = BindingUtils.readString(ByteArraySizedInputStream(originalBytes))
+
+        // none of the charsets can decode the string to get original bytes
+        val charsets = with(Charsets) {
+            listOf(US_ASCII, ISO_8859_1, UTF_16, UTF_32, UTF_8, UTF_16BE, UTF_16LE, UTF_32BE, UTF_32LE)
+        }
+        for (charset in charsets) {
+            val bytes = originalStr.toByteArray(charset)
+            assertFalse(originalBytes.contentEquals(bytes))
+        }
+
+        // the original string is malformed
+        assertFailsWith<MalformedInputException> { originalStr.encodeToByteArray(throwOnInvalidSequence = true) }
+
+        // let's migrate such a string from Classic Xodus to Orient and see what happens
+        val entities = pileOfEntities(
+            eProps("type1", 1, "prop1" to originalStr)
+        )
+        xodus.withTx { tx -> tx.createEntities(entities) }
+        migrateDataFromXodusToOrientDb(xodus.store, orientDb)
+
+        xodus.withTx { xTx ->
+            orientDb.withStoreTx { oTx ->
+                val xStr = xTx.getAll("type1").first().getProperty("prop1") as String
+                val oStr = oTx.getAll("type1").first().getProperty("prop1") as String
+
+                // string in Xodus equals to the original string
+                assertEquals(originalStr, xStr)
+                // string in Orient does not equal to the original string
+                assertNotEquals(xStr, oStr)
+
+                // fix the string from Xodus
+                val fixedXStr = xStr.encodeToByteArray(throwOnInvalidSequence = false).decodeToString(throwOnInvalidSequence = true)
+
+                // now, fixed Xodus string equals to the Orient string
+                assertEquals(fixedXStr, oStr)
+                println("""
+                    xStr:      '$xStr'
+                    fixedXStr: '$fixedXStr'
+                    oStr:      '$oStr'
+                """.trimIndent())
+            }
+        }
+    }
 
     @Test
     fun `copy properties`() {
@@ -108,23 +163,28 @@ class MigrateDataTest {
     @Test
     fun `copy links`() {
         val entities = pileOfEntities(
-            eLinks("type1", 1,
+            eLinks(
+                "type1", 1,
                 Link("link1", "type1", 2), Link("link1", "type1", 3), // several links with the same name
                 Link("link2", "type2", 4)
             ),
-            eLinks("type1", 2,
+            eLinks(
+                "type1", 2,
                 Link("link1", "type1", 1), // cycle
                 Link("link2", "type2", 4)
             ),
-            eLinks("type1", 3,
+            eLinks(
+                "type1", 3,
                 Link("link1", "type1", 2), // cycle too
                 Link("link2", "type2", 5)
             ),
 
-            eLinks("type2", 4,
+            eLinks(
+                "type2", 4,
                 Link("link2", "type2", 5)
             ),
-            eLinks("type2", 5,
+            eLinks(
+                "type2", 5,
                 Link("link1", "type1", 2), // cycle too
             ),
         )
@@ -143,7 +203,8 @@ class MigrateDataTest {
     @Test
     fun `copy links with questionable names`() {
         val entities = pileOfEntities(
-            eLinks("type1", 1,
+            eLinks(
+                "type1", 1,
                 Link("link2/cava/banga", "type2", 2)
             ),
             eLinks("type2", 2)
@@ -230,7 +291,8 @@ class MigrateDataTest {
                     }
 
                     assertTrue(maxLocalEntityId > 0)
-                    val nextGeneratedLocalEntityId = oSession.metadata.sequenceLibrary.getSequence(localEntityIdSequenceName(type)).next()
+                    val nextGeneratedLocalEntityId =
+                        oSession.metadata.sequenceLibrary.getSequence(localEntityIdSequenceName(type)).next()
                     assertEquals(maxLocalEntityId + 1, nextGeneratedLocalEntityId)
 
                     assertEquals(xTestIdToLocalEntityId, oTestIdToLocalEntityId)
@@ -241,12 +303,13 @@ class MigrateDataTest {
 
 }
 
-internal fun migrateDataFromXodusToOrientDb(xodus: PersistentEntityStore, orient: InMemoryOrientDB) = migrateDataFromXodusToOrientDb(
-    xodus,
-    orient.store,
-    orient.provider,
-    orient.schemaBuddy
-)
+internal fun migrateDataFromXodusToOrientDb(xodus: PersistentEntityStore, orient: InMemoryOrientDB) =
+    migrateDataFromXodusToOrientDb(
+        xodus,
+        orient.store,
+        orient.provider,
+        orient.schemaBuddy
+    )
 
 internal fun StoreTransaction.assertOrientContainsAllTheEntities(pile: PileOfEntities) {
     for (type in pile.types) {
@@ -262,8 +325,10 @@ internal fun OVertexEntity.assertEquals(expected: Entity) {
     val actual = this
 
     Assert.assertEquals(expected.id, actualDocument.getTestId())
-    for ((propName, propValue) in expected.props) {
-        Assert.assertEquals(propValue, actual.getProperty(propName))
+    for (propName in expected.props.keys) {
+        val expectedValue = expected.props.getValue(propName)
+        val actualValue = actual.getProperty(propName)
+        Assert.assertEquals(expectedValue, actualValue)
     }
     for ((blobName, blobValue) in expected.blobs) {
         val actualValue = actual.getBlob(blobName)!!.readAllBytes()
@@ -347,7 +412,7 @@ data class Entity(
 data class Link(
     val name: String,
     val targetType: String,
-    val targetId : Int,
+    val targetId: Int,
 )
 
 fun pileOfEntities(vararg entities: Entity): PileOfEntities {
