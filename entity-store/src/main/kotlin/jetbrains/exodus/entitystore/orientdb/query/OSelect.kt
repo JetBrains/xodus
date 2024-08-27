@@ -176,7 +176,8 @@ abstract class OBinaryOperationSelect(
     limit: OLimit? = null
 ) : OSelectStub(order, skip, limit) {
 
-    abstract fun applyOperator(builder: SqlBuilder, leftArgName: String, rightArgName: String)
+    abstract fun applyOperatorNoOrder(builder: SqlBuilder, leftArgName: String, rightArgName: String)
+    open fun applyOperator(builder: SqlBuilder, leftArgName: String, rightArgName: String) = applyOperatorNoOrder(builder, leftArgName, rightArgName)
 
     open fun selectExpression(builder: SqlBuilder, argument:String) : SqlBuilder{
         return builder.append("SELECT expand($argument) ")
@@ -188,7 +189,7 @@ abstract class OBinaryOperationSelect(
             val index = builder.nextVarIndex()
             builder.append("SELECT expand(")
 
-            applyOperator(builder, "\$a${index}", "\$b${index}")
+            applyOperatorNoOrder(builder, "\$a${index}", "\$b${index}")
 
             builder.append(") LET \$a${index}=(")
             left.sql(builder)
@@ -243,7 +244,7 @@ class OIntersectSelect(
 
     // https://orientdb.com/docs/3.2.x/sql/SQL-Functions.html#intersect
     // intersect returns projection thus needs to expand it into collection
-    override fun applyOperator(builder: SqlBuilder, leftArgName: String, rightArgName: String) {
+    override fun applyOperatorNoOrder(builder: SqlBuilder, leftArgName: String, rightArgName: String) {
         builder.append("intersect($leftArgName, $rightArgName)")
     }
 }
@@ -264,6 +265,14 @@ class OUnionSelect(
             super.selectExpression(builder, argument).append(".asSet() ")
         } else {
             super.selectExpression(builder, argument)
+        }
+    }
+
+    override fun applyOperatorNoOrder(builder: SqlBuilder, leftArgName: String, rightArgName: String) {
+        builder.append("unionall($leftArgName, $rightArgName)").apply {
+            if (distinct){
+                builder.append(".asSet()")
+            }
         }
     }
 
@@ -294,7 +303,7 @@ class ODifferenceSelect(
     limit: OLimit? = null
 ) : OBinaryOperationSelect(left, right, order, skip, limit) {
 
-    override fun applyOperator(builder: SqlBuilder, leftArgName: String, rightArgName: String) {
+    override fun applyOperatorNoOrder(builder: SqlBuilder, leftArgName: String, rightArgName: String) {
         builder.append("difference($leftArgName, $rightArgName)")
     }
 }

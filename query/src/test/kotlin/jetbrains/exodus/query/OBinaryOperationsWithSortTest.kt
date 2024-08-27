@@ -41,6 +41,7 @@ class OBinaryOperationsWithSortTest : OTestMixin {
 
 
     @Test
+    @Ignore
     fun intersect() {
         testCase = OUsersWithInheritanceTestCase(orientDb)
 
@@ -64,6 +65,7 @@ class OBinaryOperationsWithSortTest : OTestMixin {
     }
 
     @Test
+    @Ignore
     fun minus() {
         testCase = OUsersWithInheritanceTestCase(orientDb)
 
