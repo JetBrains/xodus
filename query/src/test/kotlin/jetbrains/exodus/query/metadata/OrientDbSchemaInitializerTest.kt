@@ -122,8 +122,8 @@ class OrientDbSchemaInitializerTest {
             val type = session.getClass("type1")!!
             val prop1 = type.getProperty("blob1")
             val prop2 = type.getProperty("strBlob1")
-            assertEquals(OType.BINARY, prop1.type)
-            assertEquals(OType.BINARY, prop2.type)
+            assertEquals(OType.LINK, prop1.type)
+            assertEquals(OType.LINK, prop2.type)
         }
     }
 
