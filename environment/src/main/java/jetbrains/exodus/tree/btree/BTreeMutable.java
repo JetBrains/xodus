@@ -313,55 +313,20 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         final BTreeReclaimTraverser context = new BTreeReclaimTraverser(this);
         final long nextFileAddress =
                 log.getFileAddress(loggable.getAddress()) + log.getFileLengthBound();
-        loop:
         while (true) {
-            final byte type = loggable.getType();
-            switch (type) {
-                case NullLoggable.TYPE:
-                case HashCodeLoggable.TYPE:
-                    break;
-                case LEAF_DUP_BOTTOM_ROOT:
-                case LEAF_DUP_INTERNAL_ROOT:
-                    context.dupLeafsLo.clear();
-                    context.dupLeafsHi.clear();
-                    new LeafNodeDup(this, loggable).reclaim(context);
-                    break;
-                case LEAF:
-                    new LeafNode(log, loggable).reclaim(context);
-                    break;
-                case BOTTOM_ROOT:
-                case INTERNAL_ROOT:
-                    if (loggable.getAddress() == immutableTree.getRootAddress()) {
-                        context.wasReclaim = true;
-                    }
-                    break loop; // txn ended
-                case BOTTOM:
-                    reclaimBottom(loggable, context);
-                    break;
-                case INTERNAL:
-                    reclaimInternal(loggable, context);
-                    break;
-                case DUP_LEAF:
-                case DUP_BOTTOM:
-                case DUP_INTERNAL:
-                    context.dupLeafsLo.clear();
-                    context.dupLeafsHi.clear();
-                    final RandomAccessLoggable leaf = LeafNodeDup.collect(context.dupLeafsHi, loggable,
-                            loggables);
-                    if (leaf == null) {
-                        break loop; // loggable of dup leaf type not found, txn ended prematurely
-                    }
-                    new LeafNodeDup(this, leaf).reclaim(context);
-                    break;
-                default:
-                    throw new ExodusException("Unexpected loggable type " + type);
+            final Byte type = reclaimLoggable(loggable, loggables, context);
+            if (type == null) {
+                break; // loggable of dup leaf type not found, txn ended prematurely
             }
+
             if (!loggables.hasNext()) {
                 break;
             }
+
             if (type == NullLoggable.TYPE) {
                 break;
             }
+
             loggable = loggables.next();
             if (loggable.getAddress() >= nextFileAddress) {
                 break;
@@ -374,6 +339,81 @@ public class BTreeMutable extends BTreeBase implements ITreeMutable {
         }
 
         return context.wasReclaim;
+    }
+
+    @Override
+    public boolean reclaimByTreeIteration(long startAddress, long endAddress) {
+        final BTreeReclaimTraverser context = new BTreeReclaimTraverser(this);
+        var addressIterator = addressIterator();
+
+        while (addressIterator.hasNext()) {
+            var address = addressIterator.next();
+            if (address < startAddress || address >= endAddress) {
+                continue;
+            }
+
+            var loggables = log.getLoggableIterator(address);
+            var loggable = loggables.next();
+
+            assert loggable != null;
+
+            reclaimLoggable(loggable, loggables, context);
+        }
+
+        while (context.canMoveUp()) {
+            // wire up mutated stuff
+            context.popAndMutate();
+        }
+
+        return context.wasReclaim;
+    }
+
+    private @Nullable Byte reclaimLoggable(@NotNull RandomAccessLoggable loggable,
+                                           @NotNull Iterator<RandomAccessLoggable> loggables,
+                                           BTreeReclaimTraverser context) {
+        final byte type = loggable.getType();
+        switch (type) {
+            case NullLoggable.TYPE:
+            case HashCodeLoggable.TYPE:
+                break;
+            case LEAF_DUP_BOTTOM_ROOT:
+            case LEAF_DUP_INTERNAL_ROOT:
+                context.dupLeafsLo.clear();
+                context.dupLeafsHi.clear();
+                new LeafNodeDup(this, loggable).reclaim(context);
+                break;
+            case LEAF:
+                new LeafNode(log, loggable).reclaim(context);
+                break;
+            case BOTTOM_ROOT:
+            case INTERNAL_ROOT:
+                if (loggable.getAddress() == immutableTree.getRootAddress()) {
+                    context.wasReclaim = true;
+                }
+                return null;
+            case BOTTOM:
+                reclaimBottom(loggable, context);
+                break;
+            case INTERNAL:
+                reclaimInternal(loggable, context);
+                break;
+            case DUP_LEAF:
+            case DUP_BOTTOM:
+            case DUP_INTERNAL:
+                context.dupLeafsLo.clear();
+                context.dupLeafsHi.clear();
+                final RandomAccessLoggable leaf = LeafNodeDup.collect(context.dupLeafsHi, loggable,
+                        loggables);
+                if (leaf == null) {
+                    return null;
+                }
+                new LeafNodeDup(this, leaf).reclaim(context);
+                break;
+            default:
+                throw new ExodusException("Unexpected loggable type " + type);
+        }
+
+        return type;
     }
 
     void reclaimInternal(RandomAccessLoggable loggable, BTreeReclaimTraverser context) {

@@ -285,15 +285,13 @@ internal class PatriciaTreeMutable(
             if (type < NODE_WO_KEY_WO_VALUE_WO_CHILDREN || type > MAX_VALID_LOGGABLE_TYPE) {
                 if (type != NullLoggable.TYPE && type != HashCodeLoggable.TYPE) { // skip null loggable
                     throw UnexpectedLoggableException(
-                        "Unexpected loggable type " + l.type,
-                        l.address
+                        "Unexpected loggable type " + l.type
                     )
                 }
             } else {
                 if (l.structureId != structureId) {
                     throw UnexpectedLoggableException(
-                        "Unexpected structure id " + l.structureId,
-                        l.address
+                        "Unexpected structure id " + l.structureId
                     )
                 }
                 if (nodeIsRoot(type)) {
@@ -317,7 +315,7 @@ internal class PatriciaTreeMutable(
             val treeStartAddress = sourceTree.rootAddress - backRef
 
             if (treeStartAddress > minAddress) {
-                throw UnexpectedLoggableException("Wrong back reference!", treeStartAddress)
+                throw UnexpectedLoggableException("Wrong back reference!")
             }
 
             if (!log.hasAddressRange(treeStartAddress, maxAddress)) {
@@ -330,6 +328,18 @@ internal class PatriciaTreeMutable(
         val actual = PatriciaReclaimActualTraverser(this)
         reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, minAddress), actual)
         return actual.wasReclaim || sourceRoot.address == root.sourceAddress
+    }
+
+    override fun reclaimByTreeIteration(startAddress: Long, endAddress: Long): Boolean {
+        val sourceAddress = getRoot().sourceAddress
+
+        val sourceTree = PatriciaTreeForReclaim(log, sourceAddress, structureId, maxEntrySize)
+        val sourceRoot = sourceTree.root
+
+        val relclaimTraverser = PatriciaReclaimActualTraverser(this)
+        reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, startAddress), relclaimTraverser)
+
+        return relclaimTraverser.wasReclaim || (sourceAddress in startAddress until endAddress)
     }
 
     override fun getRoot() = root
@@ -572,4 +582,4 @@ internal class PatriciaTreeMutable(
     }
 }
 
-class UnexpectedLoggableException(msg: String, val lastValidLoggableAddress: Long) : ExodusException(msg)
+class UnexpectedLoggableException(msg: String) : ExodusException(msg)

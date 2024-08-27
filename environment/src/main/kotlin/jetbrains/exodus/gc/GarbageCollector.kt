@@ -34,7 +34,6 @@ import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.tree.ExpiredLoggableCollection
-import jetbrains.exodus.tree.patricia.UnexpectedLoggableException
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
 import java.io.File
@@ -412,7 +411,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
         try {
             val nextFileAddress = fileAddress + log.fileLengthBound
-            var loggables = log.getLoggableIterator(fileAddress)
+            val loggables = log.getLoggableIterator(fileAddress)
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
 
@@ -430,35 +429,9 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
                     try {
                         store.reclaim(txn, loggable, loggables)
-                    } catch (e: UnexpectedLoggableException) {
-                        logger.debug(
-                            "Unexpected loggable (address: ${loggable.address})  was found " +
-                                    "checking its presence in store ${store.name}."
-                        )
-                        val tree = txn.getTree(store)
-
-                        val addressIter = tree.addressIterator()
-                        //try to find address in tree
-                        while (addressIter.hasNext()) {
-                            val address = addressIter.next()
-                            if (address == loggable.address) {
-                                throw e
-                            }
-                        }
-
-                        logger.debug(
-                            "Loggable (address: ${loggable.address})  " +
-                                    "not found in store ${store.name}, skipping as a garbage"
-                        )
-                        //if address not found in tree,
-                        //then loggable is a garbage left after the restore of DB crash,
-                        //start from the last valid loggable
-                        if (e.lastValidLoggableAddress >= 0) {
-                            loggables = log.getLoggableIterator(e.lastValidLoggableAddress)
-                        } else {
-                            logger.debug("Last valid loggable address is not found, skipping the rest of the file")
-                            break
-                        }
+                    } catch (e: ExodusException) {
+                        logger.warn("Error during reclaiming loggable, trying to retry by iteration over the whole tree.", e)
+                        store.reclaimByTreeIteration(txn, fileAddress, nextFileAddress)
                     }
                 }
             }

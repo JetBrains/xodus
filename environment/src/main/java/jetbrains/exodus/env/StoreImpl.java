@@ -202,6 +202,15 @@ public class StoreImpl implements Store {
         }
     }
 
+    public void reclaimByTreeIteration(@NotNull final Transaction transaction, long startAddress, long endAddress) {
+        final ReadWriteTransaction txn = EnvironmentImpl.throwIfReadonly(transaction, "Can't reclaim in read-only transaction");
+        final boolean hadTreeMutated = txn.hasTreeMutable(this);
+
+        if (!txn.getMutableTree(this).reclaimByTreeIteration(startAddress, endAddress) && !hadTreeMutated) {
+            txn.removeTreeMutable(this);
+        }
+    }
+
     ITree openImmutableTree(@NotNull final MetaTreeImpl metaTree) {
         final int structureId = getStructureId();
         final long upToDateRootAddress = metaTree.getRootAddress(structureId);

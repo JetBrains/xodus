@@ -87,6 +87,11 @@ class ContextualTemporaryEmptyStore extends ContextualStoreImpl {
         // nothing to reclaim
     }
 
+    @Override
+    public void reclaimByTreeIteration(@NotNull Transaction transaction, long startAddress, long endAddress) {
+        // nothing to reclaim
+    }
+
     private boolean throwCantModify() {
         if (getEnvironment().isReadOnly()) {
             throw new ReadonlyTransactionException();

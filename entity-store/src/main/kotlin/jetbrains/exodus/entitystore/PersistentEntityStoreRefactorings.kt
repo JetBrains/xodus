@@ -323,15 +323,13 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                                         linkValue = null
                                     }
 
-                                    if (linkValue != null) {
-                                        try {
-                                            store.getEntityType(txn, linkValue.entityId.typeId)
-                                        } catch (e: Exception) {
-                                            linkValue = null
-                                        }
+                                    try {
+                                        store.getEntityType(txn, linkValue.entityId.typeId)
+                                    } catch (e: Exception) {
+                                        linkValue = null
                                     }
 
-                                    if (propertyKey != null && linkValue != null) {
+                                    if (propertyKey != null) {
                                         val targetEntityId = linkValue.entityId
 
                                         missedLinkTypes.add(targetEntityId.typeId)
@@ -475,13 +473,13 @@ class PersistentEntityStoreRefactorings(private val store: PersistentEntityStore
                             } else {
                                 linkFilter.add((first.hashCode().toLong() shl 31) + second.hashCode().toLong())
                             }
-                            if (linkValue == null) {
-                                try {
-                                    linkValue = LinkValue.entryToLinkValue(second)
-                                } catch (ignore: ArrayIndexOutOfBoundsException) {
-                                    deleteLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
-                                }
+
+                            try {
+                                linkValue = LinkValue.entryToLinkValue(second)
+                            } catch (ignore: ArrayIndexOutOfBoundsException) {
+                                deleteLinks.add(ArrayByteIterable(first) to ArrayByteIterable(second))
                             }
+
                             if (linkValue != null) {
                                 val targetEntityId = linkValue.entityId
                                 // if target doesn't exist

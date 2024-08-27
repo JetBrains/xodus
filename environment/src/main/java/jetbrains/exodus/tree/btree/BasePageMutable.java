@@ -28,7 +28,7 @@ import jetbrains.exodus.tree.MutableTreeRoot;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
+public abstract class BasePageMutable extends BasePage implements MutableTreeRoot {
 
     protected BaseLeafNodeMutable[] keys;
     protected long[] keysAddresses;

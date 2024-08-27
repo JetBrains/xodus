@@ -96,6 +96,11 @@ class TemporaryEmptyStore extends StoreImpl {
         // nothing to reclaim
     }
 
+    @Override
+    public void reclaimByTreeIteration(@NotNull Transaction transaction, long startAddress, long endAddress) {
+        // nothing to reclaim
+    }
+
     private boolean throwCantModify(Transaction txn) {
         if (txn.isReadonly()) {
             throw new ReadonlyTransactionException();
