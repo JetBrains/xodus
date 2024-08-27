@@ -136,9 +136,27 @@ internal class DataAfterMigrationChecker(
                                     v1 is String -> {
                                         require(v2 is String && v1.compareTo(v2) == 0) {
                                             v2 as String
+                                            val v1Raw1 = e1.getRawProperty(propName)!!.baseBytes.toHexString()
+                                            val v1Raw2 = e1.getRawProperty(propName)!!.bytesUnsafe.toHexString()
+                                            log.info {
+                                                """
+                                                    v1 raw hex: $v1Raw1
+                                                    v1 raw hex: $v1Raw2
+                                                """.trimIndent()
+                                            }
                                             val charsets = with(Charsets) {
                                                 listOf(US_ASCII, ISO_8859_1,
                                                     UTF_16, UTF_32, UTF_8, UTF_16BE, UTF_16LE, UTF_32BE, UTF_32LE)
+                                            }
+                                            try {
+                                                v1.encodeToByteArray(throwOnInvalidSequence = true)
+                                            } catch (e: Throwable) {
+                                                log.error(e) { "v1.encodeToByteArray() failed: ${e.message}" }
+                                            }
+                                            try {
+                                                v2.encodeToByteArray(throwOnInvalidSequence = true)
+                                            } catch (e: Throwable) {
+                                                log.error(e) { "v2.encodeToByteArray() failed: ${e.message}" }
                                             }
                                             for (charset in charsets) {
                                                try {
