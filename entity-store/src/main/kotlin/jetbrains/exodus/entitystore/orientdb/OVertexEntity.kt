@@ -163,10 +163,10 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
             vertex.removeProperty<Any>(blobName)
         }
 
-        val oBlob = ORecordBytes()
-        val size = oBlob.fromInputStream(blob)
+        val allBytes = blob.readAllBytes()
+        val oBlob = ORecordBytes(allBytes)
         vertex.setProperty(blobName, oBlob)
-        vertex.setProperty(blobSizeProperty(blobName), size.toLong())
+        vertex.setProperty(blobSizeProperty(blobName), allBytes.size.toLong())
         vertex.save<OVertex>()
     }
 
@@ -185,7 +185,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     override fun getBlobString(blobName: String): String? {
         requireActiveTx()
         val blob: ORecordBytes = vertex.getProperty(blobName) ?: return null
-        return UTFUtil.readUTF(ByteArrayInputStream(blob.toStream()))
+        return blob.toStream().toString(Charsets.UTF_8)
     }
 
     override fun setBlob(blobName: String, file: File) {
@@ -196,24 +196,21 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         requireActiveWritableTransaction()
 
         // toByteArray() will not copy data
-        val baos = LightByteArrayOutputStream(blobString.length)
-        UTFUtil.writeUTF(baos, blobString)
-
-        // we know the exact size only when we encoded the string to UTF.
+        val blobBytes = blobString.toByteArray(Charsets.UTF_8)
         // so, here we can check if we already have the same one
         if (vertex.hasProperty(blobName)) {
             val oldHash = vertex.getProperty<Int>(blobHashProperty(blobName))
             val oldLen = vertex.getProperty<Long>(blobSizeProperty(blobName))
-            if (oldHash == blobString.hashCode() && oldLen == baos.size().toLong()) {
+            if (oldHash == blobString.hashCode() && oldLen == blobBytes.size.toLong()) {
                 return false
             }
             vertex.removeProperty<Any>(blobName)
         }
 
-        val oBlob = ORecordBytes(baos.toByteArray())
+        val oBlob = ORecordBytes(blobBytes)
         vertex.setProperty(blobName, oBlob)
         vertex.setProperty(blobHashProperty(blobName), blobString.hashCode())
-        vertex.setProperty(blobSizeProperty(blobName), baos.size().toLong())
+        vertex.setProperty(blobSizeProperty(blobName), blobBytes.size.toLong())
         vertex.save<OVertex>()
         return true
     }

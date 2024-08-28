@@ -125,7 +125,7 @@ class XodusToOrientDataMigratorLauncher(
                     try {
                         checkDataIsSame(xEntityStore, oEntityStore, migrateDataStats.xEntityIdToOEntityId)
                     } catch (e: Exception) {
-                        log.error(e) { "Error on the data checking after migration: ${e.message}" }
+                        log.error(e) { "Error on the data checking after migration" }
                         null
                     }
                 } else null

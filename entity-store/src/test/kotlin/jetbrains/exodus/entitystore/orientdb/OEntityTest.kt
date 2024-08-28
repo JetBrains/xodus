@@ -182,8 +182,8 @@ class OEntityTest {
         orientDb.withStoreTx {
             assertEquals(expectedBlob1, issue.getBlobString("blob1"))
             assertEquals(expectedBlob2, issue.getBlobString("blob2"))
-            assertEquals(expectedBlob1.length.toLong() + 2, issue.getBlobSize("blob1"))
-            assertEquals(expectedBlob2.length.toLong() + 2, issue.getBlobSize("blob2"))
+            assertEquals(expectedBlob1.length.toLong(), issue.getBlobSize("blob1"))
+            assertEquals(expectedBlob2.length.toLong(), issue.getBlobSize("blob2"))
         }
 
         // change
@@ -194,7 +194,7 @@ class OEntityTest {
         orientDb.withStoreTx {
             val resetBlob1 = issue.getBlobString("blob1")
             assertEquals(expectedResetBlob1, resetBlob1)
-            assertEquals(expectedResetBlob1.length.toLong() + 2, issue.getBlobSize("blob1"))
+            assertEquals(expectedResetBlob1.length.toLong(), issue.getBlobSize("blob1"))
         }
 
         // delete
@@ -206,7 +206,7 @@ class OEntityTest {
             assertEquals(-1, issue.getBlobSize("blob1"))
             // another blob is still here
             assertEquals(expectedBlob2, issue.getBlobString("blob2"))
-            assertEquals(expectedBlob2.length.toLong() + 2, issue.getBlobSize("blob2"))
+            assertEquals(expectedBlob2.length.toLong(), issue.getBlobSize("blob2"))
         }
     }
 
@@ -228,15 +228,14 @@ class OEntityTest {
             assertEquals(notEnglishStr, issue.getBlobString("blob2"))
             assertEquals(mixedStr, issue.getBlobString("blob3"))
 
-            assertEquals(englishStr.length.toLong() + 2, issue.getBlobSize("blob1"))
+            assertEquals(englishStr.length.toLong(), issue.getBlobSize("blob1"))
 
-            assertNotEquals(notEnglishStr.length.toLong() + 2, issue.getBlobSize("blob2"))
-            assertNotEquals(notEnglishStr.length.toLong() * 2 + 2, issue.getBlobSize("blob2"))
-            assertEquals(57, issue.getBlobSize("blob2"))
+            assertNotEquals(notEnglishStr.length.toLong(), issue.getBlobSize("blob2"))
+            assertNotEquals(notEnglishStr.length.toLong(), issue.getBlobSize("blob2"))
+            assertEquals(55, issue.getBlobSize("blob2"))
 
-            assertEquals(32, issue.getBlobSize("blob3"))
+            assertEquals(30, issue.getBlobSize("blob3"))
         }
-
     }
 
     @Test
