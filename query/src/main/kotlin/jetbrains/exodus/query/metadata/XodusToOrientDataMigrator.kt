@@ -193,10 +193,12 @@ internal class XodusToOrientDataMigrator(
         xodus.withReadonlyTx { xTx ->
             orient.withCountingTx(entitiesPerTransaction) { countingTx ->
                 val entityTypes = xTx.entityTypes.toSet()
+                val entityTypesCount = entityTypes.size
                 entityTypes.forEachIndexed { typeIdx, type ->
                     var largestEntityId = 0L
                     val xEntities = xTx.getAll(type)
-                    log.info { "$typeIdx $type ${xEntities.size()} entities to copy" }
+                    val xEntitiesCount = xEntities.size()
+                    log.info { "$typeIdx/${entityTypesCount} $type $xEntitiesCount entities to copy" }
                     var properties = 0
                     var blobs = 0
                     var lastProgressPrintedAt = System.currentTimeMillis()
@@ -237,7 +239,7 @@ internal class XodusToOrientDataMigrator(
                         }
 
                         if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
-                            log.info { "$typeIdx $type current entity: $xEntityIdx, properties processed: $properties, blobs copied: $blobs" }
+                            log.info { "${typeIdx}/${entityTypes.size} $type current entity $xEntityIdx/$xEntitiesCount, properties copied: $properties, blobs copied: $blobs" }
                             lastProgressPrintedAt = System.currentTimeMillis()
                         }
 
@@ -247,14 +249,14 @@ internal class XodusToOrientDataMigrator(
                     // plan to create a sequence to generate localEntityIds for the class
                     sequencesToCreate.add(Pair(localEntityIdSequenceName(type), largestEntityId))
 
-                    log.info { "$typeIdx $type entities copied: ${xEntities.size()}, properties copied: $properties, blobs copied: $blobs" }
-                    totalEntities += xEntities.size()
+                    log.info { "${typeIdx}/${entityTypes.size} $type entities copied: $xEntitiesCount, properties copied: $properties, blobs copied: $blobs" }
+                    totalEntities += xEntitiesCount
                     totalProperties += properties
                     totalBlobs += blobs
                 }
                 countingTx.commit()
                 copyEntitiesPropertiesAndBlobsTransactions = countingTx.transactionsCommited
-                log.info { "Entities have been copied. Entity types: ${entityTypes.size}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
+                log.info { "Entities have been copied. Entity types: ${entityTypesCount}, entities copied: $totalEntities, properties copied: $totalProperties, blobs copied: $totalBlobs" }
             }
         }
         orientProvider.withSession { session ->
@@ -283,13 +285,15 @@ internal class XodusToOrientDataMigrator(
         xodus.withReadonlyTx { xTx ->
             orient.withCountingTx(entitiesPerTransaction) { countingTx ->
                 val entityTypes = xTx.entityTypes.toSet()
-                log.info { "${entityTypes.size} entity types to copy links" }
+                val entityTypesCount = entityTypes.size
+                log.info { "$entityTypesCount entity types to copy links" }
                 var totalEntities = 0L
                 entityTypes.forEachIndexed { typeIdx, type ->
                     var linksProcessed = 0
                     var linksCopied = 0
                     val xEntities = xTx.getAll(type)
-                    log.info { "$typeIdx $type ${xEntities.size()} entities to copy links" }
+                    val xEntitiesCount = xEntities.size()
+                    log.info { "$typeIdx/${entityTypesCount} $type $xEntitiesCount entities to copy" }
                     var lastProgressPrintedAt = System.currentTimeMillis()
                     xEntities.forEachIndexed { xEntityIdx, xEntity ->
                         val oEntityId = xEntityIdToOEntityId.getValue(xEntity.id)
@@ -312,7 +316,7 @@ internal class XodusToOrientDataMigrator(
                                         // ignore
                                     }
                                     if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
-                                        log.info { "$typeIdx $type current entity: $xEntityIdx, links processed: $linksProcessed, links copied: $linksCopied" }
+                                        log.info { "${typeIdx}/${entityTypes.size} $type current entity $xEntityIdx/$xEntitiesCount, links processed: $linksProcessed, links copied: $linksCopied" }
                                         lastProgressPrintedAt = System.currentTimeMillis()
                                     }
                                 }
@@ -327,8 +331,8 @@ internal class XodusToOrientDataMigrator(
                             }
                         }
                     }
-                    log.info { "$typeIdx $type entities processed: ${xEntities.size()}, links processed: $linksProcessed, links copied: $linksCopied" }
-                    totalEntities += xEntities.size()
+                    log.info { "${typeIdx}/${entityTypes.size} $type entities processed $xEntitiesCount, links processed: $linksProcessed, links copied: $linksCopied" }
+                    totalEntities += xEntitiesCount
                     totalLinksProcessed += linksProcessed
                     totalLinksCopied += linksCopied
                 }
@@ -338,5 +342,4 @@ internal class XodusToOrientDataMigrator(
             }
         }
     }
-
 }
