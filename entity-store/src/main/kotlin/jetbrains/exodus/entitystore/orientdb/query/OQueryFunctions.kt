@@ -50,7 +50,7 @@ object OQueryFunctions {
                 ensureSkipIsNotUsed(left, right)
 
                 val newOrder = left.order.merge(right.order)
-                val ids = left.recordIds + right.recordIds
+                val ids = (left.recordIds + right.recordIds).toSet()
                 ORecordIdSelect(ids, newOrder)
             }
 
