@@ -152,13 +152,9 @@ fun Environment.copyToAsWhole(
         val storesCount = names.size
         progress?.invoke("Stores found: $storesCount")
 
-        executeInReadonlyTransaction { sourceTxn ->
-            names.forEachIndexed { i, name ->
-                newEnv.executeInExclusiveTransaction { targetTxn ->
-                    val started = Date()
-                    print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
-
-
+        newEnv.executeInExclusiveTransaction { targetTxn ->
+            executeInReadonlyTransaction { sourceTxn ->
+                names.forEach { name ->
                     val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
                     val targetConfig = sourceStore.config.let { sourceConfig ->
                         if (forcePrefixing) StoreConfig.getStoreConfig(
@@ -168,7 +164,22 @@ fun Environment.copyToAsWhole(
                             sourceConfig
                         }
                     }
-                    val targetStore = newEnv.openStore(name, targetConfig, targetTxn)
+
+                    newEnv.openStore(name, targetConfig, targetTxn)
+                    progress?.invoke("\rStore $name has been created.")
+                }
+            }
+        }
+
+        executeInReadonlyTransaction { sourceTxn ->
+            names.forEachIndexed { i, name ->
+                newEnv.executeInExclusiveTransaction { targetTxn ->
+                    val started = Date()
+                    print(copyStoreMessage(started, name, i + 1, storesCount, 0L))
+
+                    val sourceStore = openStore(name, StoreConfig.USE_EXISTING, sourceTxn)
+                    val targetStore = newEnv.openStore(name, StoreConfig.USE_EXISTING, targetTxn)
+
                     sourceStore.openCursor(sourceTxn).forEach {
                         targetStore.putRight(targetTxn, ArrayByteIterable(key), ArrayByteIterable(value))
                     }
