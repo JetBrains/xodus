@@ -19,6 +19,7 @@ import jetbrains.exodus.bindings.ComparableSet
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityStore
+import jetbrains.exodus.entitystore.orientdb.OComparableSet
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import mu.KotlinLogging
@@ -125,7 +126,7 @@ internal class DataAfterMigrationChecker(
                                         checkSets(
                                             setsInfo = "$type $entityIdx/$xSize ${e1.id} $propName sets",
                                             xSet = v1.toSet(),
-                                            oSet = (v2 as ComparableSet<*>).toSet()
+                                            oSet = (v2 as OComparableSet<*>).toSet()
                                         )
                                     }
                                     v1 is String -> {
