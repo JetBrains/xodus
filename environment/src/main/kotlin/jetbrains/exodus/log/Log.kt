@@ -789,85 +789,94 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
         val blocksToTruncateLimit = 2
 
         val clearInvalidLog = config.isClearInvalidLog
-        var dbRootAddress = Long.MIN_VALUE
-        var dbRootEndAddress = Long.MIN_VALUE
+        var dbRootAddress: Long
+        var dbRootEndAddress: Long
+        var logCorruptionException: LogCorruptionException? = null
 
-        var loggablesProcessed = 0
-        try {
-            var counter = 1
-            var blocksLimit = 100
-            val blocksStep = 100
+        var loggablesProcessed: Int
 
-            while (true) {
-                logger.info("Trying to restore database $location. Attempt $counter")
+        var counter = 1
+        var blocksLimit = 100
+        val blocksStep = 100
 
-                val blocksToCheckSize = min(blocks.size, blocksLimit)
-                val blocksReverse = blocks.descendingMap()
-                val blocksToCheck = TreeMap<Long, Block>()
+        while (true) {
+            logger.info("Trying to restore database $location. Attempt $counter")
 
-                for (i: Int in 0 until blocksToCheckSize) {
-                    val block = blocksReverse.pollFirstEntry()
-                    blocksToCheck[block.key] = block.value
+            val blocksToCheckSize = min(blocks.size, blocksLimit)
+            val blocksReverse = blocks.descendingMap().iterator()
+            val blocksToCheck = TreeMap<Long, Block>()
+
+            for (i: Int in 0 until blocksToCheckSize) {
+                val block = blocksReverse.next()
+                blocksToCheck[block.key] = block.value
+            }
+
+            logger.info("Files to be checked for data consistency : ")
+            logger.info("------------------------------------------------------")
+            val blockAddressIterator = blocksToCheck.keys.iterator()
+            while (blockAddressIterator.hasNext()) {
+                val address = blockAddressIterator.next()
+                logger.info(LogUtil.getLogFilename(address))
+            }
+            logger.info("------------------------------------------------------")
+
+            try {
+                blockSetMutable.clear()
+                for (block in blocks.headMap(blocksToCheck.firstKey(), false)) {
+                    blockSetMutable.add(block.key, block.value)
                 }
 
-                logger.info("Files to be checked for data consistency : ")
-                logger.info("------------------------------------------------------")
-                val blockAddressIterator = blocksToCheck.keys.iterator()
-                while (blockAddressIterator.hasNext()) {
-                    val address = blockAddressIterator.next()
-                    logger.info(LogUtil.getLogFilename(address))
+                val triple = DataCorruptionException.computeUnsafe {
+                    extractRestoreInformation(
+                        blocksToCheck.values.iterator(),
+                        blockSetMutable
+                    )
                 }
-                logger.info("------------------------------------------------------")
 
-                try {
-                    blockSetMutable.clear()
-                    for (block in blocks.headMap(blocksToCheck.firstKey(), false)) {
-                        blockSetMutable.add(block.key, block.value)
-                    }
+                dbRootAddress = triple.first
+                dbRootEndAddress = triple.second
+                loggablesProcessed = triple.third
+                break
+            } catch (e: LogCorruptionException) {
+                dbRootAddress = e.dbRootAddress
+                dbRootEndAddress = e.dbRootEndAddress
+                loggablesProcessed = e.loggablesProcessed
 
-                    val triple = DataCorruptionException.computeUnsafe {
-                        extractRestoreInformation(
-                            blocksToCheck.values.iterator(),
-                            blockSetMutable
-                        )
-                    }
-
-
-                    dbRootAddress = triple.first
-                    dbRootEndAddress = triple.second
-                    loggablesProcessed = triple.third
+                if (dbRootAddress > 0) {
+                    logCorruptionException = e
                     break
-                } catch (e: LogCorruptionException) {
-                    dbRootAddress = e.dbRootAddress
-                    dbRootEndAddress = e.dbRootEndAddress
-                    loggablesProcessed = e.loggablesProcessed
+                }
 
-                    if (dbRootAddress > 0) {
-                        break
-                    }
+                if (blocksLimit < blocks.size) {
+                    logger.info("Attempt to restore database $location failed. Increasing the number of files to be checked.")
 
-                    if (blocksLimit < blocks.size) {
-                        logger.info("Attempt to restore database $location failed. Increasing the number of files to be checked.")
+                    blocksLimit = min(blocksLimit + blocksStep, blocks.size)
+                    counter++
+                } else {
+                    if (loggablesProcessed < 3) {
+                        logger.error(
+                            "Data corruption was detected. Reason : ${e.message} . " +
+                                    "Likely invalid cipher key/iv were used. "
+                        )
 
-                        blocksLimit = min(blocksLimit + blocksStep, blocks.size)
-                        counter++
-
+                        blockSetMutable.clear()
+                        throw InvalidCipherParametersException()
                     } else {
                         throw e
                     }
-                } catch (e: Exception) {
-                    throw e
                 }
+            } catch (e: Exception) {
+                throw e
             }
+        }
 
-        } catch (exception: Exception) {
-            logger.warn("Error during verification of database $location", exception)
+        if (logCorruptionException != null) {
+            logger.warn("Error during verification of database $location", logCorruptionException)
 
             SharedOpenFilesCache.invalidate()
-
             try {
                 if (clearInvalidLog) {
-                    clearDataCorruptionLog(exception, blockSetMutable)
+                    clearDataCorruptionLog(logCorruptionException, blockSetMutable)
                     return -1
                 }
 
@@ -902,7 +911,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                     val endBlockReminder = endBlockLength.toInt() and (cachePageSize - 1)
 
                     logger.warn(
-                        "Data corruption was detected. Reason : \"${exception.message}\". " +
+                        "Data corruption was detected. Reason : \"${logCorruptionException.message}\". " +
                                 "Database '$location' will be truncated till address : $dbRootEndAddress. " +
                                 "Name of the file to be truncated : ${
                                     LogUtil.getLogFilename(
@@ -925,7 +934,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                         if (!endBlock.setWritable(true)) {
                             throw ExodusException(
                                 "Can not write into file " + endBlock.absolutePath,
-                                exception
+                                logCorruptionException
                             )
                         }
                     }
@@ -937,7 +946,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                             if (read != endBlockReminder) {
                                 throw ExodusException(
                                     "Can not read segment ${LogUtil.getLogFilename(endBlock.address)}",
-                                    exception
+                                    logCorruptionException
                                 )
                             }
 
@@ -965,7 +974,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                 truncateFile(endBlock, position, lastPage)
                             } catch (e: IOException) {
                                 logger.error("Error during truncation of file $endBlock", e)
-                                throw ExodusException("Can not restore log corruption", exception)
+                                throw ExodusException("Can not restore log corruption", logCorruptionException)
                             }
                         }
 
@@ -1000,7 +1009,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                                     if (!blockToDelete.setWritable(true)) {
                                         throw ExodusException(
                                             "Can not write into file " + blockToDelete.absolutePath,
-                                            exception
+                                            logCorruptionException
                                         )
                                     }
                                 }
@@ -1020,13 +1029,14 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 } else {
                     if (loggablesProcessed < 3) {
                         logger.error(
-                            "Data corruption was detected. Reason : ${exception.message} . Likely invalid cipher key/iv were used. "
+                            "Data corruption was detected. Reason : ${logCorruptionException.message} . " +
+                                    "Likely invalid cipher key/iv were used. "
                         )
 
                         blockSetMutable.clear()
                         throw InvalidCipherParametersException()
                     } else {
-                        clearDataCorruptionLog(exception, blockSetMutable)
+                        clearDataCorruptionLog(logCorruptionException, blockSetMutable)
                         return -1
                     }
                 }
@@ -1048,7 +1058,7 @@ class Log(val config: LogConfig, expectedEnvironmentVersion: Int) : Closeable, C
                 throw e
             } catch (e: Exception) {
                 logger.error("Error during attempt to restore log $location", e)
-                throw ExodusException(exception)
+                throw ExodusException(logCorruptionException)
             }
         }
 
