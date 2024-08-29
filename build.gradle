@@ -192,7 +192,7 @@ subprojects {
     }
 
     afterEvaluate { project ->
-        if (shouldDeploy(project) && !(isDailyBuild && project.name == 'tools')) {
+        if (shouldDeploy(project)) {
             publishing {
                 repositories {
                     maven {
