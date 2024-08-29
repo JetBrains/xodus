@@ -55,6 +55,33 @@ class MigrateDataTest {
     val xodus = XodusTestDB()
 
     @Test
+    @Ignore
+    fun `Xodus home UTF-8 is broken, example`() {
+        repeat(100_000) { i ->
+            val str = randomUtf8String(10)
+
+            str.encodeToByteArray(throwOnInvalidSequence = true)
+            val bytesXodusStyle = str.toBytesXodusPropertyStyle(true)
+            val bytes = str.toByteArray(Charsets.UTF_8)
+            if (!bytes.contentEquals(bytesXodusStyle)) {
+                val strXodusStyle = bytesXodusStyle.toStringXodusPropertyStyle(addEOF = true)
+                val strNormal = bytes.toString(Charsets.UTF_8)
+                val hexXodusStyle = bytesXodusStyle.toHexString()
+                val hex = bytes.toHexString()
+                println("""
+                    $i problematic string
+                    original: '$str'
+                    normal  : '$strNormal'
+                    xStyle  : '$strXodusStyle'
+                    bytes   : '$hex'
+                    xBytes  : '$hexXodusStyle'
+                """.trimIndent())
+                throw Exception()
+            }
+        }
+    }
+
+    @Test
     fun `migrate string blobs`() {
         orientDb.withSession { session ->
             session.createVertexClassWithClassId("type1")
@@ -603,16 +630,23 @@ internal fun eLinks(type: String, id: Int, vararg links: Link): Entity {
     return Entity(type, id, links = links.toList())
 }
 
-private fun String.toBytesXodusPropertyStyle(): ByteArray {
+private fun String.toBytesXodusPropertyStyle(dropEOF: Boolean = false): ByteArray {
     val stream = LightOutputStream()
     StringBinding.BINDING.writeObject(stream, this)
-    return ByteArray(stream.size()) {
+    val size = if (dropEOF) stream.size() - 1 else stream.size()
+    return ByteArray(size) {
         stream.bufferBytes[it]
     }
 }
 
-private fun ByteArray.toStringXodusPropertyStyle(): String {
-    return StringBinding.BINDING.readObject(ByteArraySizedInputStream(this))
+private fun ByteArray.toStringXodusPropertyStyle(addEOF: Boolean = false): String {
+    val arr = if (addEOF) {
+        val newArr = ByteArray(this.size + 1)
+        this.copyInto(newArr)
+        newArr[newArr.lastIndex] = 0
+        newArr
+    } else this
+    return StringBinding.BINDING.readObject(ByteArraySizedInputStream(arr))
 }
 
 private fun getBrokenXodusString(): String {
@@ -620,3 +654,13 @@ private fun getBrokenXodusString(): String {
     val originalBytesForXodus = rawBytesGottenFromAProdXodus.sliceArray(1 until rawBytesGottenFromAProdXodus.size)
     return originalBytesForXodus.toStringXodusPropertyStyle()
 }
+
+private fun randomUtf8String(size: Int): String = buildString {
+    while (this.length < size) {
+        val char = Random.nextInt(0, 0xFFFF).toChar()
+        if (!char.isSurrogate()) {
+            append(char)
+        }
+    }
+}
+

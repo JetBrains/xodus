@@ -92,7 +92,6 @@ internal class DataAfterMigrationChecker(
         }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     private fun checkPropertiesBlobsAndLinks() {
         log.info { "2. Check properties, blobs and links" }
         xStore.withReadonlyTx { xTx ->
@@ -107,6 +106,15 @@ internal class DataAfterMigrationChecker(
                 require(xSize == oSize) { "different number of $type entities. xStore - $xSize, oStore - $oSize" }
 
                 var lastProgressPrintedAt = System.currentTimeMillis()
+                var propsCount = 0L
+                var blobsCount = 0L
+                var linksCount = 0L
+                fun printProgress(entityIdx: Int) {
+                    if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
+                        log.info { "${typeIdx}/${entityTypes.size} $type $entityIdx/$xSize has been processed, properties processed: $propsCount, blobs processed: $blobsCount, links processed: $linksCount" }
+                        lastProgressPrintedAt = System.currentTimeMillis()
+                    }
+                }
                 xEntities.forEachIndexed { entityIdx, e1 ->
                     // oStore does not close resultSets, it causes a flood in the log and out of memory crash,
                     // so we have to process entity by entity until it is fixed :(
@@ -148,6 +156,8 @@ internal class DataAfterMigrationChecker(
                                         }
                                     }
                                 }
+                                propsCount++
+                                printProgress(entityIdx)
                             }
                         }
 
@@ -158,6 +168,8 @@ internal class DataAfterMigrationChecker(
                                     xBlob = e1.getBlob(blobName),
                                     oBlob = e2.getBlob(blobName)
                                 )
+                                blobsCount++
+                                printProgress(entityIdx)
                             }
                         }
 
@@ -172,7 +184,7 @@ internal class DataAfterMigrationChecker(
                                         false
                                     }
                                 }.map { it.id.toString() }.toSet()
-                                val oTargetEntities = e2.getLinks(linkName).map { it.id.toString() }
+                                val oTargetEntities = e2.getLinks(linkName).map { it.id.toString() }.toSet()
                                 require(
                                     xTargetEntities.size == oTargetEntities.size
                                             && xTargetEntities.containsAll(oTargetEntities)
@@ -180,13 +192,12 @@ internal class DataAfterMigrationChecker(
                                 ) {
                                     "$type $entityIdx/$xSize ${e1.id} $linkName links are different. xStore: ${xTargetEntities.size}, oStore: ${oTargetEntities.size}"
                                 }
+                                linksCount += oTargetEntities.size
+                                printProgress(entityIdx)
                             }
                         }
                     }
-                    if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
-                        log.info { "${typeIdx}/${entityTypes.size} $type $entityIdx/$xSize has been processed" }
-                        lastProgressPrintedAt = System.currentTimeMillis()
-                    }
+                    printProgress(entityIdx)
                 }
             }
         }
