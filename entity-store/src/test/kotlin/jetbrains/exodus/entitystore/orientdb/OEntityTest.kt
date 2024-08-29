@@ -22,10 +22,12 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetE
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
+import jetbrains.exodus.entitystore.orientdb.testutil.createIssueImpl
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.util.*
+import kotlin.random.Random
 import kotlin.test.*
 
 class OEntityTest {
@@ -126,6 +128,30 @@ class OEntityTest {
         }
     }
 
+    /**
+     * Orient may once in a while go crazy and add random bytes to
+     * a blob. It does not like blobs of size 1023, 2047, 4095, 8191 and so on.
+     *
+     * One should NOT use fromInputStream() in the blob implementation is fixed.
+     *
+     * This test checks that our implementation behaves.
+     */
+    @Test
+    fun `set a hard blob`() {
+        val hardBlob = Random.nextBytes(1023)
+        val id = orientDb.withStoreTx { tx ->
+            val issue = tx.createIssueImpl("iss")
+            issue.setBlob("blob1", ByteArrayInputStream(hardBlob))
+            issue.id
+        }
+
+        orientDb.withStoreTx { tx ->
+            val issue = tx.getEntity(id)
+            val gotBlob = issue.getBlob("blob1")!!.readAllBytes()
+            assertContentEquals(hardBlob, gotBlob)
+        }
+    }
+
     @Test
     fun `set, change and delete blobs`() {
         val issue = orientDb.createIssue("iss")
@@ -182,8 +208,8 @@ class OEntityTest {
         orientDb.withStoreTx {
             assertEquals(expectedBlob1, issue.getBlobString("blob1"))
             assertEquals(expectedBlob2, issue.getBlobString("blob2"))
-            assertEquals(expectedBlob1.length.toLong(), issue.getBlobSize("blob1"))
-            assertEquals(expectedBlob2.length.toLong(), issue.getBlobSize("blob2"))
+            assertEquals(expectedBlob1.length.toLong() + 2, issue.getBlobSize("blob1"))
+            assertEquals(expectedBlob2.length.toLong() + 2, issue.getBlobSize("blob2"))
         }
 
         // change
@@ -194,7 +220,7 @@ class OEntityTest {
         orientDb.withStoreTx {
             val resetBlob1 = issue.getBlobString("blob1")
             assertEquals(expectedResetBlob1, resetBlob1)
-            assertEquals(expectedResetBlob1.length.toLong(), issue.getBlobSize("blob1"))
+            assertEquals(expectedResetBlob1.length.toLong() + 2, issue.getBlobSize("blob1"))
         }
 
         // delete
@@ -206,7 +232,7 @@ class OEntityTest {
             assertEquals(-1, issue.getBlobSize("blob1"))
             // another blob is still here
             assertEquals(expectedBlob2, issue.getBlobString("blob2"))
-            assertEquals(expectedBlob2.length.toLong(), issue.getBlobSize("blob2"))
+            assertEquals(expectedBlob2.length.toLong() + 2, issue.getBlobSize("blob2"))
         }
     }
 
@@ -228,13 +254,14 @@ class OEntityTest {
             assertEquals(notEnglishStr, issue.getBlobString("blob2"))
             assertEquals(mixedStr, issue.getBlobString("blob3"))
 
-            assertEquals(englishStr.length.toLong(), issue.getBlobSize("blob1"))
+            // we use modified UTF-8 for string blobs, it adds the string size to 2 first bytes
+            assertEquals(englishStr.length.toLong() + 2, issue.getBlobSize("blob1"))
 
             assertNotEquals(notEnglishStr.length.toLong(), issue.getBlobSize("blob2"))
             assertNotEquals(notEnglishStr.length.toLong(), issue.getBlobSize("blob2"))
-            assertEquals(55, issue.getBlobSize("blob2"))
+            assertEquals(57, issue.getBlobSize("blob2"))
 
-            assertEquals(30, issue.getBlobSize("blob3"))
+            assertEquals(32, issue.getBlobSize("blob3"))
         }
     }
 
