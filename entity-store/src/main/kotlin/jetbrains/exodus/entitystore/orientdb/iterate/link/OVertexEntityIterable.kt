@@ -21,7 +21,9 @@ import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.EntityIterator
 import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.OEntityId
 import jetbrains.exodus.entitystore.orientdb.OEntityStore
+import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.util.unsupported
 import org.apache.commons.collections4.IterableUtils
@@ -29,8 +31,11 @@ import org.apache.commons.collections4.IteratorUtils
 import org.apache.commons.collections4.functors.EqualPredicate
 
 class OVertexEntityIterable(
+    private val tx: OStoreTransaction,
     private val vertices: Iterable<OVertex>,
-    private val store: OEntityStore
+    private val store: OEntityStore,
+    private val linkName: String,
+    private val targetEntityID: OEntityId
 ) : EntityIterable {
 
     override fun iterator() = object : EntityIterator {
@@ -53,7 +58,7 @@ class OVertexEntityIterable(
         override fun remove() = unsupported()
     }
 
-    override fun getTransaction() = unsupported()
+    override fun getTransaction() = tx
 
     override fun isEmpty() = !vertices.iterator().hasNext()
 
@@ -77,35 +82,38 @@ class OVertexEntityIterable(
 
     override fun contains(entity: Entity) = IteratorUtils.contains(iterator(), entity)
 
-    override fun intersect(right: EntityIterable) = unsupported()
+    override fun intersect(right: EntityIterable) = asQueryIterable().intersect(right)
 
-    override fun intersectSavingOrder(right: EntityIterable) = unsupported()
+    override fun intersectSavingOrder(right: EntityIterable) = asQueryIterable().intersectSavingOrder(right)
 
-    override fun union(right: EntityIterable) = unsupported()
+    override fun union(right: EntityIterable) = asQueryIterable().union(right)
 
-    override fun minus(right: EntityIterable) = unsupported()
+    override fun minus(right: EntityIterable) = asQueryIterable().minus(right)
 
-    override fun concat(right: EntityIterable) = unsupported()
+    override fun concat(right: EntityIterable) = asQueryIterable().concat(right)
 
-    override fun skip(number: Int) = unsupported()
+    //Here we may optimize it somehow, but have to store skip and so-on
+    override fun skip(number: Int) = asQueryIterable().skip(number)
 
-    override fun take(number: Int) = unsupported()
+    override fun take(number: Int) = asQueryIterable().take(number)
 
-    override fun distinct() = unsupported()
+    override fun distinct() = asQueryIterable().distinct()
 
-    override fun selectDistinct(linkName: String) = unsupported()
+    override fun selectDistinct(linkName: String) = asQueryIterable().selectDistinct(linkName)
 
-    override fun selectManyDistinct(linkName: String) = unsupported()
+    override fun selectManyDistinct(linkName: String) = asQueryIterable().selectManyDistinct(linkName)
 
     override fun getFirst() = iterator().run { if (hasNext()) next() else null }
 
     override fun getLast() = iterator().run { if (hasNext()) skip(count().toInt() - 1).run { next() } else null }
 
-    override fun reverse() = unsupported()
+    override fun reverse() = asQueryIterable().reverse()
 
     override fun isSortResult() = false
 
     override fun asSortResult() = this
 
     override fun unwrap() = this
+
+    private fun asQueryIterable() = OLinksFromEntityIterable(tx, linkName, this.targetEntityID)
 }
