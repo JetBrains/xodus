@@ -604,12 +604,12 @@ internal class OrientDbSchemaInitializer(
             }
 
             PropertyType.TEXT -> {
-                val oProperty = createPropertyIfAbsent(propertyName, OType.BINARY)
+                val oProperty = createPropertyIfAbsent(propertyName, OType.LINK)
                 oProperty.setRequirement(required)
             }
 
             PropertyType.BLOB -> {
-                val oProperty = createPropertyIfAbsent(propertyName, OType.BINARY)
+                val oProperty = createPropertyIfAbsent(propertyName, OType.LINK)
                 oProperty.setRequirement(required)
             }
         }

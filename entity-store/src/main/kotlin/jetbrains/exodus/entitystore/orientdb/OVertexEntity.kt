@@ -31,6 +31,7 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
+import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinksFromEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OVertexEntityIterable
 import jetbrains.exodus.util.LightByteArrayOutputStream
 import jetbrains.exodus.util.UTFUtil
@@ -390,16 +391,24 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     }
 
     override fun getLinks(linkName: String): EntityIterable {
-        requireActiveTx()
+        val txn = requireActiveTx()
         val edgeClassName = edgeClassName(linkName)
         val links = vertex.getVertices(ODirection.OUT, edgeClassName)
-        return OVertexEntityIterable(links, store)
+        return OVertexEntityIterable(txn, links, store, linkName, this.oEntityId)
     }
 
+    //todo this method should return iterable of different type
     override fun getLinks(linkNames: Collection<String>): EntityIterable {
         requireActiveTx()
-        val edgeClassNames = linkNames.map { edgeClassName(it) }
-        return OVertexEntityIterable(vertex.getVertices(ODirection.OUT, *edgeClassNames.toTypedArray()), store)
+        val tx = requireActiveTx()
+        return if (linkNames.size == 1) {
+            getLinks(linkNames.first())
+        } else {
+            linkNames.drop(1)
+                .fold(OLinksFromEntityIterable(tx, linkNames.first(), this.oEntityId) as EntityIterable) { res, edgeName ->
+                    res.union(OLinksFromEntityIterable(tx, edgeName, this.oEntityId))
+                }
+        }
     }
 
     override fun getLinkNames(): List<String> {

@@ -75,7 +75,6 @@ class ODatabaseProviderImpl(
     }
 
     override fun close() {
-        //TODO this should call some other method, also to remove pool from database internal hashmap
-        database.cachedPool(databaseName, userName, password, config).close()
+        database.close()
     }
 }
