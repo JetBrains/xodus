@@ -27,6 +27,7 @@ class ODatabaseProviderImpl(
     private val password: String,
     private val databaseType: ODatabaseType,
     private val closeAfterDelayTimeout: Int = 10,
+    private val tweakConfig: OrientDBConfig.() -> Unit = {}
 ) : ODatabaseProvider {
 
     private val config: OrientDBConfig
@@ -35,6 +36,7 @@ class ODatabaseProviderImpl(
         config = OrientDBConfigBuilder().build().apply {
             configurations.setValue(OGlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
             configurations.setValue(OGlobalConfiguration.AUTO_CLOSE_DELAY, closeAfterDelayTimeout)
+            tweakConfig()
         }
         //todo migrate to some config entity instead of System props
         if (System.getProperty("exodus.env.compactOnOpen", "false").toBoolean()) {
