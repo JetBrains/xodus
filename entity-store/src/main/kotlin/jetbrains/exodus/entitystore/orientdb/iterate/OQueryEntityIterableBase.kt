@@ -38,27 +38,32 @@ abstract class OQueryEntityIterableBase(tx: OStoreTransaction?) : EntityIterable
 
     companion object {
 
-        val EMPTY = object : OQueryEntityIterableBase(null) {
+        val EMPTY = object : OQueryEntityIterable {
 
-            override fun iterator(): EntityIterator {
-                return OQueryEntityIterator.EMPTY
-            }
-
-            override fun query(): OSelect {
-                unsupported { "Should never be called" }
-            }
-
+            override fun iterator(): EntityIterator = OQueryEntityIterator.EMPTY
+            override fun query(): OSelect = unsupported { "Should never be called" }
+            override fun getTransaction(): StoreTransaction = unsupported { "Should never be called" }
+            override fun isEmpty(): Boolean = true
+            override fun indexOf(entity: Entity): Int = -1
+            override fun contains(entity: Entity): Boolean = false
+            override fun isSortResult(): Boolean = true
+            override fun asSortResult(): EntityIterable = this
             override fun size() = 0L
             override fun getRoughSize() = 0L
             override fun count() = 0L
             override fun getRoughCount() = 0L
             override fun union(right: EntityIterable) = right
             override fun concat(right: EntityIterable) = right
+            override fun skip(number: Int): EntityIterable = this
+            override fun take(number: Int): EntityIterable = this
             override fun intersect(right: EntityIterable) = this
+            override fun intersectSavingOrder(right: EntityIterable): EntityIterable = right
             override fun distinct() = this
             override fun minus(right: EntityIterable) = this
-            override fun selectMany(linkName: String) = this
             override fun selectManyDistinct(linkName: String) = this
+            override fun getFirst(): Entity? = null
+            override fun getLast(): Entity? = null
+            override fun reverse(): EntityIterable = this
             override fun selectDistinct(linkName: String) = this
         }
     }
