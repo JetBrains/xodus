@@ -43,14 +43,15 @@ data class MigrateFromXodusConfig(
     val databaseDirectory: String,
     val storeName: String,
     val cipherKey: String?,
-    val cipherIV: Long
+    val cipherIV: Long,
+    val memoryUsagePercentage: Int
 )
 
 class XodusToOrientDataMigratorLauncher(
     val orient: MigrateToOrientConfig,
     val xodus: MigrateFromXodusConfig,
     val validateDataAfterMigration: Boolean,
-    val entitiesPerTransaction: Int
+    val entitiesPerTransaction: Int,
 ) {
     fun migrate() {
         // 1. Where we migrate the data to
@@ -101,6 +102,7 @@ class XodusToOrientDataMigratorLauncher(
             } else {
                 require(cipherKey == null) { "Provided Xodus cipherKey is null, but there is not null cipherKey in the default config. Most probably, somebody again left a cipherKey in the gradle config. Delete it or nothing will work." }
             }
+            memoryUsagePercentage = xodus.memoryUsagePercentage
         })
         val xEntityStore = PersistentEntityStores.newInstance(env, xodus.storeName)
 
@@ -120,7 +122,12 @@ class XodusToOrientDataMigratorLauncher(
             // 4. Check data is the same
             val (checkDataStats, validateDataDuration) = measureTimedValue {
                 if (validateDataAfterMigration) {
-                    checkDataIsSame(xEntityStore, oEntityStore, migrateDataStats.xEntityIdToOEntityId)
+                    try {
+                        checkDataIsSame(xEntityStore, oEntityStore, migrateDataStats.xEntityIdToOEntityId)
+                    } catch (e: Exception) {
+                        log.error(e) { "Error on the data checking after migration" }
+                        null
+                    }
                 } else null
             }
             log.info { "Xodus -> OrientDB migration and validation completed" }

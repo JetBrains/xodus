@@ -22,10 +22,12 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetE
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
+import jetbrains.exodus.entitystore.orientdb.testutil.createIssueImpl
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.util.*
+import kotlin.random.Random
 import kotlin.test.*
 
 class OEntityTest {
@@ -123,6 +125,30 @@ class OEntityTest {
             val links = issueA.getLinks(linkName)
             assertTrue(links.contains(issueB))
             assertTrue(links.contains(issueC))
+        }
+    }
+
+    /**
+     * Orient may once in a while go crazy and add random bytes to
+     * a blob. It does not like blobs of size 1023, 2047, 4095, 8191 and so on.
+     *
+     * One should NOT use fromInputStream() in the blob implementation is fixed.
+     *
+     * This test checks that our implementation behaves.
+     */
+    @Test
+    fun `set a hard blob`() {
+        val hardBlob = Random.nextBytes(1023)
+        val id = orientDb.withStoreTx { tx ->
+            val issue = tx.createIssueImpl("iss")
+            issue.setBlob("blob1", ByteArrayInputStream(hardBlob))
+            issue.id
+        }
+
+        orientDb.withStoreTx { tx ->
+            val issue = tx.getEntity(id)
+            val gotBlob = issue.getBlob("blob1")!!.readAllBytes()
+            assertContentEquals(hardBlob, gotBlob)
         }
     }
 
@@ -228,15 +254,15 @@ class OEntityTest {
             assertEquals(notEnglishStr, issue.getBlobString("blob2"))
             assertEquals(mixedStr, issue.getBlobString("blob3"))
 
+            // we use modified UTF-8 for string blobs, it adds the string size to 2 first bytes
             assertEquals(englishStr.length.toLong() + 2, issue.getBlobSize("blob1"))
 
-            assertNotEquals(notEnglishStr.length.toLong() + 2, issue.getBlobSize("blob2"))
-            assertNotEquals(notEnglishStr.length.toLong() * 2 + 2, issue.getBlobSize("blob2"))
+            assertNotEquals(notEnglishStr.length.toLong(), issue.getBlobSize("blob2"))
+            assertNotEquals(notEnglishStr.length.toLong(), issue.getBlobSize("blob2"))
             assertEquals(57, issue.getBlobSize("blob2"))
 
             assertEquals(32, issue.getBlobSize("blob3"))
         }
-
     }
 
     @Test

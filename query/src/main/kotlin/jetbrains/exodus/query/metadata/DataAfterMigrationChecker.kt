@@ -44,6 +44,7 @@ data class DataAfterMigrationCheckingStats(
     val checkLinksDuration: Duration
 )
 
+@OptIn(ExperimentalStdlibApi::class)
 internal class DataAfterMigrationChecker(
     private val xStore: PersistentEntityStore,
     private val oStore: OPersistentEntityStore,
@@ -105,6 +106,15 @@ internal class DataAfterMigrationChecker(
                 require(xSize == oSize) { "different number of $type entities. xStore - $xSize, oStore - $oSize" }
 
                 var lastProgressPrintedAt = System.currentTimeMillis()
+                var propsCount = 0L
+                var blobsCount = 0L
+                var linksCount = 0L
+                fun printProgress(entityIdx: Int) {
+                    if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
+                        log.info { "${typeIdx}/${entityTypes.size} $type $entityIdx/$xSize has been processed, properties processed: $propsCount, blobs processed: $blobsCount, links processed: $linksCount" }
+                        lastProgressPrintedAt = System.currentTimeMillis()
+                    }
+                }
                 xEntities.forEachIndexed { entityIdx, e1 ->
                     // oStore does not close resultSets, it causes a flood in the log and out of memory crash,
                     // so we have to process entity by entity until it is fixed :(
@@ -116,32 +126,50 @@ internal class DataAfterMigrationChecker(
 
                         checkPropertiesDuration += measureTime {
                             for (propName in e1.propertyNames) {
-                                val v1: Comparable<Any?>? = e1.getProperty(propName)
-                                val v2: Comparable<Any?>? = e2.getProperty(propName)
+                                val v1 = e1.getProperty(propName)
+                                val v2 = e2.getProperty(propName)
 
-                                if (v1 is ComparableSet<*>) {
-                                    val set1 = v1.toSet()
-                                    val set2 = (v2 as OComparableSet<*>).toSet()
-                                    require(set1.containsAll(set2) && set2.containsAll(set1)) {
-                                        "$type $entityIdx/$xSize ${e1.id} $propName content is different. " +
-                                                "xStore: ${set1.map { it.toString() }.sorted().joinToString(", ")}. " +
-                                                "oStore: ${set2.map { it.toString() }.sorted().joinToString(", ")}"
+                                when {
+                                    v1 is ComparableSet<*> -> {
+                                        checkSets(
+                                            setsInfo = "$type $entityIdx/$xSize ${e1.id} $propName sets",
+                                            xSet = v1.toSet(),
+                                            oSet = (v2 as OComparableSet<*>).toSet()
+                                        )
                                     }
-                                } else {
-                                    require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) { "$type $entityIdx/$xSize ${e1.id} $propName is different. xStore: $v1. oStore: $v2" }
+                                    v1 is String -> {
+                                        checkStrings(
+                                            strsInfo = "$type $entityIdx/$xSize ${e1.id} $propName strings",
+                                            xStr = v1,
+                                            oStr = v2 as String,
+                                            xGetRawBytes = { e1.getRawProperty(propName)?.bytesUnsafe!! }
+                                        )
+                                    }
+                                    else -> {
+                                        require((v1 == null && v2 == null) || v1?.compareTo(v2) == 0) {
+                                            """
+                                                $type $entityIdx/$xSize ${e1.id} $propName properties are different. 
+                                                xStore type: ${v1?.javaClass}, oStore type: ${v2?.javaClass}
+                                                xStore value: '${v1}', oStore value: '${v2}'
+                                                comparison result ${v1?.compareTo(v2)}
+                                            """.trimIndent()
+                                        }
+                                    }
                                 }
+                                propsCount++
+                                printProgress(entityIdx)
                             }
                         }
 
                         checkBlobsDuration += measureTime {
                             for (blobName in e1.blobNames) {
-                                val blob1: InputStream? = e1.getBlob(blobName)
-                                val blob2: InputStream? = e2.getBlob(blobName)
-                                when {
-                                    blob1 == null && blob2 == null -> Unit
-                                    blob1 != null && blob2 != null && blobsEqual(blob1, blob2) -> Unit
-                                    else -> throw IllegalStateException("$type $entityIdx/$xSize ${e1.id} $blobName are different")
-                                }
+                                checkBlobs(
+                                    blobsInfo = "$type $entityIdx/$xSize ${e1.id} $blobName blobs",
+                                    xBlob = e1.getBlob(blobName),
+                                    oBlob = e2.getBlob(blobName)
+                                )
+                                blobsCount++
+                                printProgress(entityIdx)
                             }
                         }
 
@@ -156,7 +184,7 @@ internal class DataAfterMigrationChecker(
                                         false
                                     }
                                 }.map { it.id.toString() }.toSet()
-                                val oTargetEntities = e2.getLinks(linkName).map { it.id.toString() }
+                                val oTargetEntities = e2.getLinks(linkName).map { it.id.toString() }.toSet()
                                 require(
                                     xTargetEntities.size == oTargetEntities.size
                                             && xTargetEntities.containsAll(oTargetEntities)
@@ -164,37 +192,87 @@ internal class DataAfterMigrationChecker(
                                 ) {
                                     "$type $entityIdx/$xSize ${e1.id} $linkName links are different. xStore: ${xTargetEntities.size}, oStore: ${oTargetEntities.size}"
                                 }
+                                linksCount += oTargetEntities.size
+                                printProgress(entityIdx)
                             }
                         }
                     }
-                    if (System.currentTimeMillis() - lastProgressPrintedAt > printProgressAtLeastOnceIn) {
-                        log.info { "${typeIdx}/${entityTypes.size} $type $entityIdx/$xSize has been processed" }
-                        lastProgressPrintedAt = System.currentTimeMillis()
-                    }
+                    printProgress(entityIdx)
                 }
             }
         }
     }
 
-    private fun blobsEqual(blob1: InputStream, blob2: InputStream, chunkSize: Int = 1024): Boolean {
-        val buffer1 = ByteArray(chunkSize)
-        val buffer2 = ByteArray(chunkSize)
-
-        try {
-            while (true) {
-                val bytesRead1 = blob1.read(buffer1)
-                val bytesRead2 = blob2.read(buffer2)
-
-                if (bytesRead1 != bytesRead2) return false
-                if (!buffer1.contentEquals(buffer2)) return false
-                if (bytesRead1 == -1) break
-            }
-        } finally {
-            blob1.close()
-            blob2.close()
+    private fun checkStrings(strsInfo: String, xStr: String, oStr: String, xGetRawBytes: () -> ByteArray) {
+        if (xStr == oStr) {
+            return
         }
 
-        return true
+        // if they are not equal, it may be because of the broken Classic Xodus string
+        // let's try to fix it
+        val xFixedStr = xStr.encodeToByteArray(throwOnInvalidSequence = false).decodeToString(throwOnInvalidSequence = true)
+
+        require(xFixedStr == oStr) {
+            val rawBytes = xGetRawBytes().toHexString()
+            val xHex = xStr.encodeToByteArray(throwOnInvalidSequence = false).toHexString()
+            val xFixedHex = xFixedStr.encodeToByteArray(throwOnInvalidSequence = false).toHexString()
+            val oHex = oStr.encodeToByteArray(throwOnInvalidSequence = false).toHexString()
+            """
+                $strsInfo are different. 
+                xStore: '${xStr}'
+                xStore fixed: '${xFixedStr}'
+                oStore: '${oStr}'
+                xStore bytes: '${xHex}'
+                xStore fixed bytes: '${xFixedHex}'
+                oStore bytes: '${oHex}'
+                xStore raw bytes: '${rawBytes}'
+            """.trimIndent()
+        }
+    }
+
+    private fun checkSets(setsInfo: String, xSet: Set<*>, oSet: Set<*>) {
+        if (xSet.containsAll(oSet) && oSet.containsAll(xSet)) {
+            return
+        }
+
+        // xSet may contain some broken Classic Xodus strings
+        // let's fix them and try again
+        val fixedXSet = xSet.map {
+            if (it is String) {
+                it.encodeToByteArray(throwOnInvalidSequence = false).decodeToString(throwOnInvalidSequence = true)
+            } else {
+                it
+            }
+        }.toSet()
+
+        val xSetRemainder = fixedXSet - oSet
+        val oSetRemainder = oSet - fixedXSet
+
+        check(xSetRemainder.isEmpty() && oSetRemainder.isEmpty()) {
+            """
+                $setsInfo are different
+                xStore: ${xSet.map { it.toString() }.sorted().joinToString(", ")}
+                oStore: ${oSet.map { it.toString() }.sorted().joinToString(", ")}
+                xStore - oStore: ${xSetRemainder.map { it.toString() }.sorted().joinToString(", ")}
+                oStore - xStore: ${oSetRemainder.map { it.toString() }.sorted().joinToString(", ")}
+            """.trimIndent()
+        }
+    }
+
+    private fun checkBlobs(blobsInfo: String, xBlob: InputStream?, oBlob: InputStream?) {
+        if (xBlob == null && oBlob == null) return
+
+        val xBytes = xBlob?.readAllBytes()
+        val oBytes = oBlob?.readAllBytes()
+        check(xBytes.contentEquals(oBytes)) {
+            val xHex = xBytes?.toHexString()
+            val oHex = oBytes?.toHexString()
+            """
+                $blobsInfo are different
+                xStore: $xHex
+                oStore: $oHex
+            """.trimIndent()
+        }
     }
 }
 

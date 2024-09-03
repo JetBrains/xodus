@@ -164,10 +164,10 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
             vertex.removeProperty<Any>(blobName)
         }
 
-        val oBlob = ORecordBytes()
-        val size = oBlob.fromInputStream(blob)
+        val allBytes = blob.readAllBytes()
+        val oBlob = ORecordBytes(allBytes)
         vertex.setProperty(blobName, oBlob)
-        vertex.setProperty(blobSizeProperty(blobName), size.toLong())
+        vertex.setProperty(blobSizeProperty(blobName), allBytes.size.toLong())
         vertex.save<OVertex>()
     }
 
@@ -193,6 +193,9 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         setBlob(blobName, file.inputStream())
     }
 
+    /**
+     * Stores the string in the modified UTF-8 format
+     */
     override fun setBlobString(blobName: String, blobString: String): Boolean {
         requireActiveWritableTransaction()
 
