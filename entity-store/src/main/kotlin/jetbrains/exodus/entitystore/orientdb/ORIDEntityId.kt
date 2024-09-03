@@ -69,7 +69,7 @@ class ORIDEntityId(
     }
 
     override fun hashCode(): Int {
-        return oId.hashCode()
+        return ((classId shl 20).toLong() xor localEntityId).toInt()
     }
 
     override fun equals(other: Any?): Boolean {
@@ -78,6 +78,6 @@ class ORIDEntityId(
 
         other as ORIDEntityId
 
-        return oId == other.oId
+        return this.classId == other.classId && this.localEntityId == other.localEntityId
     }
 }
