@@ -459,6 +459,37 @@ class OrientDbSchemaInitializerTest {
         assertEquals(setOf(0, 1, 2, 3, 4), classIds)
     }
 
+
+    @Test
+    fun `search for boolean == false works by default`() {
+        val model = oModel(orientDb.provider) {
+            entity("type1") {
+                property("prop1", "boolean")
+            }
+        }
+        model.prepare()
+        orientDb.withTxSession { oSession ->
+            oSession.newVertex("type1").apply {
+                setProperty("prop1", true)
+                oSession.setLocalEntityId("type1", this)
+                save<OVertex>()
+            }
+            oSession.newVertex("type1").apply {
+                oSession.setLocalEntityId("type1", this)
+                save<OVertex>()
+            }
+
+        }
+        orientDb.withTxSession { oSession ->
+            val updated = oSession.query("SELECT from type1 where prop1 = true").vertexStream().toList()
+            val default = oSession.query("SELECT from type1 where prop1 = false").vertexStream().toList()
+            val all = oSession.query("SELECT from type1").vertexStream().toList()
+            assertEquals(1, updated.size)
+            assertEquals(1, default.size)
+            assertEquals(2, all.size)
+        }
+    }
+
     @Test
     fun `every class gets localEntityId property`(): Unit = orientDb.provider.acquireSession().use  { oSession ->
         val types = mutableListOf("type0", "type1", "type2")
