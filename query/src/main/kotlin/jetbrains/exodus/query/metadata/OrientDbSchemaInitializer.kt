@@ -566,6 +566,9 @@ internal class OrientDbSchemaInitializer(
                     if (indexForEverySimpleProperty) {
                         addIndex(simplePropertyIndex(name, propertyName))
                     }
+                    if (primitiveTypeName.lowercase() == "boolean"){
+                        oProperty.setDefaultValue("false")
+                    }
                 }
 
                 /*
@@ -581,6 +584,8 @@ internal class OrientDbSchemaInitializer(
                 * schema mapping step and handle them on the query processing level.
                 *
                 * Feel free to support default values in Schema mapping if you want to.
+                *
+                * Booleans must be initialized with "false" by default
                 * */
 
                 /*
