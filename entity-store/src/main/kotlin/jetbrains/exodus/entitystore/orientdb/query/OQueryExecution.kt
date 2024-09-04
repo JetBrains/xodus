@@ -22,15 +22,7 @@ import mu.KLogging
 object OQueryExecution : KLogging() {
 
     fun execute(query: OQuery, tx: OStoreTransaction): OResultSet {
-        val builder = SqlBuilder()
-        query.sql(builder)
-        tx.queryCancellingPolicy?.let {
-            check(it is OQueryCancellingPolicy) { "Unsupported query cancelling policy: $it" }
-            val timeoutQuery = OQueryTimeout(it.timeoutMillis)
-            timeoutQuery.sql(builder)
-        }
-
-        val sqlQuery = builder.build()
+        val sqlQuery = tx.buildSql(query)
         val resultSet = tx.query(sqlQuery.sql, sqlQuery.params)
 
         // Log execution plan
@@ -42,4 +34,16 @@ object OQueryExecution : KLogging() {
 
         return resultSet
     }
+}
+
+internal fun OStoreTransaction.buildSql(query: OQuery): SqlQuery {
+    val builder = SqlBuilder()
+    query.sql(builder)
+    this.queryCancellingPolicy?.let {
+        check(it is OQueryCancellingPolicy) { "Unsupported query cancelling policy: $it" }
+        val timeoutQuery = OQueryTimeout(it.timeoutMillis)
+        timeoutQuery.sql(builder)
+    }
+
+    return builder.build()
 }
