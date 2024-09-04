@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
 import com.google.common.truth.Truth.assertThat
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.getOrCreateVertexClass
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
@@ -36,7 +36,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-class OEntityIterableBaseTest : OTestMixin {
+class OEntityIterableTest : OTestMixin {
 
     @Rule
     @JvmField
@@ -466,8 +466,8 @@ class OEntityIterableBaseTest : OTestMixin {
             // boards 1 and 2
             val boards = tx.find(Boards.CLASS, "name", test.board1.name())
                 .union(tx.find(Boards.CLASS, "name", test.board2.name()))
-            val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
-            val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD) as OQueryEntityIterable
+            val allIssues = tx.getAll(Issues.CLASS) as OEntityIterableBase
+            val issuesOnBoards = allIssues.findLinks(boards, Issues.Links.ON_BOARD) as OEntityIterable
 
             // Then
             tx.checkSql(
@@ -518,7 +518,7 @@ class OEntityIterableBaseTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val sortedIssues = tx.sort(Issues.CLASS, "name", true) as OQueryEntityIterable
+            val sortedIssues = tx.sort(Issues.CLASS, "name", true) as OEntityIterable
             val firstIssue = sortedIssues.first!!
 
             // Then
@@ -559,7 +559,7 @@ class OEntityIterableBaseTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val allIssues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
+            val allIssues = tx.getAll(Issues.CLASS) as OEntityIterableBase
 
             assertEquals(3, allIssues.roughCount)
             assertEquals(3, allIssues.roughSize)
@@ -604,7 +604,7 @@ class OEntityIterableBaseTest : OTestMixin {
     }
 
     private fun OStoreTransaction.checkSql(
-        iterable: OQueryEntityIterable,
+        iterable: OEntityIterable,
         expectedSql: String,
         expectedParams: Map<String, Any> = mapOf()
     ) {

@@ -18,7 +18,7 @@ package jetbrains.exodus.query;
 
 import jetbrains.exodus.entitystore.Entity;
 import jetbrains.exodus.entitystore.EntityId;
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase;
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase;
 import jetbrains.exodus.entitystore.orientdb.iterate.property.OPropertyEqualIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
 
@@ -44,7 +44,7 @@ public class GetLinks extends NodeBase {
             var txn = queryEngine.getOStore().requireActiveTransaction();
             return new OPropertyEqualIterable(txn, entityType, linkName, id);
         }
-        return OQueryEntityIterableBase.Companion.getEMPTY();
+        return OEntityIterableBase.Companion.getEMPTY();
     }
 
     @Override

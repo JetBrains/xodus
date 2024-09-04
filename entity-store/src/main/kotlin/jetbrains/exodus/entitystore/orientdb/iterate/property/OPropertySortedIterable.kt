@@ -15,9 +15,9 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OOrderByFields
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
@@ -26,9 +26,9 @@ class OPropertySortedIterable(
     txn: OStoreTransaction,
     private val entityType: String,
     private val propertyName: String,
-    private val source: OQueryEntityIterable? = null,
+    private val source: OEntityIterable? = null,
     private val ascending: Boolean,
-) : OQueryEntityIterableBase(txn) {
+) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         val order = OOrderByFields(propertyName, ascending)

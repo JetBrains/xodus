@@ -21,7 +21,7 @@ import io.mockk.mockk
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.query.metadata.EntityMetaData
 import jetbrains.exodus.query.metadata.ModelMetaData
@@ -346,7 +346,7 @@ class OQueryEngineTest(
 
         // When
         withStoreTx {
-            val issues = engine.queryGetAll(Issues.CLASS) as OQueryEntityIterableBase
+            val issues = engine.queryGetAll(Issues.CLASS) as OEntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
             // Then

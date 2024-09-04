@@ -15,17 +15,17 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.binop
 
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OQueryFunctions
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OMinusEntityIterable(
     txn: OStoreTransaction,
-    private val left: OQueryEntityIterable,
-    private val right: OQueryEntityIterable
-) : OQueryEntityIterableBase(txn) {
+    private val left: OEntityIterable,
+    private val right: OEntityIterable
+) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         return OQueryFunctions.difference(left.query(), right.query())

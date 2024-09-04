@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.orientdb.iterate.link
 
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.asEdgeClass
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OEdgeExistsCondition
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
@@ -26,7 +26,7 @@ class OLinkExistsEntityIterable(
     txn: OStoreTransaction,
     private val entityType: String,
     private val linkName: String,
-) : OQueryEntityIterableBase(txn) {
+) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         return OClassSelect(entityType, OEdgeExistsCondition(linkName.asEdgeClass))

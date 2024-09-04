@@ -23,10 +23,10 @@ import jetbrains.exodus.entitystore.iterate.EntityIdSet
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase.EMPTY
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityStore
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OMultipleEntitiesIterable
 import jetbrains.exodus.entitystore.util.EntityIdSetFactory
@@ -154,7 +154,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         return if (it is EntityIterable) {
             it.selectDistinct(linkName)
         } else {
-            it?.let { inMemorySelectDistinct(it, linkName) } ?: OQueryEntityIterableBase.EMPTY
+            it?.let { inMemorySelectDistinct(it, linkName) } ?: OEntityIterableBase.EMPTY
         }
 
     }
@@ -163,7 +163,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         return if (it is EntityIterable) {
             it.selectManyDistinct(linkName)
         } else {
-            return it?.let { inMemorySelectManyDistinct(it, linkName) } ?: OQueryEntityIterableBase.EMPTY
+            return it?.let { inMemorySelectManyDistinct(it, linkName) } ?: OEntityIterableBase.EMPTY
         }
     }
 
@@ -207,7 +207,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
         val sequence: kotlin.sequences.Sequence<Entity>
 
         val txn = persistentStore.andCheckCurrentTransaction
-        if (left is OQueryEntityIterable) {
+        if (left is OEntityIterable) {
             //May be rewrite it. Constant from nowhere
             val rightValues = right.take(20)
             if (rightValues.size < 20) {
@@ -220,7 +220,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
                 ids = getAsEntityIdSet(left)
                 sequence = right.asSequence()
             }
-        } else if (right is OQueryEntityIterable) {
+        } else if (right is OEntityIterable) {
             val leftValues = left.take(20)
             if (leftValues.size < 20) {
                 return OIntersectionEntityIterable(

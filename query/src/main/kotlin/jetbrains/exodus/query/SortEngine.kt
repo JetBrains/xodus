@@ -15,11 +15,13 @@
  */
 package jetbrains.exodus.query
 
-import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.ComparableGetter
+import jetbrains.exodus.entitystore.Entity
+import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.query.metadata.ModelMetaData
 
 open class SortEngine {
@@ -45,11 +47,11 @@ open class SortEngine {
                 val i = queryEngine.toEntityIterable(source)
                 if (queryEngine.isPersistentIterable(i)) {
                     val it = (i as EntityIterableBase).source
-                    if (it === OQueryEntityIterableBase.EMPTY) {
-                        OQueryEntityIterableBase.EMPTY
+                    if (it === OEntityIterableBase.EMPTY) {
+                        OEntityIterableBase.EMPTY
                     }
                     return if (it.roughCount == 0L && it.count() == 0L) {
-                        OQueryEntityIterableBase.EMPTY
+                        OEntityIterableBase.EMPTY
                     } else {
                         txn.sort(entityType, propertyName, (source as EntityIterable).unwrap(), asc)
                     }
@@ -67,7 +69,7 @@ open class SortEngine {
         source: Iterable<Entity>,
         asc: Boolean
     ): Iterable<Entity> {
-        if (source is OQueryEntityIterable) {
+        if (source is OEntityIterable) {
             val txn = queryEngine.persistentStore.andCheckCurrentTransaction
             return txn.sort(entityType, "${OVertexEntity.edgeClassName(linkName)}.$propName", source.unwrap(), asc)
         } else {

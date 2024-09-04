@@ -16,8 +16,8 @@
 package jetbrains.exodus.entitystore.orientdb.iterate
 
 import jetbrains.exodus.entitystore.*
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityStore
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OConcatEntityIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OIntersectionEntityIterable
@@ -29,13 +29,13 @@ import jetbrains.exodus.entitystore.orientdb.iterate.link.OSingleEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.*
 import jetbrains.exodus.entitystore.util.unsupported
 
-abstract class OQueryEntityIterableBase(tx: OStoreTransaction) : OQueryEntityIterable {
+abstract class OEntityIterableBase(tx: OStoreTransaction) : OEntityIterable {
 
     private val oStore: OEntityStore = tx.getOEntityStore()
 
     companion object {
 
-        val EMPTY = object : OQueryEntityIterable {
+        val EMPTY = object : OEntityIterable {
 
             override fun iterator(): EntityIterator = OQueryEntityIterator.EMPTY
             override fun query(): OSelect = unsupported { "Should never be called" }
@@ -191,7 +191,7 @@ abstract class OQueryEntityIterableBase(tx: OStoreTransaction) : OQueryEntityIte
     }
 
     fun findLinks(entities: Iterable<Entity?>, linkName: String): EntityIterable {
-        if (entities !is OQueryEntityIterable) {
+        if (entities !is OEntityIterable) {
             unsupported { "findLinks with non-OrientDB entity iterable" }
         }
         return findLinks(entities, linkName)
