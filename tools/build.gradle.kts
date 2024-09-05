@@ -9,7 +9,7 @@ dependencies {
     implementation(project(":xodus-compress"))
     api(project(":xodus-openAPI"))
     implementation(project(":xodus-utils"))
-    implementation("org.slf4j:slf4j-jdk14:2.0.7")
+    implementation(libs.slf4j.simple)
 }
 
 val testArtifacts: Configuration by configurations.creating
