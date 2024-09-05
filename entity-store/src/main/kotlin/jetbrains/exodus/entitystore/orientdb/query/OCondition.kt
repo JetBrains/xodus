@@ -37,8 +37,8 @@ class OContainsCondition(
 ) : OCondition {
 
     override fun sql(builder: SqlBuilder) {
-        val param = builder.addParam(field, value)
-        builder.append(field).append(" containsText :$param")
+        val param = builder.addParam(field, value.lowercase())
+        builder.append(field).append(".toLowerCase()").append(" containsText :$param")
     }
 }
 
@@ -48,8 +48,8 @@ class OStartsWithCondition(
 ) : OCondition {
 
     override fun sql(builder: SqlBuilder) {
-        val param = builder.addParam(field, "${value}%")
-        builder.append(field).append(" like :$param")
+        val param = builder.addParam(field, "${value.lowercase()}%")
+        builder.append(field).append(".toLowerCase()").append(" like :$param")
     }
 }
 
