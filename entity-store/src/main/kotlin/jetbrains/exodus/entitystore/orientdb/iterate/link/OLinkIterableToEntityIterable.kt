@@ -15,18 +15,18 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate.link
 
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.asEdgeClass
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OLinkInFromSubQuerySelect
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class OLinkIterableToEntityIterable(
     txn: OStoreTransaction,
-    private val linkIterable: OQueryEntityIterable,
+    private val linkIterable: OEntityIterable,
     private val linkName: String
-) : OQueryEntityIterableBase(txn) {
+) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         return OLinkInFromSubQuerySelect(linkName.asEdgeClass, linkIterable.query())

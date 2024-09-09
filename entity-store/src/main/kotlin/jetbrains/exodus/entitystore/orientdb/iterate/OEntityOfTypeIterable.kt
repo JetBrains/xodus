@@ -22,7 +22,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OSelect
 class OEntityOfTypeIterable(
     txn: OStoreTransaction,
     private val entityType: String,
-) : OQueryEntityIterableBase(txn) {
+) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         return OClassSelect(entityType)

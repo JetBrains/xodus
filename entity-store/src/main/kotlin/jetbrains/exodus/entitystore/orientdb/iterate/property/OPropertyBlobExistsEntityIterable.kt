@@ -16,7 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb.iterate.property
 
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.query.OClassSelect
 import jetbrains.exodus.entitystore.orientdb.query.OFieldExistsCondition
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
@@ -25,7 +25,7 @@ class OPropertyBlobExistsEntityIterable(
     txn: OStoreTransaction,
     private val className: String,
     private val blobName: String,
-) : OQueryEntityIterableBase(txn) {
+) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         return OClassSelect(className, OFieldExistsCondition(blobName))

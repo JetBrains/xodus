@@ -56,7 +56,7 @@ class OQueryEntityIterator(private val source: Iterator<Entity>) : EntityIterato
         return true
     }
 
-    override fun nextId(): EntityId? {
+    override fun nextId(): EntityId {
         return next().id
     }
 

@@ -17,7 +17,7 @@ package jetbrains.exodus.query;
 
 
 import jetbrains.exodus.entitystore.Entity;
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable;
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable;
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable;
 import jetbrains.exodus.entitystore.orientdb.iterate.binop.OMinusEntityIterable;
 import jetbrains.exodus.query.metadata.ModelMetaData;
@@ -31,7 +31,7 @@ public class UnaryNot extends UnaryNode {
     public Iterable<Entity> instantiate(String entityType, QueryEngine queryEngine, ModelMetaData metaData, InstantiateContext context) {
         var txn = queryEngine.getOStore().requireActiveTransaction();
         var all = new OEntityOfTypeIterable(txn, entityType);
-        var minus = (OQueryEntityIterable) child.instantiate(entityType, queryEngine, metaData, context);
+        var minus = (OEntityIterable) child.instantiate(entityType, queryEngine, metaData, context);
         return new OMinusEntityIterable(txn, all, minus);
     }
 

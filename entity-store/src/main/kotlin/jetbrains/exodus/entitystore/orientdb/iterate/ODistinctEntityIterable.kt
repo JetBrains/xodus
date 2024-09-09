@@ -15,15 +15,15 @@
  */
 package jetbrains.exodus.entitystore.orientdb.iterate
 
-import jetbrains.exodus.entitystore.orientdb.OQueryEntityIterable
+import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
 import jetbrains.exodus.entitystore.orientdb.query.OQueryFunctions
 import jetbrains.exodus.entitystore.orientdb.query.OSelect
 
 class ODistinctEntityIterable(
     txn: OStoreTransaction,
-    private val source: OQueryEntityIterable,
-) : OQueryEntityIterableBase(txn) {
+    private val source: OEntityIterable,
+) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
         return OQueryFunctions.distinct(source.query())

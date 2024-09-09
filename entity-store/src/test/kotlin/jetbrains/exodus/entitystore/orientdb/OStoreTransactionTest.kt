@@ -22,8 +22,8 @@ import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
-import jetbrains.exodus.entitystore.orientdb.iterate.OQueryEntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.iterate.link.OLinkToEntityIterable
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 import jetbrains.exodus.entitystore.orientdb.query.OQueryTimeoutException
@@ -504,7 +504,7 @@ class OStoreTransactionTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
+            val issues = tx.getAll(Issues.CLASS) as OEntityIterableBase
             val boards = issues.selectMany(Issues.Links.ON_BOARD)
 
             // Then
@@ -526,7 +526,7 @@ class OStoreTransactionTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.getAll(Issues.CLASS) as OQueryEntityIterableBase
+            val issues = tx.getAll(Issues.CLASS) as OEntityIterableBase
             val boards = issues.selectDistinct(Issues.Links.ON_BOARD)
 
             // Then
@@ -546,7 +546,7 @@ class OStoreTransactionTest : OTestMixin {
 
         // When
         withStoreTx { tx ->
-            val issues = tx.findIds(Issues.CLASS, 2, 100) as OQueryEntityIterableBase
+            val issues = tx.findIds(Issues.CLASS, 2, 100) as OEntityIterableBase
             // Then
             assertNamesExactlyInOrder(
                 issues,
