@@ -19,6 +19,7 @@ import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
 import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
@@ -187,6 +188,23 @@ class OPersistentStoreTest: OTestMixin {
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId1))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId2))
             assertEquals(issueId, orientDb.store.getOEntityId(totallyExistingEntityId))
+        }
+    }
+
+    @Test
+    fun `propertyNames does not count internal properties`() {
+        val issue = orientDb.store.computeInTransaction {  txn ->
+            txn as OStoreTransaction
+            val issue = txn.createIssue("Hello", "Critical")
+            val project = txn.createProject("World")
+            txn.addIssueToProject(issue, project)
+            issue.setBlobString("bober", "bober")
+            issue.setBlob("biba", "hello".toByteArray().inputStream())
+            issue.setProperty("hello", 1995)
+            issue
+        }
+        orientDb.store.executeInTransaction {
+            assertEquals(listOf(Issues.Props.PRIORITY, "name", "hello").sorted(), issue.propertyNames.sorted())
         }
     }
 

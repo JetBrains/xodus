@@ -57,6 +57,8 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         const val CLASS_ID_SEQUENCE_NAME = "sequence_classId"
 
         const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
+        val IGNORED_PROPERTY_NAMES = setOf(LOCAL_ENTITY_ID_PROPERTY_NAME)
+        val IGNORED_SUFFIXES = setOf(LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX, BLOB_SIZE_PROPERTY_NAME_SUFFIX, STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX)
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
 
         fun edgeClassName(className: String): String {
@@ -142,7 +144,16 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
 
     override fun getPropertyNames(): List<String> {
         requireActiveTx()
-        return ArrayList(vertex.propertyNames)
+        val allPropertiesNames = vertex.propertyNames
+        return allPropertiesNames
+            .filter { propName ->
+                //not ignored properties
+                !IGNORED_PROPERTY_NAMES.contains(propName)
+                        && !allPropertiesNames.contains(blobHashProperty(propName))
+                        && !allPropertiesNames.contains(blobSizeProperty(propName))
+                        && !IGNORED_SUFFIXES.any { suffix -> propName.endsWith(suffix) }
+            }
+            .toList()
     }
 
     override fun getBlob(blobName: String): InputStream? {
