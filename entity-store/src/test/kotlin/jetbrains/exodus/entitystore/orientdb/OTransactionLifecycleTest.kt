@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.common.concur.lock.OModificationOperationProhibitedException
 import com.orientechnologies.orient.core.db.ODatabase.STATUS
 import com.orientechnologies.orient.core.exception.ODatabaseException
 import com.orientechnologies.orient.core.metadata.schema.OClass
@@ -37,6 +38,31 @@ class OTransactionLifecycleTest : OTestMixin {
     val orientDbRule = InMemoryOrientDB(true)
 
     override val orientDb = orientDbRule
+
+    @Test
+    fun `session-freeze(true) makes the session read-only`() {
+        val session = orientDb.openSession()
+
+        session.freeze(true)
+
+        val v = session.newVertex()
+        assertFailsWith<OModificationOperationProhibitedException> { v.save<OVertex>() }
+
+        session.begin()
+        val v1 = session.newVertex()
+        v1.save<OVertex>()
+        assertFailsWith<OModificationOperationProhibitedException> { session.commit() }
+
+        // after release() we can write again
+        session.release()
+
+        session.begin()
+        val v2 = session.newVertex()
+        v2.save<OVertex>()
+        session.commit()
+
+        session.close()
+    }
 
     @Test
     fun `open, begin, commit, close - no changes`() {

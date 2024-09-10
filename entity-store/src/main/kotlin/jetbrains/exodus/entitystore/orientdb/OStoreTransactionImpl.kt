@@ -121,6 +121,16 @@ class OStoreTransactionImpl(
         check(session.isActiveOnCurrentThread) { "The session is not active on the current thread" }
         check(session.transaction is OTransactionNoTx) { "The session must not have a transaction" }
         try {
+            if (readOnly) {
+                /**
+                 * It is not enough to provide the best experience to the client code.
+                 * The session will throw an exception only on commit(), but not when
+                 * the client code creates/edits/deletes entities.
+                 *
+                 * So, we keep and check the readOnly flag too.
+                 */
+                session.freeze(true)
+            }
             session.begin()
             // initialize transaction id
             transactionIdImpl
