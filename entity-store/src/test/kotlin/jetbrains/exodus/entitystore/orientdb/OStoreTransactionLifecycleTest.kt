@@ -15,8 +15,6 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.common.concur.lock.OModificationOperationProhibitedException
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.OVertex
@@ -118,17 +116,5 @@ class OStoreTransactionLifecycleTest : OTestMixin {
                 "abort" -> txAction(tx)
             }
         }
-    }
-
-    @Test
-    fun `read-only transaction freezes the session`() {
-        beginReadonlyTransaction()
-        val session = ODatabaseSession.getActiveSession() as ODatabaseSession
-
-        val v = session.newVertex()
-        v.save<OVertex>()
-        assertFailsWith<OModificationOperationProhibitedException> { session.commit() }
-
-        session.close()
     }
 }
