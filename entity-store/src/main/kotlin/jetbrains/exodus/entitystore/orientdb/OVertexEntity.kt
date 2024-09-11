@@ -89,6 +89,10 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         return true
     }
 
+    override fun resetToNew() {
+        vertex.resetToNew()
+    }
+
     private fun requireActiveTx(): OStoreTransaction {
         return store.requireActiveTransaction()
     }

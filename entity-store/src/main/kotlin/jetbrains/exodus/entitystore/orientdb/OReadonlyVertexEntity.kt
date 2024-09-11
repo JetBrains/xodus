@@ -21,5 +21,9 @@ class OReadonlyVertexEntity(vertex: OVertex, store: OEntityStore) : OVertexEntit
     override fun requireActiveWritableTransaction(): OStoreTransaction {
         throw IllegalArgumentException("Can't update readonly entity (id=${id})")
     }
+
+    override fun resetToNew() {
+        throw UnsupportedOperationException("Not supported in readonly entity")
+    }
 }
 

@@ -22,4 +22,6 @@ interface OEntity : Entity {
     override fun getId(): OEntityId
 
     fun save(): OEntity
+
+    fun resetToNew()
 }
