@@ -582,7 +582,7 @@ class OEntityTest {
 
         orientDb.withStoreTx {
             assertEquals(
-                listOf(OVertexEntity.LOCAL_ENTITY_ID_PROPERTY_NAME, "hello", "name", "june", "year", "floatProp", "doubleProp", "boolProp").sorted(),
+                listOf("hello", "name", "june", "year", "floatProp", "doubleProp", "boolProp").sorted(),
                 issue.propertyNames.sorted()
             )
         }
