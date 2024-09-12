@@ -198,6 +198,11 @@ class OStoreTransactionImpl(
         return OVertexEntity(vertex, store)
     }
 
+    override fun generateEntityId(entityType: String, vertex: OVertex) {
+        session.setLocalEntityId(entityType, vertex)
+        vertex.save<OVertex>()
+    }
+
     override fun saveEntity(entity: Entity) {
         require(entity is OVertexEntity) { "Only OVertexEntity is supported, but was ${entity.javaClass.simpleName}" }
         requireActiveWritableTransaction()

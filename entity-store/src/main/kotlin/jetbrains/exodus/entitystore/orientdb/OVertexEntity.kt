@@ -19,6 +19,7 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OTrackedSet
 import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.id.ORID
+import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OEdge
@@ -90,7 +91,15 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     }
 
     override fun resetToNew() {
+        val type = oEntityId.getTypeName()
+        val clusterId = vertex.identity.clusterId
+
+        vertex.identity.reset()
         vertex.resetToNew()
+
+        (vertex.identity as ORecordId).clusterId = clusterId
+
+        store.requireActiveTransaction().generateEntityId(type, vertex)
     }
 
     private fun requireActiveTx(): OStoreTransaction {
