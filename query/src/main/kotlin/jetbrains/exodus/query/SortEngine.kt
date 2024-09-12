@@ -18,7 +18,6 @@ package jetbrains.exodus.query
 import jetbrains.exodus.entitystore.ComparableGetter
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityIterable
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity
 import jetbrains.exodus.entitystore.orientdb.iterate.OEntityIterableBase
@@ -46,7 +45,7 @@ open class SortEngine {
                 }
                 val i = queryEngine.toEntityIterable(source)
                 if (queryEngine.isPersistentIterable(i)) {
-                    val it = (i as EntityIterableBase).source
+                    val it = (i as OEntityIterableBase).unwrap()
                     if (it === OEntityIterableBase.EMPTY) {
                         OEntityIterableBase.EMPTY
                     }
@@ -122,7 +121,7 @@ open class SortEngine {
         queryEngine.assertOperational()
         val emd = mmd?.getEntityMetaData(entityType)
         var it = if (emd != null && emd.isAbstract)
-            EntityIterableBase.EMPTY
+            OEntityIterableBase.EMPTY
         else
             queryEngine.instantiateGetAll(entityType)
         if (emd != null) {
@@ -138,7 +137,7 @@ open class SortEngine {
     }
 
     private interface IterableGetter {
-        fun getIterable(type: String): EntityIterableBase
+        fun getIterable(type: String): OEntityIterableBase
     }
 
     private class EntityComparator(private val selector: ComparableGetter) : Comparator<Entity> {
