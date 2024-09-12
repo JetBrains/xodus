@@ -20,8 +20,6 @@ import jetbrains.exodus.entitystore.EntityIterable
 import jetbrains.exodus.entitystore.PersistentEntityStore
 import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.iterate.EntityIdSet
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase
-import jetbrains.exodus.entitystore.iterate.EntityIterableBase.EMPTY
 import jetbrains.exodus.entitystore.iterate.SingleEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityIterable
 import jetbrains.exodus.entitystore.orientdb.OEntityStore
@@ -91,7 +89,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
             return left
         }
         if (left.isEmpty || right.isEmpty) {
-            return EMPTY
+            return OEntityIterableBase.EMPTY
         }
         return if (left is EntityIterable && right is EntityIterable) {
             @Suppress("USELESS_CAST")
@@ -137,7 +135,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
     open fun exclude(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         if (left.isEmpty || left === right) {
-            return EMPTY
+            return OEntityIterableBase.EMPTY
         }
         if (right.isEmpty) {
             return left
@@ -269,9 +267,9 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
 private val Iterable<Entity>?.isEmpty: Boolean
     get() {
-        return this == null || this === EMPTY || this is StaticTypedIterableDecorator && decorated === EMPTY
+        return this == null || this === OEntityIterableBase.EMPTY || this is StaticTypedIterableDecorator && decorated === OEntityIterableBase.EMPTY
     }
 
-private val Iterable<Entity>?.isPersistent: Boolean get() = this is EntityIterableBase
+private val Iterable<Entity>?.isPersistent: Boolean get() = this is OEntityIterableBase
 
 
