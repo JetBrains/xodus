@@ -91,14 +91,16 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     }
 
     override fun resetToNew() {
-        val type = oEntityId.getTypeName()
         val clusterId = vertex.identity.clusterId
 
         vertex.identity.reset()
         vertex.resetToNew()
 
         (vertex.identity as ORecordId).clusterId = clusterId
+    }
 
+    override fun generateId() {
+        val type = oEntityId.getTypeName()
         store.requireActiveTransaction().generateEntityId(type, vertex)
     }
 

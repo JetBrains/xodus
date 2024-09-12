@@ -24,4 +24,6 @@ interface OEntity : Entity {
     fun save(): OEntity
 
     fun resetToNew()
+
+    fun generateId()
 }
