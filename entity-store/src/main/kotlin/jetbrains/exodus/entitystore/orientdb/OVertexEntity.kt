@@ -74,7 +74,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         }
     }
 
-    private val oEntityId = ORIDEntityId.fromVertex(vertex)
+    private var oEntityId = ORIDEntityId.fromVertex(vertex)
 
     override fun getStore() = store
 
@@ -102,6 +102,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     override fun generateId() {
         val type = oEntityId.getTypeName()
         store.requireActiveTransaction().generateEntityId(type, vertex)
+        oEntityId = ORIDEntityId.fromVertex(vertex)
     }
 
     private fun requireActiveTx(): OStoreTransaction {
