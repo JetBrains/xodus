@@ -307,12 +307,11 @@ public interface EntityIterable extends Iterable<Entity> {
     @NotNull
     EntityIterable asSortResult();
 
-
-  /**
-   * This method is a default method is used to get the original {@code EntityIterable} when wrapped up.
-   *
-   * @return the unwrapped {@code EntityIterable}. By default, it returns the current instance.
-   */
+    /**
+     * This method is a default method is used to get the original {@code EntityIterable} when wrapped up.
+     *
+     * @return the unwrapped {@code EntityIterable}. By default, it returns the current instance.
+     */
     @NotNull
     EntityIterable unwrap();
 
