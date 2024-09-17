@@ -315,4 +315,6 @@ public interface EntityIterable extends Iterable<Entity> {
    */
     @NotNull
     EntityIterable unwrap();
+
+    EntityIterable findLinks(@NotNull final EntityIterable entities, @NotNull final String linkName);
 }
