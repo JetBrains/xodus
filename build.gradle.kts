@@ -111,6 +111,7 @@ subprojects {
         implementation(rootProject.libs.kotlin.stdlib)
 
         testImplementation(rootProject.libs.junit)
+        testImplementation(rootProject.libs.slf4j.simple)
     }
 
 

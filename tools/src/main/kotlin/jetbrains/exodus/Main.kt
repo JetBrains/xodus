@@ -28,7 +28,7 @@ fun main(args: Array<String>) {
         printUsage()
     }
     when (args[0].lowercase()) {
-        "reflect" -> jetbrains.exodus.env.export.main(args.skipFirst)
+        "reflect" -> jetbrains.exodus.env.reflect.main(args.skipFirst)
         "export" -> jetbrains.exodus.env.export.main(args.skipFirst)
         "import" -> jetbrains.exodus.env.imp.main(args.skipFirst)
         "refactorings" -> jetbrains.exodus.entityStore.main(args.skipFirst)
