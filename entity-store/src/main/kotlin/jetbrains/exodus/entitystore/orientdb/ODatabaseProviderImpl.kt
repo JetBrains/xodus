@@ -69,6 +69,26 @@ class ODatabaseProviderImpl(
         return result
     }
 
+    // it is always false at the beginning (it is impossible to close the database in the frozen state)
+    private var _readOnly: Boolean = false
+
+    override var readOnly: Boolean
+        get() = _readOnly
+        set(value) {
+            if (_readOnly == value) return
+            requireNoActiveSession()
+
+            withSession { session ->
+                if (value) {
+                    // if one tries to write and commit changes, they will get an exception
+                    session.freeze(true)
+                } else {
+                    session.release()
+                }
+            }
+            _readOnly = value
+        }
+
     private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): ODatabaseSession {
         if (checkNoActiveSession) {
             requireNoActiveSession()
@@ -77,6 +97,8 @@ class ODatabaseProviderImpl(
     }
 
     override fun close() {
+        // Orient cannot close the database if it is read-only (frozen)
+        readOnly = false
         database.close()
     }
 }
