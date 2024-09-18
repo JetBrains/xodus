@@ -132,6 +132,9 @@ class InMemoryEntityIterable(
         return this
     }
 
+    override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable {
+        throw NotImplementedError()
+    }
 }
 
 internal class InMemoryEntityIterator(val iterator: Iterator<Entity>) : EntityIterator {
