@@ -192,6 +192,7 @@ class OStoreTransactionImpl(
 
     override fun newEntity(entityType: String, localEntityId: Long): OVertexEntity {
         requireActiveWritableTransaction()
+        schemaBuddy.requireTypeExists(session, entityType)
         val vertex = session.newVertex(entityType)
         vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, localEntityId)
         vertex.save<OVertex>()

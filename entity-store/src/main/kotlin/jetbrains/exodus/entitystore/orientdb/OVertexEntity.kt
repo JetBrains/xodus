@@ -259,9 +259,9 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     // Add links
 
     override fun addLink(linkName: String, target: Entity): Boolean {
-        requireActiveWritableTransaction()
+        val currentTx = requireActiveWritableTransaction()
         require(target is OVertexEntity) { "Only OVertexEntity is supported, but was ${target.javaClass.simpleName}" }
-        return addLinkImpl(linkName, target.vertex)
+        return currentTx.addLinkImpl(linkName, target.vertex)
     }
 
     override fun addLink(linkName: String, targetId: EntityId): Boolean {
@@ -271,11 +271,13 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
             return false
         }
         val target = currentTx.getRecord<OVertex>(targetOId) ?: return false
-        return addLinkImpl(linkName, target)
+        return currentTx.addLinkImpl(linkName, target)
     }
 
-    private fun addLinkImpl(linkName: String, target: OVertex): Boolean {
+    private fun OStoreTransaction.addLinkImpl(linkName: String, target: OVertex): Boolean {
         val edgeClassName = edgeClassName(linkName)
+//        this.requi
+//        val edgeClass = this.getOrCreateEdgeClass(edgeClassName)
         val edgeClass = ODatabaseSession.getActiveSession().getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName edge class not found in the database. Sorry, pal, it is required for adding a link.")
 
         /*
@@ -318,16 +320,16 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     // Delete links
 
     override fun deleteLink(linkName: String, target: Entity): Boolean {
-        requireActiveWritableTransaction()
+        val currentTx = requireActiveWritableTransaction()
         target as OVertexEntity
         val targetOId = target.oEntityId.asOId()
-        return deleteLinkImpl(linkName, targetOId)
+        return currentTx.deleteLinkImpl(linkName, targetOId)
     }
 
     override fun deleteLink(linkName: String, targetId: EntityId): Boolean {
-        requireActiveWritableTransaction()
+        val currentTx = requireActiveWritableTransaction()
         val targetOId = store.requireOEntityId(targetId).asOId()
-        return deleteLinkImpl(linkName, targetOId)
+        return currentTx.deleteLinkImpl(linkName, targetOId)
     }
 
     override fun deleteLinks(linkName: String) {
@@ -340,7 +342,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         vertex.save<OVertex>()
     }
 
-    private fun deleteLinkImpl(linkName: String, targetId: ORID): Boolean {
+    private fun OStoreTransaction.deleteLinkImpl(linkName: String, targetId: ORID): Boolean {
         val edgeClassName = edgeClassName(linkName)
 
         val edge = findEdge(edgeClassName, targetId)
@@ -375,9 +377,9 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     // Set links
 
     override fun setLink(linkName: String, target: Entity?): Boolean {
-        requireActiveWritableTransaction()
+        val currentTx = requireActiveWritableTransaction()
         require(target is OVertexEntity?) { "Only OVertexEntity is supported, but was ${target?.javaClass?.simpleName}" }
-        return setLinkImpl(linkName, target?.vertex)
+        return currentTx.setLinkImpl(linkName, target?.vertex)
     }
 
     override fun setLink(linkName: String, targetId: EntityId): Boolean {
@@ -387,10 +389,10 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
             return false
         }
         val target = currentTx.getRecord<OVertex>(targetOId) ?: return false
-        return setLinkImpl(linkName, target)
+        return currentTx.setLinkImpl(linkName, target)
     }
 
-    private fun setLinkImpl(linkName: String, target: OVertex?): Boolean {
+    private fun OStoreTransaction.setLinkImpl(linkName: String, target: OVertex?): Boolean {
         val currentLink = getLinkImpl(linkName)
 
         if (currentLink == target) {
@@ -445,9 +447,9 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
             .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
     }
 
-    private fun findEdge(edgeClassName: String, targetId: ORID): OEdge? {
+    private fun OStoreTransaction.findEdge(edgeClassName: String, targetId: ORID): OEdge? {
         val query = "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
-        val result = ODatabaseSession.getActiveSession().query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
+        val result = query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
         val foundEdge = result.edgeStream().findFirst()
         return foundEdge.getOrNull()
     }
