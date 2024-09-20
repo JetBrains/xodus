@@ -187,7 +187,10 @@ internal class OrientDbSchemaInitializer(
                     appendLine(dnqEntity.type)
                     withPadding {
                         for (associationEnd in dnqEntity.associationEndsMetaData) {
-                            this.applyAssociation(dnqEntity, associationEnd.toOMetadata(dnqEntity.type))
+                            this.addLinkImpl(
+                                associationEnd.toOMetadata(dnqEntity.type),
+                                dnqEntity.getIndicesContainingLink(associationEnd.name)
+                            )
                         }
                     }
                 }
@@ -219,7 +222,10 @@ internal class OrientDbSchemaInitializer(
     fun addAssociation(outEntityMetadata: EntityMetaData, association: OAssociationMetadata): SchemaApplicationResult {
         try {
             appendLine("create association [${association.outClassName} -> ${association.name} -> ${association.inClassName}] if absent:")
-            this.applyAssociation(outEntityMetadata, association)
+            this.addLinkImpl(
+                association,
+                outEntityMetadata.getIndicesContainingLink(association.name),
+            )
             return SchemaApplicationResult(
                 indices = indices,
                 newIndexedLinks = newIndexedLinks
@@ -227,6 +233,10 @@ internal class OrientDbSchemaInitializer(
         } finally {
             paddedLogger.flush()
         }
+    }
+
+    private fun EntityMetaData.getIndicesContainingLink(linkName: String): List<Index> {
+        return indexes.filter { index -> index.fields.any { field -> field.name == linkName } }
     }
 
     fun removeAssociation(association: OAssociationMetadata) {
@@ -325,42 +335,42 @@ internal class OrientDbSchemaInitializer(
     }
 
 
-    // Associations
+    // Links
 
-    private fun applyAssociation(
-        outEntityMetadata: EntityMetaData,
-        association: OAssociationMetadata
+    private fun addLinkImpl(
+        link: OAssociationMetadata,
+        indicesContainingLink: List<Index>,
     ) {
-        append(association.name)
+        append(link.name)
 
-        val class1 = oSession.getClass(association.outClassName)
-            ?: throw IllegalStateException("${association.outClassName} class is not found")
-        val class2 = oSession.getClass(association.inClassName)
-            ?: throw IllegalStateException("${association.inClassName} class is not found")
+        val outClass = oSession.getClass(link.outClassName)
+            ?: throw IllegalStateException("${link.outClassName} class is not found")
+        val inClass = oSession.getClass(link.inClassName)
+            ?: throw IllegalStateException("${link.inClassName} class is not found")
 
-        val edgeClass = oSession.createEdgeClassIfAbsent(association.name)
+        val edgeClass = oSession.createEdgeClassIfAbsent(link.name)
         appendLine()
 
         withPadding {
             // class1.prop1 -> edgeClass -> class2
-            applyAssociation(
-                outEntityMetadata,
-                association.name,
+            applyLink(
+                link.name,
                 edgeClass,
-                outClass = class1,
-                outCardinality = association.cardinality,
-                inClass = class2,
+                outClass,
+                link.cardinality,
+                inClass,
+                indicesContainingLink
             )
         }
     }
 
-    private fun applyAssociation(
-        outEntityMetadata: EntityMetaData,
-        associationName: String,
+    private fun applyLink(
+        linkName: String,
         edgeClass: OClass,
         outClass: OClass,
         outCardinality: AssociationEndCardinality,
         inClass: OClass,
+        indicesContainingLink: List<Index>
     ) {
         val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
         append("outProp: ${outClass.name}.$linkOutPropName")
@@ -383,13 +393,12 @@ internal class OrientDbSchemaInitializer(
 
         addIndex(linkUniqueIndex(edgeClass.name))
 
-        val indicesContainingLink = outEntityMetadata.indexes.filter { index -> index.fields.any { field -> field.name == associationName } }
         if (indicesContainingLink.isNotEmpty()) {
-            val indexedPropName = linkTargetEntityIdPropertyName(associationName)
+            val indexedPropName = linkTargetEntityIdPropertyName(linkName)
             append("prop for composite indices: ${outClass.name}.$indexedPropName")
 
             if (!outClass.existsProperty(indexedPropName)) {
-                newIndexedLinks.getOrPut(outClass.name) { HashSet() }.add(associationName)
+                newIndexedLinks.getOrPut(outClass.name) { HashSet() }.add(linkName)
             }
             outClass.createPropertyIfAbsent(indexedPropName, OType.LINKBAG)
         }
