@@ -35,6 +35,12 @@ interface ODatabaseProvider {
      */
     fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T
 
+    /**
+     * Database-wise read-only mode.
+     * Always false by default.
+     */
+    var readOnly: Boolean
+
     fun close()
 }
 

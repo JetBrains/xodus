@@ -41,6 +41,11 @@ interface OTestMixin {
         return store.beginTransaction() as OStoreTransactionImpl
     }
 
+    fun beginReadonlyTransaction(): OStoreTransactionImpl {
+        val store = orientDb.store
+        return store.beginReadonlyTransaction() as OStoreTransactionImpl
+    }
+
     fun <R> withStoreTx(block: (OStoreTransaction) -> R): R {
         return orientDb.withStoreTx(block)
     }

@@ -45,6 +45,7 @@ abstract class OEntityIterableBase(tx: OStoreTransaction) : OEntityIterable {
             override fun contains(entity: Entity): Boolean = false
             override fun isSortResult(): Boolean = true
             override fun asSortResult(): EntityIterable = this
+            override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable = this
             override fun size() = 0L
             override fun getRoughSize() = 0L
             override fun count() = 0L
@@ -183,7 +184,7 @@ abstract class OEntityIterableBase(tx: OStoreTransaction) : OEntityIterable {
         return selectManyDistinct(linkName)
     }
 
-    fun findLinks(entities: EntityIterable, linkName: String): EntityIterable {
+    override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable {
         if (entities == EMPTY) {
             return EMPTY
         }

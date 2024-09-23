@@ -57,7 +57,6 @@ class OStoreTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `commit() and abort() finish transaction`() {
-        orientDb.store.executeInTransaction {  }
         commitAbort.forEach { (terminalTxActionName, terminalTxAction) ->
             allTxActions.forEach { (txActionName, txAction) ->
             val tx = beginTransaction()
