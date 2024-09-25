@@ -16,18 +16,18 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
-import jetbrains.exodus.entitystore.orientdb.withCurrentOrNewSession
+import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OVertex
+import jetbrains.exodus.entitystore.orientdb.*
 
 class OModelMetaData(
-    private val databaseProvider: ODatabaseProvider,
-    private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider, autoInitialize = false)
+    private val dbProvider: ODatabaseProvider,
+    private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(dbProvider, autoInitialize = false)
 ) : ModelMetaDataImpl(), OSchemaBuddy by schemaBuddy {
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
-        databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             val result = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
             session.initializeIndices(result)
             initialize(session)
@@ -35,25 +35,49 @@ class OModelMetaData(
     }
 
     override fun onAddAssociation(entityMetaData: EntityMetaData, association: AssociationEndMetaData) {
-        databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             val result = session.addAssociation(entityMetaData, association)
             session.initializeIndices(result)
         }
     }
 
-    private fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
-        /*
-        * The order of operations matter.
-        * We want to initialize complementary properties before creating indices,
-        * it is more efficient from the performance point of view.
-        * */
-        initializeComplementaryPropertiesForNewIndexedLinks(schemaApplicationResult.newIndexedLinks)
-        applyIndices(schemaApplicationResult.indices)
+    override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
+        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+            session.removeAssociation(sourceTypeName, targetTypeName, associationName)
+        }
     }
 
-    override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
-        databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-            session.removeAssociation(sourceTypeName, targetTypeName, associationName)
+    override fun getOrCreateEdgeClass(
+        session: ODatabaseSession,
+        linkName: String,
+        outClassName: String,
+        inClassName: String
+    ): OClass {
+        /**
+         * It is not enough to check the existence of the edge class.
+         * We reuse the same edge class for all the links with the same name.
+         * So, we have to check the existence of the edge class + in and out properties of the connected classes.
+         */
+        // edge class
+        val edgeClassName = OVertexEntity.edgeClassName(linkName)
+        val oClass = session.getClass(edgeClassName)
+        // out-property
+        val outClass = session.getClass(outClassName) ?: throw IllegalStateException("$outClassName not found. It must not ever happen.")
+        val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClassName)
+        val outProp = outClass.getProperty(outPropName)
+        // in-property
+        val inClass = session.getClass(inClassName) ?: throw IllegalStateException("$inClassName not found. It must not ever happen.")
+        val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClassName)
+        val inProp = inClass.getProperty(inPropName)
+        if (oClass != null && outProp != null && inProp != null) {
+            return oClass
+        }
+
+        return session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
+            val link = LinkMetadata(name = linkName, outClassName = outClassName, inClassName = inClassName, AssociationEndCardinality._0_n)
+            val result = sessionToWork.addAssociation(link, indicesContainingLink = listOf(), applyLinkCardinality = true)
+            sessionToWork.initializeIndices(result)
+            sessionToWork.getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName not found, it must never happen")
         }
     }
 }

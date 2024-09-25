@@ -15,7 +15,6 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.record.OTrackedSet
 import com.orientechnologies.orient.core.db.record.ridbag.ORidBag
 import com.orientechnologies.orient.core.id.ORID
@@ -275,10 +274,10 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
     }
 
     private fun OStoreTransaction.addLinkImpl(linkName: String, target: OVertex): Boolean {
+        val outClassName = vertex.requireSchemaClass().name
+        val inClassName = target.requireSchemaClass().name
+        val edgeClass = getOrCreateEdgeClass(linkName, outClassName, inClassName)
         val edgeClassName = edgeClassName(linkName)
-//        this.requi
-//        val edgeClass = this.getOrCreateEdgeClass(edgeClassName)
-        val edgeClass = ODatabaseSession.getActiveSession().getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName edge class not found in the database. Sorry, pal, it is required for adding a link.")
 
         /*
         We check for duplicates only if there is an appropriate index for it.

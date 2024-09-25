@@ -50,6 +50,8 @@ interface OSchemaBuddy {
     fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long)
 
     fun renameOClass(session: ODatabaseSession, oldName: String, newName: String)
+
+    fun getOrCreateEdgeClass(session: ODatabaseSession, linkName: String, outClassName: String, inClassName: String): OClass
 }
 
 class OSchemaBuddyImpl(
@@ -83,26 +85,26 @@ class OSchemaBuddyImpl(
         val oSequence = session.metadata.sequenceLibrary.getSequence(sequenceName)
         if (oSequence != null) return oSequence
 
-        return executeInASeparateSessionIfCurrentHasTransaction(session) { sessionToWork ->
+        return session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
             val params = CreateParams().setStart(initialValue).setIncrement(1)
             sessionToWork.metadata.sequenceLibrary.createSequence(sequenceName, SEQUENCE_TYPE.ORDERED, params)
         }
     }
 
     override fun renameOClass(session: ODatabaseSession, oldName: String, newName: String) {
-        executeInASeparateSessionIfCurrentHasTransaction(session) { sessionToWork ->
+        session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
             val oldClass = sessionToWork.metadata.schema.getClass(oldName) ?: throw IllegalArgumentException("Class $oldName not found")
             oldClass.setName(newName)
         }
     }
 
-    private fun <T> executeInASeparateSessionIfCurrentHasTransaction(session: ODatabaseSession, action: (ODatabaseSession) -> T): T {
-        return if (session.hasActiveTransaction()) {
-            dbProvider.executeInASeparateSession(session) { newSession ->
-                action(newSession)
-            }
-        } else {
-            action(session)
+    override fun getOrCreateEdgeClass(session: ODatabaseSession, linkName: String, outClassName: String, inClassName: String): OClass {
+        val edgeClassName = OVertexEntity.edgeClassName(linkName)
+        val oClass = session.getClass(edgeClassName)
+        if (oClass != null) return oClass
+
+        return session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
+            sessionToWork.createEdgeClass(edgeClassName)
         }
     }
 
@@ -115,7 +117,7 @@ class OSchemaBuddyImpl(
     }
 
     override fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long) {
-        executeInASeparateSessionIfCurrentHasTransaction(session) { sessionToWork ->
+        session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
             getSequence(sessionToWork, sequenceName).updateParams(CreateParams().setCurrentValue(currentValue))
         }
     }
@@ -150,6 +152,16 @@ class OSchemaBuddyImpl(
         check(oClass != null) { "$entityType has not been found" }
     }
 
+}
+
+fun <T> ODatabaseSession.executeInASeparateSessionIfCurrentHasTransaction(dbProvider: ODatabaseProvider, action: (ODatabaseSession) -> T): T {
+    return if (this.hasActiveTransaction()) {
+        dbProvider.executeInASeparateSession(this) { newSession ->
+            action(newSession)
+        }
+    } else {
+        action(this)
+    }
 }
 
 fun ODatabaseSession.createClassIdSequenceIfAbsent(startFrom: Long = -1L) {

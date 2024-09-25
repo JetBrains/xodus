@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
+import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues
@@ -25,6 +26,8 @@ import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class OSchemaBuddyTest: OTestMixin {
 
@@ -110,6 +113,37 @@ class OSchemaBuddyTest: OTestMixin {
         orientDb.withTxSession { session ->
             val res = session.metadata.sequenceLibrary.getSequence("seq").next()
             assertEquals(2, res)
+        }
+    }
+
+    @Test
+    fun `can create an edge class in a transaction`() {
+        val buddy = OSchemaBuddyImpl(orientDb.provider)
+        val edgeClassName = OVertexEntity.edgeClassName("trista")
+
+        // the edge class is not there
+        withSession { session ->
+            session.createVertexClass("issue")
+            assertNull(session.getClass(edgeClassName))
+        }
+
+        // create the edge class in a transaction
+        val issId = withSession { session ->
+            session.begin()
+            val iss = session.newVertex("issue")
+            iss.save<OVertex>()
+
+            val edgeClass = buddy.getOrCreateEdgeClass(session, "trista", "issue", "issue")
+            assertNotNull(edgeClass)
+            assertTrue(edgeClass.isEdgeType)
+
+            session.commit()
+            iss.identity
+        }
+
+        // the changes made in the transaction are still there
+        withSession { session ->
+            assertNotNull(session.getRecord<OVertex>(issId))
         }
     }
 

@@ -183,7 +183,8 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        oSession.applySchema(model)
+        val result = oSession.applySchema(model)
+        oSession.initializeIndices(result)
 
         for (cardinality in AssociationEndCardinality.entries) {
             oSession.assertAssociationExists("type2", "type1", "prop1$cardinality", cardinality)
@@ -200,7 +201,8 @@ class OrientDbSchemaInitializerTest {
             association("type3", "link1", "type1", AssociationEndCardinality._0_n)
         }
 
-        oSession.applySchema(model)
+        val result = oSession.applySchema(model)
+        oSession.initializeIndices(result)
 
         oSession.assertAssociationExists("type2", "type1", "link1", AssociationEndCardinality._0_n)
         oSession.assertAssociationExists("type3", "type1", "link1", AssociationEndCardinality._0_n)
@@ -216,7 +218,8 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        oSession.applySchema(model, applyLinkCardinality = false)
+        val result = oSession.applySchema(model, applyLinkCardinality = false)
+        oSession.initializeIndices(result)
 
         for (cardinality in AssociationEndCardinality.entries) {
             oSession.assertAssociationExists("type2", "type1", "prop1$cardinality", null)
@@ -243,7 +246,8 @@ class OrientDbSchemaInitializerTest {
             }
         }
 
-        oSession.applySchema(model)
+        val result = oSession.applySchema(model)
+        oSession.initializeIndices(result)
 
         for (cardinality1 in AssociationEndCardinality.entries) {
             for (cardinality2 in AssociationEndCardinality.entries) {
@@ -374,18 +378,20 @@ class OrientDbSchemaInitializerTest {
             entity("type2")
         }
 
-        session.applySchema(model)
+        val result = session.applySchema(model)
+        session.initializeIndices(result)
 
         for (cardinality in AssociationEndCardinality.entries) {
-            session.addAssociation(
-                model.getEntityMetaData("type1")!!,
-                OAssociationMetadata(
+            val assResult = session.addAssociation(
+                LinkMetadata(
                     name = "ass1${cardinality.name}",
                     outClassName = "type1",
                     inClassName = "type2",
                     cardinality = cardinality
-                )
+                ),
+                listOf()
             )
+            session.initializeIndices(assResult)
         }
 
         for (cardinality in AssociationEndCardinality.entries) {
