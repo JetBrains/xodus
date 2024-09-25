@@ -119,14 +119,8 @@ class OPersistentEntityStore(
     }
 
     override fun executeInTransaction(executable: StoreTransactionalExecutable) {
-        //i'm not sure about implementation
-        val txn = beginTransaction() as OStoreTransactionImpl
-        try {
-            executable.execute(txn)
-            txn.commit()
-        } catch (e: Exception) {
-            txn.abort()
-            throw e
+        computeInTransaction { tx ->
+            executable.execute(tx)
         }
     }
 
@@ -137,15 +131,15 @@ class OPersistentEntityStore(
         executeInTransaction(executable)
 
     override fun <T : Any?> computeInTransaction(computable: StoreTransactionalComputable<T>): T {
-        //i'm not sure about implementation
-        val txn = beginTransaction() as OStoreTransactionImpl
+        val tx = beginTransaction() as OStoreTransactionImpl
         try {
-            val result = computable.compute(txn)
-            txn.commit()
+            val result = computable.compute(tx)
+            tx.commit()
             return result
-        } catch (e: Exception) {
-            txn.abort()
-            throw e
+        } finally {
+            if (!tx.isFinished) {
+                tx.abort()
+            }
         }
     }
 
