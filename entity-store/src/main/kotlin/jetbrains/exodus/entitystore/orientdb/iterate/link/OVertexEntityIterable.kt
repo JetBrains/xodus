@@ -115,5 +115,9 @@ class OVertexEntityIterable(
 
     override fun unwrap() = this
 
+    override fun findLinks(entities: EntityIterable, linkName: String): EntityIterable {
+        return asQueryIterable().findLinks(entities, linkName)
+    }
+
     private fun asQueryIterable() = OLinksFromEntityIterable(tx, linkName, this.targetEntityID)
 }
