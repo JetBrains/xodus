@@ -34,19 +34,21 @@ class ODatabaseProviderTest: OTestMixin {
     @Test
     fun `read-only mode works`() {
         // by default it is read-write
-        withSession { session ->
+        withTxSession { session ->
             val v = session.newVertex()
             v.save<OVertex>()
         }
 
         orientDb.provider.readOnly = true
-        withSession { session ->
-            val v = session.newVertex()
-            assertFailsWith<OModificationOperationProhibitedException> { v.save<OVertex>() }
+        assertFailsWith<OModificationOperationProhibitedException> {
+            withTxSession { session ->
+                val v = session.newVertex()
+                v.save<OVertex>()
+            }
         }
 
         orientDb.provider.readOnly = false
-        withSession { session ->
+        withTxSession { session ->
             val v = session.newVertex()
             v.save<OVertex>()
         }

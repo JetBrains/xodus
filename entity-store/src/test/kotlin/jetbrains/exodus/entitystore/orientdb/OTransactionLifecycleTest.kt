@@ -42,15 +42,11 @@ class OTransactionLifecycleTest : OTestMixin {
     @Test
     fun `session-freeze(true) makes the session read-only`() {
         val session = orientDb.openSession()
-
         session.freeze(true)
+        session.begin()
 
         val v = session.newVertex()
-        assertFailsWith<OModificationOperationProhibitedException> { v.save<OVertex>() }
-
-        session.begin()
-        val v1 = session.newVertex()
-        v1.save<OVertex>()
+        v.save<OVertex>()
         assertFailsWith<OModificationOperationProhibitedException> { session.commit() }
 
         // after release() we can write again

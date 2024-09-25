@@ -54,6 +54,10 @@ interface OTestMixin {
         return orientDb.withSession(block)
     }
 
+    fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
+        return orientDb.withTxSession(block)
+    }
+
     fun givenTestCase() = OTaskTrackerTestCase(orientDb)
 
     fun OStoreTransaction.createIssue(name: String, priority: String? = null): OVertexEntity = createIssueImpl(name, priority)
