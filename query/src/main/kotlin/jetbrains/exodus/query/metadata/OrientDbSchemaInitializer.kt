@@ -353,33 +353,34 @@ internal class OrientDbSchemaInitializer(
         appendLine()
 
         withPadding {
-            // class1.prop1 -> edgeClass -> class2
-            applyLink(
+            if (applyLinkCardinality) {
+                applyLinkCardinality(
+                    edgeClass,
+                    outClass,
+                    link.cardinality,
+                    inClass,
+                )
+            }
+            applyIndices(
                 link.name,
                 edgeClass,
                 outClass,
-                link.cardinality,
-                inClass,
                 indicesContainingLink
             )
         }
     }
 
-    private fun applyLink(
-        linkName: String,
+    private fun applyLinkCardinality(
         edgeClass: OClass,
         outClass: OClass,
         outCardinality: AssociationEndCardinality,
         inClass: OClass,
-        indicesContainingLink: List<Index>
     ) {
         val linkOutPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass.name)
         append("outProp: ${outClass.name}.$linkOutPropName")
         val outProp = outClass.createLinkPropertyIfAbsent(linkOutPropName)
-        if (applyLinkCardinality) {
-            // applying cardinality only to out direct property
-            outProp.applyCardinality(outCardinality)
-        }
+        // applying cardinality only to out direct property
+        outProp.applyCardinality(outCardinality)
         appendLine()
 
         val linkInPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass.name)
@@ -391,7 +392,14 @@ internal class OrientDbSchemaInitializer(
         * We do not apply cardinality for the in-properties because, we do not know if there is any restrictions.
         * Because AssociationEndCardinality describes the cardinality of a single end.
         * */
+    }
 
+    private fun applyIndices(
+        linkName: String,
+        edgeClass: OClass,
+        outClass: OClass,
+        indicesContainingLink: List<Index>
+    ) {
         addIndex(linkUniqueIndex(edgeClass.name))
 
         if (indicesContainingLink.isNotEmpty()) {

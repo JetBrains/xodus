@@ -53,26 +53,28 @@ internal fun ODatabaseSession.assertAssociationExists(
     outClassName: String,
     inClassName: String,
     edgeName: String,
-    cardinality: AssociationEndCardinality?
+    cardinality: AssociationEndCardinality?,
 ) {
     val edgeClassName = edgeName.asEdgeClass
     val edgeClass = getClass(edgeClassName)
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClassName)
-    val directOutProp = outClass.getProperty(outPropName)!!
-    assertEquals(OType.LINKBAG, directOutProp.type)
-    directOutProp.assertCardinality(cardinality)
-
-    val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClassName)
-    val directInProp = inClass.getProperty(inPropName)!!
-    assertEquals(OType.LINKBAG, directInProp.type)
-
     assertTrue(edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT))
+
+    if (cardinality != null) {
+        val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClassName)
+        val directOutProp = outClass.getProperty(outPropName)!!
+        assertEquals(OType.LINKBAG, directOutProp.type)
+        directOutProp.assertCardinality(cardinality)
+
+        val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClassName)
+        val directInProp = inClass.getProperty(inPropName)!!
+        assertEquals(OType.LINKBAG, directInProp.type)
+    }
 }
 
-private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality?) {
+private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality) {
     when (cardinality) {
         AssociationEndCardinality._0_1 -> {
             assertTrue(!this.isMandatory)
@@ -95,12 +97,6 @@ private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality?)
         AssociationEndCardinality._1_n -> {
             assertTrue(this.isMandatory)
             assertTrue(this.min == "1")
-            assertTrue(this.max == null)
-        }
-
-        null -> {
-            assertTrue(!this.isMandatory)
-            assertTrue(this.min == null)
             assertTrue(this.max == null)
         }
     }

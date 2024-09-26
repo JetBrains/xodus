@@ -17,8 +17,6 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.record.ODirection
-import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.*
 
 class OModelMetaData(
@@ -54,28 +52,27 @@ class OModelMetaData(
         inClassName: String
     ): OClass {
         /**
-         * It is not enough to check the existence of the edge class.
+         * It is enough to check the existence of the edge class.
          * We reuse the same edge class for all the links with the same name.
-         * So, we have to check the existence of the edge class + in and out properties of the connected classes.
          */
-        // edge class
         val edgeClassName = OVertexEntity.edgeClassName(linkName)
         val oClass = session.getClass(edgeClassName)
-        // out-property
-        val outClass = session.getClass(outClassName) ?: throw IllegalStateException("$outClassName not found. It must not ever happen.")
-        val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClassName)
-        val outProp = outClass.getProperty(outPropName)
-        // in-property
-        val inClass = session.getClass(inClassName) ?: throw IllegalStateException("$inClassName not found. It must not ever happen.")
-        val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClassName)
-        val inProp = inClass.getProperty(inPropName)
-        if (oClass != null && outProp != null && inProp != null) {
+        if (oClass != null) {
             return oClass
         }
 
         return session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
             val link = LinkMetadata(name = linkName, outClassName = outClassName, inClassName = inClassName, AssociationEndCardinality._0_n)
-            val result = sessionToWork.addAssociation(link, indicesContainingLink = listOf(), applyLinkCardinality = true)
+
+            /**
+             * We do not apply link cardinality because:
+             * 1. We do not have any cardinality restrictions for ad-hoc links.
+             * 2. Applying the cardinality causes adding extra properties to existing vertices,
+             * that in turn potentially causes OConcurrentModificationException in the original session.
+             * Keep in mind that we create this edge class (and those extra properties) in a separate session.
+             * So, there is an original session with the business logic that may fail if we change vertices here.
+             */
+            val result = sessionToWork.addAssociation(link, indicesContainingLink = listOf(), applyLinkCardinality = false)
             sessionToWork.initializeIndices(result)
             sessionToWork.getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName not found, it must never happen")
         }

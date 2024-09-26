@@ -286,8 +286,8 @@ class OModelMetaDataTest: OTestMixin {
 
         withSession { session ->
             // check that the necessary schema parts have been initialized
-            session.assertAssociationExists("type1", "type2", "link1", AssociationEndCardinality._0_n)
-            session.assertAssociationExists("type2", "type1", "link2", AssociationEndCardinality._0_n)
+            session.assertAssociationExists("type1", "type2", "link1", cardinality = null)
+            session.assertAssociationExists("type2", "type1", "link2", cardinality = null)
 
             /**
              * It is a tricky one.
@@ -309,7 +309,40 @@ class OModelMetaDataTest: OTestMixin {
 
         // check that the necessary schema parts have been initialized
         withSession { session ->
-            session.assertAssociationExists("type2", "type1", "link1", AssociationEndCardinality._0_n)
+            session.assertAssociationExists("type2", "type1", "link1", cardinality = null)
+        }
+    }
+
+    @Test
+    fun `adding new link type does not cause OConcurrentModificationException`() {
+        val model = oModel(orientDb.provider) {
+            entity("type1")
+            entity("type2")
+        }
+        // initialize the entity types
+        model.prepare()
+        val store = OPersistentEntityStore(orientDb.provider, orientDb.dbName, model)
+
+        // entity1 has already existed for a while
+        val id1 = store.computeInTransaction { tx ->
+            val e1 = tx.newEntity("type1")
+            e1.setProperty("trista", "opca")
+            e1.id
+        }
+
+        /**
+         * Initializing new links must not affect vertices.
+         * 1. All the business logic happens in session1.
+         * 1. Initializing new links happens in a separate session, session2.
+         * 2. Everything that happens in session2 is concurrent changes from the session1 point of view.
+         * 3. So, if the initialization of new links affects vertices, session1 will fail with OConcurrentModificationException.
+         */
+        store.executeInTransaction { tx ->
+            val e1 = tx.getEntity(id1)
+            val e2 = tx.newEntity("type2")
+            e1.addLink("link1", e2)
+            e2.addLink("link2", e1)
+            e1.setProperty("trista", "drista")
         }
     }
 }
