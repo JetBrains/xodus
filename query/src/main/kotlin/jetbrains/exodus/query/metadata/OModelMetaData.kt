@@ -16,18 +16,16 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseSession
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProvider
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddy
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
-import jetbrains.exodus.entitystore.orientdb.withCurrentOrNewSession
+import com.orientechnologies.orient.core.metadata.schema.OClass
+import jetbrains.exodus.entitystore.orientdb.*
 
 class OModelMetaData(
-    private val databaseProvider: ODatabaseProvider,
-    private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider, autoInitialize = false)
+    private val dbProvider: ODatabaseProvider,
+    private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(dbProvider, autoInitialize = false)
 ) : ModelMetaDataImpl(), OSchemaBuddy by schemaBuddy {
 
     override fun onPrepared(entitiesMetaData: MutableCollection<EntityMetaData>) {
-        databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             val result = session.applySchema(entitiesMetaData, indexForEverySimpleProperty = true, applyLinkCardinality = true)
             session.initializeIndices(result)
             initialize(session)
@@ -35,25 +33,48 @@ class OModelMetaData(
     }
 
     override fun onAddAssociation(entityMetaData: EntityMetaData, association: AssociationEndMetaData) {
-        databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
             val result = session.addAssociation(entityMetaData, association)
             session.initializeIndices(result)
         }
     }
 
-    private fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
-        /*
-        * The order of operations matter.
-        * We want to initialize complementary properties before creating indices,
-        * it is more efficient from the performance point of view.
-        * */
-        initializeComplementaryPropertiesForNewIndexedLinks(schemaApplicationResult.newIndexedLinks)
-        applyIndices(schemaApplicationResult.indices)
+    override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
+        dbProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
+            session.removeAssociation(sourceTypeName, targetTypeName, associationName)
+        }
     }
 
-    override fun onRemoveAssociation(sourceTypeName: String, targetTypeName: String, associationName: String) {
-        databaseProvider.withCurrentOrNewSession(requireNoActiveTransaction = true) { session ->
-            session.removeAssociation(sourceTypeName, targetTypeName, associationName)
+    override fun getOrCreateEdgeClass(
+        session: ODatabaseSession,
+        linkName: String,
+        outClassName: String,
+        inClassName: String
+    ): OClass {
+        /**
+         * It is enough to check the existence of the edge class.
+         * We reuse the same edge class for all the links with the same name.
+         */
+        val edgeClassName = OVertexEntity.edgeClassName(linkName)
+        val oClass = session.getClass(edgeClassName)
+        if (oClass != null) {
+            return oClass
+        }
+
+        return session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
+            val link = LinkMetadata(name = linkName, outClassName = outClassName, inClassName = inClassName, AssociationEndCardinality._0_n)
+
+            /**
+             * We do not apply link cardinality because:
+             * 1. We do not have any cardinality restrictions for ad-hoc links.
+             * 2. Applying the cardinality causes adding extra properties to existing vertices,
+             * that in turn potentially causes OConcurrentModificationException in the original session.
+             * Keep in mind that we create this edge class (and those extra properties) in a separate session.
+             * So, there is an original session with the business logic that may fail if we change vertices here.
+             */
+            val result = sessionToWork.addAssociation(link, indicesContainingLink = listOf(), applyLinkCardinality = false)
+            sessionToWork.initializeIndices(result)
+            sessionToWork.getClass(edgeClassName) ?: throw IllegalStateException("$edgeClassName not found, it must never happen")
         }
     }
 }

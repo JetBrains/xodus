@@ -62,7 +62,9 @@ internal class CountingTransaction(
     }
 
     fun rollback() {
-        txn.abort()
+        if (!txn.isFinished) {
+            txn.abort()
+        }
     }
 
     fun newVertex(type: String, localEntityId: Long): OVertexEntity {

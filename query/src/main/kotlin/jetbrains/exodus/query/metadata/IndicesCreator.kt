@@ -26,7 +26,7 @@ import mu.KotlinLogging
 
 private val log = KotlinLogging.logger {}
 
-fun ODatabaseSession.applyIndices(indices: Map<String, Set<DeferredIndex>>) {
+internal fun ODatabaseSession.applyIndices(indices: Map<String, Set<DeferredIndex>>) {
     IndicesCreator(indices).createIndices(this)
 }
 
@@ -67,7 +67,18 @@ internal class IndicesCreator(
     }
 }
 
-fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks(
+internal fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
+    /*
+    * The order of operations matter.
+    * We want to initialize complementary properties before creating indices,
+    * it is more efficient from the performance point of view.
+    * */
+    initializeComplementaryPropertiesForNewIndexedLinks(schemaApplicationResult.newIndexedLinks)
+    applyIndices(schemaApplicationResult.indices)
+}
+
+
+internal fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks(
     newIndexedLinks: Map<String, Set<String>>, // ClassName -> set of link names
     commitEvery: Int = 50
 ) {
@@ -98,7 +109,7 @@ fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks(
     }
 }
 
-data class DeferredIndex(
+internal data class DeferredIndex(
     val ownerVertexName: String,
     val indexName: String,
     val properties: Set<String>,
@@ -112,7 +123,7 @@ data class DeferredIndex(
     )
 }
 
-fun OClass.makeDeferredIndexForEmbeddedSet(propertyName: String): DeferredIndex {
+internal fun OClass.makeDeferredIndexForEmbeddedSet(propertyName: String): DeferredIndex {
     return DeferredIndex(
         ownerVertexName = this.name,
         setOf(propertyName),

@@ -19,9 +19,7 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
-import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
-import jetbrains.exodus.entitystore.orientdb.testutil.Issues
-import jetbrains.exodus.entitystore.orientdb.testutil.createIssue
+import jetbrains.exodus.entitystore.orientdb.testutil.*
 import jetbrains.exodus.entitystore.orientdb.testutil.createIssueImpl
 import org.junit.Rule
 import org.junit.Test
@@ -30,11 +28,13 @@ import java.util.*
 import kotlin.random.Random
 import kotlin.test.*
 
-class OEntityTest {
+class OEntityTest: OTestMixin {
 
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB()
+    val orientDbRule = InMemoryOrientDB()
+
+    override val orientDb = orientDbRule
 
     @Test
     fun `create entities`() {
@@ -632,5 +632,15 @@ class OEntityTest {
         }
         assertEquals(1001, localIdSet.size)
         assertEquals(1, typeIdSet.size)
+    }
+
+    @Test
+    fun `add new link types in a transaction`() {
+        withStoreTx { tx ->
+            val iss1 = tx.createIssue("iss1")
+            val iss2 = tx.createIssue("iss2")
+
+            iss1.addLink("trista", iss2)
+        }
     }
 }

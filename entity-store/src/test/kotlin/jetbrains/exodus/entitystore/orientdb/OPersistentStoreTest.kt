@@ -15,9 +15,13 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.OVertex
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
+import jetbrains.exodus.entitystore.StoreTransaction
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.CLASS
@@ -216,6 +220,41 @@ class OPersistentStoreTest: OTestMixin {
             assertEquals(issueId, orientDb.store.requireOEntityId(issueId))
             assertEquals(issueId, orientDb.store.requireOEntityId(PersistentEntityId(issueId.typeId, issueId.localId)))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.requireOEntityId(PersistentEntityId.EMPTY_ID))
+        }
+    }
+
+    @Test
+    fun `computeInTransaction and Co handle exceptions properly`() {
+        withSession { session ->
+            val t1 = session.getOrCreateVertexClass("type1")
+            t1.createProperty("name", OType.STRING)
+            t1.createIndex("opca_index", OClass.INDEX_TYPE.UNIQUE, "name")
+        }
+        fun StoreTransaction.violateIndexRestriction() {
+            val e1 = this.newEntity("type1")
+            val e2 = this.newEntity("type1")
+            e1.setProperty("name", "trista")
+            e2.setProperty("name", "trista")
+        }
+        /**
+         * Here we check that nothing happens with the exception on the way up.
+         * Our code that finishes the transaction must work correctly if there is no active session.
+         */
+        val store = orientDb.store
+        assertFailsWith<ORecordDuplicatedException> {
+            store.computeInTransaction { tx ->
+                tx.violateIndexRestriction()
+            }
+        }
+        assertFailsWith<ORecordDuplicatedException> {
+            store.executeInTransaction { tx ->
+                tx.violateIndexRestriction()
+            }
+        }
+        assertFailsWith<ORecordDuplicatedException> {
+            withStoreTx { tx ->
+                tx.violateIndexRestriction()
+            }
         }
     }
 }

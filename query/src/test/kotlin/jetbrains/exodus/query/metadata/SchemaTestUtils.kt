@@ -20,6 +20,7 @@ import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.OEdge
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.orientdb.*
 import org.junit.Assert.*
@@ -32,17 +33,19 @@ internal fun ODatabaseSession.assertAssociationNotExist(
     edgeName: String,
     requireEdgeClass: Boolean = false
 ) {
+    val edgeClassName = edgeName.asEdgeClass
     if (requireEdgeClass) {
-        requireEdgeClass(edgeName.asEdgeClass)
+        val edgeClass = requireEdgeClass(edgeClassName)
+        assertTrue(edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT))
     }
 
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeName)
+    val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClassName)
     assertNull(outClass.getProperty(outPropName))
 
-    val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeName)
+    val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClassName)
     assertNull(inClass.getProperty(inPropName))
 }
 
@@ -50,23 +53,28 @@ internal fun ODatabaseSession.assertAssociationExists(
     outClassName: String,
     inClassName: String,
     edgeName: String,
-    cardinality: AssociationEndCardinality?
+    cardinality: AssociationEndCardinality?,
 ) {
-    val edgeClass = edgeName.asEdgeClass
+    val edgeClassName = edgeName.asEdgeClass
+    val edgeClass = getClass(edgeClassName)
     val inClass = getClass(inClassName)!!
     val outClass = getClass(outClassName)!!
 
-    val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClass)
-    val directOutProp = outClass.getProperty(outPropName)!!
-    assertEquals(OType.LINKBAG, directOutProp.type)
-    directOutProp.assertCardinality(cardinality)
+    assertTrue(edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT))
 
-    val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClass)
-    val directInProp = inClass.getProperty(inPropName)!!
-    assertEquals(OType.LINKBAG, directInProp.type)
+    if (cardinality != null) {
+        val outPropName = OVertex.getEdgeLinkFieldName(ODirection.OUT, edgeClassName)
+        val directOutProp = outClass.getProperty(outPropName)!!
+        assertEquals(OType.LINKBAG, directOutProp.type)
+        directOutProp.assertCardinality(cardinality)
+
+        val inPropName = OVertex.getEdgeLinkFieldName(ODirection.IN, edgeClassName)
+        val directInProp = inClass.getProperty(inPropName)!!
+        assertEquals(OType.LINKBAG, directInProp.type)
+    }
 }
 
-private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality?) {
+private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality) {
     when (cardinality) {
         AssociationEndCardinality._0_1 -> {
             assertTrue(!this.isMandatory)
@@ -89,12 +97,6 @@ private fun OProperty.assertCardinality(cardinality: AssociationEndCardinality?)
         AssociationEndCardinality._1_n -> {
             assertTrue(this.isMandatory)
             assertTrue(this.min == "1")
-            assertTrue(this.max == null)
-        }
-
-        null -> {
-            assertTrue(!this.isMandatory)
-            assertTrue(this.min == null)
             assertTrue(this.max == null)
         }
     }

@@ -17,12 +17,10 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.PersistentEntityId
-import jetbrains.exodus.entitystore.orientdb.ORIDEntityId
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
-import jetbrains.exodus.entitystore.orientdb.createVertexClassWithClassId
-import jetbrains.exodus.entitystore.orientdb.getTargetLocalEntityIds
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
+import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -31,10 +29,12 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class OModelMetaDataTest {
+class OModelMetaDataTest: OTestMixin {
     @Rule
     @JvmField
-    val orientDb = InMemoryOrientDB(initializeIssueSchema = false)
+    val orientDbRule = InMemoryOrientDB(initializeIssueSchema = false)
+
+    override val orientDb = orientDbRule
 
     @Test
     fun `prepare() applies the schema to OrientDB`() {
@@ -257,6 +257,92 @@ class OModelMetaDataTest {
 
             session.checkIndex("type1", true, linkTargetEntityIdPropertyName("ass1"))
             session.checkIndex("type2", true, linkTargetEntityIdPropertyName("ass2"))
+        }
+    }
+
+    @Test
+    fun `oModel creates the schema for links if it is absent`() {
+        val model = oModel(orientDb.provider) {
+            entity("type1")
+            entity("type2")
+        }
+        // initialize the entity types
+        model.prepare()
+        val store = OPersistentEntityStore(orientDb.provider, orientDb.dbName, model)
+
+        // check that the links do not exist
+        withSession { session ->
+            session.assertAssociationNotExist("type1", "type2", "link1")
+            session.assertAssociationNotExist("type2", "type1", "link2")
+        }
+
+        // add the links, the necessary schema parts should be initialized on the way
+        store.executeInTransaction { tx ->
+            val e1 = tx.newEntity("type1")
+            val e2 = tx.newEntity("type2")
+            e1.addLink("link1", e2)
+            e2.addLink("link2", e1)
+        }
+
+        withSession { session ->
+            // check that the necessary schema parts have been initialized
+            session.assertAssociationExists("type1", "type2", "link1", cardinality = null)
+            session.assertAssociationExists("type2", "type1", "link2", cardinality = null)
+
+            /**
+             * It is a tricky one.
+             * We have type2 -link2-> type1 link.
+             * But we do not have type2 -link1-> type1 link yet.
+             * So, the necessary schema parts must not be initialized for type2 -link1-> type1,
+             * except for the link1 edge class itself. It must be initialized already. We
+             * share edge classes between all the links with the same name.
+             */
+            session.assertAssociationNotExist("type2", "type1", "link1", requireEdgeClass = true)
+        }
+
+        // add a type2 -link1-> type1 link
+        store.executeInTransaction { tx ->
+            val e1 = tx.newEntity("type1")
+            val e2 = tx.newEntity("type2")
+            e2.addLink("link1", e1)
+        }
+
+        // check that the necessary schema parts have been initialized
+        withSession { session ->
+            session.assertAssociationExists("type2", "type1", "link1", cardinality = null)
+        }
+    }
+
+    @Test
+    fun `adding new link type does not cause OConcurrentModificationException`() {
+        val model = oModel(orientDb.provider) {
+            entity("type1")
+            entity("type2")
+        }
+        // initialize the entity types
+        model.prepare()
+        val store = OPersistentEntityStore(orientDb.provider, orientDb.dbName, model)
+
+        // entity1 has already existed for a while
+        val id1 = store.computeInTransaction { tx ->
+            val e1 = tx.newEntity("type1")
+            e1.setProperty("trista", "opca")
+            e1.id
+        }
+
+        /**
+         * Initializing new links must not affect vertices.
+         * 1. All the business logic happens in session1.
+         * 1. Initializing new links happens in a separate session, session2.
+         * 2. Everything that happens in session2 is concurrent changes from the session1 point of view.
+         * 3. So, if the initialization of new links affects vertices, session1 will fail with OConcurrentModificationException.
+         */
+        store.executeInTransaction { tx ->
+            val e1 = tx.getEntity(id1)
+            val e2 = tx.newEntity("type2")
+            e1.addLink("link1", e2)
+            e2.addLink("link2", e1)
+            e1.setProperty("trista", "drista")
         }
     }
 }

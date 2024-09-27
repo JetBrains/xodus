@@ -71,17 +71,8 @@ class InMemoryOrientDB(
     val database get() = db
 
     fun <R> withStoreTx(block: (OStoreTransaction) -> R): R {
-        val tx = store.beginTransaction() as OStoreTransaction
-        try {
-            val result = block(tx)
-            if (!tx.isFinished) {
-                tx.commit()
-            }
-            return result
-        } finally {
-            if (!tx.isFinished) {
-                tx.abort()
-            }
+        return store.computeInTransaction { tx ->
+            block(tx as OStoreTransaction)
         }
     }
 
