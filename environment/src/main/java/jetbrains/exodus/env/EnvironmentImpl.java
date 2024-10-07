@@ -131,6 +131,9 @@ public class EnvironmentImpl implements Environment {
 
     private boolean checkLuceneDirectory = false;
 
+    public final ConcurrentSkipListMap<Integer, String> storeNameByIdCache =
+            new ConcurrentSkipListMap<>();
+
     @SuppressWarnings({"ThisEscapedInObjectConstruction"})
     EnvironmentImpl(@NotNull final Log log, @NotNull final EnvironmentConfig ec) {
         try {
@@ -373,7 +376,7 @@ public class EnvironmentImpl implements Environment {
     }
 
     @NotNull
-    public TransactionBase beginReadOnlyUnmonitoredTransaction(){
+    public TransactionBase beginReadOnlyUnmonitoredTransaction() {
         checkIsOperative();
         return new ReadonlyTransaction(this, false, null) {
             @Override
@@ -739,7 +742,7 @@ public class EnvironmentImpl implements Environment {
                             true, fileAddress, fileOffset);
 
             var startBackupMetadata = Paths.get(log.getLocation()).resolve(
-                BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
+                    BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
             try {
                 Files.deleteIfExists(startBackupMetadata);
             } catch (IOException e) {
@@ -768,7 +771,7 @@ public class EnvironmentImpl implements Environment {
             gc.resume();
         }
         var startBackupMetadata = Paths.get(log.getLocation()).resolve(
-            BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
+                BackupMetadata.START_BACKUP_METADATA_FILE_NAME);
         try {
             Files.deleteIfExists(startBackupMetadata);
         } catch (IOException e) {

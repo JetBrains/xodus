@@ -64,7 +64,8 @@ public final class MetaTreeImpl implements MetaTree {
                 try {
                     dbRoot = new DatabaseRoot(rootLoggable);
                 } catch (ExodusException e) {
-                    EnvironmentImpl.loggerError("Failed to load database root at " + rootLoggable.getAddress(), e);
+                    EnvironmentImpl.loggerError(
+                            "Failed to load database root at " + rootLoggable.getAddress(), e);
                 }
                 if (dbRoot != null && dbRoot.isValid()) {
                     try {
@@ -137,15 +138,26 @@ public final class MetaTreeImpl implements MetaTree {
 
     long getRootAddress(final int structureId) {
         final ByteIterable value = tree.get(LongBinding.longToCompressedEntry(structureId));
-        return value == null ? Loggable.NULL_ADDRESS : CompressedUnsignedLongByteIterable.getLong(value);
+        return value == null ? Loggable.NULL_ADDRESS
+                : CompressedUnsignedLongByteIterable.getLong(value);
     }
 
-    static void removeStore(@NotNull final ITreeMutable out, @NotNull final String storeName, final long id) {
+    static void removeStore(@NotNull final ITreeMutable out,
+                            @NotNull final String storeName, final long id, EnvironmentImpl env) {
+        final ByteIterable value = out.get(StringBinding.stringToEntry(storeName));
+
         out.delete(StringBinding.stringToEntry(storeName));
         out.delete(LongBinding.longToCompressedEntry(id));
+
+        if (value != null) {
+            var metaInfo = TreeMetaInfo.load(env, value);
+            env.storeNameByIdCache.remove(metaInfo.structureId);
+        }
     }
 
-    static void addStore(@NotNull final ITreeMutable out, @NotNull final String storeName, @NotNull final TreeMetaInfo metaInfo) {
+    static void addStore(@NotNull final ITreeMutable out, @NotNull final String storeName,
+                         @NotNull final TreeMetaInfo metaInfo, EnvironmentImpl env) {
+        env.storeNameByIdCache.put(metaInfo.structureId, storeName);
         out.put(StringBinding.stringToEntry(storeName), metaInfo.toByteIterable());
     }
 
@@ -196,7 +208,8 @@ public final class MetaTreeImpl implements MetaTree {
         try (ITreeCursor cursor = tree.openCursor()) {
             //noinspection MethodCallInLoopCondition
             while (cursor.getNext()) {
-                @SuppressWarnings("ObjectAllocationInLoop") final ArrayByteIterable key = new ArrayByteIterable(cursor.getKey());
+                @SuppressWarnings("ObjectAllocationInLoop") final ArrayByteIterable key = new ArrayByteIterable(
+                        cursor.getKey());
                 if (isStringKey(key)) {
                     final String storeName = StringBinding.entryToString(key);
                     if (!EnvironmentImpl.isUtilizationProfile(storeName)) {
@@ -210,6 +223,11 @@ public final class MetaTreeImpl implements MetaTree {
 
     @Nullable
     String getStoreNameByStructureId(final int structureId, @NotNull final EnvironmentImpl env) {
+        var storeName = env.storeNameByIdCache.get(structureId);
+        if (storeName != null) {
+            return storeName;
+        }
+
         try (ITreeCursor cursor = tree.openCursor()) {
             while (cursor.getNext()) {
                 final ByteIterable key = cursor.getKey();
@@ -256,6 +274,7 @@ public final class MetaTreeImpl implements MetaTree {
     }
 
     static class Proto implements MetaTreePrototype {
+
         final long address;
         final long root;
 
