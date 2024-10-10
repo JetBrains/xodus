@@ -226,7 +226,7 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
                 //local cache out of sync so we need to revert tx
                 if (currentCache != localCache) {
                     revert();
-                    logger.warn("EntityIterableCache is out of sync, reverting transaction");
+                    logger.warn("EntityIterableCache is out of sync, reverting transaction", new Throwable());
                     return false;
                 }
             }

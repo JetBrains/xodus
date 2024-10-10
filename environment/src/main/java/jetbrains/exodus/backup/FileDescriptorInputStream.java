@@ -18,11 +18,11 @@ package jetbrains.exodus.backup;
 import jetbrains.exodus.crypto.EnvKryptKt;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.log.BufferedDataWriter;
+import jetbrains.exodus.log.DataCorruptionException;
 import jetbrains.exodus.log.Log;
 import jetbrains.exodus.log.LogUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -146,43 +146,48 @@ public class FileDescriptorInputStream extends InputStream {
         return 0;
     }
 
-    private boolean readPage() throws IOException {
-        final int toRead = (int) Math.min(pageSize, storedDataFilesSize - position);
-        assert toRead >= 0;
+    private boolean readPage() {
+        return DataCorruptionException.computeUnsafe(() -> {
+            try {
+                final int toRead = (int) Math.min(pageSize, storedDataFilesSize - position);
+                assert toRead >= 0;
 
-        int read = 0;
-        while (read < toRead) {
-            final int r = fileInputStream.read(page, read, toRead - read);
+                int read = 0;
+                while (read < toRead) {
+                    final int r = fileInputStream.read(page, read, toRead - read);
+                    if (r == -1) {
+                        if (read == 0) {
+                            return false;
+                        } else {
+                            break;
+                        }
+                    }
 
-            if (r == -1) {
-                if (read == 0) {
-                    return false;
-                } else {
-                    break;
+                    read += r;
                 }
+
+                final long pageAddress = fileAddress + position;
+                if (read < pageSize) {
+                    Arrays.fill(page, read, pageSize - BufferedDataWriter.HASH_CODE_SIZE, (byte) 0x80);
+
+                    if (cipherProvider != null) {
+                        assert cipherKey != null;
+
+                        EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey,
+                                cipherBasicIV, pageAddress, page, read, pageSize - BufferedDataWriter.HASH_CODE_SIZE - read,
+                                LogUtil.LOG_BLOCK_ALIGNMENT);
+                    }
+
+                    BufferedDataWriter.updatePageHashCode(page);
+                }
+
+                BufferedDataWriter.checkPageConsistency(pageAddress, page, pageSize, log);
+
+                pagePosition = 0;
+                return true;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-
-            read += r;
-        }
-
-        final long pageAddress = fileAddress + position;
-        if (read < pageSize) {
-            Arrays.fill(page, read, pageSize - BufferedDataWriter.HASH_CODE_SIZE, (byte) 0x80);
-
-            if (cipherProvider != null) {
-                assert cipherKey != null;
-
-                EnvKryptKt.cryptBlocksMutable(cipherProvider, cipherKey,
-                        cipherBasicIV, pageAddress, page, read, pageSize - BufferedDataWriter.HASH_CODE_SIZE - read,
-                        LogUtil.LOG_BLOCK_ALIGNMENT);
-            }
-
-            BufferedDataWriter.updatePageHashCode(page);
-        }
-
-        BufferedDataWriter.checkPageConsistency(pageAddress, page, pageSize, log);
-
-        pagePosition = 0;
-        return true;
+        });
     }
 }
