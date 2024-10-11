@@ -285,13 +285,15 @@ internal class PatriciaTreeMutable(
             if (type < NODE_WO_KEY_WO_VALUE_WO_CHILDREN || type > MAX_VALID_LOGGABLE_TYPE) {
                 if (type != NullLoggable.TYPE && type != HashCodeLoggable.TYPE) { // skip null loggable
                     throw UnexpectedLoggableException(
-                        "Unexpected loggable type " + l.type
+                        "Unexpected loggable type: " + l.type + " loggable structure id: "
+                                + l.structureId, l.address
                     )
                 }
             } else {
                 if (l.structureId != structureId) {
                     throw UnexpectedLoggableException(
-                        "Unexpected structure id " + l.structureId
+                        "Unexpected structure id: " + l.structureId + " loggable type: " + l.type,
+                        l.address
                     )
                 }
                 if (nodeIsRoot(type)) {
@@ -315,7 +317,7 @@ internal class PatriciaTreeMutable(
             val treeStartAddress = sourceTree.rootAddress - backRef
 
             if (treeStartAddress > minAddress) {
-                throw UnexpectedLoggableException("Wrong back reference!")
+                throw UnexpectedLoggableException("Wrong back reference!", Loggable.NULL_ADDRESS)
             }
 
             if (!log.hasAddressRange(treeStartAddress, maxAddress)) {
@@ -337,7 +339,10 @@ internal class PatriciaTreeMutable(
         val sourceRoot = sourceTree.root
 
         val relclaimTraverser = PatriciaReclaimActualTraverser(this)
-        reclaim(PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, startAddress), relclaimTraverser)
+        reclaim(
+            PatriciaReclaimSourceTraverser(sourceTree, sourceRoot, startAddress),
+            relclaimTraverser
+        )
 
         return relclaimTraverser.wasReclaim || (sourceAddress in startAddress until endAddress)
     }
@@ -582,4 +587,4 @@ internal class PatriciaTreeMutable(
     }
 }
 
-class UnexpectedLoggableException(msg: String) : ExodusException(msg)
+class UnexpectedLoggableException(msg: String, val loggableAddress: Long) : ExodusException(msg)

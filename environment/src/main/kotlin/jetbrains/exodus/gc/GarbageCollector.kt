@@ -34,6 +34,7 @@ import jetbrains.exodus.log.LogUtil
 import jetbrains.exodus.log.Loggable
 import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.tree.ExpiredLoggableCollection
+import jetbrains.exodus.tree.patricia.UnexpectedLoggableException
 import jetbrains.exodus.util.DeferredIO
 import mu.KLogging
 import java.io.File
@@ -412,7 +413,7 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
         val useTreeScan = ec.gcByTreeScan
         try {
             val nextFileAddress = fileAddress + log.fileLengthBound
-            val loggables = log.getLoggableIterator(fileAddress)
+            var loggables = log.getLoggableIterator(fileAddress)
             while (loggables.hasNext()) {
                 val loggable = loggables.next()
 
@@ -449,7 +450,13 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
                         )
 
                         store.reclaimByTreeIteration(txn, fileAddress, nextFileAddress)
+
+                        if (e is UnexpectedLoggableException) {
+                            val loggableAddress = e.loggableAddress
+                            loggables = log.getLoggableIterator(loggableAddress)
+                        }
                     }
+
                 }
             }
         } catch (e: Throwable) {
