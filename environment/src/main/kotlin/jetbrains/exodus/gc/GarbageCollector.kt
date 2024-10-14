@@ -27,11 +27,7 @@ import jetbrains.exodus.core.execution.SharedTimer
 import jetbrains.exodus.env.*
 import jetbrains.exodus.io.Block
 import jetbrains.exodus.io.RemoveBlockType
-import jetbrains.exodus.log.AbstractBlockListener
-import jetbrains.exodus.log.DataCorruptionException
-import jetbrains.exodus.log.Log
-import jetbrains.exodus.log.LogUtil
-import jetbrains.exodus.log.Loggable
+import jetbrains.exodus.log.*
 import jetbrains.exodus.runtime.OOMGuard
 import jetbrains.exodus.tree.ExpiredLoggableCollection
 import jetbrains.exodus.tree.patricia.UnexpectedLoggableException
@@ -40,7 +36,7 @@ import mu.KLogging
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.TreeSet
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
 
@@ -453,7 +449,10 @@ class GarbageCollector(internal val environment: EnvironmentImpl) {
 
                         if (e is UnexpectedLoggableException) {
                             val loggableAddress = e.loggableAddress
-                            loggables = log.getLoggableIterator(loggableAddress)
+
+                            if (loggableAddress > -1) {
+                                loggables = log.getLoggableIterator(loggableAddress)
+                            }
                         }
                     }
 
