@@ -87,7 +87,7 @@ internal fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLink
     var counter = 0
     withTx {
         for ((className, indexedLinks) in newIndexedLinks) {
-            for (vertex in browseClass(className).map { it as OVertex }) {
+            for (vertex in query("select from $className").vertexStream().map { it as OVertex }) {
                 for (indexedLink in indexedLinks) {
                     val edgeClassName = edgeClassName(indexedLink)
                     val targetLocalEntityIds = vertex.getTargetLocalEntityIds(indexedLink)

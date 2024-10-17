@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
+import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
@@ -42,7 +43,10 @@ class InMemoryOrientDB(
     val dbName = "testDB"
 
     override fun before() {
-        db = OrientDB("memory", OrientDBConfig.defaultConfig())
+        val builder = OrientDBConfig.builder()
+        builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
+
+        db = OrientDB("memory", builder.build())
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
         provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
 

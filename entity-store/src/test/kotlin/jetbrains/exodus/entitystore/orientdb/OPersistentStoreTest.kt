@@ -17,7 +17,6 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
@@ -78,7 +77,6 @@ class OPersistentStoreTest: OTestMixin {
         val store = orientDb.store
         store.computeInTransaction {
             Assert.assertTrue(it.isIdempotent)
-            issue.vertex.reload<OVertex>()
             issue.setProperty("version", "22")
             Assert.assertFalse(it.isIdempotent)
         }

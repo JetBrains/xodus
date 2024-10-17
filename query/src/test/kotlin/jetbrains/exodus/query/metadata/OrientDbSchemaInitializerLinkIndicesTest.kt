@@ -410,7 +410,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         orientDb.withTxSession { oSession ->
-            val v1 = oSession.browseClass("type1").map { it.toVertex()!! }.first { it.getProperty<Int>("prop1") == 1 }
+            val v1 =
+                oSession.query("select from type1").vertexStream().toList().first { it.getProperty<Int>("prop1") == 1 }
             val links: MutableIterable<OVertex> = v1.getVertices(ODirection.OUT, edgeClassName)
             assertEquals(2, links.count())
         }
@@ -451,7 +452,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         orientDb.withTxSession { oSession ->
-            val v1 = oSession.browseClass("type1").map { it.toVertex()!! }.first { it.getProperty<Int>("prop1") == 1 }
+            val v1 =
+                oSession.query("select from type1").vertexStream().toList().first { it.getProperty<Int>("prop1") == 1 }
             val links: MutableIterable<OVertex> = v1.getVertices(ODirection.OUT, edgeClassName)
             assertEquals(1, links.count())
         }

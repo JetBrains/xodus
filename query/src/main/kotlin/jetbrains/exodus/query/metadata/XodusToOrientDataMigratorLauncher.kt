@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
+import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
@@ -66,7 +67,9 @@ class XodusToOrientDataMigratorLauncher(
                 require(dir.list()?.isEmpty() == true) { "The provided OrientDB directory is not empty. Sorry, pal, it was a good try. Try to find an empty directory." }
             }
         }
-        val db = OrientDB(orient.url, OrientDBConfig.defaultConfig())
+        val builder = OrientDBConfig.builder()
+        builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
+        val db = OrientDB(orient.url, builder.build())
         if (orient.databaseType == ODatabaseType.MEMORY) {
             db.execute("create database ${orient.dbName} MEMORY users ( ${orient.username} identified by '${orient.password}' role admin )")
         } else {
