@@ -15,10 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb.testutil
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.orientechnologies.orient.core.db.*
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
@@ -76,7 +73,7 @@ class InMemoryOrientDB(
         }
     }
 
-    fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
+    fun <R> withTxSession(block: (ODatabaseDocumentInternal) -> R): R {
         val session = provider.acquireSession()
         try {
             session.begin()
@@ -95,7 +92,7 @@ class InMemoryOrientDB(
         }
     }
 
-    fun <R> withSession(block: (ODatabaseSession) -> R): R {
+    fun <R> withSession(block: (ODatabaseDocumentInternal) -> R): R {
         val session = provider.acquireSession()
         try {
             return block(session)
@@ -106,7 +103,7 @@ class InMemoryOrientDB(
         }
     }
 
-    fun openSession(): ODatabaseSession {
-        return db.cachedPool(dbName, username, password).acquire()
+    fun openSession(): ODatabaseDocumentInternal {
+        return db.cachedPool(dbName, username, password).acquire() as ODatabaseDocumentInternal
     }
 }

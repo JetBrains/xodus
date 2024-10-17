@@ -16,6 +16,7 @@
 package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.collate.OCaseInsensitiveCollate
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
@@ -38,14 +39,14 @@ internal data class SchemaApplicationResult(
     val newIndexedLinks: Map<String, Set<String>> // ClassName -> set of link names
 )
 
-internal fun ODatabaseSession.applySchema(
+internal fun ODatabaseDocumentInternal.applySchema(
     metaData: ModelMetaData,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
 ): SchemaApplicationResult =
     applySchema(metaData.entitiesMetaData, indexForEverySimpleProperty, applyLinkCardinality)
 
-internal fun ODatabaseSession.applySchema(
+internal fun ODatabaseDocumentInternal.applySchema(
     entitiesMetaData: Iterable<EntityMetaData>,
     indexForEverySimpleProperty: Boolean = false,
     applyLinkCardinality: Boolean = true
@@ -55,7 +56,7 @@ internal fun ODatabaseSession.applySchema(
     return initializer.apply()
 }
 
-internal fun ODatabaseSession.addAssociation(
+internal fun ODatabaseDocumentInternal.addAssociation(
     outEntityMetadata: EntityMetaData,
     association: AssociationEndMetaData,
     applyLinkCardinality: Boolean = true
@@ -64,7 +65,7 @@ internal fun ODatabaseSession.addAssociation(
     return addAssociation(link, outEntityMetadata.getIndicesContainingLink(link.name), applyLinkCardinality)
 }
 
-internal fun ODatabaseSession.addAssociation(
+internal fun ODatabaseDocumentInternal.addAssociation(
     link: LinkMetadata,
     indicesContainingLink: List<Index>,
     applyLinkCardinality: Boolean = true
@@ -78,7 +79,7 @@ internal fun ODatabaseSession.addAssociation(
     return initializer.addAssociation(link, indicesContainingLink)
 }
 
-internal fun ODatabaseSession.removeAssociation(
+internal fun ODatabaseDocumentInternal.removeAssociation(
     sourceClassName: String,
     targetClassName: String,
     associationName: String
@@ -94,7 +95,7 @@ internal fun ODatabaseSession.removeAssociation(
     )
 }
 
-internal fun ODatabaseSession.removeAssociation(
+internal fun ODatabaseDocumentInternal.removeAssociation(
     association: LinkMetadata
 ) {
     val initializer =
@@ -122,7 +123,7 @@ private fun EntityMetaData.getIndicesContainingLink(linkName: String): List<Inde
 
 internal class OrientDbSchemaInitializer(
     private val entitiesMetaData: Iterable<EntityMetaData>,
-    private val oSession: ODatabaseSession,
+    private val oSession: ODatabaseDocumentInternal,
     private val indexForEverySimpleProperty: Boolean,
     private val applyLinkCardinality: Boolean
 ) {

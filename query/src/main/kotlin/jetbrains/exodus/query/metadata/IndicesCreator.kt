@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
@@ -67,7 +68,7 @@ internal class IndicesCreator(
     }
 }
 
-internal fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
+internal fun ODatabaseDocumentInternal.initializeIndices(schemaApplicationResult: SchemaApplicationResult) {
     /*
     * The order of operations matter.
     * We want to initialize complementary properties before creating indices,
@@ -78,7 +79,7 @@ internal fun ODatabaseSession.initializeIndices(schemaApplicationResult: SchemaA
 }
 
 
-internal fun ODatabaseSession.initializeComplementaryPropertiesForNewIndexedLinks(
+internal fun ODatabaseDocumentInternal.initializeComplementaryPropertiesForNewIndexedLinks(
     newIndexedLinks: Map<String, Set<String>>, // ClassName -> set of link names
     commitEvery: Int = 50
 ) {

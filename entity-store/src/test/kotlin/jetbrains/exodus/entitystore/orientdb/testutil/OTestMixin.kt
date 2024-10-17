@@ -17,7 +17,7 @@ package jetbrains.exodus.entitystore.orientdb.testutil
 
 import com.google.common.truth.Ordered
 import com.google.common.truth.Truth.assertThat
-import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.orientdb.OEntity
 import jetbrains.exodus.entitystore.orientdb.OStoreTransaction
@@ -50,11 +50,11 @@ interface OTestMixin {
         return orientDb.withStoreTx(block)
     }
 
-    fun <R> withSession(block: (ODatabaseSession) -> R): R {
+    fun <R> withSession(block: (ODatabaseDocumentInternal) -> R): R {
         return orientDb.withSession(block)
     }
 
-    fun <R> withTxSession(block: (ODatabaseSession) -> R): R {
+    fun <R> withTxSession(block: (ODatabaseDocumentInternal) -> R): R {
         return orientDb.withTxSession(block)
     }
 

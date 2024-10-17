@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OProperty
@@ -256,7 +257,7 @@ internal fun ModelMetaData.twoDirectionalAssociation(
     )
 }
 
-internal fun ODatabaseSession.createVertexAndSetLocalEntityId(className: String): OVertex {
+internal fun ODatabaseDocumentInternal.createVertexAndSetLocalEntityId(className: String): OVertex {
     val v = newVertex(className)
     setLocalEntityId(className, v)
     v.save<OVertex>()

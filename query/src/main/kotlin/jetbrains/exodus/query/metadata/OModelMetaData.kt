@@ -15,7 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import jetbrains.exodus.entitystore.orientdb.*
 
@@ -46,7 +46,7 @@ class OModelMetaData(
     }
 
     override fun getOrCreateEdgeClass(
-        session: ODatabaseSession,
+        session: ODatabaseDocumentInternal,
         linkName: String,
         outClassName: String,
         inClassName: String

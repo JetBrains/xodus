@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
@@ -24,7 +25,7 @@ import com.orientechnologies.orient.core.tx.OTransactionNoTx
 interface ODatabaseProvider {
     val databaseLocation: String
     val database: OrientDB
-    fun acquireSession(): ODatabaseSession
+    fun acquireSession(): ODatabaseDocumentInternal
 
     /**
      * If there is a session on the current thread, create a new session, executes the action in it,
@@ -33,7 +34,7 @@ interface ODatabaseProvider {
      * Never use this method. If you use this method, make sure you 100% understand what happens,
      * and do not hesitate to invite people to review your code.
      */
-    fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T
+    fun <T> executeInASeparateSession(currentSession: ODatabaseDocumentInternal, action: (ODatabaseDocumentInternal) -> T): T
 
     /**
      * Database-wise read-only mode.
@@ -44,7 +45,7 @@ interface ODatabaseProvider {
     fun close()
 }
 
-fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
+fun <R> ODatabaseProvider.withSession(block: (ODatabaseDocumentInternal) -> R): R {
     acquireSession().use { session ->
         return block(session)
     }
@@ -52,10 +53,10 @@ fun <R> ODatabaseProvider.withSession(block: (ODatabaseSession) -> R): R {
 
 fun <R> ODatabaseProvider.withCurrentOrNewSession(
     requireNoActiveTransaction: Boolean = false,
-    block: (ODatabaseSession) -> R
+    block: (ODatabaseDocumentInternal) -> R
 ): R {
     return if (hasActiveSession()) {
-        val activeSession = ODatabaseSession.getActiveSession() as ODatabaseSession
+        val activeSession = ODatabaseSession.getActiveSession() as ODatabaseDocumentInternal
         if (requireNoActiveTransaction) {
             activeSession.requireNoActiveTransaction()
         }

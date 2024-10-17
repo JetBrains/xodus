@@ -52,11 +52,11 @@ class ODatabaseProviderImpl(
     override val databaseLocation: String
         get() = database.accessInternal.basePath
 
-    override fun acquireSession(): ODatabaseSession {
+    override fun acquireSession(): ODatabaseDocumentInternal {
         return acquireSessionImpl(true)
     }
 
-    override fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T {
+    override fun <T> executeInASeparateSession(currentSession: ODatabaseDocumentInternal, action: (ODatabaseDocumentInternal) -> T): T {
         val result = try {
             acquireSessionImpl(checkNoActiveSession = false).use { session ->
                 action(session)
@@ -89,11 +89,11 @@ class ODatabaseProviderImpl(
             _readOnly = value
         }
 
-    private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): ODatabaseSession {
+    private fun acquireSessionImpl(checkNoActiveSession: Boolean = true): ODatabaseDocumentInternal {
         if (checkNoActiveSession) {
             requireNoActiveSession()
         }
-        return database.cachedPool(databaseName, userName, password).acquire()
+        return database.cachedPool(databaseName, userName, password).acquire() as ODatabaseDocumentInternal
     }
 
     override fun close() {

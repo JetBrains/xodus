@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
@@ -30,28 +31,28 @@ import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.localEntity
 import java.util.concurrent.ConcurrentHashMap
 
 interface OSchemaBuddy {
-    fun initialize(session: ODatabaseSession)
+    fun initialize(session: ODatabaseDocumentInternal)
 
-    fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId
+    fun getOEntityId(session: ODatabaseDocumentInternal, entityId: PersistentEntityId): ORIDEntityId
 
     /**
      * If the class has not been found, returns -1. It is how it was in the Classic Xodus.
      */
-    fun getTypeId(session: ODatabaseSession, entityType: String): Int
+    fun getTypeId(session: ODatabaseDocumentInternal, entityType: String): Int
 
-    fun requireTypeExists(session: ODatabaseSession, entityType: String)
+    fun requireTypeExists(session: ODatabaseDocumentInternal, entityType: String)
 
-    fun getOrCreateSequence(session: ODatabaseSession, sequenceName: String, initialValue: Long): OSequence
+    fun getOrCreateSequence(session: ODatabaseDocumentInternal, sequenceName: String, initialValue: Long): OSequence
 
-    fun getSequence(session: ODatabaseSession, sequenceName: String): OSequence
+    fun getSequence(session: ODatabaseDocumentInternal, sequenceName: String): OSequence
 
-    fun getSequenceOrNull(session: ODatabaseSession, sequenceName: String): OSequence?
+    fun getSequenceOrNull(session: ODatabaseDocumentInternal, sequenceName: String): OSequence?
 
-    fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long)
+    fun updateSequence(session: ODatabaseDocumentInternal, sequenceName: String, currentValue: Long)
 
-    fun renameOClass(session: ODatabaseSession, oldName: String, newName: String)
+    fun renameOClass(session: ODatabaseDocumentInternal, oldName: String, newName: String)
 
-    fun getOrCreateEdgeClass(session: ODatabaseSession, linkName: String, outClassName: String, inClassName: String): OClass
+    fun getOrCreateEdgeClass(session: ODatabaseDocumentInternal, linkName: String, outClassName: String, inClassName: String): OClass
 }
 
 class OSchemaBuddyImpl(
@@ -72,7 +73,7 @@ class OSchemaBuddyImpl(
         }
     }
 
-    override fun initialize(session: ODatabaseSession) {
+    override fun initialize(session: ODatabaseDocumentInternal) {
         session.createClassIdSequenceIfAbsent()
         for (oClass in session.metadata.schema.classes) {
             if (oClass.isVertexType && !INTERNAL_CLASS_NAMES.contains(oClass.name)) {
@@ -81,7 +82,7 @@ class OSchemaBuddyImpl(
         }
     }
 
-    override fun getOrCreateSequence(session: ODatabaseSession, sequenceName: String, initialValue: Long): OSequence {
+    override fun getOrCreateSequence(session: ODatabaseDocumentInternal, sequenceName: String, initialValue: Long): OSequence {
         val oSequence = session.metadata.sequenceLibrary.getSequence(sequenceName)
         if (oSequence != null) return oSequence
 
@@ -91,14 +92,14 @@ class OSchemaBuddyImpl(
         }
     }
 
-    override fun renameOClass(session: ODatabaseSession, oldName: String, newName: String) {
+    override fun renameOClass(session: ODatabaseDocumentInternal, oldName: String, newName: String) {
         session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
             val oldClass = sessionToWork.metadata.schema.getClass(oldName) ?: throw IllegalArgumentException("Class $oldName not found")
             oldClass.setName(newName)
         }
     }
 
-    override fun getOrCreateEdgeClass(session: ODatabaseSession, linkName: String, outClassName: String, inClassName: String): OClass {
+    override fun getOrCreateEdgeClass(session: ODatabaseDocumentInternal, linkName: String, outClassName: String, inClassName: String): OClass {
         val edgeClassName = OVertexEntity.edgeClassName(linkName)
         val oClass = session.getClass(edgeClassName)
         if (oClass != null) return oClass
@@ -108,21 +109,21 @@ class OSchemaBuddyImpl(
         }
     }
 
-    override fun getSequence(session: ODatabaseSession, sequenceName: String): OSequence {
+    override fun getSequence(session: ODatabaseDocumentInternal, sequenceName: String): OSequence {
         return session.metadata.sequenceLibrary.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName sequence not found")
     }
 
-    override fun getSequenceOrNull(session: ODatabaseSession, sequenceName: String): OSequence? {
+    override fun getSequenceOrNull(session: ODatabaseDocumentInternal, sequenceName: String): OSequence? {
         return session.metadata.sequenceLibrary.getSequence(sequenceName)
     }
 
-    override fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long) {
+    override fun updateSequence(session: ODatabaseDocumentInternal, sequenceName: String, currentValue: Long) {
         session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
             getSequence(sessionToWork, sequenceName).updateParams(CreateParams().setCurrentValue(currentValue))
         }
     }
 
-    override fun getOEntityId(session: ODatabaseSession, entityId: PersistentEntityId): ORIDEntityId {
+    override fun getOEntityId(session: ODatabaseDocumentInternal, entityId: PersistentEntityId): ORIDEntityId {
         // Keep in mind that it is possible that we are given an entityId that is not in the database.
         // It is a valid case.
 
@@ -143,18 +144,18 @@ class OSchemaBuddyImpl(
         return ORIDEntityId(classId, localEntityId, oid, oClass)
     }
 
-    override fun getTypeId(session: ODatabaseSession, entityType: String): Int {
+    override fun getTypeId(session: ODatabaseDocumentInternal, entityType: String): Int {
         return session.getClass(entityType)?.requireClassId() ?: -1
     }
 
-    override fun requireTypeExists(session: ODatabaseSession, entityType: String) {
+    override fun requireTypeExists(session: ODatabaseDocumentInternal, entityType: String) {
         val oClass = session.getClass(entityType)
         check(oClass != null) { "$entityType has not been found" }
     }
 
 }
 
-fun <T> ODatabaseSession.executeInASeparateSessionIfCurrentHasTransaction(dbProvider: ODatabaseProvider, action: (ODatabaseSession) -> T): T {
+fun <T> ODatabaseDocumentInternal.executeInASeparateSessionIfCurrentHasTransaction(dbProvider: ODatabaseProvider, action: (ODatabaseDocumentInternal) -> T): T {
     return if (this.hasActiveTransaction()) {
         dbProvider.executeInASeparateSession(this) { newSession ->
             action(newSession)
@@ -164,11 +165,11 @@ fun <T> ODatabaseSession.executeInASeparateSessionIfCurrentHasTransaction(dbProv
     }
 }
 
-fun ODatabaseSession.createClassIdSequenceIfAbsent(startFrom: Long = -1L) {
+fun ODatabaseDocumentInternal.createClassIdSequenceIfAbsent(startFrom: Long = -1L) {
     createSequenceIfAbsent(CLASS_ID_SEQUENCE_NAME, startFrom)
 }
 
-fun ODatabaseSession.createLocalEntityIdSequenceIfAbsent(oClass: OClass, startFrom: Long = -1L) {
+fun ODatabaseDocumentInternal.createLocalEntityIdSequenceIfAbsent(oClass: OClass, startFrom: Long = -1L) {
     createSequenceIfAbsent(localEntityIdSequenceName(oClass.name), startFrom)
 }
 
@@ -190,14 +191,14 @@ fun ODatabaseSession.setClassIdIfAbsent(oClass: OClass) {
     }
 }
 
-fun ODatabaseSession.setLocalEntityId(className: String, vertex: OVertex) {
+fun ODatabaseDocumentInternal.setLocalEntityId(className: String, vertex: OVertex) {
     val sequences = metadata.sequenceLibrary
     val sequenceName = localEntityIdSequenceName(className)
     val sequence: OSequence = sequences.getSequence(sequenceName) ?: throw IllegalStateException("$sequenceName not found")
     vertex.setProperty(LOCAL_ENTITY_ID_PROPERTY_NAME, sequence.next())
 }
 
-fun ODatabaseSession.createVertexClassWithClassId(className: String): OClass {
+fun ODatabaseDocumentInternal.createVertexClassWithClassId(className: String): OClass {
     requireNoActiveTransaction()
     createClassIdSequenceIfAbsent()
     val oClass = createVertexClass(className)
@@ -206,7 +207,7 @@ fun ODatabaseSession.createVertexClassWithClassId(className: String): OClass {
     return oClass
 }
 
-internal fun ODatabaseSession.getOrCreateVertexClass(className: String): OClass {
+internal fun ODatabaseDocumentInternal.getOrCreateVertexClass(className: String): OClass {
     val existingClass = this.getClass(className)
     if (existingClass != null) return existingClass
 

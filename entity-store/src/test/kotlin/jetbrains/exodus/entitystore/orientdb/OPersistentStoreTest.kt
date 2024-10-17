@@ -78,7 +78,6 @@ class OPersistentStoreTest: OTestMixin {
         val store = orientDb.store
         store.computeInTransaction {
             Assert.assertTrue(it.isIdempotent)
-            issue.vertex.reload<OVertex>()
             issue.setProperty("version", "22")
             Assert.assertFalse(it.isIdempotent)
         }

@@ -16,6 +16,7 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabase
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
@@ -34,7 +35,7 @@ import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
 internal typealias TransactionEventHandler = (ODatabaseSession, OStoreTransaction) -> Unit
 
 class OStoreTransactionImpl(
-    private val session: ODatabaseSession,
+    private val session: ODatabaseDocumentInternal,
     private val store: OPersistentEntityStore,
     private val schemaBuddy: OSchemaBuddy,
     private val onFinished: TransactionEventHandler,
