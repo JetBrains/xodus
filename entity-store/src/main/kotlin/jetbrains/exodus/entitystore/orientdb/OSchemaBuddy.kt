@@ -129,10 +129,10 @@ class OSchemaBuddyImpl(
         val classId = entityId.typeId
         val localEntityId = entityId.localId
         val oClassId = classIdToOClassId[classId] ?: return ORIDEntityId.EMPTY_ID
-        val className = session.getClusterNameById(oClassId) ?: return ORIDEntityId.EMPTY_ID
-        val oClass = session.getClass(className) ?: return ORIDEntityId.EMPTY_ID
+        val schema = session.metadata.schema
+        val oClass = schema.getClassByClusterId(oClassId) ?: return ORIDEntityId.EMPTY_ID
 
-        val resultSet: OResultSet = session.query("SELECT FROM $className WHERE $LOCAL_ENTITY_ID_PROPERTY_NAME = ?", localEntityId)
+        val resultSet: OResultSet = session.query("SELECT FROM ${oClass.name} WHERE $LOCAL_ENTITY_ID_PROPERTY_NAME = ?", localEntityId)
         val oid = if (resultSet.hasNext()) {
             val result = resultSet.next()
             result.toVertex()?.identity ?: return ORIDEntityId.EMPTY_ID

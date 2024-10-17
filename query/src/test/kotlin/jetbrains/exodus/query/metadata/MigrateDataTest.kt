@@ -455,7 +455,7 @@ class MigrateDataTest {
                         maxLocalEntityId = maxOf(maxLocalEntityId, localEntityId)
                     }
 
-                    for (oEntity in oSession.browseClass(type).map { it as OVertexDocument }) {
+                    for (oEntity in oSession.query("select from $type").vertexStream().map { it as OVertexDocument }) {
                         val testId = oEntity.getTestId()
                         val localEntityId = oEntity.requireLocalEntityId()
                         oTestIdToLocalEntityId[testId] = localEntityId
@@ -655,7 +655,7 @@ private fun getBrokenXodusString(): String {
     return originalBytesForXodus.toStringXodusPropertyStyle()
 }
 
-private fun randomUtf8String(size: Int): String = buildString {
+private fun randomUtf8String(@Suppress("SameParameterValue") size: Int): String = buildString {
     while (this.length < size) {
         val char = Random.nextInt(0, 0xFFFF).toChar()
         if (!char.isSurrogate()) {

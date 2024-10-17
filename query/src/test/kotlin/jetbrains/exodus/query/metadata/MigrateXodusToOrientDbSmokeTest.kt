@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.query.metadata
 
+import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
@@ -43,7 +44,9 @@ class MigrateXodusToOrientDbSmokeTest {
         val dbName = "testDB"
         val url = "memory"
         // create the database
-        val db = OrientDB(url, OrientDBConfig.defaultConfig())
+        val builder = OrientDBConfig.builder()
+        builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
+        val db = OrientDB(url, builder.build())
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
         // create a provider
         val dbProvider = ODatabaseProviderImpl(db, dbName, username, password, ODatabaseType.MEMORY)

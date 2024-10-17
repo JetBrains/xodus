@@ -17,6 +17,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.common.concur.lock.OModificationOperationProhibitedException
 import com.orientechnologies.orient.core.db.ODatabase.STATUS
+import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.exception.ODatabaseException
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -324,7 +325,7 @@ class OTransactionLifecycleTest : OTestMixin {
         trista2.setProperty("name", "sth")
         trista2.save<OVertex>()
 
-        session.rollback(true)
+        (session as ODatabaseDocumentInternal).rollback(true)
 
         assertEquals(TXSTATUS.INVALID, session.transaction.status)
         assertEquals(0, session.transaction.amountOfNestedTxs())
