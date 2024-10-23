@@ -26,4 +26,6 @@ interface OEntity : Entity {
     fun resetToNew()
 
     fun generateId()
+
+    val isLoaded : Boolean
 }
