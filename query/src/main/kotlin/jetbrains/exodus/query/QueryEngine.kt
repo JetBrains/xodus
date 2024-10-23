@@ -267,7 +267,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
 
 private val Iterable<Entity>?.isEmpty: Boolean
     get() {
-        return this == null || this === OEntityIterableBase.EMPTY || this is StaticTypedIterableDecorator && decorated === OEntityIterableBase.EMPTY
+        return this == null || this === OEntityIterableBase.EMPTY
     }
 
 private val Iterable<Entity>?.isPersistent: Boolean get() = this is OEntityIterableBase
