@@ -20,9 +20,11 @@ import jetbrains.exodus.ExodusException;
 import jetbrains.exodus.OutOfDiskSpaceException;
 import jetbrains.exodus.bindings.IntegerBinding;
 import jetbrains.exodus.bindings.LongBinding;
-import jetbrains.exodus.core.dataStructures.*;
 import jetbrains.exodus.core.cache.persistent.PersistentCacheClient;
-import jetbrains.exodus.core.dataStructures.hash.*;
+import jetbrains.exodus.core.dataStructures.*;
+import jetbrains.exodus.core.dataStructures.hash.LongHashMap;
+import jetbrains.exodus.core.dataStructures.hash.LongHashSet;
+import jetbrains.exodus.core.dataStructures.hash.LongSet;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.entitystore.iterate.*;
 import jetbrains.exodus.env.*;
@@ -32,7 +34,9 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -221,16 +225,6 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
         final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
         entityIterableCache.lockCacheAdapter();
         try {
-            if (!txn.isIdempotent()) {
-                var currentCache = entityIterableCache.getCacheAdapter();
-                //local cache out of sync so we need to revert tx
-                if (currentCache != localCache) {
-                    revert();
-                    logger.warn("EntityIterableCache is out of sync, reverting transaction", new Throwable());
-                    return false;
-                }
-            }
-
             if (txn.flush()) {
                 flushNonTransactionalBlobs();
                 flushCaches(false); // do not clear props & links caches
@@ -1035,10 +1029,27 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
 
         txn.setCommitHook(() -> {
             log.flushed();
+
             final EntityIterableCacheAdapterMutable cache = this.mutableCache;
             if (cache != null) { // mutableCache can be null if only blobs are modified
                 applyAtomicCaches(cache);
             }
+        });
+
+        txn.setTxValidationHook(() -> {
+            final EntityIterableCacheAdapterMutable cache = this.mutableCache;
+            if (cache != null) {
+                final EntityIterableCache entityIterableCache = store.getEntityIterableCache();
+                var currentCache = entityIterableCache.getCacheAdapter();
+                //local cache out of sync so we need to revert tx
+                //protected by adapter lock
+                if (currentCache != localCache) {
+                    revert();
+                    return false;
+                }
+            }
+
+            return true;
         });
     }
 
@@ -1145,10 +1156,12 @@ public class PersistentStoreTransaction implements StoreTransaction, TxnGetterSt
             it.endUpdate(PersistentStoreTransaction.this);
         }
         EntityIterableCacheAdapter oldCache = localCache;
-        if (!entityIterableCache.compareAndSetCacheAdapter(localCache, mutableCache.endWrite())) {
+        var newCache = mutableCache.endWrite();
+        if (!entityIterableCache.compareAndSetCacheAdapter(localCache, newCache)) {
             throw new EntityStoreException("This exception should never be thrown");
         }
         oldCache.release();
+        localCache = newCache;
     }
 
     private void applyExclusiveTransactionCaches() {

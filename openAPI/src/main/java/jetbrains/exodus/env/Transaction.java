@@ -18,6 +18,8 @@ package jetbrains.exodus.env;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.BooleanSupplier;
+
 /**
  * Transaction is required for any access to data in database. Any transaction holds a database snapshot (version
  * of the database), thus providing <a href="https://en.wikipedia.org/wiki/Snapshot_isolation">snapshot isolation</a>.
@@ -149,6 +151,8 @@ public interface Transaction {
      * @see #commit()
      */
     void setCommitHook(@Nullable Runnable hook);
+
+    void setTxValidationHook(@Nullable BooleanSupplier validationHook);
 
     /**
      * Time when the transaction acquired its database snapshot, i.e. time when it was started,
