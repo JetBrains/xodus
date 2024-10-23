@@ -473,7 +473,7 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
         return this
     }
 
-    override val isLoaded = vertex.isUnloaded
+    override val isLoaded = !vertex.isUnloaded
 
     protected open fun requireActiveWritableTransaction(): OStoreTransaction {
         return store.requireActiveWritableTransaction()
