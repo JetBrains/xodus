@@ -48,6 +48,8 @@ interface OStoreTransaction : StoreTransaction {
 
     fun bindToSession(vertex: OVertex):OVertex
 
+    fun bindToSession(entity: OVertexEntity): OVertexEntity
+
     fun query(sql: String, params: Map<String, Any>): OResultSet
 
     fun getOEntityId(entityId: PersistentEntityId): OEntityId
