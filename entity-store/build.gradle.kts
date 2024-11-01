@@ -1,6 +1,6 @@
 dependencies {
     api(project(":xodus-openAPI"))
-    api("com.orientechnologies:orientdb-core:4.0.0-20241018.050240-139")
+    api("com.orientechnologies:orientdb-core:4.0.0-20241101.115427-175")
 
     implementation(project(":xodus-utils"))
     implementation(project(":xodus-environment"))

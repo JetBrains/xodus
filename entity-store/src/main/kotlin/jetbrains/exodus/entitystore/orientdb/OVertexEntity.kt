@@ -41,7 +41,7 @@ import java.io.File
 import java.io.InputStream
 import kotlin.jvm.optionals.getOrNull
 
-open class OVertexEntity(internal val vertex: OVertex, private val store: OEntityStore) : OEntity {
+open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEntity {
 
     companion object : KLogging() {
         const val EDGE_CLASS_SUFFIX = "_link"
@@ -58,7 +58,12 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
 
         const val LOCAL_ENTITY_ID_PROPERTY_NAME = "localEntityId"
         val IGNORED_PROPERTY_NAMES = setOf(LOCAL_ENTITY_ID_PROPERTY_NAME)
-        val IGNORED_SUFFIXES = setOf(LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX, BLOB_SIZE_PROPERTY_NAME_SUFFIX, STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX)
+        val IGNORED_SUFFIXES = setOf(
+            LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX,
+            BLOB_SIZE_PROPERTY_NAME_SUFFIX,
+            STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX
+        )
+
         fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
 
         fun edgeClassName(className: String): String {
@@ -72,6 +77,22 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
             return "$linkName$LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX"
         }
     }
+
+    private var vertexRecord: OVertex
+
+    init {
+        vertexRecord = vertex
+    }
+
+    val vertex: OVertex
+        get() {
+            if (vertexRecord.isUnloaded) {
+                val session = store.requireActiveTransaction()
+                vertexRecord = session.bindToSession(vertexRecord)
+            }
+
+            return vertexRecord
+        }
 
     private var oEntityId = ORIDEntityId.fromVertex(vertex)
 
@@ -433,7 +454,13 @@ open class OVertexEntity(internal val vertex: OVertex, private val store: OEntit
             getLinks(linkNames.first())
         } else {
             linkNames.drop(1)
-                .fold(OLinksFromEntityIterable(tx, linkNames.first(), this.oEntityId) as EntityIterable) { res, edgeName ->
+                .fold(
+                    OLinksFromEntityIterable(
+                        tx,
+                        linkNames.first(),
+                        this.oEntityId
+                    ) as EntityIterable
+                ) { res, edgeName ->
                     res.union(OLinksFromEntityIterable(tx, edgeName, this.oEntityId))
                 }
         }
@@ -504,7 +531,7 @@ fun OVertex.requireLocalEntityId(): Long {
         ?: throw IllegalStateException("localEntityId not found for the vertex")
 }
 
-fun OVertexEntity.asReadonly():OReadonlyVertexEntity {
+fun OVertexEntity.asReadonly(): OReadonlyVertexEntity {
     return OReadonlyVertexEntity(vertex, store as OPersistentEntityStore)
 }
 

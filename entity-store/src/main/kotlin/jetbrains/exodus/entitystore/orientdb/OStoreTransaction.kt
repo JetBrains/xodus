@@ -46,6 +46,8 @@ interface OStoreTransaction : StoreTransaction {
 
     fun generateEntityId(entityType: String, vertex: OVertex)
 
+    fun bindToSession(vertex: OVertex):OVertex
+
     fun query(sql: String, params: Map<String, Any>): OResultSet
 
     fun getOEntityId(entityId: PersistentEntityId): OEntityId

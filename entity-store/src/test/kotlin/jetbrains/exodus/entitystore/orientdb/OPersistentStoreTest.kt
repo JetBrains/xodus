@@ -157,7 +157,7 @@ class OPersistentStoreTest: OTestMixin {
         val aId = orientDb.createIssue("A").id
 
         // delete the issue
-        orientDb.withSession { oSession ->
+        orientDb.withTxSession { oSession ->
             oSession.delete(aId.asOId())
         }
 

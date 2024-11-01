@@ -162,6 +162,12 @@ class OStoreTransactionImpl(
         }
     }
 
+    override fun bindToSession(vertex: OVertex) : OVertex{
+        requireActiveTransaction()
+
+        return session.bindToSession(vertex)
+    }
+
     override fun revert() {
         requireActiveTransaction()
         try {
