@@ -94,6 +94,9 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             return vertexRecord
         }
 
+    val isUnloaded: Boolean
+        get() = vertexRecord.isUnloaded
+
     private var oEntityId = ORIDEntityId.fromVertex(vertex)
 
     override fun getStore() = store

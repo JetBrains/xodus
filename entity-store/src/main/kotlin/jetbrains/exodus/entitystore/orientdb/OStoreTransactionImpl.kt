@@ -61,7 +61,7 @@ class OStoreTransactionImpl(
     }
 
     override fun <T> getRecord(id: OEntityId): T?
-    where T: ORecord {
+            where T : ORecord {
         requireActiveTransaction()
         return session.getRecord(id.asOId())
     }
@@ -162,10 +162,20 @@ class OStoreTransactionImpl(
         }
     }
 
-    override fun bindToSession(vertex: OVertex) : OVertex{
+    override fun bindToSession(vertex: OVertex): OVertex {
         requireActiveTransaction()
 
         return session.bindToSession(vertex)
+    }
+
+    override fun bindToSession(entity: OVertexEntity): OVertexEntity {
+        requireActiveTransaction()
+
+        if (entity.isUnloaded) {
+            return OVertexEntity(bindToSession(entity.vertex), store)
+        }
+
+        return entity
     }
 
     override fun revert() {
