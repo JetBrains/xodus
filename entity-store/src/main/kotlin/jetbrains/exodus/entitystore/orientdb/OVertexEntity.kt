@@ -79,9 +79,18 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
     }
 
     private var vertexRecord: OVertex
+    private var oEntityId: ORIDEntityId
 
     init {
-        vertexRecord = vertex
+        val v = if (vertex.isUnloaded) {
+            val session = store.requireActiveTransaction()
+            session.bindToSession(vertex)
+        } else {
+            vertex
+        }
+
+        oEntityId = ORIDEntityId.fromVertex(v)
+        vertexRecord = v
     }
 
     val vertex: OVertex
@@ -97,7 +106,6 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
     val isUnloaded: Boolean
         get() = vertexRecord.isUnloaded
 
-    private var oEntityId = ORIDEntityId.fromVertex(vertex)
 
     override fun getStore() = store
 
