@@ -122,18 +122,18 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
     }
 
     override fun resetToNew() {
-        val clusterId = vertex.identity.clusterId
+        val clusterId = vertexRecord.identity.clusterId
 
-        vertex.identity.reset()
-        vertex.resetToNew()
+        vertexRecord.identity.reset()
+        vertexRecord.resetToNew()
 
-        (vertex.identity as ORecordId).clusterId = clusterId
+        (vertexRecord.identity as ORecordId).clusterId = clusterId
     }
 
     override fun generateId() {
         val type = oEntityId.getTypeName()
-        store.requireActiveTransaction().generateEntityId(type, vertex)
-        oEntityId = ORIDEntityId.fromVertex(vertex)
+        store.requireActiveTransaction().generateEntityId(type, vertexRecord)
+        oEntityId = ORIDEntityId.fromVertex(vertexRecord)
     }
 
     private fun requireActiveTx(): OStoreTransaction {
