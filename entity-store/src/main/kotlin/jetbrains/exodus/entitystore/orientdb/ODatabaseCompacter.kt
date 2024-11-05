@@ -16,7 +16,8 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.command.OCommandOutputListener
-import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.tool.ODatabaseExport
 import com.orientechnologies.orient.core.db.tool.ODatabaseImport
@@ -39,7 +40,7 @@ class ODatabaseCompacter(
 
         dbProvider.withSession { session ->
             val exporter = ODatabaseExport(
-                session as ODatabaseDocumentInternal,
+                session as ODatabaseSessionInternal,
                 backupFile.outputStream(),
                 listener
             )
@@ -55,7 +56,7 @@ class ODatabaseCompacter(
         dbProvider.withSession { session ->
             logger.info("Importing database from dump")
             val importer = ODatabaseImport(
-                session as ODatabaseDocumentInternal,
+                session as ODatabaseSessionInternal,
                 backupFile.inputStream(),
                 listener
             )

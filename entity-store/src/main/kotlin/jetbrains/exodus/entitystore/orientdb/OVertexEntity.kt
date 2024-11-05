@@ -22,6 +22,7 @@ import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OEdge
+import com.orientechnologies.orient.core.record.ORecordAbstract
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.record.impl.ORecordBytes
 import jetbrains.exodus.ByteIterable
@@ -125,9 +126,11 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         val clusterId = vertexRecord.identity.clusterId
 
         vertexRecord.identity.reset()
-        vertexRecord.resetToNew()
 
-        (vertexRecord.identity as ORecordId).clusterId = clusterId
+        (vertexRecord as ORecordAbstract).also {
+            resetToNew()
+            (it.identity as ORecordId).clusterId = clusterId
+        }
     }
 
     override fun generateId() {
