@@ -29,7 +29,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class OModelMetaDataTest: OTestMixin {
+class OModelMetaDataTest : OTestMixin {
     @Rule
     @JvmField
     val orientDbRule = InMemoryOrientDB(initializeIssueSchema = false)
@@ -123,9 +123,21 @@ class OModelMetaDataTest: OTestMixin {
             }
             assertFailsWith<AssertionError> {
                 model.addAssociation(
-                    "type2", "type1", AssociationType.Directed, "ass1", AssociationEndCardinality._1,
-                    false, false, false, false, null,
-                    null, false, false, false, false
+                    "type2",
+                    "type1",
+                    AssociationType.Directed,
+                    "ass1",
+                    AssociationEndCardinality._1,
+                    false,
+                    false,
+                    false,
+                    false,
+                    null,
+                    null,
+                    false,
+                    false,
+                    false,
+                    false
                 )
             }
             assertFailsWith<AssertionError> {
@@ -168,9 +180,10 @@ class OModelMetaDataTest: OTestMixin {
 
     @Test
     fun `prepare() initializes the classId map`() {
-        val model = oModel(orientDb.provider, OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)) {
-            entity("type1")
-        }
+        val model =
+            oModel(orientDb.provider, OSchemaBuddyImpl(orientDb.provider, autoInitialize = false)) {
+                entity("type1")
+            }
 
         // We have not yet called prepare() for the model, autoInitialize is disabled
         orientDb.provider.acquireSession().use {
@@ -242,9 +255,9 @@ class OModelMetaDataTest: OTestMixin {
 
         // prepare() must have called initializeComplementaryPropertiesForNewIndexedLinks
         orientDb.withTxSession { session ->
-            val v11 = session.getRecord<OVertex>(id11)
-            val v12 = session.getRecord<OVertex>(id12)
-            val v21 = session.getRecord<OVertex>(id21)
+            val v11 = session.loadVertex(id11)
+            val v12 = session.loadVertex(id12)
+            val v21 = session.loadVertex(id21)
 
             val bag11 = v11.getTargetLocalEntityIds("ass1")
             val bag21 = v21.getTargetLocalEntityIds("ass2")

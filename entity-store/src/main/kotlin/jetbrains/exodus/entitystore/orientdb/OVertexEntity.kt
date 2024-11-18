@@ -22,12 +22,14 @@ import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.record.ODirection
 import com.orientechnologies.orient.core.record.OEdge
+import com.orientechnologies.orient.core.record.ORecordAbstract
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.record.impl.ORecordBytes
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.entitystore.Entity
 import jetbrains.exodus.entitystore.EntityId
 import jetbrains.exodus.entitystore.EntityIterable
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.LOCAL_ENTITY_ID_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.linkTargetEntityIdPropertyName
@@ -48,8 +50,11 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         private const val LINK_TARGET_ENTITY_ID_PROPERTY_NAME_SUFFIX = "_targetEntityId"
         private const val BLOB_SIZE_PROPERTY_NAME_SUFFIX = "_blob_size"
         private const val STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX = "_string_blob_hash"
-        fun blobSizeProperty(propertyName: String) = "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
-        fun blobHashProperty(propertyName: String) = "\$$propertyName$STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX"
+        fun blobSizeProperty(propertyName: String) =
+            "\$$propertyName$BLOB_SIZE_PROPERTY_NAME_SUFFIX"
+
+        fun blobHashProperty(propertyName: String) =
+            "\$$propertyName$STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX"
 
         // Backward compatible EntityId
 
@@ -64,7 +69,8 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
             STRING_BLOB_HASH_PROPERTY_NAME_SUFFIX
         )
 
-        fun localEntityIdSequenceName(className: String): String = "${className}_sequence_localEntityId"
+        fun localEntityIdSequenceName(className: String): String =
+            "${className}_sequence_localEntityId"
 
         fun edgeClassName(className: String): String {
             // YouTrack has fancy link names like '__CUSTOM_FIELD__Country/Region_227'. OrientDB does not like symbols
@@ -125,9 +131,11 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         val clusterId = vertexRecord.identity.clusterId
 
         vertexRecord.identity.reset()
-        vertexRecord.resetToNew()
 
-        (vertexRecord.identity as ORecordId).clusterId = clusterId
+        (vertexRecord as ORecordAbstract).also {
+            resetToNew()
+            (it.identity as ORecordId).clusterId = clusterId
+        }
     }
 
     override fun generateId() {
@@ -301,8 +309,12 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         if (targetOId == ORIDEntityId.EMPTY_ID) {
             return false
         }
-        val target = currentTx.getRecord<OVertex>(targetOId) ?: return false
-        return currentTx.addLinkImpl(linkName, target)
+        try {
+            val target = currentTx.getRecord<OVertex>(targetOId)
+            return currentTx.addLinkImpl(linkName, target)
+        } catch (e: EntityRemovedInDatabaseException) {
+            return false
+        }
     }
 
     private fun OStoreTransaction.addLinkImpl(linkName: String, target: OVertex): Boolean {
@@ -323,9 +335,10 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         Well, during the data migration process, there are no any indices and
         skipping this findEdge(...) call is exactly what we need.
          */
-        val currentEdge: OEdge? = if (edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT)) {
-            findEdge(edgeClassName, target.identity)
-        } else null
+        val currentEdge: OEdge? =
+            if (edgeClass.areIndexed(OEdge.DIRECTION_IN, OEdge.DIRECTION_OUT)) {
+                findEdge(edgeClassName, target.identity)
+            } else null
 
         if (currentEdge == null) {
             vertex.addEdge(target, edgeClassName)
@@ -419,8 +432,12 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         if (targetOId == ORIDEntityId.EMPTY_ID) {
             return false
         }
-        val target = currentTx.getRecord<OVertex>(targetOId) ?: return false
-        return currentTx.setLinkImpl(linkName, target)
+        try {
+            val target = currentTx.getRecord<OVertex>(targetOId)
+            return currentTx.setLinkImpl(linkName, target)
+        } catch (e: EntityRemovedInDatabaseException) {
+            return false
+        }
     }
 
     private fun OStoreTransaction.setLinkImpl(linkName: String, target: OVertex?): Boolean {
@@ -479,13 +496,15 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
 
     override fun getLinkNames(): List<String> {
         requireActiveTx()
-        return ArrayList(vertex.getEdgeNames(ODirection.OUT)
-            .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
-            .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
+        return ArrayList(
+            vertex.getEdgeNames(ODirection.OUT)
+                .filter { it.endsWith(EDGE_CLASS_SUFFIX) }
+                .map { it.substringBefore(EDGE_CLASS_SUFFIX) })
     }
 
     private fun OStoreTransaction.findEdge(edgeClassName: String, targetId: ORID): OEdge? {
-        val query = "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
+        val query =
+            "SELECT FROM $edgeClassName WHERE ${OEdge.DIRECTION_OUT} = :outId AND ${OEdge.DIRECTION_IN} = :inId"
         val result = query(query, mapOf("outId" to vertex.identity, "inId" to targetId))
         val foundEdge = result.edgeStream().findFirst()
         return foundEdge.getOrNull()

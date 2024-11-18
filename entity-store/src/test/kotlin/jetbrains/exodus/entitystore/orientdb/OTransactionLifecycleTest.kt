@@ -16,11 +16,13 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.common.concur.lock.OModificationOperationProhibitedException
-import com.orientechnologies.orient.core.db.ODatabase.STATUS
-import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
+import com.orientechnologies.orient.core.db.ODatabaseSession.STATUS
+import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
 import com.orientechnologies.orient.core.exception.ODatabaseException
+import com.orientechnologies.orient.core.exception.ORecordNotFoundException
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.ORecord
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.orientechnologies.orient.core.tx.OTransaction.TXSTATUS
@@ -28,6 +30,7 @@ import com.orientechnologies.orient.core.tx.OTransactionNoTx
 import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import jetbrains.exodus.entitystore.orientdb.testutil.OTestMixin
 import junit.framework.TestCase.assertFalse
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.*
@@ -63,7 +66,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `open, begin, commit, close - no changes`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
 
         assertFalse(session.transaction == null)
         assertEquals(STATUS.OPEN, session.status)
@@ -86,7 +89,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `open, begin, commit, close - changes`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
         val oClass = session.getOrCreateVertexClass("trista")
 
         assertFalse(session.transaction == null)
@@ -105,7 +108,7 @@ class OTransactionLifecycleTest : OTestMixin {
         assertTrue(session.isActiveOnCurrentThread)
 
         session.begin()
-        assertNotNull(session.getRecord(trista.identity))
+        session.load<ORecord>(trista.identity)
         session.commit()
 
         session.close()
@@ -115,7 +118,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `open, begin, rollback, close - no changes`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
 
         assertFalse(session.transaction == null)
 
@@ -136,7 +139,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `open, begin, rollback, close - changes`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
         val oClass = session.getOrCreateVertexClass("trista")
 
         assertFalse(session.transaction == null)
@@ -155,7 +158,13 @@ class OTransactionLifecycleTest : OTestMixin {
         assertTrue(session.isActiveOnCurrentThread)
 
         session.begin()
-        assertNull(session.getRecord(trista.identity))
+        try {
+            session.load<ORecord>(trista.identity)
+            Assert.fail()
+        } catch (e: ORecordNotFoundException) {
+            // expected
+        }
+
         session.commit()
 
         session.close()
@@ -195,7 +204,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `rollback() does NOT throw an exception if there is no active transaction`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
 
         assertFalse(session.hasActiveTransaction())
 
@@ -220,7 +229,7 @@ class OTransactionLifecycleTest : OTestMixin {
 
     @Test
     fun `if commit() fails, changes get rolled back`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
         val oClass = session.getOrCreateVertexClass("trista")
         oClass.createProperty("name", OType.STRING)
         oClass.createIndex("idx_name", OClass.INDEX_TYPE.UNIQUE, "name")
@@ -243,15 +252,26 @@ class OTransactionLifecycleTest : OTestMixin {
         assertTrue(session.isActiveOnCurrentThread)
 
         session.begin()
-        assertNull(session.getRecord<OVertex>(trista1.identity))
-        assertNull(session.getRecord<OVertex>(trista2.identity))
+        try {
+            session.load<ORecord>(trista1.identity)
+            Assert.fail()
+        } catch (_: ORecordNotFoundException) {
+
+        }
+
+        try {
+            session.load<ORecord>(trista2.identity)
+            Assert.fail()
+        } catch (_: ORecordNotFoundException) {
+
+        }
         session.commit()
         session.close()
     }
 
     @Test
     fun `embedded transactions successful case`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
         session.getOrCreateVertexClass("trista")
         assertEquals(TXSTATUS.INVALID, session.transaction.status)
         assertEquals(0, session.transaction.amountOfNestedTxs())
@@ -296,15 +316,15 @@ class OTransactionLifecycleTest : OTestMixin {
 
         session.begin()
         assertNotEquals(tx1, session.transaction)
-        assertNotNull(session.getRecord<OVertex>(trista1.identity))
-        assertNotNull(session.getRecord<OVertex>(trista2.identity))
+        session.load<OVertex>(trista1.identity)
+        session.load<OVertex>(trista2.identity)
         session.commit()
         session.close()
     }
 
     @Test
     fun `rollback(force = true) on an embedded transaction rolls back all the transactions`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
         session.getOrCreateVertexClass("trista")
 
         session.begin() // tx1
@@ -325,21 +345,31 @@ class OTransactionLifecycleTest : OTestMixin {
         trista2.setProperty("name", "sth")
         trista2.save<OVertex>()
 
-        (session as ODatabaseDocumentInternal).rollback(true)
+        session.rollback(true)
 
         assertEquals(TXSTATUS.INVALID, session.transaction.status)
         assertEquals(0, session.transaction.amountOfNestedTxs())
 
         session.begin()
-        assertNull(session.getRecord<OVertex>(trista1.identity))
-        assertNull(session.getRecord<OVertex>(trista2.identity))
+        try {
+            session.loadVertex(trista1.identity)
+            Assert.fail()
+        } catch (e: ORecordNotFoundException) {
+            // expected
+        }
+        try {
+            session.loadVertex(trista2.identity)
+            Assert.fail()
+        } catch (e: ORecordNotFoundException) {
+            // expected
+        }
         session.commit()
         session.close()
     }
 
     @Test
     fun `rollback() on an embedded transaction decreases amountOfNestedTxs by 1`() {
-        val session = orientDb.openSession()
+        val session = orientDb.openSession() as ODatabaseSessionInternal
         session.getOrCreateVertexClass("trista")
 
         session.begin() // tx1
@@ -371,8 +401,18 @@ class OTransactionLifecycleTest : OTestMixin {
         assertEquals(0, session.transaction.amountOfNestedTxs())
 
         session.begin()
-        assertNull(session.getRecord<OVertex>(trista1.identity))
-        assertNull(session.getRecord<OVertex>(trista2.identity))
+        try {
+            session.loadVertex(trista1.identity)
+            Assert.fail()
+        } catch (e: ORecordNotFoundException) {
+            // expected
+        }
+        try {
+            session.loadVertex(trista2.identity)
+            Assert.fail()
+        } catch (e: ORecordNotFoundException) {
+            // expected
+        }
         session.commit()
         session.close()
     }
@@ -403,8 +443,19 @@ class OTransactionLifecycleTest : OTestMixin {
         assertFalse(session.hasActiveTransaction())
 
         session.begin()
-        assertNull(session.getRecord<OVertex>(trista1.identity))
-        assertNull(session.getRecord<OVertex>(trista2.identity))
+        try {
+            session.load<ORecord>(trista1.identity)
+            Assert.fail()
+        } catch (e: ORecordNotFoundException) {
+            // expected
+        }
+
+        try {
+            session.load<ORecord>(trista2.identity)
+            Assert.fail()
+        } catch (e: ORecordNotFoundException) {
+            // expected
+        }
         session.commit()
         session.close()
     }

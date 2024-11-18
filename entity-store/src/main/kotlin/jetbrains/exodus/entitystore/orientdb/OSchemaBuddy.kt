@@ -118,7 +118,9 @@ class OSchemaBuddyImpl(
 
     override fun updateSequence(session: ODatabaseSession, sequenceName: String, currentValue: Long) {
         session.executeInASeparateSessionIfCurrentHasTransaction(dbProvider) { sessionToWork ->
+            sessionToWork.begin()
             getSequence(sessionToWork, sequenceName).updateParams(CreateParams().setCurrentValue(currentValue))
+            sessionToWork.commit()
         }
     }
 

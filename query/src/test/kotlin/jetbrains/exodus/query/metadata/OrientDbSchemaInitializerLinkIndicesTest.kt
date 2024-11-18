@@ -25,6 +25,7 @@ import jetbrains.exodus.entitystore.orientdb.testutil.InMemoryOrientDB
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import kotlin.streams.toList
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -50,7 +51,10 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             entity("type1") {
                 property("prop1", "int")
                 index(IndexedField("indexedAss1", isProperty = false))
-                index(IndexedField("prop1", isProperty = true), IndexedField("indexedAss2", isProperty = false))
+                index(
+                    IndexedField("prop1", isProperty = true),
+                    IndexedField("indexedAss2", isProperty = false)
+                )
             }
             association("type1", "indexedAss1", "type2", AssociationEndCardinality._0_n)
             association("type1", "indexedAss2", "type2", AssociationEndCardinality._0_n)
@@ -128,9 +132,9 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         }
 
         orientDb.withTxSession { session ->
-            val v11 = session.getRecord<OVertex>(id11)
-            val v12 = session.getRecord<OVertex>(id12)
-            val v21 = session.getRecord<OVertex>(id21)
+            val v11 = session.loadVertex(id11)
+            val v12 = session.loadVertex(id12)
+            val v21 = session.loadVertex(id21)
 
             val bag11 = v11.getTargetLocalEntityIds("ass1")
             val bag21 = v21.getTargetLocalEntityIds("ass2")
@@ -180,8 +184,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         // ({ v3 }) == ({ v3 })
         assertFailsWith<ORecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
-                val v1 = oSession.getRecord<OVertex>(id1)
-                val v3 = oSession.getRecord<OVertex>(id3)
+                val v1 = oSession.loadVertex(id1)
+                val v3 = oSession.loadVertex(id3)
 
                 v1.addIndexedEdge("ass1", v3)
             }
@@ -190,9 +194,9 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         // ({ v2, v3 }) == ({ v3 })
         assertFailsWith<ORecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
-                val v1 = oSession.getRecord<OVertex>(id1)
-                val v2 = oSession.getRecord<OVertex>(id2)
-                val v3 = oSession.getRecord<OVertex>(id3)
+                val v1 = oSession.loadVertex(id1)
+                val v2 = oSession.loadVertex(id2)
+                val v3 = oSession.loadVertex(id3)
 
                 v1.addIndexedEdge("ass1", v2)
                 v2.addIndexedEdge("ass1", v3)
@@ -201,9 +205,9 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
         // ({ v2 }) != ({ v3 })
         orientDb.withTxSession { oSession ->
-            val v1 = oSession.getRecord<OVertex>(id1)
-            val v2 = oSession.getRecord<OVertex>(id2)
-            val v3 = oSession.getRecord<OVertex>(id3)
+            val v1 = oSession.loadVertex(id1)
+            val v2 = oSession.loadVertex(id2)
+            val v3 = oSession.loadVertex(id3)
 
             v1.deleteIndexedEdge("ass1", v3)
             v2.addIndexedEdge("ass1", v3)
@@ -216,7 +220,10 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             entity("type2")
             entity("type1") {
                 property("prop1", "int")
-                index(IndexedField("prop1", isProperty = true), IndexedField("ass1", isProperty = false))
+                index(
+                    IndexedField("prop1", isProperty = true),
+                    IndexedField("ass1", isProperty = false)
+                )
             }
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
         }
@@ -269,8 +276,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         // (1, { v3 } ) == (1, { v3 } )
         assertFailsWith<ORecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
-                val v2 = oSession.getRecord<OVertex>(id2)
-                val v3 = oSession.getRecord<OVertex>(id3)
+                val v2 = oSession.loadVertex(id2)
+                val v3 = oSession.loadVertex(id3)
 
                 v2.addIndexedEdge("ass1", v3)
             }
@@ -278,8 +285,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
         // (1, { v2, v3 } ) != (1, no links)
         orientDb.withTxSession { oSession ->
-            val v1 = oSession.getRecord<OVertex>(id1)
-            val v2 = oSession.getRecord<OVertex>(id2)
+            val v1 = oSession.loadVertex(id1)
+            val v2 = oSession.loadVertex(id2)
 
             v1.addIndexedEdge("ass1", v2)
         }
@@ -287,8 +294,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
         // (1, { v2, v3 } ) == (1, { v3 } ), who could think...
         assertFailsWith<ORecordDuplicatedException> {
             orientDb.withTxSession { oSession ->
-                val v2 = oSession.getRecord<OVertex>(id2)
-                val v3 = oSession.getRecord<OVertex>(id3)
+                val v2 = oSession.loadVertex(id2)
+                val v3 = oSession.loadVertex(id3)
 
                 v2.addIndexedEdge("ass1", v3)
             }
@@ -301,7 +308,10 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             entity("type2")
             entity("type1") {
                 property("prop1", "int")
-                index(IndexedField("prop1", isProperty = true), IndexedField("ass1", isProperty = false))
+                index(
+                    IndexedField("prop1", isProperty = true),
+                    IndexedField("ass1", isProperty = false)
+                )
             }
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
         }
@@ -326,9 +336,9 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
         // (1, no links) != (1, { v3 })
         orientDb.withTxSession { oSession ->
-            val v1 = oSession.getRecord<OVertex>(id1)
-            val v2 = oSession.getRecord<OVertex>(id2)
-            val v3 = oSession.getRecord<OVertex>(id3)
+            val v1 = oSession.loadVertex(id1)
+            val v2 = oSession.loadVertex(id2)
+            val v3 = oSession.loadVertex(id3)
 
             v1.deleteIndexedEdge("ass1", v3)
             v2.addIndexedEdge("ass1", v3)
@@ -341,7 +351,10 @@ class OrientDbSchemaInitializerLinkIndicesTest {
             entity("type2")
             entity("type1") {
                 property("prop1", "int")
-                index(IndexedField("prop1", isProperty = true), IndexedField("ass1", isProperty = false))
+                index(
+                    IndexedField("prop1", isProperty = true),
+                    IndexedField("ass1", isProperty = false)
+                )
             }
             association("type1", "ass1", "type2", AssociationEndCardinality._0_n)
         }
@@ -453,7 +466,8 @@ class OrientDbSchemaInitializerLinkIndicesTest {
 
         orientDb.withTxSession { oSession ->
             val v1 =
-                oSession.query("select from type1").vertexStream().toList().first { it.getProperty<Int>("prop1") == 1 }
+                oSession.query("select from type1").vertexStream().toList()
+                    .first { it.getProperty<Int>("prop1") == 1 }
             val links: MutableIterable<OVertex> = v1.getVertices(ODirection.OUT, edgeClassName)
             assertEquals(1, links.count())
         }
