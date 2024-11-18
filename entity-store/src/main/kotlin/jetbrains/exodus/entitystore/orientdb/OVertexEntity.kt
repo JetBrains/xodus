@@ -133,7 +133,7 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
         vertexRecord.identity.reset()
 
         (vertexRecord as ORecordAbstract).also {
-            resetToNew()
+            it.resetToNew()
             (it.identity as ORecordId).clusterId = clusterId
         }
     }
