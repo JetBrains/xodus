@@ -157,9 +157,9 @@ class MigrateDataTest {
             }
 
             orientDb.withTxSession { session ->
-                val e1 = session.getRecord<OVertex>(id)
-                val blob = e1.getProperty<ORecordBytes>("blob1")
-                val gotBytes = blob.toStream()
+                val e1 = session.loadVertex(id)
+                val blob = e1.getBlobProperty("blob1")
+                val gotBytes = blob!!.toStream()
                 message.append(", got ${gotBytes.size} from the database")
                 if (!gotBytes.contentEquals(bytes)) {
                     brokenSizes.add(message.toString())
@@ -528,7 +528,7 @@ internal fun OVertexEntity.assertEquals(expected: Entity) {
 
 internal fun OVertexEntity.getTestId(): Int = getProperty("id") as Int
 
-internal fun OVertexDocument.getTestId(): Int = getProperty("id") as Int
+internal fun OVertexDocument.getTestId(): Int = getProperty<Int>("id") as Int
 
 internal fun StoreTransaction.createEntities(pile: PileOfEntities) {
     for (type in pile.types) {

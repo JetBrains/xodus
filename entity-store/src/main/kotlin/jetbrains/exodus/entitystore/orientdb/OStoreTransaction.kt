@@ -39,7 +39,7 @@ interface OStoreTransaction : StoreTransaction {
     fun activateOnCurrentThread()
 
 
-    fun <T> getRecord(id: OEntityId): T?
+    fun <T> getRecord(id: OEntityId): T
         where T: ORecord
 
     fun newEntity(entityType: String, localEntityId: Long): OVertexEntity

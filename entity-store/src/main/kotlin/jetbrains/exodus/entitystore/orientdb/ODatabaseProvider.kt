@@ -18,8 +18,6 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.tx.OTransaction
-import com.orientechnologies.orient.core.tx.OTransactionNoTx
 
 interface ODatabaseProvider {
     val databaseLocation: String
@@ -33,7 +31,10 @@ interface ODatabaseProvider {
      * Never use this method. If you use this method, make sure you 100% understand what happens,
      * and do not hesitate to invite people to review your code.
      */
-    fun <T> executeInASeparateSession(currentSession: ODatabaseSession, action: (ODatabaseSession) -> T): T
+    fun <T> executeInASeparateSession(
+        currentSession: ODatabaseSession,
+        action: (ODatabaseSession) -> T
+    ): T
 
     /**
      * Database-wise read-only mode.
@@ -68,16 +69,15 @@ fun <R> ODatabaseProvider.withCurrentOrNewSession(
 }
 
 internal fun ODatabaseSession.hasActiveTransaction(): Boolean {
-    return isActiveOnCurrentThread && transaction !is OTransactionNoTx
+    return isActiveOnCurrentThread && activeTxCount() > 0
 }
 
-internal fun ODatabaseSession.requireActiveTransaction(): OTransaction {
+internal fun ODatabaseSession.requireActiveTransaction() {
     require(hasActiveTransaction()) { "No active transaction is found. Happy debugging, pal!" }
-    return transaction
 }
 
 internal fun ODatabaseSession.requireNoActiveTransaction() {
-    assert(isActiveOnCurrentThread && transaction is OTransactionNoTx) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
+    assert(isActiveOnCurrentThread && activeTxCount() == 0) { "Active transaction is detected. Changes in the schema must not happen in a transaction." }
 }
 
 internal fun requireNoActiveSession() {

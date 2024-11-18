@@ -17,8 +17,10 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.google.common.truth.Truth.assertThat
 import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
 import com.orientechnologies.orient.core.exception.ODatabaseException
 import com.orientechnologies.orient.core.record.ODirection
+import com.orientechnologies.orient.core.record.ORecord
 import com.orientechnologies.orient.core.record.OVertex
 import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
@@ -34,7 +36,6 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
 
 class OStoreTransactionTest : OTestMixin {
 
@@ -82,10 +83,20 @@ class OStoreTransactionTest : OTestMixin {
         }
 
         withStoreTx {
-            Assert.assertEquals(1, it.findLinks(Boards.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size())
-            Assert.assertEquals(1, it.findLinks(Projects.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size())
-            Assert.assertEquals(2,
-                test.issue1.vertex.getEdges(ODirection.IN, OVertexEntity.edgeClassName(Boards.Links.HAS_ISSUE))
+            Assert.assertEquals(
+                1,
+                it.findLinks(Boards.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size()
+            )
+            Assert.assertEquals(
+                1,
+                it.findLinks(Projects.CLASS, test.issue1, Boards.Links.HAS_ISSUE).size()
+            )
+            Assert.assertEquals(
+                2,
+                test.issue1.vertex.getEdges(
+                    ODirection.IN,
+                    OVertexEntity.edgeClassName(Boards.Links.HAS_ISSUE)
+                )
                     .toList().size
             )
         }
@@ -355,8 +366,10 @@ class OStoreTransactionTest : OTestMixin {
         // When
         withStoreTx { tx ->
             // Find all issues that in project1 or project2
-            val issuesInProject1 = tx.findLinks(Issues.CLASS, testCase.project1, Issues.Links.IN_PROJECT)
-            val issuesInProject2 = tx.findLinks(Issues.CLASS, testCase.project2, Issues.Links.IN_PROJECT)
+            val issuesInProject1 =
+                tx.findLinks(Issues.CLASS, testCase.project1, Issues.Links.IN_PROJECT)
+            val issuesInProject2 =
+                tx.findLinks(Issues.CLASS, testCase.project2, Issues.Links.IN_PROJECT)
             val issues = issuesInProject1.union(issuesInProject2)
 
             // Then
@@ -694,10 +707,16 @@ class OStoreTransactionTest : OTestMixin {
         }
 
         withStoreTx { tx ->
-            val boards = OEntityOfTypeIterable(tx, Issues.CLASS).selectManyDistinct(Issues.Links.ON_BOARD).toList()
+            val boards =
+                OEntityOfTypeIterable(tx, Issues.CLASS).selectManyDistinct(Issues.Links.ON_BOARD)
+                    .toList()
             //selectManyDistinct
             Assert.assertEquals(2, boards.size)
-            Assert.assertEquals("Should not contain nulls", 0, boards.filter { board -> board == null }.size)
+            Assert.assertEquals(
+                "Should not contain nulls",
+                0,
+                boards.filter { board -> board == null }.size
+            )
         }
     }
 
@@ -732,7 +751,8 @@ class OStoreTransactionTest : OTestMixin {
     @Test
     fun `transactionId does not get changed on flush()`() {
         withStoreTx { tx ->
-            val oTransactionId = ODatabaseSession.getActiveSession().transaction.id.toLong()
+            val oTransactionId =
+                (ODatabaseSession.getActiveSession() as ODatabaseSessionInternal).transaction.id.toLong()
             assertEquals(oTransactionId, tx.getTransactionId())
             tx.flush()
             assertEquals(oTransactionId, tx.getTransactionId())
@@ -802,7 +822,7 @@ class OStoreTransactionTest : OTestMixin {
     }
 
     @Test
-    fun `getRecord()` () {
+    fun `getRecord()`() {
         val id = withStoreTx { tx ->
             val e1 = tx.createIssue("opca trista")
             e1.setProperty("mamba", "caramba")
@@ -817,7 +837,12 @@ class OStoreTransactionTest : OTestMixin {
         }
 
         withStoreTx { tx ->
-            assertNull(tx.getRecord(id))
+            try {
+                tx.getRecord<ORecord>(id)
+                Assert.fail()
+            } catch (e: EntityRemovedInDatabaseException) {
+                // expected
+            }
         }
     }
 }

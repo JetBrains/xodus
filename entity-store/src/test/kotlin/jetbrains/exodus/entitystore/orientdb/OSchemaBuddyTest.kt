@@ -143,7 +143,7 @@ class OSchemaBuddyTest: OTestMixin {
 
         // the changes made in the transaction are still there
         withSession { session ->
-            assertNotNull(session.getRecord<OVertex>(issId))
+            assertNotNull(session.loadVertex(issId))
         }
     }
 
