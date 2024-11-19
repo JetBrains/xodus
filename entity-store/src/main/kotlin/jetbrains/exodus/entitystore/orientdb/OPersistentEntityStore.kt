@@ -38,9 +38,7 @@ class OPersistentEntityStore(
     override fun close() {
         //or it should be closed independently
         currentTransaction.get()?.abort()
-
         currentTransaction.remove()
-        databaseProvider.close()
     }
 
     override fun getName() = name
