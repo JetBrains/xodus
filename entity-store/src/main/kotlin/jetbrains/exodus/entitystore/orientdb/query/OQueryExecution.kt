@@ -31,7 +31,7 @@ object OQueryExecution : KLogging() {
             val executionPlan = resultSet.executionPlan.get().prettyPrint(10, 8)
             "Query: $sqlQuery, \n execution plan:\n  $executionPlan, \n stats: ${resultSet.queryStats}"
         }
-
+        tx.bindResultSet(resultSet)
         return resultSet
     }
 }

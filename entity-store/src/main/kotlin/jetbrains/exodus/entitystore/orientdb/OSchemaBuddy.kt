@@ -22,6 +22,7 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence.CreateParam
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 import com.orientechnologies.orient.core.record.OVertex
 import com.orientechnologies.orient.core.sql.executor.OResultSet
+import jetbrains.exodus.entitystore.EntityRemovedInDatabaseException
 import jetbrains.exodus.entitystore.PersistentEntityId
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_CUSTOM_PROPERTY_NAME
 import jetbrains.exodus.entitystore.orientdb.OVertexEntity.Companion.CLASS_ID_SEQUENCE_NAME
@@ -38,6 +39,8 @@ interface OSchemaBuddy {
      * If the class has not been found, returns -1. It is how it was in the Classic Xodus.
      */
     fun getTypeId(session: ODatabaseSession, entityType: String): Int
+
+    fun getType(session: ODatabaseSession, entityTypeId: Int): String
 
     fun requireTypeExists(session: ODatabaseSession, entityType: String)
 
@@ -62,7 +65,7 @@ class OSchemaBuddyImpl(
         val INTERNAL_CLASS_NAMES = hashSetOf(OClass.VERTEX_CLASS_NAME)
     }
 
-    private val classIdToOClassId = ConcurrentHashMap<Int, Int>()
+    private val classIdToOClassId = ConcurrentHashMap<Int, Pair<Int, String>>()
 
     init {
         if (autoInitialize) {
@@ -76,7 +79,7 @@ class OSchemaBuddyImpl(
         session.createClassIdSequenceIfAbsent()
         for (oClass in session.metadata.schema.classes) {
             if (oClass.isVertexType && !INTERNAL_CLASS_NAMES.contains(oClass.name)) {
-                classIdToOClassId[oClass.requireClassId()] = oClass.defaultClusterId
+                classIdToOClassId[oClass.requireClassId()] = oClass.defaultClusterId to oClass.name
             }
         }
     }
@@ -130,7 +133,7 @@ class OSchemaBuddyImpl(
 
         val classId = entityId.typeId
         val localEntityId = entityId.localId
-        val oClassId = classIdToOClassId[classId] ?: return ORIDEntityId.EMPTY_ID
+        val oClassId = classIdToOClassId[classId]?.first ?: return ORIDEntityId.EMPTY_ID
         val schema = session.metadata.schema
         val oClass = schema.getClassByClusterId(oClassId) ?: return ORIDEntityId.EMPTY_ID
 
@@ -147,6 +150,17 @@ class OSchemaBuddyImpl(
 
     override fun getTypeId(session: ODatabaseSession, entityType: String): Int {
         return session.getClass(entityType)?.requireClassId() ?: -1
+    }
+
+    override fun getType(
+        session: ODatabaseSession,
+        entityTypeId: Int
+    ): String {
+        val (_, typeName) = classIdToOClassId.computeIfAbsent(entityTypeId) {
+            val oClass = session.schema.classes.find { oClass -> oClass.getCustom(CLASS_ID_CUSTOM_PROPERTY_NAME)?.toInt() == entityTypeId } ?: throw EntityRemovedInDatabaseException("Invalid type ID $entityTypeId")
+            oClass.requireClassId() to oClass.name
+        }
+        return typeName
     }
 
     override fun requireTypeExists(session: ODatabaseSession, entityType: String) {

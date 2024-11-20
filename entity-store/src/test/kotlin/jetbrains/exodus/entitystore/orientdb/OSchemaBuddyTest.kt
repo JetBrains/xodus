@@ -147,4 +147,16 @@ class OSchemaBuddyTest: OTestMixin {
         }
     }
 
+    @Test
+    fun `require both classId and localEntityId to create an instance`() {
+        val oClass = orientDb.provider.withSession { oSession ->
+            oSession.createVertexClassWithClassId("type1")
+        }
+        val typeID = oClass.requireClassId()
+        orientDb.provider.withSession { oSession ->
+            assertEquals("type1", orientDb.schemaBuddy.getType(oSession, typeID))
+        }
+
+    }
+
 }
