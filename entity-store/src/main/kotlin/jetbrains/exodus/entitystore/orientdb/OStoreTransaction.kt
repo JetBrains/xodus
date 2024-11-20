@@ -59,6 +59,11 @@ interface OStoreTransaction : StoreTransaction {
      */
     fun getTypeId(entityType: String): Int
 
+    /**
+     If the class has not been found, will throw EntityRemovedInDatabaseException with invalid type id
+     */
+    fun getType(entityTypeId: Int): String
+
     fun getOSequence(sequenceName: String): OSequence
 
     fun updateOSequence(sequenceName: String, currentValue: Long)
@@ -66,4 +71,6 @@ interface OStoreTransaction : StoreTransaction {
     fun renameOClass(oldName: String, newName: String)
 
     fun getOrCreateEdgeClass(linkName: String, outClassName: String, inClassName: String): OClass
+
+    fun bindResultSet(resultSet: OResultSet)
 }

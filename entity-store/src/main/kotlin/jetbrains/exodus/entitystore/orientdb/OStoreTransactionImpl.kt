@@ -30,6 +30,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.*
 import jetbrains.exodus.entitystore.orientdb.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
+import java.sql.ResultSet
 
 internal typealias TransactionEventHandler = (ODatabaseSession, OStoreTransaction) -> Unit
 
@@ -55,6 +56,8 @@ class OStoreTransactionImpl(
         requireActiveTransaction()
         (session as ODatabaseSessionInternal).transaction.id.toLong()
     }
+
+    private val resultSets: MutableCollection<OResultSet> = arrayListOf()
 
     override fun getTransactionId(): Long {
         return transactionIdImpl
@@ -195,6 +198,9 @@ class OStoreTransactionImpl(
 
     private fun cleanUpTxIfNeeded() {
         if (session.status == ODatabaseSession.STATUS.OPEN && session.activeTxCount() == 0) {
+            println("Closing ${resultSets.size} result sets")
+            resultSets.forEach(OResultSet::close)
+            resultSets.clear()
             onFinished(session, this)
         }
     }
@@ -490,4 +496,14 @@ class OStoreTransactionImpl(
         requireActiveTransaction()
         return schemaBuddy.getTypeId(session, entityType)
     }
+
+    override fun getType(entityTypeId: Int): String {
+        requireActiveTransaction()
+        return schemaBuddy.getType(session, entityTypeId)
+    }
+
+    override fun bindResultSet(resultSet: OResultSet) {
+        resultSets.add(resultSet)
+    }
+
 }

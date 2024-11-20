@@ -168,7 +168,8 @@ class OPersistentEntityStore(
     }
 
     override fun getEntityType(entityTypeId: Int): String {
-       TODO()
+        val currentTx = requireActiveTransaction()
+       return currentTx.getType(entityTypeId)
     }
 
     override fun renameEntityType(oldEntityTypeName: String, newEntityTypeName: String) {
