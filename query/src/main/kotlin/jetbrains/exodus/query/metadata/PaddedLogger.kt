@@ -1,3 +1,4 @@
+
 /*
  * Copyright ${inceptionYear} - ${year} ${owner}
  *
@@ -17,30 +18,42 @@ package jetbrains.exodus.query.metadata
 
 import mu.KLogger
 
-class PaddedLogger(
+interface PaddedLogger {
+    companion object {
+        //todo switch to configuration loading
+        private val VERBOSE_LOGGING get() = System.getProperty("jetbrains.xodus.oxigendb.verbose_schema_logging", "false").toBoolean()
+        fun logger(logger: KLogger): PaddedLogger = if (VERBOSE_LOGGING) PaddedLoggerImpl(logger) else DisabledPaddedLogger()
+    }
+    fun append(s: String)
+    fun appendLine(s: String)
+    fun updatePadding(paddingShift: Int)
+    fun flush()
+}
+
+class PaddedLoggerImpl(
     private val logger: KLogger
-) {
+) : PaddedLogger {
     private var paddingCount: Int = 0
     private val sb = StringBuilder()
 
     private var newLine: Boolean = false
 
-    fun append(s: String) {
+    override fun append(s: String) {
         addPaddingIfNewLine()
         sb.append(s)
     }
 
-    fun appendLine(s: String = "") {
+    override fun appendLine(s: String) {
         addPaddingIfNewLine()
         sb.appendLine(s)
         newLine = true
     }
 
-    fun updatePadding(paddingShift: Int) {
+    override fun updatePadding(paddingShift: Int) {
         paddingCount += paddingShift
     }
 
-    fun flush() {
+    override fun flush() {
         // trim last \n
         if (sb.isNotEmpty() && sb.last() == '\n') {
             sb.setLength(sb.length - 1)
@@ -63,4 +76,14 @@ fun PaddedLogger.withPadding(padding: Int = 4, code: () -> Unit) {
     updatePadding(padding)
     code()
     updatePadding(-padding)
+}
+
+class DisabledPaddedLogger : PaddedLogger {
+    override fun append(s: String) = Unit
+
+    override fun appendLine(s: String) = Unit
+
+    override fun updatePadding(paddingShift: Int) = Unit
+
+    override fun flush() = Unit
 }

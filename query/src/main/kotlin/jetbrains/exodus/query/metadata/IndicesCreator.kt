@@ -33,7 +33,7 @@ internal fun ODatabaseSession.applyIndices(indices: Map<String, Set<DeferredInde
 internal class IndicesCreator(
     private val indicesByOwnerVertexName: Map<String, Set<DeferredIndex>>
 ) {
-    private val logger = PaddedLogger(log)
+    private val logger = PaddedLogger.logger(log)
 
     fun createIndices(oSession: ODatabaseSession) {
         try {
