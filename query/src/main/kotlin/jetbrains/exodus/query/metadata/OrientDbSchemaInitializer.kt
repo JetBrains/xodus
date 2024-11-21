@@ -126,7 +126,7 @@ internal class OrientDbSchemaInitializer(
     private val indexForEverySimpleProperty: Boolean,
     private val applyLinkCardinality: Boolean
 ) {
-    private val paddedLogger = PaddedLogger(log)
+    private val paddedLogger = PaddedLogger.logger(log)
 
     private fun withPadding(code: () -> Unit) = paddedLogger.withPadding(4, code)
 
@@ -152,6 +152,7 @@ internal class OrientDbSchemaInitializer(
     }
 
     fun apply(): SchemaApplicationResult {
+        val start = System.currentTimeMillis()
         try {
             oSession.createClassIdSequenceIfAbsent()
 
@@ -221,6 +222,7 @@ internal class OrientDbSchemaInitializer(
             )
         } finally {
             paddedLogger.flush()
+            log.info("Schema initialization took ${System.currentTimeMillis() - start}ms")
         }
     }
 
