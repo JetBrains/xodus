@@ -30,7 +30,6 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.*
 import jetbrains.exodus.entitystore.orientdb.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
-import java.sql.ResultSet
 
 internal typealias TransactionEventHandler = (ODatabaseSession, OStoreTransaction) -> Unit
 
@@ -198,7 +197,6 @@ class OStoreTransactionImpl(
 
     private fun cleanUpTxIfNeeded() {
         if (session.status == ODatabaseSession.STATUS.OPEN && session.activeTxCount() == 0) {
-            println("Closing ${resultSets.size} result sets")
             resultSets.forEach(OResultSet::close)
             resultSets.clear()
             onFinished(session, this)
