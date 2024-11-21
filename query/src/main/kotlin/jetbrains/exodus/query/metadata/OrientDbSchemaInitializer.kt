@@ -585,8 +585,8 @@ internal class OrientDbSchemaInitializer(
                     if (indexForEverySimpleProperty) {
                         addIndex(simplePropertyIndex(name, propertyName))
                     }
-                    if (primitiveTypeName.lowercase() == "boolean"){
-                        oProperty.setDefaultValue("false")
+                    if (primitiveTypeName.lowercase() == "boolean" && oProperty.defaultValue == null){
+                        oProperty.defaultValue = "false"
                     }
                 }
 
