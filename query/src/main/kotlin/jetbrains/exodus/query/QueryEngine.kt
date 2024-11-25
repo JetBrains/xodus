@@ -49,16 +49,13 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
     open fun query(entityType: String, tree: NodeBase): EntityIterable = query(null, entityType, tree)
 
     open fun query(instance: Iterable<Entity>?, entityType: String, tree: NodeBase): EntityIterable {
-        return when (instance) {
-            null -> tree.instantiate(entityType, this, modelMetaData, NodeBase.InstantiateContext()) as EntityIterable
-            is EntityIterable -> {
-                if (tree is Sort){
+        return when {
+            modelMetaData != null && modelMetaData.getEntityMetaData(entityType) == null -> YTDBEntityIterableBase.EMPTY
+            instance == null -> tree.instantiate(entityType, this, modelMetaData, NodeBase.InstantiateContext()) as EntityIterable
+            instance is EntityIterable -> {
+                if (tree is Sort) {
                     val sorted = tree.applySort(entityType, instance, sortEngine!!)
-                    if (sorted !is EntityIterable){
-                        InMemoryEntityIterable(sorted, txn = persistentStore.andCheckCurrentTransaction, this)
-                    } else {
-                        sorted
-                    }
+                    sorted as? EntityIterable ?: InMemoryEntityIterable(sorted, txn = persistentStore.andCheckCurrentTransaction, this)
                 } else {
                     instance.intersect(
                         tree.instantiate(
@@ -202,7 +199,7 @@ open class QueryEngine(val modelMetaData: ModelMetaData?, val persistentStore: P
      */
     internal open fun inMemoryIntersect(left: Iterable<Entity>, right: Iterable<Entity>): Iterable<Entity> {
         val ids: EntityIdSet
-        val sequence: kotlin.sequences.Sequence<Entity>
+        val sequence: Sequence<Entity>
 
         val txn = persistentStore.andCheckCurrentTransaction
         if (left is YTDBEntityIterable) {

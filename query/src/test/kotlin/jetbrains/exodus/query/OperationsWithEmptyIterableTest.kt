@@ -20,6 +20,7 @@ import jetbrains.exodus.entitystore.youtrackdb.iterate.YTDBEntityOfTypeIterable
 import jetbrains.exodus.entitystore.youtrackdb.testutil.*
 import jetbrains.exodus.query.metadata.entity
 import jetbrains.exodus.query.metadata.oModel
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -51,6 +52,17 @@ class OperationsWithEmptyIterableTest : OTestMixin {
             assertEquals(users, users.minus(YTDBEntityIterableBase.EMPTY))
         }
     }
+
+    @Test
+    fun `query for non existent class should return empty YTDBEmpty`(){
+        val model = givenModel()
+        val engine = QueryEngine(model, youTrackDb.store)
+        withStoreTx {
+            val iterable = engine.queryGetAll("HAHAHA_NOSUCH_CLASS")
+            Assert.assertEquals(iterable.size(), 0)
+        }
+    }
+
 
     private fun givenModel() = oModel(youTrackDb.provider) {
         entity(BaseUser.CLASS)
