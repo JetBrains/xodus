@@ -26,10 +26,11 @@ class OPropertyContainsIterable(
     private val entityType: String,
     private val propertyName: String,
     private val value: String,
+    private val ignoreCase: Boolean
 ) : OEntityIterableBase(txn) {
 
     override fun query(): OSelect {
-        val condition = OContainsCondition(propertyName, value)
+        val condition = OContainsCondition(propertyName, value, ignoreCase)
         return OClassSelect(entityType, condition)
     }
 }

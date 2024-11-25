@@ -34,11 +34,16 @@ class OEqualCondition(
 class OContainsCondition(
     val field: String,
     val value: String,
+    val ignoreCase: Boolean,
 ) : OCondition {
 
     override fun sql(builder: SqlBuilder) {
-        val param = builder.addParam(field, value.lowercase())
-        builder.append(field).append(".toLowerCase()").append(" containsText :$param")
+        val param = if (ignoreCase){
+            builder.addParam(field, value.lowercase())
+        } else{
+            builder.addParam(field, value)
+        }
+        builder.append(field).let { builder -> if (ignoreCase) builder.append(".toLowerCase()") else builder }.append(" containsText :$param")
     }
 }
 
@@ -49,7 +54,7 @@ class OStartsWithCondition(
 
     override fun sql(builder: SqlBuilder) {
         val param = builder.addParam(field, "${value.lowercase()}%")
-        builder.append(field).append(".toLowerCase()").append(" like :$param")
+        builder.append(field).append(" like :$param")
     }
 }
 

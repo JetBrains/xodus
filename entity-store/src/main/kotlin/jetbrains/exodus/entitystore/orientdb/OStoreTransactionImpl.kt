@@ -291,7 +291,7 @@ class OStoreTransactionImpl(
         ignoreCase: Boolean
     ): EntityIterable {
         requireActiveTransaction()
-        return OPropertyContainsIterable(this, entityType, propertyName, value)
+        return OPropertyContainsIterable(this, entityType, propertyName, value, ignoreCase)
     }
 
     override fun findStartingWith(

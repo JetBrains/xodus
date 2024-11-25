@@ -123,10 +123,15 @@ class OQueryEngineTest(
         // When
         withStoreTx { tx ->
             val issues = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "YOU", true))
+            val issuesIgnoreCase = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "yOu", true))
+            val issuesIgnoreNotIgnoreCase = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "yOu", false))
             val empty = engine.query(iterableGetter(engine, tx), "Issue", PropertyContains("case", "not", true))
 
             // Then
             assertNamesExactly(issues, "issue2")
+            assertNamesExactly(issuesIgnoreCase, "issue2")
+            //this may be subject to change if we want to support exact case search
+            assertThat(issuesIgnoreNotIgnoreCase).isEmpty()
             assertThat(empty).isEmpty()
         }
     }
@@ -141,10 +146,12 @@ class OQueryEngineTest(
         // When
         withStoreTx { tx ->
             val issues = engine.query(iterableGetter(engine, tx), "Issue", PropertyStartsWith("case", "Find"))
+            val issuesOtherCase = engine.query(iterableGetter(engine, tx), "Issue", PropertyStartsWith("case", "find"))
             val empty = engine.query(iterableGetter(engine, tx), "Issue", PropertyStartsWith("case", "you"))
 
             // Then
             assertNamesExactly(issues, "issue2")
+            assertNamesExactly(issuesOtherCase, "issue2")
             assertThat(empty).isEmpty()
         }
     }
