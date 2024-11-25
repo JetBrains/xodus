@@ -15,12 +15,12 @@
  */
 package jetbrains.exodus.lucene2.codecs
 
-import org.apache.lucene.backward_codecs.lucene87.Lucene87Codec
 import org.apache.lucene.codecs.FilterCodec
 import org.apache.lucene.codecs.StoredFieldsFormat
 import org.apache.lucene.codecs.compressing.CompressionMode
 import org.apache.lucene.codecs.compressing.Compressor
 import org.apache.lucene.codecs.compressing.Decompressor
+import org.apache.lucene.codecs.lucene100.Lucene100Codec
 import org.apache.lucene.codecs.lucene90.compressing.Lucene90CompressingStoredFieldsFormat
 import org.apache.lucene.store.ByteBuffersDataInput
 import org.apache.lucene.store.DataInput
@@ -30,7 +30,7 @@ import org.apache.lucene.util.BytesRef
 /**
  * Lucene70Codec with no compression of stored fields.
  */
-class Lucene87CodecWithNoFieldCompression : FilterCodec("Lucene70CodecWithNoFieldCompression", Lucene87Codec()) {
+class Lucene87CodecWithNoFieldCompression : FilterCodec("Lucene70CodecWithNoFieldCompression", Lucene100Codec()) {
 
     private val flatFieldsFormat: StoredFieldsFormat =
         Lucene90CompressingStoredFieldsFormat(
