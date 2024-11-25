@@ -33,7 +33,6 @@ import jetbrains.exodus.log.SharedLogCache;
 import jetbrains.exodus.util.IOUtil;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.store.*;
-import org.apache.lucene.util.FutureObjects;
 import org.apache.lucene.util.IOUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -1244,8 +1243,8 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
         }
 
         @Override
-        public void readLELongs(long[] dst, int offset, int length) throws IOException {
-            FutureObjects.checkFromIndexSize(offset, length, dst.length);
+        public void readLongs(long[] dst, int offset, int length) throws IOException {
+            Objects.checkFromIndexSize(offset, length, dst.length);
 
             var pageOffset = (int) position & (pageSize - 1);
             var pageAddress = fileAddress + position - pageOffset;
@@ -1262,7 +1261,7 @@ public class XodusDirectory extends Directory implements CacheDataProvider {
 
                 movePosition(bytesNeeded);
             } else {
-                super.readLELongs(dst, offset, length);
+                super.readLongs(dst, offset, length);
             }
         }
 
