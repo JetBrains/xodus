@@ -33,7 +33,7 @@ dependencyResolutionManagement {
             version("commons-compress", "1.22")
             version("bouncyCastle", "1.70")
             version("commons-io", "2.11.0")
-            version("lucene", "8.10.0")
+            version("lucene", "10.0.0")
             version("fastutil", "8.5.12")
 
             version("commons-rng", "1.5")
@@ -78,7 +78,8 @@ dependencyResolutionManagement {
             library("bouncyCastle", "org.bouncycastle", "bcprov-jdk15on").versionRef("bouncyCastle")
 
             library("lucene-core", "org.apache.lucene", "lucene-core").versionRef("lucene")
-            library("lucene-analyzers-common", "org.apache.lucene", "lucene-analyzers-common").versionRef("lucene")
+            library("lucene-backward-codecs", "org.apache.lucene", "lucene-backward-codecs").versionRef("lucene")
+            library("lucene-analysis-common", "org.apache.lucene", "lucene-analysis-common").versionRef("lucene")
             library("lucene-queries", "org.apache.lucene", "lucene-queries").versionRef("lucene")
             library("lucene-queryparser", "org.apache.lucene", "lucene-queryparser").versionRef("lucene")
             library("lucene-test-framework", "org.apache.lucene", "lucene-test-framework").versionRef("lucene")
