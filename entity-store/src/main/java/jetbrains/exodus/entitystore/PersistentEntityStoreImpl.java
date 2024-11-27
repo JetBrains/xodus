@@ -23,6 +23,8 @@ import jetbrains.exodus.core.dataStructures.hash.HashMap;
 import jetbrains.exodus.core.dataStructures.hash.HashSet;
 import jetbrains.exodus.core.dataStructures.hash.IntHashMap;
 import jetbrains.exodus.core.dataStructures.hash.IntHashSet;
+import jetbrains.exodus.core.execution.JobProcessor;
+import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor;
 import jetbrains.exodus.crypto.EncryptedBlobVault;
 import jetbrains.exodus.crypto.StreamCipherProvider;
 import jetbrains.exodus.entitystore.PersistentStoreTransaction.TransactionType;
@@ -721,7 +723,13 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return result;
     }
 
-    @Override
+    /**
+     * Clears all the data in the {@code PersistentEntityStore}. It is safe to clear {@code PersistentEntityStore}
+     * with lots of parallel transactions. Make sure all {@linkplain java.io.InputStream} instances got from
+     * the {@linkplain #getBlobVault() blob vault} are closed.
+     *
+     * Don't use this method if the underlying {@linkplain Environment} is shared among different entity stores.
+     */
     public void clear() {
         environment.clear();
         allSequences.clear();
@@ -743,10 +751,16 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
     }
 
     @NotNull
-    @Override
     public PersistentEntityStoreConfig getConfig() {
         return config;
     }
+    /**
+     * Returns {@linkplain PersistentEntityStoreConfig} instance used during creation of the
+     * {@code PersistentEntityStore}. If no config was specified and no setting was mutated, then returned config has
+     * the same settings as {@linkplain PersistentEntityStoreConfig#DEFAULT}.
+     *
+     * @return {@linkplain PersistentEntityStoreConfig} instance
+     */
 
     @Override
     @NotNull
@@ -794,12 +808,14 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         }
     }
 
-    @Override
+
+    /**
+     * @return The number of available bytes on the partition where the database is located
+     */
     public long getUsableSpace() {
         return new File(location).getUsableSpace();
     }
 
-    @Override
     @NotNull
     public BlobVault getBlobVault() {
         return blobVault;
@@ -2365,20 +2381,37 @@ public class PersistentEntityStoreImpl implements PersistentEntityStore, FlushLo
         return new BlobFileLengthsIterable(txn, fromHandle);
     }
 
-    @Override
+    /**
+     * {@linkplain MultiThreadDelegatingJobProcessor Job processor} used by the {@code PersistentEntityStore} for
+     * background caching activities. Allows to indirectly estimate load of the {@code PersistentEntityStore}. E.g.,
+     * if it has numerous {@linkplain JobProcessor#pendingJobs() pending caching jobs} (say, thousands) then most
+     * likely caching doesn't work well and the {@code PersistentEntityStore} looks overloaded.
+     *
+     * @return job processor used for background caching activities
+     */
     @NotNull
     public EntityStoreSharedAsyncProcessor getAsyncProcessor() {
         return iterableCache.getProcessor();
     }
 
-    @Override
+    /**
+     * {@linkplain MultiThreadDelegatingJobProcessor Job processor} used by the {@code PersistentEntityStore} for
+     * background counts (inconsistent) caching activities. Allows to indirectly estimate load of the {@code PersistentEntityStore}. E.g.,
+     * if it has numerous {@linkplain JobProcessor#pendingJobs() pending caching jobs} (say, thousands) then most
+     * likely caching doesn't work well and the {@code PersistentEntityStore} looks overloaded.
+     *
+     * @return job processor used for background caching activities
+     */
     @NotNull
     public EntityStoreSharedAsyncProcessor getCountsAsyncProcessor() {
         return iterableCache.getCountsProcessor();
     }
 
+    /**
+     * @return statistics of this {@code PersistentEntityStore} instance
+     * @see PersistentEntityStoreConfig#GATHER_STATISTICS
+     */
     @NotNull
-    @Override
     public Statistics getStatistics() {
         return statistics;
     }

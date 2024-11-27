@@ -19,10 +19,7 @@ import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import jetbrains.exodus.backup.BackupStrategy
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.core.execution.MultiThreadDelegatingJobProcessor
 import jetbrains.exodus.entitystore.*
-import jetbrains.exodus.management.Statistics
-import java.io.File
 
 class OPersistentEntityStore(
     private val databaseProvider: ODatabaseProvider,
@@ -30,9 +27,6 @@ class OPersistentEntityStore(
     private val schemaBuddy: OSchemaBuddy = OSchemaBuddyImpl(databaseProvider)
 ) : PersistentEntityStore, OEntityStore {
 
-    private val config = PersistentEntityStoreConfig()
-    private val dummyJobProcessor = object : MultiThreadDelegatingJobProcessor("dummy", 1) {}
-    private val dummyStatistics = object : Statistics<Enum<*>>(arrayOf()) {}
     private val currentTransaction = ThreadLocal<OStoreTransaction>()
 
     override fun close() {
@@ -112,10 +106,6 @@ class OPersistentEntityStore(
         return object : BackupStrategy() {}
     }
 
-    override fun clear() {
-        throw IllegalStateException("Should not ever be called")
-    }
-
     override fun executeInTransaction(executable: StoreTransactionalExecutable) {
         computeInTransaction { tx ->
             executable.execute(tx)
@@ -147,8 +137,6 @@ class OPersistentEntityStore(
     override fun <T : Any?> computeInReadonlyTransaction(computable: StoreTransactionalComputable<T>) =
         computeInTransaction(computable)
 
-    override fun getBlobVault() = DummyBlobVault(config)
-
     override fun registerCustomPropertyType(
         txn: StoreTransaction,
         clazz: Class<out Comparable<Any?>>,
@@ -177,21 +165,10 @@ class OPersistentEntityStore(
         currentTx.renameOClass(oldEntityTypeName, newEntityTypeName)
     }
 
-    override fun getUsableSpace(): Long {
-        return File(location).usableSpace
-    }
-
-    override fun getConfig(): PersistentEntityStoreConfig = config
-
-    override fun getAsyncProcessor() = dummyJobProcessor
-
-    override fun getStatistics() = dummyStatistics
 
     override fun getAndCheckCurrentTransaction(): StoreTransaction {
         return requireActiveTransaction()
     }
-
-    override fun getCountsAsyncProcessor() = dummyJobProcessor
 
     override fun requireActiveTransaction(): OStoreTransaction {
         val tx = currentTransaction.get()
