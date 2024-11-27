@@ -546,7 +546,7 @@ public abstract class EntityIterableBase implements EntityIterable {
         }
         if (cached == null || cached.getHandle().isExpired()) {
             cached = createCachedInstance(txn);
-            if (canBeReordered() && !store.getConfig().isReorderingDisabled() && !cached.isSortedById()) {
+            if (canBeReordered() && !((PersistentEntityStoreImpl) store).getConfig().isReorderingDisabled() && !cached.isSortedById()) {
                 cached = cached.orderById();
             }
             if (canBeCached) {

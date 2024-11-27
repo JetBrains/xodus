@@ -40,15 +40,6 @@ import org.jetbrains.annotations.NotNull;
 public interface PersistentEntityStore extends EntityStore, Backupable {
 
     /**
-     * Clears all the data in the {@code PersistentEntityStore}. It is safe to clear {@code PersistentEntityStore}
-     * with lots of parallel transactions. Make sure all {@linkplain java.io.InputStream} instances got from
-     * the {@linkplain #getBlobVault() blob vault} are closed.
-     *
-     * Don't use this method if the underlying {@linkplain Environment} is shared among different entity stores.
-     */
-    void clear();
-
-    /**
      * Executes specified executable in a new {@linkplain StoreTransaction transaction}. If transaction cannot be
      * flushed after {@linkplain StoreTransactionalExecutable#execute(StoreTransaction)} is called, the executable
      * is executed once more until the transaction is finally flushed.
@@ -111,12 +102,6 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
     <T> T computeInReadonlyTransaction(@NotNull StoreTransactionalComputable<T> computable);
 
     /**
-     * @return {@linkplain BlobVault} which is used for managing blobs
-     */
-    @NotNull
-    BlobVault getBlobVault();
-
-    /**
      * Registers custom property type extending {@linkplain Comparable}. Values of specified {@code clazz} can be
      * passed then to {@linkplain Entity#setProperty(String, Comparable)}. {@code ComparableBinding} describes the
      * way property values are serialized/deserialized to/from raw presentation as
@@ -169,50 +154,6 @@ public interface PersistentEntityStore extends EntityStore, Backupable {
      * @param newEntityTypeName new entity type name
      */
     void renameEntityType(@NotNull String oldEntityTypeName, @NotNull String newEntityTypeName);
-
-    /**
-     * @return The number of available bytes on the partition where the database is located
-     */
-    long getUsableSpace();
-
-    /**
-     * Returns {@linkplain PersistentEntityStoreConfig} instance used during creation of the
-     * {@code PersistentEntityStore}. If no config was specified and no setting was mutated, then returned config has
-     * the same settings as {@linkplain PersistentEntityStoreConfig#DEFAULT}.
-     *
-     * @return {@linkplain PersistentEntityStoreConfig} instance
-     */
-    @NotNull
-    PersistentEntityStoreConfig getConfig();
-
-    /**
-     * {@linkplain MultiThreadDelegatingJobProcessor Job processor} used by the {@code PersistentEntityStore} for
-     * background caching activities. Allows to indirectly estimate load of the {@code PersistentEntityStore}. E.g.,
-     * if it has numerous {@linkplain JobProcessor#pendingJobs() pending caching jobs} (say, thousands) then most
-     * likely caching doesn't work well and the {@code PersistentEntityStore} looks overloaded.
-     *
-     * @return job processor used for background caching activities
-     */
-    @NotNull
-    MultiThreadDelegatingJobProcessor getAsyncProcessor();
-
-    /**
-     * {@linkplain MultiThreadDelegatingJobProcessor Job processor} used by the {@code PersistentEntityStore} for
-     * background counts (inconsistent) caching activities. Allows to indirectly estimate load of the {@code PersistentEntityStore}. E.g.,
-     * if it has numerous {@linkplain JobProcessor#pendingJobs() pending caching jobs} (say, thousands) then most
-     * likely caching doesn't work well and the {@code PersistentEntityStore} looks overloaded.
-     *
-     * @return job processor used for background caching activities
-     */
-    @NotNull
-    MultiThreadDelegatingJobProcessor getCountsAsyncProcessor();
-
-    /**
-     * @return statistics of this {@code PersistentEntityStore} instance
-     * @see PersistentEntityStoreConfig#GATHER_STATISTICS
-     */
-    @NotNull
-    Statistics getStatistics();
 
     @NotNull
     StoreTransaction getAndCheckCurrentTransaction();
