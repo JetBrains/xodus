@@ -19,17 +19,16 @@ import com.orientechnologies.orient.core.command.OCommandOutputListener
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
 import com.orientechnologies.orient.core.db.ODatabaseType
+import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.tool.ODatabaseExport
 import com.orientechnologies.orient.core.db.tool.ODatabaseImport
 import mu.KLogging
 import java.io.File
 
 class ODatabaseCompacter(
+    private val db: OrientDB,
     private val dbProvider: ODatabaseProvider,
-    private val databaseType: ODatabaseType,
-    private val databaseName: String,
-    private val userName: String,
-    private val password: String,
+    private val config: ODatabaseConfig
 ) {
     companion object : KLogging()
 
@@ -49,9 +48,9 @@ class ODatabaseCompacter(
         }
 
         logger.info("Dropping existing database...")
-        dbProvider.database.drop(databaseName)
+        db.drop(config.databaseName)
 
-        dbProvider.database.create(databaseName, databaseType, userName, password, "admin")
+        db.create(config.databaseName, config.databaseType, config.userName, config.password, "admin")
 
         dbProvider.withSession { session ->
             logger.info("Importing database from dump")

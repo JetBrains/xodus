@@ -15,13 +15,15 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
+import kotlin.streams.asSequence
 
 interface ODatabaseProvider {
     val databaseLocation: String
-    val database: OrientDB
     fun acquireSession(): ODatabaseSession
 
     /**
@@ -87,4 +89,19 @@ internal fun requireNoActiveSession() {
 internal fun hasActiveSession(): Boolean {
     val db = ODatabaseRecordThreadLocal.instance().getIfDefined()
     return db != null
+}
+
+fun initOrientDbServer(config: ODatabaseConfig): OrientDB {
+    val orientConfig = OrientDBConfigBuilder().apply {
+        addConfig(OGlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
+        addConfig(OGlobalConfiguration.AUTO_CLOSE_DELAY, config.closeAfterDelayTimeout)
+        addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
+    }.build()
+    val dbType = config.databaseType.name.lowercase()
+    val db = OrientDB("$dbType:${config.databaseRoot}", orientConfig)
+    try {
+        db.execute("create system user admin identified by :pass role root", mapOf("pass" to config.password))
+    } catch (_: com.orientechnologies.orient.core.storage.ORecordDuplicatedException) {
+    }
+    return db
 }

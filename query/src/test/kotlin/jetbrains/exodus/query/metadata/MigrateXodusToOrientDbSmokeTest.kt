@@ -46,10 +46,18 @@ class MigrateXodusToOrientDbSmokeTest {
         // create the database
         val builder = OrientDBConfig.builder()
         builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-        val db = OrientDB(url, builder.build())
+        val config = ODatabaseConfig.builder()
+            .withDatabaseName("MEMORY")
+            .withPassword(password)
+            .withUserName(username)
+            .withDatabaseType(ODatabaseType.MEMORY)
+            .withDatabaseRoot("")
+            .build()
+
+        val db = initOrientDbServer(config)
         db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
         // create a provider
-        val dbProvider = ODatabaseProviderImpl(db, dbName, username, password, ODatabaseType.MEMORY)
+        val dbProvider = ODatabaseProviderImpl(config, db)
 
         // 1.2 Create OModelMetadata
         // it is important to disable autoInitialize for the schemaBuddy,

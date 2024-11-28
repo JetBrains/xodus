@@ -20,11 +20,14 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
+import jetbrains.exodus.crypto.toByteArray
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
 import jetbrains.exodus.entitystore.orientdb.testutil.Projects.Links.HAS_ISSUE
 import org.junit.rules.ExternalResource
+import java.util.Base64
+import java.util.UUID
 
 class InMemoryOrientDB(
     private val initializeIssueSchema: Boolean = true,
@@ -43,12 +46,18 @@ class InMemoryOrientDB(
     val dbName = "testDB"
 
     override fun before() {
+        val config = ODatabaseConfig.builder()
+            .withPassword(password)
+            .withUserName(username)
+            .withDatabaseType(ODatabaseType.MEMORY)
+            .withDatabaseName(dbName)
+            .withDatabaseRoot("")
+            .build()
         val builder = OrientDBConfig.builder()
         builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-
-        db = OrientDB("memory", builder.build())
-        db.execute("create database $dbName MEMORY users ( $username identified by '$password' role admin )")
-        provider = ODatabaseProviderImpl(database, dbName, username, password, ODatabaseType.MEMORY)
+        db = initOrientDbServer(config)
+        db.execute("create database $dbName MEMORY")
+        provider = ODatabaseProviderImpl(config, db)
 
         if (initializeIssueSchema) {
             provider.withSession { session ->
