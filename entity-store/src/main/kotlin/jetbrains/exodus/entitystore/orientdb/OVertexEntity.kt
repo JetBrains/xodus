@@ -169,10 +169,12 @@ open class OVertexEntity(vertex: OVertex, private val store: OEntityStore) : OEn
 
         if (value is OComparableSet<*> || oldProperty is MutableSet<*>) {
             return setPropertyAsSet(propertyName, value as OComparableSet<*>)
+        } else if (oldProperty == value) {
+            return false
         } else {
             vertex.setProperty(propertyName, value)
             vertex.save<OVertex>()
-            return oldProperty?.equals(value) != true
+            return true
         }
     }
 

@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.common.concur.lock.OModificationOperationProhibitedException
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
 import com.orientechnologies.orient.core.exception.ORecordNotFoundException
@@ -30,6 +31,7 @@ import jetbrains.exodus.entitystore.orientdb.iterate.OEntityOfTypeIterable
 import jetbrains.exodus.entitystore.orientdb.iterate.link.*
 import jetbrains.exodus.entitystore.orientdb.iterate.property.*
 import jetbrains.exodus.entitystore.orientdb.query.OQueryCancellingPolicy
+import jetbrains.exodus.env.ReadonlyTransactionException
 
 internal typealias TransactionEventHandler = (ODatabaseSession, OStoreTransaction) -> Unit
 
@@ -153,6 +155,8 @@ class OStoreTransactionImpl(
         try {
             session.commit()
             session.begin()
+        } catch (_: OModificationOperationProhibitedException) {
+            throw ReadonlyTransactionException()
         } finally {
             cleanUpTxIfNeeded()
         }
