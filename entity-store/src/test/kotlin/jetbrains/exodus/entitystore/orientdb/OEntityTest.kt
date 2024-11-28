@@ -635,6 +635,19 @@ class OEntityTest: OTestMixin {
     }
 
     @Test
+    fun `setProperty and setBlobString returns false in case of equal values`(){
+        val iss = orientDb.createIssue("trista")
+        withStoreTx { tx ->
+            iss.setProperty("test", 1)
+            iss.setBlobString("blobString", "hello")
+        }
+        withStoreTx { tx ->
+            assertEquals(false, iss.setProperty("test", 1))
+            assertEquals(false, iss.setBlobString("blobString", "hello"))
+        }
+    }
+
+    @Test
     fun `add new link types in a transaction`() {
         withStoreTx { tx ->
             val iss1 = tx.createIssue("iss1")
