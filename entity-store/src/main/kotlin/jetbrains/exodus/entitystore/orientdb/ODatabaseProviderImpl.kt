@@ -19,7 +19,7 @@ import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
-import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
+import java.io.File
 
 //username and password are considered to be same for all databases
 //todo this params also should be collected in some config entity
@@ -59,7 +59,7 @@ class ODatabaseProviderImpl(
     }
 
     override val databaseLocation: String
-        get() = database.accessInternal.basePath
+        get() = File(config.databaseRoot, config.databaseName).absolutePath
 
     override fun acquireSession(): ODatabaseSession {
         return acquireSessionImpl(true)

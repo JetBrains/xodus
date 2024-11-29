@@ -26,8 +26,10 @@ import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
 import jetbrains.exodus.entitystore.orientdb.testutil.Projects.Links.HAS_ISSUE
 import org.junit.rules.ExternalResource
+import java.nio.file.Files
 import java.util.Base64
 import java.util.UUID
+import kotlin.io.path.absolutePathString
 
 class InMemoryOrientDB(
     private val initializeIssueSchema: Boolean = true,
@@ -51,12 +53,11 @@ class InMemoryOrientDB(
             .withUserName(username)
             .withDatabaseType(ODatabaseType.MEMORY)
             .withDatabaseName(dbName)
-            .withDatabaseRoot("")
+            .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test").absolutePathString())
             .build()
         val builder = OrientDBConfig.builder()
         builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
         db = initOrientDbServer(config)
-        db.execute("create database $dbName MEMORY")
         provider = ODatabaseProviderImpl(config, db)
 
         if (initializeIssueSchema) {

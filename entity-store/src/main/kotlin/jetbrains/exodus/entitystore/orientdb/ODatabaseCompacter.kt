@@ -35,6 +35,7 @@ class ODatabaseCompacter(
     fun compactDatabase() {
         val databaseLocation = File(dbProvider.databaseLocation)
         val backupFile = File(databaseLocation, "temp${System.currentTimeMillis()}")
+        backupFile.parentFile.mkdirs()
         val listener = OCommandOutputListener { iText -> logger.info("Compacting database: $iText") }
 
         dbProvider.withSession { session ->
@@ -50,7 +51,7 @@ class ODatabaseCompacter(
         logger.info("Dropping existing database...")
         db.drop(config.databaseName)
 
-        db.create(config.databaseName, config.databaseType, config.userName, config.password, "admin")
+        db.create(config.databaseName, config.databaseType)
 
         dbProvider.withSession { session ->
             logger.info("Importing database from dump")
