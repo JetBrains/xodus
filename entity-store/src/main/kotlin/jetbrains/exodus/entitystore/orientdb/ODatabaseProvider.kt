@@ -97,10 +97,13 @@ fun initOrientDbServer(config: ODatabaseConfig): OrientDB {
         addConfig(OGlobalConfiguration.AUTO_CLOSE_DELAY, config.closeAfterDelayTimeout)
         addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
     }.build()
+    require(config.userName.matches(Regex("^[a-zA-Z0-9]*$")))
     val dbType = config.databaseType.name.lowercase()
     val db = OrientDB("$dbType:${config.databaseRoot}", orientConfig)
     try {
-        db.execute("create system user admin identified by :pass role root", mapOf("pass" to config.password))
+        db.execute("create system user ${config.userName} identified by :pass role root", mapOf(
+            "pass" to config.password,
+        ))
     } catch (_: com.orientechnologies.orient.core.storage.ORecordDuplicatedException) {
     }
     return db
