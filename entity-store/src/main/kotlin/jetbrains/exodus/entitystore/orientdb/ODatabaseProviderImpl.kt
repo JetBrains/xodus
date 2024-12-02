@@ -18,8 +18,10 @@ package jetbrains.exodus.entitystore.orientdb
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
 import java.io.File
+import java.util.Base64
 
 //username and password are considered to be same for all databases
 //todo this params also should be collected in some config entity
@@ -27,13 +29,14 @@ class ODatabaseProviderImpl(
     private val config: ODatabaseConfig,
     private val database: OrientDB
 ) : ODatabaseProvider {
+    private val orientConfig: OrientDBConfig
 
     init {
-        val orientConfig = OrientDBConfigBuilder().apply {
+        orientConfig = OrientDBConfigBuilder().apply {
             addConfig(OGlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
             addConfig(OGlobalConfiguration.AUTO_CLOSE_DELAY, config.closeAfterDelayTimeout)
             config.cipherKey?.let {
-                addConfig(OGlobalConfiguration.STORAGE_ENCRYPTION_KEY, it)
+                addConfig(OGlobalConfiguration.STORAGE_ENCRYPTION_KEY, Base64.getEncoder().encodeToString(it))
             }
             config.tweakConfig(this)
         }.build()
@@ -102,11 +105,11 @@ class ODatabaseProviderImpl(
         if (checkNoActiveSession) {
             requireNoActiveSession()
         }
-        return database.cachedPool(config.databaseName, config.userName, config.password).acquire()
+        return database.cachedPool(config.databaseName, config.userName, config.password, orientConfig).acquire()
     }
 
     override fun close() {
-        // Orient cannot close the database if it is read-only (frozen)
+        // OxygenDB cannot close the database if it is read-only (frozen)
         readOnly = false
         database.close()
     }

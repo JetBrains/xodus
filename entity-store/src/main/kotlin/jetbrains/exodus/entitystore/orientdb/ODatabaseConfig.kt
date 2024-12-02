@@ -18,7 +18,7 @@ class ODatabaseConfig private constructor(
             return Builder()
         }
     }
-
+    @Suppress("unused")
     class Builder internal constructor() {
         var databaseName: String = ""
         var databaseRoot: String = ""
@@ -38,11 +38,30 @@ class ODatabaseConfig private constructor(
             apply { this.closeAfterDelayTimeout = closeAfterDelayTimeout }
 
         fun withCipherKey(cipherKey: ByteArray?) = apply { this.cipherKey = cipherKey }
+        fun withStringHexAndIV(key: String, IV: Long) = apply {
+            require(cipherKey == null) { "Cipher is already initialized" }
+            cipherKey = hexStringToByteArray(key) + longToByteArray(IV)
+        }
         fun tweakConfig(tweakConfig: OrientDBConfigBuilder.() -> Unit) = apply { this.tweakConfig = tweakConfig }
 
         fun build() = ODatabaseConfig(
             databaseRoot, databaseName, userName, password, databaseType,
             closeAfterDelayTimeout, cipherKey, tweakConfig
         )
+    }
+}
+
+private fun hexStringToByteArray(hexString: String): ByteArray {
+    require(hexString.length % 2 == 0) { "Hex string must have an even length" }
+
+    return ByteArray(hexString.length / 2) { i ->
+        val index = i * 2
+        ((Character.digit(hexString[index], 16) shl 4) + Character.digit(hexString[index + 1], 16)).toByte()
+    }
+}
+
+private fun longToByteArray(value: Long): ByteArray {
+    return ByteArray(8) { i ->
+        (value shr (i * 8) and 0xFF).toByte()
     }
 }
