@@ -69,8 +69,7 @@ class EncryptedDBTest {
                 vertex.save<OVertex>()
             }
         }
-        Orient.instance().shutdown()
-        Orient.instance().startup()
+        db.close()
         db = initOrientDbServer(config)
         provider = ODatabaseProviderImpl(config, db)
         provider.withSession { session ->
@@ -79,8 +78,7 @@ class EncryptedDBTest {
                 Assert.assertEquals(1, vertex.size)
             }
         }
-        Orient.instance().shutdown()
-        Orient.instance().startup()
+        db.close()
         db = initOrientDbServer(config)
         try {
             ODatabaseProviderImpl(noEncryptionConfig, db).apply {
