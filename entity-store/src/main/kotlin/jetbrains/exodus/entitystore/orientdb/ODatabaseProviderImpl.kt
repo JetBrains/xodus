@@ -16,41 +16,53 @@
 package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.db.*
-import com.orientechnologies.orient.core.db.OrientDbInternalAccessor.accessInternal
+import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.OrientDB
+import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
+import java.io.File
+import java.util.Base64
 
+//username and password are considered to be same for all databases
 //todo this params also should be collected in some config entity
 class ODatabaseProviderImpl(
-    override val database: OrientDB,
-    private val databaseName: String,
-    private val userName: String,
-    private val password: String,
-    private val databaseType: ODatabaseType,
-    private val closeAfterDelayTimeout: Int = 10,
-    private val tweakConfig: OrientDBConfig.() -> Unit = {}
+    private val config: ODatabaseConfig,
+    private val database: OrientDB
 ) : ODatabaseProvider {
-
-    private val config: OrientDBConfig
+    private val orientConfig: OrientDBConfig
 
     init {
-        config = OrientDBConfigBuilder().build().apply {
-            configurations.setValue(OGlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
-            configurations.setValue(OGlobalConfiguration.AUTO_CLOSE_DELAY, closeAfterDelayTimeout)
-            tweakConfig()
-        }
+        orientConfig = OrientDBConfigBuilder().apply {
+            addConfig(OGlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
+            addConfig(OGlobalConfiguration.AUTO_CLOSE_DELAY, config.closeAfterDelayTimeout)
+            config.cipherKey?.let {
+                addConfig(OGlobalConfiguration.STORAGE_ENCRYPTION_KEY, Base64.getEncoder().encodeToString(it))
+            }
+            config.tweakConfig(this)
+        }.build()
+
+        database.createIfNotExists(
+            config.databaseName,
+            config.databaseType,
+            orientConfig
+        )
+
         //todo migrate to some config entity instead of System props
         if (System.getProperty("exodus.env.compactOnOpen", "false").toBoolean()) {
             compact()
         }
-
     }
 
     fun compact() {
-        ODatabaseCompacter(this, databaseType, databaseName, userName, password).compactDatabase()
+        ODatabaseCompacter(
+            database,
+            this,
+            config
+        ).compactDatabase()
     }
 
     override val databaseLocation: String
-        get() = database.accessInternal.basePath
+        get() = File(config.databaseRoot, config.databaseName).absolutePath
 
     override fun acquireSession(): ODatabaseSession {
         return acquireSessionImpl(true)
@@ -93,11 +105,11 @@ class ODatabaseProviderImpl(
         if (checkNoActiveSession) {
             requireNoActiveSession()
         }
-        return database.cachedPool(databaseName, userName, password).acquire()
+        return database.cachedPool(config.databaseName, config.userName, config.password, orientConfig).acquire()
     }
 
     override fun close() {
-        // Orient cannot close the database if it is read-only (frozen)
+        // OxygenDB cannot close the database if it is read-only (frozen)
         readOnly = false
         database.close()
     }

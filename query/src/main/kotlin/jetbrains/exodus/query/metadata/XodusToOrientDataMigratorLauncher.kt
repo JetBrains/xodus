@@ -20,9 +20,11 @@ import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
 import jetbrains.exodus.entitystore.PersistentEntityStores
+import jetbrains.exodus.entitystore.orientdb.ODatabaseConfig
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
 import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
+import jetbrains.exodus.entitystore.orientdb.initOrientDbServer
 import jetbrains.exodus.entitystore.orientdb.withSession
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
@@ -67,16 +69,24 @@ class XodusToOrientDataMigratorLauncher(
                 require(dir.list()?.isEmpty() == true) { "The provided OrientDB directory is not empty. Sorry, pal, it was a good try. Try to find an empty directory." }
             }
         }
+        val config = ODatabaseConfig.builder()
+            .withPassword(orient.password)
+            .withDatabaseName(orient.dbName)
+            .withUserName(orient.username)
+            .withDatabaseType(ODatabaseType.MEMORY)
+            .withDatabaseRoot("")
+            .build()
+
         val builder = OrientDBConfig.builder()
         builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-        val db = OrientDB(orient.url, builder.build())
+        val db = initOrientDbServer(config)
         if (orient.databaseType == ODatabaseType.MEMORY) {
             db.execute("create database ${orient.dbName} MEMORY users ( ${orient.username} identified by '${orient.password}' role admin )")
         } else {
             db.create(orient.dbName, orient.databaseType, orient.username, orient.password, "admin")
         }
         // create a provider
-        val dbProvider = ODatabaseProviderImpl(db, orient.dbName, orient.username, orient.password, orient.databaseType)
+        val dbProvider = ODatabaseProviderImpl(config, db)
 
         // 1.2 Create OModelMetadata
         // it is important to disable autoInitialize for the schemaBuddy,
