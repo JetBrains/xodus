@@ -15,17 +15,9 @@
  */
 package jetbrains.exodus.query.metadata
 
-import com.orientechnologies.orient.core.config.OGlobalConfiguration
-import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
 import jetbrains.exodus.entitystore.PersistentEntityStores
-import jetbrains.exodus.entitystore.orientdb.ODatabaseConfig
-import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
-import jetbrains.exodus.entitystore.orientdb.OPersistentEntityStore
-import jetbrains.exodus.entitystore.orientdb.OSchemaBuddyImpl
-import jetbrains.exodus.entitystore.orientdb.initOrientDbServer
-import jetbrains.exodus.entitystore.orientdb.withSession
+import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.newEnvironmentConfig
 import mu.KotlinLogging
@@ -34,12 +26,13 @@ import kotlin.time.measureTimedValue
 
 private val log = KotlinLogging.logger { }
 
+val VERTEX_CLASSES_TO_SKIP_MIGRATION = 10
+
 data class MigrateToOrientConfig(
-    val databaseType: ODatabaseType,
-    val url: String,
-    val dbName: String,
-    val username: String,
-    val password: String,
+    val databaseProvider: ODatabaseProvider,
+    val db: OrientDB,
+    val orientConfig: ODatabaseConfig,
+    val closeOnFinish: Boolean = false
 )
 
 data class MigrateFromXodusConfig(
@@ -57,36 +50,27 @@ class XodusToOrientDataMigratorLauncher(
     val entitiesPerTransaction: Int,
 ) {
     fun migrate() {
-        // 1. Where we migrate the data to
-
-        // 1.1 Create ODatabaseProvider
-        // create the database
-        log.info { "1. Initialize OrientDB" }
-        if (orient.databaseType != ODatabaseType.MEMORY) {
-            val dir = File(orient.url.removePrefix("plocal:"))
-            if (dir.exists()) {
-                require(dir.list() != null) { "The provided OrientDB directory is not a directory. That is a bald move, man!" }
-                require(dir.list()?.isEmpty() == true) { "The provided OrientDB directory is not empty. Sorry, pal, it was a good try. Try to find an empty directory." }
-            }
+        // 0. Check if migration is already done
+        // 0.0 No xodus directory or empty one -> no migration needed
+        val xodusDir = File(xodus.databaseDirectory)
+        if (!xodusDir.exists() || !xodusDir.isDirectory || xodusDir.list() == null || xodusDir.list()
+                ?.isEmpty() == true || xodusDir.list { _, name -> name.endsWith(".xd", true) }
+                ?.isEmpty() == true
+        ) {
+            log.info { "No xodus database found, migration not needed" }
+            return
         }
-        val config = ODatabaseConfig.builder()
-            .withPassword(orient.password)
-            .withDatabaseName(orient.dbName)
-            .withUserName(orient.username)
-            .withDatabaseType(ODatabaseType.MEMORY)
-            .withDatabaseRoot("")
-            .build()
+        // 0.1 Orient database is already provided we can check already created tables in DB
+        val dbProvider = orient.databaseProvider
 
-        val builder = OrientDBConfig.builder()
-        builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-        val db = initOrientDbServer(config)
-        if (orient.databaseType == ODatabaseType.MEMORY) {
-            db.execute("create database ${orient.dbName} MEMORY users ( ${orient.username} identified by '${orient.password}' role admin )")
-        } else {
-            db.create(orient.dbName, orient.databaseType, orient.username, orient.password, "admin")
+        val dbName = orient.orientConfig.databaseName
+        val classesCount = dbProvider.withSession {
+            it.metadata.schema.classes.filter { !it.name.startsWith("O") }.size
         }
-        // create a provider
-        val dbProvider = ODatabaseProviderImpl(config, db)
+        if (classesCount > VERTEX_CLASSES_TO_SKIP_MIGRATION){
+            log.info { "There are already $classesCount classes in the database so it's considered as migrated" }
+            return
+        }
 
         // 1.2 Create OModelMetadata
         // it is important to disable autoInitialize for the schemaBuddy,
@@ -97,7 +81,7 @@ class XodusToOrientDataMigratorLauncher(
         // 1.3 Create OPersistentEntityStore
         // it is important to pass the oModelMetadata to the entityStore as schemaBuddy.
         // it (oModelMetadata) must handle all the schema-related logic.
-        val oEntityStore = OPersistentEntityStore(dbProvider, orient.dbName, schemaBuddy = oModelMetadata)
+        val oEntityStore = OPersistentEntityStore(dbProvider, dbName, schemaBuddy = oModelMetadata)
 
         // 1.4 Create TransientEntityStore
         // val oTransientEntityStore = TransientEntityStoreImpl(oModelMetadata, oEntityStore)
@@ -110,6 +94,7 @@ class XodusToOrientDataMigratorLauncher(
         val env = Environments.newInstance(xodus.databaseDirectory, newEnvironmentConfig {
             isLogProceedDataRestoredAtAnyCost = true
             if (xodus.cipherKey != null) {
+                setCipherId("jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider")
                 setCipherKey(xodus.cipherKey)
                 cipherBasicIV = xodus.cipherIV
             } else {
@@ -126,7 +111,13 @@ class XodusToOrientDataMigratorLauncher(
 
             // 3. Migrate the data
             val (migrateDataStats, migrateDataDuration) = measureTimedValue {
-                migrateDataFromXodusToOrientDb(xEntityStore, oEntityStore, dbProvider, oModelMetadata, entitiesPerTransaction)
+                migrateDataFromXodusToOrientDb(
+                    xEntityStore,
+                    oEntityStore,
+                    dbProvider,
+                    oModelMetadata,
+                    entitiesPerTransaction
+                )
             }
             dbProvider.withSession {
                 schemaBuddy.initialize(it)
@@ -150,17 +141,29 @@ class XodusToOrientDataMigratorLauncher(
                 Data Migration stats
                     total duration: $migrateDataDuration
                         entity classes: $entityClasses
-                        create entity classes duration: $createEntityClassesDuration ${percent(createEntityClassesDuration / migrateDataDuration)}
+                        create entity classes duration: $createEntityClassesDuration ${
+                        percent(
+                            createEntityClassesDuration / migrateDataDuration
+                        )
+                    }
                         
                         entities: $entities
                         properties: $properties
                         blobs: $blobs
                         transactions: $copyEntitiesPropertiesAndBlobsTransactions
-                        copy entities properties and blobs duration: $copyEntitiesPropertiesAndBlobsDuration ${percent(copyEntitiesPropertiesAndBlobsDuration / migrateDataDuration)}
+                        copy entities properties and blobs duration: $copyEntitiesPropertiesAndBlobsDuration ${
+                        percent(
+                            copyEntitiesPropertiesAndBlobsDuration / migrateDataDuration
+                        )
+                    }
                             create entities duration: $createEntitiesDuration ${percent(createEntitiesDuration / copyEntitiesPropertiesAndBlobsDuration)}
                             copy properties duration: $copyPropertiesDuration ${percent(copyPropertiesDuration / copyEntitiesPropertiesAndBlobsDuration)}
                             copy blobs duration: $copyBlobsDuration ${percent(copyBlobsDuration / copyEntitiesPropertiesAndBlobsDuration)}
-                            commits duration: $commitEntitiesPropertiesAndBlobsDuration ${percent(commitEntitiesPropertiesAndBlobsDuration / copyEntitiesPropertiesAndBlobsDuration)}
+                            commits duration: $commitEntitiesPropertiesAndBlobsDuration ${
+                        percent(
+                            commitEntitiesPropertiesAndBlobsDuration / copyEntitiesPropertiesAndBlobsDuration
+                        )
+                    }
                             single commit duration: ${commitEntitiesPropertiesAndBlobsDuration / copyEntitiesPropertiesAndBlobsTransactions.toInt()}
 
                         edge classes: $edgeClasses
@@ -179,17 +182,27 @@ class XodusToOrientDataMigratorLauncher(
 
             if (checkDataStats != null) {
                 with(checkDataStats) {
-                    log.info { """
+                    log.info {
+                        """
                         Validation data stats
                             total duration: $validateDataDuration
-                                check entity types duration: $checkEntityTypesDuration ${percent(checkEntityTypesDuration / validateDataDuration)}
+                                check entity types duration: $checkEntityTypesDuration ${
+                            percent(
+                                checkEntityTypesDuration / validateDataDuration
+                            )
+                        }
                                 
                                 check entities duration: $checkEntitiesDuration ${percent(checkEntitiesDuration / validateDataDuration)}
                                     find entities duration:  $findEntitiesDuration ${percent(findEntitiesDuration / checkEntitiesDuration)}
-                                    check properties duration: $checkPropertiesDuration ${percent(checkPropertiesDuration / checkEntitiesDuration)}
+                                    check properties duration: $checkPropertiesDuration ${
+                            percent(
+                                checkPropertiesDuration / checkEntitiesDuration
+                            )
+                        }
                                     check blobs duration: $checkBlobsDuration ${percent(checkBlobsDuration / checkEntitiesDuration)}
                                     check links duration: $checkLinksDuration ${percent(checkLinksDuration / checkEntitiesDuration)}
-                    """.trimIndent() }
+                    """.trimIndent()
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -197,7 +210,9 @@ class XodusToOrientDataMigratorLauncher(
         } finally {
             // cleanup
             xEntityStore.close()
-            db.close()
+            if (orient.closeOnFinish) {
+                orient.db.close()
+            }
         }
     }
 }

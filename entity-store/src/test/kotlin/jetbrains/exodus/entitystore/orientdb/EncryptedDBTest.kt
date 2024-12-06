@@ -70,6 +70,7 @@ class EncryptedDBTest {
             }
         }
         db.close()
+        Thread.sleep(1000)
         db = initOrientDbServer(config)
         provider = ODatabaseProviderImpl(config, db)
         provider.withSession { session ->
@@ -79,6 +80,7 @@ class EncryptedDBTest {
             }
         }
         db.close()
+        Thread.sleep(1000)
         db = initOrientDbServer(config)
         try {
             ODatabaseProviderImpl(noEncryptionConfig, db).apply {
