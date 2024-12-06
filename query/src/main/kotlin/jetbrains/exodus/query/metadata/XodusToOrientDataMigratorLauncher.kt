@@ -94,6 +94,7 @@ class XodusToOrientDataMigratorLauncher(
         val env = Environments.newInstance(xodus.databaseDirectory, newEnvironmentConfig {
             isLogProceedDataRestoredAtAnyCost = true
             if (xodus.cipherKey != null) {
+                setCipherId("jetbrains.exodus.crypto.streamciphers.JBChaChaStreamCipherProvider")
                 setCipherKey(xodus.cipherKey)
                 cipherBasicIV = xodus.cipherIV
             } else {
