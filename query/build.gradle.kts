@@ -5,6 +5,7 @@ dependencies {
     api(project(":xodus-openAPI"))
     implementation("com.github.penemue:keap:0.3.0")
     implementation(project(":xodus-environment"))
+    implementation("commons-io:commons-io:2.15.1")
     implementation(libs.slf4j.simple)
 
     testImplementation(project(":xodus-utils", "testArtifacts"))

@@ -32,7 +32,7 @@ dependencyResolutionManagement {
             version("commons-lang", "3.12.0")
             version("commons-compress", "1.22")
             version("bouncyCastle", "1.70")
-            version("commons-io", "2.11.0")
+            version("commons-io", "2.15.1")
             version("lucene", "8.10.0")
             version("fastutil", "8.5.12")
 
