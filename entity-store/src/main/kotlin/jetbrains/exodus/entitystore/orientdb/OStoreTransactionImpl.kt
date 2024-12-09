@@ -19,6 +19,7 @@ import com.orientechnologies.common.concur.lock.OModificationOperationProhibited
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.ODatabaseSessionInternal
 import com.orientechnologies.orient.core.exception.ORecordNotFoundException
+import com.orientechnologies.orient.core.id.OEmptyRecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.record.ORecord
@@ -444,7 +445,12 @@ class OStoreTransactionImpl(
     override fun toEntityId(representation: String): EntityId {
         requireActiveTransaction()
         val legacyId = PersistentEntityId.toEntityId(representation)
-        return store.requireOEntityId(legacyId)
+        val oEntityId = store.requireOEntityId(legacyId)
+        return if (oEntityId == ORIDEntityId.EMPTY_ID) {
+            ORIDEntityId(legacyId.typeId, legacyId.localId, OEmptyRecordId(), null)
+        } else {
+            oEntityId
+        }
     }
 
     override fun getSequence(sequenceName: String): Sequence {
