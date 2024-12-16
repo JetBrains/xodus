@@ -20,7 +20,6 @@ import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
-import kotlin.streams.asSequence
 
 interface ODatabaseProvider {
     val databaseLocation: String
@@ -91,7 +90,7 @@ internal fun hasActiveSession(): Boolean {
     return db != null
 }
 
-fun initOrientDbServer(config: ODatabaseConfig): OrientDB {
+fun initOrientDbServer(config: ODatabaseConnectionConfig): OrientDB {
     val orientConfig = OrientDBConfigBuilder().apply {
         addConfig(OGlobalConfiguration.AUTO_CLOSE_AFTER_DELAY, true)
         addConfig(OGlobalConfiguration.AUTO_CLOSE_DELAY, config.closeAfterDelayTimeout)

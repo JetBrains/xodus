@@ -22,14 +22,20 @@ class ODatabaseConfigTest {
     @Test
     fun `cypher key is trunked to 24 bytes from bigger one`() {
         val key1 = Array(60) { "aa" }.joinToString(separator = "")
-        
-        val cfg = ODatabaseConfig
+
+        val connConfig = ODatabaseConnectionConfig
             .builder()
             .withUserName("testUrl")
             .withDatabaseRoot("testPassword")
+            .withDatabaseRoot("aa")
+            .build()
+
+
+        val cfg = ODatabaseConfig
+            .builder()
+            .withConnectionConfig(connConfig)
             .withStringHexAndIV(key1, 10L)
             .withDatabaseName("aa")
-            .withDatabaseRoot("aa")
             .build()
 
         Assert.assertEquals(24, cfg.cipherKey?.size)
@@ -39,13 +45,18 @@ class ODatabaseConfigTest {
     fun `cypher key is not trunked if key is smaller than 24`() {
         val key1 = "aabbccddaabbccdd"
 
-        val cfg = ODatabaseConfig
-            .builder()
+        val connConfig = ODatabaseConnectionConfig.builder()
             .withUserName("testUrl")
             .withDatabaseRoot("testPassword")
+            .withDatabaseRoot("aa")
+            .build()
+
+        val cfg = ODatabaseConfig
+            .builder()
+            .withConnectionConfig(connConfig)
             .withStringHexAndIV(key1, 10L)
             .withDatabaseName("aa")
-            .withDatabaseRoot("aa")
+
             .build()
 
         Assert.assertEquals(16, cfg.cipherKey?.size)

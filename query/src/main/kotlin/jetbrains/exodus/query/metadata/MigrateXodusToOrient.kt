@@ -17,6 +17,7 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseType
 import jetbrains.exodus.entitystore.orientdb.ODatabaseConfig
+import jetbrains.exodus.entitystore.orientdb.ODatabaseConnectionConfig
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.initOrientDbServer
 
@@ -91,15 +92,18 @@ fun main() {
                 entitiesPerTransaction: $entitiesPerTransaction
         """.trimIndent())
 
-    val config = ODatabaseConfig.builder()
+    val connectionConfig = ODatabaseConnectionConfig.builder()
         .withPassword(orientPassword)
-        .withDatabaseName(orientDatabaseName)
         .withUserName(orientUsername)
-        .withDatabaseType(orientDatabaseType)
         .withDatabaseRoot(orientDatabaseDirectory)
+        .withDatabaseType(orientDatabaseType)
         .build()
 
-    val db = initOrientDbServer(config)
+    val config = ODatabaseConfig.builder()
+        .withDatabaseName(orientDatabaseName)
+        .build()
+
+    val db = initOrientDbServer(connectionConfig)
     // create a provider
     val dbProvider = ODatabaseProviderImpl(config, db)
 

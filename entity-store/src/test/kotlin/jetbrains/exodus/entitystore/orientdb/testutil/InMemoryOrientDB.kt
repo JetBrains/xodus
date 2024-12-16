@@ -20,15 +20,12 @@ import com.orientechnologies.orient.core.db.ODatabaseSession
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
-import jetbrains.exodus.crypto.toByteArray
 import jetbrains.exodus.entitystore.orientdb.*
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.IN_PROJECT
 import jetbrains.exodus.entitystore.orientdb.testutil.Issues.Links.ON_BOARD
 import jetbrains.exodus.entitystore.orientdb.testutil.Projects.Links.HAS_ISSUE
 import org.junit.rules.ExternalResource
 import java.nio.file.Files
-import java.util.Base64
-import java.util.UUID
 import kotlin.io.path.absolutePathString
 
 class InMemoryOrientDB(
@@ -48,16 +45,20 @@ class InMemoryOrientDB(
     val dbName = "testDB"
 
     override fun before() {
-        val config = ODatabaseConfig.builder()
+        val connConfig = ODatabaseConnectionConfig.builder()
+            .withDatabaseType(ODatabaseType.MEMORY)
+            .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test").absolutePathString())
             .withPassword(password)
             .withUserName(username)
-            .withDatabaseType(ODatabaseType.MEMORY)
+            .build()
+
+        val config = ODatabaseConfig.builder()
+            .withConnectionConfig(connConfig)
             .withDatabaseName(dbName)
-            .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test").absolutePathString())
             .build()
         val builder = OrientDBConfig.builder()
         builder.addConfig(OGlobalConfiguration.NON_TX_READS_WARNING_MODE, "SILENT")
-        db = initOrientDbServer(config)
+        db = initOrientDbServer(connConfig)
         provider = ODatabaseProviderImpl(config, db)
 
         if (initializeIssueSchema) {

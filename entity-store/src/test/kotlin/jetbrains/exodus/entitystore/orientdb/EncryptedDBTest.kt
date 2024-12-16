@@ -39,12 +39,17 @@ class EncryptedDBTest {
         val username = "admin"
         val dbName = "test"
 
-        return ODatabaseConfig.builder()
+        val connConfig = ODatabaseConnectionConfig.builder()
             .withPassword(password)
             .withUserName(username)
             .withDatabaseType(ODatabaseType.PLOCAL)
-            .withDatabaseName(dbName)
             .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test").absolutePathString())
+            .build()
+
+        return ODatabaseConfig.builder()
+            .withConnectionConfig(connConfig)
+            .withDatabaseType(ODatabaseType.PLOCAL)
+            .withDatabaseName(dbName)
             .withCipherKey(key)
             .build()
     }
@@ -57,7 +62,7 @@ class EncryptedDBTest {
         }
         val config = createConfig(cipherKey)
         val noEncryptionConfig = createConfig(null)
-        db = initOrientDbServer(config)
+        db = initOrientDbServer(config.connectionConfig)
         provider = ODatabaseProviderImpl(config, db)
         provider.withSession { session ->
             session.createVertexClass("TEST")
@@ -71,7 +76,7 @@ class EncryptedDBTest {
         }
         db.close()
         Thread.sleep(1000)
-        db = initOrientDbServer(config)
+        db = initOrientDbServer(config.connectionConfig)
         provider = ODatabaseProviderImpl(config, db)
         provider.withSession { session ->
             session.executeInTx {
@@ -81,7 +86,7 @@ class EncryptedDBTest {
         }
         db.close()
         Thread.sleep(1000)
-        db = initOrientDbServer(config)
+        db = initOrientDbServer(config.connectionConfig)
         try {
             ODatabaseProviderImpl(noEncryptionConfig, db).apply {
                 withSession { session ->
