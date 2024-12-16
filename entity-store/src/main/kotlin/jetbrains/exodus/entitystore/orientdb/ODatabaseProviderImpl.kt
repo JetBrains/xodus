@@ -111,6 +111,8 @@ class ODatabaseProviderImpl(
     override fun close() {
         // OxygenDB cannot close the database if it is read-only (frozen)
         readOnly = false
-        database.close()
+        if (config.closeDatabaseInDbProvider){
+            database.close()
+        }
     }
 }

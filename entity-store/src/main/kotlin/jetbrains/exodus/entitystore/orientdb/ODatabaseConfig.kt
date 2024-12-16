@@ -18,6 +18,7 @@ package jetbrains.exodus.entitystore.orientdb
 
 import com.orientechnologies.orient.core.db.ODatabaseType
 import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
+import kotlin.math.min
 
 class ODatabaseConfig private constructor(
     val databaseRoot: String,
@@ -27,6 +28,7 @@ class ODatabaseConfig private constructor(
     val databaseType: ODatabaseType,
     val closeAfterDelayTimeout: Int,
     val cipherKey: ByteArray?,
+    val closeDatabaseInDbProvider: Boolean,
     val tweakConfig: OrientDBConfigBuilder.() -> Unit
 ) {
     companion object {
@@ -37,14 +39,15 @@ class ODatabaseConfig private constructor(
 
     @Suppress("unused")
     class Builder internal constructor() {
-        var databaseName: String = ""
-        var databaseRoot: String = ""
-        var userName: String = ""
-        var password: String = ""
-        var databaseType: ODatabaseType = ODatabaseType.MEMORY
-        var closeAfterDelayTimeout: Int = 10
-        var cipherKey: ByteArray? = null
-        var tweakConfig: OrientDBConfigBuilder.() -> Unit = {}
+        private var databaseName: String = ""
+        private var databaseRoot: String = ""
+        private var userName: String = ""
+        private var password: String = ""
+        private var databaseType: ODatabaseType = ODatabaseType.MEMORY
+        private var closeAfterDelayTimeout: Int = 10
+        private var cipherKey: ByteArray? = null
+        private var closeDatabaseInDbProvider = true
+        private var tweakConfig: OrientDBConfigBuilder.() -> Unit = {}
 
         fun withDatabaseName(databaseName: String) = apply { this.databaseName = databaseName }
         fun withDatabaseRoot(databaseURL: String) = apply { this.databaseRoot = databaseURL }
@@ -54,17 +57,21 @@ class ODatabaseConfig private constructor(
         fun withCloseAfterDelayTimeout(closeAfterDelayTimeout: Int) =
             apply { this.closeAfterDelayTimeout = closeAfterDelayTimeout }
 
+        fun withCloseDatabaseInDbProvider(closeDatabaseInDbProvider: Boolean) =
+            apply { this.closeDatabaseInDbProvider = closeDatabaseInDbProvider }
+
         fun withCipherKey(cipherKey: ByteArray?) = apply { this.cipherKey = cipherKey }
         fun withStringHexAndIV(key: String, IV: Long) = apply {
             require(cipherKey == null) { "Cipher is already initialized" }
-            cipherKey = hexStringToByteArray(key) + longToByteArray(IV)
+            byteArrayOf()
+            cipherKey = hexStringToByteArray(key.substring(0, min(16 * 2, key.length))) + longToByteArray(IV)
         }
 
         fun tweakConfig(tweakConfig: OrientDBConfigBuilder.() -> Unit) = apply { this.tweakConfig = tweakConfig }
 
         fun build() = ODatabaseConfig(
             databaseRoot, databaseName, userName, password, databaseType,
-            closeAfterDelayTimeout, cipherKey, tweakConfig
+            closeAfterDelayTimeout, cipherKey, closeDatabaseInDbProvider, tweakConfig
         )
     }
 }
