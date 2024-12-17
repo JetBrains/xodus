@@ -28,6 +28,7 @@ class WrongUsernameTest {
     fun cannotCreateDatabaseWithWrongUsername() {
         val cfg = ODatabaseConnectionConfig
             .builder()
+            .withPassword("hello")
             .withUserName(";drop database users")
             .withDatabaseType(ODatabaseType.MEMORY)
             .withDatabaseRoot(Files.createTempDirectory("haha").absolutePathString())
