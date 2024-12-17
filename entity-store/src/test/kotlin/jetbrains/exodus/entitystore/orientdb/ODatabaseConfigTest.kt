@@ -26,7 +26,7 @@ class ODatabaseConfigTest {
         val connConfig = ODatabaseConnectionConfig
             .builder()
             .withUserName("testUrl")
-            .withDatabaseRoot("testPassword")
+            .withPassword("testPassword")
             .withDatabaseRoot("aa")
             .build()
 
@@ -47,7 +47,7 @@ class ODatabaseConfigTest {
 
         val connConfig = ODatabaseConnectionConfig.builder()
             .withUserName("testUrl")
-            .withDatabaseRoot("testPassword")
+            .withPassword("testPassword")
             .withDatabaseRoot("aa")
             .build()
 
