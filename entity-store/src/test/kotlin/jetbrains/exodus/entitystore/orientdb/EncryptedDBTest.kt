@@ -25,12 +25,23 @@ import mu.KLogging
 import org.junit.After
 import org.junit.Assert
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import java.lang.AssertionError
 import java.nio.file.Files
 import java.util.*
 import kotlin.io.path.absolutePathString
 
-class EncryptedDBTest {
-    companion object : KLogging()
+@RunWith(Parameterized::class)
+class EncryptedDBTest(val number: Int) {
+    companion object : KLogging() {
+        @JvmStatic
+        @Parameterized.Parameters
+        fun data(): Collection<Array<Any>> {
+            return Arrays.asList<Array<Any>>(*Array(5) { arrayOf(0) }) // Repeat 20 times
+        }
+    }
+
     lateinit var provider: ODatabaseProviderImpl
     lateinit var db: OrientDB
 
@@ -39,12 +50,17 @@ class EncryptedDBTest {
         val username = "admin"
         val dbName = "test"
 
-        return ODatabaseConfig.builder()
+        val connConfig = ODatabaseConnectionConfig.builder()
             .withPassword(password)
             .withUserName(username)
             .withDatabaseType(ODatabaseType.PLOCAL)
+            .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test$number").absolutePathString())
+            .build()
+
+        return ODatabaseConfig.builder()
+            .withConnectionConfig(connConfig)
+            .withDatabaseType(ODatabaseType.PLOCAL)
             .withDatabaseName(dbName)
-            .withDatabaseRoot(Files.createTempDirectory("oxigenDB_test").absolutePathString())
             .withCipherKey(key)
             .build()
     }
@@ -57,11 +73,13 @@ class EncryptedDBTest {
         }
         val config = createConfig(cipherKey)
         val noEncryptionConfig = createConfig(null)
-        db = initOrientDbServer(config)
+        logger.info("Connect to db and create test vertex class")
+        db = initOrientDbServer(config.connectionConfig)
         provider = ODatabaseProviderImpl(config, db)
         provider.withSession { session ->
             session.createVertexClass("TEST")
         }
+        logger.info("Set vertex property")
         provider.withSession { session ->
             session.executeInTx {
                 val vertex = session.newVertex("TEST")
@@ -70,8 +88,10 @@ class EncryptedDBTest {
             }
         }
         db.close()
+        logger.info("Close the DB")
         Thread.sleep(1000)
-        db = initOrientDbServer(config)
+        logger.info("Connect to db one more time and read")
+        db = initOrientDbServer(config.connectionConfig)
         provider = ODatabaseProviderImpl(config, db)
         provider.withSession { session ->
             session.executeInTx {
@@ -79,9 +99,11 @@ class EncryptedDBTest {
                 Assert.assertEquals(1, vertex.size)
             }
         }
+        logger.info("Close the DB")
         db.close()
         Thread.sleep(1000)
-        db = initOrientDbServer(config)
+        logger.info("Connect to db one more time without encryption")
+        db = initOrientDbServer(config.connectionConfig)
         try {
             ODatabaseProviderImpl(noEncryptionConfig, db).apply {
                 withSession { session ->
@@ -94,6 +116,11 @@ class EncryptedDBTest {
             }
         } catch (_: OStorageException) {
             logger.info("As expected DB failed to initialize without key")
+        } catch (e: AssertionError) {
+            logger.info("As expected DB failed to initialize without key")
+        } catch (e: Throwable) {
+            logger.error("DB failed with unexpected error", e)
+            Assert.fail("Wrong error")
         }
     }
 
@@ -101,10 +128,10 @@ class EncryptedDBTest {
     fun close() {
         db.close()
         try {
-            if (!Orient.instance().isActive){
+            if (!Orient.instance().isActive) {
                 Orient.instance().startup()
             }
-        } catch (_: Throwable){
+        } catch (_: Throwable) {
             logger.error("CANNOT REINIT OXIGENDB")
         }
     }

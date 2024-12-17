@@ -21,7 +21,7 @@ import com.orientechnologies.orient.core.db.OrientDB
 import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.orientechnologies.orient.core.db.OrientDBConfigBuilder
 import java.io.File
-import java.util.Base64
+import java.util.*
 
 //username and password are considered to be same for all databases
 //todo this params also should be collected in some config entity
@@ -62,7 +62,7 @@ class ODatabaseProviderImpl(
     }
 
     override val databaseLocation: String
-        get() = File(config.databaseRoot, config.databaseName).absolutePath
+        get() = File(config.connectionConfig.databaseRoot, config.databaseName).absolutePath
 
     override fun acquireSession(): ODatabaseSession {
         return acquireSessionImpl(true)
@@ -105,12 +105,14 @@ class ODatabaseProviderImpl(
         if (checkNoActiveSession) {
             requireNoActiveSession()
         }
-        return database.cachedPool(config.databaseName, config.userName, config.password, orientConfig).acquire()
+        return database.cachedPool(config.databaseName, config.connectionConfig.userName, config.connectionConfig.password, orientConfig).acquire()
     }
 
     override fun close() {
         // OxygenDB cannot close the database if it is read-only (frozen)
         readOnly = false
-        database.close()
+        if (config.closeDatabaseInDbProvider){
+            database.close()
+        }
     }
 }

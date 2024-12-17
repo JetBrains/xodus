@@ -17,6 +17,7 @@ package jetbrains.exodus.query.metadata
 
 import com.orientechnologies.orient.core.db.ODatabaseType
 import jetbrains.exodus.entitystore.orientdb.ODatabaseConfig
+import jetbrains.exodus.entitystore.orientdb.ODatabaseConnectionConfig
 import jetbrains.exodus.entitystore.orientdb.ODatabaseProviderImpl
 import jetbrains.exodus.entitystore.orientdb.initOrientDbServer
 import org.junit.Test
@@ -39,15 +40,18 @@ class MigrateYourDatabaseTest {
     @Ignore
     fun `migrate data from Xodus to OrientDB`() {
 
-        val config = ODatabaseConfig.builder()
+        val connectionConfig = ODatabaseConnectionConfig.builder()
             .withPassword("password")
-            .withDatabaseName("testDB")
             .withUserName("admin")
-            .withDatabaseType(ODatabaseType.MEMORY)
             .withDatabaseRoot("")
+            .withDatabaseType(ODatabaseType.MEMORY)
+            .build()
+        
+        val config = ODatabaseConfig.builder()
+            .withDatabaseName("testDB")
             .build()
 
-        val db = initOrientDbServer(config)
+        val db = initOrientDbServer(connectionConfig)
         val provider = ODatabaseProviderImpl(config, db)
         val launcher = XodusToOrientDataMigratorLauncher(
             orient = MigrateToOrientConfig(
