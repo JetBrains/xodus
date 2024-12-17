@@ -15,6 +15,7 @@
  */
 package jetbrains.exodus.entitystore.orientdb
 
+import com.orientechnologies.orient.core.id.OEmptyRecordId
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
@@ -190,6 +191,41 @@ class OPersistentStoreTest: OTestMixin {
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId1))
             assertEquals(ORIDEntityId.EMPTY_ID, orientDb.store.getOEntityId(partiallyExistingEntityId2))
             assertEquals(issueId, orientDb.store.getOEntityId(totallyExistingEntityId))
+        }
+    }
+
+    @Test
+    fun `toEntityId(presentation) from not existent idString will return OEntityId with correct xodus part and empty orient`() {
+        val issueId = orientDb.createIssue("trista").id
+        val notExistingEntityId = PersistentEntityId(300, 301)
+        val partiallyExistingEntityId1 = PersistentEntityId(issueId.typeId, 301)
+        val partiallyExistingEntityId2 = PersistentEntityId(300, issueId.localId)
+        val totallyExistingEntityId = PersistentEntityId(issueId.typeId, issueId.localId)
+        val empty = OEmptyRecordId()
+        orientDb.store.executeInTransaction { txn->
+            with(txn.toEntityId(notExistingEntityId.toString()) as OEntityId){
+                assertEquals(notExistingEntityId.localId, localId)
+                assertEquals(notExistingEntityId.typeId, typeId)
+                assertEquals(empty.clusterId, asOId().clusterId)
+                assertEquals(empty.clusterPosition, asOId().clusterPosition)
+            }
+            with(txn.toEntityId(partiallyExistingEntityId1.toString()) as OEntityId){
+                assertEquals(partiallyExistingEntityId1.localId, localId)
+                assertEquals(partiallyExistingEntityId1.typeId, typeId)
+                assertEquals(empty.clusterId, asOId().clusterId)
+                assertEquals(empty.clusterPosition, asOId().clusterPosition)
+            }
+            with(txn.toEntityId(partiallyExistingEntityId2.toString()) as OEntityId){
+                assertEquals(partiallyExistingEntityId2.localId, localId)
+                assertEquals(partiallyExistingEntityId2.typeId, typeId)
+                assertEquals(empty.clusterId, asOId().clusterId)
+                assertEquals(empty.clusterPosition, asOId().clusterPosition)
+            }
+            with(txn.toEntityId(totallyExistingEntityId.toString()) as OEntityId){
+                assertEquals(totallyExistingEntityId.localId, localId)
+                assertEquals(totallyExistingEntityId.typeId, typeId)
+                assertEquals(issueId.asOId(), asOId())
+            }
         }
     }
 
