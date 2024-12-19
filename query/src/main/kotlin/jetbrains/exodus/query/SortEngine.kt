@@ -45,7 +45,7 @@ open class SortEngine {
                 }
                 val i = queryEngine.toEntityIterable(source)
                 if (queryEngine.isPersistentIterable(i)) {
-                    val it = (i as OEntityIterableBase).unwrap()
+                    val it = (i as EntityIterable).unwrap()
                     if (it === OEntityIterableBase.EMPTY) {
                         OEntityIterableBase.EMPTY
                     }
